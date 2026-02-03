@@ -13,19 +13,42 @@
 #include <string>
 #include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 
 #if defined(V8_USE_SIPHASH)
-#include "src/third_party/siphash/halfsiphash.h"
+#include "third_party/siphash/halfsiphash.h"
 #endif
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
+
+#include "src/wasm/float16.h"
+#endif
+
+#ifdef _MSC_VER
+// MSVC doesn't define SSE3. However, it does define AVX, and AVX implies SSE3.
+#ifdef __AVX__
+#ifndef __SSE3__
+#define __SSE3__
+#endif
+#endif
+#endif
+
+#ifdef __SSE3__
+#include <pmmintrin.h>
+#endif
+
+#if defined(V8_TARGET_ARCH_ARM64) && \
+    (defined(__ARM_NEON) || defined(__ARM_NEON__))
+#define V8_OPTIMIZE_WITH_NEON
+#include <arm_neon.h>
 #endif
 
 namespace v8 {
@@ -40,7 +63,7 @@ static T ArithmeticShiftRight(T x, int shift) {
   if (x < 0) {
     // Right shift of signed values is implementation defined. Simulate a
     // true arithmetic right shift by adding leading sign bits.
-    using UnsignedT = typename std::make_unsigned<T>::type;
+    using UnsignedT = std::make_unsigned_t<T>;
     UnsignedT mask = ~(static_cast<UnsignedT>(~0) >> shift);
     return (static_cast<UnsignedT>(x) >> shift) | mask;
   } else {
@@ -67,13 +90,14 @@ T JSMin(T x, T y) {
 }
 
 // Returns the absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
-typename std::make_unsigned<T>::type Abs(T a) {
+template <typename T>
+std::make_unsigned_t<T> Abs(T a)
+  requires std::is_signed_v<T>
+{
   // This is a branch-free implementation of the absolute value function and is
   // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
   // behavior with the arithmetic negation operation on signed values as well.
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
   unsignedT x = static_cast<unsignedT>(a);
   unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
   return (x ^ y) - y;
@@ -106,7 +130,7 @@ inline double Modulo(double x, double y) {
 
 template <typename T>
 T SaturateAdd(T a, T b) {
-  if (std::is_signed<T>::value) {
+  if (std::is_signed_v<T>) {
     if (a > 0 && b > 0) {
       if (a > std::numeric_limits<T>::max() - b) {
         return std::numeric_limits<T>::max();
@@ -117,7 +141,7 @@ T SaturateAdd(T a, T b) {
       }
     }
   } else {
-    CHECK(std::is_unsigned<T>::value);
+    CHECK(std::is_unsigned_v<T>);
     if (a > std::numeric_limits<T>::max() - b) {
       return std::numeric_limits<T>::max();
     }
@@ -127,7 +151,7 @@ T SaturateAdd(T a, T b) {
 
 template <typename T>
 T SaturateSub(T a, T b) {
-  if (std::is_signed<T>::value) {
+  if (std::is_signed_v<T>) {
     if (a >= 0 && b < 0) {
       if (a > std::numeric_limits<T>::max() + b) {
         return std::numeric_limits<T>::max();
@@ -138,7 +162,7 @@ T SaturateSub(T a, T b) {
       }
     }
   } else {
-    CHECK(std::is_unsigned<T>::value);
+    CHECK(std::is_unsigned_v<T>);
     if (a < b) {
       return static_cast<T>(0);
     }
@@ -153,7 +177,7 @@ T SaturateRoundingQMul(T a, T b) {
   // Specifically this supports Q7, Q15, and Q31. This follows the
   // implementation in simulator-logic-arm64.cc (sqrdmulh) to avoid overflow
   // when a == b == int32 min.
-  static_assert(std::is_integral<T>::value, "only integral types");
+  static_assert(std::is_integral_v<T>, "only integral types");
 
   constexpr int size_in_bits = sizeof(T) * 8;
   int round_const = 1 << (size_in_bits - 2);
@@ -168,10 +192,9 @@ T SaturateRoundingQMul(T a, T b) {
 // and callers can provide only Wide.
 template <typename Wide, typename Narrow>
 Wide MultiplyLong(Narrow a, Narrow b) {
-  static_assert(
-      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
-      "only integral types");
-  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+  static_assert(std::is_integral_v<Narrow> && std::is_integral_v<Wide>,
+                "only integral types");
+  static_assert(std::is_signed_v<Narrow> == std::is_signed_v<Wide>,
                 "both must have same signedness");
   static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
 
@@ -183,10 +206,9 @@ Wide MultiplyLong(Narrow a, Narrow b) {
 // and callers can provide only Wide.
 template <typename Wide, typename Narrow>
 Wide AddLong(Narrow a, Narrow b) {
-  static_assert(
-      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
-      "only integral types");
-  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+  static_assert(std::is_integral_v<Narrow> && std::is_integral_v<Wide>,
+                "only integral types");
+  static_assert(std::is_signed_v<Narrow> == std::is_signed_v<Wide>,
                 "both must have same signedness");
   static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
 
@@ -195,7 +217,7 @@ Wide AddLong(Narrow a, Narrow b) {
 
 template <typename T>
 inline T RoundingAverageUnsigned(T a, T b) {
-  static_assert(std::is_unsigned<T>::value, "Only for unsiged types");
+  static_assert(std::is_unsigned_v<T>, "Only for unsiged types");
   static_assert(sizeof(T) < sizeof(uint64_t), "Must be smaller than uint64_t");
   return (static_cast<uint64_t>(a) + static_cast<uint64_t>(b) + 1) >> 1;
 }
@@ -222,6 +244,22 @@ inline T RoundingAverageUnsigned(T a, T b) {
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
   };
 
+#define DEFINE_ONE_FIELD_OFFSET_PURE_NAME(CamelName, SIZE, ...) \
+  k##CamelName##Offset,                                         \
+      k##CamelName##Size = (SIZE),                              \
+      k##CamelName##OffsetEnd = k##CamelName##Offset + (SIZE) - 1,
+
+#define DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(StartOffset, LIST_MACRO) \
+  enum {                                                                      \
+    LIST_MACRO##_StartOffset = StartOffset - 1,                               \
+    LIST_MACRO(DEFINE_ONE_FIELD_OFFSET_PURE_NAME)                             \
+  };
+
+// Defines padding field with given names which aligns next field by Alignment
+// bytes, assuming field definition macro V(CamelName, Size, hacker_name).
+#define PADDING_FIELD(Alignment, V, Name, hacker_name) \
+  V(Name, (RoundUp<Alignment>(k##Name##Offset) - k##Name##Offset), hacker_name)
+
 // Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
 #define FIELD_SIZE(Name) (Name##End + 1 - Name)
 
@@ -230,8 +268,6 @@ inline T RoundingAverageUnsigned(T a, T b) {
   static_assert(static_cast<int>(Offset1) == Offset2)
 // ----------------------------------------------------------------------------
 // Hash function.
-
-static const uint64_t kZeroHashSeed = 0;
 
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm`
@@ -316,13 +352,152 @@ class SetOncePointer {
   T* pointer_ = nullptr;
 };
 
+#if defined(__SSE3__)
+
+template <typename Char>
+V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
+                            size_t order) {
+  static_assert(sizeof(Char) == 1);
+  DCHECK_GE(order, 5);
+
+  static constexpr uint16_t kSIMDMatched16Mask = UINT16_MAX;
+  static constexpr uint32_t kSIMDMatched32Mask = UINT32_MAX;
+
+  if (order == 5) {  // count: [17, 32]
+    // Utilize more simd registers for better pipelining.
+    const __m128i lhs128_start =
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
+    const __m128i lhs128_end = _mm_lddqu_si128(
+        reinterpret_cast<const __m128i*>(lhs + count - sizeof(__m128i)));
+    const __m128i rhs128_start =
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
+    const __m128i rhs128_end = _mm_lddqu_si128(
+        reinterpret_cast<const __m128i*>(rhs + count - sizeof(__m128i)));
+    const __m128i res_start = _mm_cmpeq_epi8(lhs128_start, rhs128_start);
+    const __m128i res_end = _mm_cmpeq_epi8(lhs128_end, rhs128_end);
+    const uint32_t res =
+        _mm_movemask_epi8(res_start) << 16 | _mm_movemask_epi8(res_end);
+    return res == kSIMDMatched32Mask;
+  }
+
+  // count: [33, ...]
+  const __m128i lhs128_unrolled =
+      _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
+  const __m128i rhs128_unrolled =
+      _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
+  const __m128i res_unrolled = _mm_cmpeq_epi8(lhs128_unrolled, rhs128_unrolled);
+  const uint16_t res_unrolled_mask = _mm_movemask_epi8(res_unrolled);
+  if (res_unrolled_mask != kSIMDMatched16Mask) return false;
+
+  for (size_t i = count % sizeof(__m128i); i < count; i += sizeof(__m128i)) {
+    const __m128i lhs128 =
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs + i));
+    const __m128i rhs128 =
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs + i));
+    const __m128i res = _mm_cmpeq_epi8(lhs128, rhs128);
+    const uint16_t res_mask = _mm_movemask_epi8(res);
+    if (res_mask != kSIMDMatched16Mask) return false;
+  }
+  return true;
+}
+
+#elif defined(V8_OPTIMIZE_WITH_NEON)
+
+// We intentionally use misaligned read/writes for NEON intrinsics, disable
+// alignment sanitization explicitly.
+template <typename Char>
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
+                                                              const Char* rhs,
+                                                              size_t count,
+                                                              size_t order) {
+  static_assert(sizeof(Char) == 1);
+  DCHECK_GE(order, 5);
+
+  if (order == 5) {  // count: [17, 32]
+    // Utilize more simd registers for better pipelining.
+    const auto lhs0 = vld1q_u8(lhs);
+    const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
+    const auto rhs0 = vld1q_u8(rhs);
+    const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
+    const auto xored0 = veorq_u8(lhs0, rhs0);
+    const auto xored1 = veorq_u8(lhs1, rhs1);
+    const auto ored = vorrq_u8(xored0, xored1);
+    return !static_cast<bool>(
+        vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(ored, ored)), 0));
+  }
+
+  // count: [33, ...]
+  const auto first_lhs0 = vld1q_u8(lhs);
+  const auto first_rhs0 = vld1q_u8(rhs);
+  const auto first_xored = veorq_u8(first_lhs0, first_rhs0);
+  if (static_cast<bool>(vgetq_lane_u64(
+          vreinterpretq_u64_u8(vpmaxq_u8(first_xored, first_xored)), 0))) {
+    return false;
+  }
+  for (size_t i = count % sizeof(uint8x16_t); i < count;
+       i += sizeof(uint8x16_t)) {
+    const auto lhs0 = vld1q_u8(lhs + i);
+    const auto rhs0 = vld1q_u8(rhs + i);
+    const auto xored = veorq_u8(lhs0, rhs0);
+    if (static_cast<bool>(
+            vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
+      return false;
+  }
+  return true;
+}
+
+#endif
+
+template <typename IntType, typename Char>
+V8_CLANG_NO_SANITIZE("alignment")
+V8_INLINE bool OverlappingCompare(const Char* lhs, const Char* rhs,
+                                  size_t count) {
+  static_assert(sizeof(Char) == 1);
+  return *reinterpret_cast<const IntType*>(lhs) ==
+             *reinterpret_cast<const IntType*>(rhs) &&
+         *reinterpret_cast<const IntType*>(lhs + count - sizeof(IntType)) ==
+             *reinterpret_cast<const IntType*>(rhs + count - sizeof(IntType));
+}
+
+template <typename Char>
+V8_CLANG_NO_SANITIZE("alignment")
+V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
+  static_assert(sizeof(Char) == 1);
+  if (count == 0) {
+    return true;
+  }
+  if (count == 1) {
+    return *lhs == *rhs;
+  }
+  const size_t order =
+      sizeof(count) * CHAR_BIT - base::bits::CountLeadingZeros(count - 1);
+  switch (order) {
+    case 1:  // count: [2, 2]
+      return *reinterpret_cast<const uint16_t*>(lhs) ==
+             *reinterpret_cast<const uint16_t*>(rhs);
+    case 2:  // count: [3, 4]
+      return OverlappingCompare<uint16_t>(lhs, rhs, count);
+    case 3:  // count: [5, 8]
+      return OverlappingCompare<uint32_t>(lhs, rhs, count);
+    case 4:  // count: [9, 16]
+      return OverlappingCompare<uint64_t>(lhs, rhs, count);
+    default:
+      return SimdMemEqual(lhs, rhs, count, order);
+  }
+}
+
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
-  static_assert(std::is_unsigned<lchar>::value);
-  static_assert(std::is_unsigned<rchar>::value);
-  if (sizeof(*lhs) == sizeof(*rhs)) {
+  static_assert(std::is_unsigned_v<lchar>);
+  static_assert(std::is_unsigned_v<rchar>);
+  if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
+#if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
+    if constexpr (sizeof(*lhs) == 1) {
+      return SimdMemEqual(lhs, rhs, chars);
+    }
+#endif
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
     return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
@@ -336,8 +511,8 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
                               size_t chars) {
-  using ulchar = typename std::make_unsigned<lchar>::type;
-  using urchar = typename std::make_unsigned<rchar>::type;
+  using ulchar = std::make_unsigned_t<lchar>;
+  using urchar = std::make_unsigned_t<rchar>;
   return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),
                                    reinterpret_cast<const urchar*>(rhs), chars);
 }
@@ -346,8 +521,8 @@ inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  static_assert(std::is_unsigned<lchar>::value);
-  static_assert(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned_v<lchar>);
+  static_assert(std::is_unsigned_v<rchar>);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
@@ -362,20 +537,22 @@ inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
 
 template <typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
-  using ulchar = typename std::make_unsigned<lchar>::type;
-  using urchar = typename std::make_unsigned<rchar>::type;
+  using ulchar = std::make_unsigned_t<lchar>;
+  using urchar = std::make_unsigned_t<rchar>;
   return CompareCharsUnsigned(reinterpret_cast<const ulchar*>(lhs),
                               reinterpret_cast<const urchar*>(rhs), chars);
 }
 
 // Calculate 10^exponent.
-inline int TenToThe(int exponent) {
-  DCHECK_LE(exponent, 9);
-  DCHECK_GE(exponent, 1);
-  int answer = 10;
-  for (int i = 1; i < exponent; i++) answer *= 10;
+inline constexpr uint64_t TenToThe(uint32_t exponent) {
+  DCHECK_LE(exponent, 19);
+  DCHECK_GE(exponent, 0);
+  uint64_t answer = 1;
+  for (uint32_t i = 0; i < exponent; i++) answer *= 10;
   return answer;
 }
+static_assert(TenToThe(19) < kMaxUInt64);
+static_assert(TenToThe(19) > kMaxUInt64 / 10);
 
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {
@@ -431,12 +608,21 @@ inline constexpr T truncate_to_intn(T x, unsigned n) {
   inline constexpr T truncate_to_int##N(T x) { \
     return truncate_to_intn(x, N);             \
   }
+
+#define DECLARE_CHECKED_TRUNCATE_TO_INT_N(N)           \
+  template <class T>                                   \
+  inline constexpr T checked_truncate_to_int##N(T x) { \
+    CHECK(is_int##N(x));                               \
+    return truncate_to_intn(x, N);                     \
+  }
 INT_1_TO_63_LIST(DECLARE_IS_INT_N)
 INT_1_TO_63_LIST(DECLARE_IS_UINT_N)
 INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
+INT_1_TO_63_LIST(DECLARE_CHECKED_TRUNCATE_TO_INT_N)
 #undef DECLARE_IS_INT_N
 #undef DECLARE_IS_UINT_N
 #undef DECLARE_TRUNCATE_TO_INT_N
+#undef DECLARE_CHECKED_TRUNCATE_TO_INT_N
 
 // clang-format off
 #define INT_0_TO_127_LIST(V)                                          \
@@ -505,7 +691,10 @@ class BytecodeOffset {
   bool operator!=(const BytecodeOffset& other) const {
     return id_ != other.id_;
   }
-  friend size_t hash_value(BytecodeOffset);
+  V8_INLINE friend size_t hash_value(BytecodeOffset id) {
+    base::hash<int> h;
+    return h(id.id_);
+  }
   V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&,
                                                     BytecodeOffset);
 
@@ -637,6 +826,13 @@ T FpOpWorkaround(T input, T value) {
   }
   return value;
 }
+
+template <>
+inline Float16 FpOpWorkaround(Float16 input, Float16 value) {
+  float result = FpOpWorkaround(input.ToFloat32(), value.ToFloat32());
+  return Float16::FromFloat32(result);
+}
+
 #endif
 
 V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,

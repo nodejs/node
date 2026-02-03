@@ -40,7 +40,7 @@ class RefsMap
 
   // Wrappers around methods from UnderlyingMap
   Entry* Lookup(const Address& key) const;
-  Entry* LookupOrInsert(const Address& key);
+  Entry* InsertNew(const Address& key);
   ObjectData* Remove(const Address& key);
 
  private:

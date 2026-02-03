@@ -9,10 +9,6 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
-#include <string.h>  /* memcpy */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 

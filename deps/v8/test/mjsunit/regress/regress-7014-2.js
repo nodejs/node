@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 function foo(s) {
   return s[5];
@@ -23,6 +23,8 @@ String.prototype.__proto__ = new Proxy(String.prototype.__proto__, {
   }
 });
 
+assertUnoptimized(foo);
+%DeoptimizeFunction(foo);
 assertEquals("f", foo("abcdef"));
 %PrepareFunctionForOptimization(foo);
 assertEquals("5", foo("a"));

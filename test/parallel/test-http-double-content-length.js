@@ -14,7 +14,7 @@ server.on('clientError', common.mustCall((err, socket) => {
   socket.destroy();
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const req = http.get({
     port: server.address().port,
     // Send two content-length header values.
@@ -23,4 +23,4 @@ server.listen(0, () => {
   req.on('error', common.mustCall(() => {
     server.close();
   }));
-});
+}));

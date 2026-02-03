@@ -1,14 +1,13 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 
-/* eslint-disable max-len */
 const docsFixtures = {
   dir1: {
     'npm-exec.md': 'the exec command\nhelp has multiple lines of exec help\none of them references exec',
   },
   dir2: {
     'npm-something.md': 'another\ncommand you run\nthat\nreferences exec\nand has multiple lines\nwith no matches\nthat will be ignored\nand another line\nthat does have exec as well',
-    'npm-run-script.md': 'the scripted run-script command runs scripts\nand has lines\nsome of which dont match the string run\nor script\nscript',
+    'npm-run.md': 'the scripted run command runs scripts\nand has lines\nsome of which dont match the string run\nor script\nscript',
     'npm-install.md': 'does a thing in a script\nif a thing does not exist in a thing you run\nto install it and run it maybe in a script',
   },
   dir3: {
@@ -19,7 +18,6 @@ const docsFixtures = {
     'npm-extra-useless.md': 'exec\nexec\nexec',
   },
 }
-/* eslint-enable max-len */
 
 const execHelpSearch = async (t, exec = [], opts) => {
   const { npm, ...rest } = await loadMockNpm(t, {
@@ -71,7 +69,7 @@ t.test('npm help-search long output with color', async t => {
 
   const chalk = await import('chalk').then(v => v.default)
 
-  const highlightedText = chalk.bgBlack.red('help-search')
+  const highlightedText = chalk.blue('help-search')
   t.equal(
     output.split('\n').some(line => line.includes(highlightedText)),
     true,

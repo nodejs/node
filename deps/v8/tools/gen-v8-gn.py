@@ -19,22 +19,35 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('-o', '--output', type=str, action='store',
                       help='Location of header file to generate')
-  parser.add_argument('-p', '--positive-define', type=str, action='append',
-                      help='Externally visibile positive definition')
+  parser.add_argument(
+      '-p',
+      '--positive-define',
+      type=str,
+      action='append',
+      help='Externally visibile positive definition in format NAME or NAME=VALUE'
+  )
   parser.add_argument('-n', '--negative-define', type=str, action='append',
                       help='Externally visibile negative definition')
   args = parser.parse_args()
 
-def generate_positive_definition(out, define):
+
+def generate_positive_definition(out, define_str):
+  # Split the define into name and value if it contains '='
+  if '=' in define_str:
+    define, value = define_str.split('=', 1)
+  else:
+    define = define_str
+    value = "1"  # Default value if not specified
+
   out.write('''
 #ifndef {define}
-#define {define} 1
+#define {define} {value}
 #else
-#if {define} != 1
-#error "{define} defined but not set to 1"
+#if {define} != {value}
+#error "{define} defined but not set to {value}"
 #endif
 #endif  // {define}
-'''.format(define=define))
+'''.format(define=define, value=value))
 
 def generate_negative_definition(out, define):
   out.write('''

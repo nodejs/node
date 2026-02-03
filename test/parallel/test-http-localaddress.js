@@ -22,13 +22,15 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-if (!common.hasMultiLocalhost())
+const { hasMultiLocalhost } = require('../common/net');
+if (!hasMultiLocalhost()) {
   common.skip('platform-specific test.');
+}
 
 const http = require('http');
 const assert = require('assert');
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
   assert.strictEqual(req.connection.remoteAddress, '127.0.0.2');
 
@@ -37,7 +39,7 @@ const server = http.createServer((req, res) => {
     res.end(`You are from: ${req.connection.remoteAddress}`);
   });
   req.resume();
-});
+}));
 
 server.listen(0, '127.0.0.1', () => {
   const options = { host: 'localhost',

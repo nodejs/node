@@ -28,6 +28,22 @@ async function simple() {
   delete globalThis.fiveResult;
 }
 
+async function invalidLinkValue() {
+  const invalidValues = [
+    undefined,
+    null,
+    {},
+    SourceTextModule.prototype,
+  ];
+
+  for (const value of invalidValues) {
+    const module = new SourceTextModule('import "foo"');
+    await assert.rejects(module.link(() => value), {
+      code: 'ERR_VM_MODULE_NOT_MODULE',
+    });
+  }
+}
+
 async function depth() {
   const foo = new SourceTextModule('export default 5');
   await foo.link(common.mustNotCall());
@@ -128,7 +144,7 @@ async function asserts() {
   const m = new SourceTextModule(`
   import "foo" with { n1: 'v1', n2: 'v2' };
   `, { identifier: 'm' });
-  await m.link((s, r, p) => {
+  await m.link(common.mustCall((s, r, p) => {
     assert.strictEqual(s, 'foo');
     assert.strictEqual(r.identifier, 'm');
     assert.strictEqual(p.attributes.n1, 'v1');
@@ -136,13 +152,14 @@ async function asserts() {
     assert.strictEqual(p.attributes.n2, 'v2');
     assert.strictEqual(p.assert.n2, 'v2');
     return new SourceTextModule('');
-  });
+  }));
 }
 
 const finished = common.mustCall();
 
 (async function main() {
   await simple();
+  await invalidLinkValue();
   await depth();
   await circular();
   await circular2();

@@ -26,13 +26,14 @@ namespace {
 // - a value > 0 if [a_high, A] > B.
 int SpecialCompare(digit_t a_high, Digits A, Digits B) {
   B.Normalize();
-  int a_len;
+  uint32_t a_len;
   if (a_high == 0) {
     A.Normalize();
     a_len = A.len();
   } else {
     a_len = A.len() + 1;
   }
+  static_assert(kMaxNumDigits <= INT32_MAX);
   int diff = a_len - B.len();
   if (diff != 0) return diff;
   int i = a_len - 1;
@@ -54,7 +55,7 @@ void SetOnes(RWDigits X) {
 // non-changing data into a container object.
 class BZ {
  public:
-  BZ(ProcessorImpl* proc, int scratch_space)
+  BZ(ProcessorImpl* proc, uint32_t scratch_space)
       : proc_(proc),
         scratch_mem_(scratch_space >= kBurnikelThreshold ? scratch_space : 0) {}
 
@@ -95,7 +96,7 @@ void BZ::DivideBasecase(RWDigits Q, RWDigits R, Digits A, Digits B) {
 // the size of A = [A1, A2, A3].
 void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
   DCHECK((B.len() & 1) == 0);
-  int n = B.len() / 2;
+  uint32_t n = B.len() / 2;
   DCHECK(A1A2.len() == 2 * n);
   // Actual condition is stricter than length: A < B * 2^(kDigitBits * n)
   DCHECK(Compare(A1A2, B) < 0);
@@ -150,14 +151,14 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
   digit_t borrow = SubtractAndReturnBorrow(R, R, D);
   DCHECK(borrow == r1_high);
   DCHECK(Compare(R, B) < 0);
-  (void)borrow;
+  USE(borrow);
   // 7. Return R = Rhat, Q = Qhat.
 }
 
 // Algorithm 1 from the paper. Variable names same as there.
 // Returns Q(uotient) and (R)emainder for A/B, with A twice the size of B.
 void BZ::D2n1n(RWDigits Q, RWDigits R, Digits A, Digits B) {
-  int n = B.len();
+  uint32_t n = B.len();
   DCHECK(A.len() <= 2 * n);
   // A < B * 2^(kDigitsBits * n)
   DCHECK(Compare(Digits(A, n, n), B) < 0);
@@ -199,23 +200,23 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   DCHECK(A.len() >= B.len());
   DCHECK(R.len() == 0 || R.len() >= B.len());
   DCHECK(Q.len() > A.len() - B.len());
-  int r = A.len();
-  int s = B.len();
+  uint32_t r = A.len();
+  uint32_t s = B.len();
   // The requirements are:
   // - n >= s, n as small as possible.
   // - m must be a power of two.
   // 1. Set m = min {2^k | 2^k * kBurnikelThreshold > s}.
-  int m = 1 << BitLength(s / kBurnikelThreshold);
+  uint32_t m = 1 << BitLength(s / kBurnikelThreshold);
   // 2. Set j = roundup(s/m) and n = j * m.
-  int j = DIV_CEIL(s, m);
-  int n = j * m;
+  uint32_t j = DIV_CEIL(s, m);
+  uint32_t n = j * m;
   // 3. Set sigma = max{tao | 2^tao * B < 2^(kDigitBits * n)}.
   int sigma = CountLeadingZeros(B[s - 1]);
-  int digit_shift = n - s;
+  uint32_t digit_shift = n - s;
   // 4. Set B = B * 2^sigma to normalize B. Shift A by the same amount.
   ScratchDigits B_shifted(n);
   LeftShift(B_shifted + digit_shift, B, sigma);
-  for (int i = 0; i < digit_shift; i++) B_shifted[i] = 0;
+  for (uint32_t i = 0; i < digit_shift; i++) B_shifted[i] = 0;
   B = B_shifted;
   // We need an extra digit if A's top digit does not have enough space for
   // the left-shift by {sigma}. Additionally, the top bit of A must be 0
@@ -225,13 +226,13 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   r = A.len() + digit_shift + extra_digit;
   ScratchDigits A_shifted(r);
   LeftShift(A_shifted + digit_shift, A, sigma);
-  for (int i = 0; i < digit_shift; i++) A_shifted[i] = 0;
+  for (uint32_t i = 0; i < digit_shift; i++) A_shifted[i] = 0;
   A = A_shifted;
   // 5. Set t = min{t >= 2 | A < 2^(kDigitBits * t * n - 1)}.
-  int t = std::max(DIV_CEIL(r, n), 2);
+  uint32_t t = std::max(DIV_CEIL(r, n), 2u);
   // 6. Split A conceptually into t blocks.
   // 7. Set Z_(t-2) = [A_(t-1), A_(t-2)].
-  int z_len = n * 2;
+  uint32_t z_len = n * 2;
   ScratchDigits Z(z_len);
   PutAt(Z, A + n * (t - 2), z_len);
   // 8. For i from t-2 downto 0 do:
@@ -263,7 +264,7 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   }
   // 9. Return Q = [Q_(t-2), ..., Q_0] and R = R_0 * 2^(-sigma).
 #if DEBUG
-  for (int i = 0; i < digit_shift; i++) {
+  for (uint32_t i = 0; i < digit_shift; i++) {
     DCHECK(Ri[i] == 0);
   }
 #endif

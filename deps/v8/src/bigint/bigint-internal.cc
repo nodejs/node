@@ -40,6 +40,7 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
   if (X.len() < Y.len()) std::swap(X, Y);
   if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
   if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
+  CHECK(X.len() <= kMaxNumDigits);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
   return MultiplyKaratsuba(Z, X, Y);
 #else
@@ -52,12 +53,17 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
 void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
   A.Normalize();
   B.Normalize();
-  DCHECK(B.len() > 0);
-  int cmp = Compare(A, B);
+  // While callers are not required to normalize inputs, they must not
+  // provide divisors that normalize to zero.
+  // This must be a Release-mode CHECK because it is load bearing for
+  // security fuzzing: subsequent operations would perform illegal memory
+  // accesses if they attempted to work with zero divisors.
+  CHECK(B.len() > 0);
+  int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) return Q.Clear();
   if (cmp == 0) {
     Q[0] = 1;
-    for (int i = 1; i < Q.len(); i++) Q[i] = 0;
+    for (uint32_t i = 1; i < Q.len(); i++) Q[i] = 0;
     return;
   }
   if (B.len() == 1) {
@@ -67,6 +73,7 @@ void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
   if (B.len() < kBurnikelThreshold) {
     return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
   }
+  CHECK(A.len() <= kMaxNumDigits);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
   return DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
 #else
@@ -82,11 +89,16 @@ void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
 void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
   A.Normalize();
   B.Normalize();
-  DCHECK(B.len() > 0);
-  int cmp = Compare(A, B);
+  // While callers are not required to normalize inputs, they must not
+  // provide divisors that normalize to zero.
+  // This must be a Release-mode CHECK because it is load bearing for
+  // security fuzzing: subsequent operations would perform illegal memory
+  // accesses if they attempted to work with zero divisors.
+  CHECK(B.len() > 0);
+  int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
-    for (int i = 0; i < B.len(); i++) R[i] = B[i];
-    for (int i = B.len(); i < R.len(); i++) R[i] = 0;
+    for (uint32_t i = 0; i < B.len(); i++) R[i] = B[i];
+    for (uint32_t i = B.len(); i < R.len(); i++) R[i] = 0;
     return;
   }
   if (cmp == 0) return R.Clear();
@@ -94,13 +106,14 @@ void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
     digit_t remainder;
     DivideSingle(RWDigits(nullptr, 0), &remainder, A, B[0]);
     R[0] = remainder;
-    for (int i = 1; i < R.len(); i++) R[i] = 0;
+    for (uint32_t i = 1; i < R.len(); i++) R[i] = 0;
     return;
   }
   if (B.len() < kBurnikelThreshold) {
     return DivideSchoolbook(RWDigits(nullptr, 0), R, A, B);
   }
-  int q_len = DivideResultLength(A, B);
+  CHECK(A.len() < kMaxNumDigits);
+  uint32_t q_len = DivideResultLength(A, B);
   ScratchDigits Q(q_len);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
   return DivideBurnikelZiegler(Q, R, A, B);

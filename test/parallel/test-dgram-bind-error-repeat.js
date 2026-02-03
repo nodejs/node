@@ -9,7 +9,7 @@ const dgram = require('dgram');
 process.on('warning', common.mustNotCall());
 
 const reservePortSocket = dgram.createSocket('udp4');
-reservePortSocket.bind(() => {
+reservePortSocket.bind(common.mustCall(() => {
   const { port } = reservePortSocket.address();
 
   const newSocket = dgram.createSocket('udp4');
@@ -24,4 +24,4 @@ reservePortSocket.bind(() => {
     }
   }, 20));
   newSocket.bind(port, common.mustNotCall());
-});
+}));

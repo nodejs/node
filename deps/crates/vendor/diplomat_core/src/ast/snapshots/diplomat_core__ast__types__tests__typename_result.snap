@@ -1,0 +1,12 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatResult<MyLocalStruct, i32> },\n    None)"
+---
+Result:
+  - Named:
+      path:
+        elements:
+          - MyLocalStruct
+      lifetimes: []
+  - Primitive: i32
+  - Diplomat

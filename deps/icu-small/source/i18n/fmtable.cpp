@@ -26,9 +26,9 @@
 #include "unicode/measure.h"
 #include "unicode/curramt.h"
 #include "unicode/uformattable.h"
-#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "fixedstring.h"
 #include "fmtableimp.h"
 #include "number_decimalquantity.h"
 
@@ -258,16 +258,11 @@ Formattable::operator=(const Formattable& source)
             break;
         }
 
-        UErrorCode status = U_ZERO_ERROR;
         if (source.fDecimalQuantity != nullptr) {
           fDecimalQuantity = new DecimalQuantity(*source.fDecimalQuantity);
         }
         if (source.fDecimalStr != nullptr) {
-            fDecimalStr = new CharString(*source.fDecimalStr, status);
-            if (U_FAILURE(status)) {
-                delete fDecimalStr;
-                fDecimalStr = nullptr;
-            }
+            fDecimalStr = new FixedString(*source.fDecimalStr);
         }
     }
     return *this;
@@ -399,7 +394,7 @@ Formattable::getLong(UErrorCode& status) const
         
     switch (fType) {
     case Formattable::kLong: 
-        return (int32_t)fValue.fInt64;
+        return static_cast<int32_t>(fValue.fInt64);
     case Formattable::kInt64:
         if (fValue.fInt64 > INT32_MAX) {
             status = U_INVALID_FORMAT_ERROR;
@@ -408,7 +403,7 @@ Formattable::getLong(UErrorCode& status) const
             status = U_INVALID_FORMAT_ERROR;
             return INT32_MIN;
         } else {
-            return (int32_t)fValue.fInt64;
+            return static_cast<int32_t>(fValue.fInt64);
         }
     case Formattable::kDouble:
         if (fValue.fDouble > INT32_MAX) {
@@ -418,7 +413,7 @@ Formattable::getLong(UErrorCode& status) const
             status = U_INVALID_FORMAT_ERROR;
             return INT32_MIN;
         } else {
-            return (int32_t)fValue.fDouble; // loses fraction
+            return static_cast<int32_t>(fValue.fDouble); // loses fraction
         }
     case Formattable::kObject:
         if (fValue.fObject == nullptr) {
@@ -456,10 +451,10 @@ Formattable::getInt64(UErrorCode& status) const
     case Formattable::kInt64: 
         return fValue.fInt64;
     case Formattable::kDouble:
-        if (fValue.fDouble > (double)U_INT64_MAX) {
+        if (fValue.fDouble > static_cast<double>(U_INT64_MAX)) {
             status = U_INVALID_FORMAT_ERROR;
             return U_INT64_MAX;
-        } else if (fValue.fDouble < (double)U_INT64_MIN) {
+        } else if (fValue.fDouble < static_cast<double>(U_INT64_MIN)) {
             status = U_INVALID_FORMAT_ERROR;
             return U_INT64_MIN;
         } else if (fabs(fValue.fDouble) > U_DOUBLE_MAX_EXACT_INT && fDecimalQuantity != nullptr) {
@@ -471,7 +466,7 @@ Formattable::getInt64(UErrorCode& status) const
                 return fDecimalQuantity->isNegative() ? U_INT64_MIN : U_INT64_MAX;
             }
         } else {
-            return (int64_t)fValue.fDouble;
+            return static_cast<int64_t>(fValue.fDouble);
         } 
     case Formattable::kObject:
         if (fValue.fObject == nullptr) {
@@ -500,7 +495,7 @@ Formattable::getDouble(UErrorCode& status) const
     switch (fType) {
     case Formattable::kLong: 
     case Formattable::kInt64: // loses precision
-        return (double)fValue.fInt64;
+        return static_cast<double>(fValue.fInt64);
     case Formattable::kDouble:
         return fValue.fDouble;
     case Formattable::kObject:
@@ -688,7 +683,7 @@ Formattable::getArray(int32_t& count, UErrorCode& status) const
 UnicodeString*
 Formattable::getBogus() const 
 {
-    return (UnicodeString*)&fBogus; /* cast away const :-( */
+    return const_cast<UnicodeString*>(&fBogus); /* cast away const :-( */
 }
 
 
@@ -698,18 +693,18 @@ StringPiece Formattable::getDecimalNumber(UErrorCode &status) {
         return "";
     }
     if (fDecimalStr != nullptr) {
-      return fDecimalStr->toStringPiece();
+      return fDecimalStr->data();
     }
 
-    CharString *decimalStr = internalGetCharString(status);
+    FixedString* decimalStr = internalGetFixedString(status);
     if(decimalStr == nullptr) {
       return ""; // getDecimalNumber returns "" for error cases
     } else {
-      return decimalStr->toStringPiece();
+      return decimalStr->data();
     }
 }
 
-CharString *Formattable::internalGetCharString(UErrorCode &status) {
+FixedString *Formattable::internalGetFixedString(UErrorCode &status) {
     if(fDecimalStr == nullptr) {
       if (fDecimalQuantity == nullptr) {
         // No decimal number for the formattable yet.  Which means the value was
@@ -724,7 +719,7 @@ CharString *Formattable::internalGetCharString(UErrorCode &status) {
         fDecimalQuantity = dq.orphan();
       }
 
-      fDecimalStr = new CharString();
+      fDecimalStr = new FixedString();
       if (fDecimalStr == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return nullptr;
@@ -733,16 +728,20 @@ CharString *Formattable::internalGetCharString(UErrorCode &status) {
       // DecimalQuantity::toScientificString(). The biggest difference is that uprv_decNumberToString does
       // not print scientific notation for magnitudes greater than -5 and smaller than some amount (+5?).
       if (fDecimalQuantity->isInfinite()) {
-        fDecimalStr->append("Infinity", status);
+        *fDecimalStr = "Infinity";
       } else if (fDecimalQuantity->isNaN()) {
-        fDecimalStr->append("NaN", status);
+        *fDecimalStr = "NaN";
       } else if (fDecimalQuantity->isZeroish()) {
-        fDecimalStr->append("0", -1, status);
+        *fDecimalStr = "0";
       } else if (fType==kLong || fType==kInt64 || // use toPlainString for integer types
                   (fDecimalQuantity->getMagnitude() != INT32_MIN && std::abs(fDecimalQuantity->getMagnitude()) < 5)) {
-        fDecimalStr->appendInvariantChars(fDecimalQuantity->toPlainString(), status);
+        copyInvariantChars(fDecimalQuantity->toPlainString(), *fDecimalStr, status);
       } else {
-        fDecimalStr->appendInvariantChars(fDecimalQuantity->toScientificString(), status);
+        copyInvariantChars(fDecimalQuantity->toScientificString(), *fDecimalStr, status);
+      }
+      if (U_SUCCESS(status) && fDecimalStr->isEmpty()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
       }
     }
     return fDecimalStr;
@@ -775,9 +774,7 @@ Formattable::populateDecimalQuantity(number::impl::DecimalQuantity& output, UErr
 // ---------------------------------------
 void
 Formattable::adoptDecimalQuantity(DecimalQuantity *dq) {
-    if (fDecimalQuantity != nullptr) {
-        delete fDecimalQuantity;
-    }
+    delete fDecimalQuantity;
     fDecimalQuantity = dq;
     if (dq == nullptr) { // allow adoptDigitList(nullptr) to clear
         return;
@@ -1016,7 +1013,7 @@ ufmt_getDecNumChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
     return "";
   }
   Formattable *obj = Formattable::fromUFormattable(fmt);
-  CharString *charString = obj->internalGetCharString(*status);
+  FixedString *charString = obj->internalGetFixedString(*status);
   if(U_FAILURE(*status)) {
     return "";
   }
@@ -1025,7 +1022,7 @@ ufmt_getDecNumChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
     return "";
   } else {
     if(len!=nullptr) {
-      *len = charString->length();
+      *len = static_cast<int32_t>(uprv_strlen(charString->data()));
     }
     return charString->data();
   }

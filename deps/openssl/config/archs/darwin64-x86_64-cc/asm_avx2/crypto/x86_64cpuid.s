@@ -1,12 +1,12 @@
 
+
 .private_extern	_OPENSSL_cpuid_setup
 .mod_init_func
 	.p2align	3
 	.quad	_OPENSSL_cpuid_setup
 
 .private_extern	_OPENSSL_ia32cap_P
-.comm	_OPENSSL_ia32cap_P,16,2
-
+.comm	_OPENSSL_ia32cap_P,40,2
 .text	
 
 .globl	_OPENSSL_atomic_add
@@ -164,6 +164,7 @@ L$generic:
 	movl	$7,%eax
 	xorl	%ecx,%ecx
 	cpuid
+	movd	%eax,%xmm1
 	btl	$26,%r9d
 	jc	L$notknights
 	andl	$0xfff7ffff,%ebx
@@ -174,9 +175,31 @@ L$notknights:
 	jne	L$notskylakex
 	andl	$0xfffeffff,%ebx
 
+
 L$notskylakex:
 	movl	%ebx,8(%rdi)
 	movl	%ecx,12(%rdi)
+	movl	%edx,16(%rdi)
+
+	movd	%xmm1,%eax
+	cmpl	$0x1,%eax
+	jb	L$no_extended_info
+	movl	$0x7,%eax
+	movl	$0x1,%ecx
+	cpuid
+	movl	%eax,20(%rdi)
+	movl	%edx,24(%rdi)
+	movl	%ebx,28(%rdi)
+	movl	%ecx,32(%rdi)
+
+	andl	$0x80000,%edx
+	cmpl	$0x0,%edx
+	je	L$no_extended_info
+	movl	$0x24,%eax
+	movl	$0x0,%ecx
+	cpuid
+	movl	%ebx,36(%rdi)
+
 L$no_extended_info:
 
 	btl	$27,%r9d
@@ -195,6 +218,9 @@ L$no_extended_info:
 	cmpl	$6,%eax
 	je	L$done
 L$clear_avx:
+	andl	$0xff7fffff,20(%rdi)
+
+
 	movl	$0xefffe7ff,%eax
 	andl	%eax,%r9d
 	movl	$0x3fdeffdf,%eax

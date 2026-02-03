@@ -23,7 +23,7 @@ function testOnServerListen(fn) {
 }
 
 function testChildProcess(getArgs, exitCode, options) {
-  testOnServerListen((server) => {
+  testOnServerListen(common.mustCall((server) => {
     const { port } = server.address();
     const child = spawnSync(process.execPath, getArgs(port), options);
     const stderr = child.stderr.toString().trim();
@@ -38,7 +38,7 @@ function testChildProcess(getArgs, exitCode, options) {
     assert.notStrictEqual(match, null);
     assert.strictEqual(match[1], port + '');
     assert.strictEqual(child.status, exitCode);
-  });
+  }));
 }
 
 tmpdir.refresh();
@@ -50,7 +50,7 @@ testChildProcess(
 testChildProcess(
   (port) => [`--inspect=${port}`, entry], 0);
 
-testOnServerListen((server) => {
+testOnServerListen(common.mustCall((server) => {
   const { port } = server.address();
   const worker = new Worker(entry, {
     execArgv: [`--inspect=${port}`]
@@ -61,4 +61,4 @@ testOnServerListen((server) => {
   worker.on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
   }));
-});
+}));

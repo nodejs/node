@@ -83,7 +83,7 @@ U_NAMESPACE_BEGIN
  * between the last one and the end of the integer is the one that is
  * used. So "#,##,###,####" == "######,####" == "##,####,####".
  */
-class U_I18N_API DecimalFormatSymbols : public UObject {
+class U_I18N_API_CLASS DecimalFormatSymbols : public UObject {
 public:
     /**
      * Constants for specifying a number format symbol.
@@ -187,7 +187,7 @@ public:
      *                  failure code upon return.
      * @stable ICU 2.0
      */
-    DecimalFormatSymbols(const Locale& locale, UErrorCode& status);
+    U_I18N_API DecimalFormatSymbols(const Locale& locale, UErrorCode& status);
 
     /**
      * Creates a DecimalFormatSymbols instance for the given locale with digits and symbols
@@ -205,7 +205,7 @@ public:
      *                  failure code upon return.
      * @stable ICU 60
      */
-    DecimalFormatSymbols(const Locale& locale, const NumberingSystem& ns, UErrorCode& status);
+    U_I18N_API DecimalFormatSymbols(const Locale& locale, const NumberingSystem& ns, UErrorCode& status);
 
     /**
      * Create a DecimalFormatSymbols object for the default locale.
@@ -217,7 +217,7 @@ public:
      *                  failure code upon return.
      * @stable ICU 2.0
      */
-    DecimalFormatSymbols(UErrorCode& status);
+    U_I18N_API DecimalFormatSymbols(UErrorCode& status);
 
     /**
      * Creates a DecimalFormatSymbols object with last-resort data.
@@ -234,25 +234,25 @@ public:
      * @return last-resort symbols
      * @stable ICU 52
      */
-    static DecimalFormatSymbols* createWithLastResortData(UErrorCode& status);
+    U_I18N_API static DecimalFormatSymbols* createWithLastResortData(UErrorCode& status);
 
     /**
      * Copy constructor.
      * @stable ICU 2.0
      */
-    DecimalFormatSymbols(const DecimalFormatSymbols&);
+    U_I18N_API DecimalFormatSymbols(const DecimalFormatSymbols&);
 
     /**
      * Assignment operator.
      * @stable ICU 2.0
      */
-    DecimalFormatSymbols& operator=(const DecimalFormatSymbols&);
+    U_I18N_API DecimalFormatSymbols& operator=(const DecimalFormatSymbols&);
 
     /**
      * Destructor.
      * @stable ICU 2.0
      */
-    virtual ~DecimalFormatSymbols();
+    U_I18N_API virtual ~DecimalFormatSymbols();
 
     /**
      * Return true if another object is semantically equal to this one.
@@ -261,7 +261,7 @@ public:
      * @return         true if another object is semantically equal to this one.
      * @stable ICU 2.0
      */
-    bool operator==(const DecimalFormatSymbols& other) const;
+    U_I18N_API bool operator==(const DecimalFormatSymbols& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -270,7 +270,7 @@ public:
      * @return         true if another object is semantically unequal to this one.
      * @stable ICU 2.0
      */
-    bool operator!=(const DecimalFormatSymbols& other) const { return !operator==(other); }
+    U_I18N_API bool operator!=(const DecimalFormatSymbols& other) const { return !operator==(other); }
 
     /**
      * Get one of the format symbols by its enum constant.
@@ -281,7 +281,7 @@ public:
      * @return    the format symbols by the param 'symbol'
      * @stable ICU 2.0
      */
-    inline UnicodeString getSymbol(ENumberFormatSymbol symbol) const;
+    U_I18N_API inline UnicodeString getSymbol(ENumberFormatSymbol symbol) const;
 
     /**
      * Set one of the format symbols by its enum constant.
@@ -295,7 +295,9 @@ public:
      *     it is being set to corresponds to a known Unicode zero digit.
      * @stable ICU 2.0
      */
-    void setSymbol(ENumberFormatSymbol symbol, const UnicodeString &value, const UBool propagateDigits);
+    U_I18N_API void setSymbol(ENumberFormatSymbol symbol,
+                              const UnicodeString& value,
+                              const UBool propagateDigits);
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -305,21 +307,21 @@ public:
      *
      * @internal
      */
-    void setCurrency(const char16_t* currency, UErrorCode& status);
+    U_I18N_API void setCurrency(const char16_t* currency, UErrorCode& status);
 #endif  // U_HIDE_INTERNAL_API
 
     /**
      * Returns the locale for which this object was constructed.
      * @stable ICU 2.6
      */
-    inline Locale getLocale() const;
+    U_I18N_API inline Locale getLocale() const;
 
     /**
      * Returns the locale for this object. Two flavors are available:
      * valid and actual locale.
      * @stable ICU 2.8
      */
-    Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
+    U_I18N_API Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
 
     /**
       * Get pattern string for 'CurrencySpacing' that can be applied to
@@ -337,36 +339,37 @@ public:
       *     locales.
       * @stable ICU 4.8
       */
-     const UnicodeString& getPatternForCurrencySpacing(UCurrencySpacing type,
+    U_I18N_API const UnicodeString& getPatternForCurrencySpacing(UCurrencySpacing type,
+                                                                 UBool beforeCurrency,
+                                                                 UErrorCode& status) const;
+
+    /**
+      * Set pattern string for 'CurrencySpacing' that can be applied to
+      * currency format.
+      *
+      * @param type : UNUM_CURRENCY_MATCH, UNUM_CURRENCY_SURROUNDING_MATCH or UNUM_CURRENCY_INSERT.
+      * @param beforeCurrency : true if the pattern is for before currency symbol.
+      *                         false if the pattern is for after currency symbol.
+      * @param pattern : pattern string to override current setting.
+      * @stable ICU 4.8
+      */
+    U_I18N_API void setPatternForCurrencySpacing(UCurrencySpacing type,
                                                  UBool beforeCurrency,
-                                                 UErrorCode& status) const;
-     /**
-       * Set pattern string for 'CurrencySpacing' that can be applied to
-       * currency format.
-       *
-       * @param type : UNUM_CURRENCY_MATCH, UNUM_CURRENCY_SURROUNDING_MATCH or UNUM_CURRENCY_INSERT.
-       * @param beforeCurrency : true if the pattern is for before currency symbol.
-       *                         false if the pattern is for after currency symbol.
-       * @param pattern : pattern string to override current setting.
-       * @stable ICU 4.8
-       */
-     void setPatternForCurrencySpacing(UCurrencySpacing type,
-                                       UBool beforeCurrency,
-                                       const UnicodeString& pattern);
+                                                 const UnicodeString& pattern);
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const override;
+    U_I18N_API virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
      *
      * @stable ICU 2.2
      */
-    static UClassID U_EXPORT2 getStaticClassID();
+    U_I18N_API static UClassID getStaticClassID();
 
 private:
     DecimalFormatSymbols();
@@ -397,21 +400,21 @@ public:
     /**
      * @internal For ICU use only
      */
-    inline UBool isCustomCurrencySymbol() const {
+    U_I18N_API inline UBool isCustomCurrencySymbol() const {
         return fIsCustomCurrencySymbol;
     }
 
     /**
      * @internal For ICU use only
      */
-    inline UBool isCustomIntlCurrencySymbol() const {
+    U_I18N_API inline UBool isCustomIntlCurrencySymbol() const {
         return fIsCustomIntlCurrencySymbol;
     }
 
     /**
      * @internal For ICU use only
      */
-    inline UChar32 getCodePointZero() const {
+    U_I18N_API inline UChar32 getCodePointZero() const {
         return fCodePointZero;
     }
 #endif  /* U_HIDE_INTERNAL_API */
@@ -431,7 +434,7 @@ public:
      * @return the format symbol by the param 'symbol'
      * @internal
      */
-    inline const UnicodeString& getConstSymbol(ENumberFormatSymbol symbol) const;
+    U_I18N_API inline const UnicodeString& getConstSymbol(ENumberFormatSymbol symbol) const;
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -449,19 +452,19 @@ public:
      * @return the format symbol for the given digit.
      * @internal This API is currently for ICU use only.
      */
-    inline const UnicodeString& getConstDigitSymbol(int32_t digit) const;
+    U_I18N_API inline const UnicodeString& getConstDigitSymbol(int32_t digit) const;
 
     /**
      * Returns that pattern stored in currency info. Internal API for use by NumberFormat API.
      * @internal
      */
-    inline const char16_t* getCurrencyPattern(void) const;
+    U_I18N_API inline const char16_t* getCurrencyPattern() const;
 
     /**
      * Returns the numbering system with which this DecimalFormatSymbols was initialized.
      * @internal
      */
-    inline const char* getNumberingSystemName(void) const;
+    U_I18N_API inline const char* getNumberingSystemName() const;
 #endif  /* U_HIDE_INTERNAL_API */
 
 private:
@@ -504,8 +507,8 @@ private:
 
     Locale locale;
 
-    char actualLocale[ULOC_FULLNAME_CAPACITY];
-    char validLocale[ULOC_FULLNAME_CAPACITY];
+    Locale actualLocale;
+    Locale validLocale;
     const char16_t* currPattern = nullptr;
 
     UnicodeString currencySpcBeforeSym[UNUM_CURRENCY_SPACING_COUNT];
@@ -576,7 +579,7 @@ DecimalFormatSymbols::setSymbol(ENumberFormatSymbol symbol, const UnicodeString 
             fCodePointZero = sym;
             for ( int8_t i = 1 ; i<= 9 ; i++ ) {
                 sym++;
-                fSymbols[(int)kOneDigitSymbol+i-1] = UnicodeString(sym);
+                fSymbols[static_cast<int>(kOneDigitSymbol) + i - 1] = UnicodeString(sym);
             }
         } else {
             fCodePointZero = -1;

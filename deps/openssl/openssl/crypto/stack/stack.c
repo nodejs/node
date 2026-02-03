@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,16 +10,20 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include "internal/numbers.h"
+#include "internal/safe_math.h"
 #include <openssl/stack.h>
 #include <errno.h>
-#include <openssl/e_os2.h>      /* For ossl_inline */
+#include <openssl/e_os2.h> /* For ossl_inline */
+
+OSSL_SAFE_MATH_SIGNED(int, int)
 
 /*
  * The initial number of nodes in the array.
  */
 static const int min_nodes = 4;
 static const int max_nodes = SIZE_MAX / sizeof(void *) < INT_MAX
-    ? (int)(SIZE_MAX / sizeof(void *)) : INT_MAX;
+    ? (int)(SIZE_MAX / sizeof(void *))
+    : INT_MAX;
 
 struct stack_st {
     int num;
@@ -30,7 +34,7 @@ struct stack_st {
 };
 
 OPENSSL_sk_compfunc OPENSSL_sk_set_cmp_func(OPENSSL_STACK *sk,
-                                            OPENSSL_sk_compfunc c)
+    OPENSSL_sk_compfunc c)
 {
     OPENSSL_sk_compfunc old = sk->comp;
 
@@ -71,15 +75,14 @@ OPENSSL_STACK *OPENSSL_sk_dup(const OPENSSL_STACK *sk)
     memcpy(ret->data, sk->data, sizeof(void *) * sk->num);
     return ret;
 
- err:
-    ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+err:
     OPENSSL_sk_free(ret);
     return NULL;
 }
 
 OPENSSL_STACK *OPENSSL_sk_deep_copy(const OPENSSL_STACK *sk,
-                                    OPENSSL_sk_copyfunc copy_func,
-                                    OPENSSL_sk_freefunc free_func)
+    OPENSSL_sk_copyfunc copy_func,
+    OPENSSL_sk_freefunc free_func)
 {
     OPENSSL_STACK *ret;
     int i;
@@ -120,8 +123,7 @@ OPENSSL_STACK *OPENSSL_sk_deep_copy(const OPENSSL_STACK *sk,
     }
     return ret;
 
- err:
-    ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+err:
     OPENSSL_sk_free(ret);
     return NULL;
 }
@@ -139,32 +141,35 @@ OPENSSL_STACK *OPENSSL_sk_new(OPENSSL_sk_compfunc c)
 /*
  * Calculate the array growth based on the target size.
  *
- * The growth fraction is a rational number and is defined by a numerator
+ * The growth factor is a rational number and is defined by a numerator
  * and a denominator.  According to Andrew Koenig in his paper "Why Are
  * Vectors Efficient?" from JOOP 11(5) 1998, this factor should be less
  * than the golden ratio (1.618...).
  *
- * We use 3/2 = 1.5 for simplicity of calculation and overflow checking.
- * Another option 8/5 = 1.6 allows for slightly faster growth, although safe
- * computation is more difficult.
+ * Considering only the Fibonacci ratios less than the golden ratio, the
+ * number of steps from the minimum allocation to integer overflow is:
+ *      factor  decimal    growths
+ *       3/2     1.5          51
+ *       8/5     1.6          45
+ *      21/13    1.615...     44
  *
- * The limit to avoid overflow is spot on.  The modulo three correction term
- * ensures that the limit is the largest number than can be expanded by the
- * growth factor without exceeding the hard limit.
+ * All larger factors have the same number of growths.
  *
- * Do not call it with |current| lower than 2, or it will infinitely loop.
+ * 3/2 and 8/5 have nice power of two shifts, so seem like a good choice.
  */
 static ossl_inline int compute_growth(int target, int current)
 {
-    const int limit = (max_nodes / 3) * 2 + (max_nodes % 3 ? 1 : 0);
+    int err = 0;
 
     while (current < target) {
-        /* Check to see if we're at the hard limit */
         if (current >= max_nodes)
             return 0;
 
-        /* Expand the size by a factor of 3/2 if it is within range */
-        current = current < limit ? current + current / 2 : max_nodes;
+        current = safe_muldiv_int(current, 8, 5, &err);
+        if (err != 0)
+            return 0;
+        if (current >= max_nodes)
+            current = max_nodes;
     }
     return current;
 }
@@ -192,10 +197,8 @@ static int sk_reserve(OPENSSL_STACK *st, int n, int exact)
          * At this point, |st->num_alloc| and |st->num| are 0;
          * so |num_alloc| value is |n| or |min_nodes| if greater than |n|.
          */
-        if ((st->data = OPENSSL_zalloc(sizeof(void *) * num_alloc)) == NULL) {
-            ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+        if ((st->data = OPENSSL_zalloc(sizeof(void *) * num_alloc)) == NULL)
             return 0;
-        }
         st->num_alloc = num_alloc;
         return 1;
     }
@@ -213,10 +216,8 @@ static int sk_reserve(OPENSSL_STACK *st, int n, int exact)
     }
 
     tmpdata = OPENSSL_realloc((void *)st->data, sizeof(void *) * num_alloc);
-    if (tmpdata == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if (tmpdata == NULL)
         return 0;
-    }
 
     st->data = tmpdata;
     st->num_alloc = num_alloc;
@@ -227,10 +228,8 @@ OPENSSL_STACK *OPENSSL_sk_new_reserve(OPENSSL_sk_compfunc c, int n)
 {
     OPENSSL_STACK *st = OPENSSL_zalloc(sizeof(OPENSSL_STACK));
 
-    if (st == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if (st == NULL)
         return NULL;
-    }
 
     st->comp = c;
 
@@ -275,7 +274,7 @@ int OPENSSL_sk_insert(OPENSSL_STACK *st, const void *data, int loc)
         st->data[st->num] = data;
     } else {
         memmove(&st->data[loc + 1], &st->data[loc],
-                sizeof(st->data[0]) * (st->num - loc));
+            sizeof(st->data[0]) * (st->num - loc));
         st->data[loc] = data;
     }
     st->num++;
@@ -289,7 +288,7 @@ static ossl_inline void *internal_delete(OPENSSL_STACK *st, int loc)
 
     if (loc != st->num - 1)
         memmove(&st->data[loc], &st->data[loc + 1],
-                sizeof(st->data[0]) * (st->num - loc - 1));
+            sizeof(st->data[0]) * (st->num - loc - 1));
     st->num--;
 
     return (void *)ret;
@@ -317,39 +316,54 @@ void *OPENSSL_sk_delete(OPENSSL_STACK *st, int loc)
 }
 
 static int internal_find(OPENSSL_STACK *st, const void *data,
-                         int ret_val_options, int *pnum)
+    int ret_val_options, int *pnum_matched)
 {
     const void *r;
-    int i;
+    int i, count = 0;
+    int *pnum = pnum_matched;
 
     if (st == NULL || st->num == 0)
         return -1;
 
+    if (pnum == NULL)
+        pnum = &count;
+
     if (st->comp == NULL) {
         for (i = 0; i < st->num; i++)
             if (st->data[i] == data) {
-                if (pnum != NULL)
-                    *pnum = 1;
+                *pnum = 1;
                 return i;
             }
-        if (pnum != NULL)
-            *pnum = 0;
+        *pnum = 0;
         return -1;
     }
 
-    if (!st->sorted) {
-        if (st->num > 1)
-            qsort(st->data, st->num, sizeof(void *), st->comp);
-        st->sorted = 1; /* empty or single-element stack is considered sorted */
-    }
     if (data == NULL)
         return -1;
-    if (pnum != NULL)
+
+    if (!st->sorted) {
+        int res = -1;
+
+        for (i = 0; i < st->num; i++)
+            if (st->comp(&data, st->data + i) == 0) {
+                if (res == -1)
+                    res = i;
+                ++*pnum;
+                /* Check if only one result is wanted and exit if so */
+                if (pnum_matched == NULL)
+                    return i;
+            }
+        if (res == -1)
+            *pnum = 0;
+        return res;
+    }
+
+    if (pnum_matched != NULL)
         ret_val_options |= OSSL_BSEARCH_FIRST_VALUE_ON_MATCH;
     r = ossl_bsearch(&data, st->data, st->num, sizeof(void *), st->comp,
-                     ret_val_options);
+        ret_val_options);
 
-    if (pnum != NULL) {
+    if (pnum_matched != NULL) {
         *pnum = 0;
         if (r != NULL) {
             const void **p = (const void **)r;
@@ -384,7 +398,7 @@ int OPENSSL_sk_find_all(OPENSSL_STACK *st, const void *data, int *pnum)
 int OPENSSL_sk_push(OPENSSL_STACK *st, const void *data)
 {
     if (st == NULL)
-        return -1;
+        return 0;
     return OPENSSL_sk_insert(st, data, st->num);
 }
 
@@ -455,7 +469,7 @@ void *OPENSSL_sk_set(OPENSSL_STACK *st, int i, const void *data)
     }
     if (i < 0 || i >= st->num) {
         ERR_raise_data(ERR_LIB_CRYPTO, ERR_R_PASSED_INVALID_ARGUMENT,
-                       "i=%d", i);
+            "i=%d", i);
         return NULL;
     }
     st->data[i] = data;

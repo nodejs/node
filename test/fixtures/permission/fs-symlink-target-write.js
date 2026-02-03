@@ -23,48 +23,23 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
 {
   // App won't be able to symlink from a readOnlyFolder
   assert.throws(() => {
-    fs.symlink(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'), 'file', (err) => {
-      assert.ifError(err);
-    });
+    fs.symlinkSync(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'), 'file');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
+    message: 'fs.symlink API requires full fs.read and fs.write permissions.',
   }));
   assert.throws(() => {
-    fs.link(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'), (err) => {
-      assert.ifError(err);
-    });
+    fs.linkSync(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
   }));
 
-  // App will be able to symlink to a writeOnlyFolder
-  fs.symlink(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write'), 'file', (err) => {
-    assert.ifError(err);
-    // App will won't be able to read the symlink
-    assert.throws(() => {
-      fs.readFile(path.join(writeOnlyFolder, 'link-to-read-write'), (err) => {
-        assert.ifError(err);
-      });
-    }, common.expectsError({
-      code: 'ERR_ACCESS_DENIED',
-      permission: 'FileSystemRead',
-    }));
-
-    // App will be able to write to the symlink
-    fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write'), 'some content', common.mustSucceed());
-  });
   fs.link(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write2'), (err) => {
     assert.ifError(err);
     // App will won't be able to read the link
-    assert.throws(() => {
-      fs.readFile(path.join(writeOnlyFolder, 'link-to-read-write2'), (err) => {
-        assert.ifError(err);
-      });
-    }, common.expectsError({
+    fs.readFile(path.join(writeOnlyFolder, 'link-to-read-write2'), common.expectsError({
       code: 'ERR_ACCESS_DENIED',
       permission: 'FileSystemRead',
     }));
@@ -75,18 +50,13 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
 
   // App won't be able to symlink to a readOnlyFolder
   assert.throws(() => {
-    fs.symlink(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), 'file', (err) => {
-      assert.ifError(err);
-    });
+    fs.symlinkSync(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), 'file');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'link-to-read-only')),
+    message: 'fs.symlink API requires full fs.read and fs.write permissions.',
   }));
   assert.throws(() => {
-    fs.link(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), (err) => {
-      assert.ifError(err);
-    });
+    fs.linkSync(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',

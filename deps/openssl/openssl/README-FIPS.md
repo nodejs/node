@@ -34,7 +34,9 @@ Installing the FIPS provider
 In order to be FIPS compliant you must only use FIPS validated source code.
 Refer to <https://www.openssl.org/source/> for information related to
 which versions are FIPS validated. The instructions given below build OpenSSL
-just using the FIPS validated source code.
+just using the FIPS validated source code.  Any FIPS validated version may be
+used with any other openssl library.  Please see <https://www.openssl.org/source/>
+To determine which FIPS validated library version may be appropriate for you.
 
 If you want to use a validated FIPS provider, but also want to use the latest
 OpenSSL release to build everything else, then refer to the next section.
@@ -71,14 +73,14 @@ the installation by doing the following two things:
 
 - Runs the FIPS module self tests
 - Generates the so-called FIPS module configuration file containing information
-  about the module such as the module checksum (and for OpenSSL 3.0 the
+  about the module such as the module checksum (and for OpenSSL 3.1.2 the
   self test status).
 
 The FIPS module must have the self tests run, and the FIPS module config file
-output generated on every machine that it is to be used on. For OpenSSL 3.0,
+output generated on every machine that it is to be used on. For OpenSSL 3.1.2
 you must not copy the FIPS module config file output data from one machine to another.
 
-On Unix the `openssl fipsinstall` command will be invoked as follows by default:
+On Unix, the `openssl fipsinstall` command will be invoked as follows by default:
 
     $ openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib/ossl-modules/fips.so
 
@@ -95,11 +97,11 @@ Download and build a validated FIPS provider
 --------------------------------------------
 
 Refer to <https://www.openssl.org/source/> for information related to
-which versions are FIPS validated. For this example we use OpenSSL 3.0.0.
+which versions are FIPS validated. For this example we use OpenSSL 3.1.2.
 
-    $ wget https://www.openssl.org/source/openssl-3.0.0.tar.gz
-    $ tar -xf openssl-3.0.0.tar.gz
-    $ cd openssl-3.0.0
+    $ wget https://www.openssl.org/source/openssl-3.1.2.tar.gz
+    $ tar -xf openssl-3.1.2.tar.gz
+    $ cd openssl-3.1.2
     $ ./Configure enable-fips
     $ make
     $ cd ..
@@ -107,44 +109,45 @@ which versions are FIPS validated. For this example we use OpenSSL 3.0.0.
 Download and build the latest release of OpenSSL
 ------------------------------------------------
 
-We use OpenSSL 3.1.0 here, (but you could also use the latest 3.0.X)
+We use OpenSSL 3.5.0 here, (but you could also use the latest 3.5.X)
 
-    $ wget https://www.openssl.org/source/openssl-3.1.0.tar.gz
-    $ tar -xf openssl-3.1.0.tar.gz
-    $ cd openssl-3.1.0
+    $ wget https://www.openssl.org/source/openssl-3.5.0.tar.gz
+    $ tar -xf openssl-3.5.0.tar.gz
+    $ cd openssl-3.5.0
     $ ./Configure enable-fips
     $ make
 
 Use the OpenSSL FIPS provider for testing
 -----------------------------------------
 
-We do this by replacing the artifact for the OpenSSL 3.1.0 FIPS provider.
-Note that the OpenSSL 3.1.0 FIPS provider has not been validated
+We do this by replacing the artifact for the OpenSSL 3.5.0 FIPS provider.
+Note that the OpenSSL 3.5.0 FIPS provider has not been validated
 so it must not be used for FIPS purposes.
 
-    $ cp ../openssl-3.0.0/providers/fips.so providers/.
-    $ cp ../openssl-3.0.0/providers/fipsmodule.cnf providers/.
-    // Note that for OpenSSL 3.0 that the `fipsmodule.cnf` file should not
+    $ cp ../openssl-3.1.2/providers/fips.so providers/.
+    $ cp ../openssl-3.1.2/providers/fipsmodule.cnf providers/.
+    // Note that for OpenSSL 3.1.2 that the `fipsmodule.cnf` file should not
     // be copied across multiple machines if it contains an entry for
     // `install-status`. (Otherwise the self tests would be skipped).
 
     // Validate the output of the following to make sure we are using the
-    // OpenSSL 3.0.0 FIPS provider
+    // OpenSSL 3.1.2 FIPS provider
     $ ./util/wrap.pl -fips apps/openssl list -provider-path providers \
     -provider fips -providers
 
-    // Now run the current tests using the OpenSSL 3.0 FIPS provider.
+    // Now run the current tests using the OpenSSL 3.1.2 FIPS provider.
     $ make tests
 
 Copy the FIPS provider artifacts (`fips.so` & `fipsmodule.cnf`) to known locations
 -------------------------------------------------------------------------------------
 
-    $ cd ../openssl-3.0.0
+    $ cd ../openssl-3.1.2
     $ sudo make install_fips
 
 Check that the correct FIPS provider is being used
 --------------------------------------------------
 
+    $ cd ../openssl-3.5.0
     $./util/wrap.pl -fips apps/openssl list -provider-path providers \
     -provider fips -providers
 
@@ -152,11 +155,11 @@ Check that the correct FIPS provider is being used
     Providers:
       base
         name: OpenSSL Base Provider
-        version: 3.1.0
+        version: 3.5.0
         status: active
       fips
         name: OpenSSL FIPS Provider
-        version: 3.0.0
+        version: 3.1.2
         status: active
 
 Using the FIPS Module in applications
@@ -165,4 +168,34 @@ Using the FIPS Module in applications
 Documentation about using the FIPS module is available on the [fips_module(7)]
 manual page.
 
- [fips_module(7)]: https://www.openssl.org/docs/man3.0/man7/fips_module.html
+ [fips_module(7)]: https://www.openssl.org/docs/manmaster/man7/fips_module.html
+
+Entropy Source
+==============
+
+The FIPS provider typically relies on an external entropy source,
+specified during OpenSSL build configuration (default: `os`).  However, by
+enabling the `enable-fips-jitter` option during configuration, an internal
+jitter entropy source will be used instead.  Note that this will cause
+the FIPS provider to operate in a non-compliant mode unless an entropy
+assessment [ESV] and validation through the [CMVP] are additionally conducted.
+
+Note that the `enable-fips-jitter` option is only available in OpenSSL
+versions 3.5 and later.
+
+ [CMVP]: https://csrc.nist.gov/projects/cryptographic-module-validation-program
+ [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
+
+3rd-Party Vendor Builds
+=====================================
+
+Some Vendors choose to patch/modify/build their own FIPS provider,
+test it with a Security Laboratory and submit it under their own CMVP
+certificate, instead of using OpenSSL Project submissions. When doing
+so, FIPS provider should uniquely identify its own name and version
+number. The build infrastructure allows to customize FIPS provider
+build information via changes to strings in `VERSION.dat`.
+
+Setting "PRE_RELEASE_TAG" (dashed suffix), "BUILD_METADATA" (plus
+suffix), and "FIPS_VENDOR" allow to control reported FIPS provider
+name and build version as required for CMVP submission.

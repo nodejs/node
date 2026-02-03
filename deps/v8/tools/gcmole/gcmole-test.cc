@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+// GCMole should not be confused by forward declarations.
+class ConservativePinningScope;
+
 // ------- Test simple argument evaluation order problems ---------
 
 void Safepoint() { LocalHeap::Current()->Safepoint(); }
@@ -33,7 +36,7 @@ Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
 Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
   isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 
-  return Managed<int>::cast(Smi::FromInt(i));
+  return Cast<Managed<int>>(Smi::FromInt(i));
 }
 
 void TwoArgumentsFunction(Tagged<Object> a, Tagged<Object> b) {
@@ -67,8 +70,6 @@ class SomeObject : public HeapObject {
  public:
   void Method(Tagged<Object> a) { Print(a); }
 
-  DECL_CAST(SomeObject)
-
   OBJECT_CONSTRUCTORS(SomeObject, HeapObject);
 };
 
@@ -86,7 +87,7 @@ void TestOperatorCall(Isolate* isolate) {
   Tagged<SomeObject> obj;
   Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
   // Should not cause warning.
-  obj = Tagged<SomeObject>::unchecked_cast(*CauseGC(obj1, isolate));
+  obj = UncheckedCast<SomeObject>(*CauseGC(obj1, isolate));
 }
 
 // --------- Test for templated sub-classes of Object ----------
@@ -352,6 +353,42 @@ void TestGuardedDeadVarAnalysisMultipleSafepoints(Isolate* isolate) {
   Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   DisallowGarbageCollection no_gc;
   Safepoint();
+  Print(raw_obj);
+}
+
+void TestVariableScopeInsideIf(Isolate* isolate) {
+  Safepoint();
+  Tagged<SomeObject> raw_obj;
+  if (Tagged<Map> raw_map = raw_obj->map(); !raw_map.is_null()) {
+    Print(raw_map);
+  }
+}
+
+void TestConservativePinningScope(Isolate* isolate) {
+  ConservativePinningScope pinning_scope(isolate->heap());
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
+void TestConservativePinningScopeConst(Isolate* isolate) {
+  const ConservativePinningScope pinning_scope(isolate->heap());
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
+void TestConservativePinningScopeWitness(
+    Isolate* isolate, ConservativePinningScope& pinning_scope_witness) {
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
+void TestConservativePinningScopeConstWitness(
+    Isolate* isolate, const ConservativePinningScope& pinning_scope_witness) {
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
   Print(raw_obj);
 }
 

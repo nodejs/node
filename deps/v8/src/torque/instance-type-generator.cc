@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/torque/implementation-visitor.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 namespace {
 
@@ -257,7 +257,7 @@ int SolveInstanceTypeConstraints(
   }
   root->num_values = root->end - root->start + 1;
   root->type->InitializeInstanceTypes(
-      root->value == -1 ? base::Optional<int>{} : root->value,
+      root->value == -1 ? std::optional<int>{} : root->value,
       std::make_pair(root->start, root->end));
 
   if (root->num_values > 0) {
@@ -330,14 +330,16 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                 << ") /* " << root->type->GetPosition() << " */\\\n";
     values << "  V(" << type_name << ") /* " << root->type->GetPosition()
            << " */\\\n";
-    std::ostream& type_checker_list =
-        root->type->HasUndefinedLayout()
-            ? (root->num_values == 1 ? only_declared_single_instance_types
-                                     : only_declared_multiple_instance_types)
-            : (root->num_values == 1 ? fully_defined_single_instance_types
-                                     : fully_defined_multiple_instance_types);
-    type_checker_list << "  V(" << root->type->name() << ", " << type_name
-                      << ") /* " << root->type->GetPosition() << " */ \\\n";
+    if (!root->type->DoNotGenerateInstanceTypeCheck()) {
+      std::ostream& type_checker_list =
+          root->type->HasUndefinedLayout()
+              ? (root->num_values == 1 ? only_declared_single_instance_types
+                                       : only_declared_multiple_instance_types)
+              : (root->num_values == 1 ? fully_defined_single_instance_types
+                                       : fully_defined_multiple_instance_types);
+      type_checker_list << "  V(" << root->type->name() << ", " << type_name
+                        << ") /* " << root->type->GetPosition() << " */ \\\n";
+    }
   }
   for (auto& child : root->children) {
     PrintInstanceTypes(child.get(), definitions, values,
@@ -360,11 +362,14 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
 
     // Only output the instance type range for things other than the root type.
     if (root->type->GetSuperClass() != nullptr) {
-      std::ostream& range_instance_types =
-          root->type->HasUndefinedLayout() ? only_declared_range_instance_types
-                                           : fully_defined_range_instance_types;
-      range_instance_types << "  V(" << root->type->name() << ", FIRST_"
-                           << type_name << ", LAST_" << type_name << ") \\\n";
+      if (!root->type->DoNotGenerateInstanceTypeCheck()) {
+        std::ostream& range_instance_types =
+            root->type->HasUndefinedLayout()
+                ? only_declared_range_instance_types
+                : fully_defined_range_instance_types;
+        range_instance_types << "  V(" << root->type->name() << ", FIRST_"
+                             << type_name << ", LAST_" << type_name << ") \\\n";
+      }
     }
   }
 }
@@ -506,6 +511,4 @@ void ImplementationVisitor::GenerateInstanceTypes(
   GlobalContext::SetInstanceTypesInitialized();
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

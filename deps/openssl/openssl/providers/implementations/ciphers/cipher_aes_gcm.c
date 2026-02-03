@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@ static void *aes_gcm_newctx(void *provctx, size_t keybits)
     ctx = OPENSSL_zalloc(sizeof(*ctx));
     if (ctx != NULL)
         ossl_gcm_initctx(provctx, &ctx->base, keybits,
-                         ossl_prov_aes_hw_gcm(keybits));
+            ossl_prov_aes_hw_gcm(keybits));
     return ctx;
 }
 
@@ -38,6 +38,9 @@ static void *aes_gcm_dupctx(void *provctx)
 {
     PROV_AES_GCM_CTX *ctx = provctx;
     PROV_AES_GCM_CTX *dctx = NULL;
+
+    if (!ossl_prov_is_running())
+        return NULL;
 
     if (ctx == NULL)
         return NULL;
@@ -54,7 +57,7 @@ static void aes_gcm_freectx(void *vctx)
 {
     PROV_AES_GCM_CTX *ctx = (PROV_AES_GCM_CTX *)vctx;
 
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 /* ossl_aes128gcm_functions */

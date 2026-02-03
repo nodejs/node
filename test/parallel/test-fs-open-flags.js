@@ -63,8 +63,8 @@ assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 assert.strictEqual(stringToFlags('as+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
 assert.strictEqual(stringToFlags('sa+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
 
-('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
-  .split(' ')
+['+', '+a', '+r', '+w', 'rw', 'wa', 'war', 'raw', 'r++', 'a++', 'w++', 'x', '+x',
+ 'x+', 'rx', 'rx+', 'wxx', 'wax', 'xwx', 'xxx']
   .forEach(function(flags) {
     assert.throws(
       () => stringToFlags(flags),
@@ -82,7 +82,7 @@ assert.throws(
   { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' }
 );
 
-if (common.isLinux || common.isOSX) {
+if (common.isLinux || common.isMacOS) {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const file = tmpdir.resolve('a.js');

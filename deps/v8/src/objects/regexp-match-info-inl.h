@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_REGEXP_MATCH_INFO_INL_H_
 #define V8_OBJECTS_REGEXP_MATCH_INFO_INL_H_
 
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/regexp-match-info.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,51 +16,33 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(RegExpMatchInfo)
-OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
-
-int RegExpMatchInfo::NumberOfCaptureRegisters() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  Tagged<Object> obj = get(kNumberOfCapturesIndex);
-  return Smi::ToInt(obj);
+int RegExpMatchInfo::number_of_capture_registers() const {
+  return number_of_capture_registers_.load().value();
+}
+void RegExpMatchInfo::set_number_of_capture_registers(int value) {
+  number_of_capture_registers_.store(this, Smi::FromInt(value));
 }
 
-void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kNumberOfCapturesIndex, Smi::FromInt(value));
+Tagged<String> RegExpMatchInfo::last_subject() const {
+  return last_subject_.load();
+}
+void RegExpMatchInfo::set_last_subject(Tagged<String> value,
+                                       WriteBarrierMode mode) {
+  last_subject_.store(this, value, mode);
 }
 
-Tagged<String> RegExpMatchInfo::LastSubject() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return String::cast(get(kLastSubjectIndex));
+Tagged<Object> RegExpMatchInfo::last_input() const {
+  return last_input_.load();
 }
-
-void RegExpMatchInfo::SetLastSubject(Tagged<String> value,
+void RegExpMatchInfo::set_last_input(Tagged<Object> value,
                                      WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastSubjectIndex, value, mode);
+  last_input_.store(this, value, mode);
 }
 
-Tagged<Object> RegExpMatchInfo::LastInput() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return get(kLastInputIndex);
-}
+int RegExpMatchInfo::capture(int index) const { return get(index).value(); }
 
-void RegExpMatchInfo::SetLastInput(Tagged<Object> value,
-                                   WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastInputIndex, value, mode);
-}
-
-int RegExpMatchInfo::Capture(int i) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  Tagged<Object> obj = get(kFirstCaptureIndex + i);
-  return Smi::ToInt(obj);
-}
-
-void RegExpMatchInfo::SetCapture(int i, int value) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  set(kFirstCaptureIndex + i, Smi::FromInt(value));
+void RegExpMatchInfo::set_capture(int index, int value) {
+  set(index, Smi::FromInt(value));
 }
 
 }  // namespace internal

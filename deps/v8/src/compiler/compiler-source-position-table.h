@@ -41,7 +41,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
     SourcePosition const prev_position_;
   };
 
-  explicit SourcePositionTable(Graph* graph);
+  explicit SourcePositionTable(TFGraph* graph);
   SourcePositionTable(const SourcePositionTable&) = delete;
   SourcePositionTable& operator=(const SourcePositionTable&) = delete;
 
@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
     return SourcePosition::Unknown();
   }
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
   NodeAuxData<SourcePosition, UnknownSourcePosition> table_;

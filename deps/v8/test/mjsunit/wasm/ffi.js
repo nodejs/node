@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -125,7 +125,9 @@ testCallFFI(bind_sub, check_FOREIGN_SUB);
 })();
 
 print("Callable JSObject");
-testCallFFI(%GetCallable(), function check(r, a, b) {assertEquals(a - b, r);});
+function callable_target(a, b) { return a - b; }
+let callable_obj = %GetCallable("callable_target");
+testCallFFI(callable_obj, function check(r, a, b) {assertEquals(a - b, r);});
 
 function FOREIGN_ABCD(a, b, c, d) {
 //  print("FOREIGN_ABCD(" + a + ", " + b + ", " + c + ", " + d + ")");

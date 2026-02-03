@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/ast/ast.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
@@ -23,7 +22,7 @@ namespace parsing {
 
 namespace {
 
-void MaybeReportStatistics(ParseInfo* info, Handle<Script> script,
+void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
                            Isolate* isolate, Parser* parser,
                            ReportStatisticsMode mode) {
   switch (mode) {
@@ -37,8 +36,8 @@ void MaybeReportStatistics(ParseInfo* info, Handle<Script> script,
 
 }  // namespace
 
-bool ParseProgram(ParseInfo* info, Handle<Script> script,
-                  MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
+                  MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
                   Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(info->flags().is_toplevel());
   DCHECK_NULL(info->literal());
@@ -46,12 +45,12 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(script->source()), isolate);
+  Handle<String> source(Cast<String>(script->source()), isolate);
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(isolate->main_thread_local_isolate(), info, script);
+  Parser parser(isolate->main_thread_local_isolate(), info);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
@@ -60,12 +59,13 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
   return info->literal() != nullptr;
 }
 
-bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
-                  ReportStatisticsMode mode) {
+bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
+                  Isolate* isolate, ReportStatisticsMode mode) {
   return ParseProgram(info, script, kNullMaybeHandle, isolate, mode);
 }
 
-bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+bool ParseFunction(ParseInfo* info,
+                   DirectHandle<SharedFunctionInfo> shared_info,
                    Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(!info->flags().is_toplevel());
   DCHECK(!shared_info.is_null());
@@ -74,14 +74,19 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  Handle<String> source(String::cast(script->source()), isolate);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
+  Handle<String> source(Cast<String>(script->source()), isolate);
+  uint32_t start_pos = shared_info->StartPosition();
+  uint32_t end_pos = shared_info->EndPosition();
+  if (end_pos > source->length()) {
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(script->ptr()),
+                                  reinterpret_cast<void*>(source->ptr()));
+  }
   std::unique_ptr<Utf16CharacterStream> stream(
-      ScannerStream::For(isolate, source, shared_info->StartPosition(),
-                         shared_info->EndPosition()));
+      ScannerStream::For(isolate, source, start_pos, end_pos));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(isolate->main_thread_local_isolate(), info, script);
+  Parser parser(isolate->main_thread_local_isolate(), info);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
@@ -90,18 +95,18 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   return info->literal() != nullptr;
 }
 
-bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+bool ParseAny(ParseInfo* info, DirectHandle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
   if (info->flags().is_toplevel()) {
-    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info;
     if (shared_info->HasOuterScopeInfo()) {
       maybe_outer_scope_info =
-          handle(shared_info->GetOuterScopeInfo(), isolate);
+          direct_handle(shared_info->GetOuterScopeInfo(), isolate);
     }
-    return ParseProgram(info,
-                        handle(Script::cast(shared_info->script()), isolate),
-                        maybe_outer_scope_info, isolate, mode);
+    return ParseProgram(
+        info, direct_handle(Cast<Script>(shared_info->script()), isolate),
+        maybe_outer_scope_info, isolate, mode);
   }
   return ParseFunction(info, shared_info, isolate, mode);
 }

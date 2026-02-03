@@ -1,7 +1,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-common.skipIfDumbTerminal();
+
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const assert = require('assert');
 const readline = require('readline/promises');
@@ -22,7 +25,7 @@ class FakeInput extends EventEmitter {
 function isWarned(emitter) {
   for (const name in emitter) {
     const listeners = emitter[name];
-    if (listeners && listeners.warned) return true;
+    if (listeners?.warned) return true;
   }
   return false;
 }
@@ -201,7 +204,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     fi.emit('data', character);
   }
   fi.emit('data', '\n');
-  rli.close();
+  fi.end();
 }
 
 // \t when there is no completer function should behave like an ordinary
@@ -258,10 +261,10 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   // ['foo', 'baz', 'bar', bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', common.mustCallAtLeast((line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
-  });
+  }));
   fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
@@ -334,10 +337,10 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', common.mustCallAtLeast((line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
-  });
+  }));
   fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
@@ -393,7 +396,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo'];
-  rli.question(expectedLines[0]).then(() => rli.close());
+  rli.question(expectedLines[0]).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
   assertCursorRowsAndCols(rli, 0, expectedLines[0].length);
   rli.close();
 }
@@ -402,7 +405,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo', 'bar'];
-  rli.question(expectedLines.join('\n')).then(() => rli.close());
+  rli.question(expectedLines.join('\n')).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
   assertCursorRowsAndCols(
     rli, expectedLines.length - 1, expectedLines.slice(-1)[0].length);
   rli.close();
@@ -837,10 +840,10 @@ for (let i = 0; i < 12; i++) {
   {
     const [rli, fi] = getInterface({ terminal });
     let called = false;
-    rli.on('line', (line) => {
+    rli.on('line', common.mustCallAtLeast((line) => {
       called = true;
       assert.strictEqual(line, 'a');
-    });
+    }));
     fi.emit('data', 'a');
     assert.ok(!called);
     fi.emit('data', '\n');
@@ -889,10 +892,10 @@ for (let i = 0; i < 12; i++) {
     const buf = Buffer.from('☮', 'utf8');
     const [rli, fi] = getInterface({ terminal });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', common.mustCallAtLeast((line) => {
       callCount++;
       assert.strictEqual(line, buf.toString('utf8'));
-    });
+    }));
     for (const i of buf) {
       fi.emit('data', Buffer.from([i]));
     }
@@ -948,6 +951,22 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Aborting a question with ctrl+C
+  {
+    const [rli, fi] = getInterface({ terminal: true });
+    assert.rejects(rli.question('hello?'), { name: 'AbortError' })
+        .then(common.mustCall());
+    fi.emit('keypress', '.', { ctrl: true, name: 'c' });
+  }
+
+  // Aborting a question with ctrl+D
+  {
+    const [rli, fi] = getInterface({ terminal: true });
+    assert.rejects(rli.question('hello?'), { name: 'AbortError' })
+        .then(common.mustCall());
+    fi.emit('keypress', '.', { ctrl: true, name: 'd' });
+  }
+
   (async () => {
     const [rli] = getInterface({ terminal });
     const signal = AbortSignal.abort('boom');
@@ -978,11 +997,12 @@ for (let i = 0; i < 12; i++) {
     rli.question('What\'s your name?').then(common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      rli.question('How are you?')
-        .then(common.mustNotCall(), common.expectsError({
+      assert.rejects(
+        rli.question('How are you?'),
+        {
           code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
-        }));
+        }).then(common.mustCall());
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
     fi.emit('data', 'Node.js\n');

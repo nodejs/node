@@ -50,7 +50,7 @@ function check() {
 
 // TODO(tebbi): Make isOptimized() from mjsunit.js available in intl tests.
 function isOptimized(fun) {
-    return (%GetOptimizationStatus(fun) & (1 << 4)) != 0;
+    return (%GetOptimizationStatus(fun) & (1 << 3)) != 0;
 }
 
 assertFalse(isOptimized(check));

@@ -5,6 +5,9 @@
 #ifndef INCLUDE_V8_WEAK_CALLBACK_INFO_H_
 #define INCLUDE_V8_WEAK_CALLBACK_INFO_H_
 
+#include <cstring>
+
+#include "cppgc/internal/conditional-stack-allocated.h"  // NOLINT(build/include_directory)
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -15,11 +18,12 @@ namespace api_internal {
 V8_EXPORT void InternalFieldOutOfBounds(int index);
 }  // namespace api_internal
 
-static const int kInternalFieldsInWeakCallback = 2;
-static const int kEmbedderFieldsInWeakCallback = 2;
+static constexpr int kInternalFieldsInWeakCallback = 2;
+static constexpr int kEmbedderFieldsInWeakCallback = 2;
 
 template <typename T>
-class WeakCallbackInfo {
+class WeakCallbackInfo
+    : public cppgc::internal::ConditionalStackAllocatedBase<T> {
  public:
   using Callback = void (*)(const WeakCallbackInfo<T>& data);
 
@@ -27,21 +31,25 @@ class WeakCallbackInfo {
                    void* embedder_fields[kEmbedderFieldsInWeakCallback],
                    Callback* callback)
       : isolate_(isolate), parameter_(parameter), callback_(callback) {
-    for (int i = 0; i < kEmbedderFieldsInWeakCallback; ++i) {
-      embedder_fields_[i] = embedder_fields[i];
-    }
+    memcpy(embedder_fields_, embedder_fields,
+           sizeof(embedder_fields[0]) * kEmbedderFieldsInWeakCallback);
   }
 
   V8_INLINE Isolate* GetIsolate() const { return isolate_; }
   V8_INLINE T* GetParameter() const { return parameter_; }
   V8_INLINE void* GetInternalField(int index) const;
 
-  // When first called, the embedder MUST Reset() the Global which triggered the
-  // callback. The Global itself is unusable for anything else. No v8 other api
-  // calls may be called in the first callback. Should additional work be
-  // required, the embedder must set a second pass callback, which will be
-  // called after all the initial callbacks are processed.
-  // Calling SetSecondPassCallback on the second pass will immediately crash.
+  /**
+   * When a weak callback is first invoked the embedders _must_ Reset() the
+   * handle which triggered the callback. The handle itself is unusable for
+   * anything else. No other V8 API calls may be called in the first callback.
+   * Additional work requires scheduling a second invocation via
+   * `SetSecondPassCallback()` which will be called some time after all the
+   * initial callbacks are processed.
+   *
+   * The second pass callback is prohibited from executing JavaScript. Embedders
+   * should schedule another callback in case this is required.
+   */
   void SetSecondPassCallback(Callback callback) const { *callback_ = callback; }
 
  private:

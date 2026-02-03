@@ -13,7 +13,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end(null);
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const request = http.request({
     port: server.address().port,
   });
@@ -29,4 +29,4 @@ server.listen(0, () => {
   }));
 
   request.end(null);
-});
+}));

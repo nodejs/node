@@ -8,7 +8,7 @@ async function clean (gyp, argv) {
   const buildDir = 'build'
 
   log.verbose('clean', 'removing "%s" directory', buildDir)
-  await fs.rm(buildDir, { recursive: true, force: true })
+  await fs.rm(buildDir, { recursive: true, force: true, maxRetries: 3 })
 }
 
 module.exports = clean

@@ -26,16 +26,16 @@ function createLocalConnection(options) {
 }
 
 http.createServer(common.mustCall(function(req, res) {
-  this.requests = this.requests || 0;
+  this.requests ||= 0;
   assert.strictEqual(req.headers.host, req.headers.expectedhost);
   res.end();
   if (++this.requests === requests.length)
     this.close();
-}, requests.length)).listen(0, function() {
+}, requests.length)).listen(0, common.mustCall(function() {
   const address = this.address();
   for (let i = 0; i < requests.length; ++i) {
     requests[i].createConnection =
       common.mustCall(createLocalConnection.bind(address));
     http.get(requests[i]);
   }
-});
+}));

@@ -9,19 +9,19 @@ const data = Buffer.alloc(1000000).toString('hex');
 
 const server = net.createServer(common.mustCall(function(conn) {
   conn.resume();
+  server.close();
 })).listen(0, common.mustCall(function() {
   const conn = net.createConnection(this.address().port, common.mustCall(() => {
     let count = 0;
 
     function writeLoop() {
       if (count++ === 20) {
-        conn.destroy();
-        server.close();
+        conn.end();
         return;
       }
 
       while (conn.write(data, 'hex'));
-      global.gc({ type: 'minor' });
+      globalThis.gc({ type: 'minor' });
       // The buffer allocated inside the .write() call should still be alive.
     }
 

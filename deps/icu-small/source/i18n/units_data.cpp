@@ -6,6 +6,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "bytesinkutil.h"
+#include "charstr.h"
 #include "cstring.h"
 #include "measunit_impl.h"
 #include "number_decimalquantity.h"
@@ -80,6 +81,7 @@ class ConversionRateDataSink : public ResourceSink {
             UnicodeString baseUnit = ICU_Utility::makeBogusString();
             UnicodeString factor = ICU_Utility::makeBogusString();
             UnicodeString offset = ICU_Utility::makeBogusString();
+            UnicodeString special = ICU_Utility::makeBogusString();
             UnicodeString systems = ICU_Utility::makeBogusString();
             for (int32_t i = 0; unitTable.getKeyAndValue(i, key, value); i++) {
                 if (uprv_strcmp(key, "target") == 0) {
@@ -88,12 +90,14 @@ class ConversionRateDataSink : public ResourceSink {
                     factor = value.getUnicodeString(status);
                 } else if (uprv_strcmp(key, "offset") == 0) {
                     offset = value.getUnicodeString(status);
+                } else if (uprv_strcmp(key, "special") == 0) {
+                    special = value.getUnicodeString(status); // the name of a special mapping used instead of factor + optional offset.
                 } else if (uprv_strcmp(key, "systems") == 0) {
                     systems = value.getUnicodeString(status);
                 }
             }
             if (U_FAILURE(status)) { return; }
-            if (baseUnit.isBogus() || factor.isBogus()) {
+            if (baseUnit.isBogus() || (factor.isBogus() && special.isBogus())) {
                 // We could not find a usable conversion rate: bad resource.
                 status = U_MISSING_RESOURCE_ERROR;
                 return;
@@ -105,15 +109,27 @@ class ConversionRateDataSink : public ResourceSink {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 return;
             } else {
-                cr->sourceUnit.append(srcUnit, status);
-                cr->baseUnit.appendInvariantChars(baseUnit, status);
-                cr->factor.appendInvariantChars(factor, status);
-                cr->systems.appendInvariantChars(systems, status);
-                trimSpaces(cr->factor, status);
-                if (!offset.isBogus()) cr->offset.appendInvariantChars(offset, status);
+                cr->sourceUnit = srcUnit;
+                if (cr->sourceUnit.isEmpty() != (*srcUnit == '\0')) {
+                    status = U_MEMORY_ALLOCATION_ERROR;
+                }
+                copyInvariantChars(baseUnit, cr->baseUnit, status);
+                if (U_SUCCESS(status) && !factor.isBogus()) {
+                    CharString tmp;
+                    tmp.appendInvariantChars(factor, status);
+                    trimSpaces(tmp, status);
+                    if (U_SUCCESS(status)) {
+                        cr->factor = tmp.toStringPiece();
+                        if (cr->factor.isEmpty() != tmp.isEmpty()) {
+                            status = U_MEMORY_ALLOCATION_ERROR;
+                        }
+                    }
+                }
+                if (!offset.isBogus()) { copyInvariantChars(offset, cr->offset, status); }
+                if (!special.isBogus()) { copyInvariantChars(special, cr->specialMappingName, status); }
+                copyInvariantChars(systems, cr->systems, status);
             }
         }
-        return;
     }
 
   private:
@@ -210,9 +226,7 @@ class UnitPreferencesSink : public ResourceSink {
                         if (U_FAILURE(status)) { return; }
                         for (int32_t i = 0; unitPref.getKeyAndValue(i, key, value); ++i) {
                             if (uprv_strcmp(key, "unit") == 0) {
-                                int32_t length;
-                                const char16_t *u = value.getString(length, status);
-                                up->unit.appendInvariantChars(u, length, status);
+                                copyInvariantChars(value.getUnicodeString(status), up->unit, status);
                             } else if (uprv_strcmp(key, "geq") == 0) {
                                 int32_t length;
                                 const char16_t *g = value.getString(length, status);
@@ -382,36 +396,34 @@ void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &resu
 const ConversionRateInfo *ConversionRates::extractConversionInfo(StringPiece source,
                                                                  UErrorCode &status) const {
     for (size_t i = 0, n = conversionInfo_.length(); i < n; ++i) {
-        if (conversionInfo_[i]->sourceUnit.toStringPiece() == source) return conversionInfo_[i];
+        if (uprv_strncmp(conversionInfo_[i]->sourceUnit.data(), source.data(), source.size()) == 0) {
+            return conversionInfo_[i];
+        }
     }
 
     status = U_INTERNAL_PROGRAM_ERROR;
     return nullptr;
 }
 
-U_I18N_API UnitPreferences::UnitPreferences(UErrorCode &status) {
+UnitPreferences::UnitPreferences(UErrorCode& status) {
     LocalUResourceBundlePointer unitsBundle(ures_openDirect(nullptr, "units", &status));
     UnitPreferencesSink sink(&unitPrefs_, &metadata_);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "unitPreferenceData", sink, status);
 }
 
 CharString getKeyWordValue(const Locale &locale, StringPiece kw, UErrorCode &status) {
-    CharString result;
-    if (U_FAILURE(status)) { return result; }
-    {
-        CharStringByteSink sink(&result);
-        locale.getKeywordValue(kw, sink, status);
-    }
+    if (U_FAILURE(status)) { return {}; }
+    auto result = locale.getKeywordValue<CharString>(kw, status);
     if (U_SUCCESS(status) && result.isEmpty()) {
         status = U_MISSING_RESOURCE_ERROR;
     }
     return result;
 }
 
-MaybeStackVector<UnitPreference>
-    U_I18N_API UnitPreferences::getPreferencesFor(StringPiece category, StringPiece usage,
-                                                  const Locale &locale, UErrorCode &status) const {
-
+MaybeStackVector<UnitPreference> UnitPreferences::getPreferencesFor(StringPiece category,
+                                                                    StringPiece usage,
+                                                                    const Locale& locale,
+                                                                    UErrorCode& status) const {
     MaybeStackVector<UnitPreference> result;
 
     // TODO: remove this once all the categories are allowed.
@@ -430,17 +442,19 @@ MaybeStackVector<UnitPreference>
                 || localeUnitCharString == "kelvin"
             ) {
                 UnitPreference unitPref;
-                unitPref.unit.append(localeUnitCharString, status);
+                unitPref.unit = localeUnitCharString.toStringPiece();
+                if (unitPref.unit.isEmpty() != localeUnitCharString.isEmpty()) {
+                    status = U_MISSING_RESOURCE_ERROR;
+                    return result;
+                }
                 result.emplaceBackAndCheckErrorCode(status, unitPref);
                 return result;
             }
         }
     }
 
-    char regionBuf[8];
-    ulocimp_getRegionForSupplementalData(locale.getName(), false, regionBuf, 8, &status);
-    CharString region(regionBuf, status);
-        
+    CharString region = ulocimp_getRegionForSupplementalData(locale.getName(), true, status);
+
     // Check the locale system tag, e.g `ms=metric`.
     UErrorCode internalMeasureTagStatus = U_ZERO_ERROR;
     CharString localeSystem = getKeyWordValue(locale, "measure", internalMeasureTagStatus);
@@ -470,9 +484,10 @@ MaybeStackVector<UnitPreference>
             for (int32_t j = 0; unitsMatchSystem && j < measureUnit.singleUnits.length(); j++) {
                 const SingleUnitImpl* singleUnit = measureUnit.singleUnits[j];
                 const ConversionRateInfo* rateInfo = rates.extractConversionInfo(singleUnit->getSimpleUnitID(), status);
-                CharString systems(rateInfo->systems, status);
-                if (!systems.contains("metric_adjacent")) { // "metric-adjacent" is considered to match all the locale systems
-                    if (!systems.contains(localeSystem.data())) {
+                const char* systems = rateInfo->systems.data();
+                // "metric-adjacent" is considered to match all the locale systems
+                if (uprv_strstr(systems, "metric_adjacent") == nullptr) {
+                    if (uprv_strstr(systems, localeSystem.data()) == nullptr) {
                         unitsMatchSystem = false;
                     }
                 }

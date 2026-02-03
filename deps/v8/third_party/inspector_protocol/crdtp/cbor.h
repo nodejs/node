@@ -252,7 +252,8 @@ class CBORTokenizer {
   span<uint8_t> GetString8() const;
 
   // Wire representation for STRING16 is low byte first (little endian).
-  // To be called only if ::TokenTag() == CBORTokenTag::STRING16.
+  // To be called only if ::TokenTag() == CBORTokenTag::STRING16. The result is
+  // guaranteed to have even length.
   span<uint8_t> GetString16WireRep() const;
 
   // To be called only if ::TokenTag() == CBORTokenTag::BINARY.

@@ -17,7 +17,7 @@
 #include <openssl/err.h>
 
 int EC_GROUP_check_named_curve(const EC_GROUP *group, int nist_only,
-                               BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     int nid;
     BN_CTX *new_ctx = NULL;
@@ -30,7 +30,7 @@ int EC_GROUP_check_named_curve(const EC_GROUP *group, int nist_only,
     if (ctx == NULL) {
         ctx = new_ctx = BN_CTX_new_ex(NULL);
         if (ctx == NULL) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             return NID_undef;
         }
     }
@@ -47,9 +47,9 @@ int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx)
 {
 #ifdef FIPS_MODULE
     /*
-    * ECC domain parameter validation.
-    * See SP800-56A R3 5.5.2 "Assurances of Domain-Parameter Validity" Part 1b.
-    */
+     * ECC domain parameter validation.
+     * See SP800-56A R3 5.5.2 "Assurances of Domain-Parameter Validity" Part 1b.
+     */
     return EC_GROUP_check_named_curve(group, 1, ctx) >= 0 ? 1 : 0;
 #else
     int ret = 0;
@@ -69,7 +69,7 @@ int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx)
     if (ctx == NULL) {
         ctx = new_ctx = BN_CTX_new();
         if (ctx == NULL) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto err;
         }
     }
@@ -110,7 +110,7 @@ int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx)
 
     ret = 1;
 
- err:
+err:
     BN_CTX_free(new_ctx);
     EC_POINT_free(point);
     return ret;

@@ -113,7 +113,7 @@ class SimpleTimeZone;
  * (UN M.49 - World).  This data is generated from "zone.tab"
  * in the tz database.
  */
-class U_I18N_API OlsonTimeZone: public BasicTimeZone {
+class U_I18N_API_CLASS OlsonTimeZone : public BasicTimeZone {
  public:
     /**
      * Construct from a resource bundle.
@@ -141,7 +141,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * Assignment operator
      */
-    OlsonTimeZone& operator=(const OlsonTimeZone& other);
+    U_I18N_API OlsonTimeZone& operator=(const OlsonTimeZone& other);
 
     /**
      * Returns true if the two TimeZone objects are equal.
@@ -156,7 +156,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.
      */
-    static UClassID U_EXPORT2 getStaticClassID();
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * TimeZone API.
@@ -410,7 +410,7 @@ OlsonTimeZone::transitionCount() const {
 
 inline double
 OlsonTimeZone::transitionTime(int16_t transIdx) const {
-    return (double)transitionTimeInSeconds(transIdx) * U_MILLIS_PER_SECOND;
+    return static_cast<double>(transitionTimeInSeconds(transIdx)) * U_MILLIS_PER_SECOND;
 }
 
 inline int32_t

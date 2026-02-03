@@ -142,9 +142,9 @@ public:
 
     const Hashtable* variableNames; // alias
 
-    ParseData(const TransliterationRuleData* data = 0,
-              const UVector* variablesVector = 0,
-              const Hashtable* variableNames = 0);
+    ParseData(const TransliterationRuleData* data = nullptr,
+              const UVector* variablesVector = nullptr,
+              const Hashtable* variableNames = nullptr);
 
     virtual ~ParseData();
 
@@ -182,7 +182,7 @@ ParseData::~ParseData() {}
  * Implement SymbolTable API.
  */
 const UnicodeString* ParseData::lookup(const UnicodeString& name) const {
-    return (const UnicodeString*) variableNames->get(name);
+    return static_cast<const UnicodeString*>(variableNames->get(name));
 }
 
 /**
@@ -196,7 +196,7 @@ const UnicodeFunctor* ParseData::lookupMatcher(UChar32 ch) const {
     if (i >= 0 && i < variablesVector->size()) {
         int32_t j = ch - data->variablesBase;
         set = (j < variablesVector->size()) ?
-            (UnicodeFunctor*) variablesVector->elementAt(j) : 0;
+            static_cast<UnicodeFunctor*>(variablesVector->elementAt(j)) : nullptr;
     }
     return set;
 }
@@ -230,7 +230,7 @@ UBool ParseData::isMatcher(UChar32 ch) {
     // set array has not been constructed yet.
     int32_t i = ch - data->variablesBase;
     if (i >= 0 && i < variablesVector->size()) {
-        UnicodeFunctor *f = (UnicodeFunctor*) variablesVector->elementAt(i);
+        UnicodeFunctor* f = static_cast<UnicodeFunctor*>(variablesVector->elementAt(i));
         return f != nullptr && f->toMatcher() != nullptr;
     }
     return true;
@@ -245,7 +245,7 @@ UBool ParseData::isReplacer(UChar32 ch) {
     // set array has not been constructed yet.
     int i = ch - data->variablesBase;
     if (i >= 0 && i < variablesVector->size()) {
-        UnicodeFunctor *f = (UnicodeFunctor*) variablesVector->elementAt(i);
+        UnicodeFunctor* f = static_cast<UnicodeFunctor*>(variablesVector->elementAt(i));
         return f != nullptr && f->toReplacer() != nullptr;
     }
     return true;
@@ -446,7 +446,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 return syntaxError(U_TRAILING_BACKSLASH, rule, start, status);
             }
             UChar32 escaped = rule.unescapeAt(pos); // pos is already past '\\'
-            if (escaped == (UChar32) -1) {
+            if (escaped == static_cast<UChar32>(-1)) {
                 return syntaxError(U_MALFORMED_UNICODE_ESCAPE, rule, start, status);
             }
             if (!parser.checkVariableRange(escaped)) {
@@ -535,15 +535,14 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 // in buf, starting at offset bufSegStart.  Extract them
                 // into a string matcher, and replace them with a
                 // standin for that matcher.
-                StringMatcher* m =
-                    new StringMatcher(buf, bufSegStart, buf.length(),
-                                      segmentNumber, *parser.curData);
-                if (m == nullptr) {
+                LocalPointer<StringMatcher> m(new StringMatcher(buf, bufSegStart, buf.length(),
+                                      segmentNumber, *parser.curData), status);
+                if (U_FAILURE(status)) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
                 
                 // Record and associate object and segment number
-                parser.setSegmentObject(segmentNumber, m, status);
+                parser.setSegmentObject(segmentNumber, m.orphan(), status);
                 buf.truncate(bufSegStart);
                 buf.append(parser.getSegmentStandin(segmentNumber, status));
             }
@@ -577,15 +576,15 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 // in buf, starting at offset bufSegStart.
                 UnicodeString output;
                 buf.extractBetween(bufSegStart, buf.length(), output);
-                FunctionReplacer *r =
-                    new FunctionReplacer(t, new StringReplacer(output, parser.curData));
-                if (r == nullptr) {
+                LocalPointer<FunctionReplacer> r(
+                    new FunctionReplacer(t, new StringReplacer(output, parser.curData)), status);
+                if (U_FAILURE(status)) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
                 
                 // Replace the buffer contents with a stand-in
                 buf.truncate(bufSegStart);
-                buf.append(parser.generateStandInFor(r, status));
+                buf.append(parser.generateStandInFor(r.orphan(), status));
             }
             break;
         case SymbolTable::SYMBOL_REF:
@@ -671,9 +670,9 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                     qlimit = qstart + 1;
                 }
 
-                UnicodeFunctor *m =
-                    new StringMatcher(buf, qstart, qlimit, 0, *parser.curData);
-                if (m == nullptr) {
+                LocalPointer<UnicodeFunctor> m(
+                    new StringMatcher(buf, qstart, qlimit, 0, *parser.curData), status);
+                if (U_FAILURE(status)) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
                 int32_t min = 0;
@@ -689,12 +688,16 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 // case KLEENE_STAR:
                 //    do nothing -- min, max already set
                 }
-                m = new Quantifier(m, min, max);
-                if (m == nullptr) {
+                LocalPointer<UnicodeFunctor> m2(new Quantifier(m.getAlias(), min, max), status);
+                if (m2.isValid()) {
+                    m.orphan();
+                }
+                if (U_FAILURE(status)) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
+                m = std::move(m2);
                 buf.truncate(qstart);
-                buf.append(parser.generateStandInFor(m, status));
+                buf.append(parser.generateStandInFor(m.orphan(), status));
             }
             break;
 
@@ -844,11 +847,11 @@ segmentObjects(statusReturn)
  */
 TransliteratorParser::~TransliteratorParser() {
     while (!dataVector.isEmpty())
-        delete (TransliterationRuleData*)(dataVector.orphanElementAt(0));
+        delete static_cast<TransliterationRuleData*>(dataVector.orphanElementAt(0));
     delete compoundFilter;
     delete parseData;
     while (!variablesVector.isEmpty())
-        delete (UnicodeFunctor*)variablesVector.orphanElementAt(0);
+        delete static_cast<UnicodeFunctor*>(variablesVector.orphanElementAt(0));
 }
 
 void
@@ -895,7 +898,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
     int32_t ruleCount = 0;
     
     while (!dataVector.isEmpty()) {
-        delete (TransliterationRuleData*)(dataVector.orphanElementAt(0));
+        delete static_cast<TransliterationRuleData*>(dataVector.orphanElementAt(0));
     }
     if (U_FAILURE(status)) {
         return;
@@ -910,18 +913,18 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
     compoundFilter = nullptr;
 
     while (!variablesVector.isEmpty()) {
-        delete (UnicodeFunctor*)variablesVector.orphanElementAt(0);
+        delete static_cast<UnicodeFunctor*>(variablesVector.orphanElementAt(0));
     }
     variableNames.removeAll();
-    parseData = new ParseData(0, &variablesVector, &variableNames);
+    parseData = new ParseData(nullptr, &variablesVector, &variableNames);
     if (parseData == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
 
-    dotStandIn = (char16_t) -1;
+    dotStandIn = static_cast<char16_t>(-1);
 
-    UnicodeString *tempstr = nullptr; // used for memory allocation error checking
+    LocalPointer<UnicodeString> tempstr; // used for memory allocation error checking
     UnicodeString str; // scratch
     UnicodeString idBlockResult;
     int32_t pos = 0;
@@ -943,7 +946,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         }
         // Skip lines starting with the comment character
         if (c == RULE_COMMENT_CHAR) {
-            pos = rule.indexOf((char16_t)0x000A /*\n*/, pos) + 1;
+            pos = rule.indexOf(static_cast<char16_t>(0x000A) /*\n*/, pos) + 1;
             if (pos == 0) {
                 break; // No "\n" found; rest of rule is a comment
             }
@@ -1029,17 +1032,16 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
             pos = p;
         } else {
             if (parsingIDs) {
-                tempstr = new UnicodeString(idBlockResult);
+                tempstr.adoptInsteadAndCheckErrorCode(new UnicodeString(idBlockResult), status);
                 // nullptr pointer check
-                if (tempstr == nullptr) {
-                    status = U_MEMORY_ALLOCATION_ERROR;
+                if (U_FAILURE(status)) {
                     return;
                 }
                 U_ASSERT(idBlockVector.hasDeleter());
                 if (direction == UTRANS_FORWARD)
-                    idBlockVector.adoptElement(tempstr, status);
+                    idBlockVector.adoptElement(tempstr.orphan(), status);
                 else
-                    idBlockVector.insertElementAt(tempstr, 0, status);
+                    idBlockVector.insertElementAt(tempstr.orphan(), 0, status);
                 if (U_FAILURE(status)) {
                     return;
                 }
@@ -1074,18 +1076,17 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
     }
 
     if (parsingIDs && idBlockResult.length() > 0) {
-        tempstr = new UnicodeString(idBlockResult);
+        tempstr.adoptInsteadAndCheckErrorCode(new UnicodeString(idBlockResult), status);
         // nullptr pointer check
-        if (tempstr == nullptr) {
+        if (U_FAILURE(status)) {
             // TODO: Testing, forcing this path, shows many memory leaks. ICU-21701
             //       intltest translit/TransliteratorTest/TestInstantiation
-            status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
         if (direction == UTRANS_FORWARD)
-            idBlockVector.adoptElement(tempstr, status);
+            idBlockVector.adoptElement(tempstr.orphan(), status);
         else
-            idBlockVector.insertElementAt(tempstr, 0, status);
+            idBlockVector.insertElementAt(tempstr.orphan(), 0, status);
         if (U_FAILURE(status)) {
             return;
         }
@@ -1106,12 +1107,12 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         // Convert the set vector to an array
         int32_t i, dataVectorSize = dataVector.size();
         for (i = 0; i < dataVectorSize; i++) {
-            TransliterationRuleData* data = (TransliterationRuleData*)dataVector.elementAt(i);
+            TransliterationRuleData* data = static_cast<TransliterationRuleData*>(dataVector.elementAt(i));
             data->variablesLength = variablesVector.size();
             if (data->variablesLength == 0) {
-                data->variables = 0;
+                data->variables = nullptr;
             } else {
-                data->variables = (UnicodeFunctor**)uprv_malloc(data->variablesLength * sizeof(UnicodeFunctor*));
+                data->variables = static_cast<UnicodeFunctor**>(uprv_malloc(data->variablesLength * sizeof(UnicodeFunctor*)));
                 // nullptr pointer check
                 if (data->variables == nullptr) {
                     status = U_MEMORY_ALLOCATION_ERROR;
@@ -1129,12 +1130,12 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
             int32_t p = UHASH_FIRST;
             const UHashElement* he = variableNames.nextElement(p);
             while (he != nullptr) {
-                UnicodeString* tempus = ((UnicodeString*)(he->value.pointer))->clone();
+                UnicodeString* tempus = static_cast<UnicodeString*>(he->value.pointer)->clone();
                 if (tempus == nullptr) {
                     status = U_MEMORY_ALLOCATION_ERROR;
                     return;
                 }
-                data->variableNames.put(*((UnicodeString*)(he->key.pointer)),
+                data->variableNames.put(*static_cast<UnicodeString*>(he->key.pointer),
                     tempus, status);
                 he = variableNames.nextElement(p);
             }
@@ -1150,10 +1151,10 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         }        
 
         for (i = 0; i < dataVectorSize; i++) {
-            TransliterationRuleData* data = (TransliterationRuleData*)dataVector.elementAt(i);
+            TransliterationRuleData* data = static_cast<TransliterationRuleData*>(dataVector.elementAt(i));
             data->ruleSet.freeze(parseError, status);
         }
-        if (idBlockVector.size() == 1 && ((UnicodeString*)idBlockVector.elementAt(0))->isEmpty()) {
+        if (idBlockVector.size() == 1 && static_cast<UnicodeString*>(idBlockVector.elementAt(0))->isEmpty()) {
             idBlockVector.removeElementAt(0);
         }
     }
@@ -1168,10 +1169,10 @@ void TransliteratorParser::setVariableRange(int32_t start, int32_t end, UErrorCo
         return;
     }
     
-    curData->variablesBase = (char16_t) start;
+    curData->variablesBase = static_cast<char16_t>(start);
     if (dataVector.size() == 0) {
-        variableNext = (char16_t) start;
-        variableLimit = (char16_t) (end + 1);
+        variableNext = static_cast<char16_t>(start);
+        variableLimit = static_cast<char16_t>(end + 1);
     }
 }
 
@@ -1365,12 +1366,12 @@ int32_t TransliteratorParser::parseRule(const UnicodeString& rule, int32_t pos, 
             return syntaxError(U_MALFORMED_VARIABLE_DEFINITION, rule, start, status);
         } 
         // We allow anything on the right, including an empty string.
-        UnicodeString* value = new UnicodeString(right->text);
+        LocalPointer<UnicodeString> value(new UnicodeString(right->text), status);
         // nullptr pointer check
-        if (value == nullptr) {
+        if (U_FAILURE(status)) {
             return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
         }
-        variableNames.put(undefinedVariableName, value, status);
+        variableNames.put(undefinedVariableName, value.orphan(), status);
         ++variableLimit;
         return pos;
     }
@@ -1451,30 +1452,32 @@ int32_t TransliteratorParser::parseRule(const UnicodeString& rule, int32_t pos, 
     }
 
     // Flatten segment objects vector to an array
-    UnicodeFunctor** segmentsArray = nullptr;
+    LocalMemory<UnicodeFunctor*> segmentsArray;
     if (segmentObjects.size() > 0) {
-        segmentsArray = (UnicodeFunctor **)uprv_malloc(segmentObjects.size() * sizeof(UnicodeFunctor *));
+        segmentsArray.adoptInstead(static_cast<UnicodeFunctor**>(uprv_malloc(segmentObjects.size() * sizeof(UnicodeFunctor*))));
         // Null pointer check
-        if (segmentsArray == nullptr) {
+        if (segmentsArray.isNull()) {
             return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
         }
-        segmentObjects.toArray((void**) segmentsArray);
+        segmentObjects.toArray(reinterpret_cast<void**>(segmentsArray.getAlias()));
     }
-    TransliterationRule* temptr = new TransliterationRule(
+    LocalPointer<TransliterationRule> temptr(new TransliterationRule(
             left->text, left->ante, left->post,
             right->text, right->cursor, right->cursorOffset,
-            segmentsArray,
+            segmentsArray.getAlias(),
             segmentObjects.size(),
             left->anchorStart, left->anchorEnd,
             curData,
-            status);
+            status), status);
     //Null pointer check
-    if (temptr == nullptr) {
-        uprv_free(segmentsArray);
+    if (temptr.isValid()) {
+        segmentsArray.orphan();
+    }
+    if (U_FAILURE(status)) {
         return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
     }
 
-    curData->ruleSet.addRule(temptr, status);
+    curData->ruleSet.addRule(temptr.orphan(), status);
 
     return pos;
 }
@@ -1513,7 +1516,7 @@ int32_t TransliteratorParser::syntaxError(UErrorCode parseErrorCode,
     //null terminate the buffer
     parseError.postContext[stop-start]= 0;
 
-    status = (UErrorCode)parseErrorCode;
+    status = parseErrorCode;
     return pos;
 
 }
@@ -1529,7 +1532,7 @@ char16_t TransliteratorParser::parseSet(const UnicodeString& rule,
     // Null pointer check
     if (set == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        return (char16_t)0x0000; // Return empty character with error.
+        return static_cast<char16_t>(0x0000); // Return empty character with error.
     }
     set->compact();
     return generateStandInFor(set, status);
@@ -1546,7 +1549,7 @@ char16_t TransliteratorParser::generateStandInFor(UnicodeFunctor* adopted, UErro
     // (typical n is 0, 1, or 2); linear search is optimal.
     for (int32_t i=0; i<variablesVector.size(); ++i) {
         if (variablesVector.elementAt(i) == adopted) { // [sic] pointer comparison
-            return (char16_t) (curData->variablesBase + i);
+            return static_cast<char16_t>(curData->variablesBase + i);
         }
     }
     
@@ -1619,14 +1622,13 @@ void TransliteratorParser::setSegmentObject(int32_t seg, StringMatcher* adopted,
  * time and reused thereafter.
  */
 char16_t TransliteratorParser::getDotStandIn(UErrorCode& status) {
-    if (dotStandIn == (char16_t) -1) {
-        UnicodeSet* tempus = new UnicodeSet(UnicodeString(true, DOT_SET, -1), status);
+    if (dotStandIn == static_cast<char16_t>(-1)) {
+        LocalPointer<UnicodeSet> tempus(new UnicodeSet(UnicodeString(true, DOT_SET, -1), status), status);
         // Null pointer check.
-        if (tempus == nullptr) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return (char16_t)0x0000;
+        if (U_FAILURE(status)) {
+            return static_cast<char16_t>(0x0000);
         }
-        dotStandIn = generateStandInFor(tempus, status);
+        dotStandIn = generateStandInFor(tempus.orphan(), status);
     }
     return dotStandIn;
 }
@@ -1638,7 +1640,7 @@ char16_t TransliteratorParser::getDotStandIn(UErrorCode& status) {
 void TransliteratorParser::appendVariableDef(const UnicodeString& name,
                                                   UnicodeString& buf,
                                                   UErrorCode& status) {
-    const UnicodeString* s = (const UnicodeString*) variableNames.get(name);
+    const UnicodeString* s = static_cast<const UnicodeString*>(variableNames.get(name));
     if (s == nullptr) {
         // We allow one undefined variable so that variable definition
         // statements work.  For the first undefined variable we return
@@ -1651,7 +1653,7 @@ void TransliteratorParser::appendVariableDef(const UnicodeString& name,
                 status = U_ILLEGAL_ARGUMENT_ERROR;
                 return;
             }
-            buf.append((char16_t) --variableLimit);
+            buf.append(--variableLimit);
         } else {
             //throw new IllegalArgumentException("Undefined variable $"
             //                                   + name);
@@ -1693,7 +1695,7 @@ utrans_stripRules(const char16_t *source, int32_t sourceLen, char16_t *target, U
         U16_NEXT_UNSAFE(source, index, c);
         source+=index;
         if(c == QUOTE) {
-            quoted = (UBool)!quoted;
+            quoted = !quoted;
         }
         else if (!quoted) {
             if (c == RULE_COMMENT_CHAR) {
@@ -1739,7 +1741,7 @@ utrans_stripRules(const char16_t *source, int32_t sourceLen, char16_t *target, U
                 }
                 else if (c2 == QUOTE) {
                     /* \' seen. Make sure we don't do anything when we see it again. */
-                    quoted = (UBool)!quoted;
+                    quoted = !quoted;
                 }
             }
         }

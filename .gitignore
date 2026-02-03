@@ -7,15 +7,10 @@
 .*
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
-!.devcontainer/
-!.devcontainer/.devcontainer.json
 !test/fixtures/**/.*
 !.clang-format
 !.cpplint
 !.editorconfig
-!.eslintignore
-!.eslintrc.js
-!.eslintrc.yaml
 !.gitattributes
 !.github
 !.gitignore
@@ -24,6 +19,8 @@
 !.mailmap
 !.nycrc
 !.yamllint.yaml
+!.configurations/
+!/.npmrc
 
 # === Rules for root dir ===
 /core
@@ -115,6 +112,8 @@ tools/*/*.i.tmp
 /node_modules
 /tools/doc/node_modules
 /tools/clang-format/node_modules
+/tools/eslint/node_modules
+/tools/lint-md/node_modules
 
 # === Rules for test artifacts ===
 /*.tap
@@ -145,6 +144,9 @@ tools/*/*.i.tmp
 /deps/**/.github/
 # Ignore dependencies fetched by tools/v8/fetch_deps.py
 /deps/.cipd
+!deps/LIEF/**
+deps/LIEF/*.vcxproj*
+deps/LIEF/*.sln
 
 # === Rules for Windows vcbuild.bat ===
 /temp-vcbuild
@@ -167,3 +169,10 @@ __pycache__
 
 # === Rules for C++ development ===
 compile_commands.json
+
+# === Dev Container rules ===
+# Only track the shared base devcontainer.json; ignore everything else under .devcontainer
+!.devcontainer/
+.devcontainer/**
+!.devcontainer/base/
+!.devcontainer/base/devcontainer.json

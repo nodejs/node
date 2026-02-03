@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_CODE_SPACE_ACCESS_H_
+#define V8_WASM_CODE_SPACE_ACCESS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_CODE_SPACE_ACCESS_H_
-#define V8_WASM_CODE_SPACE_ACCESS_H_
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"

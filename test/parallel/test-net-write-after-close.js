@@ -35,8 +35,8 @@ const server = net.createServer(common.mustCall(function(socket) {
   socket.on('error', common.mustNotCall());
 }));
 
-server.listen(0, function() {
-  const client = net.connect(this.address().port, function() {
+server.listen(0, common.mustCall(function() {
+  const client = net.connect(this.address().port, common.mustCall(() => {
     // client.end() will close both the readable and writable side
     // of the duplex because allowHalfOpen defaults to false.
     // Then 'end' will be emitted when it receives a FIN packet from
@@ -48,5 +48,5 @@ server.listen(0, function() {
       }));
     }));
     client.end();
-  });
-});
+  }));
+}));

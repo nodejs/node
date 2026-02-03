@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <base_object.h>
 #include <env.h>
@@ -12,76 +11,21 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
-#include <limits>
+#include <list>
 #include <unordered_map>
-#include <vector>
+#include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 class Endpoint;
 class Packet;
-
-enum class Side {
-  CLIENT,
-  SERVER,
-};
-
-enum class EndpointLabel {
-  LOCAL,
-  REMOTE,
-};
-
-enum class Direction {
-  BIDIRECTIONAL,
-  UNIDIRECTIONAL,
-};
-
-enum class HeadersKind {
-  HINTS,
-  INITIAL,
-  TRAILING,
-};
-
-enum class HeadersFlags {
-  NONE,
-  TERMINAL,
-};
-
-enum class StreamPriority {
-  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
-  LOW = NGHTTP3_URGENCY_LOW,
-  HIGH = NGHTTP3_URGENCY_HIGH,
-};
-
-enum class StreamPriorityFlags {
-  NONE,
-  NON_INCREMENTAL,
-};
-
-enum class PathValidationResult : uint8_t {
-  SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
-  FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
-  ABORTED = NGTCP2_PATH_VALIDATION_RESULT_ABORTED,
-};
-
-enum class DatagramStatus {
-  ACKNOWLEDGED,
-  LOST,
-};
-
-constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
-constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
-constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
-constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
-constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
-constexpr size_t kMaxVectorCount = 16;
 
 // ============================================================================
 
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(endpoint)                                                                  \
+  V(http3application)                                                          \
   V(logstream)                                                                 \
   V(packet)                                                                    \
   V(session)                                                                   \
@@ -94,19 +38,19 @@ constexpr size_t kMaxVectorCount = 16;
 // internalBinding('quic') is first loaded.
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
-  V(session_new, SessionNew)                                                   \
   V(session_close, SessionClose)                                               \
   V(session_datagram, SessionDatagram)                                         \
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
+  V(session_new, SessionNew)                                                   \
+  V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
-  V(session_path_validation, SessionPathValidation)                            \
+  V(stream_blocked, StreamBlocked)                                             \
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \
-  V(stream_reset, StreamReset)                                                 \
   V(stream_headers, StreamHeaders)                                             \
-  V(stream_blocked, StreamBlocked)                                             \
+  V(stream_reset, StreamReset)                                                 \
   V(stream_trailers, StreamTrailers)
 
 // The various JS strings the implementation uses.
@@ -116,16 +60,14 @@ constexpr size_t kMaxVectorCount = 16;
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
-  V(alpn, "alpn")                                                              \
-  V(application_options, "application")                                        \
+  V(application_provider, "provider")                                          \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
-  V(certs, "certs")                                                            \
   V(cc_algorithm, "cc")                                                        \
-  V(crl, "crl")                                                                \
+  V(certs, "certs")                                                            \
   V(ciphers, "ciphers")                                                        \
+  V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
-  V(disable_active_migration, "disableActiveMigration")                        \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
   V(enable_datagrams, "enableDatagrams")                                       \
@@ -135,8 +77,8 @@ constexpr size_t kMaxVectorCount = 16;
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
-  V(hostname, "hostname")                                                      \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
+  V(http3application, "Http3Application")                                      \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
   V(initial_max_stream_data_bidi_remote, "initialMaxStreamDataBidiRemote")     \
@@ -162,21 +104,20 @@ constexpr size_t kMaxVectorCount = 16;
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
-  V(no_udp_payload_size_shaping, "noUdpPayloadSizeShaping")                    \
   V(packetwrap, "PacketWrap")                                                  \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
+  V(protocol, "protocol")                                                      \
   V(qlog, "qlog")                                                              \
   V(qpack_blocked_streams, "qpackBlockedStreams")                              \
   V(qpack_encoder_max_dtable_capacity, "qpackEncoderMaxDTableCapacity")        \
   V(qpack_max_dtable_capacity, "qpackMaxDTableCapacity")                       \
   V(reject_unauthorized, "rejectUnauthorized")                                 \
   V(reno, "reno")                                                              \
-  V(retry_token_expiration, "retryTokenExpiration")                            \
-  V(request_peer_certificate, "requestPeerCertificate")                        \
   V(reset_token_secret, "resetTokenSecret")                                    \
+  V(retry_token_expiration, "retryTokenExpiration")                            \
   V(rx_loss, "rxDiagnosticLoss")                                               \
+  V(servername, "servername")                                                  \
   V(session, "Session")                                                        \
-  V(session_id_ctx, "sessionIDContext")                                        \
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
@@ -189,7 +130,8 @@ constexpr size_t kMaxVectorCount = 16;
   V(udp_ttl, "udpTTL")                                                         \
   V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
   V(validate_address, "validateAddress")                                       \
-  V(verify_hostname_identity, "verifyHostnameIdentity")                        \
+  V(verify_client, "verifyClient")                                             \
+  V(verify_private_key, "verifyPrivateKey")                                    \
   V(version, "version")
 
 // =============================================================================
@@ -207,8 +149,10 @@ class BindingData final
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BindingData& Get(Environment* env);
+  static inline BindingData& Get(Realm* realm) { return Get(realm->env()); }
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
+  DISALLOW_COPY_AND_MOVE(BindingData)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)
@@ -223,18 +167,18 @@ class BindingData final
 
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
-  static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(SetCallbacks);
 
-  std::vector<Packet*> packet_freelist;
+  // Purge the packet free list to free up memory.
+  JS_METHOD(FlushPacketFreelist);
+
+  std::list<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
-  // Purge the packet free list to free up memory.
-  static void FlushPacketFreelist(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
   bool in_ngtcp2_callback_scope = false;
   bool in_nghttp3_callback_scope = false;
+  size_t current_ngtcp2_memory_ = 0;
 
   // The following set up various storage and accessors for common strings,
   // construction templates, and callbacks stored on the BindingData. These
@@ -261,8 +205,6 @@ class BindingData final
   QUIC_JS_CALLBACKS(V)
 #undef V
 
-  size_t current_ngtcp2_memory_ = 0;
-
 #define V(name) v8::Global<v8::FunctionTemplate> name##_constructor_template_;
   QUIC_CONSTRUCTORS(V)
 #undef V
@@ -280,21 +222,23 @@ class BindingData final
 #undef V
 };
 
-void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
+JS_METHOD_IMPL(IllegalConstructor);
 
 // The ngtcp2 and nghttp3 callbacks have certain restrictions
 // that forbid re-entry. We provide the following scopes for
 // use in those to help protect against it.
-struct NgTcp2CallbackScope {
+struct NgTcp2CallbackScope final {
   Environment* env;
   explicit NgTcp2CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgTcp2CallbackScope)
   ~NgTcp2CallbackScope();
   static bool in_ngtcp2_callback(Environment* env);
 };
 
-struct NgHttp3CallbackScope {
+struct NgHttp3CallbackScope final {
   Environment* env;
   explicit NgHttp3CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgHttp3CallbackScope)
   ~NgHttp3CallbackScope();
   static bool in_nghttp3_callback(Environment* env);
 };
@@ -305,10 +249,7 @@ struct CallbackScopeBase {
   v8::TryCatch try_catch;
 
   explicit CallbackScopeBase(Environment* env);
-  CallbackScopeBase(const CallbackScopeBase&) = delete;
-  CallbackScopeBase(CallbackScopeBase&&) = delete;
-  CallbackScopeBase& operator=(const CallbackScopeBase&) = delete;
-  CallbackScopeBase& operator=(CallbackScopeBase&&) = delete;
+  DISALLOW_COPY_AND_MOVE(CallbackScopeBase)
   ~CallbackScopeBase();
 };
 
@@ -319,11 +260,10 @@ struct CallbackScope final : public CallbackScopeBase {
   BaseObjectPtr<T> ref;
   explicit CallbackScope(const T* ptr)
       : CallbackScopeBase(ptr->env()), ref(ptr) {}
+  DISALLOW_COPY_AND_MOVE(CallbackScope)
   explicit CallbackScope(T* ptr) : CallbackScopeBase(ptr->env()), ref(ptr) {}
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

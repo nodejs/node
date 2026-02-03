@@ -4,28 +4,73 @@ const path = require('node:path');
 const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
+const { hostname } = require('node:os');
 
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
+// Replaces the current Node.js executable version strings with a
+// placeholder. This could commonly present in an unhandled exception
+// output.
 function replaceNodeVersion(str) {
-  return str.replaceAll(process.version, '*');
+  return str.replaceAll(process.version, '<node-version>');
 }
 
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
 
+function replaceInternalStackTrace(str) {
+  // Replace non-internal frame `at TracingChannel.traceSync (node:diagnostics_channel:328:14)`
+  // as well as `at node:internal/main/run_main_module:33:47` with `*`.
+  return str.replaceAll(/(\W+).*[(\s]node:.*/g, '$1*');
+}
+
+// Replaces Windows line endings with posix line endings for unified snapshots
+// across platforms.
 function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
 
+// Replaces all Windows path separators with posix separators for unified snapshots
+// across platforms.
 function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
-function replaceFullPaths(str) {
-  return str.replaceAll(process.cwd(), '');
+// Removes line trailing white spaces.
+function replaceTrailingSpaces(str) {
+  return str.replaceAll(/[\t ]+\n/g, '\n');
+}
+
+// Replaces customized or platform specific executable names to be `<node-exe>`.
+function generalizeExeName(str) {
+  const baseName = path.basename(process.argv0 || 'node', '.exe');
+  return str.replaceAll(`${baseName} --`, '<node-exe> --');
+}
+
+// Replaces the pids in warning messages with a placeholder.
+function replaceWarningPid(str) {
+  return str.replaceAll(/\(node:\d+\)/g, '(node:<pid>)');
+}
+
+// Replaces path strings representing the nodejs/node repo full project root with
+// `<project-root>`. Also replaces file URLs containing the full project root path.
+// The project root path may contain unicode characters.
+function transformProjectRoot(replacement = '<project-root>') {
+  const projectRoot = path.resolve(__dirname, '../..');
+  // Handles output already processed by `replaceWindowsPaths`.
+  const winPath = replaceWindowsPaths(projectRoot);
+  // Handles URL encoded project root in file URL strings as well.
+  const urlEncoded = pathToFileURL(projectRoot).pathname;
+  return (str) => {
+    return str.replaceAll('\\\'', "'")
+      // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
+      .replaceAll(urlEncoded, replacement)
+      .replaceAll(projectRoot, replacement)
+      .replaceAll(winPath, replacement);
+  };
 }
 
 function transform(...args) {
@@ -77,21 +122,137 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
     test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
     return;
   }
-  const flags = common.parseTestFlags(filename);
-  const executable = tty ? 'tools/pseudo-tty.py' : process.execPath;
-  const args = tty ? [process.execPath, ...flags, filename] : [...flags, filename];
+  let { flags } = common.parseTestMetadata(filename);
+  if (options.flags) {
+    flags = [...options.flags, ...flags];
+  }
+
+  const executable = tty ? (process.env.PYTHON || 'python3') : process.execPath;
+  const args =
+    tty ?
+      [path.join(__dirname, '../..', 'tools/pseudo-tty.py'), process.execPath, ...flags, filename] :
+      [...flags, filename];
   const { stdout, stderr } = await common.spawnPromisified(executable, args, options);
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
+}
+
+function replaceTestDuration(str) {
+  return str
+    .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
+}
+
+const root = path.resolve(__dirname, '..', '..');
+const color = '(\\[\\d+m)';
+const stackTraceBasePath = new RegExp(`${color}\\(${RegExp.escape(root)}/?${color}(.*)${color}\\)`, 'g');
+
+function replaceSpecDuration(str) {
+  return str
+    .replaceAll(/[0-9.]+ms/g, '*ms')
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replace(stackTraceBasePath, '$3');
+}
+
+function replaceJunitDuration(str) {
+  return str
+    .replaceAll(/time="[0-9.]+"/g, 'time="*"')
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
+    .replaceAll(/file="[^"]*"/g, 'file="*"')
+    .replace(stackTraceBasePath, '$3');
+}
+
+function removeWindowsPathEscaping(str) {
+  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
+}
+
+function replaceTestLocationLine(str) {
+  return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
+}
+
+// The Node test coverage returns results for all files called by the test. This
+// will make the output file change if files like test/common/index.js change.
+// This transform picks only the first line and then the lines from the test
+// file.
+function pickTestFileFromLcov(str) {
+  const lines = str.split(/\n/);
+  const firstLineOfTestFile = lines.findIndex(
+    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js'),
+  );
+  const lastLineOfTestFile = lines.findIndex(
+    (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record',
+  );
+  return (
+    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
+  );
+}
+
+// Transforms basic patterns like:
+// - platform specific path and line endings,
+// - line trailing spaces,
+// - executable specific path and versions.
+const basicTransform = transform(
+  replaceWindowsLineEndings,
+  replaceTrailingSpaces,
+  removeWindowsPathEscaping,
+  replaceWindowsPaths,
+  replaceNodeVersion,
+  generalizeExeName,
+  replaceWarningPid,
+);
+
+const defaultTransform = transform(
+  basicTransform,
+  replaceStackTrace,
+  transformProjectRoot(),
+  replaceTestDuration,
+  replaceTestLocationLine,
+);
+const specTransform = transform(
+  replaceSpecDuration,
+  basicTransform,
+  replaceStackTrace,
+);
+const junitTransform = transform(
+  replaceJunitDuration,
+  basicTransform,
+  replaceStackTrace,
+);
+const lcovTransform = transform(
+  basicTransform,
+  replaceStackTrace,
+  transformProjectRoot(),
+  pickTestFileFromLcov,
+);
+
+function ensureCwdIsProjectRoot() {
+  if (process.cwd() !== root) {
+    process.chdir(root);
+  }
+}
+
+function canColorize() {
+  // Loading it lazily to avoid breaking `NODE_REGENERATE_SNAPSHOTS`.
+  return require('internal/tty').getColorDepth() > 2;
 }
 
 module.exports = {
   assertSnapshot,
   getSnapshotPath,
-  replaceFullPaths,
   replaceNodeVersion,
   replaceStackTrace,
+  replaceInternalStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,
   spawnAndAssert,
   transform,
+  transformProjectRoot,
+  replaceTestDuration,
+  basicTransform,
+  defaultTransform,
+  specTransform,
+  junitTransform,
+  lcovTransform,
+  ensureCwdIsProjectRoot,
+  canColorize,
 };

@@ -24,14 +24,12 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const server1 = net.createServer(function(socket) {
-});
-const server2 = net.createServer(function(socket) {
-});
+const server1 = net.createServer(common.mustNotCall());
+const server2 = net.createServer(common.mustNotCall());
 server1.listen(0, common.mustCall(function() {
-  server2.on('error', function(error) {
+  server2.on('error', common.mustCall((error) => {
     assert.strictEqual(error.message.includes('EADDRINUSE'), true);
     server1.close();
-  });
+  }));
   server2.listen(this.address().port);
 }));

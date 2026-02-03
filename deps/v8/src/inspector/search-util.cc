@@ -148,7 +148,7 @@ searchInTextByLinesImpl(V8InspectorSession* session, const String16& text,
       static_cast<V8InspectorSessionImpl*>(session)->inspector(), query,
       caseSensitive, isRegex);
   std::vector<std::pair<int, String16>> matches =
-      scriptRegexpMatchesByLines(*regex.get(), text);
+      scriptRegexpMatchesByLines(*regex, text);
 
   std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> result;
   result.reserve(matches.size());
@@ -163,6 +163,10 @@ String16 findSourceURL(const String16& content, bool multiline) {
 
 String16 findSourceMapURL(const String16& content, bool multiline) {
   return findMagicComment(content, "sourceMappingURL", multiline);
+}
+
+String16 findDebugId(const String16& content, bool multiline) {
+  return findMagicComment(content, "debugId", multiline);
 }
 
 }  // namespace v8_inspector

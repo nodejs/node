@@ -49,6 +49,8 @@ rm "$GYP_NEXT_TARBALL"
 
 mv "gyp-next-$NEW_VERSION" gyp
 
+rm -rf "$WORKSPACE/gyp/.github"
+
 rm -rf "$BASE_DIR/tools/gyp"
 
 mv "$WORKSPACE/gyp" "$BASE_DIR/tools/"

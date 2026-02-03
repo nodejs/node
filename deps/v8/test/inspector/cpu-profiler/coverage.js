@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-turbofan --turbofan
+// Flags: --allow-natives-syntax --turbofan
 // Flags: --no-stress-flush-code
 // Flags: --no-stress-incremental-marking
 // Flags: --no-concurrent-recompilation
@@ -16,7 +16,7 @@ function fib(x) {
   return fib(x-1) + fib(x-2);
 }
 function is_optimized(f) {
-  return (%GetOptimizationStatus(f) & 16) ? "optimized" : "unoptimized";
+  return (%GetOptimizationStatus(f) &  8) ? "optimized" : "unoptimized";
 }
 (function iife() {
   return 1;

@@ -157,10 +157,7 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void FastRecord(
-      v8::Local<v8::Value> receiver,
-      const int64_t value,
-      v8::FastApiCallbackOptions& options);  // NOLINT(runtime/references)
+  static void FastRecord(v8::Local<v8::Value> receiver, const int64_t value);
   static void FastRecordDelta(v8::Local<v8::Value> receiver);
 
   HistogramBase(

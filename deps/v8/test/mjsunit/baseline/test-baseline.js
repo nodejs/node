@@ -320,7 +320,7 @@ assertEquals(run((x)=>{
   %CompileBaseline(f1);
   assertEquals(f1(0), 0);
   assertTrue(isBaseline(f1));
-  assertFalse(isBaseline(f2));
+  assertTrue(isBaseline(f2));
 
   assertEquals(f2(0), 0);
   assertTrue(isBaseline(f1));

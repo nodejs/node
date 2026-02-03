@@ -15,14 +15,14 @@ namespace compiler {
 class GraphAndBuilders {
  public:
   explicit GraphAndBuilders(Zone* zone)
-      : main_graph_(zone->New<Graph>(zone)),
+      : main_graph_(zone->New<TFGraph>(zone)),
         main_common_(zone),
         main_machine_(zone, MachineType::PointerRepresentation(),
                       InstructionSelector::SupportedMachineOperatorFlags(),
                       InstructionSelector::AlignmentRequirements()),
         main_simplified_(zone) {}
 
-  Graph* graph() const { return main_graph_; }
+  TFGraph* graph() const { return main_graph_; }
   Zone* zone() const { return graph()->zone(); }
   CommonOperatorBuilder* common() { return &main_common_; }
   MachineOperatorBuilder* machine() { return &main_machine_; }
@@ -30,7 +30,7 @@ class GraphAndBuilders {
 
  protected:
   // Prefixed with main_ to avoid naming conflicts.
-  Graph* main_graph_;
+  TFGraph* main_graph_;
   CommonOperatorBuilder main_common_;
   MachineOperatorBuilder main_machine_;
   SimplifiedOperatorBuilder main_simplified_;

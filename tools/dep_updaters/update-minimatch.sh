@@ -54,21 +54,13 @@ cd package
 
 "$NODE" "$NPM" install esbuild --save-dev
 
-"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./dist/cjs/index.js --bundle --platform=node --outfile=index.js"
+"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
 
 "$NODE" "$NPM" run node-build
 
 rm -rf node_modules
 
 mv ./* "$DEPS_DIR/minimatch"
-
-echo "All done!"
-echo ""
-echo "Please git add minimatch, commit the new version:"
-echo ""
-echo "$ git add -A deps/minimatch"
-echo "$ git commit -m \"deps: update minimatch to $NEW_VERSION\""
-echo ""
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

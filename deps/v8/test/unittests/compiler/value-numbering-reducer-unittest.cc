@@ -6,9 +6,9 @@
 
 #include <limits>
 
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -31,17 +31,15 @@ static const TestOperator kOp1(1, Operator::kIdempotent, 1, 1);
 class ValueNumberingReducerTest : public TestWithZone {
  public:
   ValueNumberingReducerTest()
-      : TestWithZone(kCompressGraphZone),
-        graph_(zone()),
-        reducer_(zone(), graph()->zone()) {}
+      : graph_(zone()), reducer_(zone(), graph()->zone()) {}
 
  protected:
   Reduction Reduce(Node* node) { return reducer_.Reduce(node); }
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   ValueNumberingReducer reducer_;
 };
 

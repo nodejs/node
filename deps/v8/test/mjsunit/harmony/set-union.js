@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-set-methods
 
 (function TestUnionSet() {
   const firstSet = new Set();
@@ -196,6 +195,58 @@
 
   const resultArray = Array.from(resultSet);
   const unionArray = Array.from(firstSet.union(otherSet));
+
+  assertEquals(resultArray, unionArray);
+})();
+
+(function TestUnionAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(46);
+  otherSet.add(47);
+
+  otherSet.keys =
+      () => {
+        firstSet.clear();
+        return otherSet[Symbol.iterator]();
+      }
+
+  const resultArray = [42, 46, 47];
+
+  const unionArray = Array.from(firstSet.union(otherSet));
+
+  assertEquals(resultArray, unionArray);
+})();
+
+(function TestUnionSetLikeAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const setLike = {
+    arr: [42, 46, 47],
+    size: 3,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  setLike.keys =
+      () => {
+        firstSet.clear();
+        return setLike.arr[Symbol.iterator]();
+      }
+
+  const resultArray = [42, 46, 47];
+
+  const unionArray = Array.from(firstSet.union(setLike));
 
   assertEquals(resultArray, unionArray);
 })();

@@ -68,7 +68,6 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
 #undef SegInstr
 
       // RVV Vector Arithmetic Instruction
-
       void vmv_vv(VRegister vd, VRegister vs1);
   void vmv_vx(VRegister vd, Register rs1);
   void vmv_vi(VRegister vd, uint8_t simm5);
@@ -486,17 +485,6 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
                  VRegister vs2, MaskType mask);
 };
 
-class LoadStoreLaneParams {
- public:
-  int sz;
-  uint8_t laneidx;
-
-  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
-
- private:
-  LoadStoreLaneParams(uint8_t laneidx, int sz, int lanes)
-      : sz(sz), laneidx(laneidx % lanes) {}
-};
 }  // namespace internal
 }  // namespace v8
 

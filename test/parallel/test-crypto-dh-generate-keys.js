@@ -6,9 +6,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 {
-  const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
+  const size = crypto.getFips() || hasOpenSSL3 ? 1024 : 256;
 
   function unlessInvalidState(f) {
     try {
@@ -55,9 +56,9 @@ const crypto = require('crypto');
   }, ['public']);
 
   // The public key is outdated: generateKeys() generates only the public key.
-  testGenerateKeysChangesKeys((dh) => {
+  testGenerateKeysChangesKeys(common.mustCall((dh) => {
     const oldPublicKey = dh.generateKeys();
     dh.setPrivateKey(Buffer.from('01020304', 'hex'));
     assert.deepStrictEqual(dh.getPublicKey(), oldPublicKey);
-  }, ['public']);
+  }), ['public']);
 }

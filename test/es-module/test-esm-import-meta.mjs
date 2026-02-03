@@ -3,7 +3,7 @@ import assert from 'assert';
 
 assert.strictEqual(Object.getPrototypeOf(import.meta), null);
 
-const keys = ['dirname', 'filename', 'resolve', 'url'];
+const keys = ['dirname', 'filename', 'main', 'resolve', 'url'];
 assert.deepStrictEqual(Reflect.ownKeys(import.meta), keys);
 
 const descriptors = Object.getOwnPropertyDescriptors(import.meta);
@@ -12,12 +12,12 @@ for (const descriptor of Object.values(descriptors)) {
   assert.deepStrictEqual(descriptor, {
     enumerable: true,
     writable: true,
-    configurable: true
+    configurable: true,
   });
 }
 
 const urlReg = /^file:\/\/\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
-assert(import.meta.url.match(urlReg));
+assert.match(import.meta.url, urlReg);
 
 // Match *nix paths: `/some/path/test/es-module`
 // Match Windows paths: `d:\\some\\path\\test\\es-module`

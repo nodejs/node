@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/code-factory.h"
+#include "include/v8-function.h"
+#include "src/api/api-inl.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
@@ -64,7 +66,7 @@ TEST(SimpleIntPtrReturn) {
   m.Return(m.BitcastWordToTagged(
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<Address>(&test), (*result.ToHandleChecked()).ptr());
 }
 
@@ -82,7 +84,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
@@ -95,7 +97,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
@@ -108,7 +110,7 @@ TEST(SimpleCallRuntime2Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
@@ -121,7 +123,7 @@ TEST(SimpleTailCallRuntime2Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
@@ -156,14 +158,14 @@ TEST(SimpleCallJSFunction0Arg) {
 
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
 
-    Callable callable = CodeFactory::Call(isolate);
-    TNode<Object> result = m.CallJS(callable, context, function, receiver);
+    TNode<Object> result =
+        m.CallJS(Builtins::Call(), context, function, receiver);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(42), *result.ToHandleChecked());
 }
 
@@ -176,17 +178,17 @@ TEST(SimpleCallJSFunction1Arg) {
     auto function = m.Parameter<JSFunction>(1);
     auto context = m.GetJSContextParameter();
 
-    Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
-    Node* a = SmiTag(&m, m.IntPtrConstant(13));
+    auto receiver = SmiTag(&m, m.IntPtrConstant(42));
+    auto a = SmiTag(&m, m.IntPtrConstant(13));
 
-    Callable callable = CodeFactory::Call(isolate);
-    TNode<Object> result = m.CallJS(callable, context, function, receiver, a);
+    TNode<Object> result =
+        m.CallJS(Builtins::Call(), context, function, receiver, a);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(55), *result.ToHandleChecked());
 }
 
@@ -199,19 +201,18 @@ TEST(SimpleCallJSFunction2Arg) {
     auto function = m.Parameter<JSFunction>(1);
     auto context = m.GetJSContextParameter();
 
-    Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
-    Node* a = SmiTag(&m, m.IntPtrConstant(13));
-    Node* b = SmiTag(&m, m.IntPtrConstant(153));
+    auto receiver = SmiTag(&m, m.IntPtrConstant(42));
+    auto a = SmiTag(&m, m.IntPtrConstant(13));
+    auto b = SmiTag(&m, m.IntPtrConstant(153));
 
-    Callable callable = CodeFactory::Call(isolate);
     TNode<Object> result =
-        m.CallJS(callable, context, function, receiver, a, b);
+        m.CallJS(Builtins::Call(), context, function, receiver, a, b);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(208), *result.ToHandleChecked());
 }
 
@@ -420,12 +421,16 @@ TEST(TestOutOfScopeVariable) {
   CodeAssemblerLabel block2(&m);
   CodeAssemblerLabel block3(&m);
   CodeAssemblerLabel block4(&m);
-  m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
+  m.Branch(m.WordEqual(m.BitcastTaggedToWordForTagAndSmiBits(
+                           m.UncheckedParameter<AnyTaggedT>(0)),
+                       m.IntPtrConstant(0)),
            &block1, &block4);
   m.Bind(&block4);
   {
     TVariable<IntPtrT> var_object(&m);
-    m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
+    m.Branch(m.WordEqual(m.BitcastTaggedToWordForTagAndSmiBits(
+                             m.UncheckedParameter<AnyTaggedT>(0)),
+                         m.IntPtrConstant(0)),
              &block2, &block3);
 
     m.Bind(&block2);
@@ -451,7 +456,7 @@ TEST(ExceptionHandler) {
   {
     ScopedExceptionHandler handler(&m, &exception, &var);
     TNode<Context> context =
-        m.HeapConstant(Handle<Context>(isolate->native_context()));
+        m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
     m.CallRuntime(Runtime::kThrow, context, m.SmiConstant(2));
   }
   m.Return(m.SmiConstant(1));
@@ -474,13 +479,15 @@ TEST(TestCodeAssemblerCodeComment) {
   m.Comment("Comment1");
   m.Return(m.SmiConstant(1));
 
-  Handle<Code> code = asm_tester.GenerateCode();
+  DirectHandle<Code> code = asm_tester.GenerateCode();
   CHECK_NE(code->code_comments(), kNullAddress);
   CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());
   bool found_comment = false;
   while (it.HasCurrent()) {
-    if (strcmp(it.GetComment(), "Comment1") == 0) found_comment = true;
+    if (strncmp(it.GetComment(), "Comment1", strlen("Comment1")) == 0) {
+      found_comment = true;
+    }
     it.Next();
   }
   CHECK(found_comment);
@@ -493,6 +500,48 @@ TEST(StaticAssert) {
   CodeAssembler m(asm_tester.state());
   m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
   USE(asm_tester.GenerateCode());
+}
+
+TEST(ClearStaleDispatchHandleEntry) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  HandleScope outer(isolate);
+
+  // This handle will keep alive the old optimized code below.
+  DirectHandle<Code> old_code;
+
+  {
+    HandleScope inner(isolate);
+    DirectHandle<Code> new_code;
+
+    {
+      CodeAssemblerTester asm_tester(isolate, JSParameterCount(1));
+      CodeAssembler m(asm_tester.state());
+      m.Return(SmiTag(&m, m.IntPtrConstant(42)));
+      new_code = asm_tester.GenerateCodeCloseAndEscape();
+    }
+
+    const char* source = "(function (a) {})";
+    Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+    {
+      Zone zone(isolate->allocator(), ZONE_NAME);
+      Optimize(function, &zone, isolate, 0);
+    }
+
+    old_code = direct_handle(function->code(isolate), isolate);
+    function->UpdateCode(isolate, *new_code);
+    old_code = inner.CloseAndEscape(old_code);
+
+    // The function has been updated with new code. The entry in the dispatch
+    // handle table now points to the new code. However, both the function and
+    // the new code object are not reachable after this scope closes and will
+    // be reclaimed by the GC. On the other hand, the old code escapes and
+    // will not be reclaimed.
+  }
+
+  // The GC should correctly clear the stale dispatch table entry.
+  isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 }
 
 }  // namespace compiler

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
 // Force TurboFan code for serialization.
 // Flags: --no-liftoff --no-wasm-lazy-compilation
 
@@ -18,8 +17,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
   var instance1 = new WebAssembly.Instance(module);
-  var serialized = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(serialized, wire_bytes);
+  var serialized = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(serialized, wire_bytes);
   var instance2 = new WebAssembly.Instance(module);
   assertThrows(() => instance2.exports.f(), WebAssembly.Exception);
 })();

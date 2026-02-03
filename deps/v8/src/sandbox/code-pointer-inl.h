@@ -5,39 +5,19 @@
 #ifndef V8_SANDBOX_CODE_POINTER_INL_H_
 #define V8_SANDBOX_CODE_POINTER_INL_H_
 
+#include "src/sandbox/code-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/code-pointer-table-inl.h"
-#include "src/sandbox/code-pointer.h"
 
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitCodePointerTableEntryField(Address field_address,
-                                              Isolate* isolate,
-                                              Tagged<HeapObject> owning_code,
-                                              Address entrypoint) {
-#ifdef V8_ENABLE_SANDBOX
-  CodePointerTable::Space* space =
-      ReadOnlyHeap::Contains(field_address)
-          ? isolate->read_only_heap()->code_pointer_space()
-          : isolate->heap()->code_pointer_space();
-  CodePointerHandle handle =
-      GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-          space, owning_code.ptr(), entrypoint);
-  // Use a Release_Store to ensure that the store of the pointer into the
-  // table is not reordered after the store of the handle. Otherwise, other
-  // threads may access an uninitialized table entry and crash.
-  auto location = reinterpret_cast<CodePointerHandle*>(field_address);
-  base::AsAtomic32::Release_Store(location, handle);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-V8_INLINE Address
-ReadCodeEntrypointViaIndirectPointerField(Address field_address) {
+V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address,
+                                                        CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
@@ -46,19 +26,22 @@ ReadCodeEntrypointViaIndirectPointerField(Address field_address) {
   // technically we should use memory_order_consume here.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  return GetProcessWideCodePointerTable()->GetEntrypoint(handle);
+  return IsolateGroup::current()->code_pointer_table()->GetEntrypoint(handle,
+                                                                      tag);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
-V8_INLINE void WriteCodeEntrypointViaIndirectPointerField(Address field_address,
-                                                          Address value) {
+V8_INLINE void WriteCodeEntrypointViaCodePointerField(Address field_address,
+                                                      Address value,
+                                                      CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // See comment above for why this is a Relaxed_Load.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  GetProcessWideCodePointerTable()->SetEntrypoint(handle, value);
+  IsolateGroup::current()->code_pointer_table()->SetEntrypoint(handle, value,
+                                                               tag);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX

@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-turbofan
+// Flags: --no-lazy-feedback-allocation
+// Flags: --invocation-count-for-turbofan=1
+
 try {
 function __f_4(sign_bit,
                           mantissa_29_bits) {

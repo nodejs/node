@@ -82,7 +82,7 @@ class SyncProcessStdioPipe {
   int Start();
   void Close();
 
-  v8::Local<v8::Object> GetOutputAsBuffer(Environment* env) const;
+  v8::MaybeLocal<v8::Object> GetOutputAsBuffer(Environment* env) const;
 
   inline bool readable() const;
   inline bool writable() const;
@@ -155,7 +155,7 @@ class SyncProcessRunner {
   inline Environment* env() const;
 
   v8::MaybeLocal<v8::Object> Run(v8::Local<v8::Value> options);
-  v8::Maybe<bool> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
+  v8::Maybe<void> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
   void CloseHandlesAndDeleteLoop();
 
   void CloseStdioPipes();
@@ -171,12 +171,13 @@ class SyncProcessRunner {
   void SetError(int error);
   void SetPipeError(int pipe_error);
 
-  v8::Local<v8::Object> BuildResultObject();
-  v8::Local<v8::Array> BuildOutputArray();
+  v8::MaybeLocal<v8::Object> BuildResultObject();
+  v8::MaybeLocal<v8::Array> BuildOutputArray();
 
   v8::Maybe<int> ParseOptions(v8::Local<v8::Value> js_value);
-  int ParseStdioOptions(v8::Local<v8::Value> js_value);
-  int ParseStdioOption(int child_fd, v8::Local<v8::Object> js_stdio_option);
+  v8::Maybe<int> ParseStdioOptions(v8::Local<v8::Value> js_value);
+  v8::Maybe<int> ParseStdioOption(int child_fd,
+                                  v8::Local<v8::Object> js_stdio_option);
 
   inline int AddStdioIgnore(uint32_t child_fd);
   inline int AddStdioPipe(uint32_t child_fd,
@@ -204,15 +205,15 @@ class SyncProcessRunner {
   uv_loop_t* uv_loop_;
 
   uint32_t stdio_count_;
-  uv_stdio_container_t* uv_stdio_containers_;
+  std::vector<uv_stdio_container_t> uv_stdio_containers_;
   std::vector<std::unique_ptr<SyncProcessStdioPipe>> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
   uv_process_options_t uv_process_options_;
-  const char* file_buffer_;
-  char* args_buffer_;
-  char* env_buffer_;
-  const char* cwd_buffer_;
+  std::unique_ptr<const char[]> file_buffer_;
+  std::unique_ptr<char[]> args_buffer_;
+  std::unique_ptr<char[]> env_buffer_;
+  std::unique_ptr<const char[]> cwd_buffer_;
 
   uv_process_t uv_process_;
   bool killed_;

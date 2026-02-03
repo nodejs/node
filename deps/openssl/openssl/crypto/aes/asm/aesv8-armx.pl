@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -106,13 +106,21 @@ my ($zero,$rcon,$mask,$in0,$in1,$tmp,$key)=
 	$flavour=~/64/? map("q$_",(0..6)) : map("q$_",(0..3,8..10));
 
 
+#
+# This file generates .s file for 64-bit and 32-bit CPUs.
+# We don't implement .rodata on 32-bit CPUs yet.
+#
+$code.=".rodata\n"	if ($flavour =~ /64/);
 $code.=<<___;
 .align	5
 .Lrcon:
 .long	0x01,0x01,0x01,0x01
 .long	0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d	// rotate-n-splat
 .long	0x1b,0x1b,0x1b,0x1b
+___
+$code.=".previous\n"	if ($flavour =~ /64/);
 
+$code.=<<___;
 .globl	${prefix}_set_encrypt_key
 .type	${prefix}_set_encrypt_key,%function
 .align	5
@@ -120,6 +128,8 @@ ${prefix}_set_encrypt_key:
 .Lenc_key:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 ___
@@ -137,7 +147,15 @@ $code.=<<___;
 	tst	$bits,#0x3f
 	b.ne	.Lenc_key_abort
 
+___
+$code.=<<___	if ($flavour =~ /64/);
+	adrp	$ptr,.Lrcon
+	add	$ptr,$ptr,:lo12:.Lrcon
+___
+$code.=<<___	if ($flavour !~ /64/);
 	adr	$ptr,.Lrcon
+___
+$code.=<<___;
 	cmp	$bits,#192
 
 	veor	$zero,$zero,$zero
@@ -295,7 +313,7 @@ $code.=<<___;
 ${prefix}_set_decrypt_key:
 ___
 $code.=<<___	if ($flavour =~ /64/);
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 ___
@@ -339,7 +357,7 @@ $code.=<<___	if ($flavour !~ /64/);
 ___
 $code.=<<___	if ($flavour =~ /64/);
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 ___
 $code.=<<___;
@@ -359,6 +377,11 @@ $code.=<<___;
 .type	${prefix}_${dir}crypt,%function
 .align	5
 ${prefix}_${dir}crypt:
+___
+$code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+___
+$code.=<<___;
 	ldr	$rounds,[$key,#240]
 	vld1.32	{$rndkey0},[$key],#16
 	vld1.8	{$inout},[$inp]
@@ -410,7 +433,7 @@ ___
 # If lsize < 3*16 bytes, treat them as the tail, interleave the
 # two blocks AES instructions.
 # There is one special case, if the original input data size dsize
-# = 16 bytes, we will treat it seperately to improve the
+# = 16 bytes, we will treat it separately to improve the
 # performance: one independent code block without LR, FP load and
 # store, just looks like what the original ECB implementation does.
 
@@ -442,6 +465,7 @@ $code.=<<___;
 ${prefix}_ecb_encrypt:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
 	subs	$len,$len,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne    .Lecb_big_size
@@ -1236,6 +1260,8 @@ $code.=<<___;
 ${prefix}_cbc_encrypt:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 ___
@@ -1741,6 +1767,755 @@ $code.=<<___;
 .size	${prefix}_cbc_encrypt,.-${prefix}_cbc_encrypt
 ___
 }}}
+
+{{{
+my ($inp,$out,$len,$key,$ivp)=map("x$_",(0..4));
+my ($rounds,$roundsx,$cnt,$key_)=("w5","x5","w6","x7");
+my ($ctr,$tctr0,$tctr1,$tctr2)=map("w$_",(8..10,12));
+my ($tctr3,$tctr4,$tctr5,$tctr6)=map("w$_",(11,13..15));
+my ($tctr7,$tctr8,$tctr9,$tctr10,$tctr11)=map("w$_",(19..23));
+
+# q0-q7 => v0-v7; q8-q23 => v16-v31; q24-q31 => v8-v15
+my ($ivec,$rndlast,$rndping,$rndpang)=map("q$_",(0..3));
+my ($in0,$in1,$in2,$in3,$in4,$in5)=map("q$_",(4..9));
+my ($in6,$in7,$in8,$in9,$in10,$in11)=map("q$_",(10..15));
+my ($dat0,$dat1,$dat2,$dat3,$dat4,$dat5)=map("q$_",(16..21));
+my ($dat6,$dat7,$dat8,$dat9,$dat10,$dat11)=map("q$_",(22..27));
+my ($tmp0,$tmp1,$tmp2)=map("q$_",(25..27));
+
+#q_X => qX, for ldp & stp
+my ($in0q,$in1q,$in2q,$in3q)=map("q_$_",(4..7));
+my ($in4q,$in5q,$in6q,$in7q,$in8q,$in9q,$in10q,$in11q)=map("q_$_",(16..23));
+
+my ($dat8d,$dat9d,$dat10d,$dat11d)=map("d$_",(8..11));
+
+$code.=<<___	if ($flavour =~ /64/);
+.globl	${prefix}_ctr32_encrypt_blocks_unroll12_eor3
+.type	${prefix}_ctr32_encrypt_blocks_unroll12_eor3,%function
+.align	5
+${prefix}_ctr32_encrypt_blocks_unroll12_eor3:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
+	stp		x29,x30,[sp,#-80]!
+	stp		d8,d9,[sp, #16]
+	stp		d10,d11,[sp, #32]
+	stp		d12,d13,[sp, #48]
+	stp		d14,d15,[sp, #64]
+	add		x29,sp,#0
+
+	 ldr		$rounds,[$key,#240]
+
+	 ldr		$ctr, [$ivp, #12]
+#ifdef __AARCH64EB__
+	vld1.8		{$dat0},[$ivp]
+#else
+	vld1.32		{$dat0},[$ivp]
+#endif
+	vld1.32		{$rndping-$rndpang},[$key]		// load key schedule...
+	 sub		$rounds,$rounds,#4
+	 cmp		$len,#2
+	 add		$key_,$key,$roundsx,lsl#4	// pointer to last round key
+	 sub		$rounds,$rounds,#2
+	 add		$key_, $key_, #64
+	vld1.32		{$rndlast},[$key_]
+	 add		$key_,$key,#32
+	 mov		$cnt,$rounds
+#ifndef __AARCH64EB__
+	rev		$ctr, $ctr
+#endif
+
+	vorr		$dat1,$dat0,$dat0
+	 add		$tctr1, $ctr, #1
+	vorr		$dat2,$dat0,$dat0
+	 add		$ctr, $ctr, #2
+	vorr		$ivec,$dat0,$dat0
+	 rev		$tctr1, $tctr1
+	vmov.32		${dat1}[3],$tctr1
+	b.ls		.Lctr32_tail_unroll
+	 cmp		$len,#6
+	 rev		$tctr2, $ctr
+	 sub		$len,$len,#3		// bias
+	vmov.32		${dat2}[3],$tctr2
+	b.lo		.Loop3x_ctr32_unroll
+	 cmp		$len,#9
+	vorr		$dat3,$dat0,$dat0
+	 add		$tctr3, $ctr, #1
+	vorr		$dat4,$dat0,$dat0
+	 add		$tctr4, $ctr, #2
+	 rev		$tctr3, $tctr3
+	vorr		$dat5,$dat0,$dat0
+	 add		$ctr, $ctr, #3
+	 rev		$tctr4, $tctr4
+	vmov.32		${dat3}[3],$tctr3
+	 rev		$tctr5, $ctr
+	vmov.32		${dat4}[3],$tctr4
+	vmov.32		${dat5}[3],$tctr5
+	 sub		$len,$len,#3
+	b.lo		.Loop6x_ctr32_unroll
+
+	// push regs to stack when 12 data chunks are interleaved
+	 stp		x19,x20,[sp,#-16]!
+	 stp		x21,x22,[sp,#-16]!
+	 stp		x23,x24,[sp,#-16]!
+	 stp		$dat8d,$dat9d,[sp,#-32]!
+	 stp		$dat10d,$dat11d,[sp,#-32]!
+
+	 add		$tctr6,$ctr,#1
+	 add		$tctr7,$ctr,#2
+	 add		$tctr8,$ctr,#3
+	 add		$tctr9,$ctr,#4
+	 add		$tctr10,$ctr,#5
+	 add		$ctr,$ctr,#6
+	vorr		$dat6,$dat0,$dat0
+	 rev		$tctr6,$tctr6
+	vorr		$dat7,$dat0,$dat0
+	 rev		$tctr7,$tctr7
+	vorr		$dat8,$dat0,$dat0
+	 rev		$tctr8,$tctr8
+	vorr		$dat9,$dat0,$dat0
+	 rev		$tctr9,$tctr9
+	vorr		$dat10,$dat0,$dat0
+	 rev		$tctr10,$tctr10
+	vorr		$dat11,$dat0,$dat0
+	 rev		$tctr11,$ctr
+
+	 sub		$len,$len,#6		// bias
+	vmov.32		${dat6}[3],$tctr6
+	vmov.32		${dat7}[3],$tctr7
+	vmov.32		${dat8}[3],$tctr8
+	vmov.32		${dat9}[3],$tctr9
+	vmov.32		${dat10}[3],$tctr10
+	vmov.32		${dat11}[3],$tctr11
+	b		.Loop12x_ctr32_unroll
+
+.align	4
+.Loop12x_ctr32_unroll:
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndping
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndping
+	aesmc		$dat7,$dat7
+	aese		$dat8,$rndping
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndping
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndping
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndping
+	aesmc		$dat11,$dat11
+	vld1.32		{$rndping},[$key_],#16
+	subs		$cnt,$cnt,#2
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndpang
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndpang
+	aesmc		$dat7,$dat7
+	aese		$dat8,$rndpang
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndpang
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndpang
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndpang
+	aesmc		$dat11,$dat11
+	vld1.32		{$rndpang},[$key_],#16
+	b.gt		.Loop12x_ctr32_unroll
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndping
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndping
+	aesmc		$dat7,$dat7
+	aese		$dat8,$rndping
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndping
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndping
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndping
+	aesmc		$dat11,$dat11
+	vld1.32	 	{$rndping},[$key_],#16
+
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndpang
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndpang
+	aesmc		$dat7,$dat7
+	aese		$dat8,$rndpang
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndpang
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndpang
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndpang
+	aesmc		$dat11,$dat11
+	vld1.32	 	{$rndpang},[$key_],#16
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	 add		$tctr0,$ctr,#1
+	 add		$tctr1,$ctr,#2
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	 add		$tctr2,$ctr,#3
+	 add		$tctr3,$ctr,#4
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	 add		$tctr4,$ctr,#5
+	 add		$tctr5,$ctr,#6
+	 rev		$tctr0,$tctr0
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	 add		$tctr6,$ctr,#7
+	 add		$tctr7,$ctr,#8
+	 rev		$tctr1,$tctr1
+	 rev		$tctr2,$tctr2
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	 add		$tctr8,$ctr,#9
+	 add		$tctr9,$ctr,#10
+	 rev		$tctr3,$tctr3
+	 rev		$tctr4,$tctr4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	 add		$tctr10,$ctr,#11
+	 add		$tctr11,$ctr,#12
+	 rev		$tctr5,$tctr5
+	 rev		$tctr6,$tctr6
+	aese		$dat6,$rndping
+	aesmc		$dat6,$dat6
+	 rev		$tctr7,$tctr7
+	 rev		$tctr8,$tctr8
+	aese		$dat7,$rndping
+	aesmc		$dat7,$dat7
+	 rev		$tctr9,$tctr9
+	 rev		$tctr10,$tctr10
+	aese		$dat8,$rndping
+	aesmc		$dat8,$dat8
+	 rev		$tctr11,$tctr11
+	aese		$dat9,$rndping
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndping
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndping
+	aesmc		$dat11,$dat11
+	vld1.32	 	{$rndping},[$key_],#16
+
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	vld1.8		{$in0,$in1,$in2,$in3},[$inp],#64
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndpang
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndpang
+	aesmc		$dat7,$dat7
+	vld1.8		{$in4,$in5,$in6,$in7},[$inp],#64
+	aese		$dat8,$rndpang
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndpang
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndpang
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndpang
+	aesmc		$dat11,$dat11
+	vld1.8		{$in8,$in9,$in10,$in11},[$inp],#64
+	vld1.32	 	{$rndpang},[$key_],#16
+
+	 mov		$key_, $key
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	aese		$dat6,$rndping
+	aesmc		$dat6,$dat6
+	aese		$dat7,$rndping
+	aesmc		$dat7,$dat7
+	aese		$dat8,$rndping
+	aesmc		$dat8,$dat8
+	aese		$dat9,$rndping
+	aesmc		$dat9,$dat9
+	aese		$dat10,$rndping
+	aesmc		$dat10,$dat10
+	aese		$dat11,$rndping
+	aesmc		$dat11,$dat11
+	vld1.32	 	{$rndping},[$key_],#16	// re-pre-load rndkey[0]
+
+	aese		$dat0,$rndpang
+	 eor3		$in0,$in0,$rndlast,$dat0
+	vorr		$dat0,$ivec,$ivec
+	aese		$dat1,$rndpang
+	 eor3		$in1,$in1,$rndlast,$dat1
+	vorr		$dat1,$ivec,$ivec
+	aese		$dat2,$rndpang
+	 eor3		$in2,$in2,$rndlast,$dat2
+	vorr		$dat2,$ivec,$ivec
+	aese		$dat3,$rndpang
+	 eor3		$in3,$in3,$rndlast,$dat3
+	vorr		$dat3,$ivec,$ivec
+	aese		$dat4,$rndpang
+	 eor3		$in4,$in4,$rndlast,$dat4
+	vorr		$dat4,$ivec,$ivec
+	aese		$dat5,$rndpang
+	 eor3		$in5,$in5,$rndlast,$dat5
+	vorr		$dat5,$ivec,$ivec
+	aese		$dat6,$rndpang
+	 eor3		$in6,$in6,$rndlast,$dat6
+	vorr		$dat6,$ivec,$ivec
+	aese		$dat7,$rndpang
+	 eor3		$in7,$in7,$rndlast,$dat7
+	vorr		$dat7,$ivec,$ivec
+	aese		$dat8,$rndpang
+	 eor3		$in8,$in8,$rndlast,$dat8
+	vorr		$dat8,$ivec,$ivec
+	aese		$dat9,$rndpang
+	 eor3		$in9,$in9,$rndlast,$dat9
+	vorr		$dat9,$ivec,$ivec
+	aese		$dat10,$rndpang
+	 eor3		$in10,$in10,$rndlast,$dat10
+	vorr		$dat10,$ivec,$ivec
+	aese		$dat11,$rndpang
+	 eor3		$in11,$in11,$rndlast,$dat11
+	vorr		$dat11,$ivec,$ivec
+	vld1.32	 	{$rndpang},[$key_],#16	// re-pre-load rndkey[1]
+
+	vmov.32		${dat0}[3],$tctr0
+	vmov.32		${dat1}[3],$tctr1
+	vmov.32		${dat2}[3],$tctr2
+	vmov.32		${dat3}[3],$tctr3
+	vst1.8		{$in0,$in1,$in2,$in3},[$out],#64
+	vmov.32		${dat4}[3],$tctr4
+	vmov.32		${dat5}[3],$tctr5
+	vmov.32		${dat6}[3],$tctr6
+	vmov.32		${dat7}[3],$tctr7
+	vst1.8		{$in4,$in5,$in6,$in7},[$out],#64
+	vmov.32		${dat8}[3],$tctr8
+	vmov.32		${dat9}[3],$tctr9
+	vmov.32		${dat10}[3],$tctr10
+	vmov.32		${dat11}[3],$tctr11
+	vst1.8		{$in8,$in9,$in10,$in11},[$out],#64
+
+	 mov		$cnt,$rounds
+
+	 add		$ctr,$ctr,#12
+	subs		$len,$len,#12
+	b.hs		.Loop12x_ctr32_unroll
+
+	// pop regs from stack when 12 data chunks are interleaved
+	 ldp		$dat10d,$dat11d,[sp],#32
+	 ldp		$dat8d,$dat9d,[sp],#32
+	 ldp		x23,x24,[sp],#16
+	 ldp		x21,x22,[sp],#16
+	 ldp		x19,x20,[sp],#16
+
+	 add		$len,$len,#12
+	 cbz		$len,.Lctr32_done_unroll
+	 sub		$ctr,$ctr,#12
+
+	 cmp		$len,#2
+	b.ls		.Lctr32_tail_unroll
+
+	 cmp		$len,#6
+	 sub		$len,$len,#3		// bias
+	 add		$ctr,$ctr,#3
+	b.lo		.Loop3x_ctr32_unroll
+
+	 sub		$len,$len,#3
+	 add		$ctr,$ctr,#3
+	b.lo		.Loop6x_ctr32_unroll
+
+.align	4
+.Loop6x_ctr32_unroll:
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	vld1.32		{$rndping},[$key_],#16
+	subs		$cnt,$cnt,#2
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	vld1.32		{$rndpang},[$key_],#16
+	b.gt		.Loop6x_ctr32_unroll
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	vld1.32	 	{$rndping},[$key_],#16
+
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	vld1.32	 	{$rndpang},[$key_],#16
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	 add		$tctr0,$ctr,#1
+	 add		$tctr1,$ctr,#2
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	 add		$tctr2,$ctr,#3
+	 add		$tctr3,$ctr,#4
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	 add		$tctr4,$ctr,#5
+	 add		$tctr5,$ctr,#6
+	 rev		$tctr0,$tctr0
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	 rev		$tctr1,$tctr1
+	 rev		$tctr2,$tctr2
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	 rev		$tctr3,$tctr3
+	 rev		$tctr4,$tctr4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	 rev		$tctr5,$tctr5
+	vld1.32	 	{$rndping},[$key_],#16
+
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	vld1.8		{$in0,$in1,$in2,$in3},[$inp],#64
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndpang
+	aesmc		$dat3,$dat3
+	vld1.8		{$in4,$in5},[$inp],#32
+	aese		$dat4,$rndpang
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndpang
+	aesmc		$dat5,$dat5
+	vld1.32	 	{$rndpang},[$key_],#16
+
+	 mov		$key_, $key
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	aese		$dat3,$rndping
+	aesmc		$dat3,$dat3
+	aese		$dat4,$rndping
+	aesmc		$dat4,$dat4
+	aese		$dat5,$rndping
+	aesmc		$dat5,$dat5
+	vld1.32	 	{$rndping},[$key_],#16	// re-pre-load rndkey[0]
+
+	aese		$dat0,$rndpang
+	 eor3		$in0,$in0,$rndlast,$dat0
+	aese		$dat1,$rndpang
+	 eor3		$in1,$in1,$rndlast,$dat1
+	aese		$dat2,$rndpang
+	 eor3		$in2,$in2,$rndlast,$dat2
+	aese		$dat3,$rndpang
+	 eor3		$in3,$in3,$rndlast,$dat3
+	aese		$dat4,$rndpang
+	 eor3		$in4,$in4,$rndlast,$dat4
+	aese		$dat5,$rndpang
+	 eor3		$in5,$in5,$rndlast,$dat5
+	vld1.32	 	{$rndpang},[$key_],#16	// re-pre-load rndkey[1]
+
+	vorr		$dat0,$ivec,$ivec
+	vorr		$dat1,$ivec,$ivec
+	vorr		$dat2,$ivec,$ivec
+	vorr		$dat3,$ivec,$ivec
+	vorr		$dat4,$ivec,$ivec
+	vorr		$dat5,$ivec,$ivec
+
+	vmov.32		${dat0}[3],$tctr0
+	vmov.32		${dat1}[3],$tctr1
+	vst1.8		{$in0,$in1,$in2,$in3},[$out],#64
+	vmov.32		${dat2}[3],$tctr2
+	vmov.32		${dat3}[3],$tctr3
+	vst1.8		{$in4,$in5},[$out],#32
+	vmov.32		${dat4}[3],$tctr4
+	vmov.32		${dat5}[3],$tctr5
+
+	 cbz		$len,.Lctr32_done_unroll
+	 mov		$cnt,$rounds
+
+	 cmp		$len,#2
+	b.ls		.Lctr32_tail_unroll
+
+	 sub		$len,$len,#3		// bias
+	 add		$ctr,$ctr,#3
+	 b		.Loop3x_ctr32_unroll
+
+.align	4
+.Loop3x_ctr32_unroll:
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	vld1.32		{$rndping},[$key_],#16
+	subs		$cnt,$cnt,#2
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	aese		$dat2,$rndpang
+	aesmc		$dat2,$dat2
+	vld1.32		{$rndpang},[$key_],#16
+	b.gt		.Loop3x_ctr32_unroll
+
+	aese		$dat0,$rndping
+	aesmc		$tmp0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$tmp1,$dat1
+	vld1.8		{$in0,$in1,$in2},[$inp],#48
+	vorr		$dat0,$ivec,$ivec
+	aese		$dat2,$rndping
+	aesmc		$dat2,$dat2
+	vld1.32		{$rndping},[$key_],#16
+	vorr		$dat1,$ivec,$ivec
+	aese		$tmp0,$rndpang
+	aesmc		$tmp0,$tmp0
+	aese		$tmp1,$rndpang
+	aesmc		$tmp1,$tmp1
+	aese		$dat2,$rndpang
+	aesmc		$tmp2,$dat2
+	vld1.32		{$rndpang},[$key_],#16
+	vorr		$dat2,$ivec,$ivec
+	 add		$tctr0,$ctr,#1
+	aese		$tmp0,$rndping
+	aesmc		$tmp0,$tmp0
+	aese		$tmp1,$rndping
+	aesmc		$tmp1,$tmp1
+	 add		$tctr1,$ctr,#2
+	aese		$tmp2,$rndping
+	aesmc		$tmp2,$tmp2
+	vld1.32		{$rndping},[$key_],#16
+	 add		$ctr,$ctr,#3
+	aese		$tmp0,$rndpang
+	aesmc		$tmp0,$tmp0
+	aese		$tmp1,$rndpang
+	aesmc		$tmp1,$tmp1
+
+	 rev		$tctr0,$tctr0
+	aese		$tmp2,$rndpang
+	aesmc		$tmp2,$tmp2
+	vld1.32		{$rndpang},[$key_],#16
+	vmov.32		${dat0}[3], $tctr0
+	 mov		$key_,$key
+	 rev		$tctr1,$tctr1
+	aese		$tmp0,$rndping
+	aesmc		$tmp0,$tmp0
+
+	aese		$tmp1,$rndping
+	aesmc		$tmp1,$tmp1
+	vmov.32		${dat1}[3], $tctr1
+	 rev		$tctr2,$ctr
+	aese		$tmp2,$rndping
+	aesmc		$tmp2,$tmp2
+	vmov.32		${dat2}[3], $tctr2
+
+	aese		$tmp0,$rndpang
+	aese		$tmp1,$rndpang
+	aese		$tmp2,$rndpang
+
+	 eor3		$in0,$in0,$rndlast,$tmp0
+	vld1.32		{$rndping},[$key_],#16	// re-pre-load rndkey[0]
+	 eor3		$in1,$in1,$rndlast,$tmp1
+	 mov		$cnt,$rounds
+	 eor3		$in2,$in2,$rndlast,$tmp2
+	vld1.32		{$rndpang},[$key_],#16	// re-pre-load rndkey[1]
+	vst1.8		{$in0,$in1,$in2},[$out],#48
+
+	 cbz		$len,.Lctr32_done_unroll
+
+.Lctr32_tail_unroll:
+	 cmp		$len,#1
+	b.eq		.Lctr32_tail_1_unroll
+
+.Lctr32_tail_2_unroll:
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndping},[$key_],#16
+	subs		$cnt,$cnt,#2
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndpang},[$key_],#16
+	b.gt		.Lctr32_tail_2_unroll
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndping},[$key_],#16
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndpang},[$key_],#16
+	vld1.8		{$in0,$in1},[$inp],#32
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndping},[$key_],#16
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndpang
+	aesmc		$dat1,$dat1
+	vld1.32		{$rndpang},[$key_],#16
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat1,$rndping
+	aesmc		$dat1,$dat1
+	aese		$dat0,$rndpang
+	aese		$dat1,$rndpang
+
+	 eor3		$in0,$in0,$rndlast,$dat0
+	 eor3		$in1,$in1,$rndlast,$dat1
+	vst1.8		{$in0,$in1},[$out],#32
+	 b		.Lctr32_done_unroll
+
+.Lctr32_tail_1_unroll:
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndping},[$key_],#16
+	subs		$cnt,$cnt,#2
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndpang},[$key_],#16
+	b.gt		.Lctr32_tail_1_unroll
+
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndping},[$key_],#16
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndpang},[$key_],#16
+	vld1.8		{$in0},[$inp]
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndping},[$key_],#16
+	aese		$dat0,$rndpang
+	aesmc		$dat0,$dat0
+	vld1.32		{$rndpang},[$key_],#16
+	aese		$dat0,$rndping
+	aesmc		$dat0,$dat0
+	aese		$dat0,$rndpang
+
+	 eor3		$in0,$in0,$rndlast,$dat0
+	vst1.8		{$in0},[$out],#16
+
+.Lctr32_done_unroll:
+	ldp		d8,d9,[sp, #16]
+	ldp		d10,d11,[sp, #32]
+	ldp		d12,d13,[sp, #48]
+	ldp		d14,d15,[sp, #64]
+	ldr		x29,[sp],#80
+	ret
+.size	${prefix}_ctr32_encrypt_blocks_unroll12_eor3,.-${prefix}_ctr32_encrypt_blocks_unroll12_eor3
+___
+}}}
+
 {{{
 my ($inp,$out,$len,$key,$ivp)=map("x$_",(0..4));
 my ($rounds,$cnt,$key_)=("w5","w6","x7");
@@ -1764,6 +2539,8 @@ $code.=<<___;
 ${prefix}_ctr32_encrypt_blocks:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp		x29,x30,[sp,#-16]!
 	add		x29,sp,#0
 ___
@@ -2210,7 +2987,7 @@ ___
 # will be processed specially, which be integrated into the 5*16 bytes
 # loop to improve the efficiency.
 # There is one special case, if the original input data size dsize
-# = 16 bytes, we will treat it seperately to improve the
+# = 16 bytes, we will treat it separately to improve the
 # performance: one independent code block without LR, FP load and
 # store.
 # Encryption will process the (length -tailcnt) bytes as mentioned
@@ -2256,6 +3033,7 @@ $code.=<<___	if ($flavour =~ /64/);
 ${prefix}_xts_encrypt:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
 	cmp	$len,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	.Lxts_enc_big_size
@@ -2930,6 +3708,7 @@ $code.=<<___	if ($flavour =~ /64/);
 .type	${prefix}_xts_decrypt,%function
 .align	5
 ${prefix}_xts_decrypt:
+	AARCH64_VALID_CALL_TARGET
 ___
 $code.=<<___	if ($flavour =~ /64/);
 	cmp	$len,#16
@@ -3543,7 +4322,7 @@ $code.=<<___	if ($flavour =~ /64/);
 	cbnz	x2,.Lxts_dec_1st_done
 	vld1.8	{$dat0},[$inp],#16
 
-	// Decrypt the last secod block to get the last plain text block
+	// Decrypt the last second block to get the last plain text block
 .Lxts_dec_1st_done:
 	eor	$tmpin,$dat0,$iv1
 	ldr	$rounds,[$key1,#240]
@@ -3626,7 +4405,8 @@ ___
 if ($flavour =~ /64/) {			######## 64-bit code
     my %opcode = (
 	"aesd"	=>	0x4e285800,	"aese"	=>	0x4e284800,
-	"aesimc"=>	0x4e287800,	"aesmc"	=>	0x4e286800	);
+	"aesimc"=>	0x4e287800,	"aesmc"	=>	0x4e286800,
+	"eor3"	=>	0xce000000,	);
 
     local *unaes = sub {
 	my ($mnemonic,$arg)=@_;
@@ -3637,10 +4417,21 @@ if ($flavour =~ /64/) {			######## 64-bit code
 			$mnemonic,$arg;
     };
 
+    sub unsha3 {
+		 my ($mnemonic,$arg)=@_;
+
+		 $arg =~ m/[qv]([0-9]+)[^,]*,\s*[qv]([0-9]+)[^,]*(?:,\s*[qv]([0-9]+)[^,]*(?:,\s*[qv#]([0-9\-]+))?)?/
+		 &&
+		 sprintf ".inst\t0x%08x\t//%s %s",
+			$opcode{$mnemonic}|$1|($2<<5)|($3<<16)|(eval($4)<<10),
+			$mnemonic,$arg;
+    }
+
     foreach(split("\n",$code)) {
 	s/\`([^\`]*)\`/eval($1)/geo;
 
-	s/\bq([0-9]+)\b/"v".($1<8?$1:$1+8).".16b"/geo;	# old->new registers
+	s/\bq([0-9]+)\b/"v".($1<8?$1:($1<24?$1+8:$1-16)).".16b"/geo;	# old->new registers
+	s/\bq_([0-9]+)\b/"q".$1/geo;	# old->new registers
 	s/@\s/\/\//o;			# old->new style commentary
 
 	#s/[v]?(aes\w+)\s+([qv].*)/unaes($1,$2)/geo	or
@@ -3653,6 +4444,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/vshr/ushr/o		or
 	s/^(\s+)v/$1/o		or	# strip off v prefix
 	s/\bbx\s+lr\b/ret/o;
+	s/\b(eor3)\s+(v.*)/unsha3($1,$2)/ge;
 
 	# fix up remaining legacy suffixes
 	s/\.[ui]?8//o;

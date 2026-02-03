@@ -17,29 +17,28 @@
 
 /*
  * Issuer Sign Tool (1.2.643.100.112) The name of the tool used to signs the subject (ASN1_SEQUENCE)
- * This extention is required to obtain the status of a qualified certificate at Russian Federation.
+ * This extension is required to obtain the status of a qualified certificate at Russian Federation.
  * RFC-style description is available here: https://tools.ietf.org/html/draft-deremin-rfc4491-bis-04#section-5
  * Russian Federal Law 63 "Digital Sign" is available here:  http://www.consultant.ru/document/cons_doc_LAW_112701/
  */
 
 ASN1_SEQUENCE(ISSUER_SIGN_TOOL) = {
-        ASN1_SIMPLE(ISSUER_SIGN_TOOL, signTool, ASN1_UTF8STRING),
-        ASN1_SIMPLE(ISSUER_SIGN_TOOL, cATool, ASN1_UTF8STRING),
-        ASN1_SIMPLE(ISSUER_SIGN_TOOL, signToolCert, ASN1_UTF8STRING),
-        ASN1_SIMPLE(ISSUER_SIGN_TOOL, cAToolCert, ASN1_UTF8STRING)
+    ASN1_SIMPLE(ISSUER_SIGN_TOOL, signTool, ASN1_UTF8STRING),
+    ASN1_SIMPLE(ISSUER_SIGN_TOOL, cATool, ASN1_UTF8STRING),
+    ASN1_SIMPLE(ISSUER_SIGN_TOOL, signToolCert, ASN1_UTF8STRING),
+    ASN1_SIMPLE(ISSUER_SIGN_TOOL, cAToolCert, ASN1_UTF8STRING)
 } ASN1_SEQUENCE_END(ISSUER_SIGN_TOOL)
 
 IMPLEMENT_ASN1_FUNCTIONS(ISSUER_SIGN_TOOL)
 
-
 static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_CTX *ctx,
-                        STACK_OF(CONF_VALUE) *nval)
+    STACK_OF(CONF_VALUE) *nval)
 {
     ISSUER_SIGN_TOOL *ist = ISSUER_SIGN_TOOL_new();
     int i;
 
     if (ist == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
     for (i = 0; i < sk_CONF_VALUE_num(nval); ++i) {
@@ -53,7 +52,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->signTool == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cATool") == 0) {
@@ -61,7 +60,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->cATool == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "signToolCert") == 0) {
@@ -69,7 +68,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->signToolCert == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
@@ -77,7 +76,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->cAToolCert == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else {
@@ -93,8 +92,8 @@ err:
 }
 
 static int i2r_issuer_sign_tool(X509V3_EXT_METHOD *method,
-                                 ISSUER_SIGN_TOOL *ist, BIO *out,
-                                 int indent)
+    ISSUER_SIGN_TOOL *ist, BIO *out,
+    int indent)
 {
     int new_line = 0;
 
@@ -103,9 +102,6 @@ static int i2r_issuer_sign_tool(X509V3_EXT_METHOD *method,
         return 0;
     }
     if (ist->signTool != NULL) {
-        if (new_line == 1) {
-            BIO_write(out, "\n", 1);
-        }
         BIO_printf(out, "%*ssignTool    : ", indent, "");
         BIO_write(out, ist->signTool->data, ist->signTool->length);
         new_line = 1;
@@ -138,15 +134,15 @@ static int i2r_issuer_sign_tool(X509V3_EXT_METHOD *method,
 }
 
 const X509V3_EXT_METHOD ossl_v3_issuer_sign_tool = {
-    NID_issuerSignTool,                   /* nid */
-    X509V3_EXT_MULTILINE,                 /* flags */
-    ASN1_ITEM_ref(ISSUER_SIGN_TOOL),      /* template */
-    0, 0, 0, 0,                           /* old functions, ignored */
-    0,                                    /* i2s */
-    0,                                    /* s2i */
-    0,                                    /* i2v */
+    NID_issuerSignTool, /* nid */
+    X509V3_EXT_MULTILINE, /* flags */
+    ASN1_ITEM_ref(ISSUER_SIGN_TOOL), /* template */
+    0, 0, 0, 0, /* old functions, ignored */
+    0, /* i2s */
+    0, /* s2i */
+    0, /* i2v */
     (X509V3_EXT_V2I)v2i_issuer_sign_tool, /* v2i */
     (X509V3_EXT_I2R)i2r_issuer_sign_tool, /* i2r */
-    0,                                    /* r2i */
-    NULL                                  /* extension-specific data */
+    0, /* r2i */
+    NULL /* extension-specific data */
 };

@@ -4,10 +4,13 @@
 
 #include "src/maglev/maglev.h"
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -15,14 +18,15 @@ namespace internal {
 MaybeHandle<Code> Maglev::Compile(Isolate* isolate, Handle<JSFunction> function,
                                   BytecodeOffset osr_offset) {
   DCHECK(v8_flags.maglev);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrentMaglev);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeSynchronousMaglev);
   std::unique_ptr<maglev::MaglevCompilationInfo> info =
       maglev::MaglevCompilationInfo::New(isolate, function, osr_offset);
   if (!maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),
                                        info.get())) {
     return {};
   }
-  return maglev::MaglevCompiler::GenerateCode(isolate, info.get());
+  // TODO(olivf): Maybe return the BailoutReason too.
+  return maglev::MaglevCompiler::GenerateCode(isolate, info.get()).first;
 }
 
 }  // namespace internal

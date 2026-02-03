@@ -105,13 +105,6 @@ public:
     JapaneseCalendar(const JapaneseCalendar& source);
 
     /**
-     * Default assignment operator
-     * @param right    the object to be copied.
-     * @internal
-     */
-    JapaneseCalendar& operator=(const JapaneseCalendar& right);
-
-    /**
      * Create and return a polymorphic copy of this calendar.
      * @return    return a polymorphic copy of this calendar.
      * @internal
@@ -123,7 +116,7 @@ public:
      * Japanese calendar case, this is equal to the equivalent extended Gregorian year.
      * @internal
      */
-    virtual int32_t handleGetExtendedYear() override;
+    virtual int32_t handleGetExtendedYear(UErrorCode& status) override;
 
     /**
      * Return the maximum value that this field could have, given the current date.
@@ -166,22 +159,7 @@ public:
      */
     virtual const char * getType() const override;
 
-    /**
-     * @return false - no default century in Japanese
-     * @internal 
-     */
-    virtual UBool haveDefaultCentury() const override;
-
-    /**
-     * Not used - no default century.
-     * @internal
-     */
-    virtual UDate defaultCenturyStart() const override;
-    /**
-     * Not used - no default century.
-     * @internal
-     */
-    virtual int32_t defaultCenturyStartYear() const override;
+    DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY
 
 private:
     JapaneseCalendar(); // default constructor not implemented
@@ -210,9 +188,10 @@ protected:
      * taking year and era into account.  Will return the first month of the given era, if 
      * the current year is an ascension year.
      * @param eyear the extended year
+     * @param status Indicates the status.
      * @internal
      */
-    virtual int32_t getDefaultMonthInYear(int32_t eyear) override;
+    virtual int32_t getDefaultMonthInYear(int32_t eyear, UErrorCode& status) override;
 
     /***
      * Called by computeJulianDay.  Returns the default day (1-based) for the month,
@@ -220,9 +199,12 @@ protected:
      * era, if the current month is an ascension year and month.
      * @param eyear the extended year
      * @param mon the month in the year
+     * @param status Indicates the status.
      * @internal
      */
-    virtual int32_t getDefaultDayInMonth(int32_t eyear, int32_t month) override;
+    virtual int32_t getDefaultDayInMonth(int32_t eyear, int32_t month, UErrorCode& status) override;
+
+    virtual bool isEra0CountingBackward() const override { return false; }
 };
 
 U_NAMESPACE_END

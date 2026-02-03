@@ -36,7 +36,7 @@ async function remove (gyp, argv) {
     throw err
   }
 
-  await fs.rm(versionPath, { recursive: true, force: true })
+  await fs.rm(versionPath, { recursive: true, force: true, maxRetries: 3 })
 }
 
 module.exports = remove

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file defines the public interface to v8_debug_helper.
-
 #ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
 #define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
+
+// This file defines the public interface to v8_debug_helper.
 
 #include <cstdint>
 #include <memory>
@@ -22,7 +22,7 @@
 
 #else  // defined(_WIN32)
 
-#ifdef BUILDING_V8_DEBUG_HELPER
+#if defined(BUILDING_V8_DEBUG_HELPER) || USING_V8_DEBUG_HELPER
 #define V8_DEBUG_HELPER_EXPORT __attribute__((visibility("default")))
 #else
 #define V8_DEBUG_HELPER_EXPORT
@@ -166,15 +166,12 @@ struct HeapAddresses {
 
   // Any valid heap pointer address. On platforms where pointer compression is
   // enabled, this can allow us to get data from compressed pointers even if the
-  // other data above is not provided. The Isolate pointer is valid for this
-  // purpose if you have it.
+  // other data above is not provided.
   uintptr_t any_heap_pointer;
-};
 
-// Result type for ListObjectClasses.
-struct ClassList {
-  size_t num_class_names;
-  const char* const* class_names;  // Fully qualified class names.
+  // A pointer to the static array
+  // v8::internal::MemoryChunk::metadata_pointer_table_.
+  uintptr_t metadata_pointer_table;
 };
 
 }  // namespace debug_helper
@@ -195,8 +192,6 @@ _v8_debug_helper_GetStackFrame(
     uintptr_t frame_pointer, v8::debug_helper::MemoryAccessor memory_accessor);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_StackFrameResult(
     v8::debug_helper::StackFrameResult* result);
-V8_DEBUG_HELPER_EXPORT const v8::debug_helper::ClassList*
-_v8_debug_helper_ListObjectClasses();
 V8_DEBUG_HELPER_EXPORT const char* _v8_debug_helper_BitsetName(
     uint64_t payload);
 }
@@ -226,11 +221,6 @@ inline ObjectPropertiesResultPtr GetObjectProperties(
     const HeapAddresses& heap_addresses, const char* type_hint = nullptr) {
   return ObjectPropertiesResultPtr(_v8_debug_helper_GetObjectProperties(
       object, memory_accessor, heap_addresses, type_hint));
-}
-
-// Get a list of all class names deriving from v8::internal::Object.
-inline const ClassList* ListObjectClasses() {
-  return _v8_debug_helper_ListObjectClasses();
 }
 
 // Return a bitset name for a v8::internal::compiler::Type with payload or null

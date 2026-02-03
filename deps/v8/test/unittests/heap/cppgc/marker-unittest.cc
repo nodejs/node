@@ -7,11 +7,11 @@
 #include <memory>
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/ephemeron-pair.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/trace-trait.h"
+#include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-allocator.h"

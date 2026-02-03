@@ -7,6 +7,7 @@
 
 #include <atomic>
 
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {

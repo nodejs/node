@@ -11,7 +11,7 @@ const fname = fixtures.path('elipses.txt');
 const server = http2.createServer(common.mustCall((request, response) => {
   response.stream.respondWithFile(fname);
 }));
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   req.on('response', common.mustCall());
@@ -21,4 +21,4 @@ server.listen(0, () => {
   }));
   req.end();
   req.resume();
-});
+}));

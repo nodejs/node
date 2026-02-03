@@ -91,24 +91,20 @@ if (process.argv[2] === 'child') {
     if (options.throwInDomainErrHandler)
       throwInDomainErrHandlerOpt = 'throwInDomainErrHandler';
 
-    let cmdToExec = '';
-    if (!common.isWindows) {
-      // Do not create core files, as it can take a lot of disk space on
-      // continuous testing and developers' machines
-      cmdToExec += 'ulimit -c 0 && ';
-    }
-
     let useTryCatchOpt;
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
-    cmdToExec += `"${process.argv[0]}" ${cmdLineOption ? cmdLineOption : ''} "${
-      process.argv[1]}" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
-
-    const child = exec(cmdToExec);
+    const escapedArgs = common.escapePOSIXShell`"${process.execPath}" ${cmdLineOption || ''} "${__filename}" child ${throwInDomainErrHandlerOpt || ''} ${useTryCatchOpt || ''}`;
+    if (!common.isWindows) {
+      // Do not create core files, as it can take a lot of disk space on
+      // continuous testing and developers' machines
+      escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
+    }
+    const child = exec(...escapedArgs);
 
     if (child) {
-      child.on('exit', function onChildExited(exitCode, signal) {
+      child.on('exit', common.mustCall(function onChildExited(exitCode, signal) {
         // When throwing errors from the top-level domain error handler
         // outside of a try/catch block, the process should not exit gracefully
         if (!options.useTryCatch && options.throwInDomainErrHandler) {
@@ -128,7 +124,7 @@ if (process.argv[2] === 'child') {
           assert.strictEqual(exitCode, 0);
           assert.strictEqual(signal, null);
         }
-      });
+      }));
     }
   }
 

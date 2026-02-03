@@ -1,3 +1,5 @@
+'use strict'
+
 const Range = require('../classes/range')
 const satisfies = (version, range, options) => {
   try {

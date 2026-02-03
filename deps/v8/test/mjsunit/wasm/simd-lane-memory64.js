@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-memory64
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -19,7 +18,7 @@ builder.exportMemoryAs('memory');
 // Here we make a global of type v128 to be the target
 // for loading lanes and the source for storing lanes.
 var g = builder.addGlobal(
-  kWasmS128, true,
+  kWasmS128, true, false,
   [kSimdPrefix, kExprS128Const,
    1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]);
 

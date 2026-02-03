@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 class IntrinsicsGenerator {
  public:
   explicit IntrinsicsGenerator(InterpreterAssembler* assembler)
@@ -107,21 +109,20 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
 
 TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    Builtin name, int arg_count) {
-  Callable callable = Builtins::CallableFor(isolate_, name);
+    Builtin builtin, int arg_count) {
   switch (arg_count) {
     case 1:
-      return __ CallStub(callable, context,
-                         __ LoadRegisterFromRegisterList(args, 0));
+      return __ CallBuiltin(builtin, context,
+                            __ LoadRegisterFromRegisterList(args, 0));
     case 2:
-      return __ CallStub(callable, context,
-                         __ LoadRegisterFromRegisterList(args, 0),
-                         __ LoadRegisterFromRegisterList(args, 1));
+      return __ CallBuiltin(builtin, context,
+                            __ LoadRegisterFromRegisterList(args, 0),
+                            __ LoadRegisterFromRegisterList(args, 1));
     case 3:
-      return __ CallStub(callable, context,
-                         __ LoadRegisterFromRegisterList(args, 0),
-                         __ LoadRegisterFromRegisterList(args, 1),
-                         __ LoadRegisterFromRegisterList(args, 2));
+      return __ CallBuiltin(builtin, context,
+                            __ LoadRegisterFromRegisterList(args, 0),
+                            __ LoadRegisterFromRegisterList(args, 1),
+                            __ LoadRegisterFromRegisterList(args, 2));
     default:
       UNREACHABLE();
   }
@@ -140,13 +141,11 @@ IntrinsicsGenerator::CopyDataPropertiesWithExcludedPropertiesOnStack(
     int arg_count) {
   TNode<IntPtrT> offset = __ TimesSystemPointerSize(__ IntPtrConstant(1));
   auto base = __ Signed(__ IntPtrSub(args.base_reg_location(), offset));
-  Callable callable = Builtins::CallableFor(
-      isolate_, Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack);
   TNode<IntPtrT> excluded_property_count = __ IntPtrSub(
       __ ChangeInt32ToIntPtr(args.reg_count()), __ IntPtrConstant(1));
-  return __ CallStub(callable, context,
-                     __ LoadRegisterFromRegisterList(args, 0),
-                     excluded_property_count, base);
+  return __ CallBuiltin(
+      Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack, context,
+      __ LoadRegisterFromRegisterList(args, 0), excluded_property_count, base);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
@@ -159,7 +158,8 @@ TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
 TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  TNode<Object> sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<JSAny> sync_iterator =
+      __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   return __ CreateAsyncFromSyncIterator(context, sync_iterator);
 }
 
@@ -198,18 +198,11 @@ TNode<Object> IntrinsicsGenerator::GetImportMetaObject(
   return __ GetImportMetaObject(context);
 }
 
-TNode<Object> IntrinsicsGenerator::AsyncFunctionAwaitCaught(
+TNode<Object> IntrinsicsGenerator::AsyncFunctionAwait(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtin::kAsyncFunctionAwaitCaught, arg_count);
-}
-
-TNode<Object> IntrinsicsGenerator::AsyncFunctionAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(
-      args, context, Builtin::kAsyncFunctionAwaitUncaught, arg_count);
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncFunctionAwait,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionEnter(
@@ -233,18 +226,11 @@ TNode<Object> IntrinsicsGenerator::AsyncFunctionResolve(
                                 arg_count);
 }
 
-TNode<Object> IntrinsicsGenerator::AsyncGeneratorAwaitCaught(
+TNode<Object> IntrinsicsGenerator::AsyncGeneratorAwait(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtin::kAsyncGeneratorAwaitCaught, arg_count);
-}
-
-TNode<Object> IntrinsicsGenerator::AsyncGeneratorAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(
-      args, context, Builtin::kAsyncGeneratorAwaitUncaught, arg_count);
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorAwait,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorReject(
@@ -279,6 +265,8 @@ void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,
 }
 
 #undef __
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace interpreter
 }  // namespace internal

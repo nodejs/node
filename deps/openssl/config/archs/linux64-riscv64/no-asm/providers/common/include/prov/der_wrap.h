@@ -13,6 +13,7 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-alg-CMS3DESwrap OBJECT IDENTIFIER ::= {
@@ -44,3 +45,4 @@ extern const unsigned char ossl_der_oid_id_aes192_wrap[DER_OID_SZ_id_aes192_wrap
 #define DER_OID_SZ_id_aes256_wrap 11
 extern const unsigned char ossl_der_oid_id_aes256_wrap[DER_OID_SZ_id_aes256_wrap];
 
+/* clang-format on */

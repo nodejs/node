@@ -7,7 +7,7 @@ if (common.isWindows)
 
 const assert = require('assert');
 
-const validateHeapSnapshotFile = () => {
+if (process.argv[2] === 'child') {
   const fs = require('fs');
 
   assert.strictEqual(process.listenerCount('SIGUSR2'), 1);
@@ -31,10 +31,6 @@ const validateHeapSnapshotFile = () => {
       JSON.parse(fs.readFileSync(files[i]));
     }
   })();
-};
-
-if (process.argv[2] === 'child') {
-  validateHeapSnapshotFile();
 } else {
   // Modify the timezone. So we can check the file date string still returning correctly.
   process.env.TZ = 'America/New_York';

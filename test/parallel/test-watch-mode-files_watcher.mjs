@@ -6,7 +6,8 @@ import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
@@ -15,7 +16,7 @@ import watcher from 'internal/watch_mode/files_watcher';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-const supportsRecursiveWatching = common.isOSX || common.isWindows;
+const supportsRecursiveWatching = common.isMacOS || common.isWindows;
 
 const { FilesWatcher } = watcher;
 tmpdir.refresh();
@@ -51,6 +52,33 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
+  it('should watch changed files with same prefix path string', async () => {
+    mkdirSync(tmpdir.resolve('subdir'));
+    mkdirSync(tmpdir.resolve('sub'));
+    const file1 = tmpdir.resolve('subdir', 'file1.mjs');
+    const file2 = tmpdir.resolve('sub', 'file2.mjs');
+    writeFileSync(file2, 'export const hello = () => { return "hello world"; };');
+    writeFileSync(file1, 'import { hello } from "../sub/file2.mjs"; console.log(hello());');
+
+    const child = spawn(process.execPath,
+                        ['--watch', file1],
+                        { stdio: ['ignore', 'pipe', 'ignore'] });
+    let completeCount = 0;
+    for await (const line of createInterface(child.stdout)) {
+      if (!line.startsWith('Completed running')) {
+        continue;
+      }
+      completeCount++;
+      if (completeCount === 1) {
+        appendFileSync(file1, '\n // append 1');
+      }
+      // The file is reloaded due to file watching
+      if (completeCount === 2) {
+        child.kill();
+      }
+    }
+  });
+
   it('should debounce changes', async () => {
     const file = tmpdir.resolve('file2');
     writeFileSync(file, 'written');
@@ -65,6 +93,29 @@ describe('watch mode file watcher', () => {
     writeFileSync(file, '5');
     const changed = once(watcher, 'changed');
     writeFileSync(file, 'after');
+    await changed;
+    // Unfortunately testing that changesCount === 2 is flaky
+    assert.ok(changesCount < 5);
+  });
+
+  it('should debounce changes on multiple files', async () => {
+    const files = [];
+    for (let i = 0; i < 10; i++) {
+      const file = tmpdir.resolve(`file-debounced-${i}`);
+      writeFileSync(file, 'written');
+      watcher.filterFile(file);
+      files.push(file);
+    }
+
+    files.forEach((file) => writeFileSync(file, '1'));
+    files.forEach((file) => writeFileSync(file, '2'));
+    files.forEach((file) => writeFileSync(file, '3'));
+    files.forEach((file) => writeFileSync(file, '4'));
+
+    await setTimeout(200); // debounce * 2
+    files.forEach((file) => writeFileSync(file, '5'));
+    const changed = once(watcher, 'changed');
+    files.forEach((file) => writeFileSync(file, 'after'));
     await changed;
     // Unfortunately testing that changesCount === 2 is flaky
     assert.ok(changesCount < 5);

@@ -106,6 +106,7 @@ function fireErr5() {
   const makeOrphan = vm.compileFunction(`(${String(() => {
     async function main() {
       await null;
+      // eslint-disable-next-line node-core/must-call-assert
       Promise.resolve().then(() => {
         throw new Error('err5');
       });

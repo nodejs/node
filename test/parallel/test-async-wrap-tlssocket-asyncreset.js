@@ -42,7 +42,7 @@ server.listen(
         res.socket.on('error', (err) => assert.fail(err));
         res.resume();
         // Drain the socket and wait for it to be free to reuse
-        res.socket.once('free', () => {
+        res.socket.once('free', common.mustCall(() => {
           // This is the pain point. Internally the Agent will call
           // `socket._handle.asyncReset()` and if the _handle does not implement
           // `asyncReset` this will throw TypeError
@@ -58,7 +58,7 @@ server.listen(
             })
           );
           req2.on('error', (err) => assert.fail(err));
-        });
+        }));
       })
     );
     req.on('error', (err) => assert.fail(err));

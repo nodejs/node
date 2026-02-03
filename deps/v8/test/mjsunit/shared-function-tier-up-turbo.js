@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 //
 // Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan --turbo-filter=*
+// Flags: --turbofan --turbo-filter=*
 
 // If we are always or never optimizing it is useless.
 if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
-  testRunner.quit(0);
+  quit(0);
 }
-assertFalse(isAlwaysOptimize());
 assertFalse(isNeverOptimize());
 
 (function() {

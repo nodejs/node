@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { hasCrypto } from '../common/index.mjs';
 import assert from 'node:assert';
 import { promisify } from 'node:util';
 
@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import stream from 'node:stream';
 import timers from 'node:timers';
+import child_process from 'node:child_process';
 
 
 assert.strictEqual(
@@ -38,3 +39,20 @@ assert.strictEqual(
   promisify(timers.setTimeout).name,
   'setTimeout'
 );
+
+assert.strictEqual(
+  promisify(child_process.exec).name,
+  'exec'
+);
+assert.strictEqual(
+  promisify(child_process.execFile).name,
+  'execFile'
+);
+
+if (hasCrypto) {
+  const http2 = await import('node:http2');
+  assert.strictEqual(
+    promisify(http2.connect).name,
+    'connect'
+  );
+}

@@ -37,7 +37,6 @@
 #include "include/v8-locker.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -81,12 +80,14 @@ v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::ArrayBuffer::Allocator* CcTest::allocator_ = nullptr;
 v8::Isolate* CcTest::isolate_ = nullptr;
 v8::Platform* CcTest::default_platform_ = nullptr;
+bool CcTest::should_call_dispose_ = false;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               bool enabled, bool initialize,
+               bool enabled, bool initialize, const char* custom_v8_flags,
                TestPlatformFactory* test_platform_factory)
     : callback_(callback),
       initialize_(initialize),
+      custom_v8_flags_(custom_v8_flags ? custom_v8_flags : ""),
       test_platform_factory_(test_platform_factory) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
@@ -112,6 +113,9 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 }
 
 void CcTest::Run(const char* snapshot_directory) {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  v8::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   v8::V8::InitializeICUDefaultLocation(snapshot_directory);
   std::unique_ptr<v8::Platform> underlying_default_platform(
       v8::platform::NewDefaultPlatform());
@@ -122,10 +126,15 @@ void CcTest::Run(const char* snapshot_directory) {
   } else {
     platform = std::move(underlying_default_platform);
   }
+  should_call_dispose_ = true;
   i::V8::InitializePlatformForTesting(platform.get());
   cppgc::InitializeProcess(platform->GetPageAllocator());
 
   // Allow changing flags in cctests.
+  if (!custom_v8_flags_.empty()) {
+    v8::V8::SetFlagsFromString(custom_v8_flags_.c_str(),
+                               custom_v8_flags_.length());
+  }
   // TODO(12887): Fix tests to avoid changing flag values after initialization.
   i::v8_flags.freeze_flags_after_init = false;
 
@@ -133,8 +142,10 @@ void CcTest::Run(const char* snapshot_directory) {
   v8::V8::InitializeExternalStartupData(snapshot_directory);
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
-  constexpr bool kUseDefaultTrapHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+  if (i::HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox()) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
   CcTest::set_array_buffer_allocator(
@@ -160,16 +171,7 @@ void CcTest::Run(const char* snapshot_directory) {
 #ifdef DEBUG
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
-  {
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    // TODO(v8:13270): This handle scope should not be needed. It will be
-    // removed when the implementation of direct handles is complete and they
-    // can never implicitly be converted to indirect handles.
-    v8::base::Optional<v8::HandleScope> scope;
-    if (initialize_) scope.emplace(isolate_);
-#endif
-    callback_();
-  }
+  callback_();
 #ifdef DEBUG
   // This DCHECK ensures that all Isolates are properly disposed after finishing
   // the test. Stray Isolates lead to stray tasks in the platform which can
@@ -191,15 +193,21 @@ void CcTest::Run(const char* snapshot_directory) {
     CHECK_NULL(isolate_);
   }
 
-  v8::V8::Dispose();
+  if (should_call_dispose_) {
+    v8::V8::Dispose();
+  }
   cppgc::ShutdownProcess();
-  v8::V8::DisposePlatform();
+  if (should_call_dispose_) {
+    v8::V8::DisposePlatform();
+  }
 }
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
 i::ReadOnlyHeap* CcTest::read_only_heap() {
   return i_isolate()->read_only_heap();
 }
+
+void CcTest::disable_dispose_in_test() { should_call_dispose_ = false; }
 
 void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                v8::FunctionCallback callback) {
@@ -260,17 +268,14 @@ LocalContext::~LocalContext() {
   context_.Reset();
 }
 
-void LocalContext::Initialize(v8::Isolate* isolate,
-                              v8::ExtensionConfiguration* extensions,
+void LocalContext::Initialize(v8::ExtensionConfiguration* extensions,
                               v8::Local<v8::ObjectTemplate> global_template,
                               v8::Local<v8::Value> global_object) {
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(isolate_);
   v8::Local<v8::Context> context =
-      v8::Context::New(isolate, extensions, global_template, global_object);
-  context_.Reset(isolate, context);
+      v8::Context::New(isolate_, extensions, global_template, global_object);
+  context_.Reset(isolate_, context);
   context->Enter();
-  // We can't do this later perhaps because of a fatal error.
-  isolate_ = isolate;
 }
 
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
@@ -291,9 +296,8 @@ InitializedHandleScope::InitializedHandleScope(i::Isolate* isolate)
 
 InitializedHandleScope::~InitializedHandleScope() = default;
 
-HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
-    : main_zone_(
-          new i::Zone(&allocator_, ZONE_NAME, support_zone_compression)) {}
+HandleAndZoneScope::HandleAndZoneScope()
+    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
@@ -310,7 +314,7 @@ i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
   CHECK_NOT_NULL(zone);
 
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                   i::CodeKind::TURBOFAN);
+                                   i::CodeKind::TURBOFAN_JS);
 
   if (flags & ~i::OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & i::OptimizedCompilationInfo::kInlining) {
@@ -320,10 +324,10 @@ i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
   CHECK(info.shared_info()->HasBytecodeArray());
   i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  i::Handle<i::Code> code =
+  i::DirectHandle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
-  function->set_code(*code, v8::kReleaseStore);
+  function->UpdateOptimizedCode(isolate, *code);
   return function;
 }
 #endif  // V8_ENABLE_TURBOFAN
@@ -433,28 +437,28 @@ int TestPlatform::NumberOfWorkerThreads() {
 }
 
 std::shared_ptr<v8::TaskRunner> TestPlatform::GetForegroundTaskRunner(
-    v8::Isolate* isolate) {
-  return CcTest::default_platform()->GetForegroundTaskRunner(isolate);
+    v8::Isolate* isolate, v8::TaskPriority priority) {
+  return CcTest::default_platform()->GetForegroundTaskRunner(isolate, priority);
 }
 
-void TestPlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
-  CcTest::default_platform()->CallOnWorkerThread(std::move(task));
+void TestPlatform::PostTaskOnWorkerThreadImpl(
+    v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+    const v8::SourceLocation& location) {
+  CcTest::default_platform()->PostTaskOnWorkerThread(priority, std::move(task));
 }
 
-void TestPlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                             double delay_in_seconds) {
-  CcTest::default_platform()->CallDelayedOnWorkerThread(std::move(task),
-                                                        delay_in_seconds);
+void TestPlatform::PostDelayedTaskOnWorkerThreadImpl(
+    v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+    double delay_in_seconds, const v8::SourceLocation& location) {
+  CcTest::default_platform()->PostDelayedTaskOnWorkerThread(
+      priority, std::move(task), delay_in_seconds);
 }
 
-std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
-    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) {
-  return CcTest::default_platform()->PostJob(priority, std::move(job_task));
-}
-
-std::unique_ptr<v8::JobHandle> TestPlatform::CreateJob(
-    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) {
-  return CcTest::default_platform()->CreateJob(priority, std::move(job_task));
+std::unique_ptr<v8::JobHandle> TestPlatform::CreateJobImpl(
+    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+    const v8::SourceLocation& location) {
+  return CcTest::default_platform()->CreateJob(priority, std::move(job_task),
+                                               location);
 }
 
 double TestPlatform::MonotonicallyIncreasingTime() {
@@ -471,6 +475,10 @@ bool TestPlatform::IdleTasksEnabled(v8::Isolate* isolate) {
 
 v8::TracingController* TestPlatform::GetTracingController() {
   return CcTest::default_platform()->GetTracingController();
+}
+
+v8::ThreadIsolatedAllocator* TestPlatform::GetThreadIsolatedAllocator() {
+  return CcTest::default_platform()->GetThreadIsolatedAllocator();
 }
 
 namespace {

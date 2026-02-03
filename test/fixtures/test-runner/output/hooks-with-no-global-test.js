@@ -1,6 +1,6 @@
 'use strict';
 const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
-const assert = require("assert");
+const assert = require('assert');
 
 // This file should not have any global tests to reproduce bug #48844
 const testArr = [];
@@ -26,14 +26,14 @@ after(() => {
     'describe beforeEach',
     'describe nested beforeEach',
     'describe nested it 1',
-    'describe afterEach',
     'describe nested afterEach',
+    'describe afterEach',
 
     'describe beforeEach',
     'describe nested beforeEach',
     'describe nested test 2',
-    'describe afterEach',
     'describe nested afterEach',
+    'describe afterEach',
 
     'describe nested after',
     'describe after',
@@ -45,7 +45,7 @@ describe('describe hooks with no global tests', () => {
   before(() => {
     testArr.push('describe before');
   });
-  after(()=> {
+  after(() => {
     testArr.push('describe after');
   });
   beforeEach(() => {
@@ -60,16 +60,16 @@ describe('describe hooks with no global tests', () => {
 
   describe('nested', () => {
     before(() => {
-      testArr.push('describe nested before')
+      testArr.push('describe nested before');
     });
     after(() => {
-      testArr.push('describe nested after')
+      testArr.push('describe nested after');
     });
     beforeEach(() => {
-      testArr.push('describe nested beforeEach')
+      testArr.push('describe nested beforeEach');
     });
     afterEach(() => {
-      testArr.push('describe nested afterEach')
+      testArr.push('describe nested afterEach');
     });
 
     it('nested 1', () => testArr.push('describe nested it 1'));

@@ -13,19 +13,21 @@
 #include "include/v8config.h"
 #include "src/base/immediate-crash.h"
 
-namespace v8 {
-namespace internal {
-namespace trap_handler {
+namespace v8::internal::trap_handler {
 
 // X64 on Linux, Windows, MacOS, FreeBSD.
 #if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
     ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
      V8_OS_FREEBSD)
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Arm64 (non-simulator) on Mac and Linux.
+// Arm64 native on Linux, Windows, MacOS.
 #elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
-    (V8_OS_DARWIN || (V8_OS_LINUX && !V8_OS_ANDROID))
+    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN)
 #define V8_TRAP_HANDLER_SUPPORTED true
+// For Linux and Mac, enable the simulator when it's been requested.
+#if USE_SIMULATOR && ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_DARWIN)
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#endif
 // Arm64 simulator on x64 on Linux, Mac, or Windows.
 //
 // The simulator case uses some inline assembly code, which cannot be
@@ -44,6 +46,14 @@ namespace trap_handler {
 #elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 (non-simulator) on Linux.
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
+    !V8_OS_ANDROID
+#define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 simulator on x64 on Linux
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#define V8_TRAP_HANDLER_SUPPORTED true
 // Everything else is unsupported.
 #else
 #define V8_TRAP_HANDLER_SUPPORTED false
@@ -58,15 +68,25 @@ namespace trap_handler {
 #endif
 
 // Setup for shared library export.
-#if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
+#ifdef V8_OS_WIN
+
+#if defined(BUILDING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
-#elif defined(BUILDING_V8_SHARED)
-#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
-#elif defined(USING_V8_SHARED) && defined(V8_OS_WIN)
+#elif defined(USING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __declspec(dllimport)
 #else
+#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
+#endif  // BUILDING_V8_SHARED_PRIVATE
+
+#else  // V8_OS_WIN
+
+#if defined(BUILDING_V8_SHARED_PRIVATE) || defined(USING_V8_SHARED_PRIVATE)
+#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
+#else
 #define TH_EXPORT_PRIVATE
-#endif
+#endif  // BUILDING_V8_SHARED_PRIVATE ||
+
+#endif  // V8_OS_WIN
 
 #define TH_CHECK(condition) \
   if (!(condition)) IMMEDIATE_CRASH();
@@ -90,11 +110,6 @@ struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
   // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
   uint32_t instr_offset;
-
-  // The offset of the landing pad from the start of its code object.
-  //
-  // TODO(eholk): Using a single landing pad and store parameters here.
-  uint32_t landing_offset;
 };
 
 const int kInvalidIndex = -1;
@@ -111,6 +126,17 @@ int TH_EXPORT_PRIVATE RegisterHandlerData(
 /// TODO(mtrofin): We can switch to using size_t for index and not need
 /// kInvalidIndex.
 void TH_EXPORT_PRIVATE ReleaseHandlerData(int index);
+
+/// Registers the base and size of the V8 sandbox region into list
+/// of sandboxes records. If successful, these will be used
+/// by the trap handler: only faulting accesses to memory inside the V8
+/// sandboxes should be handled by the trap handler since all Wasm memory
+/// objects are located inside the sandboxes.
+bool TH_EXPORT_PRIVATE RegisterV8Sandbox(uintptr_t base, size_t size);
+
+/// Unregisters the base and size of the V8 sandbox region decribed by base and
+/// size.
+void TH_EXPORT_PRIVATE UnregisterV8Sandbox(uintptr_t base, size_t size);
 
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.
@@ -129,6 +155,10 @@ TH_EXPORT_PRIVATE extern std::atomic<bool> g_can_enable_trap_handler;
 // rather than relying on the embedder to do it.
 TH_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
 
+// Set the address that the trap handler should continue execution from when it
+// gets a fault at a recognised address.
+TH_EXPORT_PRIVATE void SetLandingPad(uintptr_t landing_pad);
+
 inline bool IsTrapHandlerEnabled() {
   TH_DCHECK(!g_is_trap_handler_enabled || V8_TRAP_HANDLER_SUPPORTED);
   // Disallow enabling the trap handler after retrieving the current value.
@@ -141,45 +171,11 @@ inline bool IsTrapHandlerEnabled() {
   return g_is_trap_handler_enabled;
 }
 
-#if defined(V8_OS_AIX)
-// `thread_local` does not link on AIX:
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100641
-extern __thread int g_thread_in_wasm_code;
-#else
-extern thread_local int g_thread_in_wasm_code;
-#endif
-
-// Return the address of the thread-local {g_thread_in_wasm_code} variable. This
-// pointer can be accessed and modified as long as the thread calling this
-// function exists. Only use if from the same thread do avoid race conditions.
-V8_NOINLINE TH_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
-
-// On Windows, asan installs its own exception handler which maps shadow
-// memory. Since our exception handler may be executed before the asan exception
-// handler, we have to make sure that asan shadow memory is not accessed here.
-TH_DISABLE_ASAN inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
-
-inline void SetThreadInWasm() {
-  if (IsTrapHandlerEnabled()) {
-    TH_DCHECK(!IsThreadInWasm());
-    g_thread_in_wasm_code = true;
-  }
-}
-
-inline void ClearThreadInWasm() {
-  if (IsTrapHandlerEnabled()) {
-    TH_DCHECK(IsThreadInWasm());
-    g_thread_in_wasm_code = false;
-  }
-}
-
 bool RegisterDefaultTrapHandler();
 TH_EXPORT_PRIVATE void RemoveTrapHandler();
 
 TH_EXPORT_PRIVATE size_t GetRecoveredTrapCount();
 
-}  // namespace trap_handler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::trap_handler
 
 #endif  // V8_TRAP_HANDLER_TRAP_HANDLER_H_

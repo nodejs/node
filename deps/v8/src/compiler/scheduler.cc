@@ -5,16 +5,17 @@
 #include "src/compiler/scheduler.h"
 
 #include <iomanip>
+#include <optional>
 
 #include "src/base/iterator.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
@@ -27,8 +28,9 @@ namespace compiler {
     if (v8_flags.trace_turbo_scheduler) PrintF(__VA_ARGS__); \
   } while (false)
 
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
-                     size_t node_count_hint, TickCounter* tick_counter,
+Scheduler::Scheduler(Zone* zone, TFGraph* graph, Schedule* schedule,
+                     Flags flags, size_t node_count_hint,
+                     TickCounter* tick_counter,
                      const ProfileDataFromFile* profile_data)
     : zone_(zone),
       graph_(graph),
@@ -45,7 +47,7 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
 }
 
-Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
+Schedule* Scheduler::ComputeSchedule(Zone* zone, TFGraph* graph, Flags flags,
                                      TickCounter* tick_counter,
                                      const ProfileDataFromFile* profile_data) {
   Zone* schedule_zone =
@@ -166,7 +168,7 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
   // Reduce the use count of the node's inputs to potentially make them
   // schedulable. If all the uses of a node have been scheduled, then the node
   // itself can be scheduled.
-  base::Optional<int> coupled_control_edge = GetCoupledControlEdge(node);
+  std::optional<int> coupled_control_edge = GetCoupledControlEdge(node);
   for (Edge const edge : node->input_edges()) {
     DCHECK_EQ(node, edge.from());
     if (edge.index() != coupled_control_edge) {
@@ -176,7 +178,7 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
   data->placement_ = placement;
 }
 
-base::Optional<int> Scheduler::GetCoupledControlEdge(Node* node) {
+std::optional<int> Scheduler::GetCoupledControlEdge(Node* node) {
   if (GetPlacement(node) == kCoupled) {
     return NodeProperties::FirstControlIndex(node);
   }
@@ -353,6 +355,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -397,6 +400,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);
@@ -710,7 +714,7 @@ class SpecialRPONumberer : public ZoneObject {
     return empty_;
   }
 
-  bool HasLoopBlocks() const { return loops_.size() != 0; }
+  bool HasLoopBlocks() const { return !loops_.empty(); }
 
  private:
   using Backedge = std::pair<BasicBlock*, size_t>;
@@ -1296,7 +1300,7 @@ void Scheduler::GenerateDominatorTree() {
 
 class PrepareUsesVisitor {
  public:
-  explicit PrepareUsesVisitor(Scheduler* scheduler, Graph* graph, Zone* zone)
+  explicit PrepareUsesVisitor(Scheduler* scheduler, TFGraph* graph, Zone* zone)
       : scheduler_(scheduler),
         schedule_(scheduler->schedule_),
         graph_(graph),
@@ -1339,7 +1343,7 @@ class PrepareUsesVisitor {
   void VisitInputs(Node* node) {
     DCHECK_NE(scheduler_->GetPlacement(node), Scheduler::kUnknown);
     bool is_scheduled = schedule_->IsScheduled(node);
-    base::Optional<int> coupled_control_edge =
+    std::optional<int> coupled_control_edge =
         scheduler_->GetCoupledControlEdge(node);
     for (auto edge : node->input_edges()) {
       Node* to = edge.to();
@@ -1360,7 +1364,7 @@ class PrepareUsesVisitor {
 
   Scheduler* scheduler_;
   Schedule* schedule_;
-  Graph* graph_;
+  TFGraph* graph_;
   BitVector visited_;
   ZoneStack<Node*> stack_;
 };
@@ -1815,7 +1819,7 @@ class ScheduleLateNodeVisitor {
 
   Node* CloneNode(Node* node) {
     int const input_count = node->InputCount();
-    base::Optional<int> coupled_control_edge =
+    std::optional<int> coupled_control_edge =
         scheduler_->GetCoupledControlEdge(node);
     for (int index = 0; index < input_count; ++index) {
       if (index != coupled_control_edge) {

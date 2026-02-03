@@ -42,7 +42,7 @@ const assert = require('assert');
     const err = new Error('Destroy test');
     res.destroy(err);
     assert.strictEqual(res.errored, err);
-  })).listen(0, () => {
+  })).listen(0, common.mustCall(() => {
     http
       .request({
         port: server.address().port,
@@ -50,6 +50,28 @@ const assert = require('assert');
       })
       .on('error', common.mustCall())
       .write('asd');
-  });
+  }));
+}
 
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    assert.strictEqual(res.closed, false);
+    res.end();
+    res.destroy();
+    // Make sure not to emit 'error' after .destroy().
+    res.end('asd');
+    assert.strictEqual(res.errored, undefined);
+  })).listen(0, common.mustCall(() => {
+    http
+      .request({
+        port: server.address().port,
+        method: 'GET'
+      })
+      .on('response', common.mustCall((res) => {
+        res.resume().on('end', common.mustCall(() => {
+          server.close();
+        }));
+      }))
+      .end();
+  }));
 }

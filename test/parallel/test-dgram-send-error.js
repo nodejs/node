@@ -23,23 +23,23 @@ function getSocket(callback) {
   return socket;
 }
 
-getSocket((socket) => {
+getSocket(common.mustCall((socket) => {
   socket.on('error', common.mustCall((err) => {
     socket.close();
     assert.strictEqual(err, mockError);
   }));
 
   socket.send('foo', socket.address().port, 'localhost');
-});
+}));
 
-getSocket((socket) => {
+getSocket(common.mustCall((socket) => {
   const callback = common.mustCall((err) => {
     socket.close();
     assert.strictEqual(err, mockError);
   });
 
   socket.send('foo', socket.address().port, 'localhost', callback);
-});
+}));
 
 {
   const socket = dgram.createSocket('udp4');

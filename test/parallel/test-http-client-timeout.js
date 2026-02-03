@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -35,15 +35,15 @@ const server = http.createServer(function(req, res) {
   // This space intentionally left blank
 });
 
-server.listen(0, options.host, function() {
+server.listen(0, options.host, common.mustCall(function() {
   options.port = this.address().port;
   const req = http.request(options, function(res) {
     // This space intentionally left blank
   });
-  req.on('close', function() {
+  req.on('close', common.mustCall(() => {
     assert.strictEqual(req.destroyed, true);
     server.close();
-  });
+  }));
   function destroy() {
     req.destroy();
   }
@@ -51,4 +51,4 @@ server.listen(0, options.host, function() {
   assert.ok(s instanceof http.ClientRequest);
   req.on('error', destroy);
   req.end();
-});
+}));

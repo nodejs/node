@@ -13,8 +13,10 @@ import path from 'path';
 import fs from 'fs';
 import url from 'url';
 import process from 'process';
+import { isMainThread } from 'worker_threads';
 
-if (!common.isMainThread) {
+
+if (!isMainThread) {
   common.skip(
     'test-esm-resolve-type.mjs: process.chdir is not available in Workers'
   );
@@ -23,7 +25,7 @@ if (!common.isMainThread) {
 import assert from 'assert';
 import internalResolve from 'node:internal/modules/esm/resolve';
 const {
-  defaultResolve: resolve
+  defaultResolve: resolve,
 } = internalResolve;
 
 const rel = (file) => tmpdir.resolve(file);
@@ -41,8 +43,8 @@ try {
     [ '/es-modules/package-ends-node_modules/index.js', 'module' ],
     [ '/es-modules/package-type-module/index.js', 'module' ],
     [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
-    [ '/es-modules/package-without-type/index.js', 'commonjs' ],
-    [ '/es-modules/package-without-pjson/index.js', 'commonjs' ],
+    [ '/es-modules/package-without-type/index.js', null ],
+    [ '/es-modules/package-without-pjson/index.js', null ],
   ].forEach(([ testScript, expectedType ]) => {
     const resolvedPath = path.resolve(fixtures.path(testScript));
     const resolveResult = resolve(url.pathToFileURL(resolvedPath));
@@ -55,11 +57,11 @@ try {
    *
    * for test-module-ne: everything .js that is not 'module' is 'commonjs'
    */
-  for (const [ moduleName, moduleExtenstion, moduleType, expectedResolvedType ] of
+  for (const [ moduleName, moduleExtension, moduleType, expectedResolvedType ] of
     [ [ 'test-module-mainjs', 'js', 'module', 'module'],
       [ 'test-module-mainmjs', 'mjs', 'module', 'module'],
       [ 'test-module-cjs', 'js', 'commonjs', 'commonjs'],
-      [ 'test-module-ne', 'js', undefined, 'commonjs'],
+      [ 'test-module-ne', 'js', undefined, null],
     ]) {
     process.chdir(previousCwd);
     tmpdir.refresh();
@@ -73,14 +75,14 @@ try {
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
     const pkg = rel(`node_modules/${moduleName}/package.json`);
-    const script = rel(`node_modules/${moduleName}/subdir/mainfile.${moduleExtenstion}`);
+    const script = rel(`node_modules/${moduleName}/subdir/mainfile.${moduleExtension}`);
 
     createDir(nmDir);
     createDir(mDir);
     createDir(subDir);
     const pkgJsonContent = {
       ...(moduleType !== undefined) && { type: moduleType },
-      main: `subdir/mainfile.${moduleExtenstion}`
+      main: `subdir/mainfile.${moduleExtension}`,
     };
     fs.writeFileSync(pkg, JSON.stringify(pkgJsonContent));
     fs.writeFileSync(script,
@@ -148,13 +150,13 @@ try {
         '.': {
           'require': './lib/index.js',
           'import': './es/index.js',
-          'default': './lib/index.js'
+          'default': './lib/index.js',
         },
         './package.json': './package.json',
-      }
+      },
     };
     const esmPkgJsonContent = {
-      type: 'module'
+      type: 'module',
     };
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));
@@ -186,7 +188,7 @@ try {
     [ 'qmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v'],
     [ 'hmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '#Key'],
     [ 'qhmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v#h'],
-    [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],
+    [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', 'commonjs-typescript'],
   ].forEach((testVariant) => {
     const [
       moduleName,
@@ -196,6 +198,10 @@ try {
       subdirPackageType,
       expectedResolvedFormat,
       mainSuffix = '' ] = testVariant;
+    const skip = mainImportScript.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    if (skip) {
+      return;
+    }
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
@@ -214,13 +220,13 @@ try {
         '.': {
           'require': `./subdir/${mainRequireScript}${mainSuffix}`,
           'import': `./subdir/${mainImportScript}${mainSuffix}`,
-          'default': `./subdir/${mainRequireScript}${mainSuffix}`
+          'default': `./subdir/${mainRequireScript}${mainSuffix}`,
         },
         './package.json': './package.json',
-      }
+      },
     };
     const subdirPkgJsonContent = {
-      type: `${subdirPackageType}`
+      type: `${subdirPackageType}`,
     };
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));

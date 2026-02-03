@@ -5,9 +5,12 @@
 #ifndef V8_OBJECTS_HEAP_OBJECT_INL_H_
 #define V8_OBJECTS_HEAP_OBJECT_INL_H_
 
-#include "src/common/ptr-compr-inl.h"
 #include "src/objects/heap-object.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,6 +28,10 @@ namespace internal {
   /* The cage_base passed here must be the base of the main pointer */        \
   /* compression cage, i.e. the one where the Map space is allocated. */      \
   bool Is##type(Tagged<HeapObject> obj, PtrComprCageBase cage_base) {         \
+    /* Not allowed to be called for holes -- if you hit this DCHECK, test */  \
+    /* for holes first using IsAnyHole or a specific hole check. */           \
+    DCHECK_IMPLIES(v8_flags.assert_hole_checked_by_value,                     \
+                   !SafeIsAnyHole(obj));                                      \
     Tagged<Map> map_object = obj->map(cage_base);                             \
     return InstanceTypeChecker::Is##type(map_object);                         \
   }

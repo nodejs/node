@@ -44,11 +44,11 @@ class ResultDBIndicator(ProgressIndicator):
       rdb_result.update(duration=f'{result.output.duration:f}s')
 
     if result.has_unexpected_output:
-      formated_output = formatted_result_output(result,relative=True)
-      relative_cmd = result.cmd.to_string(relative=True)
+      formated_output = formatted_result_output(result)
+      cmd = result.cmd.to_string()
       artifacts = {
-        'output' : write_artifact(formated_output),
-        'cmd' : write_artifact(relative_cmd)
+          'output': write_artifact(formated_output),
+          'cmd': write_artifact(cmd)
       }
       rdb_result.update(artifacts=artifacts)
       summary = '<p><text-artifact artifact-id="output"></p>'
@@ -67,7 +67,8 @@ class ResultDBIndicator(ProgressIndicator):
 
 
 def write_artifact(value):
-  with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+  with tempfile.NamedTemporaryFile(
+      mode='w', delete=False, encoding='utf-8') as tmp:
     tmp.write(value)
     return { 'filePath': tmp.name }
 

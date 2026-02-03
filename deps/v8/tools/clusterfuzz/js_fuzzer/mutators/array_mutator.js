@@ -21,11 +21,6 @@ const MUTATION_CHOICES = [1, 1, 1, 1, 1, 2, 2, 2, 3];
 const MAX_ARRAY_LENGTH = 50;
 
 class ArrayMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 
@@ -33,7 +28,7 @@ class ArrayMutator extends mutator.Mutator {
       ArrayExpression(path) {
         const elements = path.node.elements;
         if (!random.choose(thisMutator.settings.MUTATE_ARRAYS) ||
-            elements.length > MAX_ARRAY_LENGTH) {
+            elements.length > module.exports.MAX_ARRAY_LENGTH) {
           return;
         }
 
@@ -111,5 +106,6 @@ class ArrayMutator extends mutator.Mutator {
 }
 
 module.exports = {
+  MAX_ARRAY_LENGTH: MAX_ARRAY_LENGTH,
   ArrayMutator: ArrayMutator,
 };

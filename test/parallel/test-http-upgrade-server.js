@@ -21,7 +21,7 @@
 
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -94,27 +94,27 @@ function test_upgrade_with_listener() {
              'WjN}|M(6');
   });
 
-  conn.on('data', function(data) {
+  conn.on('data', common.mustCallAtLeast((data) => {
     state++;
 
     assert.strictEqual(typeof data, 'string');
 
     if (state === 1) {
-      assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 101');
+      assert.strictEqual(data.slice(0, 12), 'HTTP/1.1 101');
       assert.strictEqual(request_upgradeHead.toString('utf8'), 'WjN}|M(6');
       conn.write('test', 'utf8');
     } else if (state === 2) {
       assert.strictEqual(data, 'test');
       conn.write('kill', 'utf8');
     }
-  });
+  }));
 
-  conn.on('end', function() {
+  conn.on('end', common.mustCall(() => {
     assert.strictEqual(state, 2);
     conn.end();
     server.removeAllListeners('upgrade');
     test_upgrade_no_listener();
-  });
+  }));
 }
 
 // connection: Upgrade, no listener
@@ -131,11 +131,11 @@ function test_upgrade_no_listener() {
              '\r\n');
   });
 
-  conn.once('data', (data) => {
+  conn.once('data', common.mustCallAtLeast((data) => {
     assert.strictEqual(typeof data, 'string');
-    assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 200');
+    assert.strictEqual(data.slice(0, 12), 'HTTP/1.1 200');
     conn.end();
-  });
+  }));
 
   conn.on('close', function() {
     test_standard_http();
@@ -151,11 +151,11 @@ function test_standard_http() {
     writeReq(conn, 'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
   });
 
-  conn.once('data', function(data) {
+  conn.once('data', common.mustCall((data) => {
     assert.strictEqual(typeof data, 'string');
-    assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 200');
+    assert.strictEqual(data.slice(0, 12), 'HTTP/1.1 200');
     conn.end();
-  });
+  }));
 
   conn.on('close', function() {
     server.close();

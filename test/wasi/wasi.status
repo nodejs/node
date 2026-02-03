@@ -6,7 +6,15 @@ prefix wasi
 
 [true] # This section applies to all platforms
 
-# Windows on ARM
-[$system==win32 && $arch==arm64]
-# https://github.com/nodejs/node/issues/51822
-test-wasi-poll: PASS, FLAKY
+[$system==ibmi]
+# Unsupported on IBM i PASE
+test-wasi-clock_getres: SKIP
+test-wasi-getrusage: SKIP
+
+[$system==win32 || $system==android]
+# Unsupported on Windows and Android
+test-wasi-readdir: SKIP
+
+[$system==linux]
+# https://github.com/nodejs/node/issues/59146
+test-wasi-pthread: PASS, FLAKY

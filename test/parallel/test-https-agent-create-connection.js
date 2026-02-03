@@ -17,9 +17,9 @@ const options = {
 
 const expectedHeader = /^HTTP\/1\.1 200 OK/;
 const expectedBody = /hello world\n/;
-const expectCertError = /^Error: unable to verify the first certificate$/;
+const expectCertError = /^UNABLE_TO_VERIFY_LEAF_SIGNATURE$/;
 
-const checkRequest = (socket, server) => {
+function checkRequest(socket, server) {
   let result = '';
   socket.on('connect', common.mustCall((data) => {
     socket.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
@@ -112,7 +112,7 @@ function createServer() {
     const options = null;
     const socket = agent.createConnection(port, host, options);
     socket.on('error', common.mustCall((e) => {
-      assert.match(e.toString(), expectCertError);
+      assert.match(e.code, expectCertError);
       server.close();
     }));
   }));
@@ -127,7 +127,7 @@ function createServer() {
     const options = undefined;
     const socket = agent.createConnection(port, host, options);
     socket.on('error', common.mustCall((e) => {
-      assert.match(e.toString(), expectCertError);
+      assert.match(e.code, expectCertError);
       server.close();
     }));
   }));

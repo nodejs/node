@@ -70,7 +70,8 @@ class PendingCompilationErrorHandler {
   void PrepareWarnings(IsolateT* isolate);
   void ReportWarnings(Isolate* isolate, Handle<Script> script) const;
 
-  V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(Isolate* isolate);
+  V8_EXPORT_PRIVATE DirectHandle<String> FormatErrorMessageForTest(
+      Isolate* isolate);
 
   void set_unidentifiable_error() {
     has_pending_error_ = true;
@@ -87,6 +88,8 @@ class PendingCompilationErrorHandler {
  private:
   class MessageDetails {
    public:
+    static constexpr int kMaxArgumentCount = 3;
+
     MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(MessageDetails);
     MessageDetails()
         : start_position_(-1),
@@ -128,7 +131,7 @@ class PendingCompilationErrorHandler {
           message_(message),
           args_{MessageArgument{arg0}, MessageArgument{}, MessageArgument{}} {}
 
-    Handle<String> ArgString(Isolate* isolate, int index) const;
+    DirectHandle<String> ArgString(Isolate* isolate, int index) const;
     int ArgCount() const {
       int argc = 0;
       for (int i = 0; i < kMaxArgumentCount; i++) {
@@ -177,7 +180,6 @@ class PendingCompilationErrorHandler {
       Type type;
     };
 
-    static constexpr int kMaxArgumentCount = 3;
     MessageArgument args_[kMaxArgumentCount];
   };
 

@@ -1,4 +1,4 @@
-.TH "NPM-DIFF" "1" "February 2024" "" ""
+.TH "NPM-DIFF" "1" "January 2026" "NPM@11.8.0" ""
 .SH "NAME"
 \fBnpm-diff\fR - The registry diff command
 .SS "Synopsis"
@@ -64,7 +64,7 @@ This workflow provides a handy way for package authors to see what package-track
 .IP \(bu 4
 \fBnpm diff --diff=<pkg-name>\fR (in a package directory):
 .P
-When using a single package name (with no version or tag specifier) as an argument, \fBnpm diff\fR will work in a similar way to \fB\fBnpm-outdated\fR\fR \fI\(lanpm-outdated\(ra\fR and reach for the registry to figure out what current published version of the package named \fB<pkg-name>\fR will satisfy its dependent declared semver-range. Once that specific version is known \fBnpm diff\fR will print diff patches comparing the current version of \fB<pkg-name>\fR found in the local file system with that specific version returned by the registry.
+When using a single package name (with no version or tag specifier) as an argument, \fBnpm diff\fR will work in a similar way to \fB\[rs]fBnpm-outdated\[rs]fR\fR \fI\(lanpm-outdated\(ra\fR and reach for the registry to figure out what current published version of the package named \fB<pkg-name>\fR will satisfy its dependent declared semver-range. Once that specific version is known \fBnpm diff\fR will print diff patches comparing the current version of \fB<pkg-name>\fR found in the local file system with that specific version returned by the registry.
 .P
 Given a package named \fBabbrev\fR that is currently installed:
 .P
@@ -233,9 +233,12 @@ Type: String
 .P
 If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag.
 .P
-Also the tag that is added to the package@version specified by the \fBnpm tag\fR command, if no explicit tag is given.
+It is the tag added to the package@version specified in the \fBnpm dist-tag
+add\fR command, if no explicit tag is given.
 .P
 When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default.
+.P
+If used in the \fBnpm publish\fR command, this is the tag that will be added to the package submitted to the registry.
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

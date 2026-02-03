@@ -14,11 +14,9 @@ alias: why
 
 ### Description
 
-This command will print the chain of dependencies causing a given package
-to be installed in the current project.
+This command will print the chain of dependencies causing a given package to be installed in the current project.
 
-If one or more package specs are provided, then only packages matching
-one of the specifiers will have their relationships explained.
+If one or more package specs are provided, then only packages matching one of the specifiers will have their relationships explained.
 
 The package spec can also refer to a folder within `./node_modules`
 
@@ -38,10 +36,8 @@ node_modules/tacks/node_modules/glob
       dev tacks@"^1.3.0" from the root project
 ```
 
-To explain just the package residing at a specific folder, pass that as the
-argument to the command.  This can be useful when trying to figure out
-exactly why a given dependency is being duplicated to satisfy conflicting
-version requirements within the project.
+To explain just the package residing at a specific folder, pass that as the argument to the command.
+This can be useful when trying to figure out exactly why a given dependency is being duplicated to satisfy conflicting version requirements within the project.
 
 ```bash
 $ npm explain node_modules/nyc/node_modules/find-up

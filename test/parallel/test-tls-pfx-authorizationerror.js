@@ -28,7 +28,7 @@ const server = tls
       c.end();
     })
   )
-  .listen(0, function() {
+  .listen(0, common.mustCall(function() {
     const client = tls.connect(
       {
         port: this.address().port,
@@ -36,7 +36,7 @@ const server = tls
         passphrase: 'sample',
         rejectUnauthorized: false
       },
-      function() {
+      common.mustCall(() => {
         for (let i = 0; i < 10; ++i) {
           // Calling this repeatedly is a regression test that verifies
           // that .getCertificate() does not accidentally decrease the
@@ -46,6 +46,6 @@ const server = tls
         }
         client.end();
         server.close();
-      }
+      }),
     );
-  });
+  }));

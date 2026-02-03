@@ -341,10 +341,10 @@ static int32_t buckets_needed_to_cover_value(int64_t value, int32_t sub_bucket_c
 /* ##     ## ######## ##     ##  #######  ##     ##    ##    */
 
 int hdr_calculate_bucket_config(
-        int64_t lowest_discernible_value,
-        int64_t highest_trackable_value,
-        int significant_figures,
-        struct hdr_histogram_bucket_config* cfg)
+    int64_t lowest_discernible_value,
+    int64_t highest_trackable_value,
+    int significant_figures,
+    struct hdr_histogram_bucket_config* cfg)
 {
     int32_t sub_bucket_count_magnitude;
     int64_t largest_value_with_single_unit_resolution;
@@ -406,10 +406,10 @@ void hdr_init_preallocated(struct hdr_histogram* h, struct hdr_histogram_bucket_
 }
 
 int hdr_init(
-        int64_t lowest_discernible_value,
-        int64_t highest_trackable_value,
-        int significant_figures,
-        struct hdr_histogram** result)
+    int64_t lowest_discernible_value,
+    int64_t highest_trackable_value,
+    int significant_figures,
+    struct hdr_histogram** result)
 {
     int64_t* counts;
     struct hdr_histogram_bucket_config cfg;
@@ -492,13 +492,12 @@ bool hdr_record_values(struct hdr_histogram* h, int64_t value, int64_t count)
 {
     int32_t counts_index;
 
-    if (value < 0)
+    if (value < 0 || h->highest_trackable_value < value)
     {
         return false;
     }
 
     counts_index = counts_index_for(h, value);
-
     if (counts_index < 0 || h->counts_len <= counts_index)
     {
         return false;
@@ -514,7 +513,7 @@ bool hdr_record_values_atomic(struct hdr_histogram* h, int64_t value, int64_t co
 {
     int32_t counts_index;
 
-    if (value < 0)
+    if (value < 0 || h->highest_trackable_value < value)
     {
         return false;
     }

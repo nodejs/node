@@ -5,6 +5,7 @@
 namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.union
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeUnion(
     js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
   const methodName: constexpr string = 'Set.prototype.union';
@@ -19,39 +20,45 @@ transitioning javascript builtin SetPrototypeUnion(
   // 3. Let otherRec be ? GetSetRecord(other).
   let otherRec = GetSetRecord(other, methodName);
 
-  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
+  let table = NewStableBackingTableWitness(o);
 
-  // 5. Let resultSetData be a copy of O.[[SetData]].
-  let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
-      table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
+  let resultSetData: OrderedHashSet;
 
   try {
     typeswitch (other) {
       case (otherSet: JSSetWithNoCustomIteration): {
         CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
 
-        const otherTable =
-            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+        const otherTable = NewStableBackingTableWitness(otherSet);
 
-        let otherIterator =
-            collections::NewUnmodifiedOrderedHashSetIterator(otherTable);
+        let otherIterator = collections::NewUnmodifiedOrderedHashSetIterator(
+            otherTable.GetTable());
+
+        resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
+            table.GetTable(), ExtractFixedArrayFlag::kFixedArrays))
+            otherwise unreachable;
 
         while (true) {
-          const nextValue = otherIterator.Next() otherwise Done;
+          const nextValue =
+              otherIterator.Next() otherwise goto Done(resultSetData);
           resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
         }
       }
       case (otherMap: JSMapWithNoCustomIteration): {
         CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
 
-        const otherTable =
-            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+        const otherTable = NewStableBackingTableWitness(otherMap);
 
-        let otherIterator =
-            collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+        let otherIterator = collections::NewUnmodifiedOrderedHashMapIterator(
+            otherTable.GetTable());
+
+        resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
+            table.GetTable(), ExtractFixedArrayFlag::kFixedArrays))
+            otherwise unreachable;
 
         while (true) {
-          const nextValue = otherIterator.Next() otherwise Done;
+          const nextValue =
+              otherIterator.Next() otherwise goto Done(resultSetData);
           resultSetData =
               AddToSetTable(resultSetData, nextValue.key, methodName);
         }
@@ -65,13 +72,19 @@ transitioning javascript builtin SetPrototypeUnion(
     let keysIter =
         GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
 
+    table.ReloadTable();
+    // 5. Let resultSetData be a copy of O.[[SetData]].
+    resultSetData = Cast<OrderedHashSet>(
+        CloneFixedArray(table.GetTable(), ExtractFixedArrayFlag::kFixedArrays))
+        otherwise unreachable;
+
     // 6. Let next be true.
     let nextRecord: JSReceiver;
     // 7. Repeat, while next is not false,
     while (true) {
       //  a. Set next to ? IteratorStep(keysIter).
       nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
-          otherwise Done;
+          otherwise goto Done(resultSetData);
 
       //  b. If next is not false, then
       //      i. Let nextValue be ? IteratorValue(next).
@@ -83,7 +96,7 @@ transitioning javascript builtin SetPrototypeUnion(
       //          1. Append nextValue to resultSetData.
       resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
     }
-  } label Done {
+  } label Done(resultSetData: OrderedHashSet) {
     // 8. Let result be
     // OrdinaryObjectCreate(%Set.prototype%, « [[SetData]]»).
     // 9. Set result.[[SetData]] to resultSetData.

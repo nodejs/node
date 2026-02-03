@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_WASM_GC_OPERATOR_REDUCER_H_
+#define V8_COMPILER_WASM_GC_OPERATOR_REDUCER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_WASM_GC_OPERATOR_REDUCER_H_
-#define V8_COMPILER_WASM_GC_OPERATOR_REDUCER_H_
 
 #include "src/compiler/control-path-state.h"
 #include "src/compiler/graph-reducer.h"
@@ -65,7 +65,7 @@ class WasmGCOperatorReducer final
   Reduction ReduceWasmTypeCast(Node* node);
   Reduction ReduceWasmTypeCastAbstract(Node* node);
   Reduction ReduceTypeGuard(Node* node);
-  Reduction ReduceWasmExternInternalize(Node* node);
+  Reduction ReduceWasmAnyConvertExtern(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceIf(Node* node, bool condition);
   Reduction ReduceStart(Node* node);
@@ -83,7 +83,7 @@ class WasmGCOperatorReducer final
                                       wasm::TypeInModule type,
                                       bool in_new_block);
 
-  Graph* graph() { return mcgraph_->graph(); }
+  TFGraph* graph() { return mcgraph_->graph(); }
   CommonOperatorBuilder* common() { return mcgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return gasm_.simplified(); }
 

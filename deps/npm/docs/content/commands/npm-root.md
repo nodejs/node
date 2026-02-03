@@ -16,8 +16,8 @@ Note: This command is unaware of workspaces.
 
 Print the effective `node_modules` folder to standard out.
 
-Useful for using npm in shell scripts that do things with the
-`node_modules` folder.  For example:
+Useful for using npm in shell scripts that do things with the `node_modules` folder.
+For example:
 
 ```bash
 #!/bin/bash

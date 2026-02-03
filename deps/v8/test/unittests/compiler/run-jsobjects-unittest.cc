@@ -17,44 +17,44 @@ using RunJSObjectsTest = TestWithContext;
 TEST_F(RunJSObjectsTest, ArgumentsMapped) {
   FunctionTester T(i_isolate(), "(function(a) { return arguments; })");
 
-  Handle<Object> arguments =
+  DirectHandle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
-  CHECK(JSObject::cast(*arguments)->HasSloppyArgumentsElements());
-  Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length =
+  CHECK(Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
+  DirectHandle<String> l = T.isolate->factory()->length_string();
+  DirectHandle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(4, Object::Number(*length));
+  CHECK_EQ(4, Object::NumberValue(*length));
 }
 
 TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
   FunctionTester T(i_isolate(),
                    "(function(a) { 'use strict'; return arguments; })");
 
-  Handle<Object> arguments =
+  DirectHandle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
-  CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
-  Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length =
+  CHECK(!Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
+  DirectHandle<String> l = T.isolate->factory()->length_string();
+  DirectHandle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(4, Object::Number(*length));
+  CHECK_EQ(4, Object::NumberValue(*length));
 }
 
 TEST_F(RunJSObjectsTest, ArgumentsRest) {
   FunctionTester T(i_isolate(), "(function(a, ...args) { return args; })");
 
-  Handle<Object> arguments =
+  DirectHandle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && IsJSArray(*arguments));
-  CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
-  Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length =
+  CHECK(!Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
+  DirectHandle<String> l = T.isolate->factory()->length_string();
+  DirectHandle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(3, Object::Number(*length));
+  CHECK_EQ(3, Object::NumberValue(*length));
 }
 
 }  // namespace compiler

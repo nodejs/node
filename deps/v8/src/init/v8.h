@@ -36,12 +36,6 @@ class V8 : public AllStatic {
   V8_EXPORT_PRIVATE static const OOMDetails kNoOOMDetails;
   V8_EXPORT_PRIVATE static const OOMDetails kHeapOOM;
 
-  // Another variant of FatalProcessOutOfMemory, which constructs the OOMDetails
-  // struct internally from another "detail" c-string.
-  // This can be removed once we support designated initializers (C++20).
-  [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
-      Isolate* isolate, const char* location, const char* detail);
-
   static void InitializePlatform(v8::Platform* platform);
   V8_EXPORT_PRIVATE static void InitializePlatformForTesting(
       v8::Platform* platform);

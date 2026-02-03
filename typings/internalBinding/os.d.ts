@@ -22,4 +22,5 @@ export interface OSBinding {
   getPriority(pid: number, ctx: InternalOSBinding.OSContext): number | undefined;
   getOSInformation(ctx: InternalOSBinding.OSContext): [sysname: string, version: string, release: string];
   isBigEndian: boolean;
+  getAvailableParallelism(): number;
 }

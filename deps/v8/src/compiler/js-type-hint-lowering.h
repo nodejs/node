@@ -125,11 +125,6 @@ class JSTypeHintLowering {
                                          Node* control,
                                          FeedbackSlot slot) const;
 
-  // Potential reduction of call operations.
-  LoweringResult ReduceCallOperation(const Operator* op, Node* const* args,
-                                     int arg_count, Node* effect, Node* control,
-                                     FeedbackSlot slot) const;
-
   // Potential reduction of construct operations.
   LoweringResult ReduceConstructOperation(const Operator* op, Node* const* args,
                                           int arg_count, Node* effect,

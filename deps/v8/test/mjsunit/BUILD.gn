@@ -16,6 +16,7 @@ group("v8_mjsunit") {
     "../../tools/clusterfuzz/foozzie/v8_mock.js",
     "../../tools/clusterfuzz/foozzie/v8_mock_archs.js",
     "../../tools/clusterfuzz/foozzie/v8_mock_webassembly.js",
+    "../../tools/clusterfuzz/js_fuzzer/resources/differential_fuzz_library.js",
     "../../tools/codemap.mjs",
     "../../tools/sourcemap.mjs",
     "../../tools/consarray.mjs",

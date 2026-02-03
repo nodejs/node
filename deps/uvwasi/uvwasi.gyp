@@ -28,7 +28,7 @@
         'include_dirs': ['include']
       },
       'conditions': [
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="openharmony"', {
           'defines': [
             '_GNU_SOURCE',
             '_POSIX_C_SOURCE=200112',

@@ -5,8 +5,10 @@
 #ifndef V8_LOGGING_LOG_INL_H_
 #define V8_LOGGING_LOG_INL_H_
 
-#include "src/execution/isolate.h"
 #include "src/logging/log.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/tracing/trace-event.h"
 

@@ -72,7 +72,7 @@ UnicodeString::doCaseCompare(int32_t start,
     int32_t result=u_strcmpFold(chars, length, srcChars, srcLength,
                                 options|U_COMPARE_IGNORE_CASE, &errorCode);
     if(result!=0) {
-      return (int8_t)(result >> 24 | 1);
+      return static_cast<int8_t>(result >> 24 | 1);
     }
   } else {
     // get the srcLength if necessary
@@ -80,7 +80,7 @@ UnicodeString::doCaseCompare(int32_t start,
       srcLength = u_strlen(srcChars + srcStart);
     }
     if(length != srcLength) {
-      return (int8_t)((length - srcLength) >> 24 | 1);
+      return static_cast<int8_t>((length - srcLength) >> 24 | 1);
     }
   }
   return 0;
@@ -193,7 +193,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
   // This is very similar to how doReplace() keeps the old array pointer
   // and deletes the old array itself after it is done.
   // In addition, we are forcing cloneArrayIfNeeded() to always allocate a new array.
-  int32_t *bufferToDelete = 0;
+  int32_t *bufferToDelete = nullptr;
   if (!cloneArrayIfNeeded(newLength, newLength, false, &bufferToDelete, true)) {
     return *this;
   }

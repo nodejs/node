@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-inline-array-builtins --turbofan
-// Flags: --no-always-turbofan
 
 // Out of bounds
 (() => {
@@ -158,7 +157,7 @@
   }
 })();
 
-// Checks that accessing holes in double arrays leads to deoptimization.
+// Checks that accessing holes in double arrays does not lead to deoptimization.
 (() => {
   let doubles = Array();
   doubles[10] = 4.5;
@@ -173,7 +172,7 @@
   assertEquals(doubles[10], testArrayAt(10));
   assertOptimized(testArrayAt);
   assertEquals(doubles[2], testArrayAt(2));
-  assertUnoptimized(testArrayAt);
+  assertOptimized(testArrayAt);
 })();
 
 // Checks that accessing holes in SMI array does not lead to deoptimization.

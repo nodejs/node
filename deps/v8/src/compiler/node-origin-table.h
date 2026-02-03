@@ -112,7 +112,8 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
     const char* prev_phase_name_;
   };
 
-  explicit NodeOriginTable(Graph* graph);
+  explicit NodeOriginTable(TFGraph* graph);
+  explicit NodeOriginTable(Zone* zone);
   NodeOriginTable(const NodeOriginTable&) = delete;
   NodeOriginTable& operator=(const NodeOriginTable&) = delete;
 
@@ -138,7 +139,7 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
  private:
   class Decorator;
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   Decorator* decorator_;
   NodeOrigin current_origin_;
   int current_bytecode_position_;

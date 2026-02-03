@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/flags/flags.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/type-oracle.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 constexpr char kTqObjectOverrideDecls[] =
     R"(  std::vector<std::unique_ptr<ObjectProperty>> GetProperties(
@@ -16,13 +16,6 @@ constexpr char kTqObjectOverrideDecls[] =
   const char* GetName() const override;
   void Visit(TqObjectVisitor* visitor) const override;
   bool IsSuperclassOf(const TqObject* other) const override;
-)";
-
-constexpr char kObjectClassListDefinition[] = R"(
-const d::ClassList kObjectClassList {
-  sizeof(kObjectClassNames) / sizeof(const char*),
-  kObjectClassNames,
-};
 )";
 
 namespace {
@@ -87,8 +80,9 @@ class ValueTypeFieldsRange {
   ValueTypeFieldIterator begin() { return {type_, 0}; }
   ValueTypeFieldIterator end() {
     size_t index = 0;
-    base::Optional<const StructType*> struct_type = type_->StructSupertype();
-    if (struct_type && *struct_type != TypeOracle::GetFloat64OrHoleType()) {
+    std::optional<const StructType*> struct_type = type_->StructSupertype();
+    if (struct_type &&
+        *struct_type != TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
       index = (*struct_type)->fields().size();
     }
     const Type* type = type_;
@@ -148,7 +142,7 @@ class DebugFieldType {
       return "";
     }
     if (IsTagged()) {
-      base::Optional<const ClassType*> field_class_type =
+      std::optional<const ClassType*> field_class_type =
           name_and_type_.type->ClassSupertype();
       std::string result =
           "v8::internal::" +
@@ -450,11 +444,8 @@ void GenerateGetPropsChunkForField(const Field& field,
 // visitor:     A stream that is accumulating the definition of the class
 //              TqObjectVisitor. Each class Foo gets its own virtual method
 //              VisitFoo in TqObjectVisitor.
-// class_names: A stream that is accumulating a list of strings including fully-
-//              qualified names for every Torque-defined class type.
 void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
                               std::ostream& cc_contents, std::ostream& visitor,
-                              std::ostream& class_names,
                               std::unordered_set<const ClassType*>* done) {
   // Make sure each class only gets generated once.
   if (!done->insert(&type).second) return;
@@ -464,7 +455,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   // been emitted yet, go handle it first.
   if (super_type != nullptr) {
     GenerateClassDebugReader(*super_type, h_contents, cc_contents, visitor,
-                             class_names, done);
+                             done);
   }
 
   // Classes with undefined layout don't grant any particular value here and may
@@ -504,8 +495,6 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   visitor << "    Visit" << super_name << "(object);\n";
   visitor << "  }\n";
 
-  class_names << "  \"v8::internal::" << name << "\",\n";
-
   std::stringstream get_props_impl;
 
   for (const Field& field : type.fields()) {
@@ -544,7 +533,12 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     IncludeGuardScope include_guard(h_contents, file_name + ".h");
 
     h_contents << "#include <cstdint>\n";
-    h_contents << "#include <vector>\n";
+    h_contents << "#include <vector>\n\n";
+
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      h_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
+
     h_contents
         << "\n#include \"tools/debug_helper/debug-helper-internal.h\"\n\n";
 
@@ -572,26 +566,16 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     visitor << " public:\n";
     visitor << "  virtual void VisitObject(const TqObject* object) {}\n";
 
-    std::stringstream class_names;
-
     std::unordered_set<const ClassType*> done;
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      GenerateClassDebugReader(*type, h_contents, cc_contents, visitor,
-                               class_names, &done);
+      GenerateClassDebugReader(*type, h_contents, cc_contents, visitor, &done);
     }
 
     visitor << "};\n";
     h_contents << visitor.str();
-
-    cc_contents << "\nconst char* kObjectClassNames[] {\n";
-    cc_contents << class_names.str();
-    cc_contents << "};\n";
-    cc_contents << kObjectClassListDefinition;
   }
   WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

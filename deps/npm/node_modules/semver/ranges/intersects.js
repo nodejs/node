@@ -1,3 +1,5 @@
+'use strict'
+
 const Range = require('../classes/range')
 const intersects = (r1, r2, options) => {
   r1 = new Range(r1, options)

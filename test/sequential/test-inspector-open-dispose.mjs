@@ -34,11 +34,11 @@ if (process.env.BE_CHILD) {
   function wasDisposedWhenOpenHandler(msg) {
     assert.strictEqual(msg.cmd, 'url');
     assert.strictEqual(msg.url, undefined);
-    ping(firstPort, (err) => {
+    ping(firstPort, common.mustCall((err) => {
       assert(err, 'expected ping to inspector port to fail');
       child.send({ cmd: 'dispose' });
       child.once('message', common.mustCall(wasReDisposedHandler));
-    });
+    }));
   }
 
   function wasReDisposedHandler(msg) {

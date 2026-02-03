@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROPERTY_ARRAY_INL_H_
 
 #include "src/objects/property-array.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -26,29 +27,29 @@ SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,
                               kLengthAndHashOffset)
 
-Tagged<Object> PropertyArray::get(int index) const {
+Tagged<JSAny> PropertyArray::get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index);
 }
 
-Tagged<Object> PropertyArray::get(PtrComprCageBase cage_base, int index) const {
+Tagged<JSAny> PropertyArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
-                                           OffsetOfElementAt(index));
+  return TaggedField<JSAny>::Relaxed_Load(cage_base, *this,
+                                          OffsetOfElementAt(index));
 }
 
-Tagged<Object> PropertyArray::get(int index, SeqCstAccessTag tag) const {
+Tagged<JSAny> PropertyArray::get(int index, SeqCstAccessTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index, tag);
 }
 
-Tagged<Object> PropertyArray::get(PtrComprCageBase cage_base, int index,
-                                  SeqCstAccessTag tag) const {
+Tagged<JSAny> PropertyArray::get(PtrComprCageBase cage_base, int index,
+                                 SeqCstAccessTag tag) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
-  return TaggedField<Object>::SeqCst_Load(cage_base, *this,
-                                          OffsetOfElementAt(index));
+  return TaggedField<JSAny>::SeqCst_Load(cage_base, *this,
+                                         OffsetOfElementAt(index));
 }
 
 void PropertyArray::set(int index, Tagged<Object> value) {
@@ -114,7 +115,11 @@ Tagged<Object> PropertyArray::CompareAndSwap(int index, Tagged<Object> expected,
   return result;
 }
 
-ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
+ObjectSlot PropertyArray::data_start() { return RawFieldOfElementAt(0); }
+
+ObjectSlot PropertyArray::RawFieldOfElementAt(int index) {
+  return RawField(OffsetOfElementAt(index));
+}
 
 int PropertyArray::length() const {
   return LengthField::decode(length_and_hash());
@@ -137,15 +142,16 @@ void PropertyArray::SetHash(int hash) {
   set_length_and_hash(value, kReleaseStore);
 }
 
-void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
-                                 Tagged<PropertyArray> src, int src_index,
-                                 int len, WriteBarrierMode mode) {
+// static
+void PropertyArray::CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,
+                                 int dst_index, Tagged<PropertyArray> src,
+                                 int src_index, int len,
+                                 WriteBarrierMode mode) {
   if (len == 0) return;
   DisallowGarbageCollection no_gc;
-
-  ObjectSlot dst_slot(data_start() + dst_index);
+  ObjectSlot dst_slot(dst->data_start() + dst_index);
   ObjectSlot src_slot(src->data_start() + src_index);
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+  isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
 }
 
 }  // namespace internal

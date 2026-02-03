@@ -224,7 +224,10 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     } else {
       result = v8::base::AllocateAtLeast<char>(wanted_bytes);
     }
-    CHECK_NOT_NULL(result.ptr);
+    if (!result.ptr) {
+      v8::base::FatalOOM(v8::base::OOMType::kProcess,
+                         "Worklist::Segment::Create");
+    }
     return new (result.ptr)
         Segment(CapacityForMallocSize(result.count * sizeof(char)));
   }
@@ -307,7 +310,10 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
 
   // Moving needs to specify whether the `worklist_` pointer is preserved or
   // not.
-  Local(Local&&) V8_NOEXCEPT = delete;
+  Local(Local&& other) V8_NOEXCEPT : worklist_(other.worklist_) {
+    std::swap(push_segment_, other.push_segment_);
+    std::swap(pop_segment_, other.pop_segment_);
+  }
   Local& operator=(Local&&) V8_NOEXCEPT = delete;
 
   // Having multiple copies of the same local view may be unsafe.

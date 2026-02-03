@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@
  * priv_key is the returned private key,
  */
 int ossl_ffc_generate_private_key(BN_CTX *ctx, const FFC_PARAMS *params,
-                                  int N, int s, BIGNUM *priv)
+    int N, int s, BIGNUM *priv)
 {
     int ret = 0, qbits = BN_num_bits(params->q);
     BIGNUM *m, *two_powN = NULL;

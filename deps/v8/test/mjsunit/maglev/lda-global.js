@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan
+// Flags: --allow-natives-syntax --maglev
 
 var b = 1;
 function foo(x) {
@@ -19,5 +19,5 @@ assertTrue(isMaglevved(foo));
 
 // We should deopt here.
 b = 2
-assertEquals(7, foo(5));
 assertFalse(isMaglevved(foo))
+assertEquals(7, foo(5));

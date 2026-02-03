@@ -89,6 +89,8 @@ constexpr int64_t kDQuietNanBit = 51;
 constexpr int64_t kDQuietNanMask = 0x1LL << kDQuietNanBit;
 constexpr int64_t kSQuietNanBit = 22;
 constexpr int64_t kSQuietNanMask = 0x1LL << kSQuietNanBit;
+constexpr int64_t kHQuietNanBit = 9;
+constexpr int64_t kHQuietNanMask = 0x1LL << kHQuietNanBit;
 constexpr int64_t kByteMask = 0xffL;
 constexpr int64_t kHalfWordMask = 0xffffL;
 constexpr int64_t kWordMask = 0xffffffffL;
@@ -493,6 +495,7 @@ constexpr GenericInstrField FP64 = 0x00400000;
 using NEONFormatField = uint32_t;
 constexpr NEONFormatField NEONFormatFieldMask = 0x40C00000;
 constexpr NEONFormatField NEON_Q = 0x40000000;
+constexpr NEONFormatField NEON_sz = 0x00400000;
 constexpr NEONFormatField NEON_8B = 0x00000000;
 constexpr NEONFormatField NEON_16B = NEON_8B | NEON_Q;
 constexpr NEONFormatField NEON_4H = 0x00400000;
@@ -504,6 +507,8 @@ constexpr NEONFormatField NEON_2D = 0x00C00000 | NEON_Q;
 
 using NEONFPFormatField = uint32_t;
 constexpr NEONFPFormatField NEONFPFormatFieldMask = 0x40400000;
+constexpr NEONFPFormatField NEON_FP_4H = 0x00000000;
+constexpr NEONFPFormatField NEON_FP_8H = NEON_Q;
 constexpr NEONFPFormatField NEON_FP_2S = FP32;
 constexpr NEONFPFormatField NEON_FP_4S = FP32 | NEON_Q;
 constexpr NEONFPFormatField NEON_FP_2D = FP64 | NEON_Q;
@@ -599,6 +604,20 @@ constexpr AddSubWithCarryOp SBC = SBC_w;
 constexpr AddSubWithCarryOp SBCS_w = AddSubWithCarryFixed | SUBS;
 constexpr AddSubWithCarryOp SBCS_x =
     AddSubWithCarryFixed | SUBS | SixtyFourBits;
+
+// Min/max immediate.
+using MinMaxImmediateOp = uint32_t;
+constexpr MinMaxImmediateOp MinMaxImmediateFixed = 0x11C00000;
+constexpr MinMaxImmediateOp MinMaxImmediateFMask = 0x7FF00000;
+constexpr MinMaxImmediateOp MinMaxImmediateMask = 0xFFFC0000;
+constexpr MinMaxImmediateOp SMAX_w_imm = MinMaxImmediateFixed;
+constexpr MinMaxImmediateOp SMAX_x_imm = SMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMAX_w_imm = MinMaxImmediateFixed | 0x00040000;
+constexpr MinMaxImmediateOp UMAX_x_imm = UMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp SMIN_w_imm = MinMaxImmediateFixed | 0x00080000;
+constexpr MinMaxImmediateOp SMIN_x_imm = SMIN_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMIN_w_imm = MinMaxImmediateFixed | 0x000C0000;
+constexpr MinMaxImmediateOp UMIN_x_imm = UMIN_w_imm | SixtyFourBits;
 
 // Logical (immediate and shifted register).
 using LogicalOp = uint32_t;
@@ -754,6 +773,28 @@ constexpr ConditionalBranchOp ConditionalBranchFixed = 0x54000000;
 constexpr ConditionalBranchOp ConditionalBranchFMask = 0xFE000000;
 constexpr ConditionalBranchOp ConditionalBranchMask = 0xFF000010;
 constexpr ConditionalBranchOp B_cond = ConditionalBranchFixed | 0x00000000;
+
+// Consistent Conditional branch.
+constexpr ConditionalBranchOp ConditionalBranchConsistentFixed = 0x54000010;
+constexpr ConditionalBranchOp BC_cond =
+    ConditionalBranchConsistentFixed | 0x00000000;
+
+// MOPS
+using MemCpyOp = uint32_t;
+constexpr MemCpyOp CpyFixed = 0x1D000400;
+constexpr MemCpyOp CpyFMask = 0xFF20FC00;
+constexpr MemCpyOp CpyMask = CpyFMask | 0x00E00000;
+constexpr MemCpyOp CPYP = CpyFixed | 0x00000000;
+constexpr MemCpyOp CPYM = CpyFixed | 0x00400000;
+constexpr MemCpyOp CPYE = CpyFixed | 0x00800000;
+
+using MemSetOp = uint32_t;
+constexpr MemSetOp SetFixed = 0x19C00400;
+constexpr MemSetOp SetFMask = 0xFFE03C00;
+constexpr MemSetOp SetMask = SetFMask | 0x0000C000;
+constexpr MemSetOp SETP = SetFixed | 0x00000000;
+constexpr MemSetOp SETM = SetFixed | 0x00004000;
+constexpr MemSetOp SETE = SetFixed | 0x00008000;
 
 // System.
 // System instruction encoding is complicated because some instructions use op
@@ -1188,6 +1229,15 @@ constexpr DataProcessing1SourceOp CLZ_x = CLZ | SixtyFourBits;
 constexpr DataProcessing1SourceOp CLS = DataProcessing1SourceFixed | 0x00001400;
 constexpr DataProcessing1SourceOp CLS_w = CLS;
 constexpr DataProcessing1SourceOp CLS_x = CLS | SixtyFourBits;
+constexpr DataProcessing1SourceOp CTZ = DataProcessing1SourceFixed | 0x00001800;
+constexpr DataProcessing1SourceOp CTZ_w = CTZ;
+constexpr DataProcessing1SourceOp CTZ_x = CTZ | SixtyFourBits;
+constexpr DataProcessing1SourceOp CNT = DataProcessing1SourceFixed | 0x00001C00;
+constexpr DataProcessing1SourceOp CNT_w = CNT;
+constexpr DataProcessing1SourceOp CNT_x = CNT | SixtyFourBits;
+constexpr DataProcessing1SourceOp ABS = DataProcessing1SourceFixed | 0x00002000;
+constexpr DataProcessing1SourceOp ABS_w = ABS;
+constexpr DataProcessing1SourceOp ABS_x = ABS | SixtyFourBits;
 
 // Data processing 2 source.
 using DataProcessing2SourceOp = uint32_t;
@@ -1240,6 +1290,18 @@ constexpr DataProcessing2SourceOp CRC32CW =
     DataProcessing2SourceFixed | 0x00005800;
 constexpr DataProcessing2SourceOp CRC32CX =
     DataProcessing2SourceFixed | SixtyFourBits | 0x00005C00;
+constexpr DataProcessing2SourceOp SMAX_w =
+    DataProcessing2SourceFixed | 0x0006000;
+constexpr DataProcessing2SourceOp SMAX_x = SMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMAX_w =
+    DataProcessing2SourceFixed | 0x0006400;
+constexpr DataProcessing2SourceOp UMAX_x = UMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp SMIN_w =
+    DataProcessing2SourceFixed | 0x0006800;
+constexpr DataProcessing2SourceOp SMIN_x = SMIN_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMIN_w =
+    DataProcessing2SourceFixed | 0x0006C00;
+constexpr DataProcessing2SourceOp UMIN_x = UMIN_w | SixtyFourBits;
 
 // Data processing 3 source.
 using DataProcessing3SourceOp = uint32_t;
@@ -1569,7 +1631,8 @@ constexpr FPFixedPointConvertOp UCVTF_dx_fixed =
 // NEON instructions with two register operands.
 using NEON2RegMiscOp = uint32_t;
 constexpr NEON2RegMiscOp NEON2RegMiscFixed = 0x0E200800;
-constexpr NEON2RegMiscOp NEON2RegMiscFMask = 0x9F3E0C00;
+constexpr NEON2RegMiscOp NEON2RegMiscFMask = 0x9F260C00;
+constexpr NEON2RegMiscOp NEON2RegMiscHPFixed = 0x00180000;
 constexpr NEON2RegMiscOp NEON2RegMiscMask = 0xBF3FFC00;
 constexpr NEON2RegMiscOp NEON2RegMiscUBit = 0x20000000;
 constexpr NEON2RegMiscOp NEON_REV64 = NEON2RegMiscFixed | 0x00000000;
@@ -1731,6 +1794,10 @@ constexpr NEON3SameOp NEON_FCMGT = NEON3SameFixed | 0x2080E000;
 constexpr NEON3SameOp NEON_FACGE = NEON3SameFixed | 0x2000E800;
 constexpr NEON3SameOp NEON_FACGT = NEON3SameFixed | 0x2080E800;
 
+constexpr NEON3SameOp NEON3SameHPMask = 0x0020C000;
+constexpr NEON3SameOp NEON3SameHPFixed = 0x0E400400;
+constexpr NEON3SameOp NEON3SameHPFMask = 0x9F400400;
+
 // NEON logical instructions with three same-type operands.
 constexpr NEON3SameOp NEON3SameLogicalFixed = NEON3SameFixed | 0x00001800;
 constexpr NEON3SameOp NEON3SameLogicalFMask = NEON3SameFMask | 0x0000F800;
@@ -1767,7 +1834,6 @@ constexpr NEON3DifferentOp NEON_SADDL = NEON3DifferentFixed | 0x00000000;
 constexpr NEON3DifferentOp NEON_SADDL2 = NEON_SADDL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SADDW = NEON3DifferentFixed | 0x00001000;
 constexpr NEON3DifferentOp NEON_SADDW2 = NEON_SADDW | NEON_Q;
-constexpr NEON3DifferentOp NEON_SDOT = NEON3DifferentDot | 0x00009400;
 constexpr NEON3DifferentOp NEON_SMLAL = NEON3DifferentFixed | 0x00008000;
 constexpr NEON3DifferentOp NEON_SMLAL2 = NEON_SMLAL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SMLSL = NEON3DifferentFixed | 0x0000A000;
@@ -1804,6 +1870,13 @@ constexpr NEON3DifferentOp NEON_USUBL = NEON_SSUBL | NEON3SameUBit;
 constexpr NEON3DifferentOp NEON_USUBL2 = NEON_USUBL | NEON_Q;
 constexpr NEON3DifferentOp NEON_USUBW = NEON_SSUBW | NEON3SameUBit;
 constexpr NEON3DifferentOp NEON_USUBW2 = NEON_USUBW | NEON_Q;
+
+// NEON instructions with three operands and extension.
+using NEON3ExtensionOp = uint32_t;
+constexpr NEON3ExtensionOp NEON3ExtensionFixed = 0x0E008400;
+constexpr NEON3ExtensionOp NEON3ExtensionFMask = 0x9F208400;
+constexpr NEON3ExtensionOp NEON3ExtensionMask = 0xBF20FC00;
+constexpr NEON3ExtensionOp NEON_SDOT = NEON3ExtensionFixed | 0x00001000;
 
 // NEON instructions operating across vectors.
 using NEONAcrossLanesOp = uint32_t;
@@ -2391,6 +2464,14 @@ constexpr NEONTableOp NEON_TBX_2v = NEON_TBL_2v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_3v = NEON_TBL_3v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_4v = NEON_TBL_4v | NEONTableExt;
 
+// NEON SHA3
+using NEONSHA3Op = uint32_t;
+constexpr NEONSHA3Op NEONSHA3Fixed = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3FMask = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3Mask = 0xcee00000;
+constexpr NEONSHA3Op NEON_BCAX = NEONSHA3Fixed | 0x00200000;
+constexpr NEONSHA3Op NEON_EOR3 = NEONSHA3Fixed;
+
 // NEON perm.
 using NEONPermOp = uint32_t;
 constexpr NEONPermOp NEONPermFixed = 0x0E000800;
@@ -2573,6 +2654,10 @@ constexpr UnimplementedOp UnimplementedFMask = 0x00000000;
 using UnallocatedOp = uint32_t;
 constexpr UnallocatedOp UnallocatedFixed = 0x00000000;
 constexpr UnallocatedOp UnallocatedFMask = 0x00000000;
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
 
 }  // namespace internal
 }  // namespace v8

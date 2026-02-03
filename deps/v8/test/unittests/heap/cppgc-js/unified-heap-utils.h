@@ -8,6 +8,7 @@
 #include "include/cppgc/heap.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-local-handle.h"
+#include "src/objects/js-objects.h"
 #include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {
@@ -18,62 +19,99 @@ namespace internal {
 
 class CppHeap;
 
-class UnifiedHeapTest : public TestWithHeapInternalsAndContext {
+template <typename TMixin>
+class WithUnifiedHeap : public TMixin {
  public:
-  UnifiedHeapTest();
-  explicit UnifiedHeapTest(
-      std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>);
-  ~UnifiedHeapTest() override = default;
+  WithUnifiedHeap() = default;
+
+  ~WithUnifiedHeap() override = default;
 
   void CollectGarbageWithEmbedderStack(cppgc::Heap::SweepingType sweeping_type =
-                                           cppgc::Heap::SweepingType::kAtomic);
+                                           cppgc::Heap::SweepingType::kAtomic) {
+    EmbedderStackStateScope stack_scope(
+        TMixin::heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kMayContainHeapPointers);
+    TMixin::InvokeMajorGC();
+    if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+      cpp_heap().AsBase().sweeper().FinishIfRunning();
+    }
+  }
+
   void CollectGarbageWithoutEmbedderStack(
       cppgc::Heap::SweepingType sweeping_type =
-          cppgc::Heap::SweepingType::kAtomic);
+          cppgc::Heap::SweepingType::kAtomic) {
+    EmbedderStackStateScope stack_scope(
+        TMixin::heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+    TMixin::InvokeMajorGC();
+    if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+      cpp_heap().AsBase().sweeper().FinishIfRunning();
+    }
+  }
 
   void CollectYoungGarbageWithEmbedderStack(
       cppgc::Heap::SweepingType sweeping_type =
-          cppgc::Heap::SweepingType::kAtomic);
-  void CollectYoungGarbageWithoutEmbedderStack(
-      cppgc::Heap::SweepingType sweeping_type =
-          cppgc::Heap::SweepingType::kAtomic);
-
-  CppHeap& cpp_heap() const;
-  cppgc::AllocationHandle& allocation_handle();
-
- private:
-  std::unique_ptr<v8::CppHeap> cpp_heap_;
-};
-
-class WrapperHelper {
- public:
-  static constexpr size_t kWrappableTypeEmbedderIndex = 0;
-  static constexpr size_t kWrappableInstanceEmbedderIndex = 1;
-  // Id that identifies types that should be traced.
-  static constexpr uint16_t kTracedEmbedderId = uint16_t{0xA50F};
-
-  static constexpr WrapperDescriptor DefaultWrapperDescriptor() {
-    return WrapperDescriptor(kWrappableTypeEmbedderIndex,
-                             kWrappableInstanceEmbedderIndex,
-                             kTracedEmbedderId);
+          cppgc::Heap::SweepingType::kAtomic) {
+    EmbedderStackStateScope stack_scope(
+        TMixin::heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kMayContainHeapPointers);
+    TMixin::InvokeMinorGC();
+    if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+      cpp_heap().AsBase().sweeper().FinishIfRunning();
+    }
   }
 
+  void CollectYoungGarbageWithoutEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic) {
+    EmbedderStackStateScope stack_scope(
+        TMixin::heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+    TMixin::InvokeMinorGC();
+    if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+      cpp_heap().AsBase().sweeper().FinishIfRunning();
+    }
+  }
+
+  CppHeap& cpp_heap() const {
+    return *CppHeap::From(TMixin::isolate()->heap()->cpp_heap());
+  }
+
+  cppgc::AllocationHandle& allocation_handle() {
+    return cpp_heap().object_allocator();
+  }
+};
+
+using UnifiedHeapTest = WithUnifiedHeap<TestWithHeapInternalsAndContext>;
+
+// Helpers for managed wrappers using a single header field.
+class WrapperHelper {
+ public:
   // Sets up a V8 API object so that it points back to a C++ object. The setup
   // used is recognized by the GC and references will be followed for liveness
   // analysis (marking) as well as tooling (snapshot).
   static v8::Local<v8::Object> CreateWrapper(v8::Local<v8::Context> context,
-                                             void* wrappable_type,
                                              void* wrappable_object,
-                                             const char* class_name = "");
+                                             const char* class_name = nullptr);
 
   // Resets the connection of a wrapper (JS) to its wrappable (C++), meaning
   // that the wrappable object is not longer kept alive by the wrapper object.
-  static void ResetWrappableConnection(v8::Local<v8::Object> api_object);
+  static void ResetWrappableConnection(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> api_object);
 
   // Sets up the connection of a wrapper (JS) to its wrappable (C++). Does not
   // emit any possibly needed write barrier.
-  static void SetWrappableConnection(v8::Local<v8::Object> api_object, void*,
-                                     void*);
+  static void SetWrappableConnection(v8::Isolate* isolate,
+                                     v8::Local<v8::Object> api_object, void*);
+
+  template <typename T>
+  static T* UnwrapAs(v8::Isolate* isolate, v8::Local<v8::Object> api_object) {
+    return reinterpret_cast<T*>(ReadWrappablePointer(isolate, api_object));
+  }
+
+ private:
+  static void* ReadWrappablePointer(v8::Isolate* isolate,
+                                    v8::Local<v8::Object> api_object);
 };
 
 }  // namespace internal

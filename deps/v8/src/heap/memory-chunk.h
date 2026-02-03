@@ -1,373 +1,401 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_HEAP_MEMORY_CHUNK_H_
 #define V8_HEAP_MEMORY_CHUNK_H_
 
-#include <atomic>
+#include "src/base/build_config.h"
+#include "src/base/hashing.h"
+#include "src/init/isolate-group.h"
 
-#include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
-#include "src/common/globals.h"
-#include "src/heap/base/active-system-pages.h"
-#include "src/heap/basic-memory-chunk.h"
-#include "src/heap/list.h"
-#include "src/heap/marking.h"
-#include "src/heap/memory-chunk-layout.h"
-#include "src/heap/slot-set.h"
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+#define UNREACHABLE_WITH_STICKY_MARK_BITS() UNREACHABLE()
+#else
+#define UNREACHABLE_WITH_STICKY_MARK_BITS()
+#endif
 
 namespace v8 {
 namespace internal {
 
-class FreeListCategory;
-class Space;
+namespace debug_helper_internal {
+class ReadStringVisitor;
+}  // namespace  debug_helper_internal
 
-enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+namespace compiler::turboshaft {
+template <typename Next>
+class TurboshaftAssemblerOpInterface;
+}
 
-// MemoryChunk represents a memory region owned by a specific space.
-// It is divided into the header and the body. Chunk start is always
-// 1MB aligned. Start of the body is aligned so it can accommodate
-// any heap object.
-class MemoryChunk : public BasicMemoryChunk {
+class CodeStubAssembler;
+class ExternalReference;
+class Heap;
+class LargePageMetadata;
+class MemoryChunkMetadata;
+class MutablePageMetadata;
+class PageMetadata;
+class ReadOnlyPageMetadata;
+template <typename T>
+class Tagged;
+class TestDebugHelper;
+
+// A chunk of memory of any size.
+//
+// For the purpose of the V8 sandbox the chunk can reside in either trusted or
+// untrusted memory. Most information can actually be found on the corresponding
+// metadata object that can be retrieved via `Metadata()` and its friends.
+class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  // |kDone|: The page state when sweeping is complete or sweeping must not be
-  //   performed on that page. Sweeper threads that are done with their work
-  //   will set this value and not touch the page anymore.
-  // |kPending|: This page is ready for parallel sweeping.
-  // |kInProgress|: This page is currently swept by a sweeper thread.
-  enum class ConcurrentSweepingState : intptr_t {
-    kDone,
-    kPending,
-    kInProgress,
+  // Memory chunk flags that for sandbox builds can be corrupted. Users of these
+  // flags need to assume that the flags are inconsistent. In practice, only
+  // flags that are required for fast paths should be kept here. All other flags
+  // should be placed on the trusted counterparts, e.g. `MemoryChunkMetadata`.
+  //
+  // TODO(429538831): Replace the flags in here with their trusted counterparts
+  // as much as performance allows.
+  enum Flag : uintptr_t {
+    NO_FLAGS = 0u,
+
+    // Chunk belongs to the writeable shared space.
+    IN_WRITABLE_SHARED_SPACE = 1u << 0,
+
+    // These two flags are used in the write barrier to catch "interesting"
+    // references.
+    POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
+    POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
+
+    // Chunk in the from-space or a young large page that was not scavenged
+    // yet.
+    FROM_PAGE = 1u << 3,
+    // Chunk in the to-space or a young large page that was scavenged.
+    TO_PAGE = 1u << 4,
+
+    // Indicates whether incremental marking is currently enabled.
+    INCREMENTAL_MARKING = 1u << 5,
+
+    // Chunk belongs to the read-only heap and does not participate in garbage
+    // collection.
+    //
+    // Note that read-only chunks have no owner so this is required for checking
+    // space identity for these chunks.
+    READ_ONLY_HEAP = 1u << 6,
+
+    // Chunk was allocated during major incremental marking. Only contains old
+    // objects.
+    BLACK_ALLOCATED = 1u << 7,
+
+    // The chunk represents a large chunk of non-uniform size.
+    LARGE_PAGE = 1u << 8,
+
+    // The chunk was selected as evacuation candidate, meaning that objects on
+    // this chunk are being relocated.
+    EVACUATION_CANDIDATE = 1u << 9,
+
+    // The chunk is in the the new space of the young generation and already
+    // survived at least one garbage collection cycle.
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 10,
+
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    // Sticky markbits only: Used to mark chunks belonging to spaces that do not
+    // support young generation objects.
+    STICKY_MARK_BIT_CONTAINS_ONLY_OLD = 1u << 11,
+
+    // Sticky markbits only: Used in young generation checks. When sticky
+    // mark-bits are enabled and major GC in progress, treat all objects as old.
+    STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS = 1u << 12,
+#endif
   };
 
-  static const size_t kHeaderSize = MemoryChunkLayout::kMemoryChunkHeaderSize;
+  using MainThreadFlags = base::Flags<Flag, uintptr_t>;
 
-  static const intptr_t kOldToNewSlotSetOffset =
-      MemoryChunkLayout::kSlotSetOffset;
+  static constexpr MainThreadFlags kAllFlagsMask = ~MainThreadFlags(NO_FLAGS);
+  static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
+      POINTERS_TO_HERE_ARE_INTERESTING;
+  static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
+      POINTERS_FROM_HERE_ARE_INTERESTING;
+  static constexpr MainThreadFlags kEvacuationCandidateMask =
+      EVACUATION_CANDIDATE;
+  static constexpr MainThreadFlags kIsInYoungGenerationMask =
+      MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
+  static constexpr MainThreadFlags kIsInReadOnlyHeapMask = READ_ONLY_HEAP;
+  static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
+  static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
+  static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
+  static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
+      MainThreadFlags(kEvacuationCandidateMask) |
+      MainThreadFlags(kIsInYoungGenerationMask);
 
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  static constexpr MainThreadFlags kIsOnlyOldOrMajorGCInProgressMask =
+      MainThreadFlags(STICKY_MARK_BIT_CONTAINS_ONLY_OLD) |
+      MainThreadFlags(STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 
-  MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-              Address area_end, VirtualMemory reservation,
-              Executability executable, PageSize page_size);
+  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
 
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromAddress(Address a) {
-    return cast(BasicMemoryChunk::FromAddress(a));
+  V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
+
+  static constexpr Address BaseAddress(Address a) {
+    // LINT.IfChange
+    // If this changes, we also need to update
+    // - CodeStubAssembler::MemoryChunkFromAddress
+    // - MacroAssembler::MemoryChunkHeaderFromObject
+    // - TurboshaftAssemblerOpInterface::MemoryChunkFromAddress
+    return a & ~kAlignmentMask;
+    // clang-format off
+    // LINT.ThenChange(src/codegen/code-stub-assembler.cc, src/codegen/ia32/macro-assembler-ia32.cc, src/codegen/x64/macro-assembler-x64.cc, src/compiler/turboshaft/assembler.h)
+    // clang-format on
   }
 
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(Tagged<HeapObject> o) {
-    return cast(BasicMemoryChunk::FromHeapObject(o));
+  V8_INLINE static MemoryChunk* FromAddress(Address addr) {
+    return reinterpret_cast<MemoryChunk*>(BaseAddress(addr));
   }
 
-  static MemoryChunk* cast(BasicMemoryChunk* chunk) {
-    SLOW_DCHECK(!chunk || !chunk->InReadOnlySpace());
-    return static_cast<MemoryChunk*>(chunk);
+  template <typename HeapObject>
+  V8_INLINE static MemoryChunk* FromHeapObject(Tagged<HeapObject> object) {
+    return FromAddress(object.ptr());
   }
 
-  static const MemoryChunk* cast(const BasicMemoryChunk* chunk) {
-    SLOW_DCHECK(!chunk->InReadOnlySpace());
-    return static_cast<const MemoryChunk*>(chunk);
+  V8_INLINE MemoryChunkMetadata* Metadata(const Isolate* isolate);
+  V8_INLINE const MemoryChunkMetadata* Metadata(const Isolate* isolate) const;
+
+  V8_INLINE MemoryChunkMetadata* Metadata();
+  V8_INLINE const MemoryChunkMetadata* Metadata() const;
+
+  V8_INLINE MemoryChunkMetadata* MetadataNoIsolateCheck();
+  V8_INLINE const MemoryChunkMetadata* MetadataNoIsolateCheck() const;
+
+  V8_INLINE bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
+
+  V8_INLINE bool InWritableSharedSpace() const {
+    return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
   }
 
-  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
-
-  void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
-
-  static inline void MoveExternalBackingStoreBytes(
-      ExternalBackingStoreType type, MemoryChunk* from, MemoryChunk* to,
-      size_t amount);
-
-  void DiscardUnusedMemory(Address addr, size_t size);
-
-  base::Mutex* mutex() const { return mutex_; }
-  base::SharedMutex* shared_mutex() const { return shared_mutex_; }
-
-  void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
-    concurrent_sweeping_ = state;
+  V8_INLINE bool IsBlackAllocatedPage() const {
+    return IsFlagSet(BLACK_ALLOCATED);
   }
 
-  ConcurrentSweepingState concurrent_sweeping_state() {
-    return static_cast<ConcurrentSweepingState>(concurrent_sweeping_.load());
+  V8_INLINE bool ContainsOnlyOldObjects() const {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    DCHECK(v8_flags.sticky_mark_bits);
+    return IsFlagSet(STICKY_MARK_BIT_CONTAINS_ONLY_OLD);
+#else
+    UNREACHABLE();
+#endif
   }
 
-  bool SweepingDone() const {
-    return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
+  V8_INLINE bool InYoungGeneration() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
+    constexpr uintptr_t kYoungGenerationMask = FROM_PAGE | TO_PAGE;
+    return GetFlags() & kYoungGenerationMask;
   }
 
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  SlotSet* slot_set() {
-    if constexpr (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicPointer::Acquire_Load(&slot_set_[type]);
-    return slot_set_[type];
+  // Checks whether chunk is either in young gen or shared heap.
+  V8_INLINE bool IsYoungOrSharedChunk() const {
+    constexpr uintptr_t kYoungOrSharedChunkMask =
+        FROM_PAGE | TO_PAGE | IN_WRITABLE_SHARED_SPACE;
+    return GetFlags() & kYoungOrSharedChunkMask;
   }
 
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  const SlotSet* slot_set() const {
-    return const_cast<MemoryChunk*>(this)->slot_set<type, access_mode>();
+  V8_INLINE MainThreadFlags GetFlags() const {
+    return untrusted_main_thread_flags_;
   }
-
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  TypedSlotSet* typed_slot_set() {
-    if constexpr (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicPointer::Acquire_Load(&typed_slot_set_[type]);
-    return typed_slot_set_[type];
-  }
-
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  const TypedSlotSet* typed_slot_set() const {
-    return const_cast<MemoryChunk*>(this)->typed_slot_set<type, access_mode>();
-  }
-
-  template <RememberedSetType type>
-  bool ContainsSlots() const {
-    return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr;
-  }
-  bool ContainsAnySlots() const;
-
-  V8_EXPORT_PRIVATE SlotSet* AllocateSlotSet(RememberedSetType type);
-  // Not safe to be called concurrently.
-  void ReleaseSlotSet(RememberedSetType type);
-  TypedSlotSet* AllocateTypedSlotSet(RememberedSetType type);
-  // Not safe to be called concurrently.
-  void ReleaseTypedSlotSet(RememberedSetType type);
-
-  template <RememberedSetType type>
-  SlotSet* ExtractSlotSet() {
-    SlotSet* slot_set = slot_set_[type];
-    // Conditionally reset to nullptr (instead of e.g. using std::exchange) to
-    // avoid data races when transitioning from nullptr to nullptr.
-    if (slot_set) {
-      slot_set_[type] = nullptr;
-    }
-    return slot_set;
-  }
-
-  template <RememberedSetType type>
-  TypedSlotSet* ExtractTypedSlotSet() {
-    TypedSlotSet* typed_slot_set = typed_slot_set_[type];
-    // Conditionally reset to nullptr (instead of e.g. using std::exchange) to
-    // avoid data races when transitioning from nullptr to nullptr.
-    if (typed_slot_set) {
-      typed_slot_set_[type] = nullptr;
-    }
-    return typed_slot_set;
-  }
-
-  int ComputeFreeListsLength();
-
-  // Approximate amount of physical memory committed for this chunk.
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
-
-  class ProgressBar& ProgressBar() {
-    return progress_bar_;
-  }
-  const class ProgressBar& ProgressBar() const { return progress_bar_; }
-
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
-
-  Space* owner() const {
-    return reinterpret_cast<Space*>(BasicMemoryChunk::owner());
-  }
-
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const;
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
-  // MemoryChunk::synchronized_heap() to simulate the barrier.
+  // MemoryChunk::SynchronizedLoad() to simulate the barrier.
   void InitializationMemoryFence();
 
-  static PageAllocator::Permission GetCodeModificationPermission() {
-    DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-    // On MacOS on ARM64 RWX permissions are allowed to be set only when
-    // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
-    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && v8_flags.write_code_using_rwx
-               ? PageAllocator::kReadWriteExecute
-               : PageAllocator::kReadWrite;
-  }
-
-  V8_EXPORT_PRIVATE void SetReadable();
-  V8_EXPORT_PRIVATE void SetReadAndExecutable();
-
-  // Used by the mprotect version of CodePageMemoryModificationScope to toggle
-  // the writable permission bit of the MemoryChunk.
-  // The returned MutexGuard protects the page from concurrent access. The
-  // caller needs to call SetDefaultCodePermissions before releasing the
-  // MutexGuard.
-  V8_EXPORT_PRIVATE base::MutexGuard SetCodeModificationPermissions();
-  V8_EXPORT_PRIVATE void SetDefaultCodePermissions();
-
-  heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
-  const heap::ListNode<MemoryChunk>& list_node() const { return list_node_; }
-
-  PossiblyEmptyBuckets* possibly_empty_buckets() {
-    return &possibly_empty_buckets_;
-  }
-
-  // Release memory allocated by the chunk, except that which is needed by
-  // read-only space chunks.
-  void ReleaseAllocatedMemoryNeededForWritableChunk();
-
-  void IncreaseAllocatedLabSize(size_t bytes) { allocated_lab_size_ += bytes; }
-  void DecreaseAllocatedLabSize(size_t bytes) {
-    DCHECK_GE(allocated_lab_size_, bytes);
-    allocated_lab_size_ -= bytes;
-  }
-  size_t AllocatedLabSize() const { return allocated_lab_size_; }
-
-  void IncrementAgeInNewSpace() { age_in_new_space_++; }
-  void ResetAgeInNewSpace() { age_in_new_space_ = 0; }
-  size_t AgeInNewSpace() const { return age_in_new_space_; }
-
-  void ResetAllocationStatistics() {
-    BasicMemoryChunk::ResetAllocationStatistics();
-    allocated_lab_size_ = 0;
-  }
-
-  MarkingBitmap* marking_bitmap() {
-    DCHECK(!InReadOnlySpace());
-    return &marking_bitmap_;
-  }
-
-  const MarkingBitmap* marking_bitmap() const {
-    DCHECK(!InReadOnlySpace());
-    return &marking_bitmap_;
-  }
-
-  size_t live_bytes() const {
-    return live_byte_count_.load(std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(size_t value) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(value, kObjectAlignment8GbHeap));
-    live_byte_count_.store(value, std::memory_order_relaxed);
-  }
-
-  void IncrementLiveBytesAtomically(intptr_t diff) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(diff, kObjectAlignment8GbHeap));
-    live_byte_count_.fetch_add(diff, std::memory_order_relaxed);
-  }
-
-  void ClearLiveness();
-
- protected:
-  // Release all memory allocated by the chunk. Should be called when memory
-  // chunk is about to be freed.
-  void ReleaseAllAllocatedMemory();
-
-  // Sets the requested page permissions only if the write unprotect counter
-  // has reached 0.
-  void DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-      PageAllocator::Permission permission);
-
-#ifdef DEBUG
-  static void ValidateOffsets(MemoryChunk* chunk);
+#ifdef THREAD_SANITIZER
+  void SynchronizedLoad() const;
+  bool InReadOnlySpace() const;
+#else
+  V8_INLINE bool InReadOnlySpace() const { return IsFlagSet(READ_ONLY_HEAP); }
 #endif
 
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  void set_slot_set(SlotSet* slot_set) {
-    if (access_mode == AccessMode::ATOMIC) {
-      base::AsAtomicPointer::Release_Store(&slot_set_[type], slot_set);
-      return;
-    }
-    slot_set_[type] = slot_set;
+#ifdef V8_ENABLE_SANDBOX
+  // Flags are stored in the page header and are not safe to rely on for sandbox
+  // checks. This alternative version will check if the page is read-only
+  // without relying on the inline flag.
+  bool SandboxSafeInReadOnlySpace() const;
+#endif
+
+  V8_INLINE bool IsEvacuationCandidate() const;
+
+  bool ShouldSkipEvacuationSlotRecording() const {
+    return ((GetFlags() & kSkipEvacuationSlotsRecordingMask) != 0);
   }
 
-  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
-  void set_typed_slot_set(TypedSlotSet* typed_slot_set) {
-    if (access_mode == AccessMode::ATOMIC) {
-      base::AsAtomicPointer::Release_Store(&typed_slot_set_[type],
-                                           typed_slot_set);
-      return;
-    }
-    typed_slot_set_[type] = typed_slot_set;
+  bool IsFromPage() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
+    return IsFlagSet(FROM_PAGE);
+  }
+  bool IsToPage() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
+    return IsFlagSet(TO_PAGE);
+  }
+  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
+  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
+  bool InNewSpaceBelowAgeMark() const {
+    return IsFlagSet(NEW_SPACE_BELOW_AGE_MARK);
+  }
+  bool InNewLargeObjectSpace() const {
+    return InYoungGeneration() && IsLargePage();
+  }
+  bool IsOnlyOldOrMajorMarkingOn() const {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    DCHECK(v8_flags.sticky_mark_bits);
+    return GetFlags() & kIsOnlyOldOrMajorGCInProgressMask;
+#else
+    UNREACHABLE();
+#endif
+  }
+  bool PointersToHereAreInteresting() const {
+    return IsFlagSet(POINTERS_TO_HERE_ARE_INTERESTING);
+  }
+  bool PointersFromHereAreInteresting() const {
+    return IsFlagSet(POINTERS_FROM_HERE_ARE_INTERESTING);
   }
 
-  // A single slot set for small pages (of size kPageSize) or an array of slot
-  // set for large pages. In the latter case the number of entries in the array
-  // is ceil(size() / kPageSize).
-  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
-  // A single slot set for small pages (of size kPageSize) or an array of slot
-  // set for large pages. In the latter case the number of entries in the array
-  // is ceil(size() / kPageSize).
-  TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
+  V8_INLINE static constexpr bool IsAligned(Address address) {
+    return (address & kAlignmentMask) == 0;
+  }
 
-  // Used by the marker to keep track of the scanning progress in large objects
-  // that have a progress bar and are scanned in increments.
-  class ProgressBar progress_bar_;
+  static intptr_t GetAlignmentForAllocation() { return kAlignment; }
+  // The macro and code stub assemblers need access to the alignment mask to
+  // implement functionality from this class. In particular, this is used to
+  // implement the header lookups and to calculate the object offsets in the
+  // page.
+  static constexpr intptr_t GetAlignmentMaskForAssembler() {
+    return kAlignmentMask;
+  }
 
-  // Count of bytes marked black on page.
-  std::atomic<intptr_t> live_byte_count_{0};
+  static constexpr uint32_t AddressToOffset(Address address) {
+    return static_cast<uint32_t>(address) & kAlignmentMask;
+  }
 
-  base::Mutex* mutex_;
-  base::SharedMutex* shared_mutex_;
-  base::Mutex* page_protection_change_mutex_;
+#ifdef DEBUG
+  size_t Offset(Address addr) const;
+  // RememberedSetOperations take an offset to an end address that can be behind
+  // the allocated memory.
+  size_t OffsetMaybeOutOfRange(Address addr) const;
+#else
+  size_t Offset(Address addr) const { return addr - address(); }
+  size_t OffsetMaybeOutOfRange(Address addr) const { return Offset(addr); }
+#endif
 
-  std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
-      ConcurrentSweepingState::kDone};
-
-  // Tracks off-heap memory used by this memory chunk.
-  std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
-      ExternalBackingStoreType::kNumValues)] = {0};
-
-  heap::ListNode<MemoryChunk> list_node_;
-
-  FreeListCategory** categories_ = nullptr;
-
-  PossiblyEmptyBuckets possibly_empty_buckets_;
-
-  ActiveSystemPages* active_system_pages_;
-
-  // Counts overall allocated LAB size on the page since the last GC. Used
-  // only for new space pages.
-  size_t allocated_lab_size_ = 0;
-
-  // Counts the number of young gen GCs that a page survived in new space. This
-  // counter is reset to 0 whenever the page is empty.
-  size_t age_in_new_space_ = 0;
-
-  MarkingBitmap marking_bitmap_;
+#ifdef V8_ENABLE_SANDBOX
+  static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
+#endif
 
  private:
-  friend class ConcurrentMarkingState;
-  friend class MarkingState;
-  friend class AtomicMarkingState;
-  friend class NonAtomicMarkingState;
-  friend class MemoryAllocator;
-  friend class MemoryChunkValidator;
-  friend class PagedSpace;
-  template <RememberedSetType>
-  friend class RememberedSet;
-  friend class YoungGenerationMarkingState;
+  V8_INLINE bool IsFlagSet(Flag flag) const {
+    return untrusted_main_thread_flags_ & flag;
+  }
+
+  // Keep offsets and masks private to only expose them with matching friend
+  // declarations.
+  static constexpr intptr_t FlagsOffset() {
+    return offsetof(MemoryChunk, untrusted_main_thread_flags_);
+  }
+
+  static constexpr intptr_t kAlignment =
+      (static_cast<uintptr_t>(1) << kPageSizeBits);
+  static constexpr intptr_t kAlignmentMask = kAlignment - 1;
+
+#ifdef V8_ENABLE_SANDBOX
+#ifndef V8_EXTERNAL_CODE_SPACE
+#error The global metadata pointer table requires a single external code space.
+#endif
+
+  static constexpr intptr_t MetadataIndexOffset() {
+    return offsetof(MemoryChunk, metadata_index_);
+  }
+
+  static uint32_t MetadataTableIndex(Address chunk_address);
+
+  V8_INLINE static IsolateGroup::MemoryChunkMetadataTableEntry*
+  MetadataTableAddress() {
+    return IsolateGroup::current()->metadata_pointer_table();
+  }
+
+  // For MetadataIndexOffset().
+  friend class debug_helper_internal::ReadStringVisitor;
+  // For MetadataTableAddress().
+  friend class ExternalReference;
+  friend class TestDebugHelper;
+
+#else  // !V8_ENABLE_SANDBOX
+
+  static constexpr intptr_t MetadataOffset() {
+    return offsetof(MemoryChunk, metadata_);
+  }
+
+#endif  // !V8_ENABLE_SANDBOX
+
+  template <bool check_isolate>
+  MemoryChunkMetadata* MetadataImpl(const Isolate* isolate);
+  template <bool check_isolate>
+  const MemoryChunkMetadata* MetadataImpl(const Isolate* isolate) const;
+
+  // Flags that are only mutable from the main thread when no concurrent
+  // component (e.g. marker, sweeper, compilation, allocation) is running.
+  //
+  // For the purpose of the V8 sandbox these flags can generally not be trusted.
+  // Only when the chunk is known to live in trusted space the flags are assumed
+  // to be safe from modification.
+  MainThreadFlags untrusted_main_thread_flags_;
+
+#ifdef V8_ENABLE_SANDBOX
+  uint32_t metadata_index_;
+#else
+  MemoryChunkMetadata* metadata_;
+#endif
+
+  // For main_thread_flags_.
+  friend class MutablePageMetadata;
+  // For kMetadataPointerTableSizeMask, FlagsOffset(), MetadataIndexOffset(),
+  // MetadataOffset().
+  friend class CodeStubAssembler;
+  friend class MacroAssembler;
+  template <typename Next>
+  friend class compiler::turboshaft::TurboshaftAssemblerOpInterface;
+  // For IsFlagSet().
+  friend class IsolateGroup;
+  friend class MemoryChunkMetadata;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)
 
 }  // namespace internal
 
 namespace base {
+
 // Define special hash function for chunk pointers, to be used with std data
-// structures, e.g. std::unordered_set<MemoryChunk*, base::hash<MemoryChunk*>
+// structures, e.g.
+// std::unordered_set<MemoryChunk*, base::hash<MemoryChunk*>
+// This hash function discards the trailing zero bits (chunk alignment).
+// Notice that, when pointer compression is enabled, it also discards the
+// cage base.
 template <>
-struct hash<i::MemoryChunk*> : hash<i::BasicMemoryChunk*> {};
+struct hash<const i::MemoryChunk*> {
+  V8_INLINE size_t operator()(const i::MemoryChunk* chunk) const {
+    return static_cast<v8::internal::Tagged_t>(
+               reinterpret_cast<uintptr_t>(chunk)) >>
+           kPageSizeBits;
+  }
+};
+
 template <>
-struct hash<const i::MemoryChunk*> : hash<const i::BasicMemoryChunk*> {};
+struct hash<i::MemoryChunk*> {
+  V8_INLINE size_t operator()(i::MemoryChunk* chunk) const {
+    return hash<const i::MemoryChunk*>()(chunk);
+  }
+};
+
 }  // namespace base
 
 }  // namespace v8
+
+#undef UNREACHABLE_WITH_STICKY_MARK_BITS
 
 #endif  // V8_HEAP_MEMORY_CHUNK_H_

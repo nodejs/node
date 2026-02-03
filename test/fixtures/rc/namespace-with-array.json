@@ -1,0 +1,5 @@
+{
+    "test": {
+        "test-coverage-exclude": ["config-pattern1", "config-pattern2"]
+    }
+}

@@ -8,7 +8,7 @@ Object.prototype[Symbol.replace] = function () {
 }
 
 "".replace(0);
-assertEquals(count, 1);
+assertEquals(count, 0);
 
 "".replace(0.1);
-assertEquals(count, 2);
+assertEquals(count, 0);

@@ -13,13 +13,13 @@ const http = require('http');
   // A server MUST respond with a 400 (Bad Request) status code to any
   // HTTP/1.1 request message that lacks a Host header field
   server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port, headers: [] }, (res) => {
+    http.get({ port: server.address().port, headers: [] }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 400);
       assert.strictEqual(res.headers.connection, 'close');
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 
@@ -30,12 +30,12 @@ const http = require('http');
   }));
 
   server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port, headers: [] }, (res) => {
+    http.get({ port: server.address().port, headers: [] }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers.test, '1');
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }

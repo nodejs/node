@@ -94,8 +94,8 @@ enum class PrivateMemberFilter {
  */
 V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
                                          Local<Object> value, int filter,
-                                         std::vector<Local<Value>>* names_out,
-                                         std::vector<Local<Value>>* values_out);
+                                         LocalVector<Value>* names_out,
+                                         LocalVector<Value>* values_out);
 
 /**
  * Forwards to v8::Object::CreationContext, but with special handling for
@@ -166,6 +166,7 @@ struct LiveEditResult {
     BLOCKED_BY_RUNNING_GENERATOR,
     BLOCKED_BY_ACTIVE_FUNCTION,
     BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE,
+    FEATURE_DISABLED,
   };
   Status status = OK;
   bool stack_changed = false;
@@ -205,8 +206,6 @@ class V8_EXPORT_PRIVATE ScriptSource {
  */
 class V8_EXPORT_PRIVATE Script {
  public:
-  v8::Isolate* GetIsolate() const;
-
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
   bool IsEmbedded() const;
@@ -218,6 +217,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
+  MaybeLocal<String> DebugId() const;
   MaybeLocal<String> GetSha256Hash() const;
   Maybe<int> ContextId() const;
   Local<ScriptSource> Source() const;
@@ -256,9 +256,13 @@ class WasmScript : public Script {
  public:
   static WasmScript* Cast(Script* script);
 
-  enum class DebugSymbolsType { None, SourceMap, EmbeddedDWARF, ExternalDWARF };
-  DebugSymbolsType GetDebugSymbolType() const;
-  MemorySpan<const char> ExternalSymbolsURL() const;
+  struct DebugSymbols {
+    enum class Type { SourceMap, EmbeddedDWARF, ExternalDWARF };
+    Type type;
+    v8::MemorySpan<const char> external_url;
+  };
+  std::vector<DebugSymbols> GetDebugSymbols() const;
+
   int NumFunctions() const;
   int NumImportedFunctions() const;
 
@@ -269,6 +273,8 @@ class WasmScript : public Script {
                    std::vector<int>* function_body_offsets);
 
   uint32_t GetFunctionHash(int function_index);
+
+  Maybe<v8::MemorySpan<const uint8_t>> GetModuleBuildId() const;
 
   int CodeOffset() const;
   int CodeLength() const;
@@ -284,6 +290,9 @@ void Disassemble(base::Vector<const uint8_t> wire_bytes,
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
     Isolate* isolate, std::vector<v8::Global<Script>>& scripts);
+
+V8_EXPORT_PRIVATE std::optional<v8::ScriptOrigin> GetScriptOrigin(
+    Isolate* v8_isolate, int script_id);
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
@@ -452,6 +461,10 @@ class V8_EXPORT_PRIVATE Coverage {
   static Coverage CollectPrecise(Isolate* isolate);
   static Coverage CollectBestEffort(Isolate* isolate);
 
+#if V8_ENABLE_WEBASSEMBLY
+  static Coverage CollectWasmData(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   static void SelectMode(Isolate* isolate, CoverageMode mode);
 
   size_t ScriptCount() const;
@@ -546,7 +559,7 @@ int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
-                                 int argc, Local<Value> argv[],
+                                 base::Vector<Local<Value>> args,
                                  bool throw_on_side_effect);
 
 enum class EvaluateGlobalMode {
@@ -558,10 +571,6 @@ enum class EvaluateGlobalMode {
 V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
     v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
     bool repl_mode = false);
-
-V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
-    v8::Isolate* isolate, v8::Local<v8::Script> function,
-    v8::debug::EvaluateGlobalMode mode, bool repl);
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
@@ -602,7 +611,9 @@ class EphemeronTable : public v8::Object {
       v8::Local<v8::Value> value);
 
   V8_EXPORT_PRIVATE static Local<EphemeronTable> New(v8::Isolate* isolate);
-  V8_INLINE static EphemeronTable* Cast(Value* obj);
+  V8_INLINE static EphemeronTable* Cast(Value* obj) {
+    return static_cast<EphemeronTable*>(obj);
+  }
 };
 
 /**
@@ -694,6 +705,9 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
+
+uint64_t GetIsolateId(v8::Isolate* isolate);
+void SetIsolateId(v8::Isolate* isolate, uint64_t id);
 
 }  // namespace debug
 }  // namespace v8

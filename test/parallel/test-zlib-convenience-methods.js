@@ -54,6 +54,8 @@ for (const [type, expect] of [
     ['deflateRaw', 'inflateRaw', 'DeflateRaw', 'InflateRaw'],
     ['brotliCompress', 'brotliDecompress',
      'BrotliCompress', 'BrotliDecompress'],
+    ['zstdCompress', 'zstdDecompress',
+     'ZstdCompress', 'ZstdDecompress'],
   ]) {
     zlib[method[0]](expect, opts, common.mustCall((err, result) => {
       zlib[method[1]](result, opts, common.mustCall((err, result) => {

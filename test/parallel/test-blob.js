@@ -197,6 +197,7 @@ assert.throws(() => new Blob({}), {
     'stream',
     'text',
     'arrayBuffer',
+    'bytes',
   ];
 
   for (const prop of enumerable) {
@@ -335,11 +336,11 @@ assert.throws(() => new Blob({}), {
   const { value, done } = await reader.read();
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
     // it should pull in the next 'hello' which is 5 bytes hence -5.
-    assert.strictEqual(stream[kState].controller.desiredSize, -5);
-  }, 0);
+    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  }), 0);
 })().then(common.mustCall());
 
 (async () => {
@@ -364,9 +365,9 @@ assert.throws(() => new Blob({}), {
   const { value, done } = await reader.read(new Uint8Array(100));
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
-  setTimeout(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, -5);
-  }, 0);
+  setTimeout(common.mustCall(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  }), 0);
 })().then(common.mustCall());
 
 (async () => {
@@ -377,9 +378,9 @@ assert.throws(() => new Blob({}), {
   const { value, done } = await reader.read(new Uint8Array(2));
   assert.strictEqual(value.byteLength, 2);
   assert(!done);
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     assert.strictEqual(stream[kState].controller.desiredSize, -3);
-  }, 0);
+  }), 0);
 })().then(common.mustCall());
 
 {
@@ -409,10 +410,13 @@ assert.throws(() => new Blob({}), {
 }
 
 (async () => {
-  await assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+  await assert.rejects(() => Blob.prototype.arrayBuffer.call(), {
     code: 'ERR_INVALID_THIS',
   });
-  await assert.rejects(async () => Blob.prototype.text.call(), {
+  await assert.rejects(() => Blob.prototype.text.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+  await assert.rejects(() => Blob.prototype.bytes.call(), {
     code: 'ERR_INVALID_THIS',
   });
 })().then(common.mustCall());
@@ -479,6 +483,7 @@ assert.throws(() => new Blob({}), {
 
   assert.ok(blob.slice(0, 1).constructor === Blob);
   assert.ok(blob.slice(0, 1) instanceof Blob);
+  assert.ok(blob.slice(0, 1.5) instanceof Blob);
 }
 
 (async () => {
@@ -489,4 +494,17 @@ assert.throws(() => new Blob({}), {
   assert.ok(structuredClone(blob).size === blob.size);
   assert.ok(structuredClone(blob).size === blob.size);
   assert.ok((await structuredClone(blob).text()) === (await blob.text()));
+})().then(common.mustCall());
+
+(async () => {
+  const blob = new Blob(['hello']);
+  const { arrayBuffer } = Blob.prototype;
+
+  Blob.prototype.arrayBuffer = common.mustNotCall();
+
+  try {
+    assert.strictEqual(await blob.text(), 'hello');
+  } finally {
+    Blob.prototype.arrayBuffer = arrayBuffer;
+  }
 })().then(common.mustCall());

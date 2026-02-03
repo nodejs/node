@@ -13,6 +13,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils/utils.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -56,14 +57,35 @@ class DescriptorArray
  public:
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, uint32_t)
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
+
+  enum class FastIterableState : uint8_t {
+    // Descriptors are JSON fast iterable, iff all of the following conditions
+    // are met:
+    // - No key is a symbol.
+    // - All keys are enumberable.
+    // - All keys are one-byte and don't contain any character that requires
+    //   escaping.
+    // - All properties are located in field.
+    kJsonFast = 0b00,
+    kJsonSlow = 0b01,
+    kUnknown = 0b11
+  };
+
+  DEFINE_TORQUE_GENERATED_DESCRIPTOR_ARRAY_FLAGS()
+
+  inline FastIterableState fast_iterable() const;
+  inline void set_fast_iterable(FastIterableState value);
+  inline void set_fast_iterable_if(FastIterableState new_value,
+                                   FastIterableState if_value);
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(Tagged<DescriptorArray> array);
   static void InitializeOrChangeEnumCache(
-      Handle<DescriptorArray> descriptors, Isolate* isolate,
-      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      DirectHandle<DescriptorArray> descriptors, Isolate* isolate,
+      DirectHandle<FixedArray> keys, DirectHandle<FixedArray> indices,
       AllocationType allocation_if_initialize);
 
   // Accessors for fetching instance descriptor at descriptor number.
@@ -73,14 +95,18 @@ class DescriptorArray
   inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
   inline Tagged<Object> GetStrongValue(PtrComprCageBase cage_base,
                                        InternalIndex descriptor_number);
-  inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(PtrComprCageBase cage_base,
-                              InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(PtrComprCageBase cage_base,
+                                      InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number);
+
+  // Returns true if given entry is already initialized. Useful in cases
+  // when a heap stats collector might see a half-initialized descriptor.
+  inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
 
   inline Tagged<Name> GetSortedKey(int descriptor_number);
   inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
@@ -90,25 +116,25 @@ class DescriptorArray
   // Accessor for complete descriptor.
   inline void Set(InternalIndex descriptor_number, Descriptor* desc);
   inline void Set(InternalIndex descriptor_number, Tagged<Name> key,
-                  MaybeObject value, PropertyDetails details);
+                  Tagged<MaybeObject> value, PropertyDetails details);
   void Replace(InternalIndex descriptor_number, Descriptor* descriptor);
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields();
+  void GeneralizeAllFields(bool clear_constness);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
-                                          Handle<DescriptorArray> desc,
-                                          int enumeration_index, int slack = 0);
+  static DirectHandle<DescriptorArray> CopyUpTo(
+      Isolate* isolate, DirectHandle<DescriptorArray> desc,
+      int enumeration_index, int slack = 0);
 
-  static Handle<DescriptorArray> CopyUpToAddAttributes(
-      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
-      PropertyAttributes attributes, int slack = 0);
+  static DirectHandle<DescriptorArray> CopyUpToAddAttributes(
+      Isolate* isolate, DirectHandle<DescriptorArray> desc,
+      int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
   V8_EXPORT_PRIVATE void Sort();
@@ -227,9 +253,15 @@ class DescriptorArray
 
  private:
   inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
-  inline void SetValue(InternalIndex descriptor_number, MaybeObject value);
+  inline void SetValue(InternalIndex descriptor_number,
+                       Tagged<MaybeObject> value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
+
+  V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
+  V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
 
@@ -10,12 +10,12 @@ if (cluster.isPrimary) {
             `isDead() returned ${workerDead}. isDead() should return ` +
             'false right after the worker has been created.');
 
-  worker.on('exit', function() {
+  worker.on('exit', common.mustCall(() => {
     workerDead = worker.isDead();
     assert.ok(workerDead,
               `isDead() returned ${workerDead}. After an event has been ` +
               'emitted, isDead should return true');
-  });
+  }));
 
   worker.on('message', function(msg) {
     if (msg === 'readyToDie') {

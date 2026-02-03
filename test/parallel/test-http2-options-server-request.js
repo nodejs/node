@@ -14,12 +14,12 @@ class MyServerRequest extends h2.Http2ServerRequest {
 
 const server = h2.createServer({
   Http2ServerRequest: MyServerRequest
-}, (req, res) => {
+}, common.mustCallAtLeast((req, res) => {
   assert.strictEqual(req.getUserAgent(), 'node-test');
 
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end();
-});
+}));
 server.listen(0);
 
 server.on('listening', common.mustCall(() => {

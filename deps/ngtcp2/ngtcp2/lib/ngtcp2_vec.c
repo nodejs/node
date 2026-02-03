@@ -30,35 +30,12 @@
 #include "ngtcp2_str.h"
 
 ngtcp2_vec *ngtcp2_vec_init(ngtcp2_vec *vec, const uint8_t *base, size_t len) {
-  vec->base = (uint8_t *)base;
-  vec->len = len;
+  *vec = (ngtcp2_vec){
+    .base = (uint8_t *)base,
+    .len = len,
+  };
+
   return vec;
-}
-
-int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
-                   const ngtcp2_mem *mem) {
-  size_t len;
-  uint8_t *p;
-
-  len = sizeof(ngtcp2_vec) + datalen;
-
-  *pvec = ngtcp2_mem_malloc(mem, len);
-  if (*pvec == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  p = (uint8_t *)(*pvec) + sizeof(ngtcp2_vec);
-  (*pvec)->base = p;
-  (*pvec)->len = datalen;
-  if (datalen) {
-    /* p = */ ngtcp2_cpymem(p, data, datalen);
-  }
-
-  return 0;
-}
-
-void ngtcp2_vec_del(ngtcp2_vec *vec, const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, vec);
 }
 
 uint64_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n) {
@@ -89,8 +66,8 @@ int64_t ngtcp2_vec_len_varint(const ngtcp2_vec *vec, size_t n) {
   return (int64_t)res;
 }
 
-ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
-                              size_t *pdstcnt, size_t left, size_t maxcnt) {
+ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
+                              size_t *psrccnt, size_t left, size_t maxcnt) {
   size_t i;
   size_t srccnt = *psrccnt;
   size_t nmove;
@@ -128,8 +105,7 @@ ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
       memcpy(dst, src + i, sizeof(ngtcp2_vec) * nmove);
     }
 
-    dst[0].len -= left;
-    dst[0].base += left;
+    ngtcp2_vec_drop(&dst[0], left);
     src[i].len = left;
 
     if (nmove == 0) {
@@ -162,8 +138,7 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
       a->len = left;
       a->base = b->base;
 
-      b->len -= left;
-      b->base += left;
+      ngtcp2_vec_drop(b, left);
 
       return left;
     }
@@ -184,13 +159,14 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
       } else if (*pdstcnt == maxcnt) {
         break;
       } else {
-        dst[*pdstcnt].len = left;
-        dst[*pdstcnt].base = b->base;
+        dst[*pdstcnt] = (ngtcp2_vec){
+          .base = b->base,
+          .len = left,
+        };
         ++*pdstcnt;
       }
 
-      b->len -= left;
-      b->base += left;
+      ngtcp2_vec_drop(b, left);
       left = 0;
 
       break;
@@ -203,6 +179,7 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
     } else {
       dst[(*pdstcnt)++] = *b;
     }
+
     left -= b->len;
   }
 
@@ -222,11 +199,17 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
       ++i;
       continue;
     }
-    dst[j] = src[i];
-    if (dst[j].len > left) {
-      dst[j].len = left;
+
+    if (src[i].len > left) {
+      dst[j] = (ngtcp2_vec){
+        .base = src[i].base,
+        .len = left,
+      };
+
       return j + 1;
     }
+
+    dst[j] = src[i];
     left -= dst[j].len;
     ++i;
     ++j;
@@ -237,4 +220,15 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
 
 void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt) {
   memcpy(dst, src, sizeof(ngtcp2_vec) * cnt);
+}
+
+void ngtcp2_vec_split_at(ngtcp2_vec *dst, ngtcp2_vec *src, size_t offset) {
+  assert(offset < src->len);
+
+  *dst = (ngtcp2_vec){
+    .base = src->base + offset,
+    .len = src->len - offset,
+  };
+
+  src->len = offset;
 }

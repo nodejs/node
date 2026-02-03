@@ -36,7 +36,7 @@ OSSL_LIB_CTX *app_create_libctx(void)
      */
     if (app_libctx == NULL) {
         if (!app_provider_load(NULL, "null")) {
-            opt_printf_stderr( "Failed to create null provider\n");
+            opt_printf_stderr("Failed to create null provider\n");
             return NULL;
         }
         app_libctx = OSSL_LIB_CTX_new();
@@ -45,4 +45,3 @@ OSSL_LIB_CTX *app_create_libctx(void)
         opt_printf_stderr("Failed to create library context\n");
     return app_libctx;
 }
-

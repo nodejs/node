@@ -88,6 +88,8 @@ def GuessOS():
   elif system in ['AIX', 'OS400']:
     # OS400 runs an AIX emulator called PASE
     return 'aix'
+  elif system == "OS/390":
+    return 'zos'
   else:
     return None
 
@@ -95,6 +97,12 @@ def GuessOS():
 # Check if Vector Enhancement Facility 1 is available on the
 # host S390 machine. This facility is required for supporting Simd on V8.
 def IsS390SimdSupported():
+  if GuessOS() == 'zos':
+    from ctypes import CDLL
+    libname = os.environ.get('ZOSLIB_LIBPATH') + '/libzoslib.so'
+    clib = CDLL(libname)
+    return clib.__is_vef1_available()
+
   import subprocess
   cpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True)
   cpuinfo_list = cpuinfo.strip().decode("utf-8").splitlines()
@@ -116,16 +124,14 @@ def GuessPowerProcessorVersion():
     _LIBC.getauxval.argtypes = [ctypes.c_ulong]
     _LIBC.getauxval.restype = ctypes.c_char_p
     at_platform = _LIBC.getauxval(AT_PLATFORM).decode('utf-8').lower()
-    if at_platform.startswith('power6'):
-      return 6
-    elif at_platform.startswith('power7'):
-      return 7
-    elif at_platform.startswith('power8'):
+    if at_platform.startswith('power8'):
       return 8
     elif at_platform.startswith('power9'):
       return 9
     elif at_platform.startswith('power10'):
       return 10
+    elif at_platform.startswith('power11'):
+      return 11
     else:
       raise Exception('Unable to guess power processor version')
   elif os == 'aix':

@@ -236,6 +236,98 @@ t.test('package-lock-only', t => {
     await npm.exec('query', ['*'])
     t.matchSnapshot(joinedOutput(), 'should return valid response with only lock info')
   })
+
+  t.test('with package lock and workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        'package-lock.json': JSON.stringify({
+          name: 'root',
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            '': {
+              name: 'root',
+              workspaces: ['packages/*'],
+            },
+            'node_modules/a': {
+              resolved: 'packages/a',
+              link: true,
+            },
+            'packages/a': {
+              name: 'a',
+              version: '1.0.0',
+            },
+          },
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await npm.exec('query', ['*'])
+    t.matchSnapshot(joinedOutput(), 'should return workspace object with package-lock-only')
+  })
+
+  t.test('no package lock and workspace', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await t.rejects(npm.exec('query', ['*']), { code: 'EUSAGE' })
+  })
+
+  t.test('missing workspace in tree', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await npm.exec('query', ['*'])
+    t.matchSnapshot(joinedOutput(), 'should return empty array for missing workspace')
+  })
   t.end()
 })
 
@@ -258,7 +350,7 @@ t.test('expect entries', t => {
     npm.config.set('expect-results', false)
     await npm.exec('query', ['#a'])
     t.not(joinedOutput(), '[]', 'has entries')
-    t.same(logs.warn, [['query', 'Expected no results, got 1']])
+    t.same(logs.warn.byTitle('query'), ['query Expected no results, got 1'])
     t.ok(process.exitCode, 'exits with code')
   })
   t.test('false, no entries', async t => {
@@ -286,7 +378,7 @@ t.test('expect entries', t => {
     npm.config.set('expect-results', true)
     await npm.exec('query', ['#b'])
     t.equal(joinedOutput(), '[]', 'does not have entries')
-    t.same(logs.warn, [['query', 'Expected results, got 0']])
+    t.same(logs.warn.byTitle('query'), ['query Expected results, got 0'])
     t.ok(process.exitCode, 'exits with code')
   })
   t.test('count, matches', async t => {
@@ -305,7 +397,7 @@ t.test('expect entries', t => {
     npm.config.set('expect-result-count', 1)
     await npm.exec('query', ['#b'])
     t.equal(joinedOutput(), '[]', 'does not have entries')
-    t.same(logs.warn, [['query', 'Expected 1 result, got 0']])
+    t.same(logs.warn.byTitle('query'), ['query Expected 1 result, got 0'])
     t.ok(process.exitCode, 'exits with code')
   })
   t.test('count 3, does not match', async t => {
@@ -315,8 +407,30 @@ t.test('expect entries', t => {
     npm.config.set('expect-result-count', 3)
     await npm.exec('query', ['#b'])
     t.equal(joinedOutput(), '[]', 'does not have entries')
-    t.same(logs.warn, [['query', 'Expected 3 results, got 0']])
+    t.same(logs.warn.byTitle('query'), ['query Expected 3 results, got 0'])
     t.ok(process.exitCode, 'exits with code')
   })
   t.end()
+})
+
+t.test('missing', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      node_modules: {
+        a: {
+          name: 'a',
+          version: '1.0.0',
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'project',
+        dependencies: {
+          a: '^1.0.0',
+          b: '^1.0.0',
+        },
+      }),
+    },
+  })
+  await npm.exec('query', [':missing'])
+  t.matchSnapshot(joinedOutput(), 'should return missing node')
 })

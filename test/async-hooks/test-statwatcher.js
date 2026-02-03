@@ -7,8 +7,11 @@ const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const fs = require('fs');
 
-if (!common.isMainThread)
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
   common.skip('Worker bootstrapping works differently -> different async IDs');
+}
 
 tmpdir.refresh();
 
@@ -21,13 +24,13 @@ const onchangex = (x) => (curr, prev) => {
   console.log('previous stat data:', prev);
 };
 
-const checkWatcherStart = (name, watcher) => {
+const checkWatcherStart = common.mustCall((name, watcher) => {
   assert.strictEqual(watcher.type, 'STATWATCHER');
   assert.strictEqual(typeof watcher.uid, 'number');
   assert.strictEqual(watcher.triggerAsyncId, 1);
   checkInvocations(watcher, { init: 1 },
                    `${name}: when started to watch file`);
-};
+}, 2);
 
 const hooks = initHooks();
 hooks.enable();
@@ -64,7 +67,7 @@ w1.on('change', common.mustCallAtLeast((curr, prev) => {
   if (prev.size !== 0 || curr.size !== 5)
     return;
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     checkInvocations(statwatcher1,
                      { init: 1, before: w1HookCount, after: w1HookCount },
                      'watcher1: when unwatched first file');
@@ -90,7 +93,7 @@ w1.on('change', common.mustCallAtLeast((curr, prev) => {
         fs.unwatchFile(file2);
       });
     }));
-  });
+  }));
 }));
 
 process.once('exit', () => {

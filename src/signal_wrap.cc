@@ -104,7 +104,7 @@ class SignalWrap : public HandleWrap {
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     Environment* env = wrap->env();
     int signum;
     if (!args[0]->Int32Value(env->context()).To(&signum)) return;
@@ -142,7 +142,7 @@ class SignalWrap : public HandleWrap {
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     if (wrap->active_)  {
       wrap->active_ = false;
@@ -170,7 +170,7 @@ void DecreaseSignalHandlerCount(int signum) {
 
 bool HasSignalJSHandler(int signum) {
   Mutex::ScopedLock lock(handled_signals_mutex);
-  return handled_signals.find(signum) != handled_signals.end();
+  return handled_signals.contains(signum);
 }
 }  // namespace node
 

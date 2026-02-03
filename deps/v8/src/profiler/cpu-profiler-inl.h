@@ -6,6 +6,7 @@
 #define V8_PROFILER_CPU_PROFILER_INL_H_
 
 #include "src/profiler/cpu-profiler.h"
+// Include the non-inl header before the rest of the headers.
 
 #include <new>
 #include "src/profiler/circular-queue-inl.h"

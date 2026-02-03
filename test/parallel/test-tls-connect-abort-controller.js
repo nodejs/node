@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const tls = require('tls');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const { getEventListeners, once } = require('events');
+const { listenerCount, once } = require('events');
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
@@ -23,20 +23,17 @@ server.listen(0, common.mustCall(async () => {
     rejectUnauthorized: false,
   });
 
-  const assertAbort = async (socket, testName) => {
-    try {
-      await once(socket, 'close');
-      assert.fail(`close ${testName} should have thrown`);
-    } catch (err) {
-      assert.strictEqual(err.name, 'AbortError');
-    }
-  };
+  function assertAbort(socket, testName) {
+    return assert.rejects(() => once(socket, 'close'), {
+      name: 'AbortError',
+    }, `close ${testName} should have thrown`);
+  }
 
   async function postAbort() {
     const ac = new AbortController();
     const { signal } = ac;
     const socket = tls.connect(connectOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     await assertAbort(socket, 'postAbort');
   }
@@ -46,7 +43,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     ac.abort();
     const socket = tls.connect(connectOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
     await assertAbort(socket, 'preAbort');
   }
 
@@ -55,7 +52,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     const socket = tls.connect(connectOptions(signal));
     setImmediate(() => ac.abort());
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     await assertAbort(socket, 'tickAbort');
   }
 
@@ -64,7 +61,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     ac.abort();
     const socket = new tls.TLSSocket(undefined, connectOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
     await assertAbort(socket, 'testConstructor');
   }
 
@@ -72,7 +69,7 @@ server.listen(0, common.mustCall(async () => {
     const ac = new AbortController();
     const { signal } = ac;
     const socket = new tls.TLSSocket(undefined, connectOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     await assertAbort(socket, 'testConstructorPost');
   }
@@ -82,7 +79,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     const socket = new tls.TLSSocket(undefined, connectOptions(signal));
     setImmediate(() => ac.abort());
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     await assertAbort(socket, 'testConstructorPostTick');
   }
 

@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -49,9 +49,9 @@ uint8_t *nghttp3_qpack_huffman_encode(uint8_t *dest, const uint8_t *src,
 typedef enum nghttp3_qpack_huffman_decode_flag {
   /* FSA accepts this state as the end of huffman encoding
      sequence. */
-  NGHTTP3_QPACK_HUFFMAN_ACCEPTED = 1 << 14,
+  NGHTTP3_QPACK_HUFFMAN_ACCEPTED = 1,
   /* This state emits symbol */
-  NGHTTP3_QPACK_HUFFMAN_SYM = 1 << 15,
+  NGHTTP3_QPACK_HUFFMAN_SYM = 1 << 1,
 } nghttp3_qpack_huffman_decode_flag;
 
 typedef struct nghttp3_qpack_huffman_decode_node {
@@ -63,6 +63,7 @@ typedef struct nghttp3_qpack_huffman_decode_node {
      256 is a special node and it is a terminal state that means
      decoding failed. */
   uint16_t fstate;
+  uint8_t flags;
   /* symbol if NGHTTP3_QPACK_HUFFMAN_SYM flag set */
   uint8_t sym;
 } nghttp3_qpack_huffman_decode_node;
@@ -70,12 +71,13 @@ typedef struct nghttp3_qpack_huffman_decode_node {
 typedef struct nghttp3_qpack_huffman_decode_context {
   /* fstate is the current huffman decoding state. */
   uint16_t fstate;
+  uint8_t flags;
 } nghttp3_qpack_huffman_decode_context;
 
 extern const nghttp3_qpack_huffman_decode_node qpack_huffman_decode_table[][16];
 
 void nghttp3_qpack_huffman_decode_context_init(
-    nghttp3_qpack_huffman_decode_context *ctx);
+  nghttp3_qpack_huffman_decode_context *ctx);
 
 /*
  * nghttp3_qpack_huffman_decode decodes huffman encoded byte string
@@ -103,6 +105,6 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
  * indicates that huffman decoding context is in failure state.
  */
 int nghttp3_qpack_huffman_decode_failure_state(
-    nghttp3_qpack_huffman_decode_context *ctx);
+  nghttp3_qpack_huffman_decode_context *ctx);
 
-#endif /* NGHTTP3_QPACK_HUFFMAN_H */
+#endif /* !defined(NGHTTP3_QPACK_HUFFMAN_H) */

@@ -1571,6 +1571,7 @@ ossl_bsaes_ctr32_encrypt_blocks:
 .align	16
 ossl_bsaes_xts_encrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	movq	%rsp,%rax
 .Lxts_enc_prologue:
 	pushq	%rbp
@@ -2046,6 +2047,7 @@ ossl_bsaes_xts_encrypt:
 .align	16
 ossl_bsaes_xts_decrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	movq	%rsp,%rax
 .Lxts_dec_prologue:
 	pushq	%rbp
@@ -2541,6 +2543,7 @@ ossl_bsaes_xts_decrypt:
 .cfi_endproc	
 .size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 .type	_bsaes_const,@object
+.section	.rodata
 .align	64
 _bsaes_const:
 .LM0ISR:
@@ -2592,9 +2595,9 @@ _bsaes_const:
 .quad	0x02060a0e03070b0f, 0x0004080c0105090d
 .L63:
 .quad	0x6363636363636363, 0x6363636363636363
-.byte	66,105,116,45,115,108,105,99,101,100,32,65,69,83,32,102,111,114,32,120,56,54,95,54,52,47,83,83,83,69,51,44,32,69,109,105,108,105,97,32,75,195,164,115,112,101,114,44,32,80,101,116,101,114,32,83,99,104,119,97,98,101,44,32,65,110,100,121,32,80,111,108,121,97,107,111,118,0
 .align	64
 .size	_bsaes_const,.-_bsaes_const
+.byte	66,105,116,45,115,108,105,99,101,100,32,65,69,83,32,102,111,114,32,120,56,54,95,54,52,47,83,83,83,69,51,44,32,69,109,105,108,105,97,32,75,195,164,115,112,101,114,44,32,80,101,116,101,114,32,83,99,104,119,97,98,101,44,32,65,110,100,121,32,80,111,108,121,97,107,111,118,0
 	.section ".note.gnu.property", "a"
 	.p2align 3
 	.long 1f - 0f

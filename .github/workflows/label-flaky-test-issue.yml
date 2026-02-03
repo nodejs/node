@@ -2,7 +2,7 @@ name: Label Flaky Test Issues
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 permissions:
   contents: read
@@ -26,7 +26,6 @@ jobs:
           platform2label["AIX"]="aix";
           platform2label["FreeBSD"]="freebsd";
           platform2label["Linux ARM64"]="linux";
-          platform2label["Linux ARMv7"]="arm";
           platform2label["Linux PPC64LE"]="ppc";
           platform2label["Linux s390x"]="s390";
           platform2label["Linux x64"]="linux";

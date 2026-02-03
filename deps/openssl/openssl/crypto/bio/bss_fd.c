@@ -69,7 +69,7 @@ static const BIO_METHOD methods_fdp = {
     fd_ctrl,
     fd_new,
     fd_free,
-    NULL,                       /* fd_callback_ctrl */
+    NULL, /* fd_callback_ctrl */
 };
 
 const BIO_METHOD *BIO_s_fd(void)
@@ -149,7 +149,7 @@ static long fd_ctrl(BIO *b, int cmd, long num, void *ptr)
     switch (cmd) {
     case BIO_CTRL_RESET:
         num = 0;
-        /* fall thru */
+        /* fall through */
     case BIO_C_FILE_SEEK:
         ret = (long)UP_lseek(b->num, num, 0);
         break;
@@ -213,7 +213,7 @@ static int fd_gets(BIO *bp, char *buf, int size)
 
     while (ptr < end && fd_read(bp, ptr, 1) > 0) {
         if (*ptr++ == '\n')
-           break;
+            break;
     }
 
     ptr[0] = '\0';
@@ -239,41 +239,41 @@ int BIO_fd_non_fatal_error(int err)
 {
     switch (err) {
 
-# ifdef EWOULDBLOCK
-#  ifdef WSAEWOULDBLOCK
-#   if WSAEWOULDBLOCK != EWOULDBLOCK
+#ifdef EWOULDBLOCK
+#ifdef WSAEWOULDBLOCK
+#if WSAEWOULDBLOCK != EWOULDBLOCK
     case EWOULDBLOCK:
-#   endif
-#  else
+#endif
+#else
     case EWOULDBLOCK:
-#  endif
-# endif
+#endif
+#endif
 
-# if defined(ENOTCONN)
+#if defined(ENOTCONN)
     case ENOTCONN:
-# endif
+#endif
 
-# ifdef EINTR
+#ifdef EINTR
     case EINTR:
-# endif
+#endif
 
-# ifdef EAGAIN
-#  if EWOULDBLOCK != EAGAIN
+#ifdef EAGAIN
+#if EWOULDBLOCK != EAGAIN
     case EAGAIN:
-#  endif
-# endif
+#endif
+#endif
 
-# ifdef EPROTO
+#ifdef EPROTO
     case EPROTO:
-# endif
+#endif
 
-# ifdef EINPROGRESS
+#ifdef EINPROGRESS
     case EINPROGRESS:
-# endif
+#endif
 
-# ifdef EALREADY
+#ifdef EALREADY
     case EALREADY:
-# endif
+#endif
         return 1;
     default:
         break;

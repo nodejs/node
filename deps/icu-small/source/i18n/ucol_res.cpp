@@ -59,10 +59,10 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-static const char16_t *rootRules = nullptr;
-static int32_t rootRulesLength = 0;
-static UResourceBundle *rootBundle = nullptr;
-static UInitOnce gInitOnceUcolRes {};
+const char16_t* rootRules = nullptr;
+int32_t rootRulesLength = 0;
+UResourceBundle* rootBundle = nullptr;
+UInitOnce gInitOnceUcolRes{};
 
 }  // namespace
 
@@ -654,7 +654,7 @@ public:
                     }
                 }
             } else if (type == URES_TABLE && uprv_strncmp(key, "private-", 8) != 0) {
-                if (!ulist_containsString(values, key, (int32_t)uprv_strlen(key))) {
+                if (!ulist_containsString(values, key, static_cast<int32_t>(uprv_strlen(key)))) {
                     ulist_addItemEndList(values, key, false, &errorCode);
                 }
             }

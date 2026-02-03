@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --super-ic --turbofan
-// Flags: --no-always-turbofan --deopt-every-n-times=0
+// Flags: --deopt-every-n-times=0
 
 // This file contains tests which are disabled for TurboProp. TurboProp deopts
 // differently than TurboFan, so the assertions about when a function is
@@ -43,8 +43,6 @@
 
   // Change the property value.
   B.prototype.bar = "new value";
-  r = o.foo();
-  assertEquals("new value", r);
 
   // Assert that the function was deoptimized (dependency to the constant
   // value).
@@ -54,6 +52,9 @@
   // contains a call to the IC handler and doesn't get deopted.
   assertEquals(%IsDictPropertyConstTrackingEnabled(),
                isOptimized(C.prototype.foo));
+
+  r = o.foo();
+  assertEquals("new value", r);
 })();
 
 (function TestSuperpropertyAccessInlined() {

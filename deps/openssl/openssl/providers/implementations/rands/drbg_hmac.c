@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,12 +13,15 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/proverr.h>
-#include "prov/provider_util.h"
 #include "internal/thread_once.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
+#include "prov/hmac_drbg.h"
 #include "drbg_local.h"
+#include "crypto/evp.h"
+#include "crypto/evp/evp_local.h"
+#include "internal/provider.h"
 
 static OSSL_FUNC_rand_newctx_fn drbg_hmac_new_wrapper;
 static OSSL_FUNC_rand_freectx_fn drbg_hmac_free;
@@ -32,13 +35,7 @@ static OSSL_FUNC_rand_gettable_ctx_params_fn drbg_hmac_gettable_ctx_params;
 static OSSL_FUNC_rand_get_ctx_params_fn drbg_hmac_get_ctx_params;
 static OSSL_FUNC_rand_verify_zeroization_fn drbg_hmac_verify_zeroization;
 
-typedef struct rand_drbg_hmac_st {
-    EVP_MAC_CTX *ctx;            /* H(x) = HMAC_hash OR H(x) = KMAC */
-    PROV_DIGEST digest;          /* H(x) = hash(x) */
-    size_t blocklen;
-    unsigned char K[EVP_MAX_MD_SIZE];
-    unsigned char V[EVP_MAX_MD_SIZE];
-} PROV_DRBG_HMAC;
+static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]);
 
 /*
  * Called twice by SP800-90Ar1 10.1.2.2 HMAC_DRBG_Update_Process.
@@ -55,26 +52,26 @@ typedef struct rand_drbg_hmac_st {
  * Returns zero if an error occurs otherwise it returns 1.
  */
 static int do_hmac(PROV_DRBG_HMAC *hmac, unsigned char inbyte,
-                   const unsigned char *in1, size_t in1len,
-                   const unsigned char *in2, size_t in2len,
-                   const unsigned char *in3, size_t in3len)
+    const unsigned char *in1, size_t in1len,
+    const unsigned char *in2, size_t in2len,
+    const unsigned char *in3, size_t in3len)
 {
     EVP_MAC_CTX *ctx = hmac->ctx;
 
     if (!EVP_MAC_init(ctx, hmac->K, hmac->blocklen, NULL)
-            /* K = HMAC(K, V || inbyte || [in1] || [in2] || [in3]) */
-            || !EVP_MAC_update(ctx, hmac->V, hmac->blocklen)
-            || !EVP_MAC_update(ctx, &inbyte, 1)
-            || !(in1 == NULL || in1len == 0 || EVP_MAC_update(ctx, in1, in1len))
-            || !(in2 == NULL || in2len == 0 || EVP_MAC_update(ctx, in2, in2len))
-            || !(in3 == NULL || in3len == 0 || EVP_MAC_update(ctx, in3, in3len))
-            || !EVP_MAC_final(ctx, hmac->K, NULL, sizeof(hmac->K)))
+        /* K = HMAC(K, V || inbyte || [in1] || [in2] || [in3]) */
+        || !EVP_MAC_update(ctx, hmac->V, hmac->blocklen)
+        || !EVP_MAC_update(ctx, &inbyte, 1)
+        || !(in1 == NULL || in1len == 0 || EVP_MAC_update(ctx, in1, in1len))
+        || !(in2 == NULL || in2len == 0 || EVP_MAC_update(ctx, in2, in2len))
+        || !(in3 == NULL || in3len == 0 || EVP_MAC_update(ctx, in3, in3len))
+        || !EVP_MAC_final(ctx, hmac->K, NULL, sizeof(hmac->K)))
         return 0;
 
-   /* V = HMAC(K, V) */
+    /* V = HMAC(K, V) */
     return EVP_MAC_init(ctx, hmac->K, hmac->blocklen, NULL)
-           && EVP_MAC_update(ctx, hmac->V, hmac->blocklen)
-           && EVP_MAC_final(ctx, hmac->V, NULL, sizeof(hmac->V));
+        && EVP_MAC_update(ctx, hmac->V, hmac->blocklen)
+        && EVP_MAC_final(ctx, hmac->V, NULL, sizeof(hmac->V));
 }
 
 /*
@@ -91,13 +88,11 @@ static int do_hmac(PROV_DRBG_HMAC *hmac, unsigned char inbyte,
  *
  * Returns zero if an error occurs otherwise it returns 1.
  */
-static int drbg_hmac_update(PROV_DRBG *drbg,
-                            const unsigned char *in1, size_t in1len,
-                            const unsigned char *in2, size_t in2len,
-                            const unsigned char *in3, size_t in3len)
+static int drbg_hmac_update(PROV_DRBG_HMAC *hmac,
+    const unsigned char *in1, size_t in1len,
+    const unsigned char *in2, size_t in2len,
+    const unsigned char *in3, size_t in3len)
 {
-    PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
-
     /* (Steps 1-2) K = HMAC(K, V||0x00||provided_data). V = HMAC(K,V) */
     if (!do_hmac(hmac, 0x00, in1, in1len, in2, in2len, in3, in3len))
         return 0;
@@ -119,13 +114,11 @@ static int drbg_hmac_update(PROV_DRBG *drbg,
  *
  * Returns zero if an error occurs otherwise it returns 1.
  */
-static int drbg_hmac_instantiate(PROV_DRBG *drbg,
-                                 const unsigned char *ent, size_t ent_len,
-                                 const unsigned char *nonce, size_t nonce_len,
-                                 const unsigned char *pstr, size_t pstr_len)
+int ossl_drbg_hmac_init(PROV_DRBG_HMAC *hmac,
+    const unsigned char *ent, size_t ent_len,
+    const unsigned char *nonce, size_t nonce_len,
+    const unsigned char *pstr, size_t pstr_len)
 {
-    PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
-
     if (hmac->ctx == NULL) {
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_MAC);
         return 0;
@@ -136,22 +129,39 @@ static int drbg_hmac_instantiate(PROV_DRBG *drbg,
     /* (Step 3) V = 0x01 01...01 */
     memset(hmac->V, 0x01, hmac->blocklen);
     /* (Step 4) (K,V) = HMAC_DRBG_Update(entropy||nonce||pers string, K, V) */
-    return drbg_hmac_update(drbg, ent, ent_len, nonce, nonce_len, pstr,
-                            pstr_len);
+    return drbg_hmac_update(hmac, ent, ent_len, nonce, nonce_len, pstr,
+        pstr_len);
+}
+static int drbg_hmac_instantiate(PROV_DRBG *drbg,
+    const unsigned char *ent, size_t ent_len,
+    const unsigned char *nonce, size_t nonce_len,
+    const unsigned char *pstr, size_t pstr_len)
+{
+    return ossl_drbg_hmac_init((PROV_DRBG_HMAC *)drbg->data, ent, ent_len,
+        nonce, nonce_len, pstr, pstr_len);
 }
 
 static int drbg_hmac_instantiate_wrapper(void *vdrbg, unsigned int strength,
-                                         int prediction_resistance,
-                                         const unsigned char *pstr,
-                                         size_t pstr_len,
-                                         const OSSL_PARAM params[])
+    int prediction_resistance,
+    const unsigned char *pstr,
+    size_t pstr_len,
+    const OSSL_PARAM params[])
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
+    int ret = 0;
 
-    if (!ossl_prov_is_running() || !drbg_hmac_set_ctx_params(drbg, params))
+    if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
         return 0;
-    return ossl_prov_drbg_instantiate(drbg, strength, prediction_resistance,
-                                      pstr, pstr_len);
+
+    if (!ossl_prov_is_running()
+        || !drbg_hmac_set_ctx_params_locked(drbg, params))
+        goto err;
+    ret = ossl_prov_drbg_instantiate(drbg, strength, prediction_resistance,
+        pstr, pstr_len);
+err:
+    if (drbg->lock != NULL)
+        CRYPTO_THREAD_unlock(drbg->lock);
+    return ret;
 }
 
 /*
@@ -165,21 +175,23 @@ static int drbg_hmac_instantiate_wrapper(void *vdrbg, unsigned int strength,
  * Returns zero if an error occurs otherwise it returns 1.
  */
 static int drbg_hmac_reseed(PROV_DRBG *drbg,
-                            const unsigned char *ent, size_t ent_len,
-                            const unsigned char *adin, size_t adin_len)
+    const unsigned char *ent, size_t ent_len,
+    const unsigned char *adin, size_t adin_len)
 {
+    PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
+
     /* (Step 2) (K,V) = HMAC_DRBG_Update(entropy||additional_input, K, V) */
-    return drbg_hmac_update(drbg, ent, ent_len, adin, adin_len, NULL, 0);
+    return drbg_hmac_update(hmac, ent, ent_len, adin, adin_len, NULL, 0);
 }
 
 static int drbg_hmac_reseed_wrapper(void *vdrbg, int prediction_resistance,
-                                    const unsigned char *ent, size_t ent_len,
-                                    const unsigned char *adin, size_t adin_len)
+    const unsigned char *ent, size_t ent_len,
+    const unsigned char *adin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_reseed(drbg, prediction_resistance, ent, ent_len,
-                                 adin, adin_len);
+        adin, adin_len);
 }
 
 /*
@@ -191,18 +203,17 @@ static int drbg_hmac_reseed_wrapper(void *vdrbg, int prediction_resistance,
  *
  * Returns zero if an error occurs otherwise it returns 1.
  */
-static int drbg_hmac_generate(PROV_DRBG *drbg,
-                              unsigned char *out, size_t outlen,
-                              const unsigned char *adin, size_t adin_len)
+int ossl_drbg_hmac_generate(PROV_DRBG_HMAC *hmac,
+    unsigned char *out, size_t outlen,
+    const unsigned char *adin, size_t adin_len)
 {
-    PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
     EVP_MAC_CTX *ctx = hmac->ctx;
     const unsigned char *temp = hmac->V;
 
     /* (Step 2) if adin != NULL then (K,V) = HMAC_DRBG_Update(adin, K, V) */
     if (adin != NULL
-            && adin_len > 0
-            && !drbg_hmac_update(drbg, adin, adin_len, NULL, 0, NULL, 0))
+        && adin_len > 0
+        && !drbg_hmac_update(hmac, adin, adin_len, NULL, 0, NULL, 0))
         return 0;
 
     /*
@@ -231,20 +242,28 @@ static int drbg_hmac_generate(PROV_DRBG *drbg,
         outlen -= hmac->blocklen;
     }
     /* (Step 6) (K,V) = HMAC_DRBG_Update(adin, K, V) */
-    if (!drbg_hmac_update(drbg, adin, adin_len, NULL, 0, NULL, 0))
+    if (!drbg_hmac_update(hmac, adin, adin_len, NULL, 0, NULL, 0))
         return 0;
 
     return 1;
 }
 
-static int drbg_hmac_generate_wrapper
-    (void *vdrbg, unsigned char *out, size_t outlen, unsigned int strength,
-     int prediction_resistance, const unsigned char *adin, size_t adin_len)
+static int drbg_hmac_generate(PROV_DRBG *drbg,
+    unsigned char *out, size_t outlen,
+    const unsigned char *adin, size_t adin_len)
+{
+    return ossl_drbg_hmac_generate((PROV_DRBG_HMAC *)drbg->data, out, outlen,
+        adin, adin_len);
+}
+
+static int drbg_hmac_generate_wrapper(void *vdrbg,
+    unsigned char *out, size_t outlen, unsigned int strength,
+    int prediction_resistance, const unsigned char *adin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_generate(drbg, out, outlen, strength,
-                                   prediction_resistance, adin, adin_len);
+        prediction_resistance, adin, adin_len);
 }
 
 static int drbg_hmac_uninstantiate(PROV_DRBG *drbg)
@@ -258,17 +277,37 @@ static int drbg_hmac_uninstantiate(PROV_DRBG *drbg)
 
 static int drbg_hmac_uninstantiate_wrapper(void *vdrbg)
 {
-    return drbg_hmac_uninstantiate((PROV_DRBG *)vdrbg);
+    PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
+    int ret;
+
+    if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
+        return 0;
+
+    ret = drbg_hmac_uninstantiate(drbg);
+
+    if (drbg->lock != NULL)
+        CRYPTO_THREAD_unlock(drbg->lock);
+
+    return ret;
 }
 
 static int drbg_hmac_verify_zeroization(void *vdrbg)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
     PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
+    int ret = 0;
 
-    PROV_DRBG_VERYIFY_ZEROIZATION(hmac->K);
-    PROV_DRBG_VERYIFY_ZEROIZATION(hmac->V);
-    return 1;
+    if (drbg->lock != NULL && !CRYPTO_THREAD_read_lock(drbg->lock))
+        return 0;
+
+    PROV_DRBG_VERIFY_ZEROIZATION(hmac->K);
+    PROV_DRBG_VERIFY_ZEROIZATION(hmac->V);
+
+    ret = 1;
+err:
+    if (drbg->lock != NULL)
+        CRYPTO_THREAD_unlock(drbg->lock);
+    return ret;
 }
 
 static int drbg_hmac_new(PROV_DRBG *drbg)
@@ -276,10 +315,10 @@ static int drbg_hmac_new(PROV_DRBG *drbg)
     PROV_DRBG_HMAC *hmac;
 
     hmac = OPENSSL_secure_zalloc(sizeof(*hmac));
-    if (hmac == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+    if (hmac == NULL)
         return 0;
-    }
+
+    OSSL_FIPS_IND_INIT(drbg)
 
     drbg->data = hmac;
     /* See SP800-57 Part1 Rev4 5.6.1 Table 3 */
@@ -294,11 +333,12 @@ static int drbg_hmac_new(PROV_DRBG *drbg)
 }
 
 static void *drbg_hmac_new_wrapper(void *provctx, void *parent,
-                                   const OSSL_DISPATCH *parent_dispatch)
+    const OSSL_DISPATCH *parent_dispatch)
 {
-    return ossl_rand_drbg_new(provctx, parent, parent_dispatch, &drbg_hmac_new,
-                              &drbg_hmac_instantiate, &drbg_hmac_uninstantiate,
-                              &drbg_hmac_reseed, &drbg_hmac_generate);
+    return ossl_rand_drbg_new(provctx, parent, parent_dispatch,
+        &drbg_hmac_new, &drbg_hmac_free,
+        &drbg_hmac_instantiate, &drbg_hmac_uninstantiate,
+        &drbg_hmac_reseed, &drbg_hmac_generate);
 }
 
 static void drbg_hmac_free(void *vdrbg)
@@ -321,66 +361,173 @@ static int drbg_hmac_get_ctx_params(void *vdrbg, OSSL_PARAM params[])
     const char *name;
     const EVP_MD *md;
     OSSL_PARAM *p;
+    int ret = 0, complete = 0;
+
+    if (!ossl_drbg_get_ctx_params_no_lock(drbg, params, &complete))
+        return 0;
+
+    if (complete)
+        return 1;
+
+    if (drbg->lock != NULL && !CRYPTO_THREAD_read_lock(drbg->lock))
+        return 0;
 
     p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAC);
     if (p != NULL) {
         if (hmac->ctx == NULL)
-            return 0;
+            goto err;
         name = EVP_MAC_get0_name(EVP_MAC_CTX_get0_mac(hmac->ctx));
         if (!OSSL_PARAM_set_utf8_string(p, name))
-            return 0;
+            goto err;
     }
 
     p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_DIGEST);
     if (p != NULL) {
         md = ossl_prov_digest_md(&hmac->digest);
         if (md == NULL || !OSSL_PARAM_set_utf8_string(p, EVP_MD_get0_name(md)))
-            return 0;
+            goto err;
     }
 
-    return ossl_drbg_get_ctx_params(drbg, params);
+    ret = ossl_drbg_get_ctx_params(drbg, params);
+err:
+    if (drbg->lock != NULL)
+        CRYPTO_THREAD_unlock(drbg->lock);
+
+    return ret;
 }
 
 static const OSSL_PARAM *drbg_hmac_gettable_ctx_params(ossl_unused void *vctx,
-                                                       ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_MAC, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_DIGEST, NULL, 0),
         OSSL_PARAM_DRBG_GETTABLE_CTX_COMMON,
-        OSSL_PARAM_END
+        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+            OSSL_PARAM_END
     };
     return known_gettable_ctx_params;
 }
 
-static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
+    OSSL_LIB_CTX *libctx,
+    EVP_MAC_CTX **macctx,
+    EVP_MD **digest)
+{
+    OSSL_PROVIDER *prov = NULL;
+    const OSSL_PARAM *p;
+    const char *digest_name = NULL;
+    const char *hmac_name = NULL;
+    EVP_MD *md = NULL;
+    EVP_MAC *mac = NULL;
+    OSSL_PARAM mac_params[2], *mp = mac_params;
+    int ret = 0;
+
+    if (macctx == NULL || digest == NULL)
+        return 0;
+
+    if ((p = OSSL_PARAM_locate_const(params,
+             OSSL_PROV_PARAM_CORE_PROV_NAME))
+        == NULL)
+        return 0;
+    if (p->data_type != OSSL_PARAM_UTF8_STRING)
+        return 0;
+    if ((prov = ossl_provider_find(libctx, (const char *)p->data, 1)) == NULL)
+        return 0;
+
+    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
+    if (p) {
+        if (OSSL_PARAM_get_utf8_string_ptr(p, &digest_name)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
+            goto done;
+        }
+        md = evp_digest_fetch_from_prov(prov, digest_name, NULL);
+        if (md) {
+            EVP_MD_free(*digest);
+            *digest = md;
+        } else {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST);
+            goto done;
+        }
+    } else {
+        /* we need a digest */
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST);
+        goto done;
+    }
+    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_MAC);
+    if (p == NULL) {
+        hmac_name = "HMAC";
+    } else {
+        if (OSSL_PARAM_get_utf8_string_ptr(p, &hmac_name)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
+            goto done;
+        }
+    }
+
+    EVP_MAC_CTX_free(*macctx);
+    *macctx = NULL;
+
+    mac = evp_mac_fetch_from_prov(prov, hmac_name, NULL);
+    if (mac) {
+        *macctx = EVP_MAC_CTX_new(mac);
+        /* The context holds on to the MAC */
+        EVP_MAC_free(mac);
+        *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, (char *)digest_name, 0);
+        *mp = OSSL_PARAM_construct_end();
+        if (!EVP_MAC_CTX_set_params(*macctx, mac_params)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MAC);
+            EVP_MAC_CTX_free(*macctx);
+            *macctx = NULL;
+            goto done;
+        }
+        ret = 1;
+    }
+
+done:
+    ossl_provider_free(prov);
+    return ret;
+}
+
+static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[])
 {
     PROV_DRBG *ctx = (PROV_DRBG *)vctx;
     PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)ctx->data;
     OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
+    EVP_MD *prov_md = NULL;
     const EVP_MD *md;
+    int md_size;
 
-    if (!ossl_prov_digest_load_from_params(&hmac->digest, params, libctx))
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
+            OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK))
         return 0;
 
-    /*
-     * Confirm digest is allowed. We allow all digests that are not XOF
-     * (such as SHAKE).  In FIPS mode, the fetch will fail for non-approved
-     * digests.
-     */
-    md = ossl_prov_digest_md(&hmac->digest);
-    if (md != NULL && (EVP_MD_get_flags(md) & EVP_MD_FLAG_XOF) != 0) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_XOF_DIGESTS_NOT_ALLOWED);
-        return 0;
+    /* try to fetch mac and digest from provider */
+    (void)ERR_set_mark();
+    if (!drbg_fetch_algs_from_prov(params, libctx, &hmac->ctx, &prov_md)) {
+        (void)ERR_pop_to_mark();
+        /* fall back to full implementation search */
+        if (!ossl_prov_digest_load_from_params(&hmac->digest, params, libctx))
+            return 0;
+
+        if (!ossl_prov_macctx_load_from_params(&hmac->ctx, params,
+                NULL, NULL, NULL, libctx))
+            return 0;
+    } else {
+        (void)ERR_clear_last_mark();
+        if (prov_md)
+            ossl_prov_digest_set_md(&hmac->digest, prov_md);
     }
 
-    if (!ossl_prov_macctx_load_from_params(&hmac->ctx, params,
-                                           NULL, NULL, NULL, libctx))
-        return 0;
+    md = ossl_prov_digest_md(&hmac->digest);
+    if (md != NULL && !ossl_drbg_verify_digest(ctx, libctx, md))
+        return 0; /* Error already raised for us */
 
-    if (hmac->ctx != NULL) {
+    if (md != NULL && hmac->ctx != NULL) {
         /* These are taken from SP 800-90 10.1 Table 2 */
-        hmac->blocklen = EVP_MD_get_size(md);
+        md_size = EVP_MD_get_size(md);
+        if (md_size <= 0)
+            return 0;
+        hmac->blocklen = (size_t)md_size;
         /* See SP800-57 Part1 Rev4 5.6.1 Table 3 */
         ctx->strength = 64 * (int)(hmac->blocklen >> 3);
         if (ctx->strength > 256)
@@ -393,40 +540,57 @@ static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return ossl_drbg_set_ctx_params(ctx, params);
 }
 
+static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+{
+    PROV_DRBG *drbg = (PROV_DRBG *)vctx;
+    int ret;
+
+    if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
+        return 0;
+
+    ret = drbg_hmac_set_ctx_params_locked(vctx, params);
+
+    if (drbg->lock != NULL)
+        CRYPTO_THREAD_unlock(drbg->lock);
+
+    return ret;
+}
+
 static const OSSL_PARAM *drbg_hmac_settable_ctx_params(ossl_unused void *vctx,
-                                                       ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_PROPERTIES, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_DIGEST, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_MAC, NULL, 0),
         OSSL_PARAM_DRBG_SETTABLE_CTX_COMMON,
-        OSSL_PARAM_END
+        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK)
+            OSSL_PARAM_END
     };
     return known_settable_ctx_params;
 }
 
 const OSSL_DISPATCH ossl_drbg_ossl_hmac_functions[] = {
-    { OSSL_FUNC_RAND_NEWCTX, (void(*)(void))drbg_hmac_new_wrapper },
-    { OSSL_FUNC_RAND_FREECTX, (void(*)(void))drbg_hmac_free },
+    { OSSL_FUNC_RAND_NEWCTX, (void (*)(void))drbg_hmac_new_wrapper },
+    { OSSL_FUNC_RAND_FREECTX, (void (*)(void))drbg_hmac_free },
     { OSSL_FUNC_RAND_INSTANTIATE,
-      (void(*)(void))drbg_hmac_instantiate_wrapper },
+        (void (*)(void))drbg_hmac_instantiate_wrapper },
     { OSSL_FUNC_RAND_UNINSTANTIATE,
-      (void(*)(void))drbg_hmac_uninstantiate_wrapper },
-    { OSSL_FUNC_RAND_GENERATE, (void(*)(void))drbg_hmac_generate_wrapper },
-    { OSSL_FUNC_RAND_RESEED, (void(*)(void))drbg_hmac_reseed_wrapper },
-    { OSSL_FUNC_RAND_ENABLE_LOCKING, (void(*)(void))ossl_drbg_enable_locking },
-    { OSSL_FUNC_RAND_LOCK, (void(*)(void))ossl_drbg_lock },
-    { OSSL_FUNC_RAND_UNLOCK, (void(*)(void))ossl_drbg_unlock },
+        (void (*)(void))drbg_hmac_uninstantiate_wrapper },
+    { OSSL_FUNC_RAND_GENERATE, (void (*)(void))drbg_hmac_generate_wrapper },
+    { OSSL_FUNC_RAND_RESEED, (void (*)(void))drbg_hmac_reseed_wrapper },
+    { OSSL_FUNC_RAND_ENABLE_LOCKING, (void (*)(void))ossl_drbg_enable_locking },
+    { OSSL_FUNC_RAND_LOCK, (void (*)(void))ossl_drbg_lock },
+    { OSSL_FUNC_RAND_UNLOCK, (void (*)(void))ossl_drbg_unlock },
     { OSSL_FUNC_RAND_SETTABLE_CTX_PARAMS,
-      (void(*)(void))drbg_hmac_settable_ctx_params },
-    { OSSL_FUNC_RAND_SET_CTX_PARAMS, (void(*)(void))drbg_hmac_set_ctx_params },
+        (void (*)(void))drbg_hmac_settable_ctx_params },
+    { OSSL_FUNC_RAND_SET_CTX_PARAMS, (void (*)(void))drbg_hmac_set_ctx_params },
     { OSSL_FUNC_RAND_GETTABLE_CTX_PARAMS,
-      (void(*)(void))drbg_hmac_gettable_ctx_params },
-    { OSSL_FUNC_RAND_GET_CTX_PARAMS, (void(*)(void))drbg_hmac_get_ctx_params },
+        (void (*)(void))drbg_hmac_gettable_ctx_params },
+    { OSSL_FUNC_RAND_GET_CTX_PARAMS, (void (*)(void))drbg_hmac_get_ctx_params },
     { OSSL_FUNC_RAND_VERIFY_ZEROIZATION,
-      (void(*)(void))drbg_hmac_verify_zeroization },
-    { OSSL_FUNC_RAND_GET_SEED, (void(*)(void))ossl_drbg_get_seed },
-    { OSSL_FUNC_RAND_CLEAR_SEED, (void(*)(void))ossl_drbg_clear_seed },
-    { 0, NULL }
+        (void (*)(void))drbg_hmac_verify_zeroization },
+    { OSSL_FUNC_RAND_GET_SEED, (void (*)(void))ossl_drbg_get_seed },
+    { OSSL_FUNC_RAND_CLEAR_SEED, (void (*)(void))ossl_drbg_clear_seed },
+    OSSL_DISPATCH_END
 };

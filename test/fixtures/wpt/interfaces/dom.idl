@@ -110,6 +110,7 @@ Document includes NonElementParentNode;
 DocumentFragment includes NonElementParentNode;
 
 interface mixin DocumentOrShadowRoot {
+  readonly attribute CustomElementRegistry? customElementRegistry;
 };
 Document includes DocumentOrShadowRoot;
 ShadowRoot includes DocumentOrShadowRoot;
@@ -123,6 +124,8 @@ interface mixin ParentNode {
   [CEReactions, Unscopable] undefined prepend((Node or DOMString)... nodes);
   [CEReactions, Unscopable] undefined append((Node or DOMString)... nodes);
   [CEReactions, Unscopable] undefined replaceChildren((Node or DOMString)... nodes);
+
+  [CEReactions] undefined moveBefore(Node node, Node? child);
 
   Element? querySelector(DOMString selectors);
   [NewObject] NodeList querySelectorAll(DOMString selectors);
@@ -237,7 +240,7 @@ interface Node : EventTarget {
   [CEReactions] attribute DOMString? textContent;
   [CEReactions] undefined normalize();
 
-  [CEReactions, NewObject] Node cloneNode(optional boolean deep = false);
+  [CEReactions, NewObject] Node cloneNode(optional boolean subtree = false);
   boolean isEqualNode(Node? otherNode);
   boolean isSameNode(Node? otherNode); // legacy alias of ===
 
@@ -291,7 +294,7 @@ interface Document : Node {
   [NewObject] Comment createComment(DOMString data);
   [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
 
-  [CEReactions, NewObject] Node importNode(Node node, optional boolean deep = false);
+  [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
   [CEReactions] Node adoptNode(Node node);
 
   [NewObject] Attr createAttribute(DOMString localName);
@@ -310,7 +313,13 @@ interface Document : Node {
 interface XMLDocument : Document {};
 
 dictionary ElementCreationOptions {
+  CustomElementRegistry customElementRegistry;
   DOMString is;
+};
+
+dictionary ImportNodeOptions {
+  CustomElementRegistry customElementRegistry;
+  boolean selfOnly = false;
 };
 
 [Exposed=Window]
@@ -339,7 +348,10 @@ interface ShadowRoot : DocumentFragment {
   readonly attribute ShadowRootMode mode;
   readonly attribute boolean delegatesFocus;
   readonly attribute SlotAssignmentMode slotAssignment;
+  readonly attribute boolean clonable;
+  readonly attribute boolean serializable;
   readonly attribute Element host;
+
   attribute EventHandler onslotchange;
 };
 
@@ -380,6 +392,8 @@ interface Element : Node {
   ShadowRoot attachShadow(ShadowRootInit init);
   readonly attribute ShadowRoot? shadowRoot;
 
+  readonly attribute CustomElementRegistry? customElementRegistry;
+
   Element? closest(DOMString selectors);
   boolean matches(DOMString selectors);
   boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
@@ -396,6 +410,9 @@ dictionary ShadowRootInit {
   required ShadowRootMode mode;
   boolean delegatesFocus = false;
   SlotAssignmentMode slotAssignment = "named";
+  boolean clonable = false;
+  boolean serializable = false;
+  CustomElementRegistry customElementRegistry;
 };
 
 [Exposed=Window,

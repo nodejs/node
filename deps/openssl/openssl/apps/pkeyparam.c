@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,29 +18,33 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_IN, OPT_OUT, OPT_TEXT, OPT_NOOUT,
-    OPT_ENGINE, OPT_CHECK,
+    OPT_IN,
+    OPT_OUT,
+    OPT_TEXT,
+    OPT_NOOUT,
+    OPT_ENGINE,
+    OPT_CHECK,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkeyparam_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
-    {"check", OPT_CHECK, '-', "Check key param consistency"},
+    { "check", OPT_CHECK, '-', "Check key param consistency" },
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
+    { "in", OPT_IN, '<', "Input file" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"text", OPT_TEXT, '-', "Print parameters as text"},
-    {"noout", OPT_NOOUT, '-', "Don't output encoded parameters"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "text", OPT_TEXT, '-', "Print parameters as text" },
+    { "noout", OPT_NOOUT, '-', "Don't output encoded parameters" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int pkeyparam_main(int argc, char **argv)
@@ -58,7 +62,7 @@ int pkeyparam_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -91,28 +95,27 @@ int pkeyparam_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     in = bio_open_default(infile, 'r', FORMAT_PEM);
     if (in == NULL)
         goto end;
-    out = bio_open_default(outfile, 'w', FORMAT_PEM);
-    if (out == NULL)
-        goto end;
     pkey = PEM_read_bio_Parameters_ex(in, NULL, app_get0_libctx(),
-                                      app_get0_propq());
+        app_get0_propq());
     if (pkey == NULL) {
         BIO_printf(bio_err, "Error reading parameters\n");
         ERR_print_errors(bio_err);
         goto end;
     }
+    out = bio_open_default(outfile, 'w', FORMAT_PEM);
+    if (out == NULL)
+        goto end;
 
     if (check) {
         if (e == NULL)
             ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey,
-                                             app_get0_propq());
+                app_get0_propq());
         else
             ctx = EVP_PKEY_CTX_new(pkey, e);
         if (ctx == NULL) {
@@ -143,7 +146,7 @@ int pkeyparam_main(int argc, char **argv)
 
     ret = EXIT_SUCCESS;
 
- end:
+end:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     release_engine(e);

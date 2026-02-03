@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -13,12 +13,12 @@
 
 static const gf MODULUS = {
     FIELD_LITERAL(0xffffffffffffffULL, 0xffffffffffffffULL, 0xffffffffffffffULL,
-                  0xffffffffffffffULL, 0xfffffffffffffeULL, 0xffffffffffffffULL,
-                  0xffffffffffffffULL, 0xffffffffffffffULL)
+        0xffffffffffffffULL, 0xfffffffffffffeULL, 0xffffffffffffffULL,
+        0xffffffffffffffULL, 0xffffffffffffffULL)
 };
 
 /* Serialize to wire format. */
-void gf_serialize(uint8_t *serial, const gf x, int with_hibit)
+void gf_serialize(uint8_t serial[SER_BYTES], const gf x, int with_hibit)
 {
     unsigned int j = 0, fill = 0;
     dword_t buffer = 0;
@@ -32,7 +32,7 @@ void gf_serialize(uint8_t *serial, const gf x, int with_hibit)
 
     for (i = 0; i < (with_hibit ? X_SER_BYTES : SER_BYTES); i++) {
         if (fill < 8 && j < NLIMBS) {
-            buffer |= ((dword_t) red->limb[LIMBPERM(j)]) << fill;
+            buffer |= ((dword_t)red->limb[LIMBPERM(j)]) << fill;
             fill += LIMB_PLACE_VALUE(LIMBPERM(j));
             j++;
         }
@@ -64,7 +64,7 @@ mask_t gf_lobit(const gf x)
 
 /* Deserialize from wire format; return -1 on success and 0 on failure. */
 mask_t gf_deserialize(gf x, const uint8_t serial[SER_BYTES], int with_hibit,
-                      uint8_t hi_nmask)
+    uint8_t hi_nmask)
 {
     unsigned int j = 0, fill = 0;
     dword_t buffer = 0;
@@ -80,19 +80,16 @@ mask_t gf_deserialize(gf x, const uint8_t serial[SER_BYTES], int with_hibit,
             sj = serial[j];
             if (j == nbytes - 1)
                 sj &= ~hi_nmask;
-            buffer |= ((dword_t) sj) << fill;
+            buffer |= ((dword_t)sj) << fill;
             fill += 8;
             j++;
         }
-        x->limb[LIMBPERM(i)] = (word_t)
-            ((i < NLIMBS - 1) ? buffer & LIMB_MASK(LIMBPERM(i)) : buffer);
+        x->limb[LIMBPERM(i)] = (word_t)((i < NLIMBS - 1) ? buffer & LIMB_MASK(LIMBPERM(i)) : buffer);
         fill -= LIMB_PLACE_VALUE(LIMBPERM(i));
         buffer >>= LIMB_PLACE_VALUE(LIMBPERM(i));
-        scarry =
-            (scarry + x->limb[LIMBPERM(i)] -
-             MODULUS->limb[LIMBPERM(i)]) >> (8 * sizeof(word_t));
+        scarry = (scarry + x->limb[LIMBPERM(i)] - MODULUS->limb[LIMBPERM(i)]) >> (8 * sizeof(word_t));
     }
-    succ = with_hibit ? 0 - (mask_t) 1 : ~gf_hibit(x);
+    succ = with_hibit ? 0 - (mask_t)1 : ~gf_hibit(x);
     return succ & word_is_zero((word_t)buffer) & ~word_is_zero((word_t)scarry);
 }
 
@@ -105,7 +102,7 @@ void gf_strong_reduce(gf a)
     unsigned int i;
 
     /* first, clear high */
-    gf_weak_reduce(a);          /* Determined to have negligible perf impact. */
+    gf_weak_reduce(a); /* Determined to have negligible perf impact. */
 
     /* now the total is less than 2p */
 
@@ -128,9 +125,7 @@ void gf_strong_reduce(gf a)
 
     /* add it back */
     for (i = 0; i < NLIMBS; i++) {
-        carry =
-            carry + a->limb[LIMBPERM(i)] +
-            (scarry_0 & MODULUS->limb[LIMBPERM(i)]);
+        carry = carry + a->limb[LIMBPERM(i)] + (scarry_0 & MODULUS->limb[LIMBPERM(i)]);
         a->limb[LIMBPERM(i)] = carry & LIMB_MASK(LIMBPERM(i));
         carry >>= LIMB_PLACE_VALUE(LIMBPERM(i));
     }
@@ -173,32 +168,32 @@ mask_t gf_isr(gf a, const gf x)
 {
     gf L0, L1, L2;
 
-    gf_sqr(L1, x);
-    gf_mul(L2, x, L1);
-    gf_sqr(L1, L2);
-    gf_mul(L2, x, L1);
+    ossl_gf_sqr(L1, x);
+    ossl_gf_mul(L2, x, L1);
+    ossl_gf_sqr(L1, L2);
+    ossl_gf_mul(L2, x, L1);
     gf_sqrn(L1, L2, 3);
-    gf_mul(L0, L2, L1);
+    ossl_gf_mul(L0, L2, L1);
     gf_sqrn(L1, L0, 3);
-    gf_mul(L0, L2, L1);
+    ossl_gf_mul(L0, L2, L1);
     gf_sqrn(L2, L0, 9);
-    gf_mul(L1, L0, L2);
-    gf_sqr(L0, L1);
-    gf_mul(L2, x, L0);
+    ossl_gf_mul(L1, L0, L2);
+    ossl_gf_sqr(L0, L1);
+    ossl_gf_mul(L2, x, L0);
     gf_sqrn(L0, L2, 18);
-    gf_mul(L2, L1, L0);
+    ossl_gf_mul(L2, L1, L0);
     gf_sqrn(L0, L2, 37);
-    gf_mul(L1, L2, L0);
+    ossl_gf_mul(L1, L2, L0);
     gf_sqrn(L0, L1, 37);
-    gf_mul(L1, L2, L0);
+    ossl_gf_mul(L1, L2, L0);
     gf_sqrn(L0, L1, 111);
-    gf_mul(L2, L1, L0);
-    gf_sqr(L0, L2);
-    gf_mul(L1, x, L0);
+    ossl_gf_mul(L2, L1, L0);
+    ossl_gf_sqr(L0, L2);
+    ossl_gf_mul(L1, x, L0);
     gf_sqrn(L0, L1, 223);
-    gf_mul(L1, L2, L0);
-    gf_sqr(L2, L1);
-    gf_mul(L0, L2, x);
+    ossl_gf_mul(L1, L2, L0);
+    ossl_gf_sqr(L2, L1);
+    ossl_gf_mul(L0, L2, x);
     gf_copy(a, L1);
     return gf_eq(L0, ONE);
 }

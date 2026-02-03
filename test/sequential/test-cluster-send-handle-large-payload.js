@@ -23,10 +23,9 @@ if (cluster.isPrimary) {
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const socket = new net.Socket();
-    socket.connect(port, (err) => {
-      assert.ifError(err);
+    socket.connect(port, common.mustSucceed(() => {
       worker.send({ payload }, socket);
-    });
+    }));
   }));
 } else {
   process.on('message', common.mustCall(({ payload: received }, handle) => {
@@ -43,7 +42,7 @@ if (cluster.isPrimary) {
     // Send a second message after a delay on macOS.
     //
     // Refs: https://github.com/nodejs/node/issues/14747
-    if (common.isOSX)
+    if (common.isMacOS)
       setTimeout(() => { process.send({ payload }, handle); }, 1000);
     else
       process.send({ payload }, handle);

@@ -7,7 +7,7 @@
 namespace regexp {
 
 extern transitioning macro RegExpMatchAllAssembler::CreateRegExpStringIterator(
-    NativeContext, Object, String, bool, bool): JSAny;
+    NativeContext, JSAny, String, bool, bool): JSAny;
 
 @export
 transitioning macro RegExpPrototypeMatchAllImpl(
@@ -23,7 +23,7 @@ transitioning macro RegExpPrototypeMatchAllImpl(
   // 3. Let S be ? ToString(O).
   const string: String = ToString_Inline(string);
 
-  let matcher: Object;
+  let matcher: JSAny;
   let global: bool;
   let unicode: bool;
 

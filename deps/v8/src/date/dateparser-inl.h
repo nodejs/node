@@ -6,6 +6,8 @@
 #define V8_DATE_DATEPARSER_INL_H_
 
 #include "src/date/dateparser.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/strings/char-predicates-inl.h"
 

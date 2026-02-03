@@ -329,6 +329,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   static FileHandle* New(BindingData* binding_data,
                          int fd,
                          v8::Local<v8::Object> obj = v8::Local<v8::Object>(),
+                         std::string original_name = {},
                          std::optional<int64_t> maybeOffset = std::nullopt,
                          std::optional<int64_t> maybeLength = std::nullopt);
   ~FileHandle() override;
@@ -395,7 +396,10 @@ class FileHandle final : public AsyncWrap, public StreamBase {
     int fd_;
   };
 
-  FileHandle(BindingData* binding_data, v8::Local<v8::Object> obj, int fd);
+  FileHandle(BindingData* binding_data,
+             v8::Local<v8::Object> obj,
+             int fd,
+             std::string original_name);
 
   // Synchronous close that emits a warning
   void Close();
@@ -437,6 +441,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   // Asynchronous close
   v8::MaybeLocal<v8::Promise> ClosePromise();
 
+  std::string original_name_;
   int fd_;
   bool closing_ = false;
   bool closed_ = false;
@@ -512,9 +517,12 @@ inline FSReqBase* AsyncCall(Environment* env,
 // creating an error in the C++ land.
 // ctx must be checked using value->IsObject() before being passed.
 template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
-                    FSReqWrapSync* req_wrap, const char* syscall,
-                    Func fn, Args... args);
+inline v8::Maybe<int> SyncCall(Environment* env,
+                               v8::Local<v8::Value> ctx,
+                               FSReqWrapSync* req_wrap,
+                               const char* syscall,
+                               Func fn,
+                               Args... args);
 
 // Similar to SyncCall but throws immediately if there is an error.
 template <typename Predicate, typename Func, typename... Args>

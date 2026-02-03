@@ -23,22 +23,12 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
    * The largest supported typed array byte size. Each subclass defines a
    * type-specific kMaxLength for the maximum length that can be passed to New.
    */
-#if V8_ENABLE_SANDBOX
-  static constexpr size_t kMaxByteLength =
-      internal::kMaxSafeBufferSizeForSandbox;
-#elif V8_HOST_ARCH_32_BIT
-  static constexpr size_t kMaxByteLength = std::numeric_limits<int>::max();
-#else
-  // The maximum safe integer (2^53 - 1).
-  static constexpr size_t kMaxByteLength =
-      static_cast<size_t>((uint64_t{1} << 53) - 1);
-#endif
+  static constexpr size_t kMaxByteLength = ArrayBuffer::kMaxByteLength;
 
-  /*
-   * Deprecated: Use |kMaxByteLength| or the type-specific |kMaxLength| fields.
-   */
-  V8_DEPRECATE_SOON("Use kMaxByteLength")
-  static constexpr size_t kMaxLength = kMaxByteLength;
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(v8::TypedArray::kMaxByteLength <=
+                v8::internal::kMaxSafeBufferSizeForSandbox);
+#endif
 
   /**
    * Number of elements in this typed array
@@ -252,6 +242,30 @@ class V8_EXPORT Int32Array : public TypedArray {
 
  private:
   Int32Array();
+  static void CheckCast(Value* obj);
+};
+
+/**
+ * An instance of Float16Array constructor.
+ */
+class V8_EXPORT Float16Array : public TypedArray {
+ public:
+  static constexpr size_t kMaxLength =
+      TypedArray::kMaxByteLength / sizeof(uint16_t);
+
+  static Local<Float16Array> New(Local<ArrayBuffer> array_buffer,
+                                 size_t byte_offset, size_t length);
+  static Local<Float16Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+                                 size_t byte_offset, size_t length);
+  V8_INLINE static Float16Array* Cast(Value* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<Float16Array*>(value);
+  }
+
+ private:
+  Float16Array();
   static void CheckCast(Value* obj);
 };
 

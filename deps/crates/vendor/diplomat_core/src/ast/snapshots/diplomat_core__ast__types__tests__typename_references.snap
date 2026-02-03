@@ -1,0 +1,9 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { & i32 }, None)"
+---
+Reference:
+  - Anonymous
+  - Immutable
+  - Primitive: i32
+

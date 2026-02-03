@@ -32,18 +32,18 @@ ENTRY_TYPE_GUIDS = {
 def MakeGuid(name, seed="msvs_new"):
     """Returns a GUID for the specified target name.
 
-  Args:
-    name: Target name.
-    seed: Seed for MD5 hash.
-  Returns:
-    A GUID-line string calculated from the name and seed.
+    Args:
+      name: Target name.
+      seed: Seed for MD5 hash.
+    Returns:
+      A GUID-line string calculated from the name and seed.
 
-  This generates something which looks like a GUID, but depends only on the
-  name and seed.  This means the same name/seed will always generate the same
-  GUID, so that projects and solutions which refer to each other can explicitly
-  determine the GUID to refer to explicitly.  It also means that the GUID will
-  not change when the project for a target is rebuilt.
-  """
+    This generates something which looks like a GUID, but depends only on the
+    name and seed.  This means the same name/seed will always generate the same
+    GUID, so that projects and solutions which refer to each other can explicitly
+    determine the GUID to refer to explicitly.  It also means that the GUID will
+    not change when the project for a target is rebuilt.
+    """
     # Calculate a MD5 signature for the seed and name.
     d = hashlib.md5((str(seed) + str(name)).encode("utf-8")).hexdigest().upper()
     # Convert most of the signature to GUID form (discard the rest)
@@ -78,15 +78,15 @@ class MSVSFolder(MSVSSolutionEntry):
     def __init__(self, path, name=None, entries=None, guid=None, items=None):
         """Initializes the folder.
 
-    Args:
-      path: Full path to the folder.
-      name: Name of the folder.
-      entries: List of folder entries to nest inside this folder.  May contain
-          Folder or Project objects.  May be None, if the folder is empty.
-      guid: GUID to use for folder, if not None.
-      items: List of solution items to include in the folder project.  May be
-          None, if the folder does not directly contain items.
-    """
+        Args:
+          path: Full path to the folder.
+          name: Name of the folder.
+          entries: List of folder entries to nest inside this folder.  May contain
+              Folder or Project objects.  May be None, if the folder is empty.
+          guid: GUID to use for folder, if not None.
+          items: List of solution items to include in the folder project.  May be
+              None, if the folder does not directly contain items.
+        """
         if name:
             self.name = name
         else:
@@ -128,19 +128,19 @@ class MSVSProject(MSVSSolutionEntry):
     ):
         """Initializes the project.
 
-    Args:
-      path: Absolute path to the project file.
-      name: Name of project.  If None, the name will be the same as the base
-          name of the project file.
-      dependencies: List of other Project objects this project is dependent
-          upon, if not None.
-      guid: GUID to use for project, if not None.
-      spec: Dictionary specifying how to build this project.
-      build_file: Filename of the .gyp file that the vcproj file comes from.
-      config_platform_overrides: optional dict of configuration platforms to
-          used in place of the default for this target.
-      fixpath_prefix: the path used to adjust the behavior of _fixpath
-    """
+        Args:
+          path: Absolute path to the project file.
+          name: Name of project.  If None, the name will be the same as the base
+              name of the project file.
+          dependencies: List of other Project objects this project is dependent
+              upon, if not None.
+          guid: GUID to use for project, if not None.
+          spec: Dictionary specifying how to build this project.
+          build_file: Filename of the .gyp file that the vcproj file comes from.
+          config_platform_overrides: optional dict of configuration platforms to
+              used in place of the default for this target.
+          fixpath_prefix: the path used to adjust the behavior of _fixpath
+        """
         self.path = path
         self.guid = guid
         self.spec = spec
@@ -195,16 +195,16 @@ class MSVSSolution:
     ):
         """Initializes the solution.
 
-    Args:
-      path: Path to solution file.
-      version: Format version to emit.
-      entries: List of entries in solution.  May contain Folder or Project
-          objects.  May be None, if the folder is empty.
-      variants: List of build variant strings.  If none, a default list will
-          be used.
-      websiteProperties: Flag to decide if the website properties section
-          is generated.
-    """
+        Args:
+          path: Path to solution file.
+          version: Format version to emit.
+          entries: List of entries in solution.  May contain Folder or Project
+              objects.  May be None, if the folder is empty.
+          variants: List of build variant strings.  If none, a default list will
+              be used.
+          websiteProperties: Flag to decide if the website properties section
+              is generated.
+        """
         self.path = path
         self.websiteProperties = websiteProperties
         self.version = version
@@ -230,9 +230,9 @@ class MSVSSolution:
     def Write(self, writer=gyp.common.WriteOnDiff):
         """Writes the solution file to disk.
 
-    Raises:
-      IndexError: An entry appears multiple times.
-    """
+        Raises:
+          IndexError: An entry appears multiple times.
+        """
         # Walk the entry tree and collect all the folders and projects.
         all_entries = set()
         entries_to_check = self.entries[:]

@@ -97,7 +97,7 @@ function moreThanOneError (schema) {
 }
 
 function newException (code, msg) {
-  const err = new Error(msg)
+  const err = new TypeError(msg)
   err.code = code
   /* istanbul ignore else */
   if (Error.captureStackTrace) Error.captureStackTrace(err, validate)

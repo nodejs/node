@@ -24,11 +24,11 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Tests of profiles generator and utilities.
 
 #ifndef V8_TEST_CCTEST_PROFILER_EXTENSION_H_
 #define V8_TEST_CCTEST_PROFILER_EXTENSION_H_
+
+// Tests of profiles generator and utilities.
 
 #include "include/v8-extension.h"
 #include "include/v8-profiler.h"

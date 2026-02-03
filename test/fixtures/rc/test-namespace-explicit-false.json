@@ -1,0 +1,6 @@
+{
+  "test": {
+    "test": false,
+    "test-isolation": "none"
+  }
+}

@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -78,29 +79,10 @@ std::ostream& operator<<(std::ostream& os, all_of<Ts...> all) {
 }
 
 #ifdef DEBUG
-bool ShouldSkipOptimizationStep();
+V8_EXPORT_PRIVATE bool ShouldSkipOptimizationStep();
 #else
-inline bool ShouldSkipOptimizationStep() { return false; }
+V8_EXPORT_PRIVATE inline bool ShouldSkipOptimizationStep() { return false; }
 #endif
-
-// Set `*ptr` to `new_value` while the scope is active, reset to the previous
-// value upon destruction.
-template <class T>
-class ScopedModification {
- public:
-  ScopedModification(T* ptr, T new_value)
-      : ptr_(ptr), old_value_(std::move(*ptr)) {
-    *ptr = std::move(new_value);
-  }
-
-  ~ScopedModification() { *ptr_ = std::move(old_value_); }
-
-  const T& old_value() const { return old_value_; }
-
- private:
-  T* ptr_;
-  T old_value_;
-};
 
 // The `multi`-switch mechanism helps to switch on multiple values at the same
 // time. Example:

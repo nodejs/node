@@ -3,17 +3,16 @@ const common = require('../common.js');
 const dc = require('diagnostics_channel');
 
 const bench = common.createBenchmark(main, {
-  n: [1e8],
+  n: [1e5],
 });
 
-function noop() {}
+function noop() { }
 
 function main({ n }) {
-  const channel = dc.channel('channel.0');
 
   bench.start();
   for (let i = 0; i < n; i++) {
-    channel.subscribe(noop);
+    dc.subscribe('channel.0', noop);
   }
   bench.end(n);
 }

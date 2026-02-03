@@ -3,6 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL3 } = require('../common/crypto');
 const assert = require('assert');
 const util = require('util');
 const crypto = require('crypto');
@@ -87,18 +88,21 @@ test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
 
 // ED25519
 test('ed25519_public.pem', 'ed25519_private.pem', undefined, true);
-// ED448
-test('ed448_public.pem', 'ed448_private.pem', undefined, true);
 
-// ECDSA w/ der signature encoding
-test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-     false);
-test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-     false, { dsaEncoding: 'der' });
+if (!process.features.openssl_is_boringssl) {
+  // ED448
+  test('ed448_public.pem', 'ed448_private.pem', undefined, true);
 
-// ECDSA w/ ieee-p1363 signature encoding
-test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
-     { dsaEncoding: 'ieee-p1363' });
+  // ECDSA w/ der signature encoding
+  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+       false);
+  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+       false, { dsaEncoding: 'der' });
+
+  // ECDSA w/ ieee-p1363 signature encoding
+  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
+       { dsaEncoding: 'ieee-p1363' });
+}
 
 // DSA w/ der signature encoding
 test('dsa_public.pem', 'dsa_private.pem', 'sha256',
@@ -137,7 +141,35 @@ test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
       verify('sha256', data, publicKey, signature),
       verify('sha256', data, publicKey, signature),
       verify('sha256', data, publicKey, signature),
-    ]).then(common.mustCall());
+    ]);
   })
-  .catch(common.mustNotCall());
+  .then(common.mustCall());
+}
+
+{
+  const untrustedKey = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
+-----END PUBLIC KEY-----`;
+  const data = crypto.randomBytes(32);
+  const signature = crypto.randomBytes(16);
+
+  let expected = /no default digest/;
+  if (hasOpenSSL3 || process.features.openssl_is_boringssl) {
+    expected = /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
+  }
+
+  crypto.verify(undefined, data, untrustedKey, signature, common.mustCall((err) => {
+    assert.ok(err);
+    assert.match(err.message, expected);
+  }));
+}
+
+{
+  const { privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 512
+  });
+  crypto.sign('sha512', 'message', privateKey, common.mustCall((err) => {
+    assert.ok(err);
+    assert.match(err.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
+  }));
 }

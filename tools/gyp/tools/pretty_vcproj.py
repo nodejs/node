@@ -6,18 +6,15 @@
 
 """Make the format of a vcproj really pretty.
 
-   This script normalize and sort an xml. It also fetches all the properties
-   inside linked vsprops and include them explicitly in the vcproj.
+This script normalize and sort an xml. It also fetches all the properties
+inside linked vsprops and include them explicitly in the vcproj.
 
-   It outputs the resulting xml to stdout.
+It outputs the resulting xml to stdout.
 """
-
 
 import os
 import sys
-
-from xml.dom.minidom import parse
-from xml.dom.minidom import Node
+from xml.dom.minidom import Node, parse
 
 __author__ = "nsylvain (Nicolas Sylvain)"
 ARGUMENTS = None
@@ -50,11 +47,11 @@ class CmpNode:
                 node_string += node.getAttribute("Name")
 
                 all_nodes = []
-                for (name, value) in node.attributes.items():
+                for name, value in node.attributes.items():
                     all_nodes.append((name, value))
 
                 all_nodes.sort(CmpTuple())
-                for (name, value) in all_nodes:
+                for name, value in all_nodes:
                     node_string += name
                     node_string += value
 
@@ -83,10 +80,10 @@ def PrettyPrintNode(node, indent=0):
         print("{}<{}".format(" " * indent, node.nodeName))
 
         all_attributes = []
-        for (name, value) in node.attributes.items():
+        for name, value in node.attributes.items():
             all_attributes.append((name, value))
             all_attributes.sort(CmpTuple())
-        for (name, value) in all_attributes:
+        for name, value in all_attributes:
             print('{}  {}="{}"'.format(" " * indent, name, value))
         print("%s>" % (" " * indent))
     if node.nodeValue:
@@ -118,8 +115,8 @@ def FixFilenames(filenames, current_directory):
     new_list = []
     for filename in filenames:
         if filename:
-            for key in REPLACEMENTS:
-                filename = filename.replace(key, REPLACEMENTS[key])
+            for key, value in REPLACEMENTS.items():
+                filename = filename.replace(key, value)
             os.chdir(current_directory)
             filename = filename.strip("\"' ")
             if filename.startswith("$"):
@@ -132,7 +129,7 @@ def FixFilenames(filenames, current_directory):
 def AbsoluteNode(node):
     """Makes all the properties we know about in this node absolute."""
     if node.attributes:
-        for (name, value) in node.attributes.items():
+        for name, value in node.attributes.items():
             if name in [
                 "InheritedPropertySheets",
                 "RelativePath",
@@ -165,7 +162,7 @@ def CleanupVcproj(node):
     # Fix all the semicolon separated attributes to be sorted, and we also
     # remove the dups.
     if node.attributes:
-        for (name, value) in node.attributes.items():
+        for name, value in node.attributes.items():
             sorted_list = sorted(value.split(";"))
             unique_list = []
             for i in sorted_list:
@@ -207,7 +204,7 @@ def CleanupVcproj(node):
         node.appendChild(new_node)
 
 
-def GetConfiguationNodes(vcproj):
+def GetConfigurationNodes(vcproj):
     # TODO(nsylvain): Find a better way to navigate the xml.
     nodes = []
     for node in vcproj.childNodes:
@@ -254,7 +251,7 @@ def MergeAttributes(node1, node2):
     if not node2.attributes:
         return
 
-    for (name, value2) in node2.attributes.items():
+    for name, value2 in node2.attributes.items():
         # Don't merge the 'Name' attribute.
         if name == "Name":
             continue
@@ -307,7 +304,7 @@ def main(argv):
 
     # First thing we need to do is find the Configuration Node and merge them
     # with the vsprops they include.
-    for configuration_node in GetConfiguationNodes(dom.documentElement):
+    for configuration_node in GetConfigurationNodes(dom.documentElement):
         # Get the property sheets associated with this configuration.
         vsprops = configuration_node.getAttribute("InheritedPropertySheets")
 

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 /**
@@ -8,14 +8,14 @@ const assert = require('assert');
  * @name checkInvocations
  * @function
  * @param {object} activity including timestamps for each life time event,
- *                 i.e. init, before ...
+ *   i.e. init, before ...
  * @param {object} hooks the expected life time event invocations with a count
- *                       indicating how often they should have been invoked,
- *                       i.e. `{ init: 1, before: 2, after: 2 }`
+ *   indicating how often they should have been invoked,
+ *   i.e. `{ init: 1, before: 2, after: 2 }`
  * @param {string} stage the name of the stage in the test at which we are
- *                       checking the invocations
+ *   checking the invocations
  */
-exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
+exports.checkInvocations = common.mustCallAtLeast(function checkInvocations(activity, hooks, stage) {
   const stageInfo = `Checking invocations at stage "${stage}":\n   `;
 
   assert.ok(activity != null,
@@ -24,9 +24,7 @@ exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
   );
 
   // Check that actual invocations for all hooks match the expected invocations
-  [ 'init', 'before', 'after', 'destroy', 'promiseResolve' ].forEach(checkHook);
-
-  function checkHook(k) {
+  [ 'init', 'before', 'after', 'destroy', 'promiseResolve' ].forEach((k) => {
     const val = hooks[k];
     // Not expected ... all good
     if (val == null) return;
@@ -49,5 +47,5 @@ exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
                    `time(s), but expected ${val} invocation(s).`;
       assert.strictEqual(activity[k].length, val, msg2);
     }
-  }
-};
+  });
+}, 0);

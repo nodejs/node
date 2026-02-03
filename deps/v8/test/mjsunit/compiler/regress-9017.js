@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --noturbo-inlining --noturbo-verify-allocation
 // This test invokes optimization manually, no need for stress modes:
-// Flags: --noalways-turbofan
 // This neuters too low stack size passed by the flag fuzzer.
 // Flags: --stack-size=864
 

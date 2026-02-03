@@ -1163,10 +1163,10 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
-// SpeculativeSafeIntegerAdd
+// SpeculativeSmallIntegerAdd
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerAddWithCheckBoundsBetterType) {
+       SpeculativeSmallIntegerAddWithCheckBoundsBetterType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1183,18 +1183,18 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* add2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerAdd(hint), lhs,
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerAdd(hint), lhs,
                            rhs, effect, control);
       Reduction r2 = Reduce(add2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerAdd(hint, check1, rhs, _, _));
+                  IsSpeculativeSmallIntegerAdd(hint, check1, rhs, _, _));
     }
   }
 }
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerAddWithCheckBoundsSameType) {
+       SpeculativeSmallIntegerAddWithCheckBoundsSameType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1211,21 +1211,21 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* add2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerAdd(hint), lhs,
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerAdd(hint), lhs,
                            rhs, effect, control);
       Reduction r2 = Reduce(add2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerAdd(hint, lhs, rhs, _, _));
+                  IsSpeculativeSmallIntegerAdd(hint, lhs, rhs, _, _));
     }
   }
 }
 
 // -----------------------------------------------------------------------------
-// SpeculativeSafeIntegerSubtract
+// SpeculativeSmallIntegerSubtract
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerSubtractWithCheckBoundsBetterType) {
+       SpeculativeSmallIntegerSubtractWithCheckBoundsBetterType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1242,18 +1242,18 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* subtract2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerSubtract(hint),
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerSubtract(hint),
                            lhs, rhs, effect, control);
       Reduction r2 = Reduce(subtract2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerSubtract(hint, check1, rhs, _, _));
+                  IsSpeculativeSmallIntegerSubtract(hint, check1, rhs, _, _));
     }
   }
 }
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerSubtractWithCheckBoundsSameType) {
+       SpeculativeSmallIntegerSubtractWithCheckBoundsSameType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1270,12 +1270,12 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* subtract2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerSubtract(hint),
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerSubtract(hint),
                            lhs, rhs, effect, control);
       Reduction r2 = Reduce(subtract2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerSubtract(hint, lhs, rhs, _, _));
+                  IsSpeculativeSmallIntegerSubtract(hint, lhs, rhs, _, _));
     }
   }
 }

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --expose-gc --turbofan --no-concurrent-recompilation
-// Flags: --no-always-turbofan --no-assert-types
+// Flags: --no-assert-types
 
 // This weak ref is for checking whether the closure-allocated object o got
 // collected as it should.

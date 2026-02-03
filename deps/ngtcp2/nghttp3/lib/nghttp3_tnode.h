@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -37,7 +37,6 @@
 
 typedef struct nghttp3_tnode {
   nghttp3_pq_entry pe;
-  size_t num_children;
   int64_t id;
   uint64_t cycle;
   /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
@@ -63,4 +62,4 @@ int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
  */
 int nghttp3_tnode_is_scheduled(nghttp3_tnode *tnode);
 
-#endif /* NGHTTP3_TNODE_H */
+#endif /* !defined(NGHTTP3_TNODE_H) */

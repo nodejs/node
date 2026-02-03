@@ -1,12 +1,16 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
+const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto');
 
 {
   async function test() {
@@ -22,6 +26,11 @@ const { subtle } = globalThis.crypto;
         code: 'ERR_INVALID_ARG_VALUE'
       });
     await assert.rejects(
+      subtle.importKey('KeyObject', keyData, {}, false, ['wrapKey']), {
+        message: /'KeyObject' is not a valid enum value of type KeyFormat/,
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    await assert.rejects(
       subtle.importKey('raw', 1, {}, false, ['deriveBits']), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
@@ -34,10 +43,19 @@ const { subtle } = globalThis.crypto;
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
+        hash: 'SHA-256',
+        length: 384,
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Invalid key length'
+      });
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
         hash: 'SHA-256'
       }, false, ['deriveBits']), {
         name: 'SyntaxError',
-        message: 'Unsupported key usage for an HMAC key'
+        message: 'Unsupported key usage for HMAC key'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -46,7 +64,7 @@ const { subtle } = globalThis.crypto;
         length: 0
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Zero-length key is not supported'
+        message: 'HmacImportParams.length cannot be 0'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -54,8 +72,8 @@ const { subtle } = globalThis.crypto;
         hash: 'SHA-256',
         length: 1
       }, false, ['sign', 'verify']), {
-        name: 'DataError',
-        message: 'Invalid key length'
+        name: 'NotSupportedError',
+        message: 'Unsupported HmacImportParams.length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -81,6 +99,9 @@ const { subtle } = globalThis.crypto;
         hash: 'SHA-256'
       }, true, ['sign', 'verify']);
 
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
+
     const raw = await subtle.exportKey('raw', key);
 
     assert.deepStrictEqual(
@@ -91,10 +112,43 @@ const { subtle } = globalThis.crypto;
     assert.deepStrictEqual(jwk.key_ops, ['sign', 'verify']);
     assert(jwk.ext);
     assert.strictEqual(jwk.kty, 'oct');
+    assert.strictEqual(jwk.alg, 'HS256');
 
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await subtle.importKey(
+      'jwk',
+      jwk,
+      {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      },
+      true,
+      ['sign', 'verify']);
+
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: undefined },
+      {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      },
+      true,
+      ['sign', 'verify']);
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: 'HS384' },
+        {
+          name: 'HMAC',
+          hash: 'SHA-256'
+        },
+        true,
+        ['sign', 'verify']),
+      { name: 'DataError', message: 'JWK "alg" does not match the requested algorithm' });
 
     await assert.rejects(
       subtle.importKey(
@@ -112,6 +166,76 @@ const { subtle } = globalThis.crypto;
   test().then(common.mustCall());
 }
 
+// Import/Export KMAC Secret Key
+if (hasOpenSSL(3)) {
+  async function test(name) {
+    const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
+    const key = await subtle.importKey(
+      'raw-secret',
+      keyData, name, true, ['sign', 'verify']);
+
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
+
+    const raw = await subtle.exportKey('raw-secret', key);
+
+    assert.deepStrictEqual(
+      Buffer.from(keyData).toString('hex'),
+      Buffer.from(raw).toString('hex'));
+
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.deepStrictEqual(jwk.key_ops, ['sign', 'verify']);
+    assert(jwk.ext);
+    assert.strictEqual(jwk.kty, 'oct');
+    assert.strictEqual(jwk.alg, `K${name.substring(4)}`);
+
+    assert.deepStrictEqual(
+      Buffer.from(jwk.k, 'base64').toString('hex'),
+      Buffer.from(raw).toString('hex'));
+
+    await subtle.importKey(
+      'jwk',
+      jwk,
+      name,
+      true,
+      ['sign', 'verify']);
+
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: undefined },
+      name,
+      true,
+      ['sign', 'verify']);
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: name === 'KMAC128' ? 'K256' : 'K128' },
+        name,
+        true,
+        ['sign', 'verify']),
+      { name: 'DataError', message: 'JWK "alg" does not match the requested algorithm' });
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData, name, true, ['sign', 'verify']),
+      { name: 'NotSupportedError', message: `Unable to import ${name} using raw format` });
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw-secret',
+        keyData,
+        name,
+        true,
+        [/* empty usages */]),
+      { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
+  }
+
+  test('KMAC128').then(common.mustCall());
+  test('KMAC256').then(common.mustCall());
+}
+
 // Import/Export AES Secret Key
 {
   async function test() {
@@ -122,6 +246,8 @@ const { subtle } = globalThis.crypto;
         name: 'AES-CTR',
         length: 256,
       }, true, ['encrypt', 'decrypt']);
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
 
     const raw = await subtle.exportKey('raw', key);
 
@@ -270,4 +396,42 @@ const { subtle } = globalThis.crypto;
   }
 
   test().then(common.mustCall());
+}
+
+// SHA-3 hashes and JWK "alg"
+if (!process.features.openssl_is_boringssl) {
+  const rsa = fixtures.readKey('rsa_private_2048.pem');
+  const privateKey = createPrivateKey(rsa);
+  const publicKey = createPublicKey(privateKey);
+
+  async function test(keyObject, algorithm, usages) {
+    const key = keyObject.toCryptoKey(algorithm, true, usages);
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.strictEqual(jwk.alg, undefined);
+  }
+
+  for (const hash of ['SHA3-256', 'SHA3-384', 'SHA3-512']) {
+    for (const name of ['RSA-OAEP', 'RSA-PSS', 'RSASSA-PKCS1-v1_5']) {
+      test(publicKey, { name, hash }, []).then(common.mustCall());
+      test(privateKey, { name, hash }, [name === 'RSA-OAEP' ? 'unwrapKey' : 'sign']).then(common.mustCall());
+    }
+
+    test(createSecretKey(Buffer.alloc(32)), { name: 'HMAC', hash }, ['sign']);
+  }
+
+  {
+    const jwk = createSecretKey(Buffer.alloc(16)).export({ format: 'jwk' });
+    // This is rejected for SHA-2 but ignored for SHA-3
+    // Otherwise, if the name attribute of hash is defined in another applicable specification:
+    // Perform any key import steps defined by other applicable specifications, passing format,
+    // jwk and hash and obtaining hash.
+    jwk.alg = 'HS3-256';
+
+    assert.rejects(subtle.importKey('jwk', jwk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']), {
+      name: 'DataError',
+      message: 'JWK "alg" does not match the requested algorithm',
+    }).then(common.mustCall());
+
+    subtle.importKey('jwk', jwk, { name: 'HMAC', hash: 'SHA3-256' }, false, ['sign', 'verify']).then(common.mustCall());
+  }
 }

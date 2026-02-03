@@ -629,17 +629,34 @@ TypeTaggedInstance(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   uint32_t type_index;
   napi_value instance, which_type;
+  napi_type_tag tag;
+
+  // Below we copy the tag before setting it to prevent bugs where a pointer
+  // to the tag (instead of the 128-bit tag value) is stored.
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, which_type, &type_index));
   VALIDATE_TYPE_INDEX(env, type_index);
   NODE_API_CALL(env, napi_create_object(env, &instance));
-  NODE_API_CALL(env, napi_type_tag_object(env, instance, &type_tags[type_index]));
+  tag = type_tags[type_index];
+  NODE_API_CALL(env, napi_type_tag_object(env, instance, &tag));
+
+  // Since the tag passed to napi_type_tag_object() was copied to the stack,
+  // a type tagging implementation that uses a pointer instead of the
+  // tag value would end up pointing to stack memory.
+  // When CheckTypeTag() is called later on, it might be the case that this
+  // stack address has been left untouched by accident (if no subsequent
+  // function call has clobbered it), which means the pointer would still
+  // point to valid data.
+  // To make sure that tags are stored by value and not by reference,
+  // clear this copy; any implementation using a pointer would end up with
+  // random stack data or { 0, 0 }, but not the original tag value, and fail.
+  memset(&tag, 0, sizeof(tag));
 
   return instance;
 }
 
-// V8 will not allowe us to construct an external with a NULL data value.
+// V8 will not allow us to construct an external with a NULL data value.
 #define IN_LIEU_OF_NULL ((void*)0x1)
 
 static napi_value PlainExternal(napi_env env, napi_callback_info info) {
@@ -655,6 +672,10 @@ static napi_value TypeTaggedExternal(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   uint32_t type_index;
   napi_value instance, which_type;
+  napi_type_tag tag;
+
+  // See TypeTaggedInstance() for an explanation about why we copy the tag
+  // to the stack and why we call memset on it after the external is tagged.
 
   NODE_API_CALL(env,
                 napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
@@ -662,8 +683,10 @@ static napi_value TypeTaggedExternal(napi_env env, napi_callback_info info) {
   VALIDATE_TYPE_INDEX(env, type_index);
   NODE_API_CALL(
       env, napi_create_external(env, IN_LIEU_OF_NULL, NULL, NULL, &instance));
-  NODE_API_CALL(env,
-                napi_type_tag_object(env, instance, &type_tags[type_index]));
+  tag = type_tags[type_index];
+  NODE_API_CALL(env, napi_type_tag_object(env, instance, &tag));
+
+  memset(&tag, 0, sizeof(tag));
 
   return instance;
 }
@@ -685,6 +708,79 @@ CheckTypeTag(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_get_boolean(env, result, &js_result));
 
   return js_result;
+}
+
+static napi_value TestCreateObjectWithProperties(napi_env env,
+                                                 napi_callback_info info) {
+  napi_value names[3];
+  napi_value values[3];
+  napi_value result;
+
+  NODE_API_CALL(
+      env, napi_create_string_utf8(env, "name", NAPI_AUTO_LENGTH, &names[0]));
+  NODE_API_CALL(
+      env, napi_create_string_utf8(env, "Foo", NAPI_AUTO_LENGTH, &values[0]));
+
+  NODE_API_CALL(
+      env, napi_create_string_utf8(env, "age", NAPI_AUTO_LENGTH, &names[1]));
+  NODE_API_CALL(env, napi_create_int32(env, 42, &values[1]));
+
+  NODE_API_CALL(
+      env, napi_create_string_utf8(env, "active", NAPI_AUTO_LENGTH, &names[2]));
+  NODE_API_CALL(env, napi_get_boolean(env, true, &values[2]));
+
+  napi_value null_prototype;
+  NODE_API_CALL(env, napi_get_null(env, &null_prototype));
+  NODE_API_CALL(env,
+                node_api_create_object_with_properties(
+                    env, null_prototype, names, values, 3, &result));
+
+  return result;
+}
+
+static napi_value TestCreateObjectWithPropertiesEmpty(napi_env env,
+                                                      napi_callback_info info) {
+  napi_value result;
+
+  NODE_API_CALL(env,
+                node_api_create_object_with_properties(
+                    env, NULL, NULL, NULL, 0, &result));
+
+  return result;
+}
+
+static napi_value TestCreateObjectWithCustomPrototype(napi_env env,
+                                                      napi_callback_info info) {
+  napi_value prototype;
+  napi_value method_name;
+  napi_value method_func;
+  napi_value names[1];
+  napi_value values[1];
+  napi_value result;
+
+  NODE_API_CALL(env, napi_create_object(env, &prototype));
+  NODE_API_CALL(
+      env,
+      napi_create_string_utf8(env, "test", NAPI_AUTO_LENGTH, &method_name));
+  NODE_API_CALL(env,
+                napi_create_function(env,
+                                     "test",
+                                     NAPI_AUTO_LENGTH,
+                                     TestCreateObjectWithProperties,
+                                     NULL,
+                                     &method_func));
+  NODE_API_CALL(env,
+                napi_set_property(env, prototype, method_name, method_func));
+
+  NODE_API_CALL(
+      env, napi_create_string_utf8(env, "value", NAPI_AUTO_LENGTH, &names[0]));
+  NODE_API_CALL(env, napi_create_int32(env, 42, &values[0]));
+
+  NODE_API_CALL(env,
+                node_api_create_object_with_properties(
+                    env, prototype, names, values, 1, &result));
+
+  return result;
 }
 
 EXTERN_C_START
@@ -720,6 +816,12 @@ napi_value Init(napi_env env, napi_value exports) {
       DECLARE_NODE_API_PROPERTY("TestGetProperty", TestGetProperty),
       DECLARE_NODE_API_PROPERTY("TestFreeze", TestFreeze),
       DECLARE_NODE_API_PROPERTY("TestSeal", TestSeal),
+      DECLARE_NODE_API_PROPERTY("TestCreateObjectWithProperties",
+                                TestCreateObjectWithProperties),
+      DECLARE_NODE_API_PROPERTY("TestCreateObjectWithPropertiesEmpty",
+                                TestCreateObjectWithPropertiesEmpty),
+      DECLARE_NODE_API_PROPERTY("TestCreateObjectWithCustomPrototype",
+                                TestCreateObjectWithCustomPrototype),
   };
 
   init_test_null(env, exports);

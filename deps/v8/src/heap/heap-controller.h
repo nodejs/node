@@ -14,9 +14,6 @@ namespace v8 {
 namespace internal {
 
 struct BaseControllerTrait {
-  static constexpr size_t kMinSize = 128u * Heap::kHeapLimitMultiplier * MB;
-  static constexpr size_t kMaxSize = 1024u * Heap::kHeapLimitMultiplier * MB;
-
   static constexpr double kMinGrowingFactor = 1.1;
   static constexpr double kMaxGrowingFactor = 4.0;
   static constexpr double kConservativeGrowingFactor = 1.3;
@@ -24,11 +21,11 @@ struct BaseControllerTrait {
 };
 
 struct V8HeapTrait : public BaseControllerTrait {
-  static const char* kName;
+  static constexpr char kName[] = "HeapController";
 };
 
 struct GlobalMemoryTrait : public BaseControllerTrait {
-  static const char* kName;
+  static constexpr char kName[] = "GlobalMemoryController";
 };
 
 template <typename Trait>
@@ -38,19 +35,21 @@ class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
   static size_t MinimumAllocationLimitGrowingStep(
       Heap::HeapGrowingMode growing_mode);
 
-  static double GrowingFactor(Heap* heap, size_t max_heap_size, double gc_speed,
-                              double mutator_speed);
+  static double GrowingFactor(Heap* heap, size_t max_heap_size,
+                              std::optional<double> gc_speed,
+                              double mutator_speed,
+                              Heap::HeapGrowingMode growing_mode);
 
-  static size_t CalculateAllocationLimit(Heap* heap, size_t current_size,
-                                         size_t min_size, size_t max_size,
-                                         size_t new_space_capacity,
-                                         double factor,
-                                         Heap::HeapGrowingMode growing_mode);
+  static size_t BoundAllocationLimit(Heap* heap, size_t current_size,
+                                     uint64_t limit, size_t min_size,
+                                     size_t max_size, size_t new_space_capacity,
+                                     Heap::HeapGrowingMode growing_mode);
 
  private:
-  static double MaxGrowingFactor(size_t max_heap_size);
-  static double DynamicGrowingFactor(double gc_speed, double mutator_speed,
-                                     double max_factor);
+  static double MaxGrowingFactor(uint64_t physical_memory,
+                                 size_t max_heap_size);
+  static double DynamicGrowingFactor(std::optional<double> gc_speed,
+                                     double mutator_speed, double max_factor);
 
   FRIEND_TEST(MemoryControllerTest, HeapGrowingFactor);
   FRIEND_TEST(MemoryControllerTest, MaxHeapGrowingFactor);

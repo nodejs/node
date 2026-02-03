@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_PARKED_SCOPE_H_
 #define V8_HEAP_PARKED_SCOPE_H_
 
+#include <optional>
+
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -15,31 +17,26 @@ namespace v8 {
 namespace internal {
 
 // Scope that explicitly parks a thread, prohibiting access to the heap and the
-// creation of handles.
+// creation of handles. Do not use this directly! Use the family of
+// ExecuteWhileParked methods, instead.
 class V8_NODISCARD ParkedScope {
- public:
+ private:
   explicit ParkedScope(LocalIsolate* local_isolate)
       : ParkedScope(local_isolate->heap()) {}
   explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
+    ++local_heap_->nested_parked_scopes_;
     local_heap_->Park();
   }
 
-  ~ParkedScope() { local_heap_->Unpark(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-class V8_NODISCARD ParkedScopeIfOnBackground {
- public:
-  explicit ParkedScopeIfOnBackground(LocalIsolate* local_isolate)
-      : ParkedScopeIfOnBackground(local_isolate->heap()) {}
-  explicit ParkedScopeIfOnBackground(LocalHeap* local_heap) {
-    if (!local_heap->is_main_thread()) scope_.emplace(local_heap);
+  ~ParkedScope() {
+    DCHECK_LT(0, local_heap_->nested_parked_scopes_);
+    --local_heap_->nested_parked_scopes_;
+    local_heap_->Unpark();
   }
 
- private:
-  base::Optional<ParkedScope> scope_;
+  LocalHeap* const local_heap_;
+
+  friend class LocalHeap;
 };
 
 // Scope that explicitly unparks a thread, allowing access to the heap and the
@@ -58,6 +55,8 @@ class V8_NODISCARD UnparkedScope {
   LocalHeap* const local_heap_;
 };
 
+// Scope that explicitly unparks a background thread, allowing access to the
+// heap and the creation of handles. It has no effect on the main thread.
 class V8_NODISCARD UnparkedScopeIfOnBackground {
  public:
   explicit UnparkedScopeIfOnBackground(LocalIsolate* local_isolate)
@@ -67,7 +66,7 @@ class V8_NODISCARD UnparkedScopeIfOnBackground {
   }
 
  private:
-  base::Optional<UnparkedScope> scope_;
+  std::optional<UnparkedScope> scope_;
 };
 
 // Scope that automatically parks the thread while blocking on the given
@@ -106,31 +105,24 @@ class V8_NODISCARD ParkedRecursiveMutexGuard {
   base::RecursiveMutex* mutex_;
 };
 
-template <base::MutexSharedType kIsShared,
-          base::NullBehavior Behavior = base::NullBehavior::kRequireNotNull>
-class V8_NODISCARD ParkedSharedMutexGuardIf final {
+class V8_NODISCARD ParkedMutexGuardIf final {
  public:
-  ParkedSharedMutexGuardIf(LocalIsolate* local_isolate,
-                           base::SharedMutex* mutex, bool enable_mutex)
-      : ParkedSharedMutexGuardIf(local_isolate->heap(), mutex, enable_mutex) {}
-  V8_INLINE ParkedSharedMutexGuardIf(LocalHeap* local_heap,
-                                     base::SharedMutex* mutex,
-                                     bool enable_mutex);
-  ParkedSharedMutexGuardIf(const ParkedSharedMutexGuardIf&) = delete;
-  ParkedSharedMutexGuardIf& operator=(const ParkedSharedMutexGuardIf&) = delete;
+  V8_INLINE ParkedMutexGuardIf(LocalIsolate* local_isolate, base::Mutex* mutex,
+                               bool enable_mutex);
+  V8_INLINE ParkedMutexGuardIf(LocalHeap* local_heap, base::Mutex* mutex,
+                               bool enable_mutex);
 
-  ~ParkedSharedMutexGuardIf() {
+  ParkedMutexGuardIf(const ParkedMutexGuardIf&) = delete;
+  ParkedMutexGuardIf& operator=(const ParkedMutexGuardIf&) = delete;
+
+  ~ParkedMutexGuardIf() {
     if (!mutex_) return;
 
-    if (kIsShared) {
-      mutex_->UnlockShared();
-    } else {
-      mutex_->UnlockExclusive();
-    }
+    mutex_->Unlock();
   }
 
  private:
-  base::SharedMutex* mutex_ = nullptr;
+  base::Mutex* mutex_ = nullptr;
 };
 
 // A subclass of base::ConditionVariable that automatically parks the thread

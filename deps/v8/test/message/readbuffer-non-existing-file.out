@@ -1,0 +1,2 @@
+Error: Error reading file "nonexisting_file.js"
+Error: Error reading file "really-long-nonexisting-filename-which-should-get-[...]"

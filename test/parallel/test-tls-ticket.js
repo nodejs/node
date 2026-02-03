@@ -47,7 +47,7 @@ function createServer() {
     key: fixtures.readKey('agent1-key.pem'),
     cert: fixtures.readKey('agent1-cert.pem'),
     ticketKeys: keys
-  }, function(c) {
+  }, common.mustCallAtLeast(function(c) {
     serverLog.push(id);
     // TODO(@sam-github) Triggers close_notify before NewSessionTicket bug.
     // c.end();
@@ -85,7 +85,7 @@ function createServer() {
     } else {
       throw new Error('UNREACHABLE');
     }
-  });
+  }));
 
   return server;
 }
@@ -135,7 +135,7 @@ function start(callback) {
         connect();
     });
     s.on('session', (session) => {
-      sess = sess || session;
+      sess ||= session;
     });
     s.once('session', (session) => onNewSession(s, session));
     s.once('session', () => ticketLog.push(s.getTLSTicket().toString('hex')));

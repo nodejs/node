@@ -2,6 +2,7 @@
 # Use of this source code is governed by an MIT-style license.
 import re
 import os
+import sys
 
 PLAIN_SOURCE_RE = re.compile(r'\s*"([^/$].+)"\s*')
 def DoMain(args):
@@ -22,3 +23,6 @@ def DoMain(args):
   # always use `/` since GYP will process paths further downstream
   rel_files = ['"%s/%s"' % (src_root, f) for f in files]
   return ' '.join(rel_files)
+
+if __name__ == '__main__':
+  print(DoMain(sys.argv[1:]))

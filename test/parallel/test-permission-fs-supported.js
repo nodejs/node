@@ -38,6 +38,7 @@ const supportedApis = [
   ...syncAndAsyncAPI('open'),
   'openAsBlob',
   ...syncAndAsyncAPI('mkdtemp'),
+  'mkdtempDisposableSync',
   ...syncAndAsyncAPI('readdir'),
   ...syncAndAsyncAPI('readFile'),
   ...syncAndAsyncAPI('readlink'),
@@ -66,6 +67,10 @@ const ignoreList = [
   'R_OK',
   'F_OK',
   'Dir',
+  // the Utf8Stream is implemented in terms of functions
+  // on the fs module that have permission checks, so we don't
+  // need to check it here.
+  'Utf8Stream',
   'FileReadStream',
   'FileWriteStream',
   '_toUnixTimestamp',
@@ -77,7 +82,22 @@ const ignoreList = [
   'unwatchFile',
   ...syncAndAsyncAPI('lstat'),
   ...syncAndAsyncAPI('realpath'),
-  // fd required methods
+  // File descriptor–based metadata operations
+  //
+  // The kernel does not allow opening a file descriptor for an inode
+  // with write access if the inode itself is read-only. However, it still
+  // permits modifying the inode’s metadata (e.g., permission bits, ownership,
+  // timestamps) because you own the file. These changes can be made either
+  // by referring to the file by name (e.g., chmod) or through any existing
+  // file descriptor that identifies the same inode (e.g., fchmod).
+  //
+  // If the kernel required write access to change metadata, it would be
+  // impossible to modify the permissions of a file once it was made read-only.
+  // For that reason, syscalls such as fchmod, fchown, and futimes bypass
+  // the file descriptor’s access mode. Even a read-only ('r') descriptor
+  // can still update metadata. To prevent unintended modifications,
+  // these APIs are therefore blocked by default when permission model is
+  // enabled.
   ...syncAndAsyncAPI('close'),
   ...syncAndAsyncAPI('fchown'),
   ...syncAndAsyncAPI('fchmod'),

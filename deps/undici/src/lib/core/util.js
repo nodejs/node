@@ -1,38 +1,127 @@
 'use strict'
 
 const assert = require('node:assert')
-const { kDestroyed, kBodyUsed } = require('./symbols')
+const { kDestroyed, kBodyUsed, kListeners, kBody } = require('./symbols')
 const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
-const { InvalidArgumentError } = require('./errors')
-const { Blob } = require('node:buffer')
-const nodeUtil = require('node:util')
 const { stringify } = require('node:querystring')
+const { EventEmitter: EE } = require('node:events')
+const timers = require('../util/timers')
+const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
-const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
+const [nodeMajor, nodeMinor] = process.versions.node.split('.', 2).map(v => Number(v))
 
-function nop () {}
+class BodyAsyncIterable {
+  constructor (body) {
+    this[kBody] = body
+    this[kBodyUsed] = false
+  }
 
+  async * [Symbol.asyncIterator] () {
+    assert(!this[kBodyUsed], 'disturbed')
+    this[kBodyUsed] = true
+    yield * this[kBody]
+  }
+}
+
+function noop () {}
+
+/**
+ * @param {*} body
+ * @returns {*}
+ */
+function wrapRequestBody (body) {
+  if (isStream(body)) {
+    // TODO (fix): Provide some way for the user to cache the file to e.g. /tmp
+    // so that it can be dispatched again?
+    // TODO (fix): Do we need 100-expect support to provide a way to do this properly?
+    if (bodyLength(body) === 0) {
+      body
+        .on('data', function () {
+          assert(false)
+        })
+    }
+
+    if (typeof body.readableDidRead !== 'boolean') {
+      body[kBodyUsed] = false
+      EE.prototype.on.call(body, 'data', function () {
+        this[kBodyUsed] = true
+      })
+    }
+
+    return body
+  } else if (body && typeof body.pipeTo === 'function') {
+    // TODO (fix): We can't access ReadableStream internal state
+    // to determine whether or not it has been disturbed. This is just
+    // a workaround.
+    return new BodyAsyncIterable(body)
+  } else if (body && isFormDataLike(body)) {
+    return body
+  } else if (
+    body &&
+    typeof body !== 'string' &&
+    !ArrayBuffer.isView(body) &&
+    isIterable(body)
+  ) {
+    // TODO: Should we allow re-using iterable if !this.opts.idempotent
+    // or through some other flag?
+    return new BodyAsyncIterable(body)
+  } else {
+    return body
+  }
+}
+
+/**
+ * @param {*} obj
+ * @returns {obj is import('node:stream').Stream}
+ */
 function isStream (obj) {
   return obj && typeof obj === 'object' && typeof obj.pipe === 'function' && typeof obj.on === 'function'
 }
 
-// based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
+/**
+ * @param {*} object
+ * @returns {object is Blob}
+ * based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
+ */
 function isBlobLike (object) {
-  return (Blob && object instanceof Blob) || (
-    object &&
-    typeof object === 'object' &&
-    (typeof object.stream === 'function' ||
-      typeof object.arrayBuffer === 'function') &&
-    /^(Blob|File)$/.test(object[Symbol.toStringTag])
+  if (object === null) {
+    return false
+  } else if (object instanceof Blob) {
+    return true
+  } else if (typeof object !== 'object') {
+    return false
+  } else {
+    const sTag = object[Symbol.toStringTag]
+
+    return (sTag === 'Blob' || sTag === 'File') && (
+      ('stream' in object && typeof object.stream === 'function') ||
+      ('arrayBuffer' in object && typeof object.arrayBuffer === 'function')
+    )
+  }
+}
+
+/**
+ * @param {string} url The path to check for query strings or fragments.
+ * @returns {boolean} Returns true if the path contains a query string or fragment.
+ */
+function pathHasQueryOrFragment (url) {
+  return (
+    url.includes('?') ||
+    url.includes('#')
   )
 }
 
-function buildURL (url, queryParams) {
-  if (url.includes('?') || url.includes('#')) {
+/**
+ * @param {string} url The URL to add the query params to
+ * @param {import('node:querystring').ParsedUrlQueryInput} queryParams The object to serialize into a URL query string
+ * @returns {string} The URL with the query params added
+ */
+function serializePathWithQuery (url, queryParams) {
+  if (pathHasQueryOrFragment(url)) {
     throw new Error('Query params cannot be passed when url already contains "?" or "#".')
   }
 
@@ -45,11 +134,54 @@ function buildURL (url, queryParams) {
   return url
 }
 
+/**
+ * @param {number|string|undefined} port
+ * @returns {boolean}
+ */
+function isValidPort (port) {
+  const value = parseInt(port, 10)
+  return (
+    value === Number(port) &&
+    value >= 0 &&
+    value <= 65535
+  )
+}
+
+/**
+ * Check if the value is a valid http or https prefixed string.
+ *
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isHttpOrHttpsPrefixed (value) {
+  return (
+    value != null &&
+    value[0] === 'h' &&
+    value[1] === 't' &&
+    value[2] === 't' &&
+    value[3] === 'p' &&
+    (
+      value[4] === ':' ||
+      (
+        value[4] === 's' &&
+        value[5] === ':'
+      )
+    )
+  )
+}
+
+/**
+ * @param {string|URL|Record<string,string>} url
+ * @returns {URL}
+ */
 function parseURL (url) {
   if (typeof url === 'string') {
+    /**
+     * @type {URL}
+     */
     url = new URL(url)
 
-    if (!/^https?:/.test(url.origin || url.protocol)) {
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
       throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
     }
 
@@ -60,12 +192,8 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (!/^https?:/.test(url.origin || url.protocol)) {
-    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
-  }
-
   if (!(url instanceof URL)) {
-    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+    if (url.port != null && url.port !== '' && isValidPort(url.port) === false) {
       throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
     }
 
@@ -85,33 +213,45 @@ function parseURL (url) {
       throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
     }
 
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+      throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
     let origin = url.origin != null
       ? url.origin
-      : `${url.protocol}//${url.hostname}:${port}`
+      : `${url.protocol || ''}//${url.hostname || ''}:${port}`
     let path = url.path != null
       ? url.path
       : `${url.pathname || ''}${url.search || ''}`
 
-    if (origin.endsWith('/')) {
-      origin = origin.substring(0, origin.length - 1)
+    if (origin[origin.length - 1] === '/') {
+      origin = origin.slice(0, origin.length - 1)
     }
 
-    if (path && !path.startsWith('/')) {
+    if (path && path[0] !== '/') {
       path = `/${path}`
     }
     // new URL(path, origin) is unsafe when `path` contains an absolute URL
     // From https://developer.mozilla.org/en-US/docs/Web/API/URL/URL:
     // If first parameter is a relative URL, second param is required, and will be used as the base URL.
     // If first parameter is an absolute URL, a given second param will be ignored.
-    url = new URL(origin + path)
+    return new URL(`${origin}${path}`)
+  }
+
+  if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   return url
 }
 
+/**
+ * @param {string|URL|Record<string, string>} url
+ * @returns {URL}
+ */
 function parseOrigin (url) {
   url = parseURL(url)
 
@@ -122,6 +262,10 @@ function parseOrigin (url) {
   return url
 }
 
+/**
+ * @param {string} host
+ * @returns {string}
+ */
 function getHostname (host) {
   if (host[0] === '[') {
     const idx = host.indexOf(']')
@@ -136,14 +280,18 @@ function getHostname (host) {
   return host.substring(0, idx)
 }
 
-// IP addresses are not valid server names per RFC6066
-// > Currently, the only server names supported are DNS hostnames
+/**
+ * IP addresses are not valid server names per RFC6066
+ * Currently, the only server names supported are DNS hostnames
+ * @param {string|null} host
+ * @returns {string|null}
+ */
 function getServerName (host) {
   if (!host) {
     return null
   }
 
-  assert.strictEqual(typeof host, 'string')
+  assert(typeof host === 'string')
 
   const servername = getHostname(host)
   if (net.isIP(servername)) {
@@ -153,18 +301,36 @@ function getServerName (host) {
   return servername
 }
 
+/**
+ * @function
+ * @template T
+ * @param {T} obj
+ * @returns {T}
+ */
 function deepClone (obj) {
   return JSON.parse(JSON.stringify(obj))
 }
 
+/**
+ * @param {*} obj
+ * @returns {obj is AsyncIterable}
+ */
 function isAsyncIterable (obj) {
   return !!(obj != null && typeof obj[Symbol.asyncIterator] === 'function')
 }
 
+/**
+ * @param {*} obj
+ * @returns {obj is Iterable}
+ */
 function isIterable (obj) {
   return !!(obj != null && (typeof obj[Symbol.iterator] === 'function' || typeof obj[Symbol.asyncIterator] === 'function'))
 }
 
+/**
+ * @param {Blob|Buffer|import ('stream').Stream} body
+ * @returns {number|null}
+ */
 function bodyLength (body) {
   if (body == null) {
     return 0
@@ -182,15 +348,19 @@ function bodyLength (body) {
   return null
 }
 
-function isDestroyed (stream) {
-  return !stream || !!(stream.destroyed || stream[kDestroyed])
+/**
+ * @param {import ('stream').Stream} body
+ * @returns {boolean}
+ */
+function isDestroyed (body) {
+  return body && !!(body.destroyed || body[kDestroyed] || (stream.isDestroyed?.(body)))
 }
 
-function isReadableAborted (stream) {
-  const state = stream?._readableState
-  return isDestroyed(stream) && state && !state.endEmitted
-}
-
+/**
+ * @param {import ('stream').Stream} stream
+ * @param {Error} [err]
+ * @returns {void}
+ */
 function destroy (stream, err) {
   if (stream == null || !isStream(stream) || isDestroyed(stream)) {
     return
@@ -204,9 +374,9 @@ function destroy (stream, err) {
 
     stream.destroy(err)
   } else if (err) {
-    process.nextTick((stream, err) => {
+    queueMicrotask(() => {
       stream.emit('error', err)
-    }, stream, err)
+    })
   }
 
   if (stream.destroyed !== true) {
@@ -215,8 +385,12 @@ function destroy (stream, err) {
 }
 
 const KEEPALIVE_TIMEOUT_EXPR = /timeout=(\d+)/
+/**
+ * @param {string} val
+ * @returns {number | null}
+ */
 function parseKeepAliveTimeout (val) {
-  const m = val.toString().match(KEEPALIVE_TIMEOUT_EXPR)
+  const m = val.match(KEEPALIVE_TIMEOUT_EXPR)
   return m ? parseInt(m[1], 10) * 1000 : null
 }
 
@@ -241,15 +415,13 @@ function bufferToLowerCasedHeaderName (value) {
 }
 
 /**
- * @param {Record<string, string | string[]> | (Buffer | string | (Buffer | string)[])[]} headers
+ * @param {(Buffer | string)[]} headers
  * @param {Record<string, string | string[]>} [obj]
  * @returns {Record<string, string | string[]>}
  */
 function parseHeaders (headers, obj) {
-  // For H2 support
-  if (!Array.isArray(headers)) return headers
-
   if (obj === undefined) obj = {}
+
   for (let i = 0; i < headers.length; i += 2) {
     const key = headerNameToString(headers[i])
     let val = obj[key]
@@ -259,60 +431,84 @@ function parseHeaders (headers, obj) {
         val = [val]
         obj[key] = val
       }
-      val.push(headers[i + 1].toString('utf8'))
+      val.push(headers[i + 1].toString('latin1'))
     } else {
       const headersValue = headers[i + 1]
       if (typeof headersValue === 'string') {
         obj[key] = headersValue
       } else {
-        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
+        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('latin1')) : headersValue.toString('latin1')
       }
     }
-  }
-
-  // See https://github.com/nodejs/node/pull/46528
-  if ('content-length' in obj && 'content-disposition' in obj) {
-    obj['content-disposition'] = Buffer.from(obj['content-disposition']).toString('latin1')
   }
 
   return obj
 }
 
+/**
+ * @param {Buffer[]} headers
+ * @returns {string[]}
+ */
 function parseRawHeaders (headers) {
-  const ret = []
-  let hasContentLength = false
-  let contentDispositionIdx = -1
+  const headersLength = headers.length
+  /**
+   * @type {string[]}
+   */
+  const ret = new Array(headersLength)
 
-  for (let n = 0; n < headers.length; n += 2) {
-    const key = headers[n + 0].toString()
-    const val = headers[n + 1].toString('utf8')
+  let key
+  let val
 
-    if (key.length === 14 && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
-      ret.push(key, val)
-      hasContentLength = true
-    } else if (key.length === 19 && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
-      contentDispositionIdx = ret.push(key, val) - 1
-    } else {
-      ret.push(key, val)
-    }
-  }
+  for (let n = 0; n < headersLength; n += 2) {
+    key = headers[n]
+    val = headers[n + 1]
 
-  // See https://github.com/nodejs/node/pull/46528
-  if (hasContentLength && contentDispositionIdx !== -1) {
-    ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString('latin1')
+    typeof key !== 'string' && (key = key.toString())
+    typeof val !== 'string' && (val = val.toString('latin1'))
+
+    ret[n] = key
+    ret[n + 1] = val
   }
 
   return ret
 }
 
+/**
+ * @param {string[]} headers
+ * @param {Buffer[]} headers
+ */
+function encodeRawHeaders (headers) {
+  if (!Array.isArray(headers)) {
+    throw new TypeError('expected headers to be an array')
+  }
+  return headers.map(x => Buffer.from(x))
+}
+
+/**
+ * @param {*} buffer
+ * @returns {buffer is Buffer}
+ */
 function isBuffer (buffer) {
   // See, https://github.com/mcollina/undici/pull/319
   return buffer instanceof Uint8Array || Buffer.isBuffer(buffer)
 }
 
-function validateHandler (handler, method, upgrade) {
+/**
+ * Asserts that the handler object is a request handler.
+ *
+ * @param {object} handler
+ * @param {string} method
+ * @param {string} [upgrade]
+ * @returns {asserts handler is import('../api/api-request').RequestHandler}
+ */
+function assertRequestHandler (handler, method, upgrade) {
   if (!handler || typeof handler !== 'object') {
     throw new InvalidArgumentError('handler must be an object')
+  }
+
+  if (typeof handler.onRequestStart === 'function') {
+    // TODO (fix): More checks...
+    return
   }
 
   if (typeof handler.onConnect !== 'function') {
@@ -346,21 +542,33 @@ function validateHandler (handler, method, upgrade) {
   }
 }
 
-// A body is disturbed if it has been read from and it cannot
-// be re-used without losing state or data.
+/**
+ * A body is disturbed if it has been read from and it cannot be re-used without
+ * losing state or data.
+ * @param {import('node:stream').Readable} body
+ * @returns {boolean}
+ */
 function isDisturbed (body) {
   // TODO (fix): Why is body[kBodyUsed] needed?
   return !!(body && (stream.isDisturbed(body) || body[kBodyUsed]))
 }
 
-function isErrored (body) {
-  return !!(body && stream.isErrored(body))
-}
+/**
+ * @typedef {object} SocketInfo
+ * @property {string} [localAddress]
+ * @property {number} [localPort]
+ * @property {string} [remoteAddress]
+ * @property {number} [remotePort]
+ * @property {string} [remoteFamily]
+ * @property {number} [timeout]
+ * @property {number} bytesWritten
+ * @property {number} bytesRead
+ */
 
-function isReadable (body) {
-  return !!(body && stream.isReadable(body))
-}
-
+/**
+ * @param {import('net').Socket} socket
+ * @returns {SocketInfo}
+ */
 function getSocketInfo (socket) {
   return {
     localAddress: socket.localAddress,
@@ -374,41 +582,50 @@ function getSocketInfo (socket) {
   }
 }
 
-/** @type {globalThis['ReadableStream']} */
+/**
+ * @param {Iterable} iterable
+ * @returns {ReadableStream}
+ */
 function ReadableStreamFrom (iterable) {
   // We cannot use ReadableStream.from here because it does not return a byte stream.
 
   let iterator
   return new ReadableStream(
     {
-      async start () {
+      start () {
         iterator = iterable[Symbol.asyncIterator]()
       },
-      async pull (controller) {
-        const { done, value } = await iterator.next()
-        if (done) {
-          queueMicrotask(() => {
-            controller.close()
-            controller.byobRequest?.respond(0)
-          })
-        } else {
-          const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
-          if (buf.byteLength) {
-            controller.enqueue(new Uint8Array(buf))
+      pull (controller) {
+        return iterator.next().then(({ done, value }) => {
+          if (done) {
+            return queueMicrotask(() => {
+              controller.close()
+              controller.byobRequest?.respond(0)
+            })
+          } else {
+            const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
+            if (buf.byteLength) {
+              return controller.enqueue(new Uint8Array(buf))
+            } else {
+              return this.pull(controller)
+            }
           }
-        }
-        return controller.desiredSize > 0
+        })
       },
-      async cancel (reason) {
-        await iterator.return()
+      cancel () {
+        return iterator.return()
       },
       type: 'bytes'
     }
   )
 }
 
-// The chunk should be a FormData instance and contains
-// all the required methods.
+/**
+ * The object should be a FormData instance and contains all the required
+ * methods.
+ * @param {*} object
+ * @returns {object is FormData}
+ */
 function isFormDataLike (object) {
   return (
     object &&
@@ -428,77 +645,94 @@ function addAbortListener (signal, listener) {
     signal.addEventListener('abort', listener, { once: true })
     return () => signal.removeEventListener('abort', listener)
   }
-  signal.addListener('abort', listener)
+  signal.once('abort', listener)
   return () => signal.removeListener('abort', listener)
 }
 
-const hasToWellFormed = !!String.prototype.toWellFormed
-
-/**
- * @param {string} val
- */
-function toUSVString (val) {
-  if (hasToWellFormed) {
-    return `${val}`.toWellFormed()
-  } else if (nodeUtil.toUSVString) {
-    return nodeUtil.toUSVString(val)
-  }
-
-  return `${val}`
-}
+const validTokenChars = new Uint8Array([
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0-15
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16-31
+  0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, // 32-47 (!"#$%&'()*+,-./)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, // 48-63 (0-9:;<=>?)
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 64-79 (@A-O)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, // 80-95 (P-Z[\]^_)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 96-111 (`a-o)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, // 112-127 (p-z{|}~)
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 128-143
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 144-159
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 160-175
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 176-191
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 192-207
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 208-223
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 224-239
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 240-255
+])
 
 /**
  * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
  * @param {number} c
+ * @returns {boolean}
  */
 function isTokenCharCode (c) {
-  switch (c) {
-    case 0x22:
-    case 0x28:
-    case 0x29:
-    case 0x2c:
-    case 0x2f:
-    case 0x3a:
-    case 0x3b:
-    case 0x3c:
-    case 0x3d:
-    case 0x3e:
-    case 0x3f:
-    case 0x40:
-    case 0x5b:
-    case 0x5c:
-    case 0x5d:
-    case 0x7b:
-    case 0x7d:
-      // DQUOTE and "(),/:;<=>?@[\]{}"
-      return false
-    default:
-      // VCHAR %x21-7E
-      return c >= 0x21 && c <= 0x7e
-  }
+  return (validTokenChars[c] === 1)
 }
+
+const tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/
 
 /**
  * @param {string} characters
+ * @returns {boolean}
  */
 function isValidHTTPToken (characters) {
-  if (characters.length === 0) {
-    return false
-  }
-  for (let i = 0; i < characters.length; ++i) {
-    if (!isTokenCharCode(characters.charCodeAt(i))) {
+  if (characters.length >= 12) return tokenRegExp.test(characters)
+  if (characters.length === 0) return false
+
+  for (let i = 0; i < characters.length; i++) {
+    if (validTokenChars[characters.charCodeAt(i)] !== 1) {
       return false
     }
   }
   return true
 }
 
-// Parsed accordingly to RFC 9110
-// https://www.rfc-editor.org/rfc/rfc9110#field.content-range
+// headerCharRegex have been lifted from
+// https://github.com/nodejs/node/blob/main/lib/_http_common.js
+
+/**
+ * Matches if val contains an invalid field-vchar
+ *  field-value    = *( field-content / obs-fold )
+ *  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+ *  field-vchar    = VCHAR / obs-text
+ */
+const headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/
+
+/**
+ * @param {string} characters
+ * @returns {boolean}
+ */
+function isValidHeaderValue (characters) {
+  return !headerCharRegex.test(characters)
+}
+
+const rangeHeaderRegex = /^bytes (\d+)-(\d+)\/(\d+)?$/
+
+/**
+ * @typedef {object} RangeHeader
+ * @property {number} start
+ * @property {number | null} end
+ * @property {number | null} size
+ */
+
+/**
+ * Parse accordingly to RFC 9110
+ * @see https://www.rfc-editor.org/rfc/rfc9110#field.content-range
+ * @param {string} [range]
+ * @returns {RangeHeader|null}
+ */
 function parseRangeHeader (range) {
   if (range == null || range === '') return { start: 0, end: null, size: null }
 
-  const m = range ? range.match(/^bytes (\d+)-(\d+)\/(\d+)?$/) : null
+  const m = range ? range.match(rangeHeaderRegex) : null
   return m
     ? {
         start: parseInt(m[1]),
@@ -508,17 +742,176 @@ function parseRangeHeader (range) {
     : null
 }
 
+/**
+ * @template {import("events").EventEmitter} T
+ * @param {T} obj
+ * @param {string} name
+ * @param {(...args: any[]) => void} listener
+ * @returns {T}
+ */
+function addListener (obj, name, listener) {
+  const listeners = (obj[kListeners] ??= [])
+  listeners.push([name, listener])
+  obj.on(name, listener)
+  return obj
+}
+
+/**
+ * @template {import("events").EventEmitter} T
+ * @param {T} obj
+ * @returns {T}
+ */
+function removeAllListeners (obj) {
+  if (obj[kListeners] != null) {
+    for (const [name, listener] of obj[kListeners]) {
+      obj.removeListener(name, listener)
+    }
+    obj[kListeners] = null
+  }
+  return obj
+}
+
+/**
+ * @param {import ('../dispatcher/client')} client
+ * @param {import ('../core/request')} request
+ * @param {Error} err
+ */
+function errorRequest (client, request, err) {
+  try {
+    request.onError(err)
+    assert(request.aborted)
+  } catch (err) {
+    client.emit('error', err)
+  }
+}
+
+/**
+ * @param {WeakRef<net.Socket>} socketWeakRef
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ * @returns {() => void}
+ */
+const setupConnectTimeout = process.platform === 'win32'
+  ? (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
+      }
+
+      let s1 = null
+      let s2 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+        // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
+          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts))
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+        clearImmediate(s2)
+      }
+    }
+  : (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
+      }
+
+      let s1 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+          onConnectTimeout(socketWeakRef.deref(), opts)
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+      }
+    }
+
+/**
+ * @param {net.Socket} socket
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ */
+function onConnectTimeout (socket, opts) {
+  // The socket could be already garbage collected
+  if (socket == null) {
+    return
+  }
+
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')},`
+  } else {
+    message += ` (attempted address: ${opts.hostname}:${opts.port},`
+  }
+
+  message += ` timeout: ${opts.timeout}ms)`
+
+  destroy(socket, new ConnectTimeoutError(message))
+}
+
+/**
+ * @param {string} urlString
+ * @returns {string}
+ */
+function getProtocolFromUrlString (urlString) {
+  if (
+    urlString[0] === 'h' &&
+    urlString[1] === 't' &&
+    urlString[2] === 't' &&
+    urlString[3] === 'p'
+  ) {
+    switch (urlString[4]) {
+      case ':':
+        return 'http:'
+      case 's':
+        if (urlString[5] === ':') {
+          return 'https:'
+        }
+    }
+  }
+  // fallback if none of the usual suspects
+  return urlString.slice(0, urlString.indexOf(':') + 1)
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
+const normalizedMethodRecordsBase = {
+  delete: 'DELETE',
+  DELETE: 'DELETE',
+  get: 'GET',
+  GET: 'GET',
+  head: 'HEAD',
+  HEAD: 'HEAD',
+  options: 'OPTIONS',
+  OPTIONS: 'OPTIONS',
+  post: 'POST',
+  POST: 'POST',
+  put: 'PUT',
+  PUT: 'PUT'
+}
+
+const normalizedMethodRecords = {
+  ...normalizedMethodRecordsBase,
+  patch: 'patch',
+  PATCH: 'PATCH'
+}
+
+// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizedMethodRecordsBase, null)
+Object.setPrototypeOf(normalizedMethodRecords, null)
+
 module.exports = {
   kEnumerableProperty,
-  nop,
   isDisturbed,
-  isErrored,
-  isReadable,
-  toUSVString,
-  isReadableAborted,
   isBlobLike,
   parseOrigin,
   parseURL,
@@ -529,7 +922,11 @@ module.exports = {
   isDestroyed,
   headerNameToString,
   bufferToLowerCasedHeaderName,
+  addListener,
+  removeAllListeners,
+  errorRequest,
   parseRawHeaders,
+  encodeRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,
   destroy,
@@ -537,16 +934,24 @@ module.exports = {
   deepClone,
   ReadableStreamFrom,
   isBuffer,
-  validateHandler,
+  assertRequestHandler,
   getSocketInfo,
   isFormDataLike,
-  buildURL,
+  pathHasQueryOrFragment,
+  serializePathWithQuery,
   addAbortListener,
   isValidHTTPToken,
+  isValidHeaderValue,
   isTokenCharCode,
   parseRangeHeader,
+  normalizedMethodRecordsBase,
+  normalizedMethodRecords,
+  isValidPort,
+  isHttpOrHttpsPrefixed,
   nodeMajor,
   nodeMinor,
-  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13),
-  safeHTTPMethods: ['GET', 'HEAD', 'OPTIONS', 'TRACE']
+  safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
+  wrapRequestBody,
+  setupConnectTimeout,
+  getProtocolFromUrlString
 }

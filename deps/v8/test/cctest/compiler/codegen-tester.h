@@ -25,12 +25,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
  public:
   template <typename... ParamMachTypes>
   explicit RawMachineAssemblerTester(ParamMachTypes... p)
-      : HandleAndZoneScope(kCompressGraphZone),
-        CallHelper<ReturnType>(
+      : CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
+            main_isolate(), main_zone()->template New<TFGraph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
@@ -42,12 +41,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   template <typename... ParamMachTypes>
   RawMachineAssemblerTester(CodeKind kind, ParamMachTypes... p)
-      : HandleAndZoneScope(kCompressGraphZone),
-        CallHelper<ReturnType>(
+      : CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
+            main_isolate(), main_zone()->template New<TFGraph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
@@ -135,8 +133,8 @@ class BufferedRawMachineAssemblerTester
       // Since we are returning values via storing to off-heap location
       // generate full-word store here.
       Store(MachineType::PointerRepresentation(),
-            RawMachineAssembler::Parameter(return_parameter_index_),
-            BitcastTaggedToWord(input), kNoWriteBarrier);
+            RawMachineAssembler::Parameter(return_parameter_index_), input,
+            kNoWriteBarrier);
 
     } else {
       Store(MachineTypeForC<ReturnType>().representation(),

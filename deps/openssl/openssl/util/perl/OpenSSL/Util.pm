@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -192,28 +192,47 @@ sub fixup_cmd {
     return fixup_cmd_elements(@_) unless $^O eq 'VMS';
 
     # The rest is VMS specific
-    my $prog = shift;
+    my $cmd = shift;
 
-    # On VMS, running random executables without having a command symbol
-    # means running them with the MCR command.  This is an old PDP-11
-    # command that stuck around.
-    # This assumes that we're passed the name of an executable.  This is a
-    # safe assumption for OpenSSL command lines
-    my $prefix = 'MCR';
+    # Prefix to be applied as needed.  Essentially, we need to determine
+    # if the command is an executable file (something.EXE), and invoke it
+    # with the MCR command in that case.  MCR is an old PDP-11 command that
+    # stuck around.
+    my @prefix;
 
-    if ($prog =~ /^MCR$/i) {
-        # If the first element is "MCR" (independent of case) already, then
-        # we assume that the program it runs is already written the way it
-        # should, and just grab it.
-        $prog = shift;
+    if ($cmd =~ m|^\@|) {
+        # The command is an invocation of a command procedure (also known as
+        # "script"), no modification needed.
+        @prefix = ();
+    } elsif ($cmd =~ m|^MCR$|) {
+        # The command is MCR, so there's nothing much to do apart from
+        # making sure that the file name following it isn't treated with
+        # fixup_cmd_elements(), 'cause MCR doesn't like strings.
+        @prefix = ( $cmd );
+        $cmd = shift;
     } else {
-        # If the command itself doesn't have a directory spec, make sure
-        # that there is one.  Otherwise, MCR assumes that the program
-        # resides in SYS$SYSTEM:
-        $prog = '[]' . $prog unless $prog =~ /^(?:[\$a-z0-9_]+:)?[<\[]/i;
+        # All that's left now is to check whether the command is an executable
+        # file, and if it's not, simply assume that it is a DCL command.
+
+        # Make sure we have a proper file name, i.e. add the default
+        # extension '.exe' if there isn't one already.
+        my $executable = ($cmd =~ m|.[a-z0-9\$]*$|) ? $cmd : $cmd . '.exe';
+        if (-e $executable) {
+            # It seems to be an executable, so we make sure to prefix it
+            # with MCR, for proper invocation.  We also make sure that
+            # there's a directory specification, or otherwise, MCR will
+            # assume that the executable is in SYS$SYSTEM:
+            @prefix = ( 'MCR' );
+            $cmd = '[]' . $cmd unless $cmd =~ /^(?:[\$a-z0-9_]+:)?[<\[]/i;
+        } else {
+            # If it isn't an executable, then we assume that it's a DCL
+            # command, and do no further processing, apart from argument
+            # fixup.
+            @prefix = ();
+        }
     }
 
-    return ( $prefix, $prog, fixup_cmd_elements(@_) );
+    return ( @prefix, $cmd, fixup_cmd_elements(@_) );
 }
 
 =item dump_data REF, OPTS

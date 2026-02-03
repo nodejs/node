@@ -12,12 +12,17 @@
 #include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/base/cached-unordered-map.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-utils-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -25,14 +30,14 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
 #include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/object-lock.h"
-#include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/heap/young-generation-marking-visitor.h"
@@ -44,29 +49,115 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/objects/visitors.h"
 #include "src/utils/utils-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
+// This class caches page live bytes during concurrent marking. This
+// avoids costly CAS operations on MutablePageMetadata::live_byte_count_ for
+// each traced object.
+//
+// Page live bytes are cached in a fixed-size hash map. In the case of
+// collisions the existing entry is simply written back to
+// MutablePageMetadata::live_byte_count_ with a CAS. Afterwards it can be
+// replaced with the new entry.
+class MemoryChunkLiveBytesMap {
+ public:
+  MemoryChunkLiveBytesMap() = default;
+
+  MemoryChunkLiveBytesMap(const MemoryChunkLiveBytesMap&) = delete;
+  MemoryChunkLiveBytesMap& operator=(const MemoryChunkLiveBytesMap&) = delete;
+
+  void Increment(MutablePageMetadata* page, intptr_t live);
+  void FlushAndClear();
+  void Erase(MutablePageMetadata* page);
+
+#if DEBUG
+  void AssertEmpty();
+#endif  // DEBUG
+
+ private:
+  struct Entry {
+    MutablePageMetadata* page;
+    intptr_t live_bytes;
+  };
+
+  static constexpr size_t kTableSize = 32;
+
+  Entry& lookup_entry(MutablePageMetadata* page) {
+    size_t hash = std::hash<MutablePageMetadata*>{}(page);
+    static_assert(base::bits::IsPowerOfTwo(kTableSize));
+    return map_[hash % kTableSize];
+  }
+
+  std::array<Entry, kTableSize> map_ = {};
+};
+
+void MemoryChunkLiveBytesMap::Increment(MutablePageMetadata* page,
+                                        intptr_t bytes) {
+  Entry& entry = lookup_entry(page);
+  if (entry.page == page) {
+    entry.live_bytes += bytes;
+  } else if (entry.page == nullptr) {
+    entry.page = page;
+    entry.live_bytes = bytes;
+  } else {
+    // Write back the existing entry.
+    entry.page->IncrementLiveBytesAtomically(entry.live_bytes);
+    // Now just replace it with the new entry.
+    entry.page = page;
+    entry.live_bytes = bytes;
+  }
+}
+
+void MemoryChunkLiveBytesMap::Erase(MutablePageMetadata* page) {
+  Entry& entry = lookup_entry(page);
+  if (entry.page == page) {
+    entry.page = nullptr;
+    entry.live_bytes = 0;
+  }
+}
+
+void MemoryChunkLiveBytesMap::FlushAndClear() {
+  for (auto& entry : map_) {
+    if (entry.page) {
+      entry.page->IncrementLiveBytesAtomically(entry.live_bytes);
+      entry.page = nullptr;
+      entry.live_bytes = 0;
+    }
+  }
+}
+
+#if DEBUG
+void MemoryChunkLiveBytesMap::AssertEmpty() {
+  for (auto& entry : map_) {
+    DCHECK_NULL(entry.page);
+    DCHECK_EQ(entry.live_bytes, 0);
+  }
+}
+#endif  // DEBUG
+
+using MemoryChunkTypedSlotsMap =
+    ::heap::base::CachedUnorderedMap<MutablePageMetadata*,
+                                     std::unique_ptr<TypedSlots>>;
+
 class ConcurrentMarkingVisitor final
     : public FullMarkingVisitorBase<ConcurrentMarkingVisitor> {
  public:
-  ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects::Local* local_weak_objects, Heap* heap,
-                           unsigned mark_compact_epoch,
-                           base::EnumSet<CodeFlushMode> code_flush_mode,
-                           bool embedder_tracing_enabled,
-                           bool should_keep_ages_unchanged,
-                           uint16_t code_flushing_increase,
-                           MemoryChunkDataMap* memory_chunk_data)
-      : FullMarkingVisitorBase(
-            local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
-            should_keep_ages_unchanged, code_flushing_increase),
-        memory_chunk_data_(memory_chunk_data) {}
+  ConcurrentMarkingVisitor(
+      MarkingWorklists::Local* local_marking_worklists,
+      WeakObjects::Local* local_weak_objects, Heap* heap,
+      unsigned mark_compact_epoch, base::EnumSet<CodeFlushMode> code_flush_mode,
+      bool should_keep_ages_unchanged, uint16_t code_flushing_increase,
+      MemoryChunkLiveBytesMap* memory_chunk_live_bytes_map,
+      MemoryChunkTypedSlotsMap* memory_chunk_typed_slots_map)
+      : FullMarkingVisitorBase(local_marking_worklists, local_weak_objects,
+                               heap, mark_compact_epoch, code_flush_mode,
+                               should_keep_ages_unchanged,
+                               code_flushing_increase),
+        memory_chunk_live_bytes_map_(memory_chunk_live_bytes_map),
+        memory_chunk_typed_slots_map_(memory_chunk_typed_slots_map) {}
 
   using FullMarkingVisitorBase<
       ConcurrentMarkingVisitor>::VisitMapPointerIfNeeded;
@@ -76,28 +167,29 @@ class ConcurrentMarkingVisitor final
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value) {
-    if (IsMarked(key)) {
-      if (TryMark(value)) {
-        local_marking_worklists_->Push(value);
+    if (marking_state()->IsMarked(key)) {
+      const auto target_worklist =
+          MarkingHelper::ShouldMarkObject(heap_, value);
+      DCHECK(target_worklist.has_value());
+      if (MarkObject(key, value, target_worklist.value())) {
         return true;
       }
-
-    } else if (IsUnmarked(value)) {
+    } else if (marking_state()->IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;
   }
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
-    MarkCompactCollector::RecordSlot(object, slot, target);
+    MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
   }
 
-  void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by) {
+  void IncrementLiveBytesCached(MutablePageMetadata* chunk, intptr_t by) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(by, kObjectAlignment8GbHeap));
-    (*memory_chunk_data_)[chunk].live_bytes += by;
+    memory_chunk_live_bytes_map_->Increment(chunk, by);
   }
 
  private:
@@ -110,25 +202,25 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
-    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
-    if (!data.typed_slots) {
-      data.typed_slots.reset(new TypedSlots());
+    auto& typed_slots = (*memory_chunk_typed_slots_map_)[info.page_metadata];
+
+    if (!typed_slots) {
+      typed_slots.reset(new TypedSlots());
     }
-    data.typed_slots->Insert(info.slot_type, info.offset);
+
+    typed_slots->Insert(info.slot_type, info.offset);
   }
 
-  TraceRetainingPathMode retaining_path_mode() {
-    return TraceRetainingPathMode::kDisabled;
-  }
-
-  MemoryChunkDataMap* memory_chunk_data_;
+  MemoryChunkLiveBytesMap* memory_chunk_live_bytes_map_;
+  MemoryChunkTypedSlotsMap* memory_chunk_typed_slots_map_;
 
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor>;
 };
 
 struct ConcurrentMarking::TaskState {
   size_t marked_bytes = 0;
-  MemoryChunkDataMap memory_chunk_data;
+  MemoryChunkLiveBytesMap memory_chunk_live_bytes_map;
+  MemoryChunkTypedSlotsMap memory_chunk_typed_slots_map;
   NativeContextStats native_context_stats;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
       PretenuringHandler::kInitialFeedbackCapacity};
@@ -154,10 +246,9 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        concurrent_marking_->heap_->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
 
     if (delegate->IsJoiningThread()) {
       // TRACE_GC is not needed here because the caller opens the right scope.
@@ -203,10 +294,9 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        concurrent_marking_->heap_->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
 
     if (delegate->IsJoiningThread()) {
       TRACE_GC_WITH_FLOW(concurrent_marking_->heap_->tracer(),
@@ -232,6 +322,23 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
  private:
   ConcurrentMarking* concurrent_marking_;
   const uint64_t trace_id_;
+};
+
+class ConcurrentMarking::MinorMarkingState {
+ public:
+  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
+
+  V8_INLINE void MarkerStarted() {
+    active_markers_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  // Returns true if all markers are done.
+  V8_INLINE bool MarkerDone() {
+    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
+  }
+
+ private:
+  std::atomic<int> active_markers_{0};
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
@@ -271,8 +378,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
-      code_flush_mode, heap_->cpp_heap(), should_keep_ages_unchanged,
-      heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
+      code_flush_mode, should_keep_ages_unchanged,
+      heap_->tracer()->CodeFlushingIncrease(),
+      &task_state->memory_chunk_live_bytes_map,
+      &task_state->memory_chunk_typed_slots_map);
   NativeContextInferrer native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;
@@ -284,7 +393,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   }
   bool another_ephemeron_iteration = false;
   MainAllocator* const new_space_allocator =
-      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
+      heap_->use_new_space() ? heap_->allocator()->new_space_allocator()
+                             : nullptr;
 
   {
     TimedScope scope(&time_ms);
@@ -298,11 +408,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
     PtrComprCageBase cage_base(isolate);
-    bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
+    const bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a InstructionStream object requires write access to the "
-        "Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;
@@ -313,8 +420,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
-        DCHECK(!object.InReadOnlySpace());
-        DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
+        DCHECK(!HeapLayout::InReadOnlySpace(object));
+        DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
         objects_processed++;
 
         Address new_space_top = kNullAddress;
@@ -322,9 +429,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         Address new_large_object = kNullAddress;
 
         if (new_space_allocator) {
-          // The order of the two loads is important.
-          new_space_top = new_space_allocator->original_top_acquire();
-          new_space_limit = new_space_allocator->original_limit_relaxed();
+          std::tie(new_space_top, new_space_limit) =
+              new_space_allocator->GetOriginalTopAndLimit();
         }
 
         if (heap_->new_lo_space()) {
@@ -349,7 +455,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           }
           const auto visited_size = visitor.Visit(map, object);
           visitor.IncrementLiveBytesCached(
-              MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+              MutablePageMetadata::cast(MemoryChunkMetadata::FromHeapObject(
+                  heap_->isolate(), object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
             native_context_stats.IncrementSize(
@@ -368,14 +475,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
 
-    if (done) {
-      Ephemeron ephemeron;
-      while (local_weak_objects.discovered_ephemerons_local.Pop(&ephemeron)) {
-        if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-          another_ephemeron_iteration = true;
-        }
-      }
-    }
+    CHECK(local_weak_objects.current_ephemerons_local.IsLocalEmpty());
 
     local_marking_worklists.Publish();
     local_weak_objects.Publish();
@@ -395,31 +495,14 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   DCHECK(task_state->local_pretenuring_feedback.empty());
 }
 
-class ConcurrentMarking::MinorMarkingState {
- public:
-  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
-
-  V8_INLINE void MarkerStarted() {
-    active_markers_.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  // Returns true if all markers are done.
-  V8_INLINE bool MarkerDone() {
-    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
-  }
-
- private:
-  std::atomic<int> active_markers_{0};
-};
-
 namespace {
 
 V8_INLINE bool IsYoungObjectInLab(MainAllocator* new_space_allocator,
                                   NewLargeObjectSpace* new_lo_space,
                                   Tagged<HeapObject> heap_object) {
   // The order of the two loads is important.
-  Address new_space_top = new_space_allocator->original_top_acquire();
-  Address new_space_limit = new_space_allocator->original_limit_relaxed();
+  auto [new_space_top, new_space_limit] =
+      new_space_allocator->GetOriginalTopAndLimit();
   Address new_large_object = new_lo_space->pending_object();
 
   Address addr = heap_object.address();
@@ -446,7 +529,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   Isolate* isolate = heap_->isolate();
   minor_marking_state_->MarkerStarted();
   MainAllocator* const new_space_allocator =
-      heap_->new_space()->main_allocator();
+      heap_->allocator()->new_space_allocator();
   NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
 
   do {
@@ -466,7 +549,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
         if (visited_size) {
           current_marked_bytes += visited_size;
           visitor.IncrementLiveBytesCached(
-              MemoryChunk::FromHeapObject(heap_object),
+              MutablePageMetadata::FromHeapObject(isolate, heap_object),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
         }
       }
@@ -493,7 +576,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
 }
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
-  DCHECK_NOT_NULL(heap_->new_space());
+  DCHECK(heap_->use_new_space());
   DCHECK_NOT_NULL(heap_->new_lo_space());
   uint8_t task_id = delegate->GetTaskId() + 1;
   DCHECK_LT(task_id, task_state_.size());
@@ -509,6 +592,10 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   {
     TimedScope scope(&time_ms);
     if (heap_->minor_mark_sweep_collector()->is_in_atomic_pause()) {
+      // This gets a lower bound for estimated concurrency as we may have marked
+      // most of the graph concurrently already and may not be using parallism
+      // as much.
+      estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
       marked_bytes =
           RunMinorImpl<YoungGenerationMarkingVisitationMode::kParallel>(
               delegate, task_state);
@@ -524,43 +611,51 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         "Minor task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
   }
-
-  DCHECK(task_state->memory_chunk_data.empty());
-  DCHECK(task_state->native_context_stats.Empty());
-  DCHECK_EQ(0, task_state->marked_bytes);
 }
 
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
-  size_t marking_items = marking_worklists_->shared()->Size();
-  marking_items += marking_worklists_->other()->Size();
-  for (auto& worklist : marking_worklists_->context_worklists())
+  size_t marking_items = marking_worklists_->default_worklist()->Size();
+  for (auto& worklist : marking_worklists_->context_worklists()) {
     marking_items += worklist.worklist->Size();
-  return std::min<size_t>(
-      task_state_.size() - 1,
-      worker_count +
-          std::max<size_t>({marking_items,
-                            weak_objects_->discovered_ephemerons.Size(),
-                            weak_objects_->current_ephemerons.Size()}));
+  }
+  const size_t work = std::max<size_t>(
+      {marking_items, weak_objects_->current_ephemerons.Size()});
+  size_t jobs = worker_count + work;
+  jobs = std::min<size_t>(task_state_.size() - 1, jobs);
+  if (heap_->ShouldOptimizeForBattery()) {
+    return std::min<size_t>(jobs, 1);
+  }
+  return jobs;
 }
 
 size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
-  size_t marking_items = marking_worklists_->shared()->Size() +
-                         heap_->minor_mark_sweep_collector()
-                             ->remembered_sets_marking_handler()
-                             ->RemainingRememberedSetsMarkingIteams();
-  DCHECK(marking_worklists_->other()->IsEmpty());
-  DCHECK(!marking_worklists_->IsUsingContextWorklists());
-  return std::min<size_t>(task_state_.size() - 1, worker_count + marking_items);
+  const size_t marking_items = marking_worklists_->default_worklist()->Size() +
+                               heap_->minor_mark_sweep_collector()
+                                   ->remembered_sets_marking_handler()
+                                   ->RemainingRememberedSetsMarkingIteams();
+  DCHECK(!marking_worklists_->IsPerContextMode());
+  size_t jobs = worker_count + marking_items;
+  jobs = std::min<size_t>(task_state_.size() - 1, jobs);
+  if (heap_->ShouldOptimizeForBattery()) {
+    return std::min<size_t>(jobs, 1);
+  }
+  return jobs;
 }
 
 void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
                                        TaskPriority priority) {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
   DCHECK(!heap_->IsTearingDown());
   DCHECK(IsStopped());
 
+  DCHECK_NE(garbage_collector, GarbageCollector::SCAVENGER);
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
       !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+  if (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER &&
+      !heap_->minor_mark_sweep_collector()->UseBackgroundThreadsInCycle()) {
     return;
   }
 
@@ -568,13 +663,44 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
-  DCHECK_NULL(minor_marking_state_);
-  DCHECK(
-      std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
-        return task_state->local_pretenuring_feedback.empty();
-      }));
+#if DEBUG
+  if (garbage_collector_.has_value()) {
+    // Concurrent marking resumes. In this case the used collectors need to
+    // match.
+    DCHECK_EQ(*garbage_collector_, garbage_collector);
+  } else {
+    // If a new concurrent marking cycle starts, TaskState should not contain
+    // any data.
+    for (auto& task_state : task_state_) {
+      task_state->memory_chunk_live_bytes_map.AssertEmpty();
+      DCHECK(task_state->memory_chunk_typed_slots_map.empty());
+      DCHECK(task_state->native_context_stats.Empty());
+      DCHECK(task_state->local_pretenuring_feedback.empty());
+      DCHECK_EQ(0, task_state->marked_bytes);
+    }
+    DCHECK_EQ(0, total_marked_bytes_.load());
+  }
+
+  if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+    // The full GC never makes use of local_pretenuring_feedback. It needs to be
+    // empty even if resuming concurrent marking.
+    for (auto& task_state : task_state_) {
+      DCHECK(task_state->local_pretenuring_feedback.empty());
+    }
+  }
+
+  if (minor_marking_state_) {
+    // Minor marking state can only be alive if the concurrent marker was
+    // previously paused.
+    DCHECK(garbage_collector_.has_value());
+    DCHECK_EQ(*garbage_collector_, GarbageCollector::MINOR_MARK_SWEEPER);
+    DCHECK_EQ(garbage_collector, GarbageCollector::MINOR_MARK_SWEEPER);
+  }
+#endif  // DEBUG
+
   garbage_collector_ = garbage_collector;
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+    heap_->mark_compact_collector()->local_marking_worklists()->Publish();
     marking_worklists_ = heap_->mark_compact_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMajor>(
         this, heap_->mark_compact_collector()->epoch(),
@@ -587,6 +713,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
   } else {
     DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
     minor_marking_state_ = std::make_unique<MinorMarkingState>();
+    heap_->minor_mark_sweep_collector()->local_marking_worklists()->Publish();
     marking_worklists_ =
         heap_->minor_mark_sweep_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMinor>(this);
@@ -601,12 +728,11 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
 bool ConcurrentMarking::IsWorkLeft() const {
   DCHECK(garbage_collector_.has_value());
   if (garbage_collector_ == GarbageCollector::MARK_COMPACTOR) {
-    return !marking_worklists_->shared()->IsEmpty() ||
-           !weak_objects_->current_ephemerons.IsEmpty() ||
-           !weak_objects_->discovered_ephemerons.IsEmpty();
+    return !marking_worklists_->IsEmpty() ||
+           !weak_objects_->current_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
-  return !marking_worklists_->shared()->IsEmpty() ||
+  return !marking_worklists_->default_worklist()->IsEmpty() ||
          (heap_->minor_mark_sweep_collector()
               ->remembered_sets_marking_handler()
               ->RemainingRememberedSetsMarkingIteams() > 0);
@@ -614,10 +740,16 @@ bool ConcurrentMarking::IsWorkLeft() const {
 
 void ConcurrentMarking::RescheduleJobIfNeeded(
     GarbageCollector garbage_collector, TaskPriority priority) {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
 
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
       !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+
+  if (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER &&
+      !heap_->minor_mark_sweep_collector()->UseBackgroundThreadsInCycle()) {
     return;
   }
 
@@ -631,6 +763,11 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
   } else {
     DCHECK(garbage_collector_.has_value());
     DCHECK_EQ(garbage_collector, garbage_collector_.value());
+    if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+      heap_->mark_compact_collector()->local_marking_worklists()->Publish();
+    } else {
+      heap_->minor_mark_sweep_collector()->local_marking_worklists()->Publish();
+    }
     if (!IsWorkLeft()) return;
     if (priority != TaskPriority::kUserVisible)
       job_handle_->UpdatePriority(priority);
@@ -655,7 +792,8 @@ void ConcurrentMarking::FlushPretenuringFeedback() {
 }
 
 void ConcurrentMarking::Join() {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
   DCHECK_IMPLIES(
       garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
       heap_->mark_compact_collector()->UseBackgroundThreadsInCycle());
@@ -664,6 +802,11 @@ void ConcurrentMarking::Join() {
   current_job_trace_id_.reset();
   garbage_collector_.reset();
   minor_marking_state_.reset();
+}
+
+void ConcurrentMarking::JoinJobForTesting() {
+  if (!job_handle_ || !job_handle_->IsValid()) return;
+  job_handle_->Join();
 }
 
 bool ConcurrentMarking::Pause() {
@@ -707,32 +850,16 @@ void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
 
 void ConcurrentMarking::FlushMemoryChunkData() {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  for (size_t i = 1; i < task_state_.size(); i++) {
-    MemoryChunkDataMap& memory_chunk_data = task_state_[i]->memory_chunk_data;
-    for (auto& pair : memory_chunk_data) {
-      // ClearLiveness sets the live bytes to zero.
-      // Pages with zero live bytes might be already unmapped.
-      MemoryChunk* memory_chunk = pair.first;
-      MemoryChunkData& data = pair.second;
-      if (data.live_bytes) {
-        memory_chunk->IncrementLiveBytesAtomically(data.live_bytes);
-      }
-      if (data.typed_slots) {
-        RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
-                                              std::move(data.typed_slots));
-      }
+  for (auto& task_state : task_state_) {
+    task_state->memory_chunk_live_bytes_map.FlushAndClear();
+    for (auto&& [page, typed_slots] :
+         task_state->memory_chunk_typed_slots_map) {
+      RememberedSet<OLD_TO_OLD>::MergeTyped(page, std::move(typed_slots));
     }
-    memory_chunk_data.clear();
-    task_state_[i]->marked_bytes = 0;
+    task_state->memory_chunk_typed_slots_map.clear();
+    task_state->marked_bytes = 0;
   }
   total_marked_bytes_ = 0;
-}
-
-void ConcurrentMarking::ClearMemoryChunkData(MemoryChunk* chunk) {
-  DCHECK(!job_handle_ || !job_handle_->IsValid());
-  for (size_t i = 1; i < task_state_.size(); i++) {
-    task_state_[i]->memory_chunk_data.erase(chunk);
-  }
 }
 
 size_t ConcurrentMarking::TotalMarkedBytes() {
@@ -743,22 +870,6 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
   }
   result += total_marked_bytes_;
   return result;
-}
-
-ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
-    : concurrent_marking_(concurrent_marking),
-      resume_on_exit_(v8_flags.concurrent_marking &&
-                      concurrent_marking_->Pause()) {
-  DCHECK(!v8_flags.minor_ms);
-  DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
-}
-
-ConcurrentMarking::PauseScope::~PauseScope() {
-  if (resume_on_exit_) {
-    DCHECK_EQ(concurrent_marking_->garbage_collector_,
-              GarbageCollector::MARK_COMPACTOR);
-    concurrent_marking_->Resume();
-  }
 }
 
 }  // namespace internal

@@ -22,7 +22,7 @@
 'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
-require('../common');
+const common = require('../common');
 
 function parent() {
   const spawn = require('child_process').spawn;
@@ -36,12 +36,12 @@ function parent() {
       err += c;
     });
 
-    child.on('close', function() {
+    child.on('close', common.mustCall(() => {
       assert.strictEqual(err, `child ${c}\nfoo\nbar\nbaz\n`);
       console.log(`ok ${++i} child #${c}`);
       if (i === children.length)
         console.log(`1..${i}`);
-    });
+    }));
   });
 }
 

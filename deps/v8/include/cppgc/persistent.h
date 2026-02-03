@@ -58,20 +58,20 @@ class BasicPersistent final : public PersistentBase,
 
   // Null-state/sentinel constructors.
   BasicPersistent(  // NOLINT
-      const SourceLocation& loc = SourceLocation::Current())
+      SourceLocation loc = SourceLocation::Current())
       : LocationPolicy(loc) {}
 
   BasicPersistent(std::nullptr_t,  // NOLINT
-                  const SourceLocation& loc = SourceLocation::Current())
+                  SourceLocation loc = SourceLocation::Current())
       : LocationPolicy(loc) {}
 
   BasicPersistent(  // NOLINT
-      SentinelPointer s, const SourceLocation& loc = SourceLocation::Current())
+      SentinelPointer s, SourceLocation loc = SourceLocation::Current())
       : PersistentBase(s), LocationPolicy(loc) {}
 
   // Raw value constructors.
   BasicPersistent(T* raw,  // NOLINT
-                  const SourceLocation& loc = SourceLocation::Current())
+                  SourceLocation loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid()) return;
     SetNode(WeaknessPolicy::GetPersistentRegion(GetValue())
@@ -80,30 +80,29 @@ class BasicPersistent final : public PersistentBase,
   }
 
   BasicPersistent(T& raw,  // NOLINT
-                  const SourceLocation& loc = SourceLocation::Current())
+                  SourceLocation loc = SourceLocation::Current())
       : BasicPersistent(&raw, loc) {}
 
   // Copy ctor.
   BasicPersistent(const BasicPersistent& other,
-                  const SourceLocation& loc = SourceLocation::Current())
+                  SourceLocation loc = SourceLocation::Current())
       : BasicPersistent(other.Get(), loc) {}
 
   // Heterogeneous ctor.
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   // NOLINTNEXTLINE
   BasicPersistent(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other,
-      const SourceLocation& loc = SourceLocation::Current())
+      SourceLocation loc = SourceLocation::Current())
       : BasicPersistent(other.Get(), loc) {}
 
   // Move ctor. The heterogeneous move ctor is not supported since e.g.
   // persistent can't reuse persistent node from weak persistent.
-  BasicPersistent(
-      BasicPersistent&& other,
-      const SourceLocation& loc = SourceLocation::Current()) noexcept
+  BasicPersistent(BasicPersistent&& other,
+                  SourceLocation loc = SourceLocation::Current()) noexcept
       : PersistentBase(std::move(other)), LocationPolicy(std::move(other)) {
     if (!IsValid()) return;
     GetNode()->UpdateOwner(this);
@@ -116,12 +115,12 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   // NOLINTNEXTLINE
   BasicPersistent(const internal::BasicMember<
                       U, MemberBarrierPolicy, MemberWeaknessTag,
                       MemberCheckingPolicy, MemberStorageType>& member,
-                  const SourceLocation& loc = SourceLocation::Current())
+                  SourceLocation loc = SourceLocation::Current())
       : BasicPersistent(member.Get(), loc) {}
 
   ~BasicPersistent() { Clear(); }
@@ -133,7 +132,7 @@ class BasicPersistent final : public PersistentBase,
 
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicPersistent& operator=(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other) {
@@ -158,7 +157,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicPersistent& operator=(
       const internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
                                   MemberCheckingPolicy, MemberStorageType>&

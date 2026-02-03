@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,8 +34,7 @@ int DSA_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp)
 DSA_SIG *DSA_SIG_new(void)
 {
     DSA_SIG *sig = OPENSSL_zalloc(sizeof(*sig));
-    if (sig == NULL)
-        ERR_raise(ERR_LIB_DSA, ERR_R_MALLOC_FAILURE);
+
     return sig;
 }
 
@@ -87,7 +86,7 @@ int i2d_DSA_SIG(const DSA_SIG *sig, unsigned char **ppout)
             return -1;
     } else if (*ppout == NULL) {
         if ((buf = BUF_MEM_new()) == NULL
-                || !WPACKET_init_len(&pkt, buf, 0)) {
+            || !WPACKET_init_len(&pkt, buf, 0)) {
             BUF_MEM_free(buf);
             return -1;
         }
@@ -97,8 +96,8 @@ int i2d_DSA_SIG(const DSA_SIG *sig, unsigned char **ppout)
     }
 
     if (!ossl_encode_der_dsa_sig(&pkt, sig->r, sig->s)
-            || !WPACKET_get_total_written(&pkt, &encoded_len)
-            || !WPACKET_finish(&pkt)) {
+        || !WPACKET_get_total_written(&pkt, &encoded_len)
+        || !WPACKET_finish(&pkt)) {
         BUF_MEM_free(buf);
         WPACKET_cleanup(&pkt);
         return -1;
@@ -152,28 +151,37 @@ int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 }
 
 int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
-                      unsigned char *sig, unsigned int *siglen, DSA *dsa)
+    unsigned char *sig, unsigned int *siglen, DSA *dsa,
+    unsigned int nonce_type, const char *digestname,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     DSA_SIG *s;
+
+    if (sig == NULL) {
+        *siglen = DSA_size(dsa);
+        return 1;
+    }
 
     /* legacy case uses the method table */
     if (dsa->libctx == NULL || dsa->meth != DSA_get_default_method())
         s = DSA_do_sign(dgst, dlen, dsa);
     else
-        s = ossl_dsa_do_sign_int(dgst, dlen, dsa);
+        s = ossl_dsa_do_sign_int(dgst, dlen, dsa,
+            nonce_type, digestname, libctx, propq);
     if (s == NULL) {
         *siglen = 0;
         return 0;
     }
-    *siglen = i2d_DSA_SIG(s, sig != NULL ? &sig : NULL);
+    *siglen = i2d_DSA_SIG(s, &sig);
     DSA_SIG_free(s);
     return 1;
 }
 
 int DSA_sign(int type, const unsigned char *dgst, int dlen,
-             unsigned char *sig, unsigned int *siglen, DSA *dsa)
+    unsigned char *sig, unsigned int *siglen, DSA *dsa)
 {
-    return ossl_dsa_sign_int(type, dgst, dlen, sig, siglen, dsa);
+    return ossl_dsa_sign_int(type, dgst, dlen, sig, siglen, dsa,
+        0, NULL, NULL, NULL);
 }
 
 /* data has already been hashed (probably with SHA or SHA-1). */
@@ -184,7 +192,7 @@ int DSA_sign(int type, const unsigned char *dgst, int dlen,
  *     -1: error
  */
 int DSA_verify(int type, const unsigned char *dgst, int dgst_len,
-               const unsigned char *sigbuf, int siglen, DSA *dsa)
+    const unsigned char *sigbuf, int siglen, DSA *dsa)
 {
     DSA_SIG *s;
     const unsigned char *p = sigbuf;
@@ -202,7 +210,7 @@ int DSA_verify(int type, const unsigned char *dgst, int dgst_len,
     if (derlen != siglen || memcmp(sigbuf, der, derlen))
         goto err;
     ret = DSA_do_verify(dgst, dgst_len, s, dsa);
- err:
+err:
     OPENSSL_clear_free(der, derlen);
     DSA_SIG_free(s);
     return ret;

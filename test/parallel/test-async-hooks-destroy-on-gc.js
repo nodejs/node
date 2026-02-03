@@ -21,7 +21,7 @@ let asyncId = null;
   asyncId = res.asyncId();
 }
 
-setImmediate(() => {
-  global.gc();
-  setImmediate(() => assert.ok(destroyedIds.has(asyncId)));
-});
+setImmediate(common.mustCall(() => {
+  globalThis.gc();
+  setImmediate(common.mustCall(() => assert.ok(destroyedIds.has(asyncId))));
+}));

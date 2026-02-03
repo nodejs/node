@@ -12,18 +12,22 @@ DEPS_DIR="${BASE_DIR}/deps"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/nodejs/llhttp/releases/latest',
-  process.env.GITHUB_TOKEN && {
-    headers: {
-      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
-    },
-  });
-if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
-const { tag_name } = await res.json();
-console.log(tag_name.replace('release/v', ''));
+if [ -n "$LOCAL_COPY" ]; then
+  NEW_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$LOCAL_COPY/package.json', 'utf-8')).version)")
+else
+  NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+  const res = await fetch('https://api.github.com/repos/nodejs/llhttp/releases/latest',
+    process.env.GITHUB_TOKEN && {
+      headers: {
+        "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+      },
+    });
+  if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+  const { tag_name } = await res.json();
+  console.log(tag_name.replace('release/v', ''));
 EOF
 )"
+fi
 
 CURRENT_MAJOR_VERSION=$(grep "#define LLHTTP_VERSION_MAJOR" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*MAJOR \(.*\)/\1/p")
 CURRENT_MINOR_VERSION=$(grep "#define LLHTTP_VERSION_MINOR" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*MINOR \(.*\)/\1/p")
@@ -48,7 +52,19 @@ cd "$WORKSPACE"
 echo "Replacing existing llhttp (except GYP and GN build files)"
 mv "$DEPS_DIR/llhttp/"*.gn "$DEPS_DIR/llhttp/"*.gni "$WORKSPACE/"
 
-if echo "$NEW_VERSION" | grep -qs "/" ; then # Download a release
+if [ -n "$LOCAL_COPY" ]; then
+  echo "Copying llhttp release from $LOCAL_COPY ..."
+  
+  echo "Building llhttp ..."
+  cd "$BASE_DIR"
+  cd "$LOCAL_COPY"
+  npm install
+  RELEASE=$NEW_VERSION make release
+
+  echo "Copying llhttp release ..."
+  rm -rf "$DEPS_DIR/llhttp"
+  cp -a release "$DEPS_DIR/llhttp"
+elif echo "$NEW_VERSION" | grep -qs "/" ; then # Download a release
   REPO="git@github.com:$NEW_VERSION.git"
   BRANCH=$2
   [ -z "$BRANCH" ] && BRANCH=main
@@ -61,7 +77,7 @@ if echo "$NEW_VERSION" | grep -qs "/" ; then # Download a release
 
   echo "Building llhttp ..."
   npm install
-  make release
+  RELEASE=$NEW_VERSION make release
 
   echo "Copying llhttp release ..."
   rm -rf "$DEPS_DIR/llhttp"

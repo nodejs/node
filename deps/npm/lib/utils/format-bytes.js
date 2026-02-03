@@ -13,12 +13,12 @@ const formatBytes = (bytes, space = true) => {
     return `${bytes}${spacer}B`
   }
 
-  if (bytes < 1000000) {
+  if (bytes < 999950) {
     // kB
     return `${(bytes / 1000).toFixed(1)}${spacer}kB`
   }
 
-  if (bytes < 1000000000) {
+  if (bytes < 999950000) {
     // MB
     return `${(bytes / 1000000).toFixed(1)}${spacer}MB`
   }

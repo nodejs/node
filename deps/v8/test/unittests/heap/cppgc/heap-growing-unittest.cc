@@ -4,14 +4,15 @@
 
 #include "src/heap/cppgc/heap-growing.h"
 
+#include <optional>
+
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 namespace {
 
@@ -35,10 +36,19 @@ class FakeGarbageCollector : public GarbageCollector {
     UNREACHABLE();
   }
 
-  size_t epoch() const override { return callcount_; }
-  const EmbedderStackState* override_stack_state() const override {
-    return nullptr;
+  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) override {
+    UNREACHABLE();
   }
+
+  size_t epoch() const override { return callcount_; }
+  std::optional<EmbedderStackState> overridden_stack_state() const override {
+    return {};
+  }
+  void set_override_stack_state(EmbedderStackState state) override {}
+  void clear_overridden_stack_state() override {}
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  std::optional<int> UpdateAllocationTimeout() override { return std::nullopt; }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   StatsCollector* stats_collector_;
@@ -50,9 +60,15 @@ class MockGarbageCollector : public GarbageCollector {
  public:
   MOCK_METHOD(void, CollectGarbage, (GCConfig), (override));
   MOCK_METHOD(void, StartIncrementalGarbageCollection, (GCConfig), (override));
+  MOCK_METHOD(bool, RetryAllocate, (v8::base::FunctionRef<bool()>), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
-  MOCK_METHOD(const EmbedderStackState*, override_stack_state, (),
+  MOCK_METHOD(std::optional<EmbedderStackState>, overridden_stack_state, (),
               (const, override));
+  MOCK_METHOD(void, set_override_stack_state, (EmbedderStackState), (override));
+  MOCK_METHOD(void, clear_overridden_stack_state, (), (override));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  MOCK_METHOD(std::optional<int>, UpdateAllocationTimeout, (), (override));
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {
@@ -172,5 +188,4 @@ TEST(HeapGrowingTest, IncrementalGCFinalized) {
   FakeAllocate(&stats_collector, StatsCollector::kAllocationThresholdBytes);
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal

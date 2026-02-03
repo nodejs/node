@@ -19,18 +19,18 @@ class JSOperatorBuilder;
 // Pair of a context and its distance from some point of reference.
 struct OuterContext {
   OuterContext() = default;
-  OuterContext(Handle<Context> context_, size_t distance_)
+  OuterContext(IndirectHandle<Context> context_, size_t distance_)
       : context(context_), distance(distance_) {}
 
-  Handle<Context> context;
+  IndirectHandle<Context> context;
   size_t distance = 0;
 };
 
 // Specializes a given JSGraph to a given context, potentially constant folding
-// some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-// Additionally, constant-folds the function parameter if {closure} is given,
-// and constant-folds import.meta loads if the corresponding object already
-// exists.
+// some {LoadContextNoCell} nodes or strength reducing some {StoreContextNoCell}
+// nodes. Additionally, constant-folds the function parameter if {closure} is
+// given, and constant-folds import.meta loads if the corresponding object
+// already exists.
 //
 // The context can be the incoming function context or any outer context
 // thereof, as indicated by {outer}'s {distance}.
@@ -55,14 +55,20 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceParameter(Node* node);
+  Reduction ReduceJSLoadContextNoCell(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
+  Reduction ReduceJSStoreContextNoCell(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSGetImportMeta(Node* node);
 
-  Reduction SimplifyJSStoreContext(Node* node, Node* new_context,
-                                   size_t new_depth);
+  Reduction SimplifyJSLoadContextNoCell(Node* node, Node* new_context,
+                                        size_t new_depth);
   Reduction SimplifyJSLoadContext(Node* node, Node* new_context,
                                   size_t new_depth);
+  Reduction SimplifyJSStoreContextNoCell(Node* node, Node* new_context,
+                                         size_t new_depth);
+  Reduction SimplifyJSStoreContext(Node* node, Node* new_context,
+                                   size_t new_depth);
 
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }

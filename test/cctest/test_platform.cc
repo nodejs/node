@@ -24,7 +24,8 @@ class RepostingTask : public v8::Task {
     if (repost_count_ > 0) {
       --repost_count_;
       std::shared_ptr<v8::TaskRunner> task_runner =
-          platform_->GetForegroundTaskRunner(isolate_);
+          platform_->GetForegroundTaskRunner(isolate_,
+                                             v8::TaskPriority::kUserBlocking);
       task_runner->PostTask(std::make_unique<RepostingTask>(
           repost_count_, run_count_, isolate_, platform_));
     }
@@ -46,7 +47,8 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   Env env {handle_scope, argv};
   int run_count = 0;
   std::shared_ptr<v8::TaskRunner> task_runner =
-      platform->GetForegroundTaskRunner(isolate_);
+      platform->GetForegroundTaskRunner(isolate_,
+                                        v8::TaskPriority::kUserBlocking);
   task_runner->PostTask(
       std::make_unique<RepostingTask>(2, &run_count, isolate_, platform.get()));
   EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
@@ -64,6 +66,9 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
   // Allocate isolate
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}})
+          .release();
   auto isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
 
@@ -76,6 +81,7 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
 
   // Try creating Context + IsolateData + Environment
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
@@ -101,8 +107,7 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
 
   // Graceful shutdown
   delegate->Shutdown();
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
+  platform->DisposeIsolate(isolate);
 }
 
 TEST_F(PlatformTest, TracingControllerNullptr) {

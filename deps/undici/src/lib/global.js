@@ -4,7 +4,7 @@
 // this version number must be increased to avoid conflicts.
 const globalDispatcher = Symbol.for('undici.globalDispatcher.1')
 const { InvalidArgumentError } = require('./core/errors')
-const Agent = require('./agent')
+const Agent = require('./dispatcher/agent')
 
 if (getGlobalDispatcher() === undefined) {
   setGlobalDispatcher(new Agent())
@@ -26,7 +26,25 @@ function getGlobalDispatcher () {
   return globalThis[globalDispatcher]
 }
 
+// These are the globals that can be installed by undici.install().
+// Not exported by index.js to avoid use outside of this module.
+const installedExports = /** @type {const} */ (
+  [
+    'fetch',
+    'Headers',
+    'Response',
+    'Request',
+    'FormData',
+    'WebSocket',
+    'CloseEvent',
+    'ErrorEvent',
+    'MessageEvent',
+    'EventSource'
+  ]
+)
+
 module.exports = {
   setGlobalDispatcher,
-  getGlobalDispatcher
+  getGlobalDispatcher,
+  installedExports
 }

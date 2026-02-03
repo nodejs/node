@@ -126,7 +126,7 @@ const http = require('http');
   });
 
   pipeline(r, ws, common.mustSucceed(() => {
-    assert.deepStrictEqual(values, ['helloworld']);
+    assert.deepStrictEqual(values, ['hello', 'world']);
   }));
 
   r.push('hello');
@@ -181,7 +181,7 @@ const http = require('http');
   });
 
   pipeline(rs, t, ws, common.mustSucceed(() => {
-    assert.deepStrictEqual(values, ['HELLOWORLD']);
+    assert.deepStrictEqual(values, ['HELLO', 'WORLD']);
   }));
 
   c.enqueue('hello');
@@ -207,7 +207,7 @@ const http = require('http');
     });
     req.end();
     const values = [];
-    req.on('response', (res) => {
+    req.on('response', common.mustCall((res) => {
       res.on('data', (chunk) => {
         values.push(chunk?.toString());
       });
@@ -215,22 +215,22 @@ const http = require('http');
         assert.deepStrictEqual(values, ['hello', 'world']);
         server.close();
       }));
-    });
+    }));
   }));
 }
 
 {
   const values = [];
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     const ts = new TransformStream({
       transform(chunk, controller) {
         controller.enqueue(chunk?.toString().toUpperCase());
       }
     });
     pipeline(req, ts, res, common.mustSucceed());
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
       method: 'POST',
@@ -246,7 +246,7 @@ const http = require('http');
 
     pipeline(rs, req, common.mustSucceed());
 
-    req.on('response', (res) => {
+    req.on('response', common.mustCall((res) => {
       res.on('data', (chunk) => {
         values.push(chunk?.toString());
       }
@@ -255,8 +255,8 @@ const http = require('http');
         assert.deepStrictEqual(values, ['HELLO']);
         server.close();
       }));
-    });
-  });
+    }));
+  }));
 }
 
 {
@@ -330,9 +330,9 @@ const http = require('http');
 
   pipeline(rs, async function(source) {
     throw new Error('kaboom');
-  }, (err) => {
+  }, common.mustCall((err) => {
     assert.strictEqual(err?.message, 'kaboom');
-  });
+  }));
 }
 
 {

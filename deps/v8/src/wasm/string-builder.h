@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_STRING_BUILDER_H_
+#define V8_WASM_STRING_BUILDER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_STRING_BUILDER_H_
-#define V8_WASM_STRING_BUILDER_H_
 
 #include <cstring>
 #include <string>
@@ -61,6 +61,14 @@ class StringBuilder {
   void rewind_to_start() {
     remaining_bytes_ += length();
     cursor_ = start_;
+  }
+
+  // Erases the last character that was written. Calling this repeatedly
+  // isn't safe due to internal chunking of the backing store.
+  void backspace() {
+    DCHECK_GT(cursor_, start_);
+    cursor_--;
+    remaining_bytes_++;
   }
 
  protected:
@@ -127,6 +135,11 @@ inline StringBuilder& operator<<(StringBuilder& sb, char c) {
 }
 
 inline StringBuilder& operator<<(StringBuilder& sb, const std::string& s) {
+  sb.write(s.data(), s.length());
+  return sb;
+}
+
+inline StringBuilder& operator<<(StringBuilder& sb, std::string_view s) {
   sb.write(s.data(), s.length());
   return sb;
 }

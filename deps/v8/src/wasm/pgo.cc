@@ -15,7 +15,7 @@ constexpr uint8_t kFunctionTieredUpBit = 1 << 1;
 class ProfileGenerator {
  public:
   ProfileGenerator(const WasmModule* module,
-                   const uint32_t* tiering_budget_array)
+                   const std::atomic<uint32_t>* tiering_budget_array)
       : module_(module),
         type_feedback_mutex_guard_(&module->type_feedback.mutex),
         tiering_budget_array_(tiering_budget_array) {}
@@ -26,7 +26,7 @@ class ProfileGenerator {
     SerializeTypeFeedback(buffer);
     SerializeTieringInfo(buffer);
 
-    return base::OwnedVector<uint8_t>::Of(buffer);
+    return base::OwnedCopyOf(buffer);
   }
 
  private:
@@ -81,7 +81,8 @@ class ProfileGenerator {
                      ? 0
                      : feedback_it->second.tierup_priority;
       DCHECK_LE(0, prio);
-      uint32_t remaining_budget = tiering_budget_array_[declared_index];
+      uint32_t remaining_budget =
+          tiering_budget_array_[declared_index].load(std::memory_order_relaxed);
       DCHECK_GE(initial_budget, remaining_budget);
 
       bool was_tiered_up = prio > 0;
@@ -97,26 +98,27 @@ class ProfileGenerator {
   const WasmModule* module_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "wasm::ProfileGenerator"};
-  base::SharedMutexGuard<base::kShared> type_feedback_mutex_guard_;
-  const uint32_t* const tiering_budget_array_;
+  base::MutexGuard type_feedback_mutex_guard_;
+  const std::atomic<uint32_t>* const tiering_budget_array_;
 };
 
 void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
-  base::SharedMutexGuard<base::kShared> type_feedback_guard{
-      &module->type_feedback.mutex};
+  base::MutexGuard mutex_guard{&module->type_feedback.mutex};
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
       module->type_feedback.feedback_for_function;
   uint32_t num_entries = decoder.consume_u32v("num function entries");
   CHECK_LE(num_entries, module->num_declared_functions);
   for (uint32_t missing_entries = num_entries; missing_entries > 0;
        --missing_entries) {
-    FunctionTypeFeedback feedback;
+    FunctionTypeFeedback function_feedback;
     uint32_t function_index = decoder.consume_u32v("function index");
     // Deserialize {feedback_vector}.
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
-    feedback.feedback_vector.resize(feedback_vector_size);
-    for (CallSiteFeedback& feedback : feedback.feedback_vector) {
+    function_feedback.feedback_vector =
+        base::OwnedVector<CallSiteFeedback>::NewForOverwrite(
+            feedback_vector_size);
+    for (CallSiteFeedback& feedback : function_feedback.feedback_vector) {
       int num_cases = decoder.consume_i32v("num cases");
       if (num_cases == 0) continue;  // no feedback
       if (num_cases == 1) {          // monomorphic
@@ -136,23 +138,24 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
     }
     // Deserialize {call_targets}.
     uint32_t num_call_targets = decoder.consume_u32v("num call targets");
-    feedback.call_targets =
+    function_feedback.call_targets =
         base::OwnedVector<uint32_t>::NewForOverwrite(num_call_targets);
-    for (uint32_t& call_target : feedback.call_targets) {
+    for (uint32_t& call_target : function_feedback.call_targets) {
       call_target = decoder.consume_u32v("call target");
     }
 
     // Finally, insert the new feedback into the map. Overwrite existing
     // feedback, but check for consistency.
-    auto [feedback_it, is_new] =
-        feedback_for_function.emplace(function_index, std::move(feedback));
+    auto [feedback_it, is_new] = feedback_for_function.emplace(
+        function_index, std::move(function_feedback));
     if (!is_new) {
       FunctionTypeFeedback& old_feedback = feedback_it->second;
       CHECK(old_feedback.feedback_vector.empty() ||
             old_feedback.feedback_vector.size() == feedback_vector_size);
       CHECK_EQ(old_feedback.call_targets.as_vector(),
-               feedback.call_targets.as_vector());
-      std::swap(old_feedback.feedback_vector, feedback.feedback_vector);
+               function_feedback.call_targets.as_vector());
+      std::swap(old_feedback.feedback_vector,
+                function_feedback.feedback_vector);
     }
   }
 }
@@ -192,7 +195,7 @@ std::unique_ptr<ProfileInformation> RestoreProfileData(
 
 void DumpProfileToFile(const WasmModule* module,
                        base::Vector<const uint8_t> wire_bytes,
-                       uint32_t* tiering_budget_array) {
+                       std::atomic<uint32_t>* tiering_budget_array) {
   CHECK(!wire_bytes.empty());
   // File are named `profile-wasm-<hash>`.
   // We use the same hash as for reported scripts, to make it easier to

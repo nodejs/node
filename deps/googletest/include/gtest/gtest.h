@@ -60,16 +60,16 @@
 #include <type_traits>
 #include <vector>
 
-#include "gtest/gtest-assertion-result.h"
-#include "gtest/gtest-death-test.h"
-#include "gtest/gtest-matchers.h"
-#include "gtest/gtest-message.h"
-#include "gtest/gtest-param-test.h"
-#include "gtest/gtest-printers.h"
-#include "gtest/gtest-test-part.h"
-#include "gtest/gtest-typed-test.h"
-#include "gtest/gtest_pred_impl.h"
-#include "gtest/gtest_prod.h"
+#include "gtest/gtest-assertion-result.h"  // IWYU pragma: export
+#include "gtest/gtest-death-test.h"  // IWYU pragma: export
+#include "gtest/gtest-matchers.h"  // IWYU pragma: export
+#include "gtest/gtest-message.h"  // IWYU pragma: export
+#include "gtest/gtest-param-test.h"  // IWYU pragma: export
+#include "gtest/gtest-printers.h"  // IWYU pragma: export
+#include "gtest/gtest-test-part.h"  // IWYU pragma: export
+#include "gtest/gtest-typed-test.h"  // IWYU pragma: export
+#include "gtest/gtest_pred_impl.h"  // IWYU pragma: export
+#include "gtest/gtest_prod.h"  // IWYU pragma: export
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 
@@ -193,7 +193,7 @@ std::set<std::string>* GetIgnoredParameterizedTestSuites();
 // A base class that prevents subclasses from being copyable.
 // We do this instead of using '= delete' so as to avoid triggering warnings
 // inside user code regarding any of our declarations.
-class GTestNonCopyable {
+class [[nodiscard]] GTestNonCopyable {
  public:
   GTestNonCopyable() = default;
   GTestNonCopyable(const GTestNonCopyable&) = delete;
@@ -206,15 +206,15 @@ class GTestNonCopyable {
 // The friend relationship of some of these classes is cyclic.
 // If we don't forward declare them the compiler might confuse the classes
 // in friendship clauses with same named classes on the scope.
-class Test;
-class TestSuite;
+class [[nodiscard]] Test;
+class [[nodiscard]] TestSuite;
 
 // Old API is still available but deprecated
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 using TestCase = TestSuite;
 #endif
-class TestInfo;
-class UnitTest;
+class [[nodiscard]] TestInfo;
+class [[nodiscard]] UnitTest;
 
 // The abstract class that all tests inherit from.
 //
@@ -239,7 +239,7 @@ class UnitTest;
 //   TEST_F(FooTest, Baz) { ... }
 //
 // Test is not copyable.
-class GTEST_API_ Test {
+class GTEST_API_ [[nodiscard]] Test {
  public:
   friend class TestInfo;
 
@@ -366,7 +366,7 @@ typedef internal::TimeInMillis TimeInMillis;
 // output as a key/value string pair.
 //
 // Don't inherit from TestProperty as its destructor is not virtual.
-class TestProperty {
+class [[nodiscard]] TestProperty {
  public:
   // C'tor.  TestProperty does NOT have a default constructor.
   // Always use this constructor (with parameters) to create a
@@ -396,7 +396,7 @@ class TestProperty {
 // the Test.
 //
 // TestResult is not copyable.
-class GTEST_API_ TestResult {
+class GTEST_API_ [[nodiscard]] TestResult {
  public:
   // Creates an empty TestResult.
   TestResult();
@@ -530,7 +530,7 @@ class GTEST_API_ TestResult {
 // The constructor of TestInfo registers itself with the UnitTest
 // singleton such that the RUN_ALL_TESTS() macro knows which tests to
 // run.
-class GTEST_API_ TestInfo {
+class GTEST_API_ [[nodiscard]] TestInfo {
  public:
   // Destructs a TestInfo object.  This function is not virtual, so
   // don't inherit from TestInfo.
@@ -607,7 +607,7 @@ class GTEST_API_ TestInfo {
   friend class internal::UnitTestImpl;
   friend class internal::StreamingListenerTest;
   friend TestInfo* internal::MakeAndRegisterTestInfo(
-      const char* test_suite_name, const char* name, const char* type_param,
+      std::string test_suite_name, const char* name, const char* type_param,
       const char* value_param, internal::CodeLocation code_location,
       internal::TypeId fixture_class_id, internal::SetUpTestSuiteFunc set_up_tc,
       internal::TearDownTestSuiteFunc tear_down_tc,
@@ -615,7 +615,7 @@ class GTEST_API_ TestInfo {
 
   // Constructs a TestInfo object. The newly constructed instance assumes
   // ownership of the factory object.
-  TestInfo(const std::string& test_suite_name, const std::string& name,
+  TestInfo(std::string test_suite_name, std::string name,
            const char* a_type_param,   // NULL if not a type-parameterized test
            const char* a_value_param,  // NULL if not a value-parameterized test
            internal::CodeLocation a_code_location,
@@ -669,7 +669,7 @@ class GTEST_API_ TestInfo {
 // A test suite, which consists of a vector of TestInfos.
 //
 // TestSuite is not copyable.
-class GTEST_API_ TestSuite {
+class GTEST_API_ [[nodiscard]] TestSuite {
  public:
   // Creates a TestSuite with the given name.
   //
@@ -683,7 +683,7 @@ class GTEST_API_ TestSuite {
   //                 this is not a type-parameterized test.
   //   set_up_tc:    pointer to the function that sets up the test suite
   //   tear_down_tc: pointer to the function that tears down the test suite
-  TestSuite(const char* name, const char* a_type_param,
+  TestSuite(const std::string& name, const char* a_type_param,
             internal::SetUpTestSuiteFunc set_up_tc,
             internal::TearDownTestSuiteFunc tear_down_tc);
 
@@ -890,7 +890,7 @@ class GTEST_API_ TestSuite {
 //      available.
 //   2. You cannot use ASSERT_* directly in a constructor or
 //      destructor.
-class Environment {
+class [[nodiscard]] Environment {
  public:
   // The d'tor is virtual as we need to subclass Environment.
   virtual ~Environment() = default;
@@ -911,7 +911,7 @@ class Environment {
 #if GTEST_HAS_EXCEPTIONS
 
 // Exception which can be thrown from TestEventListener::OnTestPartResult.
-class GTEST_API_ AssertionException
+class GTEST_API_ [[nodiscard]] AssertionException
     : public internal::GoogleTestFailureException {
  public:
   explicit AssertionException(const TestPartResult& result)
@@ -922,7 +922,7 @@ class GTEST_API_ AssertionException
 
 // The interface for tracing execution of tests. The methods are organized in
 // the order the corresponding events are fired.
-class TestEventListener {
+class [[nodiscard]] TestEventListener {
  public:
   virtual ~TestEventListener() = default;
 
@@ -989,7 +989,7 @@ class TestEventListener {
 // the methods they override will not be caught during the build.  For
 // comments about each method please see the definition of TestEventListener
 // above.
-class EmptyTestEventListener : public TestEventListener {
+class [[nodiscard]] EmptyTestEventListener : public TestEventListener {
  public:
   void OnTestProgramStart(const UnitTest& /*unit_test*/) override {}
   void OnTestIterationStart(const UnitTest& /*unit_test*/,
@@ -1019,7 +1019,7 @@ class EmptyTestEventListener : public TestEventListener {
 };
 
 // TestEventListeners lets users add listeners to track events in Google Test.
-class GTEST_API_ TestEventListeners {
+class GTEST_API_ [[nodiscard]] TestEventListeners {
  public:
   TestEventListeners();
   ~TestEventListeners();
@@ -1110,7 +1110,7 @@ class GTEST_API_ TestEventListeners {
 //
 // This class is thread-safe as long as the methods are called
 // according to their specification.
-class GTEST_API_ UnitTest {
+class GTEST_API_ [[nodiscard]] UnitTest {
  public:
   // Gets the singleton UnitTest object.  The first time this method
   // is called, a UnitTest object is constructed and returned.
@@ -1123,7 +1123,7 @@ class GTEST_API_ UnitTest {
   // This method can only be called from the main thread.
   //
   // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
-  int Run() GTEST_MUST_USE_RESULT_;
+  [[nodiscard]] int Run();
 
   // Returns the working directory when the first TEST() or TEST_F()
   // was executed.  The UnitTest object owns the string.
@@ -1262,6 +1262,20 @@ class GTEST_API_ UnitTest {
   // total_test_suite_count() - 1. If i is not in that range, returns NULL.
   TestSuite* GetMutableTestSuite(int i);
 
+  // Invokes OsStackTrackGetterInterface::UponLeavingGTest. UponLeavingGTest()
+  // should be called immediately before Google Test calls user code. It saves
+  // some information about the current stack that CurrentStackTrace() will use
+  // to find and hide Google Test stack frames.
+  void UponLeavingGTest();
+
+  // Sets the TestSuite object for the test that's currently running.
+  void set_current_test_suite(TestSuite* a_current_test_suite)
+      GTEST_LOCK_EXCLUDED_(mutex_);
+
+  // Sets the TestInfo object for the test that's currently running.
+  void set_current_test_info(TestInfo* a_current_test_info)
+      GTEST_LOCK_EXCLUDED_(mutex_);
+
   // Accessors for the implementation object.
   internal::UnitTestImpl* impl() { return impl_; }
   const internal::UnitTestImpl* impl() const { return impl_; }
@@ -1270,6 +1284,8 @@ class GTEST_API_ UnitTest {
   // members of UnitTest.
   friend class ScopedTrace;
   friend class Test;
+  friend class TestInfo;
+  friend class TestSuite;
   friend class internal::AssertHelper;
   friend class internal::StreamingListenerTest;
   friend class internal::UnitTestRecordPropertyTestHelper;
@@ -1382,7 +1398,7 @@ AssertionResult CmpHelperEQ(const char* lhs_expression,
   return CmpHelperEQFailure(lhs_expression, rhs_expression, lhs, rhs);
 }
 
-class EqHelper {
+class [[nodiscard]] EqHelper {
  public:
   // This templatized version is for the general case.
   template <
@@ -1594,9 +1610,11 @@ GTEST_API_ AssertionResult DoubleNearPredFormat(const char* expr1,
                                                 double val1, double val2,
                                                 double abs_error);
 
+using GoogleTest_NotSupported_OnFunctionReturningNonVoid = void;
+
 // INTERNAL IMPLEMENTATION - DO NOT USE IN USER CODE.
 // A class that enables one to stream messages to assertion macros
-class GTEST_API_ AssertHelper {
+class GTEST_API_ [[nodiscard]] AssertHelper {
  public:
   // Constructor.
   AssertHelper(TestPartResult::Type type, const char* file, int line,
@@ -1605,7 +1623,8 @@ class GTEST_API_ AssertHelper {
 
   // Message assignment is a semantic trick to enable assertion
   // streaming; see the GTEST_MESSAGE_ macro below.
-  void operator=(const Message& message) const;
+  GoogleTest_NotSupported_OnFunctionReturningNonVoid operator=(
+      const Message& message) const;
 
  private:
   // We put our data in a struct so that the size of the AssertHelper class can
@@ -1670,14 +1689,14 @@ class GTEST_API_ AssertHelper {
 // INSTANTIATE_TEST_SUITE_P(OneToTenRange, FooTest, ::testing::Range(1, 10));
 
 template <typename T>
-class WithParamInterface {
+class [[nodiscard]] WithParamInterface {
  public:
   typedef T ParamType;
   virtual ~WithParamInterface() = default;
 
   // The current parameter value. Is also available in the test fixture's
   // constructor.
-  static const ParamType& GetParam() {
+  [[nodiscard]] static const ParamType& GetParam() {
     GTEST_CHECK_(parameter_ != nullptr)
         << "GetParam() can only be called inside a value-parameterized test "
         << "-- did you intend to write TEST_P instead of TEST_F?";
@@ -1704,7 +1723,8 @@ const T* WithParamInterface<T>::parameter_ = nullptr;
 // WithParamInterface, and can just inherit from ::testing::TestWithParam.
 
 template <typename T>
-class TestWithParam : public Test, public WithParamInterface<T> {};
+class [[nodiscard]] TestWithParam : public Test,
+                                    public WithParamInterface<T> {};
 
 // Macros for indicating success/failure in test code.
 
@@ -2052,7 +2072,7 @@ GTEST_API_ AssertionResult DoubleLE(const char* expr1, const char* expr2,
 // Example:
 //   testing::ScopedTrace trace("file.cc", 123, "message");
 //
-class GTEST_API_ ScopedTrace {
+class GTEST_API_ [[nodiscard]] ScopedTrace {
  public:
   // The c'tor pushes the given source file location and message onto
   // a trace stack maintained by Google Test.
@@ -2308,11 +2328,12 @@ TestInfo* RegisterTest(const char* test_suite_name, const char* test_name,
 // tests are successful, or 1 otherwise.
 //
 // RUN_ALL_TESTS() should be invoked after the command line has been
-// parsed by InitGoogleTest().
+// parsed by InitGoogleTest(). RUN_ALL_TESTS will tear down and delete any
+// installed environments and should only be called once per binary.
 //
 // This function was formerly a macro; thus, it is in the global
 // namespace and has an all-caps name.
-int RUN_ALL_TESTS() GTEST_MUST_USE_RESULT_;
+[[nodiscard]] int RUN_ALL_TESTS();
 
 inline int RUN_ALL_TESTS() { return ::testing::UnitTest::GetInstance()->Run(); }
 

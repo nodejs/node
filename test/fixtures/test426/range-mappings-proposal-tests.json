@@ -1,0 +1,203 @@
+{
+  "resourceBasePath": "proposals/range-mappings",
+  "tests": [
+    {
+      "name": "rangeMappingsWrongType1",
+      "description": "Test an invalid source map with a malformed rangeMappings field",
+      "baseFile": "wrong-type-1.js",
+      "sourceMapFile": "wrong-type-1.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsWrongType2",
+      "description": "Test an invalid source map with a malformed rangeMappings field",
+      "baseFile": "wrong-type-2.js",
+      "sourceMapFile": "wrong-type-2.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsWrongType3",
+      "description": "Test an invalid source map with a malformed rangeMappings field",
+      "baseFile": "wrong-type-3.js",
+      "sourceMapFile": "wrong-type-3.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsInvalidBase64Char1",
+      "description": "Test an invalid range mapping with an invalid base64 character",
+      "baseFile": "invalid-base64-char-1.js",
+      "sourceMapFile": "invalid-base64-char-1.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsInvalidBase64Char2",
+      "description": "Test an invalid range mapping with an invalid base64 character",
+      "baseFile": "invalid-base64-char-2.js",
+      "sourceMapFile": "invalid-base64-char-2.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsOutOfRange",
+      "description": "Test an invalid range mapping which is outside the mappings length",
+      "baseFile": "out-of-range.js",
+      "sourceMapFile": "out-of-range.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsOutOfRange2",
+      "description": "Test an invalid range mapping which has more lines than the normal mappings",
+      "baseFile": "out-of-range-2.js",
+      "sourceMapFile": "out-of-range-2.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsEmpty",
+      "description": "Test a trivial range mapping that is the empty string",
+      "baseFile": "empty-string.js",
+      "sourceMapFile": "empty-string.js.map",
+      "sourceMapIsValid": true
+    },
+    {
+      "name": "rangeMappingsNonFullLineCoverage",
+      "description": "Test a non-empty range mapping where not all lines in the generated source are covered",
+      "baseFile": "non-full-line-coverage.js",
+      "sourceMapFile": "non-full-line-coverage.js.map",
+      "sourceMapIsValid": true
+    },
+    {
+      "name": "rangeMappingsSimple",
+      "description": "Test a simple, single-entry rangeMappings",
+      "baseFile": "simple.js",
+      "sourceMapFile": "simple.js.map",
+      "sourceMapIsValid": true,
+      "testActions": [
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 1,
+          "originalSource": "simple-original.js",
+          "originalLine": 0,
+          "originalColumn": 0,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 2,
+          "originalSource": "simple-original.js",
+          "originalLine": 0,
+          "originalColumn": 1,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 3,
+          "originalSource": "simple-original.js",
+          "originalLine": 0,
+          "originalColumn": 2,
+          "mappedName": null
+        }
+      ]
+    },
+    {
+      "name": "rangeMappingsMultipleMappings",
+      "description": "Test a case where multiple mappings are range mappings",
+      "baseFile": "multiple-mappings.js",
+      "sourceMapFile": "multiple-mappings.js.map",
+      "sourceMapIsValid": true,
+      "testActions": [
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 1,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 0,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 2,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 1,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 16,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 16,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 18,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 18,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 35,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 36,
+          "mappedName": null
+        }
+      ]
+    },
+    {
+      "name": "rangeMappingsNewline",
+      "description": "Test rangeMappings entry continues through newlines",
+      "baseFile": "newline-semantics.js",
+      "sourceMapFile": "newline-semantics.js.map",
+      "sourceMapIsValid": true,
+      "testActions": [
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 1,
+          "originalSource": "newline-semantics-original.js",
+          "originalLine": 0,
+          "originalColumn": 0,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 7,
+          "originalSource": "newline-semantics-original.js",
+          "originalLine": 0,
+          "originalColumn": 6,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 0,
+          "originalSource": "newline-semantics-original.js",
+          "originalLine": 1,
+          "originalColumn": 0,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 2,
+          "originalSource": "newline-semantics-original.js",
+          "originalLine": 1,
+          "originalColumn": 2,
+          "mappedName": null
+        }
+      ]
+    }
+  ]
+}

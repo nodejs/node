@@ -71,7 +71,7 @@ class JSHeapBroker;
 #define TEST(Name)                                                     \
   static void Test##Name();                                            \
   CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
-                              nullptr);                                \
+                              nullptr, nullptr);                       \
   static void Test##Name()
 #endif
 
@@ -79,7 +79,15 @@ class JSHeapBroker;
 #define UNINITIALIZED_TEST(Name)                                        \
   static void Test##Name();                                             \
   CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false, \
-                              nullptr);                                 \
+                              nullptr, nullptr);                        \
+  static void Test##Name()
+#endif
+
+#ifndef TEST_WITH_FLAGS
+#define TEST_WITH_FLAGS(Name, CustomCommandLineFlags)                  \
+  static void Test##Name();                                            \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
+                              CustomCommandLineFlags);                 \
   static void Test##Name()
 #endif
 
@@ -90,7 +98,7 @@ class JSHeapBroker;
     Test##Name(*static_cast<PlatformClass*>(i::V8::GetCurrentPlatform())); \
   }                                                                        \
   CcTest register_test_##Name(TestWithoutPlatform##Name, __FILE__, #Name,  \
-                              true, true,                                  \
+                              true, true, nullptr,                         \
                               []() -> std::unique_ptr<TestPlatform> {      \
                                 return std::make_unique<PlatformClass>();  \
                               });                                          \
@@ -98,24 +106,23 @@ class JSHeapBroker;
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                             \
-  static void Test##Name();                                             \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true, \
-                              nullptr);                                 \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
   static void Test##Name()
 #endif
 
 // Similar to TEST, but used when test definitions appear as members of a
-// (probably parameterized) class. This allows re-using the given tests multiple
+// (probably parameterized) class. This allows reusing the given tests multiple
 // times. For this to work, the following conditions must hold:
 //   1. The class has a template parameter named kTestFileName of type  char
 //      const*, which is instantiated with __FILE__ at the *use site*, in order
 //      to correctly associate the tests with the test suite using them.
 //   2. To actually execute the tests, create an instance of the class
 //      containing the MEMBER_TESTs.
-#define MEMBER_TEST(Name)                                            \
-  CcTest register_test_##Name =                                      \
-      CcTest(Test##Name, kTestFileName, #Name, true, true, nullptr); \
+#define MEMBER_TEST(Name)                                   \
+  CcTest register_test_##Name =                             \
+      CcTest(Test##Name, kTestFileName, #Name, true, true); \
   static void Test##Name()
 
 #define EXTENSION_LIST(V)                                                      \
@@ -144,8 +151,9 @@ class CcTest {
  public:
   using TestFunction = void();
   using TestPlatformFactory = std::unique_ptr<TestPlatform>();
+  using InitFlagsCallback = void();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         bool enabled, bool initialize,
+         bool enabled, bool initialize, const char* custom_v8_flags = nullptr,
          TestPlatformFactory* platform_factory = nullptr);
   void Run(const char* argv0);
 
@@ -166,6 +174,7 @@ class CcTest {
 
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
+  static void disable_dispose_in_test();
 
   static v8::Platform* default_platform() { return default_platform_; }
 
@@ -217,7 +226,10 @@ class CcTest {
 
   TestFunction* callback_;
   bool initialize_;
+  std::string custom_v8_flags_;
   TestPlatformFactory* test_platform_factory_;
+
+  static bool should_call_dispose_;
 
   friend int main(int argc, char** argv);
   friend class v8::internal::ManualGCScope;
@@ -285,6 +297,17 @@ class ApiTestFuzzer: public v8::base::Thread {
   bool active_;
 };
 
+// In threaded cctests, control flow alternates between different threads, each
+// of which runs a single test. All threaded cctests share the same isolate and
+// a heap. With conservative stack scanning (CSS), whenever a thread invokes a
+// GC for the common heap, the stacks of all threads are scanned. In this
+// setting, it is not possible to disable CSS without losing correctness.
+// Therefore, tests defined with THREADED_TEST:
+//
+// 1.  must not explicitly disable CSS, using the scope
+//     internal::DisableConservativeStackScanningScopeForTesting, and
+// 2.  cannot rely on the assumption that garbage collection will reclaim all
+//     non-live objects.
 
 #define THREADED_TEST(Name)                                          \
   static void Test##Name();                                          \
@@ -322,16 +345,17 @@ class LocalContext {
                v8::ExtensionConfiguration* extensions = nullptr,
                v8::Local<v8::ObjectTemplate> global_template =
                    v8::Local<v8::ObjectTemplate>(),
-               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
-    Initialize(isolate, extensions, global_template, global_object);
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
+      : isolate_(isolate) {
+    Initialize(extensions, global_template, global_object);
   }
 
   LocalContext(v8::ExtensionConfiguration* extensions = nullptr,
                v8::Local<v8::ObjectTemplate> global_template =
                    v8::Local<v8::ObjectTemplate>(),
-               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
-    Initialize(CcTest::isolate(), extensions, global_template, global_object);
-  }
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
+      : LocalContext(CcTest::isolate(), extensions, global_template,
+                     global_object) {}
 
   virtual ~LocalContext();
 
@@ -339,17 +363,21 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
+  v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
+  }
   v8::Local<v8::Context> local() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
  private:
-  void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
+  void Initialize(v8::ExtensionConfiguration* extensions,
                   v8::Local<v8::ObjectTemplate> global_template,
                   v8::Local<v8::Value> global_object);
 
   v8::Persistent<v8::Context> context_;
-  v8::Isolate* isolate_;
+  v8::Isolate* const isolate_;
 };
 
 
@@ -370,27 +398,31 @@ static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
 }
 
 template <typename T>
-static inline i::Handle<T> GetGlobal(const char* name) {
+static inline i::DirectHandle<T> GetGlobal(const char* name) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::Handle<i::String> str_name =
+  i::DirectHandle<i::String> str_name =
       isolate->factory()->InternalizeUtf8String(name);
 
-  i::Handle<i::Object> value =
+  i::DirectHandle<i::Object> value =
       i::Object::GetProperty(isolate, isolate->global_object(), str_name)
           .ToHandleChecked();
-  return i::Handle<T>::cast(value);
+  return i::Cast<T>(value);
 }
 
 static inline v8::Local<v8::Boolean> v8_bool(bool val) {
   return v8::Boolean::New(v8::Isolate::GetCurrent(), val);
 }
 
-static inline v8::Local<v8::Value> v8_num(double x) {
+static inline v8::Local<v8::Number> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
 static inline v8::Local<v8::Integer> v8_int(int32_t x) {
   return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
+
+static inline v8::Local<v8::Integer> v8_uint(uint32_t x) {
+  return v8::Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), x);
 }
 
 static inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {
@@ -442,7 +474,7 @@ static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
     bool is_shared_cross_origin) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+  v8::ScriptOrigin origin(origin_url, 0, 0, is_shared_cross_origin);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(isolate->GetCurrentContext(),
                                      &script_source)
@@ -519,8 +551,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::ScriptOrigin origin(isolate, v8_str(origin_url), line_number,
-                          column_number);
+  v8::ScriptOrigin origin(v8_str(origin_url), line_number, column_number);
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
@@ -532,7 +563,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(
-      source, v8::ScriptOrigin(isolate, v8_str(origin_url)));
+      source, v8::ScriptOrigin(v8_str(origin_url)));
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
 }
@@ -661,7 +692,7 @@ class V8_NODISCARD InitializedHandleScope {
 
 class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
-  explicit HandleAndZoneScope(bool support_zone_compression = false);
+  HandleAndZoneScope();
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -697,20 +728,22 @@ class TestPlatform : public v8::Platform {
   void OnCriticalMemoryPressure() override;
   int NumberOfWorkerThreads() override;
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override;
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override;
-  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double delay_in_seconds) override;
-  std::unique_ptr<v8::JobHandle> PostJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override;
-  std::unique_ptr<v8::JobHandle> CreateJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override;
+      v8::Isolate* isolate, v8::TaskPriority priority) override;
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override;
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override;
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   v8::TracingController* GetTracingController() override;
+
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
 
  protected:
   TestPlatform() = default;
@@ -762,14 +795,14 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::fp));
     state->lr = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::ra));
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
     state->lr = reinterpret_cast<void*>(simulator_->get_lr());
-#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+#elif V8_TARGET_ARCH_S390X
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
@@ -801,10 +834,10 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 bool IsValidUnwrapObject(v8::Object* object);
 
 template <typename T>
-T* GetInternalField(v8::Object* wrapper) {
+T* GetInternalField(v8::Object* wrapper, v8::EmbedderDataTypeTag tag) {
   assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
   return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex, tag));
 }
 
 #endif  // ifndef CCTEST_H_

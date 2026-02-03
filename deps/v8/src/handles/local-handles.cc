@@ -26,6 +26,9 @@ void LocalHandleScope::OpenMainThreadScope(LocalHeap* local_heap) {
   prev_next_ = data->next;
   prev_limit_ = data->limit;
   data->level++;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = data->level;
+#endif
 }
 
 void LocalHandleScope::CloseMainThreadScope(LocalHeap* local_heap,
@@ -34,6 +37,13 @@ void LocalHandleScope::CloseMainThreadScope(LocalHeap* local_heap,
   Isolate* isolate = local_heap->heap()->isolate();
   HandleScope::CloseScope(isolate, prev_next, prev_limit);
 }
+
+#ifdef V8_ENABLE_CHECKS
+void LocalHandleScope::VerifyMainThreadScope() const {
+  Isolate* isolate = local_heap_->heap()->isolate();
+  CHECK_EQ(scope_level_, isolate->handle_scope_data()->level);
+}
+#endif  // V8_ENABLE_CHECKS
 
 LocalHandles::LocalHandles() { scope_.Initialize(); }
 LocalHandles::~LocalHandles() {
@@ -96,7 +106,7 @@ void LocalHandles::RemoveUnusedBlocks() {
 
     blocks_.pop_back();
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
     ZapRange(block_start, block_limit);
 #endif
 
@@ -104,7 +114,7 @@ void LocalHandles::RemoveUnusedBlocks() {
   }
 }
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
 void LocalHandles::ZapRange(Address* start, Address* end) {
   HandleScope::ZapRange(start, end);
 }

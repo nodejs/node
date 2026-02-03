@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2013-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1340,6 +1340,7 @@ $code.=<<___;
 ___
 					}	}}}
 $code.=<<___;
+.section .rodata align=256
 .align	256
 K256:
 ___
@@ -1389,6 +1390,7 @@ K256_shaext:
 	.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.asciz	"SHA256 multi-block transform for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.previous
 ___
 
 if ($win64) {

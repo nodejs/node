@@ -145,7 +145,7 @@ void BuiltinsSorter::SortClusters() {
 
   clusters_.erase(
       std::remove_if(clusters_.begin(), clusters_.end(),
-                     [](const Cluster* x) { return x->targets_.size() == 0; }),
+                     [](const Cluster* x) { return x->targets_.empty(); }),
       clusters_.end());
 }
 
@@ -260,6 +260,7 @@ void BuiltinsSorter::ProcessBuiltinDensityLineInfo(
   std::getline(line_stream, token, ',');
   CHECK(line_stream.eof());
   char* end = nullptr;
+  errno = 0;
   int density = static_cast<int>(strtol(token.c_str(), &end, 0));
   CHECK(errno == 0 && end != token.c_str());
 
@@ -315,6 +316,23 @@ std::vector<Builtin> BuiltinsSorter::SortBuiltins(
     Cluster* cls = clusters_.at(i);
     for (size_t j = 0; j < cls->targets_.size(); j++) {
       Builtin builtin = cls->targets_[j];
+#if V8_ENABLE_GEARBOX
+      if (Builtins::IsGearboxPlaceholder(builtin)) {
+        // We insert ISX variants into builtin_order instead of the placeholder
+        // if we enable gearbox, which helps us bring best performance for ISX.
+        Builtin isx_variant =
+            Builtins::GetISXVariantFromGearboxPlaceholder(builtin);
+        CHECK(AddBuiltinIfNotProcessed(isx_variant, builtin_order,
+                                       processed_builtins));
+        continue;
+      } else if (Builtins::IsGenericVariant(builtin) ||
+                 Builtins::IsISXVariant(builtin)) {
+        // we didn't insert variants, because we already insert ISX when we
+        // iterate over the placeholder, and we will place Generic close to
+        // placeholder later.
+        continue;
+      }
+#endif  // V8_ENABLE_GEARBOX
       CHECK(
           AddBuiltinIfNotProcessed(builtin, builtin_order, processed_builtins));
     }

@@ -1,6 +1,7 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import { test } from 'node:test';
+import { suite, test } from 'node:test';
 import { parseArgs } from 'node:util';
 
 test('when short option used as flag then stored as flag', () => {
@@ -211,73 +212,38 @@ test('order of option and positional does not matter (per README)', () => {
   );
 });
 
-test('correct default args when use node -p', () => {
-  const holdArgv = process.argv;
-  process.argv = [process.argv0, '--foo'];
-  const holdExecArgv = process.execArgv;
-  process.execArgv = ['-p', '0'];
-  const result = parseArgs({ strict: false });
+suite('correct default args', () => {
+  const expected = { code: 0, signal: null, stderr: '', stdout: { foo: true, bar: true } };
 
-  const expected = { values: { __proto__: null, foo: true },
-                     positionals: [] };
-  assert.deepStrictEqual(result, expected);
-  process.argv = holdArgv;
-  process.execArgv = holdExecArgv;
-});
+  suite('with CLI flags', () => {
+    const evalCode = "JSON.stringify(require('util').parseArgs({ strict: false }).values)";
+    const evalCodePrinted = `process.stdout.write(${evalCode})`;
+    const execArgsTests = {
+      '-e <script>': ['-e', evalCodePrinted],
+      '-p <script>': ['-p', evalCode],
+      '-pe <script>': ['-pe', evalCode],
+      '--eval <script>': ['--eval', evalCodePrinted],
+      '--eval=<script>': [`--eval=${evalCodePrinted}`],
+      '--print <script>': ['--print', evalCode],
+      '--print --eval <script>': ['--print', '--eval', evalCode],
+      '--print --eval=<script>': ['--print', `--eval=${evalCode}`],
+    };
+    for (const [description, execArgs] of Object.entries(execArgsTests)) {
+      test(description, async () => {
+        const { code, signal, stderr, stdout } = await spawnPromisified(
+          process.execPath,
+          [...execArgs, '--', '--foo', '--bar']);
+        assert.deepStrictEqual({ code, signal, stderr, stdout: JSON.parse(stdout) }, expected);
+      });
+    }
+  });
 
-test('correct default args when use node --print', () => {
-  const holdArgv = process.argv;
-  process.argv = [process.argv0, '--foo'];
-  const holdExecArgv = process.execArgv;
-  process.execArgv = ['--print', '0'];
-  const result = parseArgs({ strict: false });
-
-  const expected = { values: { __proto__: null, foo: true },
-                     positionals: [] };
-  assert.deepStrictEqual(result, expected);
-  process.argv = holdArgv;
-  process.execArgv = holdExecArgv;
-});
-
-test('correct default args when use node -e', () => {
-  const holdArgv = process.argv;
-  process.argv = [process.argv0, '--foo'];
-  const holdExecArgv = process.execArgv;
-  process.execArgv = ['-e', '0'];
-  const result = parseArgs({ strict: false });
-
-  const expected = { values: { __proto__: null, foo: true },
-                     positionals: [] };
-  assert.deepStrictEqual(result, expected);
-  process.argv = holdArgv;
-  process.execArgv = holdExecArgv;
-});
-
-test('correct default args when use node --eval', () => {
-  const holdArgv = process.argv;
-  process.argv = [process.argv0, '--foo'];
-  const holdExecArgv = process.execArgv;
-  process.execArgv = ['--eval', '0'];
-  const result = parseArgs({ strict: false });
-  const expected = { values: { __proto__: null, foo: true },
-                     positionals: [] };
-  assert.deepStrictEqual(result, expected);
-  process.argv = holdArgv;
-  process.execArgv = holdExecArgv;
-});
-
-test('correct default args when normal arguments', () => {
-  const holdArgv = process.argv;
-  process.argv = [process.argv0, 'script.js', '--foo'];
-  const holdExecArgv = process.execArgv;
-  process.execArgv = [];
-  const result = parseArgs({ strict: false });
-
-  const expected = { values: { __proto__: null, foo: true },
-                     positionals: [] };
-  assert.deepStrictEqual(result, expected);
-  process.argv = holdArgv;
-  process.execArgv = holdExecArgv;
+  test('without CLI flags', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      process.execPath,
+      [fixtures.path('parse-args.js'), '--foo', '--bar']);
+    assert.deepStrictEqual({ code, signal, stderr, stdout: JSON.parse(stdout) }, expected);
+  });
 });
 
 test('excess leading dashes on options are retained', () => {
@@ -991,4 +957,71 @@ test('multiple as false should expect a String', () => {
     parseArgs({ args, options });
   }, /"options\.alpha\.default" property must be of type string/
   );
+});
+
+// Test negative options
+test('disable negative options and args are started with "--no-" prefix', () => {
+  const args = ['--no-alpha'];
+  const options = { alpha: { type: 'boolean' } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, {
+    code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+  });
+});
+
+test('args are passed `type: "string"` and allow negative options', () => {
+  const args = ['--no-alpha', 'value'];
+  const options = { alpha: { type: 'string' } };
+  assert.throws(() => {
+    parseArgs({ args, options, allowNegative: true });
+  }, {
+    code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+  });
+});
+
+test('args are passed `type: "boolean"` and allow negative options', () => {
+  const args = ['--no-alpha'];
+  const options = { alpha: { type: 'boolean' } };
+  const expected = { values: { __proto__: null, alpha: false }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+test('args are passed `default: "true"` and allow negative options', () => {
+  const args = ['--no-alpha'];
+  const options = { alpha: { type: 'boolean', default: true } };
+  const expected = { values: { __proto__: null, alpha: false }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+test('args are passed `default: "false" and allow negative options', () => {
+  const args = ['--no-alpha'];
+  const options = { alpha: { type: 'boolean', default: false } };
+  const expected = { values: { __proto__: null, alpha: false }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+test('allow negative options and multiple as true', () => {
+  const args = ['--no-alpha', '--alpha', '--no-alpha'];
+  const options = { alpha: { type: 'boolean', multiple: true } };
+  const expected = { values: { __proto__: null, alpha: [false, true, false] }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+test('allow negative options and passed multiple arguments', () => {
+  const args = ['--no-alpha', '--alpha'];
+  const options = { alpha: { type: 'boolean' } };
+  const expected = { values: { __proto__: null, alpha: true }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+test('auto-detect --no-foo as negated when strict:false and allowNegative', () => {
+  const holdArgv = process.argv;
+  process.argv = [process.argv0, 'script.js', '--no-foo'];
+  const result = parseArgs({ strict: false, allowNegative: true });
+
+  const expected = { values: { __proto__: null, foo: false },
+                     positionals: [] };
+  assert.deepStrictEqual(result, expected);
+  process.argv = holdArgv;
 });

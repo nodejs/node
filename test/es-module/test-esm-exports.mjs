@@ -1,5 +1,5 @@
 import { mustCall } from '../common/index.mjs';
-import { ok, deepStrictEqual, strictEqual } from 'assert';
+import assert from 'assert';
 import { sep } from 'path';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
@@ -8,50 +8,53 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 [requireFixture, importFixture].forEach((loadFixture) => {
   const isRequire = loadFixture === requireFixture;
 
+  const maybeWrapped = isRequire ? (exports) => exports :
+    (exports) => ({ ...exports, 'module.exports': exports.default });
+
   const validSpecifiers = new Map([
     // A simple mapping of a path.
-    ['pkgexports/valid-cjs', { default: 'asdf' }],
+    ['pkgexports/valid-cjs', maybeWrapped({ default: 'asdf' })],
     // A mapping pointing to a file that needs special encoding (%20) in URLs.
-    ['pkgexports/space', { default: 'encoded path' }],
+    ['pkgexports/space', maybeWrapped({ default: 'encoded path' })],
     // Verifying that normal packages still work with exports turned on.
     isRequire ? ['baz/index', { default: 'eye catcher' }] : [null],
     // Fallbacks
-    ['pkgexports/fallbackdir/asdf.js', { default: 'asdf' }],
-    ['pkgexports/fallbackfile', { default: 'asdf' }],
+    ['pkgexports/fallbackdir/asdf.js', maybeWrapped({ default: 'asdf' })],
+    ['pkgexports/fallbackfile', maybeWrapped({ default: 'asdf' })],
     // Conditional split for require
     ['pkgexports/condition', isRequire ? { default: 'encoded path' } :
-      { default: 'asdf' }],
+      maybeWrapped({ default: 'asdf' })],
     // String exports sugar
-    ['pkgexports-sugar', { default: 'main' }],
+    ['pkgexports-sugar', maybeWrapped({ default: 'main' })],
     // Conditional object exports sugar
     ['pkgexports-sugar2', isRequire ? { default: 'not-exported' } :
-      { default: 'main' }],
+      maybeWrapped({ default: 'main' })],
     // Resolve self
     ['pkgexports/resolve-self', isRequire ?
       { default: 'self-cjs' } : { default: 'self-mjs' }],
     // Resolve self sugar
-    ['pkgexports-sugar', { default: 'main' }],
+    ['pkgexports-sugar', maybeWrapped({ default: 'main' })],
     // Path patterns
-    ['pkgexports/subpath/sub-dir1', { default: 'main' }],
-    ['pkgexports/subpath/sub-dir1.js', { default: 'main' }],
-    ['pkgexports/features/dir1', { default: 'main' }],
-    ['pkgexports/dir1/dir1/trailer', { default: 'main' }],
-    ['pkgexports/dir2/dir2/trailer', { default: 'index' }],
-    ['pkgexports/a/dir1/dir1', { default: 'main' }],
-    ['pkgexports/a/b/dir1/dir1', { default: 'main' }],
+    ['pkgexports/subpath/sub-dir1', maybeWrapped({ default: 'main' })],
+    ['pkgexports/subpath/sub-dir1.js', maybeWrapped({ default: 'main' })],
+    ['pkgexports/features/dir1', maybeWrapped({ default: 'main' })],
+    ['pkgexports/dir1/dir1/trailer', maybeWrapped({ default: 'main' })],
+    ['pkgexports/dir2/dir2/trailer', maybeWrapped({ default: 'index' })],
+    ['pkgexports/a/dir1/dir1', maybeWrapped({ default: 'main' })],
+    ['pkgexports/a/b/dir1/dir1', maybeWrapped({ default: 'main' })],
 
     // Deprecated:
     // Double slashes:
-    ['pkgexports/a//dir1/dir1', { default: 'main' }],
+    ['pkgexports/a//dir1/dir1', maybeWrapped({ default: 'main' })],
     // double slash target
-    ['pkgexports/doubleslash', { default: 'asdf' }],
+    ['pkgexports/doubleslash', maybeWrapped({ default: 'asdf' })],
     // Null target with several slashes
-    ['pkgexports/sub//internal/test.js', { default: 'internal only' }],
-    ['pkgexports/sub//internal//test.js', { default: 'internal only' }],
-    ['pkgexports/sub/////internal/////test.js', { default: 'internal only' }],
+    ['pkgexports/sub//internal/test.js', maybeWrapped({ default: 'internal only' })],
+    ['pkgexports/sub//internal//test.js', maybeWrapped({ default: 'internal only' })],
+    ['pkgexports/sub/////internal/////test.js', maybeWrapped({ default: 'internal only' })],
     // trailing slash
     ['pkgexports/trailing-pattern-slash/',
-     { default: 'trailing-pattern-slash' }],
+     maybeWrapped({ default: 'trailing-pattern-slash' })],
   ]);
 
   if (!isRequire) {
@@ -66,7 +69,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
     loadFixture(validSpecifier)
       .then(mustCall((actual) => {
-        deepStrictEqual({ ...actual }, expected);
+        assert.deepStrictEqual({ ...actual }, expected);
       }));
   }
 
@@ -125,7 +128,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of undefinedExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
+      assert.strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'Package subpath ');
       assertIncludes(err.message, subpath);
     }));
@@ -133,7 +136,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of invalidExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
+      assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
       assertStartsWith(err.message, 'Invalid "exports"');
       assertIncludes(err.message, subpath);
       if (!subpath.startsWith('./')) {
@@ -144,7 +147,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of invalidSpecifiers) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+      assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
       assertStartsWith(err.message, 'Invalid module ');
       assertIncludes(err.message, 'is not a valid match in pattern');
       assertIncludes(err.message, subpath);
@@ -155,7 +158,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   // of falling back to main
   if (isRequire) {
     loadFixture('pkgexports-main').catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
+      assert.strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'No "exports" main ');
     }));
   }
@@ -172,17 +175,17 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   ]);
 
   if (!isRequire) {
-    const onDirectoryImport = (err) => {
-      strictEqual(err.code, 'ERR_UNSUPPORTED_DIR_IMPORT');
-      assertStartsWith(err.message, 'Directory import');
+    const onDirectoryImport = {
+      code: 'ERR_UNSUPPORTED_DIR_IMPORT',
+      message: /^Directory import/,
     };
-    loadFixture('pkgexports/subpath/dir1').catch(mustCall(onDirectoryImport));
-    loadFixture('pkgexports/subpath/dir2').catch(mustCall(onDirectoryImport));
+    assert.rejects(loadFixture('pkgexports/subpath/dir1'), onDirectoryImport).then(mustCall());
+    assert.rejects(loadFixture('pkgexports/subpath/dir2'), onDirectoryImport).then(mustCall());
   }
 
   for (const [specifier, request] of notFoundExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+      assert.strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
       assertIncludes(err.message, request);
       assertStartsWith(err.message, 'Cannot find module');
     }));
@@ -190,20 +193,20 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   // The use of %2F and %5C escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+    assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
   loadFixture('pkgexports/sub/..%5C..%5Cbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+    assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
 
   // Package export with numeric index properties must throw a validation error
   loadFixture('pkgexports-numeric').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+    assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
   }));
 
   // Sugar conditional exports main mixed failure case
   loadFixture('pkgexports-sugar-fail').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+    assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
     assertStartsWith(err.message, 'Invalid package');
     assertIncludes(err.message, '"exports" cannot contain some keys starting ' +
     'with \'.\' and some not. The exports object must either be an object of ' +
@@ -214,28 +217,32 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
 const { requireFromInside, importFromInside } = fromInside;
 [importFromInside, requireFromInside].forEach((loadFromInside) => {
+  const isRequire = loadFromInside === requireFromInside;
+  const maybeWrapped = isRequire ? (exports) => exports :
+    (exports) => ({ ...exports, 'module.exports': exports.default });
+
   const validSpecifiers = new Map([
     // A file not visible from outside of the package
-    ['../not-exported.js', { default: 'not-exported' }],
+    ['../not-exported.js', maybeWrapped({ default: 'not-exported' })],
     // Part of the public interface
-    ['pkgexports/valid-cjs', { default: 'asdf' }],
+    ['pkgexports/valid-cjs', maybeWrapped({ default: 'asdf' })],
   ]);
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
 
     loadFromInside(validSpecifier)
       .then(mustCall((actual) => {
-        deepStrictEqual({ ...actual }, expected);
+        assert.deepStrictEqual({ ...actual }, expected);
       }));
   }
 });
 
 function assertStartsWith(actual, expected) {
-  const start = actual.toString().substr(0, expected.length);
-  strictEqual(start, expected);
+  const start = actual.toString().slice(0, expected.length);
+  assert.strictEqual(start, expected);
 }
 
 function assertIncludes(actual, expected) {
-  ok(actual.toString().indexOf(expected) !== -1,
-     `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
+  assert.ok(actual.toString().indexOf(expected) !== -1,
+            `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
 }

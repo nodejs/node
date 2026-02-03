@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
@@ -43,8 +43,6 @@
 #  include <arpa/inet.h>
 #endif
 
-#include "ares_nameser.h"
-
 #if defined(ANDROID) || defined(__ANDROID__)
 #  include <sys/system_properties.h>
 #  include "ares_android.h"
@@ -61,10 +59,7 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
-#include "ares_platform.h"
-#include "ares_private.h"
 
 static unsigned char ip_natural_mask(const struct ares_addr *addr)
 {
@@ -103,7 +98,7 @@ static ares_bool_t sortlist_append(struct apattern **sortlist, size_t *nsort,
 
   newsort = ares_realloc(*sortlist, (*nsort + 1) * sizeof(*newsort));
   if (newsort == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   *sortlist = newsort;
@@ -114,7 +109,7 @@ static ares_bool_t sortlist_append(struct apattern **sortlist, size_t *nsort,
   return ARES_TRUE;
 }
 
-static ares_status_t parse_sort(ares__buf_t *buf, struct apattern *pat)
+static ares_status_t parse_sort(ares_buf_t *buf, struct apattern *pat)
 {
   ares_status_t       status;
   const unsigned char ip_charset[]             = "ABCDEFabcdef0123456789.:";
@@ -124,22 +119,22 @@ static ares_status_t parse_sort(ares__buf_t *buf, struct apattern *pat)
   memset(pat, 0, sizeof(*pat));
 
   /* Consume any leading whitespace */
-  ares__buf_consume_whitespace(buf, ARES_TRUE);
+  ares_buf_consume_whitespace(buf, ARES_TRUE);
 
   /* If no length, just ignore, return ENOTFOUND as an indicator */
-  if (ares__buf_len(buf) == 0) {
+  if (ares_buf_len(buf) == 0) {
     return ARES_ENOTFOUND;
   }
 
-  ares__buf_tag(buf);
+  ares_buf_tag(buf);
 
   /* Consume ip address */
-  if (ares__buf_consume_charset(buf, ip_charset, sizeof(ip_charset)) == 0) {
+  if (ares_buf_consume_charset(buf, ip_charset, sizeof(ip_charset) - 1) == 0) {
     return ARES_EBADSTR;
   }
 
   /* Fetch ip address */
-  status = ares__buf_tag_fetch_string(buf, ipaddr, sizeof(ipaddr));
+  status = ares_buf_tag_fetch_string(buf, ipaddr, sizeof(ipaddr));
   if (status != ARES_SUCCESS) {
     return status;
   }
@@ -151,24 +146,24 @@ static ares_status_t parse_sort(ares__buf_t *buf, struct apattern *pat)
   }
 
   /* See if there is a subnet mask */
-  if (ares__buf_begins_with(buf, (const unsigned char *)"/", 1)) {
+  if (ares_buf_begins_with(buf, (const unsigned char *)"/", 1)) {
     char                maskstr[16];
     const unsigned char ipv4_charset[] = "0123456789.";
 
 
     /* Consume / */
-    ares__buf_consume(buf, 1);
+    ares_buf_consume(buf, 1);
 
-    ares__buf_tag(buf);
+    ares_buf_tag(buf);
 
     /* Consume mask */
-    if (ares__buf_consume_charset(buf, ipv4_charset, sizeof(ipv4_charset)) ==
+    if (ares_buf_consume_charset(buf, ipv4_charset, sizeof(ipv4_charset) - 1) ==
         0) {
       return ARES_EBADSTR;
     }
 
     /* Fetch mask */
-    status = ares__buf_tag_fetch_string(buf, maskstr, sizeof(maskstr));
+    status = ares_buf_tag_fetch_string(buf, maskstr, sizeof(maskstr));
     if (status != ARES_SUCCESS) {
       return status;
     }
@@ -194,36 +189,37 @@ static ares_status_t parse_sort(ares__buf_t *buf, struct apattern *pat)
         return ARES_EBADSTR;
       }
       ptr       = (const unsigned char *)&maskaddr.addr.addr4;
-      pat->mask = (unsigned char)(ares__count_bits_u8(ptr[0]) +
-                                  ares__count_bits_u8(ptr[1]) +
-                                  ares__count_bits_u8(ptr[2]) +
-                                  ares__count_bits_u8(ptr[3]));
+      pat->mask = (unsigned char)(ares_count_bits_u8(ptr[0]) +
+                                  ares_count_bits_u8(ptr[1]) +
+                                  ares_count_bits_u8(ptr[2]) +
+                                  ares_count_bits_u8(ptr[3]));
     }
   } else {
     pat->mask = ip_natural_mask(&pat->addr);
   }
 
   /* Consume any trailing whitespace */
-  ares__buf_consume_whitespace(buf, ARES_TRUE);
+  ares_buf_consume_whitespace(buf, ARES_TRUE);
 
   /* If we have any trailing bytes other than whitespace, its a parse failure */
-  if (ares__buf_len(buf) != 0) {
+  if (ares_buf_len(buf) != 0) {
     return ARES_EBADSTR;
   }
 
   return ARES_SUCCESS;
 }
 
-ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
-                                   const char *str)
+ares_status_t ares_parse_sortlist(struct apattern **sortlist, size_t *nsort,
+                                  const char *str)
 {
-  ares__buf_t        *buf    = NULL;
-  ares__llist_t      *list   = NULL;
-  ares_status_t       status = ARES_SUCCESS;
-  ares__llist_node_t *node   = NULL;
+  ares_buf_t   *buf    = NULL;
+  ares_status_t status = ARES_SUCCESS;
+  ares_array_t *arr    = NULL;
+  size_t        num    = 0;
+  size_t        i;
 
   if (sortlist == NULL || nsort == NULL || str == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (*sortlist != NULL) {
@@ -233,22 +229,23 @@ ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
   *sortlist = NULL;
   *nsort    = 0;
 
-  buf = ares__buf_create_const((const unsigned char *)str, ares_strlen(str));
+  buf = ares_buf_create_const((const unsigned char *)str, ares_strlen(str));
   if (buf == NULL) {
     status = ARES_ENOMEM;
     goto done;
   }
 
   /* Split on space or semicolon */
-  status = ares__buf_split(buf, (const unsigned char *)" ;", 2,
-                           ARES_BUF_SPLIT_NONE, &list);
+  status = ares_buf_split(buf, (const unsigned char *)" ;", 2,
+                          ARES_BUF_SPLIT_NONE, 0, &arr);
   if (status != ARES_SUCCESS) {
     goto done;
   }
 
-  for (node = ares__llist_node_first(list); node != NULL;
-       node = ares__llist_node_next(node)) {
-    ares__buf_t    *entry = ares__llist_node_val(node);
+  num = ares_array_len(arr);
+  for (i = 0; i < num; i++) {
+    ares_buf_t    **bufptr = ares_array_at(arr, i);
+    ares_buf_t     *entry  = *bufptr;
 
     struct apattern pat;
 
@@ -262,16 +259,16 @@ ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
     }
 
     if (!sortlist_append(sortlist, nsort, &pat)) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   status = ARES_SUCCESS;
 
 done:
-  ares__buf_destroy(buf);
-  ares__llist_destroy(list);
+  ares_buf_destroy(buf);
+  ares_array_destroy(arr);
 
   if (status != ARES_SUCCESS) {
     ares_free(*sortlist);
@@ -282,234 +279,196 @@ done:
   return status;
 }
 
-static ares_status_t config_search(ares_sysconfig_t *sysconfig, const char *str)
+static ares_status_t config_search(ares_sysconfig_t *sysconfig, const char *str,
+                                   size_t max_domains)
 {
   if (sysconfig->domains && sysconfig->ndomains > 0) {
     /* if we already have some domains present, free them first */
-    ares__strsplit_free(sysconfig->domains, sysconfig->ndomains);
+    ares_strsplit_free(sysconfig->domains, sysconfig->ndomains);
     sysconfig->domains  = NULL;
     sysconfig->ndomains = 0;
   }
 
-  sysconfig->domains = ares__strsplit(str, ", ", &sysconfig->ndomains);
+  sysconfig->domains = ares_strsplit(str, ", ", &sysconfig->ndomains);
   if (sysconfig->domains == NULL) {
     return ARES_ENOMEM;
   }
 
+  /* Truncate if necessary */
+  if (max_domains && sysconfig->ndomains > max_domains) {
+    size_t i;
+    for (i = max_domains; i < sysconfig->ndomains; i++) {
+      ares_free(sysconfig->domains[i]);
+      sysconfig->domains[i] = NULL;
+    }
+    sysconfig->ndomains = max_domains;
+  }
+
   return ARES_SUCCESS;
 }
 
-static ares_status_t config_domain(ares_sysconfig_t *sysconfig, char *str)
+static ares_status_t buf_fetch_string(ares_buf_t *buf, char *str,
+                                      size_t str_len)
 {
-  char *q;
+  ares_status_t status;
+  ares_buf_tag(buf);
+  ares_buf_consume(buf, ares_buf_len(buf));
 
-  /* Set a single search domain. */
-  q = str;
-  while (*q && !ISSPACE(*q)) {
-    q++;
-  }
-  *q = '\0';
-
-  return config_search(sysconfig, str);
+  status = ares_buf_tag_fetch_string(buf, str, str_len);
+  return status;
 }
 
-static ares_status_t config_lookup(ares_sysconfig_t *sysconfig, const char *str,
-                                   const char *bindch, const char *altbindch,
-                                   const char *filech)
+static ares_status_t config_lookup(ares_sysconfig_t *sysconfig, ares_buf_t *buf,
+                                   const char *separators)
 {
-  char        lookups[3];
-  char       *l;
-  const char *p;
-  ares_bool_t found;
+  ares_status_t status;
+  char          lookupstr[32];
+  size_t        lookupstr_cnt = 0;
+  char        **lookups       = NULL;
+  size_t        num           = 0;
+  size_t        i;
+  size_t        separators_len = ares_strlen(separators);
 
-  if (altbindch == NULL) {
-    altbindch = bindch;
+  status =
+    ares_buf_split_str(buf, (const unsigned char *)separators, separators_len,
+                       ARES_BUF_SPLIT_TRIM, 0, &lookups, &num);
+  if (status != ARES_SUCCESS) {
+    goto done;
   }
 
-  /* Set the lookup order.  Only the first letter of each work
-   * is relevant, and it has to be "b" for DNS or "f" for the
-   * host file.  Ignore everything else.
-   */
-  l     = lookups;
-  p     = str;
-  found = ARES_FALSE;
-  while (*p) {
-    if ((*p == *bindch || *p == *altbindch || *p == *filech) &&
-        l < lookups + 2) {
-      if (*p == *bindch || *p == *altbindch) {
-        *l++ = 'b';
-      } else {
-        *l++ = 'f';
-      }
-      found = ARES_TRUE;
-    }
-    while (*p && !ISSPACE(*p) && (*p != ',')) {
-      p++;
-    }
-    while (*p && (ISSPACE(*p) || (*p == ','))) {
-      p++;
-    }
-  }
-  if (!found) {
-    return ARES_ENOTINITIALIZED;
-  }
-  *l = '\0';
+  for (i = 0; i < num; i++) {
+    const char *value = lookups[i];
+    char        ch;
 
-  ares_free(sysconfig->lookups);
-  sysconfig->lookups = ares_strdup(lookups);
-  if (sysconfig->lookups == NULL) {
+    if (ares_strcaseeq(value, "dns") || ares_strcaseeq(value, "bind") ||
+        ares_strcaseeq(value, "resolv") || ares_strcaseeq(value, "resolve")) {
+      ch = 'b';
+    } else if (ares_strcaseeq(value, "files") ||
+               ares_strcaseeq(value, "file") ||
+               ares_strcaseeq(value, "local")) {
+      ch = 'f';
+    } else {
+      continue;
+    }
+
+    /* Look for a duplicate and ignore */
+    if (memchr(lookupstr, ch, lookupstr_cnt) == NULL) {
+      lookupstr[lookupstr_cnt++] = ch;
+    }
+  }
+
+  if (lookupstr_cnt) {
+    lookupstr[lookupstr_cnt] = 0;
+    ares_free(sysconfig->lookups);
+    sysconfig->lookups = ares_strdup(lookupstr);
+    if (sysconfig->lookups == NULL) {
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  status = ARES_SUCCESS;
+
+done:
+  if (status != ARES_ENOMEM) {
+    status = ARES_SUCCESS;
+  }
+  ares_free_array(lookups, num, ares_free);
+  return status;
+}
+
+static ares_status_t process_option(ares_sysconfig_t *sysconfig,
+                                    ares_buf_t       *option)
+{
+  char        **kv  = NULL;
+  size_t        num = 0;
+  const char   *key;
+  const char   *val;
+  unsigned int  valint = 0;
+  ares_status_t status;
+
+  /* Split on : */
+  status = ares_buf_split_str(option, (const unsigned char *)":", 1,
+                              ARES_BUF_SPLIT_TRIM, 2, &kv, &num);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  if (num < 1) {
+    status = ARES_EBADSTR;
+    goto done;
+  }
+
+  key = kv[0];
+  if (num == 2) {
+    val    = kv[1];
+    valint = (unsigned int)strtoul(val, NULL, 10);
+  }
+
+  if (ares_streq(key, "ndots")) {
+    sysconfig->ndots = valint;
+  } else if (ares_streq(key, "retrans") || ares_streq(key, "timeout")) {
+    if (valint == 0) {
+      return ARES_EFORMERR;
+    }
+    sysconfig->timeout_ms = valint * 1000;
+  } else if (ares_streq(key, "retry") || ares_streq(key, "attempts")) {
+    if (valint == 0) {
+      return ARES_EFORMERR;
+    }
+    sysconfig->tries = valint;
+  } else if (ares_streq(key, "rotate")) {
+    sysconfig->rotate = ARES_TRUE;
+  } else if (ares_streq(key, "use-vc") || ares_streq(key, "usevc")) {
+    sysconfig->usevc = ARES_TRUE;
+  }
+
+done:
+  ares_free_array(kv, num, ares_free);
+  return status;
+}
+
+ares_status_t ares_sysconfig_set_options(ares_sysconfig_t *sysconfig,
+                                         const char       *str)
+{
+  ares_buf_t   *buf     = NULL;
+  ares_array_t *options = NULL;
+  size_t        num;
+  size_t        i;
+  ares_status_t status;
+
+  buf = ares_buf_create_const((const unsigned char *)str, ares_strlen(str));
+  if (buf == NULL) {
     return ARES_ENOMEM;
   }
-  return ARES_SUCCESS;
+
+  status = ares_buf_split(buf, (const unsigned char *)" \t", 2,
+                          ARES_BUF_SPLIT_TRIM, 0, &options);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  num = ares_array_len(options);
+  for (i = 0; i < num; i++) {
+    ares_buf_t **bufptr = ares_array_at(options, i);
+    ares_buf_t  *valbuf = *bufptr;
+
+    status = process_option(sysconfig, valbuf);
+    /* Out of memory is the only fatal condition */
+    if (status == ARES_ENOMEM) {
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  status = ARES_SUCCESS;
+
+done:
+  ares_array_destroy(options);
+  ares_buf_destroy(buf);
+  return status;
 }
 
-static const char *try_option(const char *p, const char *q, const char *opt)
-{
-  size_t len = ares_strlen(opt);
-  return ((size_t)(q - p) >= len && !strncmp(p, opt, len)) ? &p[len] : NULL;
-}
-
-static ares_status_t set_options(ares_sysconfig_t *sysconfig, const char *str)
-{
-  const char *p;
-  const char *q;
-  const char *val;
-
-  if (str == NULL) {
-    return ARES_SUCCESS;
-  }
-
-  p = str;
-  while (*p) {
-    q = p;
-    while (*q && !ISSPACE(*q)) {
-      q++;
-    }
-    val = try_option(p, q, "ndots:");
-    if (val) {
-      sysconfig->ndots = strtoul(val, NULL, 10);
-    }
-
-    // Outdated option.
-    val = try_option(p, q, "retrans:");
-    if (val) {
-      sysconfig->timeout_ms = strtoul(val, NULL, 10);
-    }
-
-    val = try_option(p, q, "timeout:");
-    if (val) {
-      sysconfig->timeout_ms = strtoul(val, NULL, 10) * 1000;
-    }
-
-    // Outdated option.
-    val = try_option(p, q, "retry:");
-    if (val) {
-      sysconfig->tries = strtoul(val, NULL, 10);
-    }
-
-    val = try_option(p, q, "attempts:");
-    if (val) {
-      sysconfig->tries = strtoul(val, NULL, 10);
-    }
-
-    val = try_option(p, q, "rotate");
-    if (val) {
-      sysconfig->rotate = ARES_TRUE;
-    }
-
-    p = q;
-    while (ISSPACE(*p)) {
-      p++;
-    }
-  }
-
-  return ARES_SUCCESS;
-}
-
-static char *try_config(char *s, const char *opt, char scc)
-{
-  size_t len;
-  char  *p;
-  char  *q;
-
-  if (!s || !opt) {
-    /* no line or no option */
-    return NULL; /* LCOV_EXCL_LINE */
-  }
-
-  /* Hash '#' character is always used as primary comment char, additionally
-     a not-NUL secondary comment char will be considered when specified. */
-
-  /* trim line comment */
-  p = s;
-  if (scc) {
-    while (*p && (*p != '#') && (*p != scc)) {
-      p++;
-    }
-  } else {
-    while (*p && (*p != '#')) {
-      p++;
-    }
-  }
-  *p = '\0';
-
-  /* trim trailing whitespace */
-  q = p - 1;
-  while ((q >= s) && ISSPACE(*q)) {
-    q--;
-  }
-  *++q = '\0';
-
-  /* skip leading whitespace */
-  p = s;
-  while (*p && ISSPACE(*p)) {
-    p++;
-  }
-
-  if (!*p) {
-    /* empty line */
-    return NULL;
-  }
-
-  if ((len = ares_strlen(opt)) == 0) {
-    /* empty option */
-    return NULL; /* LCOV_EXCL_LINE */
-  }
-
-  if (strncmp(p, opt, len) != 0) {
-    /* line and option do not match */
-    return NULL;
-  }
-
-  /* skip over given option name */
-  p += len;
-
-  if (!*p) {
-    /* no option value */
-    return NULL; /* LCOV_EXCL_LINE */
-  }
-
-  if ((opt[len - 1] != ':') && (opt[len - 1] != '=') && !ISSPACE(*p)) {
-    /* whitespace between option name and value is mandatory
-       for given option names which do not end with ':' or '=' */
-    return NULL;
-  }
-
-  /* skip over whitespace */
-  while (*p && ISSPACE(*p)) {
-    p++;
-  }
-
-  if (!*p) {
-    /* no option value */
-    return NULL;
-  }
-
-  /* return pointer to option value */
-  return p;
-}
-
-ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
+ares_status_t ares_init_by_environment(ares_sysconfig_t *sysconfig)
 {
   const char   *localdomain;
   const char   *res_options;
@@ -519,9 +478,9 @@ ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
   if (localdomain) {
     char *temp = ares_strdup(localdomain);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
-    status = config_domain(sysconfig, temp);
+    status = config_search(sysconfig, temp, 1);
     ares_free(temp);
     if (status != ARES_SUCCESS) {
       return status;
@@ -530,7 +489,7 @@ ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
 
   res_options = getenv("RES_OPTIONS");
   if (res_options) {
-    status = set_options(sysconfig, res_options);
+    status = ares_sysconfig_set_options(sysconfig, res_options);
     if (status != ARES_SUCCESS) {
       return status;
     }
@@ -539,167 +498,342 @@ ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
   return ARES_SUCCESS;
 }
 
-ares_status_t ares__init_sysconfig_files(const ares_channel_t *channel,
-                                         ares_sysconfig_t     *sysconfig)
+/* Configuration Files:
+ *  /etc/resolv.conf
+ *    - All Unix-like systems
+ *    - Comments start with ; or #
+ *    - Lines have a keyword followed by a value that is interpreted specific
+ *      to the keyword:
+ *    - Keywords:
+ *      - nameserver - IP address of nameserver with optional port (using a :
+ *        prefix). If using an ipv6 address and specifying a port, the ipv6
+ *        address must be encapsulated in brackets. For link-local ipv6
+ *        addresses, the interface can also be specified with a % prefix. e.g.:
+ *          "nameserver [fe80::1]:1234%iface"
+ *        This keyword may be specified multiple times.
+ *      - search - whitespace separated list of domains
+ *      - domain - obsolete, same as search except only a single domain
+ *      - lookup / hostresorder - local, bind, file, files
+ *      - sortlist - whitespace separated ip-address/netmask pairs
+ *      - options - options controlling resolver variables
+ *        - ndots:n - set ndots option
+ *        - timeout:n (retrans:n) - timeout per query attempt in seconds
+ *        - attempts:n (retry:n) - number of times resolver will send query
+ *        - rotate - round-robin selection of name servers
+ *        - use-vc / usevc - force tcp
+ *  /etc/nsswitch.conf
+ *    - Modern Linux, FreeBSD, HP-UX, Solaris
+ *    - Search order set via:
+ *      "hosts: files dns mdns4_minimal mdns4"
+ *      - files is /etc/hosts
+ *      - dns is dns
+ *      - mdns4_minimal does mdns only if ending in .local
+ *      - mdns4 does not limit to domains ending in .local
+ *  /etc/netsvc.conf
+ *    - AIX
+ *    - Search order set via:
+ *      "hosts = local , bind"
+ *      - bind is dns
+ *      - local is /etc/hosts
+ *  /etc/svc.conf
+ *    - Tru64
+ *    - Same format as /etc/netsvc.conf
+ *  /etc/host.conf
+ *    - Early FreeBSD, Early Linux
+ *    - Not worth supporting, format varied based on system, FreeBSD used
+ *      just a line per search order, Linux used "order " and a comma
+ *      delimited list of "bind" and "hosts"
+ */
+
+
+/* This function will only return ARES_SUCCESS or ARES_ENOMEM.  Any other
+ * conditions are ignored.  Users may mess up config files, but we want to
+ * process anything we can. */
+ares_status_t ares_sysconfig_parse_resolv_line(const ares_channel_t *channel,
+                                               ares_sysconfig_t     *sysconfig,
+                                               ares_buf_t           *line)
 {
-  char         *p;
-  FILE         *fp       = NULL;
-  char         *line     = NULL;
-  size_t        linesize = 0;
-  int           error;
-  const char   *resolvconf_path;
+  char          option[32];
+  char          value[512];
   ares_status_t status = ARES_SUCCESS;
 
-  /* Support path for resolvconf filename set by ares_init_options */
-  if (channel->resolvconf_path) {
-    resolvconf_path = channel->resolvconf_path;
-  } else {
-    resolvconf_path = PATH_RESOLV_CONF;
+  /* Ignore lines beginning with a comment */
+  if (ares_buf_begins_with(line, (const unsigned char *)"#", 1) ||
+      ares_buf_begins_with(line, (const unsigned char *)";", 1)) {
+    return ARES_SUCCESS;
   }
 
-  fp = fopen(resolvconf_path, "r");
-  if (fp) {
-    while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS) {
-      if ((p = try_config(line, "domain", ';'))) {
-        status = config_domain(sysconfig, p);
-      } else if ((p = try_config(line, "lookup", ';'))) {
-        status = config_lookup(sysconfig, p, "bind", NULL, "file");
-      } else if ((p = try_config(line, "search", ';'))) {
-        status = config_search(sysconfig, p);
-      } else if ((p = try_config(line, "nameserver", ';'))) {
-        status =
-          ares__sconfig_append_fromstr(&sysconfig->sconfig, p, ARES_TRUE);
-      } else if ((p = try_config(line, "sortlist", ';'))) {
-        /* Ignore all failures except ENOMEM.  If the sysadmin set a bad
-         * sortlist, just ignore the sortlist, don't cause an inoperable
-         * channel */
-        status =
-          ares__parse_sortlist(&sysconfig->sortlist, &sysconfig->nsortlist, p);
-        if (status != ARES_ENOMEM) {
-          status = ARES_SUCCESS;
-        }
-      } else if ((p = try_config(line, "options", ';'))) {
-        status = set_options(sysconfig, p);
-      } else {
-        status = ARES_SUCCESS;
-      }
-      if (status != ARES_SUCCESS) {
-        fclose(fp);
-        goto done;
-      }
-    }
-    fclose(fp);
+  ares_buf_tag(line);
 
-    if (status != ARES_EOF) {
-      goto done;
+  /* Shouldn't be possible, but if it happens, ignore the line. */
+  if (ares_buf_consume_nonwhitespace(line) == 0) {
+    return ARES_SUCCESS;
+  }
+
+  status = ares_buf_tag_fetch_string(line, option, sizeof(option));
+  if (status != ARES_SUCCESS) {
+    return ARES_SUCCESS;
+  }
+
+  ares_buf_consume_whitespace(line, ARES_TRUE);
+
+  status = buf_fetch_string(line, value, sizeof(value));
+  if (status != ARES_SUCCESS) {
+    return ARES_SUCCESS;
+  }
+
+  ares_str_trim(value);
+  if (*value == 0) {
+    return ARES_SUCCESS;
+  }
+
+  /* At this point we have a string option and a string value, both trimmed
+   * of leading and trailing whitespace.  Lets try to evaluate them */
+  if (ares_streq(option, "domain")) {
+    /* Domain is legacy, don't overwrite an existing config set by search */
+    if (sysconfig->domains == NULL) {
+      status = config_search(sysconfig, value, 1);
     }
-  } else {
-    error = ERRNO;
-    switch (error) {
-      case ENOENT:
-      case ESRCH:
-        break;
-      default:
-        DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
-                       strerror(error)));
-        DEBUGF(fprintf(stderr, "Error opening file: %s\n", PATH_RESOLV_CONF));
-        status = ARES_EFILE;
-        goto done;
+  } else if (ares_streq(option, "lookup") ||
+             ares_streq(option, "hostresorder")) {
+    ares_buf_tag_rollback(line);
+    status = config_lookup(sysconfig, line, " \t");
+  } else if (ares_streq(option, "search")) {
+    status = config_search(sysconfig, value, 0);
+  } else if (ares_streq(option, "nameserver")) {
+    status = ares_sconfig_append_fromstr(channel, &sysconfig->sconfig, value,
+                                         ARES_TRUE);
+  } else if (ares_streq(option, "sortlist")) {
+    /* Ignore all failures except ENOMEM.  If the sysadmin set a bad
+     * sortlist, just ignore the sortlist, don't cause an inoperable
+     * channel */
+    status =
+      ares_parse_sortlist(&sysconfig->sortlist, &sysconfig->nsortlist, value);
+    if (status != ARES_ENOMEM) {
+      status = ARES_SUCCESS;
+    }
+  } else if (ares_streq(option, "options")) {
+    status = ares_sysconfig_set_options(sysconfig, value);
+  }
+
+  return status;
+}
+
+/* This function will only return ARES_SUCCESS or ARES_ENOMEM.  Any other
+ * conditions are ignored.  Users may mess up config files, but we want to
+ * process anything we can. */
+static ares_status_t parse_nsswitch_line(const ares_channel_t *channel,
+                                         ares_sysconfig_t     *sysconfig,
+                                         ares_buf_t           *line)
+{
+  char          option[32];
+  ares_status_t status = ARES_SUCCESS;
+  ares_array_t *sects  = NULL;
+  ares_buf_t  **bufptr;
+  ares_buf_t   *buf;
+
+  (void)channel;
+
+  /* Ignore lines beginning with a comment */
+  if (ares_buf_begins_with(line, (const unsigned char *)"#", 1)) {
+    return ARES_SUCCESS;
+  }
+
+  /* database : values (space delimited) */
+  status = ares_buf_split(line, (const unsigned char *)":", 1,
+                          ARES_BUF_SPLIT_TRIM, 2, &sects);
+
+  if (status != ARES_SUCCESS || ares_array_len(sects) != 2) {
+    goto done;
+  }
+
+  bufptr = ares_array_at(sects, 0);
+  buf    = *bufptr;
+
+  status = buf_fetch_string(buf, option, sizeof(option));
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  /* Only support "hosts:" */
+  if (!ares_streq(option, "hosts")) {
+    goto done;
+  }
+
+  /* Values are space separated */
+  bufptr = ares_array_at(sects, 1);
+  buf    = *bufptr;
+  status = config_lookup(sysconfig, buf, " \t");
+
+done:
+  ares_array_destroy(sects);
+  if (status != ARES_ENOMEM) {
+    status = ARES_SUCCESS;
+  }
+  return status;
+}
+
+/* This function will only return ARES_SUCCESS or ARES_ENOMEM.  Any other
+ * conditions are ignored.  Users may mess up config files, but we want to
+ * process anything we can. */
+static ares_status_t parse_svcconf_line(const ares_channel_t *channel,
+                                        ares_sysconfig_t     *sysconfig,
+                                        ares_buf_t           *line)
+{
+  char          option[32];
+  ares_buf_t  **bufptr;
+  ares_buf_t   *buf;
+  ares_status_t status = ARES_SUCCESS;
+  ares_array_t *sects  = NULL;
+
+  (void)channel;
+
+  /* Ignore lines beginning with a comment */
+  if (ares_buf_begins_with(line, (const unsigned char *)"#", 1)) {
+    return ARES_SUCCESS;
+  }
+
+  /* database = values (comma delimited)*/
+  status = ares_buf_split(line, (const unsigned char *)"=", 1,
+                          ARES_BUF_SPLIT_TRIM, 2, &sects);
+
+  if (status != ARES_SUCCESS || ares_array_len(sects) != 2) {
+    goto done;
+  }
+
+  bufptr = ares_array_at(sects, 0);
+  buf    = *bufptr;
+  status = buf_fetch_string(buf, option, sizeof(option));
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  /* Only support "hosts=" */
+  if (!ares_streq(option, "hosts")) {
+    goto done;
+  }
+
+  /* Values are comma separated */
+  bufptr = ares_array_at(sects, 1);
+  buf    = *bufptr;
+  status = config_lookup(sysconfig, buf, ",");
+
+done:
+  ares_array_destroy(sects);
+  if (status != ARES_ENOMEM) {
+    status = ARES_SUCCESS;
+  }
+  return status;
+}
+
+
+ares_status_t ares_sysconfig_process_buf(const ares_channel_t    *channel,
+                                         ares_sysconfig_t        *sysconfig,
+                                         ares_buf_t              *buf,
+                                         ares_sysconfig_line_cb_t cb)
+{
+  ares_array_t *lines  = NULL;
+  size_t        num;
+  size_t        i;
+  ares_status_t status;
+
+  status = ares_buf_split(buf, (const unsigned char *)"\n", 1,
+                          ARES_BUF_SPLIT_TRIM, 0, &lines);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  num = ares_array_len(lines);
+  for (i = 0; i < num; i++) {
+    ares_buf_t **bufptr = ares_array_at(lines, i);
+    ares_buf_t  *line   = *bufptr;
+
+    status = cb(channel, sysconfig, line);
+    if (status != ARES_SUCCESS) {
+      goto done;
     }
   }
 
+done:
+  ares_array_destroy(lines);
+  return status;
+}
 
-  /* Many systems (Solaris, Linux, BSD's) use nsswitch.conf */
-  fp = fopen("/etc/nsswitch.conf", "r");
-  if (fp) {
-    while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS) {
-      if ((p = try_config(line, "hosts:", '\0'))) {
-        (void)config_lookup(sysconfig, p, "dns", "resolve", "files");
-      }
-    }
-    fclose(fp);
-    if (status != ARES_EOF) {
-      goto done;
-    }
-  } else {
-    error = ERRNO;
-    switch (error) {
-      case ENOENT:
-      case ESRCH:
-        break;
-      default:
-        DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
-                       strerror(error)));
-        DEBUGF(
-          fprintf(stderr, "Error opening file: %s\n", "/etc/nsswitch.conf"));
-        break;
-    }
-    /* ignore error, maybe we will get luck in next if clause */
+/* Should only return:
+ *  ARES_ENOTFOUND - file not found
+ *  ARES_EFILE     - error reading file (perms)
+ *  ARES_ENOMEM    - out of memory
+ *  ARES_SUCCESS   - file processed, doesn't necessarily mean it was a good
+ *                   file, but we're not erroring out if we can't parse
+ *                   something (or anything at all) */
+static ares_status_t process_config_lines(const ares_channel_t    *channel,
+                                          const char              *filename,
+                                          ares_sysconfig_t        *sysconfig,
+                                          ares_sysconfig_line_cb_t cb)
+{
+  ares_status_t status = ARES_SUCCESS;
+  ares_buf_t   *buf    = NULL;
+
+  buf = ares_buf_create();
+  if (buf == NULL) {
+    status = ARES_ENOMEM;
+    goto done;
   }
 
-
-  /* Linux / GNU libc 2.x and possibly others have host.conf */
-  fp = fopen("/etc/host.conf", "r");
-  if (fp) {
-    while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS) {
-      if ((p = try_config(line, "order", '\0'))) {
-        /* ignore errors */
-        (void)config_lookup(sysconfig, p, "bind", NULL, "hosts");
-      }
-    }
-    fclose(fp);
-    if (status != ARES_EOF) {
-      goto done;
-    }
-  } else {
-    error = ERRNO;
-    switch (error) {
-      case ENOENT:
-      case ESRCH:
-        break;
-      default:
-        DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
-                       strerror(error)));
-        DEBUGF(fprintf(stderr, "Error opening file: %s\n", "/etc/host.conf"));
-        break;
-    }
-
-    /* ignore error, maybe we will get luck in next if clause */
+  status = ares_buf_load_file(filename, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
   }
 
+  status = ares_sysconfig_process_buf(channel, sysconfig, buf, cb);
 
-  /* Tru64 uses /etc/svc.conf */
-  fp = fopen("/etc/svc.conf", "r");
-  if (fp) {
-    while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS) {
-      if ((p = try_config(line, "hosts=", '\0'))) {
-        /* ignore errors */
-        (void)config_lookup(sysconfig, p, "bind", NULL, "local");
-      }
-    }
-    fclose(fp);
-    if (status != ARES_EOF) {
+done:
+  ares_buf_destroy(buf);
+
+  return status;
+}
+
+ares_status_t ares_init_sysconfig_files(const ares_channel_t *channel,
+                                        ares_sysconfig_t     *sysconfig,
+                                        ares_bool_t process_resolvconf)
+{
+  ares_status_t status = ARES_SUCCESS;
+
+  /* Resolv.conf */
+  if (process_resolvconf) {
+    status = process_config_lines(channel,
+                                  (channel->resolvconf_path != NULL)
+                                    ? channel->resolvconf_path
+                                    : PATH_RESOLV_CONF,
+                                  sysconfig, ares_sysconfig_parse_resolv_line);
+    if (status != ARES_SUCCESS && status != ARES_ENOTFOUND) {
       goto done;
     }
-  } else {
-    error = ERRNO;
-    switch (error) {
-      case ENOENT:
-      case ESRCH:
-        break;
-      default:
-        DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
-                       strerror(error)));
-        DEBUGF(fprintf(stderr, "Error opening file: %s\n", "/etc/svc.conf"));
-        break;
-    }
-    /* ignore error */
+  }
+
+  /* Nsswitch.conf */
+  status = process_config_lines(channel, "/etc/nsswitch.conf", sysconfig,
+                                parse_nsswitch_line);
+  if (status != ARES_SUCCESS && status != ARES_ENOTFOUND) {
+    goto done;
+  }
+
+  /* netsvc.conf */
+  status = process_config_lines(channel, "/etc/netsvc.conf", sysconfig,
+                                parse_svcconf_line);
+  if (status != ARES_SUCCESS && status != ARES_ENOTFOUND) {
+    goto done;
+  }
+
+  /* svc.conf */
+  status = process_config_lines(channel, "/etc/svc.conf", sysconfig,
+                                parse_svcconf_line);
+  if (status != ARES_SUCCESS && status != ARES_ENOTFOUND) {
+    goto done;
   }
 
   status = ARES_SUCCESS;
 
 done:
-  ares_free(line);
-
   return status;
 }

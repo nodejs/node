@@ -8,6 +8,8 @@ namespace node {
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
+using v8::TryCatch;
 using v8::Value;
 
 enum encoding ParseEncoding(const char* encoding,
@@ -133,20 +135,30 @@ enum encoding ParseEncoding(Isolate* isolate,
   return ParseEncoding(*encoding, default_encoding);
 }
 
+MaybeLocal<Value> TryEncode(Isolate* isolate,
+                            const char* buf,
+                            size_t len,
+                            enum encoding encoding) {
+  CHECK_NE(encoding, UCS2);
+  return StringBytes::Encode(isolate, buf, len, encoding);
+}
+
+MaybeLocal<Value> TryEncode(Isolate* isolate, const uint16_t* buf, size_t len) {
+  return StringBytes::Encode(isolate, buf, len);
+}
+
 Local<Value> Encode(Isolate* isolate,
                     const char* buf,
                     size_t len,
                     enum encoding encoding) {
   CHECK_NE(encoding, UCS2);
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, encoding, &error)
-      .ToLocalChecked();
+  TryCatch try_catch(isolate);
+  return StringBytes::Encode(isolate, buf, len, encoding).ToLocalChecked();
 }
 
 Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, &error)
-      .ToLocalChecked();
+  TryCatch try_catch(isolate);
+  return StringBytes::Encode(isolate, buf, len).ToLocalChecked();
 }
 
 // Returns -1 if the handle was not valid for decoding

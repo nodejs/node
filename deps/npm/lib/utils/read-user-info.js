@@ -1,11 +1,6 @@
-const read = require('read')
+const { read: _read } = require('read')
 const userValidate = require('npm-user-validate')
-const log = require('./log-shim.js')
-
-exports.otp = readOTP
-exports.password = readPassword
-exports.username = readUsername
-exports.email = readEmail
+const { log, input, META } = require('proc-log')
 
 const otpPrompt = `This command requires a one-time password (OTP) from your authenticator app.
 Enter one below. You can also pass one on the command line by appending --otp=123456.
@@ -14,19 +9,18 @@ https://docs.npmjs.com/getting-started/using-two-factor-authentication
 Enter OTP: `
 const passwordPrompt = 'npm password: '
 const usernamePrompt = 'npm username: '
-const emailPrompt = 'email (this IS public): '
+const emailPrompt = 'email (this will be public): '
 
-function readWithProgress (opts) {
-  log.clearProgress()
-  return read(opts).finally(() => log.showProgress())
-}
+// Pass options through so we can differentiate between regular and silent prompts
+const read = (options) =>
+  input.read(() => _read(options), { [META]: true, silent: options?.silent })
 
 function readOTP (msg = otpPrompt, otp, isRetry) {
   if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp)) {
     return otp.replace(/\s+/g, '')
   }
 
-  return readWithProgress({ prompt: msg, default: otp || '' })
+  return read({ prompt: msg, default: otp || '' })
     .then((rOtp) => readOTP(msg, rOtp, true))
 }
 
@@ -35,7 +29,7 @@ function readPassword (msg = passwordPrompt, password, isRetry) {
     return password
   }
 
-  return readWithProgress({ prompt: msg, silent: true, default: password || '' })
+  return read({ prompt: msg, silent: true, default: password || '' })
     .then((rPassword) => readPassword(msg, rPassword, true))
 }
 
@@ -49,7 +43,7 @@ function readUsername (msg = usernamePrompt, username, isRetry) {
     }
   }
 
-  return readWithProgress({ prompt: msg, default: username || '' })
+  return read({ prompt: msg, default: username || '' })
     .then((rUsername) => readUsername(msg, rUsername, true))
 }
 
@@ -63,6 +57,13 @@ function readEmail (msg = emailPrompt, email, isRetry) {
     }
   }
 
-  return readWithProgress({ prompt: msg, default: email || '' })
+  return read({ prompt: msg, default: email || '' })
     .then((username) => readEmail(msg, username, true))
+}
+
+module.exports = {
+  otp: readOTP,
+  password: readPassword,
+  username: readUsername,
+  email: readEmail,
 }

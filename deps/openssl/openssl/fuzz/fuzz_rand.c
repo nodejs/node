@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ static OSSL_FUNC_rand_get_ctx_params_fn fuzz_rand_get_ctx_params;
 static OSSL_FUNC_rand_enable_locking_fn fuzz_rand_enable_locking;
 
 static void *fuzz_rand_newctx(
-         void *provctx, void *parent, const OSSL_DISPATCH *parent_dispatch)
+    void *provctx, void *parent, const OSSL_DISPATCH *parent_dispatch)
 {
     int *st = OPENSSL_malloc(sizeof(*st));
 
@@ -38,11 +38,11 @@ static void fuzz_rand_freectx(ossl_unused void *vrng)
 }
 
 static int fuzz_rand_instantiate(ossl_unused void *vrng,
-                                 ossl_unused unsigned int strength,
-                                 ossl_unused int prediction_resistance,
-                                 ossl_unused const unsigned char *pstr,
-                                 ossl_unused size_t pstr_len,
-                                 ossl_unused const OSSL_PARAM params[])
+    ossl_unused unsigned int strength,
+    ossl_unused int prediction_resistance,
+    ossl_unused const unsigned char *pstr,
+    ossl_unused size_t pstr_len,
+    ossl_unused const OSSL_PARAM params[])
 {
     *(int *)vrng = EVP_RAND_STATE_READY;
     return 1;
@@ -55,11 +55,11 @@ static int fuzz_rand_uninstantiate(ossl_unused void *vrng)
 }
 
 static int fuzz_rand_generate(ossl_unused void *vdrbg,
-                              unsigned char *out, size_t outlen,
-                              ossl_unused unsigned int strength,
-                              ossl_unused int prediction_resistance,
-                              ossl_unused const unsigned char *adin,
-                              ossl_unused size_t adinlen)
+    unsigned char *out, size_t outlen,
+    ossl_unused unsigned int strength,
+    ossl_unused int prediction_resistance,
+    ossl_unused const unsigned char *adin,
+    ossl_unused size_t adinlen)
 {
     unsigned char val = 1;
     size_t i;
@@ -93,7 +93,7 @@ static int fuzz_rand_get_ctx_params(void *vrng, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *fuzz_rand_gettable_ctx_params(ossl_unused void *vrng,
-                                                       ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_int(OSSL_RAND_PARAM_STATE, NULL),
@@ -112,9 +112,9 @@ static const OSSL_DISPATCH fuzz_rand_functions[] = {
     { OSSL_FUNC_RAND_GENERATE, (void (*)(void))fuzz_rand_generate },
     { OSSL_FUNC_RAND_ENABLE_LOCKING, (void (*)(void))fuzz_rand_enable_locking },
     { OSSL_FUNC_RAND_GETTABLE_CTX_PARAMS,
-      (void(*)(void))fuzz_rand_gettable_ctx_params },
-    { OSSL_FUNC_RAND_GET_CTX_PARAMS, (void(*)(void))fuzz_rand_get_ctx_params },
-    { 0, NULL }
+        (void (*)(void))fuzz_rand_gettable_ctx_params },
+    { OSSL_FUNC_RAND_GET_CTX_PARAMS, (void (*)(void))fuzz_rand_get_ctx_params },
+    OSSL_DISPATCH_END
 };
 
 static const OSSL_ALGORITHM fuzz_rand_rand[] = {
@@ -123,8 +123,8 @@ static const OSSL_ALGORITHM fuzz_rand_rand[] = {
 };
 
 static const OSSL_ALGORITHM *fuzz_rand_query(void *provctx,
-                                             int operation_id,
-                                             int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     *no_cache = 0;
     switch (operation_id) {
@@ -138,12 +138,12 @@ static const OSSL_ALGORITHM *fuzz_rand_query(void *provctx,
 static const OSSL_DISPATCH fuzz_rand_method[] = {
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))OSSL_LIB_CTX_free },
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))fuzz_rand_query },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 static int fuzz_rand_provider_init(const OSSL_CORE_HANDLE *handle,
-                                   const OSSL_DISPATCH *in,
-                                   const OSSL_DISPATCH **out, void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out, void **provctx)
 {
     *provctx = OSSL_LIB_CTX_new();
     if (*provctx == NULL)

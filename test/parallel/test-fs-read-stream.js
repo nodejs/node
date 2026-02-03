@@ -53,7 +53,7 @@ function test1(options) {
     file.resume();
   }));
 
-  file.on('data', function(data) {
+  file.on('data', common.mustCallAtLeast((data) => {
     assert.ok(data instanceof Buffer);
     assert.ok(data.byteOffset % 8 === 0);
     assert.ok(!paused);
@@ -69,7 +69,7 @@ function test1(options) {
       paused = false;
       file.resume();
     }, 10);
-  });
+  }));
 
 
   file.on('end', common.mustCall(function(chunk) {
@@ -100,7 +100,7 @@ test1({
 {
   const file = fs.createReadStream(fn, common.mustNotMutateObjectDeep({ encoding: 'utf8' }));
   file.length = 0;
-  file.on('data', function(data) {
+  file.on('data', common.mustCallAtLeast((data) => {
     assert.strictEqual(typeof data, 'string');
     file.length += data.length;
 
@@ -108,7 +108,7 @@ test1({
       // http://www.fileformat.info/info/unicode/char/2026/index.htm
       assert.strictEqual(data[i], '\u2026');
     }
-  });
+  }));
 
   file.on('close', common.mustCall());
 
@@ -198,7 +198,7 @@ if (!common.isWindows) {
   const filename = `${tmpdir.path}/foo.pipe`;
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
   if (!mkfifoResult.error) {
-    child_process.exec(`echo "xyz foobar" > '${filename}'`);
+    child_process.exec(...common.escapePOSIXShell`echo "xyz foobar" > "${filename}"`);
     const stream = new fs.createReadStream(filename, common.mustNotMutateObjectDeep({ end: 1 }));
     stream.data = '';
 

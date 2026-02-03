@@ -30,13 +30,8 @@ static constexpr size_t kFullyConstructedBitFieldOffsetFromPayload =
 // Mask for in-construction bit.
 static constexpr uint16_t kFullyConstructedBitMask = uint16_t{1};
 
-static constexpr size_t kPageSize = size_t{1} << 17;
-
-#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_DARWIN)
-constexpr size_t kGuardPageSize = 0;
-#else
-constexpr size_t kGuardPageSize = 4096;
-#endif
+static constexpr size_t kPageSizeBits = 17;
+static constexpr size_t kPageSize = size_t{1} << kPageSizeBits;
 
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 
@@ -49,12 +44,6 @@ constexpr unsigned kPointerCompressionShift = 1;
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
 
 #if defined(CPPGC_CAGED_HEAP)
-#if defined(CPPGC_2GB_CAGE)
-constexpr size_t kCagedHeapDefaultReservationSize =
-    static_cast<size_t>(2) * kGB;
-constexpr size_t kCagedHeapMaxReservationSize =
-    kCagedHeapDefaultReservationSize;
-#else  // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapDefaultReservationSize =
     static_cast<size_t>(4) * kGB;
 #if defined(CPPGC_POINTER_COMPRESSION)
@@ -64,7 +53,6 @@ constexpr size_t kCagedHeapMaxReservationSize =
 constexpr size_t kCagedHeapMaxReservationSize =
     kCagedHeapDefaultReservationSize;
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
-#endif  // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapMaxReservationSize;
 #endif  // defined(CPPGC_CAGED_HEAP)
 

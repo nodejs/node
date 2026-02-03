@@ -37,6 +37,7 @@
 #include <cstdlib>
 
 #include <string>
+#include <variant>
 #include <vector>
 
 struct sockaddr;
@@ -55,6 +56,9 @@ extern uint64_t node_start_time;
 // Forward declaration
 class Environment;
 
+static constexpr uint64_t kMaxPointerCompressionHeap = uint64_t{1}
+                                                       << 32;  // 4 GiB
+
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
@@ -66,9 +70,8 @@ v8::MaybeLocal<v8::Object> AddressToJS(
 template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
 void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   T* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsObject());
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
@@ -111,19 +114,19 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
-v8::Maybe<bool> InitializeBaseContextForSnapshot(
+v8::Maybe<void> InitializeBaseContextForSnapshot(
     v8::Local<v8::Context> context);
-v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
-v8::Maybe<bool> InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
+                                      IsolateData* isolate_data);
+v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
+    v8::Local<v8::Context> context, IsolateData* isolate_data);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
-  inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
-
   void* Allocate(size_t size) override;  // Defined in src/node.cc
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   virtual void RegisterPointer(void* data, size_t size) {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -137,7 +140,6 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   }
 
  private:
-  uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
   std::atomic<size_t> total_mem_usage_ {0};
 
   // Delegate to V8's allocator for compatibility with the V8 memory cage.
@@ -151,7 +153,6 @@ class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
   void* Allocate(size_t size) override;
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   void RegisterPointer(void* data, size_t size) override;
   void UnregisterPointer(void* data, size_t size) override;
 
@@ -215,7 +216,17 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     const v8::Local<v8::Function> callback,
     int argc,
     v8::Local<v8::Value> argv[],
-    async_context asyncContext);
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
+
+v8::MaybeLocal<v8::Value> InternalMakeCallback(
+    v8::Isolate* isolate,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
 
 v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
                                            v8::Local<v8::Object> recv,
@@ -235,10 +246,20 @@ class InternalCallbackScope {
     // compatibility issues, but it shouldn't.)
     kSkipTaskQueues = 2
   };
-  InternalCallbackScope(Environment* env,
-                        v8::Local<v8::Object> object,
-                        const async_context& asyncContext,
-                        int flags = kNoFlags);
+  // You need to either guarantee that this `InternalCallbackScope` is
+  // stack-allocated itself, OR that `object` is a pointer to a stack-allocated
+  // `v8::Local<v8::Object>` which outlives this scope (e.g. for the
+  // public `CallbackScope` which indirectly allocates an instance of
+  // this class for ABI stability purposes), OR pass a `Global<>`.
+  InternalCallbackScope(
+      Environment* env,
+      std::variant<v8::Local<v8::Object>,
+                   v8::Local<v8::Object>*,
+                   v8::Global<v8::Object>*> object,
+      const async_context& asyncContext,
+      int flags = kNoFlags,
+      v8::Local<v8::Value> context_frame = v8::Local<v8::Value>());
+
   // Utility that can be used by AsyncWrap classes.
   explicit InternalCallbackScope(AsyncWrap* async_wrap, int flags = 0);
   ~InternalCallbackScope();
@@ -250,12 +271,13 @@ class InternalCallbackScope {
  private:
   Environment* env_;
   async_context async_context_;
-  v8::Local<v8::Object> object_;
+  v8::Local<v8::Object> object_storage_;
   bool skip_hooks_;
   bool skip_task_queues_;
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
+  v8::Global<v8::Value> prior_context_frame_;
 };
 
 class DebugSealHandleScope {
@@ -310,12 +332,30 @@ class ThreadPoolWork {
 #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr);
+bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
 }  // namespace credentials
 
+void TraceEnvVar(Environment* env, const char* message);
+void TraceEnvVar(Environment* env, const char* message, const char* key);
+void TraceEnvVar(Environment* env,
+                 const char* message,
+                 v8::Local<v8::String> key);
+
 void DefineZlibConstants(v8::Local<v8::Object> target);
+
+// If creating new v8::IsolateGroup instance is supported, this returns a
+// new instance. Otherwise, it returns the default instance.
+//
+// An IsolateGroup is a collection of Isolates that share the same underlying
+// pointer cage when pointer compression is enabled. When pointer compression is
+// disabled, there is a default IsolateGroup that is used for all isolates, and
+// when pointer compression is enabled, all isolates in the app share the
+// same pointer cage by default that is limited a maximum of 4GB, not counting
+// array buffers and off-heap storage. Multiple IsolateGroups can be used to
+// work around the 4GB limit, but each group reserves a range of virtual memory
+// addresses, so this should be used with care.
+v8::IsolateGroup GetOrCreateIsolateGroup();
+
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
                         MultiIsolatePlatform* platform,
@@ -323,9 +363,10 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         const IsolateSettings& settings = {});
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
-v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
-                                         StartExecutionCallback cb = nullptr);
-v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
+v8::MaybeLocal<v8::Value> StartExecution(
+    Environment* env, StartExecutionCallbackWithModule cb = nullptr);
+v8::MaybeLocal<v8::Object> GetPerContextExports(
+    v8::Local<v8::Context> context, IsolateData* isolate_data = nullptr);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {
@@ -365,11 +406,12 @@ bool HasSignalJSHandler(int signum);
 
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
 typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,
@@ -413,10 +455,6 @@ using HeapSnapshotPointer =
 BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
-
-namespace fs {
-std::string Basename(const std::string& str, const std::string& extension);
-}  // namespace fs
 
 node_module napi_module_to_node_module(const napi_module* mod);
 

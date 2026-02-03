@@ -71,9 +71,9 @@
   // vector
   assertEquals(0, f3(0));
   assertTrue(isBaseline(f3));
-  assertFalse(isBaseline(f2));
 
-  // Run f2, tiers up to baseline via interpreter entry.
+  // Run f2, already tiered up through dispatch table.
+  assertTrue(isBaseline(f2));
   assertEquals(0, f2(0));
   assertTrue(isBaseline(f2));
 })();
@@ -113,7 +113,7 @@
   // feedback vector
   assertEquals(0, f2(0));
   assertTrue(isBaseline(f2));
-  assertFalse(isBaseline(f3));
+  assertTrue(isBaseline(f3));
 
   // Compile f3, tiers up to baseline via lazy compile.
   assertEquals(0, f3(0));

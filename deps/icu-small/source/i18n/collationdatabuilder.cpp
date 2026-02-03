@@ -381,7 +381,7 @@ CollationDataBuilder::maybeSetPrimaryRange(UChar32 start, UChar32 end,
     if(2 <= step && step <= 0x7f &&
             (blockDelta >= 3 ||
             (blockDelta > 0 && (start & 0x1f) <= 0x1c && (end & 0x1f) >= 3))) {
-        int64_t dataCE = ((int64_t)primary << 32) | (start << 8) | step;
+        int64_t dataCE = (static_cast<int64_t>(primary) << 32) | (start << 8) | step;
         if(isCompressiblePrimary(primary)) { dataCE |= 0x80; }
         int32_t index = addCE(dataCE, errorCode);
         if(U_FAILURE(errorCode)) { return 0; }
@@ -526,9 +526,9 @@ int32_t
 CollationDataBuilder::addCE32(uint32_t ce32, UErrorCode &errorCode) {
     int32_t length = ce32s.size();
     for(int32_t i = 0; i < length; ++i) {
-        if(ce32 == (uint32_t)ce32s.elementAti(i)) { return i; }
+        if (ce32 == static_cast<uint32_t>(ce32s.elementAti(i))) { return i; }
     }
-    ce32s.addElement((int32_t)ce32, errorCode);  
+    ce32s.addElement(static_cast<int32_t>(ce32), errorCode);
     return length;
 }
 
@@ -586,27 +586,19 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
         if (s != sInNfd) {
             // s is not in NFD, so it cannot match in ICU4X, since ICU4X only
             // does NFD lookups.
-            // Now check that we're only rejecting known cases.
-            if (s.length() == 2) {
-                char16_t second = s.charAt(1);
-                if (second == 0x0F73 || second == 0x0F75 || second == 0x0F81) {
-                    // Second is a special decomposing Tibetan vowel sign.
-                    // These also get added in the decomposed form, so ignoring
-                    // this instance is OK.
-                    return;
-                }
-                if (c == 0xFDD1 && second == 0xAC00) {
-                    // This strange contraction exists in the root and
-                    // doesn't have a decomposed counterpart there.
-                    // This won't match in ICU4X anyway and is very strange:
-                    // Unassigned Arabic presentation form contracting with
-                    // the very first Hangul syllable. Let's ignore this
-                    // explicitly.
-                    return;
-                }
-            }
-            // Unknown case worth investigating if ever found.
-            errorCode = U_UNSUPPORTED_ERROR;
+
+            // As of Unicode 16 alpha, the cases that come here are:
+            //
+            // 1. The second character is a special decomposing Tibetan vowel
+            //    sign. These are OK to ignore in the precomposed form, since
+            //    the decomposed form is added also.
+            // 2. Likewise for KIRAT RAI VOWEL SIGN AA followed by KIRAT RAI VOWEL SIGN AI
+            //    and other such cases.
+            //    For details see the normalization section of
+            //    https://www.unicode.org/review/pri497/pri497-background.html
+            // 3. U+FDD1 followed by U+AC00 is a marker for the alphabetical
+            //    index feature of ICU4C, which at this time does not have
+            //    a counterpart in ICU4X.
             return;
         }
 
@@ -663,6 +655,20 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
                     return;
                 }
             }
+            int32_t sCount = s.countChar32();
+            UChar32 sUtf32[32];
+            int32_t sLen = s.toUTF32(sUtf32, 32, errorCode);
+            if (sLen != sCount) {
+                // If this error is ever reached, just increase the buffer
+                // size above.
+                errorCode = U_UNSUPPORTED_ERROR;
+                return;
+            }
+            for (int32_t i = 1; i < sLen - 1; ++i) {
+                if (u_getCombiningClass(sUtf32[i]) == 0) {
+                    contractionMiddleStarter.add(sUtf32[i]);
+                }
+            }
         }
     }
 
@@ -692,7 +698,7 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
         if(!isBuilderContextCE32(oldCE32)) {
             // Replace the simple oldCE32 with a builder context CE32
             // pointing to a new ConditionalCE32 list head.
-            int32_t index = addConditionalCE32(UnicodeString((char16_t)0), oldCE32, errorCode);
+            int32_t index = addConditionalCE32(UnicodeString(static_cast<char16_t>(0)), oldCE32, errorCode);
             if(U_FAILURE(errorCode)) { return; }
             uint32_t contextCE32 = makeBuilderContextCE32(index);
             utrie2_set32(trie, c, contextCE32, &errorCode);
@@ -703,8 +709,22 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
             cond->builtCE32 = Collation::NO_CE32;
         }
         UnicodeString suffix(s, cLength);
-        UnicodeString context((char16_t)prefix.length());
+        UnicodeString context(static_cast<char16_t>(prefix.length()));
         context.append(prefix).append(suffix);
+        if (icu4xMode && !suffix.isEmpty() && !prefix.isEmpty()) {
+            // ICU4X does not support the combination of prefix and contraction.
+            // This combination is supported by LDML but does not occur in the
+            // root or any tailorings in CLDR as of February 2025.
+            // If support for this case becomes necessary, a practical change
+            // would be allocating a flag on prefix ce32 and setting the
+            // flag on a prefix ce32 if any ce32 that can be found under
+            // the prefix ce32 (either the default or any UCharsTrie value) is
+            // a contraction ce32 or if the prefix ce32 is the utrie2 value
+            // for a character that is a starter that occurs in a middle
+            // (neither first nor last) position in a contraction.
+            errorCode = U_UNSUPPORTED_ERROR;
+            return;
+        }
         unsafeBackwardSet.addAll(suffix);
         for(;;) {
             // invariant: context > cond->context
@@ -738,9 +758,9 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
 
 uint32_t
 CollationDataBuilder::encodeOneCEAsCE32(int64_t ce) {
-    uint32_t p = (uint32_t)(ce >> 32);
-    uint32_t lower32 = (uint32_t)ce;
-    uint32_t t = (uint32_t)(ce & 0xffff);
+    uint32_t p = static_cast<uint32_t>(ce >> 32);
+    uint32_t lower32 = static_cast<uint32_t>(ce);
+    uint32_t t = static_cast<uint32_t>(ce & 0xffff);
     U_ASSERT((t & 0xc000) != 0xc000);  // Impossible case bits 11 mark special CE32s.
     if((ce & INT64_C(0xffff00ff00ff)) == 0) {
         // normal form ppppsstt
@@ -794,15 +814,15 @@ CollationDataBuilder::encodeCEs(const int64_t ces[], int32_t cesLength,
         // on checking this tag when using the data.
         int64_t ce0 = ces[0];
         int64_t ce1 = ces[1];
-        uint32_t p0 = (uint32_t)(ce0 >> 32);
+        uint32_t p0 = static_cast<uint32_t>(ce0 >> 32);
         if((ce0 & INT64_C(0xffffffffff00ff)) == Collation::COMMON_SECONDARY_CE &&
                 (ce1 & INT64_C(0xffffffff00ffffff)) == Collation::COMMON_TERTIARY_CE &&
                 p0 != 0) {
             // Latin mini expansion
             return
                 p0 |
-                (((uint32_t)ce0 & 0xff00u) << 8) |
-                (uint32_t)(ce1 >> 16) |
+                ((static_cast<uint32_t>(ce0) & 0xff00u) << 8) |
+                static_cast<uint32_t>(ce1 >> 16) |
                 Collation::SPECIAL_CE32_LOW_BYTE |
                 Collation::LATIN_EXPANSION_TAG;
         }
@@ -815,7 +835,7 @@ CollationDataBuilder::encodeCEs(const int64_t ces[], int32_t cesLength,
         }
         uint32_t ce32 = encodeOneCEAsCE32(ces[i]);
         if(ce32 == Collation::NO_CE32) { break; }
-        newCE32s[i] = (int32_t)ce32;
+        newCE32s[i] = static_cast<int32_t>(ce32);
     }
     return encodeExpansion(ces, cesLength, errorCode);
 }
@@ -920,7 +940,7 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
             return copyFromBaseCE32(c, ce32, false, errorCode);
         }
         ConditionalCE32 head;
-        UnicodeString context((char16_t)0);
+        UnicodeString context(static_cast<char16_t>(0));
         int32_t index;
         if(Collation::isContractionCE32(ce32)) {
             index = copyContractionsFromBaseCE32(context, c, ce32, &head, errorCode);
@@ -934,8 +954,8 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
         while(prefixes.next(errorCode)) {
             context = prefixes.getString();
             context.reverse();
-            context.insert(0, (char16_t)context.length());
-            ce32 = (uint32_t)prefixes.getValue();
+            context.insert(0, static_cast<char16_t>(context.length()));
+            ce32 = static_cast<uint32_t>(prefixes.getValue());
             if(Collation::isContractionCE32(ce32)) {
                 index = copyContractionsFromBaseCE32(context, c, ce32, cond, errorCode);
             } else {
@@ -956,7 +976,7 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
             return copyFromBaseCE32(c, ce32, false, errorCode);
         }
         ConditionalCE32 head;
-        UnicodeString context((char16_t)0);
+        UnicodeString context(static_cast<char16_t>(0));
         copyContractionsFromBaseCE32(context, c, ce32, &head, errorCode);
         ce32 = makeBuilderContextCE32(head.next);
         contextChars.add(c);
@@ -1002,7 +1022,7 @@ CollationDataBuilder::copyContractionsFromBaseCE32(UnicodeString &context, UChar
     UCharsTrie::Iterator suffixes(p + 2, 0, errorCode);
     while(suffixes.next(errorCode)) {
         context.append(suffixes.getString());
-        ce32 = copyFromBaseCE32(c, (uint32_t)suffixes.getValue(), true, errorCode);
+        ce32 = copyFromBaseCE32(c, static_cast<uint32_t>(suffixes.getValue()), true, errorCode);
         cond->next = index = addConditionalCE32(context, ce32, errorCode);
         if(U_FAILURE(errorCode)) { return 0; }
         // No need to update the unsafeBackwardSet because the tailoring set
@@ -1323,7 +1343,7 @@ CollationDataBuilder::setLeadSurrogates(UErrorCode &errorCode) {
         utrie2_enumForLeadSurrogate(trie, lead, nullptr, enumRangeLeadValue, &value);
         utrie2_set32ForLeadSurrogateCodeUnit(
             trie, lead,
-            Collation::makeCE32FromTagAndIndex(Collation::LEAD_SURROGATE_TAG, 0) | (uint32_t)value,
+            Collation::makeCE32FromTagAndIndex(Collation::LEAD_SURROGATE_TAG, 0) | static_cast<uint32_t>(value),
             &errorCode);
     }
 }
@@ -1357,7 +1377,7 @@ CollationDataBuilder::buildMappings(CollationData &data, UErrorCode &errorCode) 
     if(getJamoCE32s(jamoCE32s, errorCode)) {
         jamoIndex = ce32s.size();
         for(int32_t i = 0; i < CollationData::JAMO_CE32S_LENGTH; ++i) {
-            ce32s.addElement((int32_t)jamoCE32s[i], errorCode);
+            ce32s.addElement(static_cast<int32_t>(jamoCE32s[i]), errorCode);
         }
         // Small optimization: Use a bit in the Hangul ce32
         // to indicate that none of the Jamo CE32s are isSpecialCE32()
@@ -1399,9 +1419,71 @@ CollationDataBuilder::buildMappings(CollationData &data, UErrorCode &errorCode) 
     setDigitTags(errorCode);
     setLeadSurrogates(errorCode);
 
-    if (!icu4xMode) {
+    if (icu4xMode) {
+        // Make sure that starters that occur is the middle of a
+        // contraction have contraction ce32 with the
+        // `CONTRACT_HAS_STARTER` flag set so that starters that
+        // can occur in a non-final position in a contraction can
+        // be easily recognized from having a contraction ce32
+        // that has the `CONTRACT_HAS_STARTER` flag set.
+
+        UCharsTrieBuilder contractionBuilder(errorCode);
+        // Intentionally unpaired low surrogate to make it never
+        // match well-formed UTF-16 which ICU4X feeds to the
+        // matcher.
+        UnicodeString placeholder(0xDC00);
+
+        for (UChar32 c : contractionMiddleStarter.codePoints()) {
+            uint32_t ce32 = utrie2_get32(trie, c);
+            UBool fromBase = false;
+            if(ce32 == Collation::FALLBACK_CE32) {
+                fromBase = true;
+                ce32 = base->getCE32(c);
+            }
+            if (!(Collation::hasCE32Tag(ce32, Collation::CONTRACTION_TAG) && (ce32 & Collation::CONTRACT_HAS_STARTER))) {
+                if (fromBase) {
+                    // This case does not actually happen as of February 2025.
+                    ce32 = copyFromBaseCE32(c, ce32, true, errorCode);
+                }
+                if (Collation::hasCE32Tag(ce32, Collation::CONTRACTION_TAG)) {
+                    // This middle starter is also the first character of another
+                    // contraction, but that contraction does not have the
+                    // CONTRACT_HAS_STARTER flag. Let's add the flag to
+                    // mark this at the expense of pessimizing the matching
+                    // of this contraction.
+                    // As of February 2025, this case does not actually occur
+                    // in CLDR.
+                    ce32 |= Collation::CONTRACT_HAS_STARTER;
+                } else {
+                    // This middle starter is not also the first character
+                    // in another contraction.
+
+                    // The UCharsTrie needs to contain some placeholder
+                    // because it cannot be empty. We build a trie
+                    // that never actually matches anything that ICU4X can try to
+                    // match, since ICU4X always passes well-formed UTF-16 to the
+                    // matcher and we put an unpaired low surrogate into the trie.
+                    // This pessimizes the character to CE mapping of the `c`,
+                    // since useless trie matching will be attempted but as of
+                    // February 2025, only two relatively rare characters are affected.
+                    contractionBuilder.clear();
+                    contractionBuilder.add(placeholder, static_cast<int32_t>(ce32), errorCode);
+
+                    int32_t index = addContextTrie(ce32, contractionBuilder, errorCode);
+                    if(U_FAILURE(errorCode)) { return; }
+                    if(index > Collation::MAX_INDEX) {
+                        errorCode = U_BUFFER_OVERFLOW_ERROR;
+                        return;
+                    }
+                    // Set CONTRACT_HAS_STARTER to make identical prefix matching able to catch this.
+                    ce32 = Collation::makeCE32FromTagAndIndex(Collation::CONTRACTION_TAG, index) | Collation::CONTRACT_HAS_STARTER;
+                }
+                utrie2_set32(trie, c, ce32, &errorCode);
+            }
+        }
+    } else {
         // For U+0000, move its normal ce32 into CE32s[0] and set U0000_TAG.
-        ce32s.setElementAt((int32_t)utrie2_get32(trie, 0), 0);
+        ce32s.setElementAt(static_cast<int32_t>(utrie2_get32(trie, 0)), 0);
         utrie2_set32(trie, 0, Collation::makeCE32FromTagAndIndex(Collation::U0000_TAG, 0), &errorCode);
     }
 
@@ -1572,7 +1654,7 @@ CollationDataBuilder::buildContext(ConditionalCE32 *head, UErrorCode &errorCode)
                         }
                     }
                 }
-                contractionBuilder.add(suffix, (int32_t)cond->ce32, errorCode);
+                contractionBuilder.add(suffix, static_cast<int32_t>(cond->ce32), errorCode);
                 if(cond == lastCond) { break; }
                 cond = getConditionalCE32(cond->next);
             }
@@ -1594,7 +1676,7 @@ CollationDataBuilder::buildContext(ConditionalCE32 *head, UErrorCode &errorCode)
         } else {
             prefix.remove(0, 1);  // Remove the length unit.
             prefix.reverse();
-            prefixBuilder.add(prefix, (int32_t)ce32, errorCode);
+            prefixBuilder.add(prefix, static_cast<int32_t>(ce32), errorCode);
             if(cond->next < 0) { break; }
         }
     }
@@ -1612,7 +1694,7 @@ int32_t
 CollationDataBuilder::addContextTrie(uint32_t defaultCE32, UCharsTrieBuilder &trieBuilder,
                                      UErrorCode &errorCode) {
     UnicodeString context;
-    context.append((char16_t)(defaultCE32 >> 16)).append((char16_t)defaultCE32);
+    context.append(static_cast<char16_t>(defaultCE32 >> 16)).append(static_cast<char16_t>(defaultCE32));
     UnicodeString trieString;
     context.append(trieBuilder.buildUnicodeString(USTRINGTRIE_BUILD_SMALL, trieString, errorCode));
     if(U_FAILURE(errorCode)) { return -1; }

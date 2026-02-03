@@ -58,6 +58,9 @@
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
+#ifndef ENABLE_VIRTUAL_TERMINAL_INPUT
+#define ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+#endif
 
 #define CURSOR_SIZE_SMALL     25
 #define CURSOR_SIZE_LARGE     100
@@ -119,7 +122,10 @@ static int uv_tty_virtual_width = -1;
  * handle signalling SIGWINCH
  */
 
-static HANDLE uv__tty_console_handle = INVALID_HANDLE_VALUE;
+static HANDLE uv__tty_console_handle_out = INVALID_HANDLE_VALUE;
+static HANDLE uv__tty_console_handle_in = INVALID_HANDLE_VALUE;
+static DWORD uv__tty_console_in_original_mode = (DWORD)-1;
+static volatile LONG uv__tty_console_in_need_mode_reset = 0;
 static int uv__tty_console_height = -1;
 static int uv__tty_console_width = -1;
 static HANDLE uv__tty_console_resized = INVALID_HANDLE_VALUE;
@@ -159,25 +165,39 @@ static uv_tty_vtermstate_t uv__vterm_state = UV_TTY_UNSUPPORTED;
 static void uv__determine_vterm_state(HANDLE handle);
 
 void uv__console_init(void) {
+  DWORD dwMode;
+
   if (uv_sem_init(&uv_tty_output_lock, 1))
     abort();
-  uv__tty_console_handle = CreateFileW(L"CONOUT$",
-                                       GENERIC_READ | GENERIC_WRITE,
-                                       FILE_SHARE_WRITE,
-                                       0,
-                                       OPEN_EXISTING,
-                                       0,
-                                       0);
-  if (uv__tty_console_handle != INVALID_HANDLE_VALUE) {
+  uv__tty_console_handle_out = CreateFileW(L"CONOUT$",
+                                           GENERIC_READ | GENERIC_WRITE,
+                                           FILE_SHARE_WRITE,
+                                           0,
+                                           OPEN_EXISTING,
+                                           0,
+                                           0);
+  if (uv__tty_console_handle_out != INVALID_HANDLE_VALUE) {
     CONSOLE_SCREEN_BUFFER_INFO sb_info;
     uv_mutex_init(&uv__tty_console_resize_mutex);
-    if (GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info)) {
+    if (GetConsoleScreenBufferInfo(uv__tty_console_handle_out, &sb_info)) {
       uv__tty_console_width = sb_info.dwSize.X;
       uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
     }
     QueueUserWorkItem(uv__tty_console_resize_message_loop_thread,
                       NULL,
                       WT_EXECUTELONGFUNCTION);
+  }
+  uv__tty_console_handle_in = CreateFileW(L"CONIN$",
+                                          GENERIC_READ | GENERIC_WRITE,
+                                          FILE_SHARE_READ,
+                                          0,
+                                          OPEN_EXISTING,
+                                          0,
+                                          0);
+  if (uv__tty_console_handle_in != INVALID_HANDLE_VALUE) {
+    if (GetConsoleMode(uv__tty_console_handle_in, &dwMode)) {
+      uv__tty_console_in_original_mode = dwMode;
+    }
   }
 }
 
@@ -253,7 +273,9 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int unused) {
     /* Initialize TTY input specific fields. */
     tty->flags |= UV_HANDLE_TTY_READABLE | UV_HANDLE_READABLE;
     /* TODO: remove me in v2.x. */
-    tty->tty.rd.unused_ = NULL;
+    tty->tty.rd.mode.unused_ = NULL;
+    /* Partially overwrites unused_ again. */
+    tty->tty.rd.mode.mode = 0;
     tty->tty.rd.read_line_buffer = uv_null_buf_;
     tty->tty.rd.read_raw_wait = NULL;
 
@@ -344,6 +366,7 @@ static void uv__tty_capture_initial_style(
 
 int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   DWORD flags;
+  DWORD try_set_flags;
   unsigned char was_reading;
   uv_alloc_cb alloc_cb;
   uv_read_cb read_cb;
@@ -353,14 +376,19 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     return UV_EINVAL;
   }
 
-  if (!!mode == !!(tty->flags & UV_HANDLE_TTY_RAW)) {
+  if ((int)mode == tty->tty.rd.mode.mode) {
     return 0;
   }
 
+  try_set_flags = 0;
   switch (mode) {
     case UV_TTY_MODE_NORMAL:
       flags = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
       break;
+    case UV_TTY_MODE_RAW_VT:
+      try_set_flags = ENABLE_VIRTUAL_TERMINAL_INPUT;
+      InterlockedExchange(&uv__tty_console_in_need_mode_reset, 1);
+      /* fallthrough */
     case UV_TTY_MODE_RAW:
       flags = ENABLE_WINDOW_INPUT;
       break;
@@ -386,16 +414,16 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   }
 
   uv_sem_wait(&uv_tty_output_lock);
-  if (!SetConsoleMode(tty->handle, flags)) {
+  if (!SetConsoleMode(tty->handle, flags | try_set_flags) &&
+      !SetConsoleMode(tty->handle, flags)) {
     err = uv_translate_sys_error(GetLastError());
     uv_sem_post(&uv_tty_output_lock);
     return err;
   }
   uv_sem_post(&uv_tty_output_lock);
 
-  /* Update flag. */
-  tty->flags &= ~UV_HANDLE_TTY_RAW;
-  tty->flags |= mode ? UV_HANDLE_TTY_RAW : 0;
+  /* Update mode. */
+  tty->tty.rd.mode.mode = mode;
 
   /* If we just stopped reading, restart. */
   if (was_reading) {
@@ -614,7 +642,7 @@ static void uv__tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
 
 
 static void uv__tty_queue_read(uv_loop_t* loop, uv_tty_t* handle) {
-  if (handle->flags & UV_HANDLE_TTY_RAW) {
+  if (uv__is_raw_tty_mode(handle->tty.rd.mode.mode)) {
     uv__tty_queue_read_raw(loop, handle);
   } else {
     uv__tty_queue_read_line(loop, handle);
@@ -702,7 +730,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
   handle->flags &= ~UV_HANDLE_READ_PENDING;
 
   if (!(handle->flags & UV_HANDLE_READING) ||
-      !(handle->flags & UV_HANDLE_TTY_RAW)) {
+      !(uv__is_raw_tty_mode(handle->tty.rd.mode.mode))) {
     goto out;
   }
 
@@ -1050,7 +1078,7 @@ int uv__tty_read_stop(uv_tty_t* handle) {
   if (!(handle->flags & UV_HANDLE_READ_PENDING))
     return 0;
 
-  if (handle->flags & UV_HANDLE_TTY_RAW) {
+  if (uv__is_raw_tty_mode(handle->tty.rd.mode.mode)) {
     /* Cancel raw read. Write some bullshit event to force the console wait to
      * return. */
     memset(&record, 0, sizeof record);
@@ -2183,7 +2211,7 @@ int uv__tty_write(uv_loop_t* loop,
 
   handle->reqs_pending++;
   handle->stream.conn.write_reqs_pending++;
-  REGISTER_HANDLE_REQ(loop, handle, req);
+  REGISTER_HANDLE_REQ(loop, handle);
 
   req->u.io.queued_bytes = 0;
 
@@ -2219,7 +2247,7 @@ void uv__process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
   int err;
 
   handle->write_queue_size -= req->u.io.queued_bytes;
-  UNREGISTER_HANDLE_REQ(loop, handle, req);
+  UNREGISTER_HANDLE_REQ(loop, handle);
 
   if (req->cb) {
     err = GET_REQ_ERROR(req);
@@ -2263,7 +2291,7 @@ void uv__process_tty_shutdown_req(uv_loop_t* loop, uv_tty_t* stream, uv_shutdown
   assert(req);
 
   stream->stream.conn.shutdown_req = NULL;
-  UNREGISTER_HANDLE_REQ(loop, stream, req);
+  UNREGISTER_HANDLE_REQ(loop, stream);
 
   /* TTY shutdown is really just a no-op */
   if (req->cb) {
@@ -2293,7 +2321,17 @@ void uv__tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
 
 
 int uv_tty_reset_mode(void) {
-  /* Not necessary to do anything. */
+  /**
+   * Shells on Windows do know to reset output flags after a program exits,
+   * but not necessarily input flags, so we do that for them.
+   */
+  if (
+    uv__tty_console_handle_in != INVALID_HANDLE_VALUE &&
+    uv__tty_console_in_original_mode != (DWORD)-1 &&
+    InterlockedExchange(&uv__tty_console_in_need_mode_reset, 0) != 0
+  ) {
+    SetConsoleMode(uv__tty_console_handle_in, uv__tty_console_in_original_mode);
+  }
   return 0;
 }
 
@@ -2380,8 +2418,8 @@ static DWORD WINAPI uv__tty_console_resize_watcher_thread(void* param) {
     /* Make sure to not overwhelm the system with resize events */
     Sleep(33);
     WaitForSingleObject(uv__tty_console_resized, INFINITE);
-    uv__tty_console_signal_resize();
     ResetEvent(uv__tty_console_resized);
+    uv__tty_console_signal_resize();
   }
   return 0;
 }
@@ -2390,7 +2428,7 @@ static void uv__tty_console_signal_resize(void) {
   CONSOLE_SCREEN_BUFFER_INFO sb_info;
   int width, height;
 
-  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
+  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle_out, &sb_info))
     return;
 
   width = sb_info.dwSize.X;

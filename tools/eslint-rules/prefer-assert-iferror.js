@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prohibit the `if (err) throw err;` pattern
+ * @file Prohibit the `if (err) throw err;` pattern
  * @author Teddy Katz
  */
 
@@ -12,7 +12,7 @@ module.exports = {
     fixable: 'code',
   },
   create(context) {
-    const sourceCode = context.getSourceCode();
+    const sourceCode = context.sourceCode;
     let assertImported = false;
 
     function hasSameTokens(nodeA, nodeB) {

@@ -60,13 +60,14 @@ function checkOutput(str, check) {
   return { passed: true };
 }
 
-function expectSyncExit(child, {
+function expectSyncExit(caller, spawnArgs, {
   status,
   signal,
   stderr: stderrCheck,
   stdout: stdoutCheck,
   trim = false,
 }) {
+  const child = spawnSync(...spawnArgs);
   const failures = [];
   let stderrStr, stdoutStr;
   if (status !== undefined && child.status !== status) {
@@ -83,7 +84,32 @@ function expectSyncExit(child, {
     console.error(`${tag} --- stdout ---`);
     console.error(stdoutStr === undefined ? child.stdout.toString() : stdoutStr);
     console.error(`${tag} status = ${child.status}, signal = ${child.signal}`);
-    throw new Error(`${failures.join('\n')}`);
+
+    const error = new Error(`${failures.join('\n')}`);
+    if (typeof spawnArgs[2] === 'object' && spawnArgs[2] !== null) {
+      const envInOptions = spawnArgs[2].env;
+      // If the env is overridden in the spawn options, include it in the error
+      // object for easier debugging.
+      if (typeof envInOptions === 'object' && envInOptions !== null && envInOptions !== process.env) {
+        // Only include the environment variables that are different from
+        // the current process.env to avoid cluttering the output.
+        error.options = { ...spawnArgs[2], env: {} };
+        for (const key of Object.keys(envInOptions)) {
+          if (envInOptions[key] !== process.env[key]) {
+            error.options.env[key] = spawnArgs[2].env[key];
+          }
+        }
+      } else {
+        error.options = spawnArgs[2];
+      }
+    }
+    let command = spawnArgs[0];
+    if (Array.isArray(spawnArgs[1])) {
+      command += ' ' + spawnArgs[1].join(' ');
+    }
+    error.command = command;
+    Error.captureStackTrace(error, caller);
+    throw error;
   }
 
   // If status and signal are not matching expectations, fail early.
@@ -114,15 +140,19 @@ function expectSyncExit(child, {
 function spawnSyncAndExit(...args) {
   const spawnArgs = args.slice(0, args.length - 1);
   const expectations = args[args.length - 1];
-  const child = spawnSync(...spawnArgs);
-  return expectSyncExit(child, expectations);
+  return expectSyncExit(spawnSyncAndExit, spawnArgs, expectations);
 }
 
 function spawnSyncAndExitWithoutError(...args) {
-  const spawnArgs = args.slice(0, args.length);
-  const expectations = args[args.length - 1];
-  const child = spawnSync(...spawnArgs);
-  return expectSyncExit(child, {
+  return expectSyncExit(spawnSyncAndExitWithoutError, [...args], {
+    status: 0,
+    signal: null,
+  });
+}
+
+function spawnSyncAndAssert(...args) {
+  const expectations = args.pop();
+  return expectSyncExit(spawnSyncAndAssert, [...args], {
     status: 0,
     signal: null,
     ...expectations,
@@ -134,6 +164,7 @@ module.exports = {
   logAfterTime,
   kExpiringChildRunTime,
   kExpiringParentTimer,
+  spawnSyncAndAssert,
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
 };

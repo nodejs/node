@@ -1,0 +1,6 @@
+testJsWasmWrapperInliningWithI64Args
+Test BigInt can be converted
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI64 of module {ADDRESS}
+Considering wasm function [0] squareI64 of module {ADDRESS} for inlining
+- not inlining: unsupported operation: i64.mul
+Test input of unconvertible type

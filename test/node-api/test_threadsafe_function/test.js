@@ -44,9 +44,9 @@ function testWithJSMarshaller({
       array.push(value);
       if (array.length === quitAfter) {
         setImmediate(() => {
-          binding.StopThread(common.mustCall(() => {
+          binding.StopThread(() => {
             resolve(array);
-          }), !!abort);
+          }, !!abort);
         });
       }
     }, !!abort, !!launchSecondary, maxQueueSize);
@@ -79,19 +79,19 @@ function testUnref(queueSize) {
 
 new Promise(function testWithoutJSMarshaller(resolve) {
   let callCount = 0;
-  binding.StartThreadNoNative(function testCallback() {
+  binding.StartThreadNoNative(common.mustCallAtLeast(function testCallback() {
     callCount++;
 
     // The default call-into-JS implementation passes no arguments.
     assert.strictEqual(arguments.length, 0);
     if (callCount === binding.ARRAY_LENGTH) {
       setImmediate(() => {
-        binding.StopThread(common.mustCall(() => {
+        binding.StopThread(() => {
           resolve();
-        }), false);
+        }, false);
       });
     }
-  }, false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
+  }), false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
 })
 
 // Start the thread in blocking mode, and assert that all values are passed.
@@ -224,4 +224,6 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))
 
 // Start a child process with an infinite queue to test rapid teardown
-.then(() => testUnref(0));
+.then(() => testUnref(0))
+
+.then(common.mustCall());

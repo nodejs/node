@@ -3,12 +3,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the msvs.py file. """
+"""Unit tests for the msvs.py file."""
 
-import gyp.generator.msvs as msvs
 import unittest
-
 from io import StringIO
+
+from gyp.generator import msvs
 
 
 class TestSequenceFunctions(unittest.TestCase):

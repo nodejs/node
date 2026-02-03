@@ -550,7 +550,15 @@ class Step(GitRecipesMixin):
     all_tags = self.vc.GetTags()
     only_version_tags = NormalizeVersionTags(all_tags)
 
-    version = sorted(only_version_tags,
+    def patched_dev_version(tag):
+      """True if this tag represents a patched dev or mini branch."""
+      parts = tag.split('.')
+      return len(parts) >= 3 and int(parts[2]) > 999
+
+    filtered_version_tags = [
+      tag for tag in only_version_tags if not patched_dev_version(tag)]
+
+    version = sorted(filtered_version_tags,
                      key=LooseVersion, reverse=True)[0]
     self["latest_version"] = version
     return version
@@ -643,7 +651,9 @@ class BootstrapStep(Step):
     if not os.path.exists(self._options.work_dir):
       os.makedirs(self._options.work_dir)
     if not os.path.exists(self.default_cwd):
-      self.Command("fetch", "v8", cwd=self._options.work_dir)
+      self.Git("cl creds-check", pipe=False, cwd=self._options.work_dir)
+      self.Git("clone https://chromium.googlesource.com/v8/v8",
+               cwd=self._options.work_dir)
 
 
 class UploadStep(Step):

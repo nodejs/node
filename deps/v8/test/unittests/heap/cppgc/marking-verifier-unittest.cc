@@ -11,6 +11,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
@@ -52,6 +53,15 @@ V8_NOINLINE T access(volatile const T& t) {
   return t;
 }
 
+bool MarkHeader(HeapObjectHeader& header) {
+  if (header.TryMarkAtomic()) {
+    BasePage::FromPayload(&header)->IncrementMarkedBytes(
+        header.AllocatedSize());
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 // Following tests should not crash.
@@ -59,7 +69,7 @@ V8_NOINLINE T access(volatile const T& t) {
 TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedOnStackReference) {
   GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto& header = HeapObjectHeader::FromObject(object);
-  ASSERT_TRUE(header.TryMarkAtomic());
+  ASSERT_TRUE(MarkHeader(header));
   VerifyMarking(Heap::From(GetHeap())->AsBase(),
                 StackState::kMayContainHeapPointers, header.AllocatedSize());
   access(object);
@@ -68,10 +78,10 @@ TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedOnStackReference) {
 TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto& parent_header = HeapObjectHeader::FromObject(parent.Get());
-  ASSERT_TRUE(parent_header.TryMarkAtomic());
+  ASSERT_TRUE(MarkHeader(parent_header));
   parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   auto& child_header = HeapObjectHeader::FromObject(parent->child());
-  ASSERT_TRUE(child_header.TryMarkAtomic());
+  ASSERT_TRUE(MarkHeader(child_header));
   VerifyMarking(Heap::From(GetHeap())->AsBase(), StackState::kNoHeapPointers,
                 parent_header.AllocatedSize() + child_header.AllocatedSize());
 }
@@ -79,10 +89,10 @@ TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedMember) {
 TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedWeakMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto& parent_header = HeapObjectHeader::FromObject(parent.Get());
-  ASSERT_TRUE(parent_header.TryMarkAtomic());
+  ASSERT_TRUE(MarkHeader(parent_header));
   parent->SetWeakChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   auto& child_header = HeapObjectHeader::FromObject(parent->weak_child());
-  ASSERT_TRUE(child_header.TryMarkAtomic());
+  ASSERT_TRUE(MarkHeader(child_header));
   VerifyMarking(Heap::From(GetHeap())->AsBase(), StackState::kNoHeapPointers,
                 parent_header.AllocatedSize() + child_header.AllocatedSize());
 }
@@ -104,7 +114,7 @@ TEST_F(MarkingVerifierTest, DoesNotDieOnInConstructionOnObject) {
   MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [this](GCedWithCallback* obj) {
         auto& header = HeapObjectHeader::FromObject(obj);
-        CHECK(header.TryMarkAtomic());
+        CHECK(MarkHeader(header));
         VerifyMarking(Heap::From(GetHeap())->AsBase(),
                       StackState::kMayContainHeapPointers,
                       header.AllocatedSize());
@@ -206,6 +216,47 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnexpectedLiveByteCount) {
                                           StackState::kMayContainHeapPointers,
                                           header.AllocatedSize() - 1),
                             "");
+}
+
+namespace {
+void EscapeControlRegexCharacters(std::string& s) {
+  for (std::string::size_type start_pos = 0;
+       (start_pos = s.find_first_of("().*+\\", start_pos)) != std::string::npos;
+       start_pos += 2) {
+    s.insert(start_pos, "\\");
+  }
+}
+}  // anonymous namespace
+
+TEST_F(MarkingVerifierDeathTest, DieWithDebugInfoOnUnexpectedLiveByteCount) {
+  using ::testing::AllOf;
+  using ::testing::ContainsRegex;
+  GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto& header = HeapObjectHeader::FromObject(object);
+  ASSERT_TRUE(header.TryMarkAtomic());
+  size_t allocated = header.AllocatedSize();
+  size_t expected = allocated - 1;
+  std::string regex_total =
+      "\n<--- Mismatch in marking verifier --->"
+      "\nMarked bytes: expected " +
+      std::to_string(expected) + " vs. verifier found " +
+      std::to_string(allocated) + ",";
+  std::string class_name =
+      header.GetName(HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+          .value;
+  EscapeControlRegexCharacters(class_name);
+  std::string regex_page =
+      "\nNormal page in space \\d+:"
+      "\nMarked bytes: expected 0 vs. verifier found " +
+      std::to_string(allocated) +
+      ",.*"
+      "\n- " +
+      class_name + " at .*, size " + std::to_string(header.ObjectSize()) +
+      ", marked\n";
+  EXPECT_DEATH_IF_SUPPORTED(
+      VerifyMarking(Heap::From(GetHeap())->AsBase(),
+                    StackState::kNoHeapPointers, expected),
+      AllOf(ContainsRegex(regex_total), ContainsRegex(regex_page)));
 }
 
 #endif  // CPPGC_VERIFY_HEAP

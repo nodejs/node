@@ -1,15 +1,20 @@
-// Flags: --expose-internals
 'use strict';
+// This tests heap snapshot integration of tls sockets.
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { validateSnapshotNodes } = require('../common/heap');
+const { validateByRetainingPath, validateByRetainingPathFromNodes } = require('../common/heap');
+const assert = require('assert');
 const net = require('net');
 const tls = require('tls');
 
-validateSnapshotNodes('Node / TLSWrap', []);
+// Before tls is used, no TLSWrap should be created.
+{
+  const nodes = validateByRetainingPath('Node / TLSWrap', []);
+  assert.strictEqual(nodes.length, 0);
+}
 
 const server = net.createServer(common.mustCall((c) => {
   c.end();
@@ -21,15 +26,16 @@ const server = net.createServer(common.mustCall((c) => {
   }));
   c.write('hello');
 
-  validateSnapshotNodes('Node / TLSWrap', [
-    {
-      children: [
-        { node_name: 'Node / NodeBIO', edge_name: 'enc_out' },
-        { node_name: 'Node / NodeBIO', edge_name: 'enc_in' },
-        // `Node / TLSWrap` (C++) -> `TLSWrap` (JS)
-        { node_name: 'TLSWrap', edge_name: 'native_to_javascript' },
-        // pending_cleartext_input could be empty
-      ],
-    },
+  const nodes = validateByRetainingPath('Node / TLSWrap', []);
+  validateByRetainingPathFromNodes(nodes, 'Node / TLSWrap', [
+    { node_name: 'Node / NodeBIO', edge_name: 'enc_out' },
+  ]);
+  validateByRetainingPathFromNodes(nodes, 'Node / TLSWrap', [
+    { node_name: 'Node / NodeBIO', edge_name: 'enc_in' },
+  ]);
+  validateByRetainingPathFromNodes(nodes, 'Node / TLSWrap', [
+    // `Node / TLSWrap` (C++) -> `TLSWrap` (JS)
+    { node_name: 'TLSWrap', edge_name: 'native_to_javascript' },
+    // pending_cleartext_input could be empty
   ]);
 }));

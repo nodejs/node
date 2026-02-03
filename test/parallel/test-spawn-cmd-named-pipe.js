@@ -16,22 +16,22 @@ if (!process.argv[2]) {
   const stdinPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdin`;
   const stdoutPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdout`;
 
-  const stdinPipeServer = net.createServer(function(c) {
+  const stdinPipeServer = net.createServer(common.mustCall((c) => {
     c.on('end', common.mustCall());
     c.end('hello');
-  });
+  }));
   stdinPipeServer.listen(stdinPipeName);
 
   const output = [];
 
-  const stdoutPipeServer = net.createServer(function(c) {
+  const stdoutPipeServer = net.createServer(common.mustCallAtLeast((c) => {
     c.on('data', function(x) {
       output.push(x);
     });
     c.on('end', common.mustCall(function() {
       assert.strictEqual(output.join(''), 'hello');
     }));
-  });
+  }));
   stdoutPipeServer.listen(stdoutPipeName);
 
   const args =

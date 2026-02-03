@@ -128,7 +128,7 @@ public:
          * NULLORDER indicates that an error has occurred while processing
          * @stable ICU 2.0
          */
-        NULLORDER = (int32_t)0xffffffff
+        NULLORDER = static_cast<int32_t>(0xffffffff)
     };
 
     // CollationElementIterator public constructor/destructor -------------------
@@ -171,7 +171,7 @@ public:
     * Resets the cursor to the beginning of the string.
     * @stable ICU 2.0
     */
-    void reset(void);
+    void reset();
 
     /**
     * Gets the ordering priority of the next character in the string.
@@ -263,7 +263,7 @@ public:
     * @return the offset of the character.
     * @stable ICU 2.0
     */
-    int32_t getOffset(void) const;
+    int32_t getOffset() const;
 
     /**
     * Sets the offset of the currently processed character in the source string.

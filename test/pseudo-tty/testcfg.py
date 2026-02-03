@@ -37,6 +37,7 @@ from functools import reduce
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 PTY_HELPER = join(dirname(__file__), '../../tools/pseudo-tty.py')
+ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
 
 class TTYTestCase(test.TestCase):
 
@@ -90,20 +91,33 @@ class TTYTestCase(test.TestCase):
         return True
     return False
 
+  def _parse_source_env(self, source):
+    env_match = ENV_PATTERN.search(source)
+    env = {}
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        env[var] = value
+    return env
+
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
   def GetName(self):
     return self.path[-1]
 
-  def GetCommand(self):
+  def GetRunConfiguration(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
+    envs = self._parse_source_env(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
     result.append(self.file)
-    return result
+    return {
+        'command': result,
+        'envs': envs
+    }
 
   def GetSource(self):
     return (open(self.file).read()

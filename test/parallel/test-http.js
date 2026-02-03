@@ -46,7 +46,7 @@ const server = http.Server(common.mustCall((req, res) => {
       assert.strictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
       break;
     default:
-      assert(false, `Unexpected request for ${req.url}`);
+      assert.fail(`Unexpected request for ${req.url}`);
   }
 
   if (expectedRequests.length === 0)
@@ -61,7 +61,7 @@ const server = http.Server(common.mustCall((req, res) => {
 }, 3));
 server.listen(0);
 
-server.on('listening', () => {
+server.on('listening', common.mustCall(() => {
   const agent = new http.Agent({ port: server.address().port, maxSockets: 1 });
   const req = http.get({
     port: server.address().port,
@@ -133,4 +133,4 @@ server.on('listening', () => {
     }));
     req.end();
   }), 2);
-});
+}));

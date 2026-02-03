@@ -2094,10 +2094,12 @@ $L$SEH_end_rsaz_512_gather4:
 
 
 
+section	.rdata rdata align=64
 ALIGN	64
 $L$inc:
 	DD	0,0,1,1
 	DD	2,2,2,2
+section .text
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16

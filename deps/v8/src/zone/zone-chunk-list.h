@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_ZONE_ZONE_CHUNK_LIST_H_
+#define V8_ZONE_ZONE_CHUNK_LIST_H_
+
 #include <algorithm>
 
 #include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone.h"
-
-#ifndef V8_ZONE_ZONE_CHUNK_LIST_H_
-#define V8_ZONE_ZONE_CHUNK_LIST_H_
 
 namespace v8 {
 namespace internal {
@@ -189,9 +189,7 @@ class ZoneChunkListIterator
     : public base::iterator<std::bidirectional_iterator_tag, T> {
  private:
   template <typename S>
-  using maybe_const =
-      typename std::conditional<modifiable, S,
-                                typename std::add_const<S>::type>::type;
+  using maybe_const = std::conditional_t<modifiable, S, std::add_const_t<S>>;
   using Chunk = maybe_const<typename ZoneChunkList<T>::Chunk>;
   using ChunkList = maybe_const<ZoneChunkList<T>>;
 

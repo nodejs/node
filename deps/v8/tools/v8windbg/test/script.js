@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Requires --expose-externalize-string.
+var str = createExternalizableString('external');
+try {
+  externalizeString(str);
+} catch (e) { }
+
+
 function a() {
-  JSON.stringify({firstProp: 12345, secondProp: null}, function replacer() {});
+  JSON.stringify({firstProp: 12345, secondProp: str}, function replacer() {});
 }
 
 function b() {

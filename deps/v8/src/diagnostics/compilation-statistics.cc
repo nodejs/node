@@ -16,7 +16,7 @@ namespace internal {
 void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
                                              const char* phase_name,
                                              const BasicStats& stats) {
-  base::MutexGuard guard(&record_mutex_);
+  base::MutexGuard guard(&access_mutex_);
 
   std::string phase_name_str(phase_name);
   auto it = phase_map_.find(phase_name_str);
@@ -29,7 +29,7 @@ void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
 
 void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
                                                  const BasicStats& stats) {
-  base::MutexGuard guard(&record_mutex_);
+  base::MutexGuard guard(&access_mutex_);
 
   std::string phase_kind_name_str(phase_kind_name);
   auto it = phase_kind_map_.find(phase_kind_name_str);
@@ -43,7 +43,7 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
 }
 
 void CompilationStatistics::RecordTotalStats(const BasicStats& stats) {
-  base::MutexGuard guard(&record_mutex_);
+  base::MutexGuard guard(&access_mutex_);
   total_stats_.Accumulate(stats);
   total_stats_.count_++;
 }
@@ -124,7 +124,7 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
     if (!stats.function_name_.empty()) {
       os << "  " << stats.function_name_.c_str();
     }
-    os << std::endl;
+    os << '\n';
   }
 }
 
@@ -150,7 +150,8 @@ static void WritePhaseKindBreak(std::ostream& os) {
 std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
   // phase_kind_map_ and phase_map_ don't get mutated, so store a bunch of
   // pointers into them.
-  const CompilationStatistics& s = ps.s;
+  CompilationStatistics& s = ps.s;
+  base::MutexGuard guard(&s.access_mutex_);
 
   using SortedPhaseKinds =
       std::vector<CompilationStatistics::PhaseKindMap::const_iterator>;
@@ -183,7 +184,7 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
     const auto& phase_kind_stats = phase_kind_it->second;
     WriteLine(os, ps.machine_output, phase_kind_name.c_str(), ps.compiler,
               phase_kind_stats, s.total_stats_);
-    os << std::endl;
+    os << '\n';
   }
 
   if (!ps.machine_output) WriteFullLine(os);
@@ -191,7 +192,7 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
             s.total_stats_);
 
   if (ps.machine_output) {
-    os << std::endl;
+    os << '\n';
     os << "\"" << ps.compiler << "_totals_count\"=" << s.total_stats_.count_;
   }
   return os;

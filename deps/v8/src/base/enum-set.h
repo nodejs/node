@@ -18,9 +18,11 @@ namespace base {
 // values), fitting into an integral type T.
 template <class E, class T = int>
 class EnumSet {
-  static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
+  static_assert(std::is_enum_v<E>, "EnumSet can only be used with enums");
 
  public:
+  using StorageType = T;
+
   constexpr EnumSet() = default;
 
   constexpr EnumSet(std::initializer_list<E> init) {
@@ -33,6 +35,9 @@ class EnumSet {
   constexpr bool contains(E element) const {
     return (bits_ & Mask(element)) != 0;
   }
+  constexpr bool contains_all(EnumSet set) const {
+    return (bits_ & set.bits_) == set.bits_;
+  }
   constexpr bool contains_any(EnumSet set) const {
     return (bits_ & set.bits_) != 0;
   }
@@ -42,16 +47,17 @@ class EnumSet {
   constexpr bool is_subset_of(EnumSet set) const {
     return (bits_ & set.bits_) == bits_;
   }
-  void Add(E element) { bits_ |= Mask(element); }
-  void Add(EnumSet set) { bits_ |= set.bits_; }
-  void Remove(E element) { bits_ &= ~Mask(element); }
-  void Remove(EnumSet set) { bits_ &= ~set.bits_; }
-  void RemoveAll() { bits_ = 0; }
-  void Intersect(EnumSet set) { bits_ &= set.bits_; }
+  constexpr void Add(E element) { bits_ |= Mask(element); }
+  constexpr void Add(EnumSet set) { bits_ |= set.bits_; }
+  constexpr void Remove(E element) { bits_ &= ~Mask(element); }
+  constexpr void Remove(EnumSet set) { bits_ &= ~set.bits_; }
+  constexpr void RemoveAll() { bits_ = 0; }
+  constexpr void Intersect(EnumSet set) { bits_ &= set.bits_; }
   constexpr T ToIntegral() const { return bits_; }
 
+  constexpr EnumSet operator~() const { return EnumSet(~bits_); }
+
   constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }
-  constexpr bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
 
   constexpr EnumSet operator|(EnumSet set) const {
     return EnumSet(bits_ | set.bits_);
@@ -88,7 +94,7 @@ class EnumSet {
 
   static constexpr T Mask(E element) {
     DCHECK_GT(sizeof(T) * 8, static_cast<size_t>(element));
-    return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
+    return T{1} << static_cast<std::underlying_type_t<E>>(element);
   }
 
   T bits_ = 0;

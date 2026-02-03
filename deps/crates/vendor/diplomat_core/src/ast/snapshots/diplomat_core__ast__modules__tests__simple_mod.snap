@@ -1,0 +1,159 @@
+---
+source: core/src/ast/modules.rs
+expression: "Module::from_syn(&syn::parse_quote!\n{\n    mod ffi\n    {\n        struct NonOpaqueStruct { a: i32, b: Box<NonOpaqueStruct> } impl\n        NonOpaqueStruct\n        {\n            pub fn new(x: i32) -> NonOpaqueStruct { unimplemented!(); } pub fn\n            set_a(&mut self, new_a: i32) { self.a = new_a; }\n        } #[diplomat::opaque] struct OpaqueStruct { a: SomeExternalType } impl\n        OpaqueStruct\n        {\n            pub fn new() -> Box<OpaqueStruct> { unimplemented!(); } pub fn\n            get_string(&self) -> String { unimplemented!() }\n        } pub fn test_function() {} pub fn other_test_function(x : i32) ->\n        NonOpaqueStruct { unimplemented!(); }\n    }\n}, true)"
+---
+name: ffi
+imports: []
+declared_types:
+  NonOpaqueStruct:
+    Struct:
+      name: NonOpaqueStruct
+      docs:
+        - ""
+        - []
+      lifetimes: {}
+      fields:
+        - - a
+          - Primitive: i32
+          - - ""
+            - []
+          - {}
+        - - b
+          - Box:
+              Named:
+                path:
+                  elements:
+                    - NonOpaqueStruct
+                lifetimes: []
+          - - ""
+            - []
+          - {}
+      methods:
+        - name: new
+          docs:
+            - ""
+            - []
+          abi_name: NonOpaqueStruct_new
+          self_param: ~
+          params:
+            - name: x
+              ty:
+                Primitive: i32
+              attrs: {}
+          return_type:
+            Named:
+              path:
+                elements:
+                  - NonOpaqueStruct
+              lifetimes: []
+          lifetime_env: {}
+          attrs: {}
+        - name: set_a
+          docs:
+            - ""
+            - []
+          abi_name: NonOpaqueStruct_set_a
+          self_param:
+            reference:
+              - Anonymous
+              - Mutable
+            path_type:
+              path:
+                elements:
+                  - NonOpaqueStruct
+              lifetimes: []
+            attrs: {}
+          params:
+            - name: new_a
+              ty:
+                Primitive: i32
+              attrs: {}
+          return_type: ~
+          lifetime_env: {}
+          attrs: {}
+      output_only: false
+      attrs: {}
+  OpaqueStruct:
+    Opaque:
+      name: OpaqueStruct
+      docs:
+        - ""
+        - []
+      lifetimes: {}
+      methods:
+        - name: new
+          docs:
+            - ""
+            - []
+          abi_name: OpaqueStruct_new
+          self_param: ~
+          params: []
+          return_type:
+            Box:
+              Named:
+                path:
+                  elements:
+                    - OpaqueStruct
+                lifetimes: []
+          lifetime_env: {}
+          attrs: {}
+        - name: get_string
+          docs:
+            - ""
+            - []
+          abi_name: OpaqueStruct_get_string
+          self_param:
+            reference:
+              - Anonymous
+              - Immutable
+            path_type:
+              path:
+                elements:
+                  - OpaqueStruct
+              lifetimes: []
+            attrs: {}
+          params: []
+          return_type:
+            Named:
+              path:
+                elements:
+                  - String
+              lifetimes: []
+          lifetime_env: {}
+          attrs: {}
+      mutability: Immutable
+      attrs: {}
+      dtor_abi_name: OpaqueStruct_destroy
+declared_traits: {}
+declared_functions:
+  other_test_function:
+    name: other_test_function
+    abi_name: diplomat_external_other_test_function
+    params:
+      - name: x
+        ty:
+          Primitive: i32
+        attrs: {}
+    output_type:
+      Named:
+        path:
+          elements:
+            - NonOpaqueStruct
+        lifetimes: []
+    lifetimes: {}
+    attrs: {}
+    docs:
+      - ""
+      - []
+  test_function:
+    name: test_function
+    abi_name: diplomat_external_test_function
+    params: []
+    output_type: ~
+    lifetimes: {}
+    attrs: {}
+    docs:
+      - ""
+      - []
+sub_modules: []
+attrs: {}

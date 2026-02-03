@@ -1,4 +1,4 @@
-const util = require('util')
+const util = require('node:util')
 const _delete = Symbol('delete')
 const _append = Symbol('append')
 
@@ -83,7 +83,7 @@ const parseKeys = key => {
   return res
 }
 
-const getter = ({ data, key }) => {
+const getter = ({ data, key }, { unwrapSingleItemArrays = true } = {}) => {
   // keys are a list in which each entry represents the name of
   // a property that should be walked through the object in order to
   // return the final found value
@@ -101,7 +101,7 @@ const getter = ({ data, key }) => {
 
     // extra logic to take into account printing array, along with its
     // special syntax in which using a dot-sep property name after an
-    // arry will expand it's results, e.g:
+    // array will expand it's results, e.g:
     // arr.name -> arr[0].name=value, arr[1].name=value, ...
     const maybeIndex = Number(k)
     if (Array.isArray(_data) && !Number.isInteger(maybeIndex)) {
@@ -122,7 +122,7 @@ const getter = ({ data, key }) => {
 
   // these are some legacy expectations from
   // the old API consumed by lib/view.js
-  if (Array.isArray(_data) && _data.length <= 1) {
+  if (unwrapSingleItemArrays && Array.isArray(_data) && _data.length <= 1) {
     _data = _data[0]
   }
 
@@ -206,7 +206,7 @@ const setter = ({ data, key, value, force }) => {
     }
 
     // sets items from the parsed array of keys as objects, recurses to
-    // setKeys in case there are still items to be handled, otherwise it
+    // setKeys in case there are still items to be handled; otherwise, it
     // just sets the original value set by the user
     if (keys.length) {
       _data[_key] = setKeys(next(), keys.shift())
@@ -231,6 +231,8 @@ const setter = ({ data, key, value, force }) => {
 }
 
 class Queryable {
+  static ALL = ''
+
   #data = null
 
   constructor (obj) {
@@ -243,19 +245,19 @@ class Queryable {
     this.#data = obj
   }
 
-  query (queries) {
+  query (queries, opts) {
     // this ugly interface here is meant to be a compatibility layer
     // with the legacy API lib/view.js is consuming, if at some point
     // we refactor that command then we can revisit making this nicer
-    if (queries === '') {
-      return { '': this.#data }
+    if (queries === Queryable.ALL) {
+      return { [Queryable.ALL]: this.#data }
     }
 
     const q = query =>
       getter({
         data: this.#data,
         key: query,
-      })
+      }, opts)
 
     if (Array.isArray(queries)) {
       let res = {}
@@ -268,7 +270,7 @@ class Queryable {
     }
   }
 
-  // return the value for a single query if found, otherwise returns undefined
+  // return the value for a single query if found; otherwise, returns undefined
   get (query) {
     const obj = this.query(query)
     if (obj) {

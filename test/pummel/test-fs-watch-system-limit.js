@@ -9,7 +9,7 @@ if (!common.isLinux) {
   common.skip('The fs watch limit is OS-dependent');
 }
 
-if (common.isPi) {
+if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 

@@ -108,8 +108,6 @@ events.captureRejections = true;
   server.on('stream', common.mustCall(async (stream) => {
     const { port } = server.address();
 
-    server.close();
-
     stream.pushStream({
       ':scheme': 'http',
       ':path': '/foobar',
@@ -127,6 +125,8 @@ events.captureRejections = true;
     stream.respond({
       ':status': 200
     });
+
+    server.close();
   }));
 
   server.listen(0, common.mustCall(() => {

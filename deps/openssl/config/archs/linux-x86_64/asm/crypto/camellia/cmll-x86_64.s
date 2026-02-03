@@ -1144,6 +1144,7 @@ Camellia_Ekeygen:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	Camellia_Ekeygen,.-Camellia_Ekeygen
+.section	.rodata
 .align	64
 .LCamellia_SIGMA:
 .long	0x3bcc908b, 0xa09e667f, 0x4caa73b2, 0xb67ae858
@@ -1663,6 +1664,7 @@ Camellia_Ekeygen:
 .long	0x008f8f8f,0xe300e3e3
 .long	0x00010101,0x40004040
 .long	0x003d3d3d,0x4f004f4f
+.text	
 .globl	Camellia_cbc_encrypt
 .type	Camellia_cbc_encrypt,@function
 .align	16

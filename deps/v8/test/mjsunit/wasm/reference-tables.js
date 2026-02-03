@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestTables() {
   print(arguments.callee.name);
@@ -265,7 +263,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -469,14 +467,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI64Const, 44,
       kGCPrefix, kExprStructNew, struct_type_invalid,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   builder.addFunction("valid_struct", makeSig([], [kWasmExternRef]))
     .addBody([
       kExprI32Const, 44,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
     builder.addFunction("valid_struct_sub", makeSig([], [kWasmExternRef]))
@@ -484,7 +482,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kExprI32Const, 55,
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_sub,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
@@ -522,7 +520,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_base,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
@@ -544,7 +542,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -617,7 +615,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   // No type check needed, null check needed.
   assertEquals(10, instance.exports.call_indirect_super(0, 10));
   assertEquals(11, instance.exports.call_indirect_super(1, 10));
-  assertTraps(kTrapFuncSigMismatch,
+  assertTraps(kTrapNullFunc,
               () => instance.exports.call_indirect_super(2, 10));
   // Type check and null check needed.
   assertEquals(11, instance.exports.call_indirect_sub(1, 10));

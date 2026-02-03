@@ -36,11 +36,10 @@ function next() {
 
 function next2() {
   // This will test if after reusing the fd data is written properly
-  fs.readFile(file, function(err, data) {
-    assert.ifError(err);
+  fs.readFile(file, common.mustSucceed((data) => {
     assert.strictEqual(data.toString(), 'Test2');
     process.nextTick(common.mustCall(next3));
-  });
+  }));
 }
 
 function next3() {
@@ -56,3 +55,7 @@ function next3() {
     }));
   }));
 }
+
+assert.throws(() => fs.WriteStream.prototype.autoClose, {
+  code: 'ERR_INVALID_THIS',
+});

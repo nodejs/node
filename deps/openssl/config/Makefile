@@ -37,9 +37,11 @@ OPSSL_SRC = ../openssl
 # Header files generated with Configure
 #INT_CFGS = bn_conf.h dso_conf.h
 INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
-GEN_HEADERS = asn1 asn1t bio cmp cms configuration conf crmf crypto ct err    \
-              ess fipskey lhash ocsp opensslv pkcs12 pkcs7 safestack srp ssl  \
-	      ui x509 x509v3 x509_vfy conf
+GEN_HEADERS = asn1 asn1t bio comp cmp cms conf configuration core_names crmf \
+              crypto ct err ess fipskey lhash ocsp opensslv pkcs12 pkcs7 \
+              safestack srp ssl ui x509_acert x509 x509v3 x509_vfy
+
+INTERNAL_GEN_HEADERS = param_names
 
 CRYPTO_GEN_HEADERS = bn_conf dso_conf
 
@@ -52,24 +54,24 @@ all: $(ASM_ARCHS) $(NO_ASM_ARCHS) generate_headers
 # Configure and generate openssl asm files for each archs
 $(ASM_ARCHS):
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}"
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 # Confgure asm_avx2 and generate upto avx2 support
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(FAKE_GCC) $(PERL) $(CONFIGURE) \
 	$(COPTS) $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ "${GEN_HEADERS}" "${CRYTO_GEN_HEADERS}"
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ "${GEN_HEADERS}" "${CRYTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 # Configure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}"
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 
 $(NO_ASM_ARCHS):
 # Configure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}"
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 
 generate_headers:
-	@$(PERL) -w -I$(OPSSL_SRC) ./generate_headers.pl "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}"
+	@$(PERL) -w -I$(OPSSL_SRC) ./generate_headers.pl "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 
 clean:
 	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \

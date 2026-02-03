@@ -17,7 +17,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // This file contains most of the code that actually runs in an exception
 // handler context. Some additional code is used both inside and outside the
@@ -69,8 +70,8 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
   // initializing. As a demonstrative example, there was a bug (#8966) where an
   // exception would be raised before the thread local copy of the
   // "__declspec(thread)" variables had been allocated, the handler tried to
-  // access the thread-local "g_thread_in_wasm_code", which would then raise
-  // another exception, and an infinite loop ensued.
+  // access a thread-local variable, which would then raise another exception,
+  // and an infinite loop ensued.
 
   // First ensure this is an exception type of interest
   if (exception->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION) {
@@ -86,20 +87,17 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
   TEB* pteb = reinterpret_cast<TEB*>(NtCurrentTeb());
   if (!pteb->thread_local_storage_pointer) return false;
 
-  // Now safe to run more advanced logic, which may access thread_locals
-  // Ensure the faulting thread was actually running Wasm code.
-  if (!IsThreadInWasm()) return false;
+  // Now safe to run more advanced logic, which may access thread_locals.
 
-  // Clear g_thread_in_wasm_code, primarily to protect against nested faults.
-  // The only path that resets the flag to true is if we find a landing pad (in
-  // which case this function returns true). Otherwise we leave the flag unset
-  // since we do not return to wasm code.
-  g_thread_in_wasm_code = false;
+  // Check if it is safe to handle the signal.
+  if (TrapHandlerGuard::IsActiveOnCurrentThread()) return false;
+
+  // Activate the trap handler guard on this thread to avoid nested faults.
+  TrapHandlerGuard active_guard;
 
   const EXCEPTION_RECORD* record = exception->ExceptionRecord;
 
   uintptr_t fault_addr = reinterpret_cast<uintptr_t>(record->ExceptionAddress);
-  uintptr_t landing_pad = 0;
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
   // Only handle signals triggered by the load in {ProbeMemory}.
@@ -107,21 +105,29 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
 
   // The simulated ip will be in the second parameter register (%rdx).
   uintptr_t simulated_ip = exception->ContextRecord->Rdx;
-  if (!TryFindLandingPad(simulated_ip, &landing_pad)) return false;
-  TH_DCHECK(landing_pad != 0);
+  if (!IsFaultAddressCovered(simulated_ip)) return false;
 
-  exception->ContextRecord->Rax = landing_pad;
+  exception->ContextRecord->Rax = gLandingPad;
+  // The fault_address that is set in non-simulator builds here is set in the
+  // simulator directly.
   // Continue at the memory probing continuation.
   exception->ContextRecord->Rip =
       reinterpret_cast<uintptr_t>(&probe_memory_continuation);
 #else
-  if (!TryFindLandingPad(fault_addr, &landing_pad)) return false;
+  if (!IsFaultAddressCovered(fault_addr)) return false;
 
+  TH_DCHECK(gLandingPad != 0);
   // Tell the caller to return to the landing pad.
-  exception->ContextRecord->Rip = landing_pad;
-#endif
-  // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
-  g_thread_in_wasm_code = true;
+#if V8_HOST_ARCH_X64
+  exception->ContextRecord->Rip = gLandingPad;
+  exception->ContextRecord->R10 = fault_addr;
+#elif V8_HOST_ARCH_ARM64
+  exception->ContextRecord->Pc = gLandingPad;
+  exception->ContextRecord->X16 = fault_addr;
+#else
+#error Unsupported architecture
+#endif  // V8_HOST_ARCH_X64
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
   return true;
 }
 

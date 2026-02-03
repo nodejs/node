@@ -28,14 +28,14 @@ const server = http.createServer(common.mustCall(function(req, res) {
   res.end('OK');
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   function callback() {}
 
   const req = http.request({
     port: this.address().port,
     path: '/',
     agent: false
-  }, function(res) {
+  }, common.mustCall((res) => {
     req.clearTimeout(callback);
 
     res.on('end', common.mustCall(function() {
@@ -43,9 +43,9 @@ server.listen(0, function() {
     }));
 
     res.resume();
-  });
+  }));
 
   // Overflow signed int32
   req.setTimeout(0xffffffff, callback);
   req.end();
-});
+}));

@@ -5,36 +5,11 @@
 
 #include <cinttypes>
 #include <vector>
+#include "quic/guard.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
 namespace node {
-
-using CFunctionCallbackWithOneByteString =
-    uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
-using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
-using CFunctionCallbackReturnDouble =
-    double (*)(v8::Local<v8::Object> receiver);
-using CFunctionCallbackValueReturnDouble =
-    double (*)(v8::Local<v8::Value> receiver);
-using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
-                                            int64_t);
-using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
-                                           bool);
-using CFunctionCallbackWithString =
-    bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
-using CFunctionCallbackWithStrings =
-    bool (*)(v8::Local<v8::Value>,
-             const v8::FastOneByteString& input,
-             const v8::FastOneByteString& base);
-using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
-                                         const uint32_t input);
-using CFunctionWithDoubleReturnDouble = double (*)(v8::Local<v8::Value>,
-                                                   const double);
-using CFunctionWithInt64Fallback = void (*)(v8::Local<v8::Value>,
-                                            const int64_t,
-                                            v8::FastApiCallbackOptions&);
-using CFunctionWithBool = void (*)(v8::Local<v8::Value>, bool);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
@@ -43,40 +18,33 @@ class ExternalReferenceRegistry {
   ExternalReferenceRegistry();
 
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
-  V(CFunctionCallback)                                                         \
-  V(CFunctionCallbackWithOneByteString)                                        \
-  V(CFunctionCallbackReturnDouble)                                             \
-  V(CFunctionCallbackValueReturnDouble)                                        \
-  V(CFunctionCallbackWithInt64)                                                \
-  V(CFunctionCallbackWithBool)                                                 \
-  V(CFunctionCallbackWithString)                                               \
-  V(CFunctionCallbackWithStrings)                                              \
-  V(CFunctionWithUint32)                                                       \
-  V(CFunctionWithDoubleReturnDouble)                                           \
-  V(CFunctionWithInt64Fallback)                                                \
-  V(CFunctionWithBool)                                                         \
-  V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
-  V(v8::AccessorGetterCallback)                                                \
-  V(v8::AccessorSetterCallback)                                                \
   V(v8::AccessorNameGetterCallback)                                            \
   V(v8::AccessorNameSetterCallback)                                            \
-  V(v8::GenericNamedPropertyDefinerCallback)                                   \
-  V(v8::GenericNamedPropertyDeleterCallback)                                   \
-  V(v8::GenericNamedPropertyEnumeratorCallback)                                \
-  V(v8::GenericNamedPropertyQueryCallback)                                     \
-  V(v8::GenericNamedPropertySetterCallback)                                    \
-  V(v8::IndexedPropertySetterCallback)                                         \
-  V(v8::IndexedPropertyDefinerCallback)                                        \
-  V(v8::IndexedPropertyDeleterCallback)                                        \
-  V(v8::IndexedPropertyQueryCallback)                                          \
-  V(v8::IndexedPropertyDescriptorCallback)                                     \
+  V(v8::NamedPropertyGetterCallback)                                           \
+  V(v8::NamedPropertyDefinerCallback)                                          \
+  V(v8::NamedPropertyDeleterCallback)                                          \
+  V(v8::NamedPropertyEnumeratorCallback)                                       \
+  V(v8::NamedPropertyQueryCallback)                                            \
+  V(v8::NamedPropertySetterCallback)                                           \
+  V(v8::IndexedPropertyGetterCallbackV2)                                       \
+  V(v8::IndexedPropertySetterCallbackV2)                                       \
+  V(v8::IndexedPropertyDefinerCallbackV2)                                      \
+  V(v8::IndexedPropertyDeleterCallbackV2)                                      \
+  V(v8::IndexedPropertyQueryCallbackV2)                                        \
   V(const v8::String::ExternalStringResourceBase*)
 
 #define V(ExternalReferenceType)                                               \
   void Register(ExternalReferenceType addr) { RegisterT(addr); }
   ALLOWED_EXTERNAL_REFERENCE_TYPES(V)
 #undef V
+
+  // Registers both the underlying function pointer
+  // and the corresponding CFunctionInfo.
+  void Register(const v8::CFunction& c_func) {
+    RegisterT(c_func.GetAddress());
+    RegisterT(c_func.GetTypeInfo());
+  }
 
   // This can be called only once.
   const std::vector<intptr_t>& external_references();
@@ -99,6 +67,7 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(encoding_binding)                                                          \
@@ -109,7 +78,9 @@ class ExternalReferenceRegistry {
   V(fs_event_wrap)                                                             \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
+  V(http_parser)                                                               \
   V(internal_only_v8)                                                          \
+  V(locks)                                                                     \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(module_wrap)                                                               \
@@ -127,6 +98,7 @@ class ExternalReferenceRegistry {
   V(tty_wrap)                                                                  \
   V(udp_wrap)                                                                  \
   V(url)                                                                       \
+  V(url_pattern)                                                               \
   V(util)                                                                      \
   V(pipe_wrap)                                                                 \
   V(sea)                                                                       \
@@ -164,7 +136,7 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
 #endif  // HAVE_OPENSSL
 
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL && OPENSSL_NO_QUIC != 1
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V) V(quic)
 #else
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)

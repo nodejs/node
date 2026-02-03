@@ -21,8 +21,8 @@ class DiyFp {
  public:
   static const int kSignificandSize = 64;
 
-  DiyFp() : f_(0), e_(0) {}
-  DiyFp(uint64_t f, int e) : f_(f), e_(e) {}
+  constexpr DiyFp() : f_(0), e_(0) {}
+  constexpr DiyFp(uint64_t f, int e) : f_(f), e_(e) {}
 
   // this = this - other.
   // The exponents of both numbers must be the same and the significand of this
@@ -88,11 +88,11 @@ class DiyFp {
     return result;
   }
 
-  uint64_t f() const { return f_; }
-  int e() const { return e_; }
+  constexpr uint64_t f() const { return f_; }
+  constexpr int e() const { return e_; }
 
-  void set_f(uint64_t new_value) { f_ = new_value; }
-  void set_e(int new_value) { e_ = new_value; }
+  constexpr void set_f(uint64_t new_value) { f_ = new_value; }
+  constexpr void set_e(int new_value) { e_ = new_value; }
 
  private:
   static const uint64_t kUint64MSB = static_cast<uint64_t>(1) << 63;

@@ -18,17 +18,20 @@ class BytecodeSourceInfo final {
 
   BytecodeSourceInfo()
       : position_type_(PositionType::kNone),
-        source_position_(kUninitializedPosition) {}
+        source_position_(kUninitializedPosition),
+        is_breakable_(true) {}
 
-  BytecodeSourceInfo(int source_position, bool is_statement)
+  BytecodeSourceInfo(int source_position, bool is_statement,
+                     bool is_breakable = true)
       : position_type_(is_statement ? PositionType::kStatement
                                     : PositionType::kExpression),
-        source_position_(source_position) {
+        source_position_(source_position),
+        is_breakable_(is_breakable) {
     DCHECK_GE(source_position, 0);
   }
 
   // Makes instance into a statement position.
-  void MakeStatementPosition(int source_position) {
+  void MakeStatementPosition(int source_position, bool is_breakable = true) {
     // Statement positions can be replaced by other statement
     // positions. For example , "for (x = 0; x < 3; ++x) 7;" has a
     // statement position associated with 7 but no bytecode associated
@@ -36,6 +39,7 @@ class BytecodeSourceInfo final {
     // statement position and overrides the existing one.
     position_type_ = PositionType::kStatement;
     source_position_ = source_position;
+    is_breakable_ = is_breakable;
   }
 
   // Makes instance into an expression position. Instance should not
@@ -45,6 +49,7 @@ class BytecodeSourceInfo final {
     DCHECK(!is_statement());
     position_type_ = PositionType::kExpression;
     source_position_ = source_position;
+    is_breakable_ = true;
   }
 
   // Forces an instance into an expression position.
@@ -71,6 +76,8 @@ class BytecodeSourceInfo final {
     source_position_ = kUninitializedPosition;
   }
 
+  bool is_breakable() const { return is_breakable_; }
+
   bool operator==(const BytecodeSourceInfo& other) const {
     return position_type_ == other.position_type_ &&
            source_position_ == other.source_position_;
@@ -86,6 +93,7 @@ class BytecodeSourceInfo final {
 
   PositionType position_type_;
   int source_position_;
+  bool is_breakable_;
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prefer common.mustNotCall(msg) over common.mustCall(fn, 0)
+ * @file Prefer common.mustNotCall(msg) over common.mustCall(fn, 0)
  * @author James M Snell <jasnell@gmail.com>
  */
 'use strict';

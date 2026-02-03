@@ -19,9 +19,11 @@ env:
 
   WARN_MESSAGE: >
     There has been no activity on this feature request for
-    5 months and it is unlikely to be implemented.
-    It will be closed 6 months after the last non-automated comment.
-
+    5 months. To help maintain relevant open issues, please
+    add the https://github.com/nodejs/node/labels/never-stale
+    label or close this issue if it should be closed. If not,
+    the issue will be automatically closed 6 months after the
+    last non-automated comment.
 
     For more information on how the project manages
     feature requests, please consult the
@@ -39,7 +41,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e  # v9.0.0
+      - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d  # v10.1.1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 180

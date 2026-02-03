@@ -5,14 +5,13 @@
 #ifndef V8_HEAP_CONCURRENT_MARKING_H_
 #define V8_HEAP_CONCURRENT_MARKING_H_
 
+#include <atomic>
 #include <memory>
+#include <optional>
 
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/functional.h"
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-measurement.h"
@@ -30,90 +29,11 @@ namespace internal {
 class Heap;
 class Isolate;
 class NonAtomicMarkingState;
-class MemoryChunk;
+class MutablePageMetadata;
 class WeakObjects;
-
-struct MemoryChunkData {
-  intptr_t live_bytes;
-  std::unique_ptr<TypedSlots> typed_slots;
-};
-
-// This class is a wrapper around an unordered_map that defines the minimum
-// interface to be usable in marking. It aims to provide faster access in the
-// common case where the requested element is the same as the one previously
-// tried.
-class MemoryChunkDataMap final {
-  using MemoryChunkDataMapT = std::unordered_map<MemoryChunk*, MemoryChunkData,
-                                                 base::hash<MemoryChunk*>>;
-
- public:
-  MemoryChunkDataMapT::mapped_type& operator[](
-      const MemoryChunkDataMapT::key_type& key) {
-    // nullptr value is used to indicate absence of a last key.
-    DCHECK_NOT_NULL(key);
-
-    if (key == last_key_) {
-      return *last_mapped_;
-    }
-
-    auto it = map_.find(key);
-    if (it == map_.end()) {
-      auto result = map_.emplace(key, MemoryChunkData());
-      DCHECK(result.second);
-      it = result.first;
-    }
-
-    last_key_ = key;
-    last_mapped_ = &it->second;
-
-    return it->second;
-  }
-
-  MemoryChunkDataMapT::size_type erase(
-      const MemoryChunkDataMapT::key_type& key) {
-    last_key_ = nullptr;
-    last_mapped_ = nullptr;
-    return map_.erase(key);
-  }
-
-  // No iterator is cached in this class so an actual find() has to be executed
-  // everytime.
-  MemoryChunkDataMapT::iterator find(const MemoryChunkDataMapT::key_type& key) {
-    return map_.find(key);
-  }
-
-  MemoryChunkDataMapT::iterator begin() { return map_.begin(); }
-  MemoryChunkDataMapT::const_iterator end() { return map_.end(); }
-
-  void clear() {
-    last_key_ = nullptr;
-    last_mapped_ = nullptr;
-    map_.clear();
-  }
-
-  bool empty() const { return map_.empty(); }
-
- private:
-  MemoryChunkDataMapT::key_type last_key_ = nullptr;
-  MemoryChunkDataMapT::mapped_type* last_mapped_ = nullptr;
-  MemoryChunkDataMapT map_;
-};
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {
  public:
-  // When the scope is entered, the concurrent marking tasks
-  // are preempted and are not looking at the heap objects, concurrent marking
-  // is resumed when the scope is exited.
-  class V8_NODISCARD PauseScope {
-   public:
-    explicit PauseScope(ConcurrentMarking* concurrent_marking);
-    ~PauseScope();
-
-   private:
-    ConcurrentMarking* const concurrent_marking_;
-    const bool resume_on_exit_;
-  };
-
   ConcurrentMarking(Heap* heap, WeakObjects* weak_objects);
   ~ConcurrentMarking();
 
@@ -125,6 +45,10 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   // Waits for scheduled job to complete.
   void Join();
+
+  // Joins scheduled job for testing.
+  void JoinJobForTesting();
+
   // Preempts ongoing job ASAP. Returns true if concurrent marking was in
   // progress, false otherwise.
   bool Pause();
@@ -139,9 +63,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data.
   void FlushMemoryChunkData();
-  // This function is called for a new space page that was cleared after
-  // scavenge and is going to be re-used.
-  void ClearMemoryChunkData(MemoryChunk* chunk);
   // Flushes pretenuring feedback.
   void FlushPretenuringFeedback();
 
@@ -164,6 +85,12 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   bool IsWorkLeft() const;
 
+  size_t FetchAndResetConcurrencyEstimate() {
+    const size_t estimate =
+        estimate_concurrency_.exchange(0, std::memory_order_relaxed);
+    return estimate ? estimate : 1;
+  }
+
  private:
   struct TaskState;
   class JobTaskMinor;
@@ -182,14 +109,15 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   std::unique_ptr<JobHandle> job_handle_;
   Heap* const heap_;
-  base::Optional<GarbageCollector> garbage_collector_;
+  std::optional<GarbageCollector> garbage_collector_;
   MarkingWorklists* marking_worklists_;
   WeakObjects* const weak_objects_;
   std::vector<std::unique_ptr<TaskState>> task_state_;
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
-  base::Optional<uint64_t> current_job_trace_id_;
+  std::optional<uint64_t> current_job_trace_id_;
   std::unique_ptr<MinorMarkingState> minor_marking_state_;
+  std::atomic<size_t> estimate_concurrency_{0};
 
   friend class Heap;
 };

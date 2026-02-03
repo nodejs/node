@@ -14,11 +14,11 @@ const assert = require('assert');
 {
   const duplex = new Duplex();
 
-  duplex._write = (chunk, encoding, cb) => {
+  duplex._write = common.mustCall((chunk, encoding, cb) => {
     // The state finished should start in false.
     assert.strictEqual(duplex.writableFinished, false);
     cb();
-  };
+  });
 
   duplex.on('finish', common.mustCall(() => {
     assert.strictEqual(duplex.writableFinished, true);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,7 +9,7 @@
 
 /* Part of the code in here was originally in conf.c, which is now removed */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +32,7 @@ CONF_VALUE *_CONF_get_section(const CONF *conf, const char *section)
 }
 
 STACK_OF(CONF_VALUE) *_CONF_get_section_values(const CONF *conf,
-                                               const char *section)
+    const char *section)
 {
     CONF_VALUE *v;
 
@@ -64,7 +64,7 @@ int _CONF_add_string(CONF *conf, CONF_VALUE *section, CONF_VALUE *value)
 }
 
 char *_CONF_get_string(const CONF *conf, const char *section,
-                       const char *name)
+    const char *name)
 {
     CONF_VALUE *v, vv;
     char *p;
@@ -205,7 +205,7 @@ CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
         goto err;
     return v;
 
- err:
+err:
     sk_CONF_VALUE_free(sk);
     if (v != NULL)
         OPENSSL_free(v->section);

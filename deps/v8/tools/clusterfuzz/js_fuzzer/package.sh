@@ -18,7 +18,7 @@ elif [[ -n "$1" && $1 == "macos" ]]; then
 fi
 
 echo "Building and packaging for $OS_LABEL..."
-(set -x; $DIR/node_modules/.bin/pkg -t node10-$OS-x64 $DIR)
+(set -x; $DIR/node_modules/.bin/pkg -t node18-$OS-x64 $DIR)
 
 rm -rf $DIR/output > /dev/null 2>&1 || true
 rm $DIR/output.zip > /dev/null 2>&1 || true

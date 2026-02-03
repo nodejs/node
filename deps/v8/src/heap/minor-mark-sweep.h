@@ -7,8 +7,10 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
@@ -22,6 +24,8 @@
 
 namespace v8 {
 namespace internal {
+
+class MinorMarkSweepCollector;
 
 using YoungGenerationMainMarkingVisitor = YoungGenerationMarkingVisitor<
     YoungGenerationMarkingVisitationMode::kParallel>;
@@ -43,7 +47,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
 
    private:
     YoungGenerationRememberedSetsMarkingWorklist* const handler_;
-    base::Optional<size_t> index_;
+    std::optional<size_t> index_;
   };
 
   static std::vector<MarkingItem> CollectItems(Heap* heap);
@@ -63,13 +67,13 @@ class YoungGenerationRememberedSetsMarkingWorklist {
    public:
     enum class SlotsType { kRegularSlots, kTypedSlots };
 
-    MarkingItem(MemoryChunk* chunk, SlotsType slots_type, SlotSet* slot_set,
-                SlotSet* background_slot_set)
+    MarkingItem(MutablePageMetadata* chunk, SlotsType slots_type,
+                SlotSet* slot_set, SlotSet* background_slot_set)
         : chunk_(chunk),
           slots_type_(slots_type),
           slot_set_(slot_set),
           background_slot_set_(background_slot_set) {}
-    MarkingItem(MemoryChunk* chunk, SlotsType slots_type,
+    MarkingItem(MutablePageMetadata* chunk, SlotsType slots_type,
                 TypedSlotSet* typed_slot_set)
         : chunk_(chunk),
           slots_type_(slots_type),
@@ -79,6 +83,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
     template <typename Visitor>
     void Process(Visitor* visitor);
     void MergeAndDeleteRememberedSets();
+    void DeleteRememberedSets();
 
     void DeleteSetsOnTearDown();
 
@@ -93,15 +98,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
     V8_INLINE SlotCallbackResult CheckAndMarkObject(Visitor* visitor,
                                                     TSlot slot);
 
-    V8_INLINE void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                     Address slot_address,
-                                                     MaybeObject object);
-    V8_INLINE void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                                   SlotType slot_type,
-                                                   Address slot_address,
-                                                   MaybeObject new_target);
-
-    MemoryChunk* const chunk_;
+    MutablePageMetadata* const chunk_;
     const SlotsType slots_type_;
     union {
       SlotSet* slot_set_;
@@ -111,7 +108,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
   };
 
   template <typename Visitor>
-  bool ProcessNextItem(Visitor* visitor, base::Optional<size_t>& index);
+  bool ProcessNextItem(Visitor* visitor, std::optional<size_t>& index);
 
   std::vector<MarkingItem> remembered_sets_marking_items_;
   std::atomic_size_t remaining_remembered_sets_marking_items_;
@@ -121,7 +118,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
 class YoungGenerationRootMarkingVisitor final : public RootVisitor {
  public:
   explicit YoungGenerationRootMarkingVisitor(
-      YoungGenerationMainMarkingVisitor* main_marking_visitor);
+      MinorMarkSweepCollector* collector);
   ~YoungGenerationRootMarkingVisitor();
 
   V8_INLINE void VisitRootPointer(Root root, const char* description,
@@ -134,6 +131,11 @@ class YoungGenerationRootMarkingVisitor final : public RootVisitor {
   GarbageCollector collector() const override {
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
+
+  YoungGenerationRootMarkingVisitor(const YoungGenerationRootMarkingVisitor&) =
+      delete;
+  YoungGenerationRootMarkingVisitor& operator=(
+      const YoungGenerationRootMarkingVisitor&) = delete;
 
  private:
   template <typename TSlot>
@@ -152,7 +154,7 @@ class MinorMarkSweepCollector final {
 
   void TearDown();
   void CollectGarbage();
-  void StartMarking();
+  void StartMarking(bool force_use_background_threads);
 
   void RequestGC();
 
@@ -184,6 +186,12 @@ class MinorMarkSweepCollector final {
     return gc_finalization_requested_.load(std::memory_order_relaxed);
   }
 
+  bool UseBackgroundThreadsInCycle() const {
+    return use_background_threads_in_cycle_.value();
+  }
+
+  void DrainMarkingWorklistForTesting() { DrainMarkingWorklist(); }
+
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -194,11 +202,12 @@ class MinorMarkSweepCollector final {
   void MarkLiveObjects();
   void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor,
                  bool was_marked_incrementally);
-  void DrainMarkingWorklist();
+  V8_EXPORT_PRIVATE void DrainMarkingWorklist();
   void MarkRootsFromTracedHandles(
       YoungGenerationRootMarkingVisitor& root_visitor);
   void MarkRootsFromConservativeStack(
       YoungGenerationRootMarkingVisitor& root_visitor);
+  void EvacuateExternalPointerReferences(MutablePageMetadata* p);
 
   void TraceFragmentation();
   void ClearNonLiveReferences();
@@ -210,6 +219,7 @@ class MinorMarkSweepCollector final {
   // 'StartSweepNewSpace' and 'SweepNewLargeSpace' return true if any pages were
   // promoted.
   bool StartSweepNewSpace();
+  void StartSweepNewSpaceWithStickyBits();
   bool SweepNewLargeSpace();
 
   void Finish();
@@ -231,7 +241,7 @@ class MinorMarkSweepCollector final {
   std::unique_ptr<YoungGenerationRememberedSetsMarkingWorklist>
       remembered_sets_marking_handler_;
 
-  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
+  std::optional<bool> use_background_threads_in_cycle_;
 
   std::atomic<bool> is_in_atomic_pause_{false};
   std::atomic<bool> gc_finalization_requested_{false};

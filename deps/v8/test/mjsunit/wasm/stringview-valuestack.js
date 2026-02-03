@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref
+// Flags: --wasm-staging
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -11,14 +11,16 @@ let kSig_iw_i = makeSig([kWasmI32], [kWasmI32, kWasmStringRef]);
 
 (function TestStringViewIterStack() {
   let builder = new WasmModuleBuilder();
+  let wrapper = builder.addStruct([makeField(kWasmStringViewIter, true)]);
 
-  let global = builder.addGlobal(kWasmStringViewIter, true);
+  let global = builder.addGlobal(wasmRefNullType(wrapper), true, false);
 
   builder.addFunction("iterate", kSig_v_w)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
       ...GCInstr(kExprStringAsIter),
+      kGCPrefix, kExprStructNew, wrapper,
       kExprGlobalSet, global.index
     ]);
 
@@ -31,6 +33,7 @@ let kSig_iw_i = makeSig([kWasmI32], [kWasmI32, kWasmStringRef]);
     .addBody([
       kExprI32Const, 42,
       kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGet, wrapper, 0,
       kExprLocalGet, 0,
       ...GCInstr(kExprStringViewIterAdvance)
     ]);
@@ -40,6 +43,7 @@ let kSig_iw_i = makeSig([kWasmI32], [kWasmI32, kWasmStringRef]);
     .addBody([
       kExprI32Const, 42,
       kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGet, wrapper, 0,
       kExprLocalGet, 0,
       ...GCInstr(kExprStringViewIterRewind)
     ]);
@@ -49,6 +53,7 @@ let kSig_iw_i = makeSig([kWasmI32], [kWasmI32, kWasmStringRef]);
     .addBody([
       kExprI32Const, 42,
       kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGet, wrapper, 0,
       kExprLocalGet, 0,
       ...GCInstr(kExprStringViewIterSlice)
     ]);

@@ -2,12 +2,12 @@
 // Refs: https://github.com/nodejs/node/issues/7788
 const common = require('../common');
 const assert = require('assert');
-const path = require('../common/fixtures').path;
+const fixtures = require('../common/fixtures');
 const repl = require('repl');
 const stream = require('stream');
 const inputStream = new stream.PassThrough();
 const outputStream = new stream.PassThrough();
-const fixture = path('is-object.js');
+const fixture = fixtures.path('is-object.js');
 const r = repl.start({
   input: inputStream,
   output: outputStream,

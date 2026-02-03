@@ -42,6 +42,7 @@ function g() {
   return o.x;
 }
 
+%PrepareFunctionForOptimization(f);
 %PrepareFunctionForOptimization(g);
 assertEquals(5, g());
 assertEquals(5, g());

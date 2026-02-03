@@ -51,6 +51,7 @@ namespace node {
   V(HTTP2SETTINGS)                                                             \
   V(HTTPINCOMINGMESSAGE)                                                       \
   V(HTTPCLIENTREQUEST)                                                         \
+  V(LOCKS)                                                                     \
   V(JSSTREAM)                                                                  \
   V(JSUDPWRAP)                                                                 \
   V(MESSAGEPORT)                                                               \
@@ -78,25 +79,30 @@ namespace node {
   V(UDPWRAP)                                                                   \
   V(SIGINTWATCHDOG)                                                            \
   V(WORKER)                                                                    \
+  V(WORKERCPUPROFILE)                                                          \
+  V(WORKERCPUUSAGE)                                                            \
+  V(WORKERHEAPPROFILE)                                                         \
   V(WORKERHEAPSNAPSHOT)                                                        \
+  V(WORKERHEAPSTATISTICS)                                                      \
   V(WRITEWRAP)                                                                 \
   V(ZLIB)
 
 #if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
-  V(CHECKPRIMEREQUEST)                                                        \
-  V(PBKDF2REQUEST)                                                            \
-  V(KEYPAIRGENREQUEST)                                                        \
-  V(KEYGENREQUEST)                                                            \
-  V(KEYEXPORTREQUEST)                                                         \
-  V(CIPHERREQUEST)                                                            \
-  V(DERIVEBITSREQUEST)                                                        \
-  V(HASHREQUEST)                                                              \
-  V(RANDOMBYTESREQUEST)                                                       \
-  V(RANDOMPRIMEREQUEST)                                                       \
-  V(SCRYPTREQUEST)                                                            \
-  V(SIGNREQUEST)                                                              \
-  V(TLSWRAP)                                                                  \
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                    \
+  V(CHECKPRIMEREQUEST)                                                         \
+  V(PBKDF2REQUEST)                                                             \
+  V(KEYPAIRGENREQUEST)                                                         \
+  V(KEYGENREQUEST)                                                             \
+  V(KEYEXPORTREQUEST)                                                          \
+  V(ARGON2REQUEST)                                                             \
+  V(CIPHERREQUEST)                                                             \
+  V(DERIVEBITSREQUEST)                                                         \
+  V(HASHREQUEST)                                                               \
+  V(RANDOMBYTESREQUEST)                                                        \
+  V(RANDOMPRIMEREQUEST)                                                        \
+  V(SCRYPTREQUEST)                                                             \
+  V(SIGNREQUEST)                                                               \
+  V(TLSWRAP)                                                                   \
   V(VERIFYREQUEST)
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
@@ -175,6 +181,7 @@ class AsyncWrap : public BaseObject {
 
   void EmitDestroy(bool from_gc = false);
 
+  void EmitTraceAsyncStart() const;
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
@@ -187,9 +194,10 @@ class AsyncWrap : public BaseObject {
   inline double get_async_id() const;
   inline double get_trigger_async_id() const;
 
+  inline v8::Local<v8::Value> context_frame() const;
+
   void AsyncReset(v8::Local<v8::Object> resource,
-                  double execution_async_id = kInvalidAsyncId,
-                  bool silent = false);
+                  double execution_async_id = kInvalidAsyncId);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -222,23 +230,13 @@ class AsyncWrap : public BaseObject {
   bool IsDoneInitializing() const override;
 
  private:
-  friend class PromiseWrap;
-
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            bool silent);
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            double trigger_async_id);
   ProviderType provider_type_ = PROVIDER_NONE;
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
   double trigger_async_id_ = kInvalidAsyncId;
+
+  v8::Global<v8::Value> context_frame_;
 };
 
 }  // namespace node

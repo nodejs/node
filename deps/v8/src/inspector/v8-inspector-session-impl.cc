@@ -7,6 +7,8 @@
 #include "../../third_party/inspector_protocol/crdtp/cbor.h"
 #include "../../third_party/inspector_protocol/crdtp/dispatch.h"
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-context.h"
+#include "include/v8-microtask-queue.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
@@ -88,14 +90,14 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
   return InspectedContext::contextId(context);
 }
 
-std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
+V8InspectorSessionImpl* V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::Channel* channel, StringView state,
     V8Inspector::ClientTrustLevel clientTrustLevel,
     std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
-  return std::unique_ptr<V8InspectorSessionImpl>(new V8InspectorSessionImpl(
-      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel,
-      std::move(debuggerBarrier)));
+  return new V8InspectorSessionImpl(inspector, contextGroupId, sessionId,
+                                    channel, state, clientTrustLevel,
+                                    std::move(debuggerBarrier));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
@@ -166,20 +168,6 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   m_inspector->disconnect(this);
 }
 
-std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
-V8InspectorSessionImpl::initializeCommandLineAPIScope(int executionContextId) {
-  auto scope =
-      std::make_unique<InjectedScript::ContextScope>(this, executionContextId);
-  auto result = scope->initialize();
-  if (!result.IsSuccess()) {
-    return nullptr;
-  }
-
-  scope->installCommandLineAPI();
-
-  return scope;
-}
-
 protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
     const String16& name) {
   protocol::DictionaryValue* state = m_state->getObject(name);
@@ -198,17 +186,8 @@ std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
   DCHECK(CheckCBORMessage(SpanFrom(cbor)).ok());
   if (use_binary_protocol_) return StringBufferFrom(std::move(cbor));
   std::vector<uint8_t> json;
-  Status status = ConvertCBORToJSON(SpanFrom(cbor), &json);
-  DCHECK(status.ok());
-  USE(status);
-  // TODO(johannes): It should be OK to make a StringBuffer from |json|
-  // directly, since it's 7 Bit US-ASCII with anything else escaped.
-  // However it appears that the Node.js tests (or perhaps even production)
-  // assume that the StringBuffer is 16 Bit. It probably accesses
-  // characters16() somehwere without checking is8Bit. Until it's fixed
-  // we take a detour via String16 which makes the StringBuffer 16 bit.
-  String16 string16(reinterpret_cast<const char*>(json.data()), json.size());
-  return StringBufferFrom(std::move(string16));
+  CHECK(ConvertCBORToJSON(SpanFrom(cbor), &json).ok());
+  return StringBufferFrom(std::move(json));
 }
 
 void V8InspectorSessionImpl::SendProtocolResponse(
@@ -371,6 +350,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 }
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
+  KeepSessionAliveScope keepAlive(*this);
+
   using v8_crdtp::span;
   using v8_crdtp::SpanFrom;
   span<uint8_t> cbor;
@@ -510,6 +491,42 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
   m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+}
+
+V8InspectorSession::EvaluateResult V8InspectorSessionImpl::evaluate(
+    v8::Local<v8::Context> context, StringView expression,
+    bool includeCommandLineAPI) {
+  v8::EscapableHandleScope handleScope(m_inspector->isolate());
+  InjectedScript::ContextScope scope(this,
+                                     InspectedContext::contextId(context));
+  if (!scope.initialize().IsSuccess()) {
+    return {EvaluateResult::ResultType::kNotRun, v8::Local<v8::Value>()};
+  }
+
+  // Temporarily allow eval.
+  scope.allowCodeGenerationFromStrings();
+  scope.setTryCatchVerbose();
+  if (includeCommandLineAPI) {
+    scope.installCommandLineAPI();
+  }
+  v8::MaybeLocal<v8::Value> maybeResultValue;
+  {
+    v8::MicrotasksScope microtasksScope(scope.context(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    const v8::Local<v8::String> source =
+        toV8String(m_inspector->isolate(), expression);
+    maybeResultValue = v8::debug::EvaluateGlobal(
+        m_inspector->isolate(), source, v8::debug::EvaluateGlobalMode::kDefault,
+        /*repl_mode=*/false);
+  }
+
+  if (scope.tryCatch().HasCaught()) {
+    return {EvaluateResult::ResultType::kException,
+            handleScope.Escape(scope.tryCatch().Exception())};
+  }
+  v8::Local<v8::Value> result;
+  CHECK(maybeResultValue.ToLocal(&result));
+  return {EvaluateResult::ResultType::kSuccess, handleScope.Escape(result)};
 }
 
 void V8InspectorSessionImpl::stop() { m_debuggerAgent->stop(); }

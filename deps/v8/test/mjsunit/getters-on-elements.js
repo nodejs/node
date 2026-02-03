@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --noalways-turbofan --turbofan --no-assert-types
+// Flags: --allow-natives-syntax --turbofan --no-assert-types
 
 // It's nice to run this in other browsers too.
 var standalone = false;
@@ -222,10 +222,14 @@ optimize(fun);
 fun(a);
 assertOptimized(fun);
 
-// returning undefined shouldn't phase us.
-delete a[0];
-fun(a);
-assertOptimized(fun);
+// Maglev and TF differs here: Maglev will not try to silence a holey nan
+// if it hasn't seen one.
+if (isTurboFanned(fun)) {
+  // returning undefined shouldn't phase us.
+  delete a[0];
+  fun(a);
+  assertOptimized(fun);
+}
 
 // but messing up the prototype chain will.
 a.__proto__ = [];

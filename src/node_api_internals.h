@@ -2,13 +2,19 @@
 #define SRC_NODE_API_INTERNALS_H_
 
 #include "v8.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "env-inl.h"
 #include "js_native_api_v8.h"
 #include "node_api.h"
 #include "util-inl.h"
 
 struct node_napi_env__ : public napi_env__ {
+  static napi_env New(v8::Local<v8::Context> context,
+                      const std::string& module_filename,
+                      int32_t module_api_version);
+
   node_napi_env__(v8::Local<v8::Context> context,
                   const std::string& module_filename,
                   int32_t module_api_version);

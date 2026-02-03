@@ -38,7 +38,7 @@ const getCommandByDoc = (docFile, docExt) => {
 
   // special case for `npx`:
   // `npx` is not technically a command in and of itself,
-  // so it just needs the usage of npm exex
+  // so it just needs the usage of npm exec
   const srcName = name === 'npx' ? 'exec' : name
   const { params, usage = [''], workspaces } = require(`../../lib/commands/${srcName}`)
   const usagePrefix = name === 'npx' ? 'npx' : `npm ${name}`
@@ -119,7 +119,7 @@ const replaceConfig = (src, { path }) => {
   }
 
   const allConfig = Object.entries(definitions).sort(sort)
-    .map(([_, def]) => def.describe())
+    .map(([, def]) => def.describe())
     .join('\n\n')
 
   return src.replace(replacer, allConfig)
@@ -157,7 +157,7 @@ const replaceHelpLinks = (src) => {
 
 const transformMan = (src, { data, unified, remarkParse, remarkMan }) => unified()
   .use(remarkParse)
-  .use(remarkMan)
+  .use(remarkMan, { version: `NPM@${version}` })
   .processSync(`# ${data.title}(${data.section}) - ${data.description}\n\n${src}`)
   .toString()
 

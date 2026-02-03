@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,27 +23,32 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile);
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOCRL, OPT_CERTFILE,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_NOCRL,
+    OPT_CERTFILE,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS crl2pkcs7_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
-    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
-    {"nocrl", OPT_NOCRL, '-', "No crl to load, just certs from '-certfile'"},
-    {"certfile", OPT_CERTFILE, '<',
-     "File of chain of certs to a trusted CA; can be repeated"},
+    { "in", OPT_IN, '<', "Input file" },
+    { "inform", OPT_INFORM, 'F', "Input format - DER or PEM" },
+    { "nocrl", OPT_NOCRL, '-', "No crl to load, just certs from '-certfile'" },
+    { "certfile", OPT_CERTFILE, '<',
+        "File of chain of certs to a trusted CA; can be repeated" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "outform", OPT_OUTFORM, 'F', "Output format - DER or PEM" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int crl2pkcs7_main(int argc, char **argv)
@@ -56,8 +61,7 @@ int crl2pkcs7_main(int argc, char **argv)
     STACK_OF(X509_CRL) *crl_stack = NULL;
     X509_CRL *crl = NULL;
     char *infile = NULL, *outfile = NULL, *prog, *certfile;
-    int i = 0, informat = FORMAT_PEM, outformat = FORMAT_PEM, ret = 1, nocrl =
-        0;
+    int i = 0, informat = FORMAT_PEM, outformat = FORMAT_PEM, ret = 1, nocrl = 0;
     OPTION_CHOICE o;
 
     prog = opt_init(argc, argv, crl2pkcs7_options);
@@ -65,7 +69,7 @@ int crl2pkcs7_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -104,8 +108,7 @@ int crl2pkcs7_main(int argc, char **argv)
     }
 
     /* No remaining args. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (!nocrl) {
@@ -139,8 +142,10 @@ int crl2pkcs7_main(int argc, char **argv)
         if ((crl_stack = sk_X509_CRL_new_null()) == NULL)
             goto end;
         p7s->crl = crl_stack;
-        sk_X509_CRL_push(crl_stack, crl);
-        crl = NULL;             /* now part of p7 for OPENSSL_freeing */
+
+        if (!sk_X509_CRL_push(crl_stack, crl))
+            goto end;
+        crl = NULL; /* now part of p7 for OPENSSL_freeing */
     }
 
     if (certflst != NULL) {
@@ -172,7 +177,7 @@ int crl2pkcs7_main(int argc, char **argv)
         goto end;
     }
     ret = 0;
- end:
+end:
     sk_OPENSSL_STRING_free(certflst);
     BIO_free(in);
     BIO_free_all(out);
@@ -217,7 +222,10 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
     while (sk_X509_INFO_num(sk)) {
         xi = sk_X509_INFO_shift(sk);
         if (xi->x509 != NULL) {
-            sk_X509_push(stack, xi->x509);
+            if (!sk_X509_push(stack, xi->x509)) {
+                X509_INFO_free(xi);
+                goto end;
+            }
             xi->x509 = NULL;
             count++;
         }
@@ -225,7 +233,7 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
     }
 
     ret = count;
- end:
+end:
     /* never need to OPENSSL_free x */
     BIO_free(in);
     sk_X509_INFO_free(sk);

@@ -45,9 +45,9 @@ void RunSimpleAsyncTask(TaskRunner* task_runner,
   class DispatchResponseTask : public TaskRunner::Task {
    public:
     explicit DispatchResponseTask(v8::Local<v8::Function> callback)
-        : context_(callback->GetIsolate(),
-                   callback->GetIsolate()->GetCurrentContext()),
-          client_callback_(callback->GetIsolate(), callback) {}
+        : context_(v8::Isolate::GetCurrent(),
+                   v8::Isolate::GetCurrent()->GetCurrentContext()),
+          client_callback_(v8::Isolate::GetCurrent(), callback) {}
     ~DispatchResponseTask() override = default;
 
    private:
@@ -89,7 +89,8 @@ void RunSimpleAsyncTask(TaskRunner* task_runner,
     std::unique_ptr<TaskRunner::Task> response_task_;
   };
 
-  v8::Local<v8::Context> context = callback->GetIsolate()->GetCurrentContext();
+  v8::Local<v8::Context> context =
+      v8::Isolate::GetCurrent()->GetCurrentContext();
   TaskRunner* response_task_runner =
       InspectorIsolateData::FromContext(context)->task_runner();
 
@@ -104,9 +105,9 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
   v8::MicrotasksScope microtasks_scope(context,
                                        v8::MicrotasksScope::kRunMicrotasks);
   v8::Context::Scope context_scope(context);
-  v8::ScriptOrigin origin(data->isolate(), ToV8String(data->isolate(), name_),
-                          line_offset_, column_offset_,
-                          /* resource_is_shared_cross_origin */ false,
+  v8::ScriptOrigin origin(ToV8String(data->isolate(), name_), line_offset_,
+                          column_offset_,
+                          /* resource_is_shared_cross_origin */ true,
                           /* script_id */ -1,
                           /* source_map_url */ v8::Local<v8::Value>(),
                           /* resource_is_opaque */ false,
@@ -118,7 +119,6 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
     source = ToV8String(data->isolate(), expression_utf8_);
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
-  v8::Isolate::SafeForTerminationScope allowTermination(data->isolate());
   if (!is_module_) {
     v8::Local<v8::Script> script;
     if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))

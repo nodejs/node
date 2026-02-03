@@ -13,7 +13,7 @@ const server = net.createServer((socket) => {
   socket.write(reqstr);
 });
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   // The callback should not be called because the server is sending
   // both a Content-Length header and a Transfer-Encoding: chunked
   // header, which is a violation of the HTTP spec.
@@ -23,4 +23,4 @@ server.listen(0, () => {
     assert.strictEqual(err.code, 'HPE_INVALID_TRANSFER_ENCODING');
     server.close();
   }));
-});
+}));

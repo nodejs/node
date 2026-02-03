@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/bitcast-elider.h"
 
-#include "src/compiler/graph.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
@@ -64,6 +64,8 @@ void BitcastElider::Revisit(Node* node) { to_visit_.push(node); }
 void BitcastElider::VisitNode(Node* node) {
   for (int i = 0; i < node->InputCount(); i++) {
     Node* input = node->InputAt(i);
+    // This can happen as a result of previous replacements.
+    if (input == nullptr) continue;
     if (input->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
         OwnedByWord32Op(input)) {
       Replace(input, input->InputAt(0));
@@ -86,7 +88,7 @@ void BitcastElider::ProcessGraph() {
   }
 }
 
-BitcastElider::BitcastElider(Zone* zone, Graph* graph, bool is_builtin)
+BitcastElider::BitcastElider(Zone* zone, TFGraph* graph, bool is_builtin)
     : graph_(graph),
       to_visit_(zone),
       seen_(graph, 2),

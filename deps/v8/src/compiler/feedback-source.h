@@ -14,14 +14,14 @@ namespace compiler {
 
 struct FeedbackSource {
   FeedbackSource() { DCHECK(!IsValid()); }
-  V8_EXPORT_PRIVATE FeedbackSource(Handle<FeedbackVector> vector_,
+  V8_EXPORT_PRIVATE FeedbackSource(IndirectHandle<FeedbackVector> vector_,
                                    FeedbackSlot slot_);
   FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_);
 
   bool IsValid() const { return !vector.is_null() && !slot.IsInvalid(); }
   int index() const;
 
-  Handle<FeedbackVector> vector;
+  IndirectHandle<FeedbackVector> vector;
   FeedbackSlot slot;
 
   struct Hash {
@@ -38,7 +38,10 @@ struct FeedbackSource {
   };
 };
 
-bool operator==(FeedbackSource const&, FeedbackSource const&);
+V8_INLINE bool operator==(FeedbackSource const& lhs,
+                          FeedbackSource const& rhs) {
+  return FeedbackSource::Equal()(lhs, rhs);
+}
 bool operator!=(FeedbackSource const&, FeedbackSource const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

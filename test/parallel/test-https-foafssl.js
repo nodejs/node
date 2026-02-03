@@ -21,11 +21,15 @@
 
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
-if (!common.opensslCli)
+const { opensslCli } = require('../common/crypto');
+
+if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
+}
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
@@ -43,7 +47,6 @@ const webIdUrl = 'URI:http://example.com/#me';
 const modulus = fixtures.readKey('rsa_cert_foafssl_b.modulus', 'ascii').replace(/\n/g, '');
 const exponent = fixtures.readKey('rsa_cert_foafssl_b.exponent', 'ascii').replace(/\n/g, '');
 
-const CRLF = '\r\n';
 const body = 'hello world\n';
 let cert;
 
@@ -60,30 +63,29 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('sent response');
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const args = ['s_client',
                 '-quiet',
                 '-connect', `127.0.0.1:${this.address().port}`,
                 '-cert', fixtures.path('keys/rsa_cert_foafssl_b.crt'),
                 '-key', fixtures.path('keys/rsa_private_b.pem')];
 
-  const client = spawn(common.opensslCli, args);
+  const client = spawn(opensslCli, args);
 
-  client.stdout.on('data', function(data) {
+  client.stdout.on('data', common.mustCallAtLeast((data) => {
     console.log('response received');
     const message = data.toString();
-    const contents = message.split(CRLF + CRLF).pop();
+    const contents = message.split('\r\n\r\n').pop();
     assert.strictEqual(body, contents);
-    server.close((e) => {
-      assert.ifError(e);
+    server.close(common.mustSucceed(() => {
       console.log('server closed');
-    });
+    }));
     console.log('server.close() called');
-  });
+  }));
 
   client.stdin.write('GET /\r\n\r\n');
 
   client.on('error', function(error) {
     throw error;
   });
-});
+}));

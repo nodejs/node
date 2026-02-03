@@ -22,12 +22,11 @@
 'use strict';
 const common = require('../common');
 
-if (!common.opensslCli)
-  common.skip('node compiled without OpenSSL CLI.');
-
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
+const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
@@ -81,7 +80,7 @@ function test(testOptions, cb) {
         Buffer.from(testOptions.response) : null);
     }));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(function() {
     const client = tls.connect({
       port: this.address().port,
       requestOCSP: testOptions.ocsp,
@@ -101,13 +100,13 @@ function test(testOptions, cb) {
     client.on('close', common.mustCall(() => {
       server.close(cb);
     }));
-  });
+  }));
 }
 
 test({ ocsp: true, response: false });
 test({ ocsp: true, response: 'hello world' });
 test({ ocsp: false });
 
-if (!common.hasFipsCrypto) {
+if (!crypto.getFips()) {
   test({ ocsp: true, response: 'hello pfx', pfx: pfx, passphrase: 'sample' });
 }

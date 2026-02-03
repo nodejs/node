@@ -12,10 +12,10 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                    Handle<JSFunction> function) {
+MaybeDirectHandle<Object> CallInterpreter(Isolate* isolate,
+                                          DirectHandle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr);
+                         isolate->factory()->undefined_value(), {});
 }
 
 InterpreterTester::InterpreterTester(
@@ -25,7 +25,6 @@ InterpreterTester::InterpreterTester(
       source_(source),
       bytecode_(bytecode),
       feedback_metadata_(feedback_metadata) {
-  i::v8_flags.always_turbofan = false;
 }
 
 InterpreterTester::InterpreterTester(
@@ -44,21 +43,22 @@ InterpreterTester::~InterpreterTester() = default;
 Local<Message> InterpreterTester::CheckThrowsReturnMessage() {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
   auto callable = GetCallable<>();
-  MaybeHandle<Object> no_result = callable();
-  CHECK(isolate_->has_pending_exception());
+  MaybeDirectHandle<Object> no_result = callable();
+  CHECK(isolate_->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate_->OptionalRescheduleException(true);
   CHECK(!try_catch.Message().IsEmpty());
   return try_catch.Message();
 }
 
-Handle<Object> InterpreterTester::NewObject(const char* script) {
-  return v8::Utils::OpenHandle(*CompileRun(script));
+Handle<JSAny> InterpreterTester::NewObject(const char* script) {
+  return Cast<JSAny>(v8::Utils::OpenHandle(*CompileRun(script)));
 }
 
-Handle<String> InterpreterTester::GetName(Isolate* isolate, const char* name) {
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(name);
+DirectHandle<String> InterpreterTester::GetName(Isolate* isolate,
+                                                const char* name) {
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(name);
   return isolate->string_table()->LookupString(isolate, result);
 }
 

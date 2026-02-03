@@ -27,24 +27,19 @@
 #include <assert.h>
 #ifdef WIN32
 #  include <intrin.h>
-#endif
+#endif /* defined(WIN32) */
 
 #include "ngtcp2_macro.h"
 
-#if defined(_MSC_VER) && !defined(__clang__) &&                                \
-    (defined(_M_ARM) || defined(_M_ARM64))
-static unsigned int __popcnt(unsigned int x) {
-  unsigned int c = 0;
-  for (; x; ++c) {
-    x &= x - 1;
-  }
-  return c;
-}
-#endif
+#ifndef NDEBUG
+/* Power-of-two test; simple portable bit trick. */
+static int ispow2(size_t n) { return n && !(n & (n - 1)); }
+#endif /* !defined(NDEBUG) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
   uint8_t *buf = ngtcp2_mem_malloc(mem, nmemb * size);
+
   if (buf == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
@@ -56,11 +51,7 @@ int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
 
 void ngtcp2_ringbuf_buf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                              uint8_t *buf, const ngtcp2_mem *mem) {
-#ifdef WIN32
-  assert(1 == __popcnt((unsigned int)nmemb));
-#else
-  assert(1 == __builtin_popcount((unsigned int)nmemb));
-#endif
+  assert(ispow2(nmemb));
 
   rb->buf = buf;
   rb->mem = mem;
@@ -114,10 +105,13 @@ void ngtcp2_ringbuf_resize(ngtcp2_ringbuf *rb, size_t len) {
   rb->len = len;
 }
 
-void *ngtcp2_ringbuf_get(ngtcp2_ringbuf *rb, size_t offset) {
+void *ngtcp2_ringbuf_get(const ngtcp2_ringbuf *rb, size_t offset) {
   assert(offset < rb->len);
   offset = (rb->first + offset) & rb->mask;
+
   return &rb->buf[offset * rb->size];
 }
 
-int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb) { return rb->len == rb->mask + 1; }
+int ngtcp2_ringbuf_full(const ngtcp2_ringbuf *rb) {
+  return rb->len == rb->mask + 1;
+}

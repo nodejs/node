@@ -11,61 +11,57 @@ import filecmp
 import tempfile
 import shutil
 import platform
+import re
+import sys
 from pathlib import Path
-
-# Detect if we have goma
-
-
-def _Which(cmd):
-  for path in os.environ["PATH"].split(os.pathsep):
-    if os.path.exists(os.path.join(path, cmd)):
-      return os.path.join(path, cmd)
-  return None
-
-
-def DetectGoma():
-  if os.environ.get("GOMA_DIR"):
-    return os.environ.get("GOMA_DIR")
-  if os.environ.get("GOMADIR"):
-    return os.environ.get("GOMADIR")
-  # There is a copy of goma in depot_tools, but it might not be in use on
-  # this machine.
-  goma = _Which("goma_ctl")
-  if goma is None:
-    return None
-  cipd_bin = os.path.join(os.path.dirname(goma), ".cipd_bin")
-  if not os.path.exists(cipd_bin):
-    return None
-  goma_auth = os.path.expanduser("~/.goma_client_oauth2_config")
-  if not os.path.exists(goma_auth):
-    return None
-  return cipd_bin
-
-
-GOMADIR = DetectGoma()
-IS_GOMA_MACHINE = GOMADIR is not None
-
-USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
+from concurrent.futures import ThreadPoolExecutor
 
 # List of all supported build configurations for static roots
 
 STATIC_ROOT_CONFIGURATIONS = {
-    "ptr-cmpr-wasm-intl": {
-        "target":
-            "src/roots/static-roots.h",
-        "gn_args":
-            f"""\
-is_debug = false
-use_goma = {USE_GOMA}
-v8_enable_static_roots = false
-v8_enable_static_roots_generation = true
-v8_enable_pointer_compression = true
-v8_enable_shared_ro_heap = true
-v8_enable_pointer_compression_shared_cage = true
-v8_enable_webassembly = true
-v8_enable_i18n_support = true
-dcheck_always_on = false
-"""
+    "intl-wasm": {
+        "gn_args": {
+            "v8_enable_static_roots": "false",
+            "v8_enable_static_roots_generation": "true",
+            "v8_enable_pointer_compression": "true",
+            "v8_enable_pointer_compression_shared_cage": "true",
+            "v8_enable_webassembly": "true",
+            "v8_enable_i18n_support": "true",
+            "dcheck_always_on": "false"
+        }
+    },
+    "intl-nowasm": {
+        "gn_args": {
+            "v8_enable_static_roots": "false",
+            "v8_enable_static_roots_generation": "true",
+            "v8_enable_pointer_compression": "true",
+            "v8_enable_pointer_compression_shared_cage": "true",
+            "v8_enable_webassembly": "false",
+            "v8_enable_i18n_support": "true",
+            "dcheck_always_on": "false"
+        }
+    },
+    "nointl-wasm": {
+        "gn_args": {
+            "v8_enable_static_roots": "false",
+            "v8_enable_static_roots_generation": "true",
+            "v8_enable_pointer_compression": "true",
+            "v8_enable_pointer_compression_shared_cage": "true",
+            "v8_enable_webassembly": "true",
+            "v8_enable_i18n_support": "false",
+            "dcheck_always_on": "false"
+        }
+    },
+    "nointl-nowasm": {
+        "gn_args": {
+            "v8_enable_static_roots": "false",
+            "v8_enable_static_roots_generation": "true",
+            "v8_enable_pointer_compression": "true",
+            "v8_enable_pointer_compression_shared_cage": "true",
+            "v8_enable_webassembly": "false",
+            "v8_enable_i18n_support": "false",
+            "dcheck_always_on": "false"
+        }
     },
 }
 
@@ -73,58 +69,122 @@ dcheck_always_on = false
 
 parser = argparse.ArgumentParser(description='Generates static-roots.h.')
 parser.add_argument(
+    '-c',
     '--configuration',
     choices=STATIC_ROOT_CONFIGURATIONS.keys(),
     action='extend',
-    default='ptr-cmpr-wasm-intl',
+    default=None,
     nargs='*',
     help="""Build configuration. Refers to a set of configurations with
-identical static-roots.h. Currently there is only one supported configuration.
-Future configurations will need to generate multiple target files.""")
+identical static-roots.h.""")
 parser.add_argument(
     '--out',
     default=Path('out'),
     required=False,
     type=Path,
     help='target build directory')
+parser.add_argument(
+    '-p',
+    '--parallel',
+    action=argparse.BooleanOptionalAction,
+    default=True,
+    help='Run builds in parallel')
 
 args = parser.parse_args()
 
 # Some helpers
-
-
 def run(cmd, **kwargs):
-  print(f"# CMD: {cmd} {kwargs}")
+  print(f"# CMD: {cmd}")
   return subprocess.run(cmd, **kwargs, check=True)
 
 
-def build(path, gn_args):
-  if not path.exists():
-    path.mkdir(parents=True, exist_ok=True)
-  with (path / "args.gn").open("w") as f:
-    f.write(gn_args)
-  suffix = ".bat" if platform.system() == "Windows" else ""
-  run(["gn" + suffix, "gen", path])
-  run(["autoninja" + suffix, "-C", path, "mksnapshot"])
-  return path.absolute()
+def machine_target():
+  raw = platform.machine()
+  raw_lower = raw.lower()
+  if raw_lower == "x86_64" or raw_lower == "amd64":
+    return "x64"
+  if raw_lower == "aarch64":
+    return "arm64"
+  return raw
 
 
-# Generate all requested static root headers
+V8_PATH = Path(__file__).parents[2]
+GM = V8_PATH / 'tools' / 'dev' / 'gm.py'
 
-v8_path = Path(__file__).parents[2]
 
-changed = False
-for target in [args.configuration]:
-  build_dir = args.out / f"gen-static-roots.{target}"
+def build_and_check(target):
+  print(f"-> Building: {target}")
+  # Currently the out dir always needs to be exactly 2 levels deep relative to
+  # the project root or siso fails to remote compile (see b/429331398).
+  build_prefix = f"_gen-static-roots-{target}"
+  build_dir = args.out / f"{build_prefix}-{machine_target()}.release"
+  if not build_dir.exists():
+    build_dir.mkdir(parents=True, exist_ok=True)
   config = STATIC_ROOT_CONFIGURATIONS[target]
-  gn_args = config["gn_args"]
-  build_path = build(build_dir, gn_args)
-  out_file = Path(tempfile.gettempdir()) / f"static-roots-{target}.h"
-  run([build_path / "mksnapshot", "--static-roots-src", out_file])
-  target_file = v8_path / config["target"]
+
+  # Let gm create the default config
+  e = dict(os.environ)
+  e['V8_GM_OUTDIR'] = f"{args.out}"
+  e['V8_GM_BUILD_DIR_PREFIX'] = build_prefix
+  run([f"{sys.executable}", f"{GM}", f"{machine_target()}.release.gn_args"],
+      env=e)
+
+  # Patch the default config according to our needs
+  gn_args_template = config["gn_args"].copy()
+  gn_args = (build_dir / "args.gn").open("r").read().splitlines()
+
+  needs_updating = False
+  found = 0
+  for line in filter(bool, gn_args):
+    result = re.search(r"^([^ ]+) = (.+)$", line)
+    if not result or len(result.groups()) != 2:
+      print(f"Error parsing {build_dir / 'args.gn'} at line '{line}'")
+      exit(255)
+    if result.group(1) in gn_args_template:
+      found += 1
+      if result.group(2) != f"{gn_args_template[result.group(1)]}":
+        needs_updating = True
+
+  if needs_updating or found < len(gn_args_template):
+    print("# Updating gn args")
+    with (build_dir / "args.gn").open("w") as f:
+      for line in filter(bool, gn_args):
+        result = re.search(r"^([^ ]+) = (.+)$", line)
+        if result.group(1) in gn_args_template:
+          line = f"{result.group(1)} = {gn_args_template[result.group(1)]}"
+          gn_args_template.pop(result.group(1))
+        f.write(f"{line}\n")
+      for extra, val in gn_args_template.items():
+        f.write(f"{extra} = {val}\n")
+
+  # Build mksnapshot
+  run([f"{sys.executable}", f"{GM}", f"{machine_target()}.release.mksnapshot"],
+      env=e)
+
+  # Generate static roots file and check if it changed
+  filename = f"static-roots-{target}.h"
+  out_file = Path(tempfile.gettempdir()) / filename
+  run([f"{build_dir / 'mksnapshot'}", "--static-roots-src", f"{out_file}"])
+  target_file = V8_PATH / 'src' / 'roots' / filename
   if not filecmp.cmp(out_file, target_file):
     shutil.move(out_file, target_file)
-    changed = True
+    return True
+  return False
+
+
+all_configs = (
+    args.configuration
+    if args.configuration else STATIC_ROOT_CONFIGURATIONS.keys())
+
+if args.parallel:
+  with ThreadPoolExecutor() as executor:
+    results = executor.map(build_and_check, all_configs)
+    changed = any(results)
+else:
+  changed = False
+  for target in all_configs:
+    if build_and_check(target):
+      changed = True
 
 if changed:
   exit(1)

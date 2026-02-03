@@ -17,7 +17,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // This file contains most of the code that actually runs in a trap handler
 // context. Some additional code is used both inside and outside the trap
@@ -34,15 +35,15 @@ namespace trap_handler {
 
 // This function contains the platform independent portions of fault
 // classification.
-bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
+bool IsFaultAddressCovered(uintptr_t fault_addr) {
   // TODO(eholk): broad code range check
 
   // Taking locks in the trap handler is risky because a fault in the trap
   // handler itself could lead to a deadlock when attempting to acquire the
-  // lock again. We guard against this case with g_thread_in_wasm_code. The
-  // lock may only be taken when not executing Wasm code (an assert in
-  // MetadataLock's constructor ensures this). The trap handler will bail
-  // out before trying to take the lock if g_thread_in_wasm_code is not set.
+  // lock again. We guard against this with the TrapHandlerGuard: the lock may
+  // only be taken when the guard is active on the current thread (the lock
+  // constructor ensures this), in which case the trap handler will bail out
+  // before trying to take the lock.
   MetadataLock lock_holder;
 
   for (size_t i = 0; i < gNumCodeObjects; ++i) {
@@ -59,11 +60,20 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
       // ProtectedInstructionData::instr_offset.
       TH_DCHECK(base + offset == fault_addr);
 
+#ifdef V8_ENABLE_DRUMBRAKE
+      // Ignore the protected instruction offsets if we are running in the Wasm
+      // interpreter.
+      if (data->num_protected_instructions == 0) {
+        gRecoveredTrapCount.store(
+            gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,
+            std::memory_order_relaxed);
+        return true;
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
+
       for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
         if (data->instructions[j].instr_offset == offset) {
           // Hurray again, we found the actual instruction.
-          *landing_pad = data->instructions[j].landing_offset + base;
-
           gRecoveredTrapCount.store(
               gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,
               std::memory_order_relaxed);
@@ -73,6 +83,25 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
       }
     }
   }
+  return false;
+}
+
+bool IsAccessedMemoryCovered(uintptr_t addr) {
+  SandboxRecordsLock lock_holder;
+
+  // Check if the access is inside a V8 sandbox (if it is enabled) as all Wasm
+  // Memory objects must be located inside some sandbox.
+  if (gSandboxRecordsHead == nullptr) {
+    return true;
+  }
+
+  for (SandboxRecord* current = gSandboxRecordsHead; current != nullptr;
+       current = current->next) {
+    if (addr >= current->base && addr < (current->base + current->size)) {
+      return true;
+    }
+  }
+
   return false;
 }
 #endif  // V8_TRAP_HANDLER_SUPPORTED

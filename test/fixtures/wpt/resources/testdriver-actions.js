@@ -290,7 +290,7 @@
     },
 
     /**
-     * Create a keyDown event for the current default key source
+     * Create a keyUp event for the current default key source
      *
      * @param {String} key - Key to release
      * @param {String?} sourceName - Named key source to use or null for the default key source

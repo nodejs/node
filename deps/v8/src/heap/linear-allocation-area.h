@@ -10,8 +10,7 @@
 #include "include/v8-internal.h"
 #include "src/common/checks.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // A linear allocation area to allocate objects from.
 //
@@ -59,19 +58,6 @@ class LinearAllocationArea final {
     return false;
   }
 
-  V8_INLINE bool MergeIfAdjacent(LinearAllocationArea& other) {
-    Verify();
-    other.Verify();
-    if (top_ == other.limit_) {
-      top_ = other.top_;
-      start_ = other.start_;
-      other.Reset(kNullAddress, kNullAddress);
-      Verify();
-      return true;
-    }
-    return false;
-  }
-
   V8_INLINE void SetLimit(Address limit) {
     limit_ = limit;
     Verify();
@@ -106,9 +92,27 @@ class LinearAllocationArea final {
 #endif  // DEBUG
   }
 
-  static constexpr int kSize = 3 * kSystemPointerSize;
-
  private:
+  // Private offset accessors. Friend classes are allowed to access them.
+  friend class IsolateData;
+
+  static constexpr int StartOffset() {
+    return offsetof(LinearAllocationArea, start_);
+  }
+  static constexpr int TopOffset() {
+    return offsetof(LinearAllocationArea, top_);
+  }
+  static constexpr int LimitOffset() {
+    return offsetof(LinearAllocationArea, limit_);
+  }
+  static constexpr int Size() {
+    static_assert(sizeof(LinearAllocationArea) == 3 * kSystemPointerSize,
+                  "LinearAllocationArea's size must be small because it "
+                  "is included in IsolateData.");
+
+    return sizeof(LinearAllocationArea);
+  }
+
   // The start of the LAB. Initially coincides with `top_`. As top is moved
   // ahead, the area [start_, top_[ denotes a range of new objects. This range
   // is reset with `ResetStart()`.
@@ -119,11 +123,10 @@ class LinearAllocationArea final {
   Address limit_ = kNullAddress;
 };
 
-static_assert(sizeof(LinearAllocationArea) == LinearAllocationArea::kSize,
-              "LinearAllocationArea's size must be small because it "
-              "is included in IsolateData.");
+static_assert(std::is_standard_layout_v<LinearAllocationArea>,
+              "LinearAllocationArea must be standard layout in order for "
+              "offsetof to be defined");
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_LINEAR_ALLOCATION_AREA_H_

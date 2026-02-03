@@ -91,6 +91,19 @@ const stream = new ReadableStream({
 })();
 ```
 
+### Node.js streams interoperability
+
+Node.js streams can be converted to web streams and vice versa via the `toWeb` and `fromWeb` methods present on [`stream.Readable`][], [`stream.Writable`][] and [`stream.Duplex`][] objects.
+
+For more details refer to the relevant documentation:
+
+* [`stream.Readable.toWeb`][]
+* [`stream.Readable.fromWeb`][]
+* [`stream.Writable.toWeb`][]
+* [`stream.Writable.fromWeb`][]
+* [`stream.Duplex.toWeb`][]
+* [`stream.Duplex.fromWeb`][]
+
 ## API
 
 ### Class: `ReadableStream`
@@ -436,6 +449,41 @@ async function* asyncIterableGenerator() {
 })();
 ```
 
+To pipe the resulting {ReadableStream} into a {WritableStream} the {Iterable}
+should yield a sequence of {Buffer}, {TypedArray}, or {DataView} objects.
+
+```mjs
+import { ReadableStream } from 'node:stream/web';
+import { Buffer } from 'node:buffer';
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+await stream.pipeTo(createWritableStreamSomehow());
+```
+
+```cjs
+const { ReadableStream } = require('node:stream/web');
+const { Buffer } = require('node:buffer');
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+(async () => {
+  await stream.pipeTo(createWritableStreamSomehow());
+})();
+```
+
 ### Class: `ReadableStreamDefaultReader`
 
 <!-- YAML
@@ -622,7 +670,9 @@ added: v16.5.0
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: v21.7.0
+  - version:
+    - v21.7.0
+    - v20.17.0
     pr-url: https://github.com/nodejs/node/pull/50888
     description: Added `min` option.
 -->
@@ -757,7 +807,7 @@ queue.
 added: v16.5.0
 -->
 
-* `chunk`: {Buffer|TypedArray|DataView}
+* `chunk` {Buffer|TypedArray|DataView}
 
 Appends a new chunk of data to the {ReadableStream}'s queue.
 
@@ -1027,7 +1077,7 @@ Releases this writer's lock on the underlying {ReadableStream}.
 added: v16.5.0
 -->
 
-* `chunk`: {any}
+* `chunk` {any}
 * Returns: A promise fulfilled with `undefined`.
 
 Appends a new chunk of data to the {WritableStream}'s queue.
@@ -1042,7 +1092,7 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-The `WritableStreamDefaultController` manage's the {WritableStream}'s
+The `WritableStreamDefaultController` manages the {WritableStream}'s
 internal state.
 
 #### `writableStreamDefaultController.error([error])`
@@ -1430,12 +1480,19 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `compressionStream.readable`
 
@@ -1468,12 +1525,19 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `decompressionStream.readable`
 
@@ -1630,6 +1694,43 @@ buffer(readable).then((data) => {
 });
 ```
 
+#### `streamConsumers.bytes(stream)`
+
+<!-- YAML
+added: v25.6.0
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with a {Uint8Array} containing the full
+  contents of the stream.
+
+```mjs
+import { bytes } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+import { Buffer } from 'node:buffer';
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+const data = await bytes(readable);
+console.log(`from readable: ${data.length}`);
+// Prints: from readable: 27
+```
+
+```cjs
+const { bytes } = require('node:stream/consumers');
+const { Readable } = require('node:stream');
+const { Buffer } = require('node:buffer');
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+bytes(readable).then((data) => {
+  console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 27
+});
+```
+
 #### `streamConsumers.json(stream)`
 
 <!-- YAML
@@ -1712,3 +1813,12 @@ text(readable).then((data) => {
 
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
+[`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
+[`stream.Duplex`]: stream.md#class-streamduplex
+[`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
+[`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options
+[`stream.Readable`]: stream.md#class-streamreadable
+[`stream.Writable.fromWeb`]: stream.md#streamwritablefromwebwritablestream-options
+[`stream.Writable.toWeb`]: stream.md#streamwritabletowebstreamwritable
+[`stream.Writable`]: stream.md#class-streamwritable

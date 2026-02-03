@@ -20,11 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const debug = require('util').debuglog('test');
 
-const { getTestCases } = require('../fixtures/process-exit-code-cases');
+const { getTestCases } = require('../common/process-exit-code-cases');
 const testCases = getTestCases(false);
 
 if (!process.argv[2]) {
@@ -45,14 +45,14 @@ function parent() {
   const f = __filename;
   const option = { stdio: [ 0, 1, 'ignore' ] };
 
-  const test = (arg, name = 'child', exit) => {
-    spawn(node, [f, arg], option).on('exit', (code) => {
+  const test = common.mustCallAtLeast((arg, name = 'child', exit) => {
+    spawn(node, [f, arg], option).on('exit', common.mustCall((code) => {
       assert.strictEqual(
         code, exit,
         `wrong exit for ${arg}-${name}\nexpected:${exit} but got:${code}`);
       debug(`ok - ${arg} exited with ${exit}`);
-    });
-  };
+    }));
+  });
 
   testCases.forEach((tc, i) => test(i, tc.func.name, tc.result));
 }

@@ -7,16 +7,17 @@ const { pathToFileURL } = require('url');
 const fixturesDir = path.join(__dirname, '..', 'fixtures');
 
 function fixturesPath(...args) {
-  return path.join(fixturesDir, ...args);
+  args.unshift(fixturesDir);
+  return Reflect.apply(path.join, this, args);
 }
 
 function fixturesFileURL(...args) {
-  return pathToFileURL(fixturesPath(...args));
+  return pathToFileURL(Reflect.apply(fixturesPath, this, args));
 }
 
 function readFixtureSync(args, enc) {
   if (Array.isArray(args))
-    return fs.readFileSync(fixturesPath(...args), enc);
+    return fs.readFileSync(Reflect.apply(fixturesPath, this, args), enc);
   return fs.readFileSync(fixturesPath(args), enc);
 }
 

@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@generateBodyDescriptor
 extern class JSProxy extends JSReceiver {
   target: JSReceiver|Null;
   handler: JSReceiver|Null;
+  flags: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding: uint32;
 }
 
 extern shape JSProxyRevocableResult extends JSObject {

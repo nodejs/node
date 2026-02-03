@@ -1,18 +1,19 @@
 Exiting with code=1
-node:assert:*
-  throw new AssertionError(obj);
+node:internal/assert/utils:*
+  throw error;
   ^
 
 AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
 
 1 !== 2
 
-    at Object.<anonymous> (*error_exit.js:*:*) {
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/error_exit.js:*:*) {
   generatedMessage: true,
   code: 'ERR_ASSERTION',
   actual: 1,
   expected: 2,
-  operator: 'strictEqual'
+  operator: 'strictEqual',
+  diff: 'simple'
 }
 
-Node.js *
+Node.js <node-version>

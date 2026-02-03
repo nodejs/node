@@ -5,6 +5,7 @@
 
 namespace v8 {
 namespace internal {
+
 // RV32D Standard Extension
 
 void AssemblerRISCVD::fld(FPURegister rd, Register rs1, int16_t imm12) {
@@ -85,7 +86,7 @@ void AssemblerRISCVD::fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
 
 void AssemblerRISCVD::fcvt_s_d(FPURegister rd, FPURegister rs1,
                                FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b0100000, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b0100000, frm, rd, rs1, Register::from_code(1));
 }
 
 void AssemblerRISCVD::fcvt_d_s(FPURegister rd, FPURegister rs1,
@@ -116,7 +117,7 @@ void AssemblerRISCVD::fcvt_w_d(Register rd, FPURegister rs1,
 
 void AssemblerRISCVD::fcvt_wu_d(Register rd, FPURegister rs1,
                                 FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, Register::from_code(1));
 }
 
 void AssemblerRISCVD::fcvt_d_w(FPURegister rd, Register rs1,
@@ -126,7 +127,7 @@ void AssemblerRISCVD::fcvt_d_w(FPURegister rd, Register rs1,
 
 void AssemblerRISCVD::fcvt_d_wu(FPURegister rd, Register rs1,
                                 FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, Register::from_code(1));
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -134,12 +135,12 @@ void AssemblerRISCVD::fcvt_d_wu(FPURegister rd, Register rs1,
 
 void AssemblerRISCVD::fcvt_l_d(Register rd, FPURegister rs1,
                                FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, Register::from_code(2));
 }
 
 void AssemblerRISCVD::fcvt_lu_d(Register rd, FPURegister rs1,
                                 FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(3));
+  GenInstrALUFP_rr(0b1100001, frm, rd, rs1, Register::from_code(3));
 }
 
 void AssemblerRISCVD::fmv_x_d(Register rd, FPURegister rs1) {
@@ -148,12 +149,12 @@ void AssemblerRISCVD::fmv_x_d(Register rd, FPURegister rs1) {
 
 void AssemblerRISCVD::fcvt_d_l(FPURegister rd, Register rs1,
                                FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, Register::from_code(2));
 }
 
 void AssemblerRISCVD::fcvt_d_lu(FPURegister rd, Register rs1,
                                 FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(3));
+  GenInstrALUFP_rr(0b1101001, frm, rd, rs1, Register::from_code(3));
 }
 
 void AssemblerRISCVD::fmv_d_x(FPURegister rd, Register rs1) {

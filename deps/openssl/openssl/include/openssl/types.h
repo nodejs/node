@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,41 +7,59 @@
  * https://www.openssl.org/source/license.html
  */
 
+/*
+ * Unfortunate workaround to avoid symbol conflict with wincrypt.h
+ * See https://github.com/openssl/openssl/issues/9981
+ */
+#ifdef _WIN32
+#define WINCRYPT_USE_SYMBOL_PREFIX
+#undef X509_NAME
+#undef X509_EXTENSIONS
+#undef PKCS7_SIGNER_INFO
+#undef OCSP_REQUEST
+#undef OCSP_RESPONSE
+#endif
+
 #ifndef OPENSSL_TYPES_H
-# define OPENSSL_TYPES_H
-# pragma once
+#define OPENSSL_TYPES_H
 
-# include <limits.h>
+#include <limits.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
-# include <openssl/e_os2.h>
-# include <openssl/safestack.h>
-# include <openssl/macros.h>
+#include <openssl/e_os2.h>
+#include <openssl/safestack.h>
+#include <openssl/macros.h>
+
+#if OPENSSL_VERSION_MAJOR >= 4
+#define OSSL_FUTURE_CONST const
+#else
+#define OSSL_FUTURE_CONST
+#endif
 
 typedef struct ossl_provider_st OSSL_PROVIDER; /* Provider Object */
 
-# ifdef NO_ASN1_TYPEDEFS
-#  define ASN1_INTEGER            ASN1_STRING
-#  define ASN1_ENUMERATED         ASN1_STRING
-#  define ASN1_BIT_STRING         ASN1_STRING
-#  define ASN1_OCTET_STRING       ASN1_STRING
-#  define ASN1_PRINTABLESTRING    ASN1_STRING
-#  define ASN1_T61STRING          ASN1_STRING
-#  define ASN1_IA5STRING          ASN1_STRING
-#  define ASN1_UTCTIME            ASN1_STRING
-#  define ASN1_GENERALIZEDTIME    ASN1_STRING
-#  define ASN1_TIME               ASN1_STRING
-#  define ASN1_GENERALSTRING      ASN1_STRING
-#  define ASN1_UNIVERSALSTRING    ASN1_STRING
-#  define ASN1_BMPSTRING          ASN1_STRING
-#  define ASN1_VISIBLESTRING      ASN1_STRING
-#  define ASN1_UTF8STRING         ASN1_STRING
-#  define ASN1_BOOLEAN            int
-#  define ASN1_NULL               int
-# else
+#ifdef NO_ASN1_TYPEDEFS
+#define ASN1_INTEGER ASN1_STRING
+#define ASN1_ENUMERATED ASN1_STRING
+#define ASN1_BIT_STRING ASN1_STRING
+#define ASN1_OCTET_STRING ASN1_STRING
+#define ASN1_PRINTABLESTRING ASN1_STRING
+#define ASN1_T61STRING ASN1_STRING
+#define ASN1_IA5STRING ASN1_STRING
+#define ASN1_UTCTIME ASN1_STRING
+#define ASN1_GENERALIZEDTIME ASN1_STRING
+#define ASN1_TIME ASN1_STRING
+#define ASN1_GENERALSTRING ASN1_STRING
+#define ASN1_UNIVERSALSTRING ASN1_STRING
+#define ASN1_BMPSTRING ASN1_STRING
+#define ASN1_VISIBLESTRING ASN1_STRING
+#define ASN1_UTF8STRING ASN1_STRING
+#define ASN1_BOOLEAN int
+#define ASN1_NULL int
+#else
 typedef struct asn1_string_st ASN1_INTEGER;
 typedef struct asn1_string_st ASN1_ENUMERATED;
 typedef struct asn1_string_st ASN1_BIT_STRING;
@@ -60,7 +78,7 @@ typedef struct asn1_string_st ASN1_UTF8STRING;
 typedef struct asn1_string_st ASN1_STRING;
 typedef int ASN1_BOOLEAN;
 typedef int ASN1_NULL;
-# endif
+#endif
 
 typedef struct asn1_type_st ASN1_TYPE;
 typedef struct asn1_object_st ASN1_OBJECT;
@@ -70,18 +88,9 @@ typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct asn1_pctx_st ASN1_PCTX;
 typedef struct asn1_sctx_st ASN1_SCTX;
 
-# ifdef _WIN32
-#  undef X509_NAME
-#  undef X509_EXTENSIONS
-#  undef PKCS7_ISSUER_AND_SERIAL
-#  undef PKCS7_SIGNER_INFO
-#  undef OCSP_REQUEST
-#  undef OCSP_RESPONSE
-# endif
-
-# ifdef BIGNUM
-#  undef BIGNUM
-# endif
+#ifdef BIGNUM
+#undef BIGNUM
+#endif
 
 typedef struct bio_st BIO;
 typedef struct bignum_st BIGNUM;
@@ -105,6 +114,7 @@ typedef struct evp_md_ctx_st EVP_MD_CTX;
 typedef struct evp_mac_st EVP_MAC;
 typedef struct evp_mac_ctx_st EVP_MAC_CTX;
 typedef struct evp_pkey_st EVP_PKEY;
+typedef struct evp_skey_st EVP_SKEY;
 
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 
@@ -123,6 +133,8 @@ typedef struct evp_keyexch_st EVP_KEYEXCH;
 
 typedef struct evp_signature_st EVP_SIGNATURE;
 
+typedef struct evp_skeymgmt_st EVP_SKEYMGMT;
+
 typedef struct evp_asym_cipher_st EVP_ASYM_CIPHER;
 
 typedef struct evp_kem_st EVP_KEM;
@@ -134,21 +146,21 @@ typedef struct hmac_ctx_st HMAC_CTX;
 typedef struct dh_st DH;
 typedef struct dh_method DH_METHOD;
 
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 typedef struct dsa_st DSA;
 typedef struct dsa_method DSA_METHOD;
-# endif
+#endif
 
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 typedef struct rsa_st RSA;
 typedef struct rsa_meth_st RSA_METHOD;
-# endif
+#endif
 typedef struct rsa_pss_params_st RSA_PSS_PARAMS;
 
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 typedef struct ec_key_st EC_KEY;
 typedef struct ec_key_method_st EC_KEY_METHOD;
-# endif
+#endif
 
 typedef struct rand_meth_st RAND_METHOD;
 typedef struct rand_drbg_st RAND_DRBG;
@@ -220,7 +232,7 @@ typedef struct ossl_algorithm_st OSSL_ALGORITHM;
 typedef struct ossl_param_st OSSL_PARAM;
 typedef struct ossl_param_bld_st OSSL_PARAM_BLD;
 
-typedef int pem_password_cb (char *buf, int size, int rwflag, void *userdata);
+typedef int pem_password_cb(char *buf, int size, int rwflag, void *userdata);
 
 typedef struct ossl_encoder_st OSSL_ENCODER;
 typedef struct ossl_encoder_ctx_st OSSL_ENCODER_CTX;
@@ -229,7 +241,7 @@ typedef struct ossl_decoder_ctx_st OSSL_DECODER_CTX;
 
 typedef struct ossl_self_test_st OSSL_SELF_TEST;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

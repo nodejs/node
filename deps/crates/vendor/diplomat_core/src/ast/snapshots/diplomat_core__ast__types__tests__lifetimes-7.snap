@@ -1,0 +1,19 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { Result<OkRef<'a, 'b>, ErrRef<'c>> },\n    None)"
+---
+Result:
+  - Named:
+      path:
+        elements:
+          - OkRef
+      lifetimes:
+        - Named: a
+        - Named: b
+  - Named:
+      path:
+        elements:
+          - ErrRef
+      lifetimes:
+        - Named: c
+  - Stdlib

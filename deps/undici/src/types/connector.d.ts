@@ -1,5 +1,5 @@
-import { TLSSocket, ConnectionOptions } from 'tls'
-import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from 'net'
+import { TLSSocket, ConnectionOptions } from 'node:tls'
+import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from 'node:net'
 
 export default buildConnector
 declare function buildConnector (options?: buildConnector.BuildOptions): buildConnector.connector

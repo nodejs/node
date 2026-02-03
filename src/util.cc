@@ -21,6 +21,7 @@
 
 #include "util.h"  // NOLINT(build/include_inline)
 #include <cmath>
+#include <cstdint>
 #include "util-inl.h"
 
 #include "debug_utils-inl.h"
@@ -31,7 +32,6 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "string_bytes.h"
-#include "uv.h"
 #include "v8-value.h"
 
 #ifdef _WIN32
@@ -48,6 +48,8 @@
 #include <sys/types.h>
 #endif
 
+#include <simdutf.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -55,6 +57,31 @@
 #include <sstream>
 
 static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
+
+// F_OK etc. constants
+#ifdef _WIN32
+#include "uv.h"
+#else
+#include <unistd.h>
+#endif
+
+// The access modes can be any of F_OK, R_OK, W_OK or X_OK. Some might not be
+// available on specific systems. They can be used in combination as well
+// (F_OK | R_OK | W_OK | X_OK).
+constexpr int kMaximumAccessMode = F_OK | W_OK | R_OK | X_OK;
+constexpr int kMinimumAccessMode = std::min({F_OK, W_OK, R_OK, X_OK});
+
+constexpr int kDefaultCopyMode = 0;
+// The copy modes can be any of UV_FS_COPYFILE_EXCL, UV_FS_COPYFILE_FICLONE or
+// UV_FS_COPYFILE_FICLONE_FORCE. They can be used in combination as well
+// (US_FS_COPYFILE_EXCL | US_FS_COPYFILE_FICLONE |
+// US_FS_COPYFILE_FICLONE_FORCE).
+constexpr int kMinimumCopyMode = std::min({kDefaultCopyMode,
+                                           UV_FS_COPYFILE_EXCL,
+                                           UV_FS_COPYFILE_FICLONE,
+                                           UV_FS_COPYFILE_FICLONE_FORCE});
+constexpr int kMaximumCopyMode =
+    UV_FS_COPYFILE_EXCL | UV_FS_COPYFILE_FICLONE | UV_FS_COPYFILE_FICLONE_FORCE;
 
 namespace node {
 
@@ -75,15 +102,31 @@ static void MakeUtf8String(Isolate* isolate,
                            MaybeStackBuffer<T>* target) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
+  String::ValueView value_view(isolate, string);
 
-  size_t storage;
-  if (!StringBytes::StorageSize(isolate, string, UTF8).To(&storage)) return;
-  storage += 1;
+  auto value_length = value_view.length();
+
+  if (value_view.is_one_byte()) {
+    auto const_char = reinterpret_cast<const char*>(value_view.data8());
+    auto expected_length =
+        target->capacity() < (static_cast<size_t>(value_length) * 2 + 1)
+            ? simdutf::utf8_length_from_latin1(const_char, value_length)
+            : value_length * 2;
+
+    // Add +1 for null termination.
+    target->AllocateSufficientStorage(expected_length + 1);
+    const auto actual_length = simdutf::convert_latin1_to_utf8(
+        const_char, value_length, target->out());
+    target->SetLengthAndZeroTerminate(actual_length);
+    return;
+  }
+
+  // Add +1 for null termination.
+  size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -103,12 +146,10 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  // Allocate enough space to include the null terminator
-  const size_t storage = string->Length() + 1;
-  AllocateSufficientStorage(storage);
-
-  const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(isolate, out(), 0, storage, flags);
+  // Allocate enough space to include the null terminator.
+  const size_t length = string->Length();
+  AllocateSufficientStorage(length + 1);
+  string->WriteV2(isolate, 0, length, out());
   SetLengthAndZeroTerminate(length);
 }
 
@@ -173,24 +214,6 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-std::vector<std::string_view> SplitString(const std::string_view in,
-                                          const std::string_view delim) {
-  std::vector<std::string_view> out;
-
-  for (auto first = in.data(), second = in.data(), last = first + in.size();
-       second != last && first != last;
-       first = second + 1) {
-    second =
-        std::find_first_of(first, last, std::cbegin(delim), std::cend(delim));
-
-    if (first != second) {
-      out.emplace_back(first, second - first);
-    }
-  }
-
-  return out;
-}
-
 void ThrowErrStringTooLong(Isolate* isolate) {
   isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
 }
@@ -203,6 +226,10 @@ double GetCurrentTimeInMicroseconds() {
 }
 
 int WriteFileSync(const char* path, uv_buf_t buf) {
+  return WriteFileSync(path, &buf, 1);
+}
+
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
   uv_fs_t req;
   int fd = uv_fs_open(nullptr,
                       &req,
@@ -215,7 +242,7 @@ int WriteFileSync(const char* path, uv_buf_t buf) {
     return fd;
   }
 
-  int err = uv_fs_write(nullptr, &req, fd, &buf, 1, 0, nullptr);
+  int err = uv_fs_write(nullptr, &req, fd, bufs, buf_count, 0, nullptr);
   uv_fs_req_cleanup(&req);
   if (err < 0) {
     return err;
@@ -291,7 +318,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   struct timeval time_val;
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, tm_struct);
@@ -314,7 +341,7 @@ std::string DiagnosticFilename::MakeFilename(
   oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   oss << "."
             << std::setfill('0')
             << std::setw(4)
@@ -364,7 +391,7 @@ void SetMethod(Local<v8::Context> context,
                Local<v8::Object> that,
                const std::string_view name,
                v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -425,7 +452,7 @@ void SetFastMethod(Local<v8::Context> context,
                    const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -447,7 +474,7 @@ void SetFastMethodNoSideEffect(Local<v8::Context> context,
                                const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -535,7 +562,7 @@ void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
                            v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -569,6 +596,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,
@@ -636,7 +689,7 @@ void SetConstructorFunction(Local<v8::Context> context,
                             const char* name,
                             Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   SetConstructorFunction(
       context, that, OneByteString(isolate, name), tmpl, flag);
 }
@@ -646,8 +699,9 @@ void SetConstructorFunction(Local<Context> context,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
 }
 
@@ -665,8 +719,9 @@ void SetConstructorFunction(Isolate* isolate,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(name, tmpl);
 }
 
@@ -691,12 +746,14 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap = v8::CppHeap::Create(per_process::v8_platform.Platform(),
+                                        v8::CppHeapCreateParams{{}})
+                        .release();
   Isolate::Initialize(isolate_, params);
 }
 
 RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
-  isolate_->Dispose();
+  per_process::v8_platform.Platform()->DisposeIsolate(isolate_);
 }
 
 RAIIIsolate::RAIIIsolate(const SnapshotData* data)
@@ -729,6 +786,16 @@ std::string DetermineSpecificErrorType(Environment* env,
         input.As<v8::Object>()->GetConstructorName();
     Utf8Value name(env->isolate(), constructor_name);
     return SPrintF("an instance of %s", name.out());
+  } else if (input->IsSymbol()) {
+    v8::MaybeLocal<v8::String> str =
+        input.As<v8::Symbol>()->ToDetailString(env->context());
+    v8::Local<v8::String> js_str;
+    if (!str.ToLocal(&js_str)) {
+      return "Symbol";
+    }
+    Utf8Value name(env->isolate(), js_str);
+    // Symbol(xxx)
+    return name.out();
   }
 
   Utf8Value utf8_value(env->isolate(),
@@ -766,8 +833,11 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env,
   const bool is_out_of_range = fd < 0 || fd > INT32_MAX;
 
   if (is_out_of_range || !IsSafeJsInt(input)) {
-    Utf8Value utf8_value(
-        env->isolate(), input->ToDetailString(env->context()).ToLocalChecked());
+    Local<String> str;
+    if (!input->ToDetailString(env->context()).ToLocal(&str)) {
+      return v8::Nothing<int32_t>();
+    }
+    Utf8Value utf8_value(env->isolate(), str);
     if (is_out_of_range && !std::isinf(fd)) {
       THROW_ERR_OUT_OF_RANGE(env,
                              "The value of \"fd\" is out of range. "
@@ -785,6 +855,51 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env,
   }
 
   return v8::Just(static_cast<int32_t>(fd));
+}
+
+v8::Maybe<int> GetValidFileMode(Environment* env,
+                                v8::Local<v8::Value> input,
+                                uv_fs_type type) {
+  // Allow only int32 or null/undefined values.
+  if (input->IsNumber()) {
+    // We cast the input to v8::Number to avoid overflows.
+    auto num = input.As<v8::Number>()->Value();
+
+    // Handle infinity and NaN values
+    if (std::isinf(num) || std::isnan(num)) {
+      THROW_ERR_OUT_OF_RANGE(env, "mode is out of range");
+      return v8::Nothing<int>();
+    }
+  } else if (!input->IsNullOrUndefined()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "mode must be int32 or null/undefined");
+    return v8::Nothing<int>();
+  }
+
+  int min = kMinimumAccessMode;
+  int max = kMaximumAccessMode;
+  int def = F_OK;
+
+  CHECK(type == UV_FS_ACCESS || type == UV_FS_COPYFILE);
+
+  if (type == UV_FS_COPYFILE) {
+    min = kMinimumCopyMode;
+    max = kMaximumCopyMode;
+    def = input->IsNullOrUndefined() ? kDefaultCopyMode
+                                     : input.As<v8::Int32>()->Value();
+  }
+
+  if (input->IsNullOrUndefined()) {
+    return v8::Just(def);
+  }
+
+  const int mode = input.As<v8::Int32>()->Value();
+  if (mode < min || mode > max) {
+    THROW_ERR_OUT_OF_RANGE(
+        env, "mode is out of range: >= %d && <= %d", min, max);
+    return v8::Nothing<int>();
+  }
+
+  return v8::Just(mode);
 }
 
 }  // namespace node

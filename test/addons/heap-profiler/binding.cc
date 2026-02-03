@@ -17,7 +17,7 @@ inline void Test(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 inline void Initialize(v8::Local<v8::Object> binding) {
-  v8::Isolate* const isolate = binding->GetIsolate();
+  v8::Isolate* const isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   binding->Set(context, v8::String::NewFromUtf8(
         isolate, "test").ToLocalChecked(),

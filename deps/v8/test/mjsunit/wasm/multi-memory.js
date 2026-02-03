@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-multi-memory
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -219,8 +218,8 @@ function assertMemoryEquals(expected, memory) {
   addLoadAndStoreFunctions(builder, mem1_idx);
   const mem0_offset = 11;
   const mem1_offset = 23;
-  builder.addDataSegment(mem1_offset, [7, 7], false, 1);
-  builder.addDataSegment(mem0_offset, [9, 9], false, 0);
+  builder.addActiveDataSegment(1, [kExprI32Const, mem1_offset], [7, 7]);
+  builder.addActiveDataSegment(0, [kExprI32Const, mem0_offset], [9, 9]);
   builder.exportMemoryAs('mem0', 0);
   builder.exportMemoryAs('mem1', 1);
 
@@ -242,8 +241,11 @@ function assertMemoryEquals(expected, memory) {
       var builder = new WasmModuleBuilder();
       const mem0_idx = builder.addMemory(mem0_size, mem0_size);
       const mem1_idx = builder.addMemory(mem1_size, mem1_size);
-      builder.addDataSegment(mem0_offset * kPageSize, [0], false, mem0_idx);
-      builder.addDataSegment(mem1_offset * kPageSize, [0], false, mem1_idx);
+      builder.addActiveDataSegment(
+          mem0_idx, wasmI32Const(mem0_offset * kPageSize), [0]);
+      builder.addActiveDataSegment(
+          mem1_idx, wasmI32Const(mem1_offset * kPageSize), [0]);
+
       if (mem0_offset < mem0_size && mem1_offset < mem1_size) {
         builder.instantiate();  // should not throw.
         continue;

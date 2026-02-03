@@ -1,3 +1,6 @@
+// Previously, this tested that require(esm) throws ERR_REQUIRE_ESM, which is no longer applicable
+// since require(esm) is now supported. The test has been repurposed to ensure that the old behavior
+// is preserved when the --no-experimental-require-module flag is used.
 'use strict';
 
 const { spawnPromisified } = require('../common');
@@ -10,19 +13,21 @@ const { describe, it } = require('node:test');
 
 const requiringCjsAsEsm = path.resolve(fixtures.path('/es-modules/cjs-esm.js'));
 const requiringEsm = path.resolve(fixtures.path('/es-modules/cjs-esm-esm.js'));
-const pjson = path.resolve(
+const pjson = path.toNamespacedPath(
   fixtures.path('/es-modules/package-type-module/package.json')
 );
 
 
-describe('CJS ↔︎ ESM interop warnings', { concurrency: true }, () => {
+describe('CJS ↔︎ ESM interop warnings', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   it(async () => {
     const required = path.resolve(
       fixtures.path('/es-modules/package-type-module/cjs.js')
     );
     const basename = 'cjs.js';
-    const { code, signal, stderr } = await spawnPromisified(execPath, [requiringCjsAsEsm]);
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
+      '--no-experimental-require-module', requiringCjsAsEsm,
+    ]);
 
     assert.ok(
       stderr.replaceAll('\r', '').includes(
@@ -48,7 +53,9 @@ describe('CJS ↔︎ ESM interop warnings', { concurrency: true }, () => {
       fixtures.path('/es-modules/package-type-module/esm.js')
     );
     const basename = 'esm.js';
-    const { code, signal, stderr } = await spawnPromisified(execPath, [requiringEsm]);
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
+      '--no-experimental-require-module', requiringEsm,
+    ]);
 
     assert.ok(
       stderr.replace(/\r/g, '').includes(

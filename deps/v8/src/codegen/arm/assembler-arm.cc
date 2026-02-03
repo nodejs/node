@@ -36,6 +36,8 @@
 
 #include "src/codegen/arm/assembler-arm.h"
 
+#include <optional>
+
 #if V8_TARGET_ARCH_ARM
 
 #include "src/base/bits.h"
@@ -81,12 +83,12 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  base::Optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
-  base::Optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
-  base::Optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
-  base::Optional<bool> maybe_enable_neon = v8_flags.enable_neon;
-  base::Optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
-  base::Optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
+  std::optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
+  std::optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
+  std::optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
+  std::optional<bool> maybe_enable_neon = v8_flags.enable_neon;
+  std::optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
+  std::optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
   if (maybe_enable_armv7.has_value() || maybe_enable_vfp3.has_value() ||
       maybe_enable_32dregs.has_value() || maybe_enable_neon.has_value() ||
       maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {
@@ -264,6 +266,24 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
+static bool IsEabiHardFloat() {
+  const char* arm_fpu_abi = v8_flags.mfloat_abi;
+  if (strcmp(arm_fpu_abi, "hardfp") == 0) {
+    return true;
+  } else if (strcmp(arm_fpu_abi, "softfp") == 0) {
+    return false;
+  } else if (strcmp(arm_fpu_abi, "auto") == 0) {
+#ifdef __arm__
+    return base::OS::ArmUsingHardFloat();
+#elif USE_EABI_HARDFLOAT
+    return true;
+#else
+    return false;
+#endif
+  }
+  UNREACHABLE();
+}
+
 void CpuFeatures::PrintTarget() {
   const char* arm_arch = nullptr;
   const char* arm_target_type = "";
@@ -300,13 +320,7 @@ void CpuFeatures::PrintTarget() {
   arm_fpu = " vfp2";
 #endif
 
-#ifdef __arm__
-  arm_float_abi = base::OS::ArmUsingHardFloat() ? "hard" : "softfp";
-#elif USE_EABI_HARDFLOAT
-  arm_float_abi = "hard";
-#else
-  arm_float_abi = "softfp";
-#endif
+  arm_float_abi = IsEabiHardFloat() ? "hard" : "softfp";
 
 #if defined __arm__ && (defined __thumb__) || (defined __thumb2__)
   arm_thumb = " thumb";
@@ -321,13 +335,7 @@ void CpuFeatures::PrintFeatures() {
          CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
          CpuFeatures::IsSupported(VFPv3), CpuFeatures::IsSupported(VFP32DREGS),
          CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV));
-#ifdef __arm__
-  bool eabi_hardfloat = base::OS::ArmUsingHardFloat();
-#elif USE_EABI_HARDFLOAT
-  bool eabi_hardfloat = true;
-#else
-  bool eabi_hardfloat = false;
-#endif
+  bool eabi_hardfloat = IsEabiHardFloat();
   printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
 }
 
@@ -455,16 +463,10 @@ void NeonMemOperand::SetAlignment(int align) {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
-        object.address();
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
+      object.address();
 }
 
 // -----------------------------------------------------------------------------
@@ -523,7 +525,8 @@ Assembler::Assembler(const AssemblerOptions& options,
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
       scratch_register_list_(DefaultTmpList()),
-      scratch_vfp_register_list_(DefaultFPTmpList()) {
+      scratch_vfp_register_list_(DefaultFPTmpList()),
+      use_eabi_hardfloat_(IsEabiHardFloat()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
@@ -587,8 +590,12 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -601,7 +608,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -1200,7 +1208,7 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     // can be patched.
     DCHECK(!x.MustOutputRelocInfo(this));
     UseScratchRegisterScope temps(this);
-    // Re-use the destination register as a scratch if possible.
+    // Reuse the destination register as a scratch if possible.
     Register target = rd != pc && rd != sp ? rd : temps.Acquire();
     uint32_t imm32 = static_cast<uint32_t>(x.immediate());
     movw(target, imm32 & 0xFFFF, cond);
@@ -1250,10 +1258,10 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // pool only for a MOV instruction which does not set the flags.
       DCHECK(!rn.is_valid());
       Move32BitImmediate(rd, x, cond);
-    } else if ((opcode == ADD) && !set_flags && (rd == rn) &&
+    } else if ((opcode == ADD || opcode == SUB) && !set_flags && (rd == rn) &&
                !temps.CanAcquire()) {
       // Split the operation into a sequence of additions if we cannot use a
-      // scratch register. In this case, we cannot re-use rn and the assembler
+      // scratch register. In this case, we cannot reuse rn and the assembler
       // does not have any scratch registers to spare.
       uint32_t imm = x.immediate();
       do {
@@ -1266,15 +1274,25 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
         // immediate allows us to more efficiently split it:
         int trailing_zeroes = base::bits::CountTrailingZeros(imm) & ~1u;
         uint32_t mask = (0xFF << trailing_zeroes);
-        add(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        if (opcode == ADD) {
+          add(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        } else {
+          DCHECK_EQ(opcode, SUB);
+          sub(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        }
         imm = imm & ~mask;
       } while (!ImmediateFitsAddrMode1Instruction(imm));
-      add(rd, rd, Operand(imm), LeaveCC, cond);
+      if (opcode == ADD) {
+        add(rd, rd, Operand(imm), LeaveCC, cond);
+      } else {
+        DCHECK_EQ(opcode, SUB);
+        sub(rd, rd, Operand(imm), LeaveCC, cond);
+      }
     } else {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to a scratch register and change the original instruction to
       // use it.
-      // Re-use the destination register if possible.
+      // Reuse the destination register if possible.
       Register scratch = (rd.is_valid() && rd != rn && rd != pc && rd != sp)
                              ? rd
                              : temps.Acquire();
@@ -1340,7 +1358,7 @@ void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
       // Immediate offset cannot be encoded, load it first to a scratch
       // register.
       UseScratchRegisterScope temps(this);
-      // Allow re-using rd for load instructions if possible.
+      // Allow reuse of rd for load instructions if possible.
       bool is_load = (instr & L) == L;
       Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
                              ? rd
@@ -1382,7 +1400,7 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
       // Immediate offset cannot be encoded, load it first to a scratch
       // register.
       UseScratchRegisterScope temps(this);
-      // Allow re-using rd for load instructions if possible.
+      // Allow reuse of rd for load instructions if possible.
       Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
                              ? rd
                              : temps.Acquire();
@@ -1397,7 +1415,7 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
     // Scaled register offsets are not supported, compute the offset separately
     // to a scratch register.
     UseScratchRegisterScope temps(this);
-    // Allow re-using rd for load instructions if possible.
+    // Allow reuse of rd for load instructions if possible.
     Register scratch =
         (is_load && rd != x.rn_ && rd != pc && rd != sp) ? rd : temps.Acquire();
     mov(scratch, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,

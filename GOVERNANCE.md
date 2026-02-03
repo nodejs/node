@@ -8,6 +8,9 @@
 * [Technical steering committee](#technical-steering-committee)
   * [TSC meetings](#tsc-meetings)
 * [Collaborator nominations](#collaborator-nominations)
+  * [Who can nominate Collaborators?](#who-can-nominate-collaborators)
+  * [Ideal Nominees](#ideal-nominees)
+  * [Nominating a new Collaborator](#nominating-a-new-collaborator)
   * [Onboarding](#onboarding)
 * [Consensus seeking process](#consensus-seeking-process)
 
@@ -68,7 +71,7 @@ The TSC can remove inactive collaborators or provide them with _emeritus_
 status. Emeriti may request that the TSC restore them to active status.
 
 A collaborator is automatically made emeritus (and removed from active
-collaborator status) if it has been more than 18 months since the collaborator
+collaborator status) if it has been more than 12 months since the collaborator
 has authored or approved a commit that has landed.
 
 ## Technical Steering Committee
@@ -94,9 +97,17 @@ Charter need approval by the OpenJS Foundation Cross-Project Council (CPC).
 The TSC meets in a video conference call. Each year, the TSC elects a chair to
 run the meetings. The TSC streams its meetings for public viewing on YouTube.
 
+TSC meetings may consist of a public portion and a private portion. The private
+portion is used to discuss sensitive topics, such as personnel issues,
+security vulnerabilities, or other confidential matters. Private discussions
+should be avoided as much as possible, and the TSC should strive to keep
+discussions in the public portion of the meeting, but there are times when
+private discussions are necessary.
+
 The TSC agenda includes issues that are at an impasse. The intention of the
 agenda is not to review or approve all patches. Collaborators review and approve
-patches on GitHub.
+patches on GitHub. The preference is to minimize the need for TSC meetings to
+make decisions that can otherwise be made by collaborators on GitHub.
 
 Any community member can create a GitHub issue asking that the TSC review
 something. If consensus-seeking fails for an issue, a collaborator may apply the
@@ -106,30 +117,140 @@ Before each TSC meeting, the meeting chair will share the agenda with members of
 the TSC. TSC members can also add items to the agenda at the beginning of each
 meeting. The meeting chair and the TSC cannot veto or remove items.
 
-The TSC may invite people to take part in a non-voting capacity.
+The TSC may invite people to take part in a non-voting capacity in either the
+public or private portions of the meeting.
 
-During the meeting, the TSC chair ensures that someone takes minutes. After the
-meeting, the TSC chair ensures that someone opens a pull request with the
-minutes.
+During the public portion of the meeting, the TSC chair ensures that someone
+takes minutes that include a summary of the discussion and any
+decisions made. After the meeting, the TSC chair ensures that someone opens a
+public pull request with the minutes from the public portion of the meeting.
 
-The TSC seeks to resolve as many issues as possible outside meetings using
-[the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
-the issue tracker is:
+The public portion of the TSC meeting is expected to be recorded and made
+available for live streaming during the meeting or download by anyone after.
+This expectation is to be announced to all participants at the start of the
+each meeting before the recording is started. Continued participation in the
+public portion of the meeting after this announcement is interpreted as consent to the
+recording.
+
+For the private portion of the meeting, the TSC chair ensures that someone
+produces a summary of the discussions, gets it reviewed by the attendees,
+and shares it to all the TSC members once approved by the attendees via a
+private discussion channel such as the TSC private mailing list. The summary
+may be made public if there is consensus within the TSC and the non-TSC
+attendees to make it public.
+
+Recording the private portion of a meeting or maintaining or publishing a
+detailed transcript is only permitted when all participants present during the
+private portion of the meeting explicitly agree to the recording and/or
+transcript, in order to comply to privacy regulations.
+
+All discussions made during meetings are considered provisional, receiving no
+objections from folks at the TSC meeting to take an action is not equivalent to
+the TSC endorsing that action.
+
+If a quorum of TSC voting members is present, it is possible to call for an
+explicit vote, and take the vote immediately if there are no objections. The
+decision is considered confirmed once the rest of the TSC voting members have
+been informed and no objection for taking that vote has been raised in 48 hours.
+To clarify, TSC voting members can object to the vote taking place during the
+meeting, but not to the vote itself.
+
+For discussions outside of meetings, the TSC uses
+[the TSC issue tracker](https://github.com/nodejs/TSC/issues) for public
+issues, and the private TSC email list for private matters. The process for
+public issues in the issue tracker is:
 
 * A TSC member opens an issue explaining the proposal/issue and @-mentions
   @nodejs/tsc.
 * The proposal passes if, after 72 hours, there are two or more TSC voting
   member approvals and no TSC voting member opposition.
-* If there is an extended impasse, a TSC member may make a motion for a vote.
+* If there is an extended impasse, a TSC member may ask for the issue to be
+  added to the TSC agenda, or make a motion for a vote.
 
 ## Collaborator nominations
 
-Existing collaborators can nominate someone to become a collaborator. Nominees
-should have significant and valuable contributions across the Node.js
+### Who can nominate Collaborators?
+
+Existing Collaborators can nominate someone to become a Collaborator.
+
+### Ideal Nominees
+
+Nominees should have significant and valuable contributions across the Node.js
 organization.
 
-To nominate a new collaborator, open an issue in the [nodejs/node][] repository.
-Provide a summary of the nominee's contributions. For example:
+Contributions can be:
+
+* Opening pull requests.
+* Comments and reviews.
+* Opening new issues.
+* Participation in other projects, teams, and working groups of the Node.js
+  organization.
+
+Collaborators should be people volunteering to do unglamorous work because it's
+the right thing to do, they find the work itself satisfying, and they care about
+Node.js and its users. People should get collaborator status because they're
+doing work and are likely to continue doing work where having the abilities that
+come with collaborator status are helpful (abilities like starting CI jobs,
+reviewing and approving PRs, etc.). That will usually--but, very importantly, not
+always--be work involving committing to the `nodejs/node` repository. For an example
+of an exception, someone working primarily on the website might benefit from being
+able to start Jenkins CI jobs to test changes to documentation tooling. That,
+along with signals indicating commitment to Node.js, personal integrity, etc.,
+should be enough for a successful nomination.
+
+It is important to understand that potential collaborators may have vastly
+different areas and levels of expertise, interest, and skill. The Node.js
+project is large and complex, and it is not expected that every collaborator
+will have the same level of expertise in every area of the project. The
+complexity or "sophistication" of an individual’s contributions, or even their
+relative engineering "skill" level, are not primary factors in determining
+whether they should be a collaborator. The primary factors do include the quality
+of their contributions (do the contributions make sense, do they add value, do
+they follow documented guidelines, are they authentic and well-intentioned,
+etc.), their commitment to the project, can their judgement be trusted, and do
+they have the ability to work well with others.
+
+#### The Authenticity of Contributors
+
+The Node.js project does not require that contributors use their legal names or
+provide any personal information verifying their identity.
+
+It is not uncommon for malicious actors to attempt to gain commit access to
+open-source projects in order to inject malicious code or for other nefarious
+purposes. The Node.js project has a number of mechanisms in place to prevent
+this, but it is important to be vigilant. If you have concerns about the
+authenticity of a contributor, please raise them with the TSC. Anyone nominating
+a new collaborator should take reasonable steps to verify that the contributions
+of the nominee are authentic and made in good faith. This is not always easy,
+but it is important.
+
+### Nominating a new Collaborator
+
+To nominate a new Collaborator:
+
+1. **Optional but strongly recommended**: open a
+   [discussion in the nodejs/collaborators][] repository. Provide a summary of
+   the nominee's contributions (see below for an example).
+2. **Optional but strongly recommended**: After sufficient wait time (e.g. 72
+   hours), if the nomination proposal has received some support and no explicit
+   block, and any questions/concerns have been addressed, add a comment in the
+   private discussion stating you're planning on opening a public issue, e.g.
+   "I see a number of approvals and no block, I'll be opening a public
+   nomination issue if I don't hear any objections in the next 72 hours".
+3. **Optional but strongly recommended**: Privately contact the nominee to make
+   sure they're comfortable with the nomination.
+4. Open an issue in the [nodejs/node][] repository. Provide a summary of
+   the nominee's contributions (see below for an example). Mention
+   @nodejs/collaborators in the issue to notify other collaborators about
+   the nomination.
+
+The _Optional but strongly recommended_ steps are optional in the sense that
+skipping them would not invalidate the nomination, but it could put the nominee
+in a very awkward situation if a nomination they didn't ask for pops out of
+nowhere only to be rejected. Do not skip those steps unless you're absolutely
+certain the nominee is fine with the public scrutiny.
+
+Example of list of contributions:
 
 * Commits in the [nodejs/node][] repository.
   * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
@@ -148,22 +269,65 @@ Provide a summary of the nominee's contributions. For example:
   organization
 * Other participation in the wider Node.js community
 
-Mention @nodejs/collaborators in the issue to notify other collaborators about
-the nomination.
+The nomination passes if no collaborators oppose it (as described in the
+following section) after one week. In the case of an objection, the TSC is
+responsible for working with the individuals involved and finding a resolution.
+The TSC may, following typical TSC consensus seeking processes, choose to
+advance a nomination that has otherwise failed to reach a natural consensus or
+clear path forward even if there are outstanding objections. The TSC may also
+choose to prevent a nomination from advancing if the TSC determines that any
+objections have not been adequately addressed.
 
-The nomination passes if no collaborators oppose it after one week. In the case
-of an objection, the TSC is responsible for working with the individuals
-involved and finding a resolution.
+#### How to review a collaborator nomination
 
-There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. To request feedback from other collaborators in
-private, use the [collaborators discussion page][]
-(which only collaborators may view). A nominator may also work with the
-nominee to improve their contribution profile.
+A collaborator nomination can be reviewed in the same way one would review a PR
+adding a feature:
 
-Collaborators might overlook someone with valuable contributions. In that case,
-the contributor may open an issue or contact a collaborator to request a
-nomination.
+* If you see the nomination as something positive to the project, say so!
+* If you are neutral, or feel you don't know enough to have an informed opinion,
+  it's certainly OK to not interact with the nomination.
+* If you think the nomination was made too soon, or can be detrimental to the
+  project, share your concerns. See the section "How to oppose a collaborator
+  nomination" below.
+
+Our goal is to keep gate-keeping at a minimal, but it cannot be zero since being
+a collaborator requires trust (collaborators can start CI jobs, use their veto,
+push commits, etc.), so what's the minimal amount is subjective, and there will
+be cases where collaborators disagree on whether a nomination should move
+forward.
+
+Refrain from discussing or debating aspects of the nomination process
+itself directly within a nomination private discussion or public issue.
+Such discussions can derail and frustrate the nomination causing unnecessary
+friction. Move such discussions to a separate issue or discussion thread.
+
+##### How to oppose a collaborator nomination
+
+An important rule of thumb is that the nomination process is intended to be
+biased strongly towards implicit approval of the nomination. This means
+discussion and review around the proposal should be more geared towards "I have
+reasons to say no..." as opposed to "Give me reasons to say yes...".
+
+Given that there is no "Request for changes" feature in discussions and issues,
+try to be explicit when your comment is expressing a blocking concern.
+Similarly, once the blocking concern has been addressed, explicitly say so.
+
+Explicit opposition would typically be signaled as some form of clear
+and unambiguous comment like, "I don't believe this nomination should pass".
+Asking clarifying questions or expressing general concerns is not the same as
+explicit opposition; however, a best effort should be made to answer such
+questions or addressing those concerns before advancing the nomination.
+
+Opposition does not need to be public. Ideally, the comment showing opposition,
+and any discussion thereof, should be done in the private discussion _before_
+the public issue is opened. Opposition _should_ be paired with clear suggestions
+for positive, concrete, and unambiguous next steps that the nominee can take to
+overcome the objection and allow it to move forward. While such suggestions are
+technically optional, they are _strongly encouraged_ to prevent the nomination
+from stalling indefinitely or objections from being overridden by the TSC.
+
+Remember that all private discussions about a nomination will be visible to
+the nominee once they are onboarded.
 
 ### Onboarding
 
@@ -178,6 +342,6 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
-[collaborators discussion page]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node

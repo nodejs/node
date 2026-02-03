@@ -9,6 +9,7 @@ export const CATEGORIES = new Map([
       'CONS_ONE_BYTE_STRING_TYPE',
       'CONS_TWO_BYTE_STRING_TYPE',
       'DESCRIPTOR_ARRAY_TYPE',
+      'DEPRECATED_DESCRIPTOR_ARRAY_TYPE',
       'ELEMENTS_TYPE',
       'EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE',
       'EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE',
@@ -87,10 +88,12 @@ export const CATEGORIES = new Map([
       'SEQ_ONE_BYTE_STRING_TYPE',
       'OTHER_CONTEXT_TYPE',
       'PROPERTY_ARRAY_TYPE',
+      'PROTOTYPE_DESCRIPTOR_ARRAY_TYPE',
       'SLICED_ONE_BYTE_STRING_TYPE',
       'SLICED_TWO_BYTE_STRING_TYPE',
       'STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE',
       'STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE',
+      'STRONG_DESCRIPTOR_ARRAY_TYPE',
       'SEQ_TWO_BYTE_STRING_TYPE',
       'SYMBOL_TYPE',
       'THIN_ONE_BYTE_STRING_TYPE',
@@ -203,6 +206,11 @@ export const CATEGORIES = new Map([
     ])
   ],
   ['unclassified', new Set()],
+  ['duplicated', new Set([
+      'WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE',
+      'WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE',
+    ])
+  ],
 ]);
 
 // Maps category to description text that is shown in html.
@@ -211,4 +219,5 @@ export const CATEGORY_NAMES = new Map([
   ['system', 'Metadata'],
   ['code', 'Code'],
   ['unclassified', 'Unclassified'],
+  ['duplicated', 'Some detailed data ALREADY ACCOUNTED (!!!) in other entries'],
 ]);

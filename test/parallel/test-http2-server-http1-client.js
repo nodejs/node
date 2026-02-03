@@ -23,5 +23,5 @@ server.on('session', common.mustCall((session) => {
 
 server.listen(0, common.mustCall(() => {
   const req = http.get(`http://localhost:${server.address().port}`);
-  req.on('error', (error) => server.close());
+  req.on('error', (error) => setImmediate(() => server.close()));
 }));

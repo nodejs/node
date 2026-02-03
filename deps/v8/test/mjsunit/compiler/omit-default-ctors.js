@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --omit-default-ctors --allow-natives-syntax --turbofan
-// Flags: --no-always-turbofan
 
 (function OmitDefaultBaseCtor() {
   class A {};  // default base ctor -> will be omitted

@@ -5,11 +5,11 @@
 """Handle version information related to Visual Stuio."""
 
 import errno
+import glob
 import os
 import re
 import subprocess
 import sys
-import glob
 
 
 def JoinPath(*args):
@@ -69,24 +69,24 @@ class VisualStudioVersion:
 
     def ProjectExtension(self):
         """Returns the file extension for the project."""
-        return self.uses_vcxproj and ".vcxproj" or ".vcproj"
+        return (self.uses_vcxproj and ".vcxproj") or ".vcproj"
 
     def Path(self):
         """Returns the path to Visual Studio installation."""
         return self.path
 
     def ToolPath(self, tool):
-        """Returns the path to a given compiler tool. """
+        """Returns the path to a given compiler tool."""
         return os.path.normpath(os.path.join(self.path, "VC/bin", tool))
 
     def DefaultToolset(self):
         """Returns the msbuild toolset version that will be used in the absence
-    of a user override."""
+        of a user override."""
         return self.default_toolset
 
     def _SetupScriptInternal(self, target_arch):
         """Returns a command (with arguments) to be used to set up the
-    environment."""
+        environment."""
         assert target_arch in ("x86", "x64"), "target_arch not supported"
         # If WindowsSDKDir is set and SetEnv.Cmd exists then we are using the
         # depot_tools build tools and should run SetEnv.Cmd to set up the
@@ -154,16 +154,16 @@ class VisualStudioVersion:
 def _RegistryQueryBase(sysdir, key, value):
     """Use reg.exe to read a particular key.
 
-  While ideally we might use the win32 module, we would like gyp to be
-  python neutral, so for instance cygwin python lacks this module.
+    While ideally we might use the win32 module, we would like gyp to be
+    python neutral, so for instance cygwin python lacks this module.
 
-  Arguments:
-    sysdir: The system subdirectory to attempt to launch reg.exe from.
-    key: The registry key to read from.
-    value: The particular value to read.
-  Return:
-    stdout from reg.exe, or None for failure.
-  """
+    Arguments:
+      sysdir: The system subdirectory to attempt to launch reg.exe from.
+      key: The registry key to read from.
+      value: The particular value to read.
+    Return:
+      stdout from reg.exe, or None for failure.
+    """
     # Skip if not on Windows or Python Win32 setup issue
     if sys.platform not in ("win32", "cygwin"):
         return None
@@ -184,20 +184,20 @@ def _RegistryQueryBase(sysdir, key, value):
 def _RegistryQuery(key, value=None):
     r"""Use reg.exe to read a particular key through _RegistryQueryBase.
 
-  First tries to launch from %WinDir%\Sysnative to avoid WoW64 redirection. If
-  that fails, it falls back to System32.  Sysnative is available on Vista and
-  up and available on Windows Server 2003 and XP through KB patch 942589. Note
-  that Sysnative will always fail if using 64-bit python due to it being a
-  virtual directory and System32 will work correctly in the first place.
+    First tries to launch from %WinDir%\Sysnative to avoid WoW64 redirection. If
+    that fails, it falls back to System32.  Sysnative is available on Vista and
+    up and available on Windows Server 2003 and XP through KB patch 942589. Note
+    that Sysnative will always fail if using 64-bit python due to it being a
+    virtual directory and System32 will work correctly in the first place.
 
-  KB 942589 - http://support.microsoft.com/kb/942589/en-us.
+    KB 942589 - http://support.microsoft.com/kb/942589/en-us.
 
-  Arguments:
-    key: The registry key.
-    value: The particular registry value to read (optional).
-  Return:
-    stdout from reg.exe, or None for failure.
-  """
+    Arguments:
+      key: The registry key.
+      value: The particular registry value to read (optional).
+    Return:
+      stdout from reg.exe, or None for failure.
+    """
     text = None
     try:
         text = _RegistryQueryBase("Sysnative", key, value)
@@ -212,14 +212,15 @@ def _RegistryQuery(key, value=None):
 def _RegistryGetValueUsingWinReg(key, value):
     """Use the _winreg module to obtain the value of a registry key.
 
-  Args:
-    key: The registry key.
-    value: The particular registry value to read.
-  Return:
-    contents of the registry key's value, or None on failure.  Throws
-    ImportError if winreg is unavailable.
-  """
-    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
+    Args:
+      key: The registry key.
+      value: The particular registry value to read.
+    Return:
+      contents of the registry key's value, or None on failure.  Throws
+      ImportError if winreg is unavailable.
+    """
+    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx  # noqa: PLC0415
+
     try:
         root, subkey = key.split("\\", 1)
         assert root == "HKLM"  # Only need HKLM for now.
@@ -232,17 +233,17 @@ def _RegistryGetValueUsingWinReg(key, value):
 def _RegistryGetValue(key, value):
     """Use _winreg or reg.exe to obtain the value of a registry key.
 
-  Using _winreg is preferable because it solves an issue on some corporate
-  environments where access to reg.exe is locked down. However, we still need
-  to fallback to reg.exe for the case where the _winreg module is not available
-  (for example in cygwin python).
+    Using _winreg is preferable because it solves an issue on some corporate
+    environments where access to reg.exe is locked down. However, we still need
+    to fallback to reg.exe for the case where the _winreg module is not available
+    (for example in cygwin python).
 
-  Args:
-    key: The registry key.
-    value: The particular registry value to read.
-  Return:
-    contents of the registry key's value, or None on failure.
-  """
+    Args:
+      key: The registry key.
+      value: The particular registry value to read.
+    Return:
+      contents of the registry key's value, or None on failure.
+    """
     try:
         return _RegistryGetValueUsingWinReg(key, value)
     except ImportError:
@@ -262,13 +263,25 @@ def _RegistryGetValue(key, value):
 def _CreateVersion(name, path, sdk_based=False):
     """Sets up MSVS project generation.
 
-  Setup is based off the GYP_MSVS_VERSION environment variable or whatever is
-  autodetected if GYP_MSVS_VERSION is not explicitly specified. If a version is
-  passed in that doesn't match a value in versions python will throw a error.
-  """
+    Setup is based off the GYP_MSVS_VERSION environment variable or whatever is
+    autodetected if GYP_MSVS_VERSION is not explicitly specified. If a version is
+    passed in that doesn't match a value in versions python will throw a error.
+    """
     if path:
         path = os.path.normpath(path)
     versions = {
+        "2026": VisualStudioVersion(
+            "2026",
+            "Visual Studio 2026",
+            solution_version="12.00",
+            project_version="18.0",
+            flat_sln=False,
+            uses_vcxproj=True,
+            path=path,
+            sdk_based=sdk_based,
+            default_toolset="v145",
+            compatible_sdks=["v8.1", "v10.0"],
+        ),
         "2022": VisualStudioVersion(
             "2022",
             "Visual Studio 2022",
@@ -435,22 +448,22 @@ def _ConvertToCygpath(path):
 def _DetectVisualStudioVersions(versions_to_check, force_express):
     """Collect the list of installed visual studio versions.
 
-  Returns:
-    A list of visual studio versions installed in descending order of
-    usage preference.
-    Base this on the registry and a quick check if devenv.exe exists.
-    Possibilities are:
-      2005(e) - Visual Studio 2005 (8)
-      2008(e) - Visual Studio 2008 (9)
-      2010(e) - Visual Studio 2010 (10)
-      2012(e) - Visual Studio 2012 (11)
-      2013(e) - Visual Studio 2013 (12)
-      2015    - Visual Studio 2015 (14)
-      2017    - Visual Studio 2017 (15)
-      2019    - Visual Studio 2019 (16)
-      2022    - Visual Studio 2022 (17)
-    Where (e) is e for express editions of MSVS and blank otherwise.
-  """
+    Returns:
+      A list of visual studio versions installed in descending order of
+      usage preference.
+      Base this on the registry and a quick check if devenv.exe exists.
+      Possibilities are:
+        2005(e) - Visual Studio 2005 (8)
+        2008(e) - Visual Studio 2008 (9)
+        2010(e) - Visual Studio 2010 (10)
+        2012(e) - Visual Studio 2012 (11)
+        2013(e) - Visual Studio 2013 (12)
+        2015    - Visual Studio 2015 (14)
+        2017    - Visual Studio 2017 (15)
+        2019    - Visual Studio 2019 (16)
+        2022    - Visual Studio 2022 (17)
+      Where (e) is e for express editions of MSVS and blank otherwise.
+    """
     version_to_year = {
         "8.0": "2005",
         "9.0": "2008",
@@ -461,6 +474,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
         "15.0": "2017",
         "16.0": "2019",
         "17.0": "2022",
+        "18.0": "2026",
     }
     versions = []
     for version in versions_to_check:
@@ -527,16 +541,27 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
 def SelectVisualStudioVersion(version="auto", allow_fallback=True):
     """Select which version of Visual Studio projects to generate.
 
-  Arguments:
-    version: Hook to allow caller to force a particular version (vs auto).
-  Returns:
-    An object representing a visual studio project format version.
-  """
+    Arguments:
+      version: Hook to allow caller to force a particular version (vs auto).
+    Returns:
+      An object representing a visual studio project format version.
+    """
     # In auto mode, check environment variable for override.
     if version == "auto":
         version = os.environ.get("GYP_MSVS_VERSION", "auto")
     version_map = {
-        "auto": ("17.0", "16.0", "15.0", "14.0", "12.0", "10.0", "9.0", "8.0", "11.0"),
+        "auto": (
+            "18.0",
+            "17.0",
+            "16.0",
+            "15.0",
+            "14.0",
+            "12.0",
+            "10.0",
+            "9.0",
+            "8.0",
+            "11.0",
+        ),
         "2005": ("8.0",),
         "2005e": ("8.0",),
         "2008": ("9.0",),
@@ -551,9 +576,9 @@ def SelectVisualStudioVersion(version="auto", allow_fallback=True):
         "2017": ("15.0",),
         "2019": ("16.0",),
         "2022": ("17.0",),
+        "2026": ("18.0",),
     }
-    override_path = os.environ.get("GYP_MSVS_OVERRIDE_PATH")
-    if override_path:
+    if override_path := os.environ.get("GYP_MSVS_OVERRIDE_PATH"):
         msvs_version = os.environ.get("GYP_MSVS_VERSION")
         if not msvs_version:
             raise ValueError(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,8 +52,8 @@ static int null_get_params(const OSSL_PROVIDER *provctx, OSSL_PARAM params[])
 }
 
 static const OSSL_ALGORITHM *null_query(OSSL_PROVIDER *prov,
-                                          int operation_id,
-                                          int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     *no_cache = 0;
     return NULL;
@@ -64,13 +64,13 @@ static const OSSL_DISPATCH null_dispatch_table[] = {
     { OSSL_FUNC_PROVIDER_GETTABLE_PARAMS, (void (*)(void))null_gettable_params },
     { OSSL_FUNC_PROVIDER_GET_PARAMS, (void (*)(void))null_get_params },
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))null_query },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 int ossl_null_provider_init(const OSSL_CORE_HANDLE *handle,
-                            const OSSL_DISPATCH *in,
-                            const OSSL_DISPATCH **out,
-                            void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     *out = null_dispatch_table;
 

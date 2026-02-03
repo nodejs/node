@@ -261,7 +261,6 @@ class MessagePort : public HandleWrap {
   static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReceiveMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -340,7 +339,7 @@ class JSTransferable : public BaseObject {
   std::unique_ptr<TransferData> CloneForMessaging() const override;
   v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
       NestedTransferables() const override;
-  v8::Maybe<bool> FinalizeTransferRead(
+  v8::Maybe<void> FinalizeTransferRead(
       v8::Local<v8::Context> context,
       v8::ValueDeserializer* deserializer) override;
 

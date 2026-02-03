@@ -10,7 +10,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const cli = startCLI(['--port=0', fixtures.path('debugger/empty.js')]);
+const cli = startCLI([fixtures.path('debugger/empty.js')]);
 
 const rootDir = path.resolve(__dirname, '..', '..');
 

@@ -1,0 +1,3 @@
+# Include everything in `vendor/` except for hidden files
+!vendor/**/*
+.DS_Store

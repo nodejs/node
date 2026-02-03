@@ -38,9 +38,9 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const res = common.mustCall((res) => {
-    res.on('data', (chunk) => {
+    res.on('data', common.mustCallAtLeast((chunk) => {
       size += chunk.length;
       assert(!req.aborted, 'got data after abort');
       if (size > maxSize) {
@@ -48,11 +48,11 @@ server.listen(0, () => {
         assert.strictEqual(req.aborted, true);
         size = maxSize;
       }
-    });
+    }));
 
     req.on('abort', common.mustCall(() => assert.strictEqual(size, maxSize)));
     assert.strictEqual(req.aborted, false);
   });
 
   const req = http.get(`http://localhost:${server.address().port}`, res);
-});
+}));

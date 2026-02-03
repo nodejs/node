@@ -15,7 +15,7 @@
 
 #include <openssl/bn.h>
 #ifndef FIPS_MODULE
-# include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
@@ -37,7 +37,7 @@ void *DSA_get_ex_data(const DSA *d, int idx)
     return CRYPTO_get_ex_data(&d->ex_data, idx);
 }
 
-# ifndef OPENSSL_NO_DH
+#ifndef OPENSSL_NO_DH
 DH *DSA_dup_DH(const DSA *r)
 {
     /*
@@ -75,13 +75,13 @@ DH *DSA_dup_DH(const DSA *r)
 
     return ret;
 
- err:
+err:
     BN_free(pub_key);
     BN_free(priv_key);
     DH_free(ret);
     return NULL;
 }
-# endif /*  OPENSSL_NO_DH */
+#endif /*  OPENSSL_NO_DH */
 
 void DSA_clear_flags(DSA *d, int flags)
 {
@@ -124,7 +124,6 @@ int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
 }
 #endif /* FIPS_MODULE */
 
-
 const DSA_METHOD *DSA_get_method(DSA *d)
 {
     return d->meth;
@@ -134,15 +133,18 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 {
     DSA *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_DSA, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
+        return NULL;
+
+    ret->lock = CRYPTO_THREAD_lock_new();
+    if (ret->lock == NULL) {
+        ERR_raise(ERR_LIB_DSA, ERR_R_CRYPTO_LIB);
+        OPENSSL_free(ret);
         return NULL;
     }
 
-    ret->references = 1;
-    ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL) {
-        ERR_raise(ERR_LIB_DSA, ERR_R_MALLOC_FAILURE);
+    if (!CRYPTO_NEW_REF(&ret->references, 1)) {
+        CRYPTO_THREAD_lock_free(ret->lock);
         OPENSSL_free(ret);
         return NULL;
     }
@@ -172,7 +174,7 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
 #ifndef FIPS_MODULE
     if (!ossl_crypto_new_ex_data_ex(libctx, CRYPTO_EX_INDEX_DSA, ret,
-                                    &ret->ex_data))
+            &ret->ex_data))
         goto err;
 #endif
 
@@ -185,7 +187,7 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
     return ret;
 
- err:
+err:
     DSA_free(ret);
     return NULL;
 }
@@ -214,8 +216,8 @@ void DSA_free(DSA *r)
     if (r == NULL)
         return;
 
-    CRYPTO_DOWN_REF(&r->references, &i, r->lock);
-    REF_PRINT_COUNT("DSA", r);
+    CRYPTO_DOWN_REF(&r->references, &i);
+    REF_PRINT_COUNT("DSA", i, r);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);
@@ -231,6 +233,7 @@ void DSA_free(DSA *r)
 #endif
 
     CRYPTO_THREAD_lock_free(r->lock);
+    CRYPTO_FREE_REF(&r->references);
 
     ossl_ffc_params_cleanup(&r->params);
     BN_clear_free(r->pub_key);
@@ -242,10 +245,10 @@ int DSA_up_ref(DSA *r)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&r->references, &i, r->lock) <= 0)
+    if (CRYPTO_UP_REF(&r->references, &i) <= 0)
         return 0;
 
-    REF_PRINT_COUNT("DSA", r);
+    REF_PRINT_COUNT("DSA", i, r);
     REF_ASSERT_ISNT(i < 2);
     return ((i > 1) ? 1 : 0);
 }
@@ -256,7 +259,7 @@ void ossl_dsa_set0_libctx(DSA *d, OSSL_LIB_CTX *libctx)
 }
 
 void DSA_get0_pqg(const DSA *d,
-                  const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
+    const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
 {
     ossl_ffc_params_get0_pqg(&d->params, p, q, g);
 }
@@ -303,7 +306,7 @@ const BIGNUM *DSA_get0_priv_key(const DSA *d)
 }
 
 void DSA_get0_key(const DSA *d,
-                  const BIGNUM **pub_key, const BIGNUM **priv_key)
+    const BIGNUM **pub_key, const BIGNUM **priv_key)
 {
     if (pub_key != NULL)
         *pub_key = d->pub_key;
@@ -330,7 +333,7 @@ int DSA_security_bits(const DSA *d)
 {
     if (d->params.p != NULL && d->params.q != NULL)
         return BN_security_bits(BN_num_bits(d->params.p),
-                                BN_num_bits(d->params.q));
+            BN_num_bits(d->params.q));
     return -1;
 }
 
@@ -349,13 +352,7 @@ FFC_PARAMS *ossl_dsa_get0_params(DSA *dsa)
 int ossl_dsa_ffc_params_fromdata(DSA *dsa, const OSSL_PARAM params[])
 {
     int ret;
-    FFC_PARAMS *ffc;
-
-    if (dsa == NULL)
-        return 0;
-    ffc = ossl_dsa_get0_params(dsa);
-    if (ffc == NULL)
-        return 0;
+    FFC_PARAMS *ffc = ossl_dsa_get0_params(dsa);
 
     ret = ossl_ffc_params_fromdata(ffc, params);
     if (ret)

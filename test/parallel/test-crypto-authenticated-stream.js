@@ -115,6 +115,11 @@ function fstream(config) {
 fstream.count = 0;
 
 function test(config) {
+  if (!crypto.getCiphers().includes(config.cipher)) {
+    common.printSkipMessage(`unsupported cipher: ${config.cipher}`);
+    return;
+  }
+
   direct(config);
   mstream(config);
   fstream(config);

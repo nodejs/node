@@ -3,11 +3,12 @@
 # found in the LICENSE file.
 
 
+import json
 import os
+
 import gyp
 import gyp.common
 import gyp.msvs_emulation
-import json
 
 generator_supports_multiple_toolsets = True
 
@@ -55,7 +56,7 @@ def CalculateVariables(default_variables, params):
 
 def CalculateGeneratorInputInfo(params):
     """Calculate the generator specific info that gets fed to input (called by
-  gyp)."""
+    gyp)."""
     generator_flags = params.get("generator_flags", {})
     if generator_flags.get("adjust_static_libraries", False):
         global generator_wants_static_library_dependencies_adjusted

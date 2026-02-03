@@ -19,20 +19,23 @@ class String;
 class RegExpUtils : public AllStatic {
  public:
   // Last match info accessors.
-  static Handle<String> GenericCaptureGetter(Isolate* isolate,
-                                             Handle<RegExpMatchInfo> match_info,
-                                             int capture, bool* ok = nullptr);
+  static Handle<String> GenericCaptureGetter(
+      Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info, int capture,
+      bool* ok = nullptr);
+  // Checks if the capture group referred to by index |capture| is part of the
+  // match.
+  static bool IsMatchedCapture(Tagged<RegExpMatchInfo> match_info, int capture);
 
   // Last index (RegExp.lastIndex) accessors.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> recv);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> SetLastIndex(
+      Isolate* isolate, DirectHandle<JSReceiver> regexp, uint64_t value);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> GetLastIndex(
+      Isolate* isolate, DirectHandle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> RegExpExec(
-      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
-      Handle<Object> exec);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSAny> RegExpExec(
+      Isolate* isolate, DirectHandle<JSReceiver> regexp,
+      DirectHandle<String> string, DirectHandle<Object> exec);
 
   // Checks whether the given object is an unmodified JSRegExp instance.
   // Neither the object's map, nor its prototype's map, nor any relevant
@@ -40,15 +43,15 @@ class RegExpUtils : public AllStatic {
   //
   // Note: This check is limited may only be used in situations where the only
   // relevant property is 'exec'.
-  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
+  static bool IsUnmodifiedRegExp(Isolate* isolate, DirectHandle<Object> obj);
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
-  static uint64_t AdvanceStringIndex(Handle<String> string, uint64_t index,
+  static uint64_t AdvanceStringIndex(Tagged<String> string, uint64_t index,
                                      bool unicode);
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
-      bool unicode);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> SetAdvancedStringIndex(
+      Isolate* isolate, DirectHandle<JSReceiver> regexp,
+      DirectHandle<String> string, bool unicode);
 };
 
 }  // namespace internal

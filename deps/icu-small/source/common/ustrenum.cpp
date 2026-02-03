@@ -89,7 +89,7 @@ StringEnumeration::ensureCharsCapacity(int32_t capacity, UErrorCode &status) {
         if(chars!=charsBuffer) {
             uprv_free(chars);
         }
-        chars=(char *)uprv_malloc(capacity);
+        chars = static_cast<char*>(uprv_malloc(capacity));
         if(chars==nullptr) {
             chars=charsBuffer;
             charsCapacity=sizeof(charsBuffer);
@@ -104,7 +104,7 @@ UnicodeString *
 StringEnumeration::setChars(const char *s, int32_t length, UErrorCode &status) {
     if(U_SUCCESS(status) && s!=nullptr) {
         if(length<0) {
-            length=(int32_t)uprv_strlen(s);
+            length = static_cast<int32_t>(uprv_strlen(s));
         }
 
         char16_t *buffer=unistr.getBuffer(length+1);
@@ -168,8 +168,8 @@ const char *UStringEnumeration::next(int32_t *resultLength, UErrorCode &status) 
 const UnicodeString* UStringEnumeration::snext(UErrorCode& status) {
     int32_t length;
     const char16_t* str = uenum_unext(uenum, &length, &status);
-    if (str == 0 || U_FAILURE(status)) {
-        return 0;
+    if (str == nullptr || U_FAILURE(status)) {
+        return nullptr;
     }
     return &unistr.setTo(str, length);
 }
@@ -307,7 +307,7 @@ ucharstrenum_unext(UEnumeration* en,
     }
     const char16_t* result = ((const char16_t**)e->uenum.context)[e->index++];
     if (resultLength) {
-        *resultLength = (int32_t)u_strlen(result);
+        *resultLength = u_strlen(result);
     }
     return result;
 }
@@ -360,7 +360,7 @@ U_CAPI UEnumeration* U_EXPORT2
 uenum_openCharStringsEnumeration(const char* const strings[], int32_t count,
                                  UErrorCode* ec) {
     UCharStringEnumeration* result = nullptr;
-    if (U_SUCCESS(*ec) && count >= 0 && (count == 0 || strings != 0)) {
+    if (U_SUCCESS(*ec) && count >= 0 && (count == 0 || strings != nullptr)) {
         result = (UCharStringEnumeration*) uprv_malloc(sizeof(UCharStringEnumeration));
         if (result == nullptr) {
             *ec = U_MEMORY_ALLOCATION_ERROR;
@@ -379,7 +379,7 @@ U_CAPI UEnumeration* U_EXPORT2
 uenum_openUCharStringsEnumeration(const char16_t* const strings[], int32_t count,
                                  UErrorCode* ec) {
     UCharStringEnumeration* result = nullptr;
-    if (U_SUCCESS(*ec) && count >= 0 && (count == 0 || strings != 0)) {
+    if (U_SUCCESS(*ec) && count >= 0 && (count == 0 || strings != nullptr)) {
         result = (UCharStringEnumeration*) uprv_malloc(sizeof(UCharStringEnumeration));
         if (result == nullptr) {
             *ec = U_MEMORY_ALLOCATION_ERROR;

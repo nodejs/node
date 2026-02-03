@@ -154,3 +154,75 @@ fs.open(__filename, 'r', undefined, common.mustCall((err, fd) => {
 
 // Should not throw an error
 fs.lstat(__filename, undefined, common.mustCall());
+
+{
+  fs.Stats(
+    0,                                        // dev
+    0,                                        // mode
+    0,                                        // nlink
+    0,                                        // uid
+    0,                                        // gid
+    0,                                        // rdev
+    0,                                        // blksize
+    0,                                        // ino
+    0,                                        // size
+    0,                                        // blocks
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
+    Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
+  );
+  common.expectWarning({
+    DeprecationWarning: [
+      ['fs.Stats constructor is deprecated.',
+       'DEP0180'],
+    ]
+  });
+}
+
+{
+  // These two tests have an equivalent in ./test-fs-stat-bigint.js
+
+  // Stats Date properties can be set before reading them
+  fs.stat(__filename, common.mustSucceed((s) => {
+    s.atime = 2;
+    s.mtime = 3;
+    s.ctime = 4;
+    s.birthtime = 5;
+
+    assert.strictEqual(s.atime, 2);
+    assert.strictEqual(s.mtime, 3);
+    assert.strictEqual(s.ctime, 4);
+    assert.strictEqual(s.birthtime, 5);
+  }));
+
+  // Stats Date properties can be set after reading them
+  fs.stat(__filename, common.mustSucceed((s) => {
+    // eslint-disable-next-line no-unused-expressions
+    s.atime, s.mtime, s.ctime, s.birthtime;
+
+    s.atime = 2;
+    s.mtime = 3;
+    s.ctime = 4;
+    s.birthtime = 5;
+
+    assert.strictEqual(s.atime, 2);
+    assert.strictEqual(s.mtime, 3);
+    assert.strictEqual(s.ctime, 4);
+    assert.strictEqual(s.birthtime, 5);
+  }));
+}
+
+{
+  assert.throws(
+    () => fs.fstat(Symbol('test'), () => {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+    },
+  );
+}
+
+{
+  // Test that the throwIfNoEntry option works and returns undefined
+  assert.ok(!(fs.statSync('./wont_exists', { throwIfNoEntry: false })));
+}

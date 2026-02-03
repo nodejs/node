@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,42 +23,56 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_ENGINE, OPT_IN, OPT_OUT,
-    OPT_NOOUT, OPT_TEXT, OPT_PARAM_OUT, OPT_PUBIN, OPT_PUBOUT,
-    OPT_PASSIN, OPT_PASSOUT, OPT_PARAM_ENC, OPT_CONV_FORM, OPT_CIPHER,
-    OPT_NO_PUBLIC, OPT_CHECK, OPT_PROV_ENUM
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_ENGINE,
+    OPT_IN,
+    OPT_OUT,
+    OPT_NOOUT,
+    OPT_TEXT,
+    OPT_PARAM_OUT,
+    OPT_PUBIN,
+    OPT_PUBOUT,
+    OPT_PASSIN,
+    OPT_PASSOUT,
+    OPT_PARAM_ENC,
+    OPT_CONV_FORM,
+    OPT_CIPHER,
+    OPT_NO_PUBLIC,
+    OPT_CHECK,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS ec_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, 's', "Input file"},
-    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)"},
-    {"pubin", OPT_PUBIN, '-', "Expect a public key in input file"},
-    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
-    {"check", OPT_CHECK, '-', "check key consistency"},
-    {"", OPT_CIPHER, '-', "Any supported cipher"},
-    {"param_enc", OPT_PARAM_ENC, 's',
-     "Specifies the way the ec parameters are encoded"},
-    {"conv_form", OPT_CONV_FORM, 's', "Specifies the point conversion form "},
+    { "in", OPT_IN, 's', "Input file" },
+    { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)" },
+    { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
+    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "check", OPT_CHECK, '-', "check key consistency" },
+    { "", OPT_CIPHER, '-', "Any supported cipher" },
+    { "param_enc", OPT_PARAM_ENC, 's',
+        "Specifies the way the ec parameters are encoded" },
+    { "conv_form", OPT_CONV_FORM, 's', "Specifies the point conversion form " },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
-    {"noout", OPT_NOOUT, '-', "Don't print key out"},
-    {"text", OPT_TEXT, '-', "Print the key"},
-    {"param_out", OPT_PARAM_OUT, '-', "Print the elliptic curve parameters"},
-    {"pubout", OPT_PUBOUT, '-', "Output public key, not private"},
-    {"no_public", OPT_NO_PUBLIC, '-', "exclude public key from private key"},
-    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "outform", OPT_OUTFORM, 'F', "Output format - DER or PEM" },
+    { "noout", OPT_NOOUT, '-', "Don't print key out" },
+    { "text", OPT_TEXT, '-', "Print the key" },
+    { "param_out", OPT_PARAM_OUT, '-', "Print the elliptic curve parameters" },
+    { "pubout", OPT_PUBOUT, '-', "Output public key, not private" },
+    { "no_public", OPT_NO_PUBLIC, '-', "exclude public key from private key" },
+    { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int ec_main(int argc, char **argv)
@@ -80,12 +94,13 @@ int ec_main(int argc, char **argv)
     char *point_format = NULL;
     int no_public = 0;
 
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, ec_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -157,17 +172,12 @@ int ec_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
-    if (ciphername != NULL) {
-        if (!opt_cipher(ciphername, &enc))
-            goto opthelp;
-    }
-    private = param_out || pubin || pubout ? 0 : 1;
-    if (text && !pubin)
-        private = 1;
+    if (!opt_cipher(ciphername, &enc))
+        goto opthelp;
+    private = !pubin && (text || (!param_out && !pubout));
 
     if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
@@ -192,15 +202,15 @@ int ec_main(int argc, char **argv)
 
     if (point_format
         && !EVP_PKEY_set_utf8_string_param(
-                eckey, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
-                point_format)) {
+            eckey, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
+            point_format)) {
         BIO_printf(bio_err, "unable to set point conversion format\n");
         goto end;
     }
 
     if (asn1_encoding != NULL
         && !EVP_PKEY_set_utf8_string_param(
-                eckey, OSSL_PKEY_PARAM_EC_ENCODING, asn1_encoding)) {
+            eckey, OSSL_PKEY_PARAM_EC_ENCODING, asn1_encoding)) {
         BIO_printf(bio_err, "unable to set asn1 encoding format\n");
         goto end;
     }
@@ -257,8 +267,8 @@ int ec_main(int argc, char **argv)
         }
 
         ectx = OSSL_ENCODER_CTX_new_for_pkey(eckey, selection,
-                                             output_type, output_structure,
-                                             NULL);
+            output_type, output_structure,
+            NULL);
         if (enc != NULL) {
             OSSL_ENCODER_CTX_set_cipher(ectx, EVP_CIPHER_get0_name(enc), NULL);
             /* Default passphrase prompter */
@@ -266,8 +276,8 @@ int ec_main(int argc, char **argv)
             if (passout != NULL)
                 /* When passout given, override the passphrase prompter */
                 OSSL_ENCODER_CTX_set_passphrase(ectx,
-                                                (const unsigned char *)passout,
-                                                strlen(passout));
+                    (const unsigned char *)passout,
+                    strlen(passout));
         }
         if (!OSSL_ENCODER_to_bio(ectx, out)) {
             BIO_printf(bio_err, "unable to write EC key\n");

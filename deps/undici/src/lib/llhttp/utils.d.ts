@@ -1,4 +1,2 @@
-export interface IEnumMap {
-    [key: string]: number;
-}
-export declare function enumToMap(obj: any): IEnumMap;
+import type { IntDict } from './constants';
+export declare function enumToMap(obj: IntDict, filter?: readonly number[], exceptions?: readonly number[]): IntDict;

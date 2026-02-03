@@ -367,6 +367,7 @@ long int process_output_size(process_info_t *p) {
 /* Copy the contents of the stdio output buffer to `fd`. */
 int process_copy_output(process_info_t* p, FILE* stream) {
   char buf[1024];
+  int partial;
   int r;
 
   r = fseek(p->stdout_file, 0, SEEK_SET);
@@ -375,9 +376,9 @@ int process_copy_output(process_info_t* p, FILE* stream) {
     return -1;
   }
 
-  /* TODO: what if the line is longer than buf */
+  partial = 0;
   while ((r = fread(buf, 1, sizeof(buf), p->stdout_file)) != 0)
-    print_lines(buf, r, stream);
+    partial = print_lines(buf, r, stream, partial);
 
   if (ferror(p->stdout_file)) {
     perror("read");

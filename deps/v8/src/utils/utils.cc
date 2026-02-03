@@ -10,7 +10,7 @@
 #include <cstring>
 #include <vector>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
@@ -25,11 +25,6 @@ namespace internal {
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
-}
-
-size_t hash_value(BytecodeOffset id) {
-  base::hash<int> h;
-  return h(id.id_);
 }
 
 std::ostream& operator<<(std::ostream& os, BytecodeOffset id) {
@@ -237,14 +232,14 @@ uintptr_t GetCurrentStackPosition() {
 //   "~"      none; the tilde is not an identifier
 bool PassesFilter(base::Vector<const char> name,
                   base::Vector<const char> filter) {
-  if (filter.size() == 0) return name.size() == 0;
+  if (filter.empty()) return name.empty();
   auto filter_it = filter.begin();
   bool positive_filter = true;
   if (*filter_it == '-') {
     ++filter_it;
     positive_filter = false;
   }
-  if (filter_it == filter.end()) return name.size() != 0;
+  if (filter_it == filter.end()) return !name.empty();
   if (*filter_it == '*') return positive_filter;
   if (*filter_it == '~') return !positive_filter;
 

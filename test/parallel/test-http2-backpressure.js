@@ -7,12 +7,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const makeDuplexPair = require('../common/duplexpair');
+const { duplexPair } = require('stream');
 
 {
   let req;
   const server = http2.createServer();
-  server.on('stream', mustCallAsync(async (stream, headers) => {
+  server.on('stream', mustCall(async (stream, headers) => {
     stream.respond({
       'content-type': 'text/html',
       ':status': 200
@@ -28,7 +28,7 @@ const makeDuplexPair = require('../common/duplexpair');
     assert.strictEqual(stream.write('A'.repeat(40)), false);
   }));
 
-  const { clientSide, serverSide } = makeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
@@ -46,7 +46,7 @@ function event(ee, eventName) {
   });
 }
 
-function mustCallAsync(fn, exact) {
+function mustCall(fn, exact) {
   return common.mustCall((...args) => {
     return Promise.resolve(fn(...args)).then(common.mustCall((val) => val));
   }, exact);

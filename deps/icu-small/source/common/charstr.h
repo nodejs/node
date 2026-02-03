@@ -21,12 +21,6 @@
 
 U_NAMESPACE_BEGIN
 
-// Windows needs us to DLL-export the MaybeStackArray template specialization,
-// but MacOS X cannot handle it. Same as in digitlst.h.
-#if !U_PLATFORM_IS_DARWIN_BASED
-template class U_COMMON_API MaybeStackArray<char, 40>;
-#endif
-
 /**
  * ICU-internal char * string class.
  * This class does not assume or enforce any particular character encoding.
@@ -38,34 +32,34 @@ template class U_COMMON_API MaybeStackArray<char, 40>;
  * For example:
  *   cs.data()[5]='a';  // no need for setCharAt(5, 'a')
  */
-class U_COMMON_API CharString : public UMemory {
+class U_COMMON_API_CLASS CharString : public UMemory {
 public:
-    CharString() : len(0) { buffer[0]=0; }
-    CharString(StringPiece s, UErrorCode &errorCode) : len(0) {
+    U_COMMON_API CharString() : len(0) { buffer[0]=0; }
+    U_COMMON_API CharString(StringPiece s, UErrorCode &errorCode) : len(0) {
         buffer[0]=0;
         append(s, errorCode);
     }
-    CharString(const CharString &s, UErrorCode &errorCode) : len(0) {
+    U_COMMON_API CharString(const CharString &s, UErrorCode &errorCode) : len(0) {
         buffer[0]=0;
         append(s, errorCode);
     }
-    CharString(const char *s, int32_t sLength, UErrorCode &errorCode) : len(0) {
+    U_COMMON_API CharString(const char *s, int32_t sLength, UErrorCode &errorCode) : len(0) {
         buffer[0]=0;
         append(s, sLength, errorCode);
     }
-    ~CharString() {}
+    U_COMMON_API ~CharString() {}
 
     /**
      * Move constructor; might leave src in an undefined state.
      * This string will have the same contents and state that the source string had.
      */
-    CharString(CharString &&src) noexcept;
+    U_COMMON_API CharString(CharString &&src) noexcept;
     /**
      * Move assignment operator; might leave src in an undefined state.
      * This string will have the same contents and state that the source string had.
      * The behavior is undefined if *this and src are the same object.
      */
-    CharString &operator=(CharString &&src) noexcept;
+    U_COMMON_API CharString &operator=(CharString &&src) noexcept;
 
     /**
      * Replaces this string's contents with the other string's contents.
@@ -73,20 +67,21 @@ public:
      * the assignment operator, to make copies explicit and to
      * use a UErrorCode where memory allocations might be needed.
      */
-    CharString &copyFrom(const CharString &other, UErrorCode &errorCode);
+    U_COMMON_API CharString &copyFrom(const CharString &other, UErrorCode &errorCode);
+    U_COMMON_API CharString &copyFrom(StringPiece s, UErrorCode &errorCode);
 
-    UBool isEmpty() const { return len==0; }
-    int32_t length() const { return len; }
-    char operator[](int32_t index) const { return buffer[index]; }
-    StringPiece toStringPiece() const { return StringPiece(buffer.getAlias(), len); }
+    U_COMMON_API UBool isEmpty() const { return len==0; }
+    U_COMMON_API int32_t length() const { return len; }
+    U_COMMON_API char operator[](int32_t index) const { return buffer[index]; }
+    U_COMMON_API StringPiece toStringPiece() const { return StringPiece(buffer.getAlias(), len); }
 
-    const char *data() const { return buffer.getAlias(); }
-    char *data() { return buffer.getAlias(); }
+    U_COMMON_API const char *data() const { return buffer.getAlias(); }
+    U_COMMON_API char *data() { return buffer.getAlias(); }
     /**
      * Allocates length()+1 chars and copies the NUL-terminated data().
      * The caller must uprv_free() the result.
      */
-    char *cloneData(UErrorCode &errorCode) const;
+    U_COMMON_API char *cloneData(UErrorCode &errorCode) const;
     /**
      * Copies the contents of the string into dest.
      * Checks if there is enough space in dest, extracts the entire string if possible,
@@ -102,33 +97,40 @@ public:
      * @param errorCode ICU error code.
      * @return length()
      */
-    int32_t extract(char *dest, int32_t capacity, UErrorCode &errorCode) const;
+    U_COMMON_API int32_t extract(char *dest, int32_t capacity, UErrorCode &errorCode) const;
 
-    bool operator==(StringPiece other) const {
+    U_COMMON_API bool operator==(const CharString& other) const {
         return len == other.length() && (len == 0 || uprv_memcmp(data(), other.data(), len) == 0);
     }
-    bool operator!=(StringPiece other) const {
+    U_COMMON_API bool operator!=(const CharString& other) const {
+        return !operator==(other);
+    }
+
+    U_COMMON_API bool operator==(StringPiece other) const {
+        return len == other.length() && (len == 0 || uprv_memcmp(data(), other.data(), len) == 0);
+    }
+    U_COMMON_API bool operator!=(StringPiece other) const {
         return !operator==(other);
     }
 
     /** @return last index of c, or -1 if c is not in this string */
-    int32_t lastIndexOf(char c) const;
+    U_COMMON_API int32_t lastIndexOf(char c) const;
 
-    bool contains(StringPiece s) const;
+    U_COMMON_API bool contains(StringPiece s) const;
 
-    CharString &clear() { len=0; buffer[0]=0; return *this; }
-    CharString &truncate(int32_t newLength);
+    U_COMMON_API CharString &clear() { len=0; buffer[0]=0; return *this; }
+    U_COMMON_API CharString &truncate(int32_t newLength);
 
-    CharString &append(char c, UErrorCode &errorCode);
-    CharString &append(StringPiece s, UErrorCode &errorCode) {
+    U_COMMON_API CharString &append(char c, UErrorCode &errorCode);
+    U_COMMON_API CharString &append(StringPiece s, UErrorCode &errorCode) {
         return append(s.data(), s.length(), errorCode);
     }
-    CharString &append(const CharString &s, UErrorCode &errorCode) {
+    U_COMMON_API CharString &append(const CharString &s, UErrorCode &errorCode) {
         return append(s.data(), s.length(), errorCode);
     }
-    CharString &append(const char *s, int32_t sLength, UErrorCode &status);
+    U_COMMON_API CharString &append(const char *s, int32_t sLength, UErrorCode &status);
 
-    CharString &appendNumber(int32_t number, UErrorCode &status);
+    U_COMMON_API CharString &appendNumber(int64_t number, UErrorCode &status);
 
     /**
      * Returns a writable buffer for appending and writes the buffer's capacity to
@@ -150,26 +152,28 @@ public:
      * @param errorCode in/out error code
      * @return a buffer with resultCapacity>=min_capacity
      */
-    char *getAppendBuffer(int32_t minCapacity,
-                          int32_t desiredCapacityHint,
-                          int32_t &resultCapacity,
-                          UErrorCode &errorCode);
+    U_COMMON_API char *getAppendBuffer(int32_t minCapacity,
+                                       int32_t desiredCapacityHint,
+                                       int32_t &resultCapacity,
+                                       UErrorCode &errorCode);
 
-    CharString &appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode);
-    CharString &appendInvariantChars(const char16_t* uchars, int32_t ucharsLen, UErrorCode& errorCode);
+    U_COMMON_API CharString &appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode);
+    U_COMMON_API CharString &appendInvariantChars(const char16_t* uchars,
+                                                  int32_t ucharsLen,
+                                                  UErrorCode& errorCode);
 
     /**
      * Appends a filename/path part, e.g., a directory name.
      * First appends a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR if necessary.
      * Does nothing if s is empty.
      */
-    CharString &appendPathPart(StringPiece s, UErrorCode &errorCode);
+    U_COMMON_API CharString &appendPathPart(StringPiece s, UErrorCode &errorCode);
 
     /**
      * Appends a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR if this string is not empty
      * and does not already end with a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR.
      */
-    CharString &ensureEndsWithFileSeparator(UErrorCode &errorCode);
+    U_COMMON_API CharString &ensureEndsWithFileSeparator(UErrorCode &errorCode);
 
 private:
     MaybeStackArray<char, 40> buffer;

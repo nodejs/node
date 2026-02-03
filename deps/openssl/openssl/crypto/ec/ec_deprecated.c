@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,9 +19,9 @@
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 BIGNUM *EC_POINT_point2bn(const EC_GROUP *group,
-                          const EC_POINT *point,
-                          point_conversion_form_t form,
-                          BIGNUM *ret, BN_CTX *ctx)
+    const EC_POINT *point,
+    point_conversion_form_t form,
+    BIGNUM *ret, BN_CTX *ctx)
 {
     size_t buf_len = 0;
     unsigned char *buf;
@@ -39,7 +39,7 @@ BIGNUM *EC_POINT_point2bn(const EC_GROUP *group,
 }
 
 EC_POINT *EC_POINT_bn2point(const EC_GROUP *group,
-                            const BIGNUM *bn, EC_POINT *point, BN_CTX *ctx)
+    const BIGNUM *bn, EC_POINT *point, BN_CTX *ctx)
 {
     size_t buf_len = 0;
     unsigned char *buf;
@@ -47,10 +47,8 @@ EC_POINT *EC_POINT_bn2point(const EC_GROUP *group,
 
     if ((buf_len = BN_num_bytes(bn)) == 0)
         buf_len = 1;
-    if ((buf = OPENSSL_malloc(buf_len)) == NULL) {
-        ECerr(EC_F_EC_POINT_BN2POINT, ERR_R_MALLOC_FAILURE);
+    if ((buf = OPENSSL_malloc(buf_len)) == NULL)
         return NULL;
-    }
 
     if (BN_bn2binpad(bn, buf, buf_len) < 0) {
         OPENSSL_free(buf);

@@ -4,12 +4,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the easy_xml.py file. """
+"""Unit tests for the easy_xml.py file."""
 
-import gyp.easy_xml as easy_xml
 import unittest
-
 from io import StringIO
+
+from gyp import easy_xml
 
 
 class TestSequenceFunctions(unittest.TestCase):

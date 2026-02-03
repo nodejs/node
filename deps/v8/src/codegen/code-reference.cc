@@ -30,6 +30,8 @@ struct CodeOps {
   int relocation_size() const { return code->relocation_size(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
+  Address jump_table_info() const { return code->jump_table_info(); }
+  int jump_table_info_size() const { return code->jump_table_info_size(); }
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -52,6 +54,8 @@ struct WasmCodeOps {
   int relocation_size() const { return code->reloc_info().length(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
+  Address jump_table_info() const { return code->jump_table_info(); }
+  int jump_table_info_size() const { return code->jump_table_info_size(); }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -79,6 +83,10 @@ struct CodeDescOps {
     return instruction_start() + code_desc->code_comments_offset;
   }
   int code_comments_size() const { return code_desc->code_comments_size; }
+  Address jump_table_info() const {
+    return instruction_start() + code_desc->jump_table_info_offset;
+  }
+  int jump_table_info_size() const { return code_desc->jump_table_info_size; }
 };
 }  // namespace
 
@@ -112,6 +120,8 @@ DISPATCH(const uint8_t*, relocation_end)
 DISPATCH(int, relocation_size)
 DISPATCH(Address, code_comments)
 DISPATCH(int, code_comments_size)
+DISPATCH(Address, jump_table_info)
+DISPATCH(int, jump_table_info_size)
 
 #undef DISPATCH
 #undef HANDLE_WASM

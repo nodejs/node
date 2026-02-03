@@ -104,9 +104,10 @@ if (v8_snapshot_toolchain == "") {
       # cross compile Windows arm64 with host toolchain.
       v8_snapshot_toolchain = host_toolchain
     }
-  } else if (host_cpu == "arm64" && current_cpu == "arm64" &&
+  } else if (host_cpu == "arm64" &&
+             (current_cpu == "arm64" || current_cpu == "arm64e") &&
              host_os == "mac") {
-    # cross compile iOS arm64 with host_toolchain
+    # cross compile iOS arm64/arm64e with host_toolchain
     v8_snapshot_toolchain = host_toolchain
   }
 }

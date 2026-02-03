@@ -1,6 +1,6 @@
 import '../common/index.mjs';
-import { strictEqual } from 'assert';
+import assert from 'assert';
 
 import secret from '../fixtures/experimental.json' with { type: 'json' };
 
-strictEqual(secret.ofLife, 42);
+assert.strictEqual(secret.ofLife, 42);

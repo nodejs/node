@@ -38,6 +38,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var options_1 = require("./options");
 var delay_factory_1 = require("./delay/delay.factory");
+/**
+ * Executes a function with exponential backoff.
+ * @param request the function to be executed
+ * @param options options to customize the backoff behavior
+ * @returns Promise that resolves to the result of the `request` function
+ */
 function backOff(request, options) {
     if (options === void 0) { options = {}; }
     return __awaiter(this, void 0, void 0, function () {

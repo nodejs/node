@@ -55,8 +55,9 @@ JSUDPWrap::JSUDPWrap(Environment* env, Local<Object> obj)
   : AsyncWrap(env, obj, PROVIDER_JSUDPWRAP) {
   MakeWeak();
 
-  obj->SetAlignedPointerInInternalField(
-      kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
+  obj->SetAlignedPointerInInternalField(kUDPWrapBaseField,
+                                        static_cast<UDPWrapBase*>(this),
+                                        EmbedderDataTag::kDefault);
 }
 
 int JSUDPWrap::RecvStart() {
@@ -99,8 +100,9 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
 
   MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
   for (size_t i = 0; i < nbufs; i++) {
-    buffers[i] = Buffer::Copy(env(), bufs[i].base, bufs[i].len)
-        .ToLocalChecked();
+    if (!Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocal(&buffers[i])) {
+      return value_int;
+    }
     total_len += bufs[i].len;
   }
 
@@ -137,12 +139,12 @@ SocketAddress JSUDPWrap::GetSockName() {
 void JSUDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
-  new JSUDPWrap(env, args.Holder());
+  new JSUDPWrap(env, args.This());
 }
 
 void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
   JSUDPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   Environment* env = wrap->env();
 
   ArrayBufferViewContents<char> buffer(args[0]);
@@ -176,7 +178,7 @@ void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
 
 void JSUDPWrap::OnSendDone(const FunctionCallbackInfo<Value>& args) {
   JSUDPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsInt32());
@@ -189,7 +191,7 @@ void JSUDPWrap::OnSendDone(const FunctionCallbackInfo<Value>& args) {
 
 void JSUDPWrap::OnAfterBind(const FunctionCallbackInfo<Value>& args) {
   JSUDPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   wrap->listener()->OnAfterBind();
 }

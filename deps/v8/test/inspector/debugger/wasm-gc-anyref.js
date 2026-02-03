@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-typed-funcref
 // Flags: --experimental-wasm-type-reflection
 
 utils.load('test/inspector/wasm-inspector-test.js');
@@ -82,7 +81,7 @@ async function instantiateWasm() {
 
   let func = builder.addFunction('my_func', kSig_v_v).addBody([kExprNop]);
   // Make the function "declared".
-  builder.addGlobal(kWasmFuncRef, false, [kExprRefFunc, func.index]);
+  builder.addGlobal(kWasmFuncRef, false, false, [kExprRefFunc, func.index]);
 
   builder.addFunction('fill_tables', kSig_v_v)
     .addBody([

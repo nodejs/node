@@ -5,32 +5,36 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
       - tools/gyp/**
       - tools/test.py
       - .github/workflows/coverage-windows.yml
+      - codecov.yml
+      - .nycrc
   push:
     branches:
       - main
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
       - tools/gyp/**
       - tools/test.py
       - .github/workflows/coverage-windows.yml
+      - codecov.yml
+      - .nycrc
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -39,25 +43,26 @@ permissions:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Install deps
         run: choco install nasm
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat
+        run: ./vcbuild.bat clang-cl
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
-        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        run: ./vcbuild.bat noprojgen nobuild test-ci-js; node -e 'process.exit(0)'
         env:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report
@@ -67,7 +72,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@54bcd8715eee62d40e33596ef5e8f0f48dbbccab  # v4.1.0
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
         with:
           directory: ./coverage
-          token: ${{ secrets.CODECOV_TOKEN }}

@@ -16,8 +16,8 @@ const net = require('net');
     });
 
     server.close();
-  }).listen(0, function() {
-    const socket = net.connect(this.address().port, function() {
+  }).listen(0, common.mustCall(function() {
+    const socket = net.connect(this.address().port, common.mustCall(() => {
       socket.write('PUT / HTTP/1.1\r\nHost: example.com\r\n\r\n');
 
       socket.once('data', function() {
@@ -28,6 +28,6 @@ const net = require('net');
         assert.strictEqual(received, 'hello world',
                            `failed for socket.${testFn}`);
       }));
-    });
-  });
+    }));
+  }));
 });

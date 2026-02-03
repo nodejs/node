@@ -1,7 +1,17 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
+
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.Hash constructor is deprecated.',
+     'DEP0179'],
+    ['Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
+     'DEP0198'],
+  ]
+});
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -39,7 +49,7 @@ a8.write('');
 a8.end();
 a8 = a8.read();
 
-if (!common.hasFipsCrypto) {
+if (!crypto.getFips()) {
   cryptoType = 'md5';
   digest = 'latin1';
   const a0 = crypto.createHash(cryptoType).update('Test123').digest(digest);
@@ -181,7 +191,7 @@ assert.throws(
 }
 
 // Test XOF hash functions and the outputLength option.
-{
+if (!process.features.openssl_is_boringssl) {
   // Default outputLengths.
   assert.strictEqual(crypto.createHash('shake128').digest('hex'),
                      '7f9c2ba4e88f827d616045507605853e');
@@ -279,10 +289,4 @@ assert.throws(
 
 {
   crypto.Hash('sha256');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hash constructor is deprecated.',
-       'DEP0179'],
-    ]
-  });
 }

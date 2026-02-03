@@ -34,7 +34,7 @@ objects.baz.asdf = objects;
 let serverCaught = 0;
 let clientCaught = 0;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   const dom = domain.create();
   req.resume();
   dom.add(req);
@@ -48,7 +48,7 @@ const server = http.createServer(function(req, res) {
     res.end(er.stack || er.message || 'Unknown error');
   });
 
-  dom.run(function() {
+  dom.run(common.mustCall(() => {
     // Now, an action that has the potential to fail!
     // if you request 'baz', then it'll throw a JSON circular ref error.
     const data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
@@ -58,8 +58,8 @@ const server = http.createServer(function(req, res) {
 
     res.writeHead(200);
     res.end(data);
-  });
-});
+  }));
+}));
 
 server.listen(0, next);
 

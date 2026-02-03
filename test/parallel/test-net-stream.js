@@ -29,7 +29,7 @@ const SIZE = 2E6;
 const N = 10;
 const buf = Buffer.alloc(SIZE, 'a');
 
-const server = net.createServer(function(socket) {
+const server = net.createServer(common.mustCall((socket) => {
   socket.setNoDelay();
 
   socket.on('error', common.mustCall(() => socket.destroy()))
@@ -40,12 +40,12 @@ const server = net.createServer(function(socket) {
   }
   socket.end();
 
-}).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   const conn = net.connect(this.address().port);
-  conn.on('data', function(buf) {
+  conn.on('data', common.mustCall((buf) => {
     assert.strictEqual(conn, conn.pause());
     setTimeout(function() {
       conn.destroy();
     }, 20);
-  });
-});
+  }));
+}));

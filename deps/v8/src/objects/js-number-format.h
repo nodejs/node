@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_NUMBER_FORMAT_H_
+#define V8_OBJECTS_JS_NUMBER_FORMAT_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_NUMBER_FORMAT_H_
-#define V8_OBJECTS_JS_NUMBER_FORMAT_H_
 
 #include <set>
 #include <string>
@@ -43,38 +43,39 @@ class JSNumberFormat
     : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {
  public:
   // ecma402/#sec-initializenumberformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options, const char* service);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(
-      Isolate* isolate, Handle<JSReceiver> format_holder);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat>
+  UnwrapNumberFormat(Isolate* isolate, DirectHandle<JSReceiver> format_holder);
 
   // #sec-number-format-functions
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberFormatFunction(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberFormatFunction(
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
   // ecma402/#sec-intl.numberformat.prototype.resolvedoptions
-  static Handle<JSObject> ResolvedOptions(Isolate* isolate,
-                                          Handle<JSNumberFormat> number_format);
+  static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatToParts(
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
   // ecma402/#sec-formatnumericrange
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumericRange(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
-      Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumericRange(
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
+      Handle<Object> x, Handle<Object> y);
 
   // ecma402/#sec-formatnumericrangetoparts
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatNumericRangeToParts(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
-      Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray>
+  FormatNumericRangeToParts(Isolate* isolate,
+                            DirectHandle<JSNumberFormat> number_format,
+                            Handle<Object> x, Handle<Object> y);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumeric(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumeric(
       Isolate* isolate,
       const icu::number::LocalizedNumberFormatter& number_format,
       Handle<Object> numeric_obj);
@@ -88,6 +89,15 @@ class JSNumberFormat
                                          int32_t* minimum, int32_t* maximum);
   static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                             int32_t* minimum, int32_t* maximum);
+
+  static DirectHandle<String> RoundingModeString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
+  static DirectHandle<String> RoundingPriorityString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
+  static DirectHandle<String> TrailingZeroDisplayString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
+  static DirectHandle<Object> RoundingIncrement(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
 
   enum class ShowTrailingZeros { kShow, kHide };
 

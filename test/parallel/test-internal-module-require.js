@@ -8,8 +8,9 @@
 // 3. Deprecated modules are properly deprecated.
 
 const common = require('../common');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread) {
+if (!isMainThread) {
   common.skip('Cannot test the existence of --expose-internals from worker');
 }
 
@@ -23,12 +24,6 @@ const expectedPublicModules = new Set([
   '_http_incoming',
   '_http_outgoing',
   '_http_server',
-  '_stream_duplex',
-  '_stream_passthrough',
-  '_stream_readable',
-  '_stream_transform',
-  '_stream_wrap',
-  '_stream_writable',
   '_tls_common',
   '_tls_wrap',
   'assert',
@@ -75,7 +70,7 @@ const expectedPublicModules = new Set([
 
 if (process.argv[2] === 'child') {
   assert(!process.execArgv.includes('--expose-internals'));
-  process.once('message', ({ allBuiltins }) => {
+  process.once('message', common.mustCall(({ allBuiltins }) => {
     const publicModules = new Set();
     for (const id of allBuiltins) {
       if (id.startsWith('internal/')) {
@@ -87,6 +82,9 @@ if (process.argv[2] === 'child') {
         });
       } else {
         require(id);
+        if (!id.startsWith('node:')) {
+          require(`node:${id}`);
+        }
         publicModules.add(id);
       }
     }
@@ -98,7 +96,7 @@ if (process.argv[2] === 'child') {
       new Set(require('module').builtinModules)
     );
     assert.deepStrictEqual(publicModules, expectedPublicModules);
-  });
+  }));
 } else {
   assert(process.execArgv.includes('--expose-internals'));
   const child = fork(__filename, ['child'], {

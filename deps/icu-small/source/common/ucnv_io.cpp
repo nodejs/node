@@ -40,6 +40,7 @@
 #include "uarrsort.h"
 #include "uassert.h"
 #include "udataswp.h"
+#include "udatamem.h"
 #include "cstring.h"
 #include "cmemory.h"
 #include "ucnv_io.h"
@@ -205,7 +206,7 @@ static UBool U_CALLCONV
 isAcceptable(void * /*context*/,
              const char * /*type*/, const char * /*name*/,
              const UDataInfo *pInfo) {
-    return (UBool)(
+    return
         pInfo->size>=20 &&
         pInfo->isBigEndian==U_IS_BIG_ENDIAN &&
         pInfo->charsetFamily==U_CHARSET_FAMILY &&
@@ -213,7 +214,7 @@ isAcceptable(void * /*context*/,
         pInfo->dataFormat[1]==0x76 &&
         pInfo->dataFormat[2]==0x41 &&
         pInfo->dataFormat[3]==0x6c &&
-        pInfo->formatVersion[0]==3);
+        pInfo->formatVersion[0]==3;
 }
 
 static UBool U_CALLCONV ucnv_io_cleanup()
@@ -235,23 +236,29 @@ static void U_CALLCONV initAliasData(UErrorCode &errCode) {
     const uint32_t *sectionSizes;
     uint32_t tableStart;
     uint32_t currOffset;
+    int32_t sizeOfData;
+    int32_t sizeOfTOC;
 
     ucln_common_registerCleanup(UCLN_COMMON_UCNV_IO, ucnv_io_cleanup);
 
     U_ASSERT(gAliasData == nullptr);
     data = udata_openChoice(nullptr, DATA_TYPE, DATA_NAME, isAcceptable, nullptr, &errCode);
-    if(U_FAILURE(errCode)) {
+    if (U_FAILURE(errCode)) {
         return;
     }
 
-    sectionSizes = (const uint32_t *)udata_getMemory(data);
-    table = (const uint16_t *)sectionSizes;
-
-    tableStart      = sectionSizes[0];
-    if (tableStart < minTocLength) {
-        errCode = U_INVALID_FORMAT_ERROR;
-        udata_close(data);
-        return;
+    sectionSizes = static_cast<const uint32_t*>(udata_getMemory(data));
+    int32_t dataLength = udata_getLength(data); // This is the length minus the UDataInfo size
+    if (dataLength <= int32_t(sizeof(sectionSizes[0]))) {
+        // We don't even have a TOC!
+        goto invalidFormat;
+    }
+    table = reinterpret_cast<const uint16_t*>(sectionSizes);
+    tableStart = sectionSizes[0];
+    sizeOfTOC = int32_t((tableStart + 1) * sizeof(sectionSizes[0]));
+    if (tableStart < minTocLength || dataLength <= sizeOfTOC) {
+        // We don't have a whole TOC!
+        goto invalidFormat;
     }
     gAliasData = data;
 
@@ -264,11 +271,21 @@ static void U_CALLCONV initAliasData(UErrorCode &errCode) {
     gMainTable.optionTableSize        = sectionSizes[7];
     gMainTable.stringTableSize        = sectionSizes[8];
 
-    if (tableStart > 8) {
+    if (tableStart > minTocLength) {
         gMainTable.normalizedStringTableSize = sectionSizes[9];
     }
 
-    currOffset = tableStart * (sizeof(uint32_t)/sizeof(uint16_t)) + (sizeof(uint32_t)/sizeof(uint16_t));
+    sizeOfData = sizeOfTOC;
+    for (uint32_t section = 1; section <= tableStart; section++) {
+        sizeOfData += sectionSizes[section] * sizeof(table[0]);
+    }
+    if (dataLength < sizeOfData) {
+        // Truncated file!
+        goto invalidFormat;
+    }
+    // There may be some extra padding at the end, or this is a new file format with extra data that we can't read yet.
+
+    currOffset = (tableStart + 1) * (sizeof(uint32_t)/sizeof(uint16_t));
     gMainTable.converterList = table + currOffset;
 
     currOffset += gMainTable.converterListSize;
@@ -289,10 +306,10 @@ static void U_CALLCONV initAliasData(UErrorCode &errCode) {
 
     currOffset += gMainTable.taggedAliasListsSize;
     if (gMainTable.optionTableSize > 0
-        && ((const UConverterAliasOptions *)(table + currOffset))->stringNormalizationType < UCNV_IO_NORM_TYPE_COUNT)
+        && reinterpret_cast<const UConverterAliasOptions*>(table + currOffset)->stringNormalizationType < UCNV_IO_NORM_TYPE_COUNT)
     {
         /* Faster table */
-        gMainTable.optionTable = (const UConverterAliasOptions *)(table + currOffset);
+        gMainTable.optionTable = reinterpret_cast<const UConverterAliasOptions*>(table + currOffset);
     }
     else {
         /* Smaller table, or I can't handle this normalization mode!
@@ -306,6 +323,12 @@ static void U_CALLCONV initAliasData(UErrorCode &errCode) {
     currOffset += gMainTable.stringTableSize;
     gMainTable.normalizedStringTable = ((gMainTable.optionTable->stringNormalizationType == UCNV_IO_UNNORMALIZED)
         ? gMainTable.stringTable : (table + currOffset));
+
+    return;
+
+invalidFormat:
+    errCode = U_INVALID_FORMAT_ERROR;
+    udata_close(data);
 }
 
 
@@ -321,7 +344,7 @@ isAlias(const char *alias, UErrorCode *pErrorCode) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return false;
     }
-    return (UBool)(*alias!=0);
+    return *alias != 0;
 }
 
 static uint32_t getTagNumber(const char *tagname) {
@@ -574,7 +597,7 @@ findConverter(const char *alias, UBool *containsOption, UErrorCode *pErrorCode) 
     lastMid = UINT32_MAX;
 
     for (;;) {
-        mid = (uint32_t)((start + limit) / 2);
+        mid = (start + limit) / 2;
         if (lastMid == mid) {   /* Have we moved? */
             break;  /* We haven't moved, and it wasn't found. */
         }
@@ -601,8 +624,8 @@ findConverter(const char *alias, UBool *containsOption, UErrorCode *pErrorCode) 
             /* State whether the canonical converter name contains an option.
             This information is contained in this list in order to maintain backward & forward compatibility. */
             if (containsOption) {
-                UBool containsCnvOptionInfo = (UBool)gMainTable.optionTable->containsCnvOptionInfo;
-                *containsOption = (UBool)((containsCnvOptionInfo
+                UBool containsCnvOptionInfo = static_cast<UBool>(gMainTable.optionTable->containsCnvOptionInfo);
+                *containsOption = static_cast<UBool>((containsCnvOptionInfo
                     && ((gMainTable.untaggedConvArray[mid] & UCNV_CONTAINS_OPTION_BIT) != 0))
                     || !containsCnvOptionInfo);
             }
@@ -939,7 +962,7 @@ static uint16_t
 ucnv_io_countStandards(UErrorCode *pErrorCode) {
     if (haveAliasData(pErrorCode)) {
         /* Don't include the empty list */
-        return (uint16_t)(gMainTable.tagListSize - UCNV_NUM_HIDDEN_TAGS);
+        return static_cast<uint16_t>(gMainTable.tagListSize - UCNV_NUM_HIDDEN_TAGS);
     }
 
     return 0;
@@ -1130,8 +1153,9 @@ io_compareRows(const void *context, const void *left, const void *right) {
     TempAliasTable *tempTable=(TempAliasTable *)context;
     const char *chars=tempTable->chars;
 
-    return (int32_t)uprv_strcmp(tempTable->stripForCompare(strippedLeft, chars+2*((const TempRow *)left)->strIndex),
-                                tempTable->stripForCompare(strippedRight, chars+2*((const TempRow *)right)->strIndex));
+    return static_cast<int32_t>(uprv_strcmp(
+        tempTable->stripForCompare(strippedLeft, chars + 2 * static_cast<const TempRow*>(left)->strIndex),
+        tempTable->stripForCompare(strippedRight, chars + 2 * static_cast<const TempRow*>(right)->strIndex)));
 }
 
 U_CAPI int32_t U_EXPORT2

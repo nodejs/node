@@ -15,9 +15,17 @@ module.exports = {
   kMockDispatch: Symbol('mock dispatch'),
   kClose: Symbol('close'),
   kOriginalClose: Symbol('original agent close'),
+  kOriginalDispatch: Symbol('original dispatch'),
   kOrigin: Symbol('origin'),
   kIsMockActive: Symbol('is mock active'),
   kNetConnect: Symbol('net connect'),
   kGetNetConnect: Symbol('get net connect'),
-  kConnected: Symbol('connected')
+  kConnected: Symbol('connected'),
+  kIgnoreTrailingSlash: Symbol('ignore trailing slash'),
+  kMockAgentMockCallHistoryInstance: Symbol('mock agent mock call history name'),
+  kMockAgentRegisterCallHistory: Symbol('mock agent register mock call history'),
+  kMockAgentAddCallHistoryLog: Symbol('mock agent add call history log'),
+  kMockAgentIsCallHistoryEnabled: Symbol('mock agent is call history enabled'),
+  kMockAgentAcceptsNonStandardSearchParameters: Symbol('mock agent accepts non standard search parameters'),
+  kMockCallHistoryAddLog: Symbol('mock call history add log')
 }

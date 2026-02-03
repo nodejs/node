@@ -25,7 +25,8 @@ class BasicBlockProfilerData {
  public:
   explicit BasicBlockProfilerData(size_t n_blocks);
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
-      Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate);
+      DirectHandle<OnHeapBasicBlockProfilerData> js_heap_data,
+      Isolate* isolate);
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
       Tagged<OnHeapBasicBlockProfilerData> js_heap_data);
 
@@ -48,7 +49,7 @@ class BasicBlockProfilerData {
   // Copy the data from this object into an equivalent object stored on the JS
   // heap, so that it can survive snapshotting and relocation. This must
   // happen on the main thread during finalization of the compilation.
-  Handle<OnHeapBasicBlockProfilerData> CopyToJSHeap(Isolate* isolate);
+  DirectHandle<OnHeapBasicBlockProfilerData> CopyToJSHeap(Isolate* isolate);
 
   void Log(Isolate* isolate, std::ostream& os);
 

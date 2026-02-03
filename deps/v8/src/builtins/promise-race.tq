@@ -85,13 +85,13 @@ transitioning javascript builtin PromiseRace(
 
         // For catch prediction, mark that rejections here are semantically
         // handled by the combined Promise.
-        if (IsDebugActive() && !Is<JSPromise>(promise)) deferred {
+        if (IsDebugActive() && Is<JSPromise>(promise)) deferred {
             SetPropertyStrict(
                 context, thenResult, kPromiseHandledBySymbol, promise);
           }
       }
     } catch (e, _message) deferred {
-      iterator::IteratorCloseOnException(i);
+      iterator::IteratorCloseOnException(i.object);
       goto Reject(e);
     }
   } label Reject(exception: JSAny) deferred {

@@ -1,12 +1,14 @@
+#include <assert.h>
 #include <cppgc/allocation.h>
 #include <cppgc/garbage-collected.h>
 #include <cppgc/heap.h>
 #include <node.h>
 #include <v8-cppgc.h>
+#include <v8-sandbox.h>
 #include <v8.h>
 #include <algorithm>
 
-class CppGCed : public cppgc::GarbageCollected<CppGCed> {
+class CppGCed : public v8::Object::Wrappable {
  public:
   static uint16_t states[2];
   static constexpr int kDestructCount = 0;
@@ -15,21 +17,17 @@ class CppGCed : public cppgc::GarbageCollected<CppGCed> {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Object> js_object = args.This();
-    CppGCed* gc_object = cppgc::MakeGarbageCollected<CppGCed>(
-        isolate->GetCppHeap()->GetAllocationHandle());
+    auto* heap = isolate->GetCppHeap();
+    assert(heap != nullptr);
+    CppGCed* gc_object =
+        cppgc::MakeGarbageCollected<CppGCed>(heap->GetAllocationHandle());
     node::SetCppgcReference(isolate, js_object, gc_object);
     args.GetReturnValue().Set(js_object);
   }
 
   static v8::Local<v8::Function> GetConstructor(
       v8::Local<v8::Context> context) {
-    auto ft = v8::FunctionTemplate::New(context->GetIsolate(), New);
-    auto ot = ft->InstanceTemplate();
-    v8::WrapperDescriptor descriptor =
-        context->GetIsolate()->GetCppHeap()->wrapper_descriptor();
-    uint16_t required_size = std::max(descriptor.wrappable_instance_index,
-                                      descriptor.wrappable_type_index);
-    ot->SetInternalFieldCount(required_size + 1);
+    auto ft = v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), New);
     return ft->GetFunction(context).ToLocalChecked();
   }
 

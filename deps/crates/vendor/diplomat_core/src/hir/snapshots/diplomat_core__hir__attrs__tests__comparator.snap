@@ -1,0 +1,22 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in Struct::comparison_other: Comparator's parameter must be identical to self
+Lowering error in Struct::comparison_correct: Cannot define two comparators on the same type
+Lowering error in Struct::comparison_ref: Cannot define two comparators on the same type
+Lowering error in Struct::comparison_mut: Cannot define two comparators on the same type
+Lowering error in Struct::comparison_mut: comparators must accept immutable parameters
+Lowering error in Opaque::comparator_static: Comparators must accept a self parameter
+Lowering error in Opaque::comparator_none: Comparator must have exactly 1 parameter
+Lowering error in Opaque::comparator_none: Cannot define two comparators on the same type
+Lowering error in Opaque::comparator_othertype: Cannot define two comparators on the same type
+Lowering error in Opaque::comparator_othertype: Comparators must accept a self parameter
+Lowering error in Opaque::comparator_badreturn: Cannot define two comparators on the same type
+Lowering error in Opaque::comparator_badreturn: Found comparison method that does not return cmp::Ordering
+Lowering error in Opaque::comparison_correct: Cannot define two comparators on the same type
+Lowering error in Opaque::ordering_wrong: Found cmp::Ordering in parameter or struct field, it is only allowed in return types
+Lowering error in Opaque::comparison_mut: Cannot define two comparators on the same type
+Lowering error in Opaque::comparison_mut: comparators must accept immutable parameters
+Lowering error in Opaque::comparison_opt: Cannot define two comparators on the same type
+Lowering error in Opaque::comparison_opt: comparators must accept non-optional parameters

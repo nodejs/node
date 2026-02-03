@@ -2,7 +2,7 @@ const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm.js')
 
 const FAKE_TIMESTAMP = '2020-01-01T00:00:00.000Z'
-const FAKE_UUID = '00000000-0000-0000-0000-000000000000'
+const FAKE_UUID = '12345678-90ab-cdef-1234-567890abcdef'
 
 t.cleanSnapshot = s => {
   let sbom
@@ -70,8 +70,8 @@ const mockSbom = async (t, { mocks, config, ...opts } = {}) => {
     },
     command: 'sbom',
     mocks: {
-      path: {
-        ...require('path'),
+      'node:path': {
+        ...require('node:path'),
         sep: '/',
       },
       ...mocks,
@@ -199,6 +199,97 @@ t.test('sbom', async t => {
           },
         }),
         ...simpleNmFixture,
+      },
+    })
+    await sbom.exec([])
+    t.matchSnapshot(result())
+  })
+
+  const dupDepsNmFixture = {
+    node_modules: {
+      foo: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+          dependencies: {
+            chai: '^1.0.0',
+          },
+        }),
+        node_modules: {
+          chai: {
+            'package.json': JSON.stringify({
+              name: 'chai',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+      bar: {
+        'package.json': JSON.stringify({
+          name: 'bar',
+          version: '1.0.0',
+          dependencies: {
+            chai: '^1.0.0',
+          },
+        }),
+        node_modules: {
+          chai: {
+            'package.json': JSON.stringify({
+              name: 'chai',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+      chai: {
+        'package.json': JSON.stringify({
+          name: 'chai',
+          version: '2.0.0',
+        }),
+      },
+    },
+  }
+
+  t.test('duplicate deps - spdx', async t => {
+    const config = {
+      'sbom-format': 'spdx',
+    }
+    const { result, sbom } = await mockSbom(t, {
+      config,
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'test-npm-sbom',
+          version: '1.0.0',
+          dependencies: {
+            foo: '^1.0.0',
+            bar: '^1.0.0',
+            chai: '^2.0.0',
+          },
+        }),
+        ...dupDepsNmFixture,
+      },
+    })
+    await sbom.exec([])
+    t.matchSnapshot(result())
+  })
+
+  t.test('duplicate deps - cyclonedx', async t => {
+    const config = {
+      'sbom-format': 'cyclonedx',
+    }
+    const { result, sbom } = await mockSbom(t, {
+      config,
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'test-npm-sbom',
+          version: '1.0.0',
+          dependencies: {
+            foo: '^1.0.0',
+            bar: '^1.0.0',
+            chai: '^2.0.0',
+          },
+        }),
+        ...dupDepsNmFixture,
       },
     })
     await sbom.exec([])
@@ -490,7 +581,7 @@ t.test('sbom', async t => {
       workspaces: false,
     }))
 
-    t.test('should filter worksapces with --workspace', t => mockWorkspaces(t, [], {
+    t.test('should filter workspaces with --workspace', t => mockWorkspaces(t, [], {
       'sbom-format': 'spdx',
       workspace: 'a',
     }))

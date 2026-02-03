@@ -1,3 +1,5 @@
+'use strict'
+
 const SemVer = require('../classes/semver')
 
 const inc = (version, release, options, identifier, identifierBase) => {

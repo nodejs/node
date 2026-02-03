@@ -21,7 +21,7 @@ const server = h2.createServer({
 server.on(
   'stream',
   common.mustCall((stream) => {
-    const assertSettings = (settings) => {
+    const assertSettings = common.mustCall((settings) => {
       assert.strictEqual(typeof settings, 'object');
       assert.strictEqual(typeof settings.headerTableSize, 'number');
       assert.strictEqual(typeof settings.enablePush, 'boolean');
@@ -48,7 +48,7 @@ server.on(
         countCustom++;
       }
       assert.strictEqual(countCustom, 1);
-    };
+    }, 2);
 
     const localSettings = stream.session.localSettings;
     const remoteSettings = stream.session.remoteSettings;
@@ -133,6 +133,8 @@ server.listen(
         ['headerTableSize', -1],
         ['headerTableSize', 2 ** 32],
         ['initialWindowSize', -1],
+        ['initialWindowSize', 2 ** 31],  // Max per HTTP/2 spec is 2^31-1
+        ['initialWindowSize', 2 ** 32 - 1],  // Regression test for nghttp2 crash
         ['initialWindowSize', 2 ** 32],
         ['maxFrameSize', 16383],
         ['maxFrameSize', 2 ** 24],

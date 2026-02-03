@@ -35,10 +35,15 @@ tmpdir.refresh();
   const symlinkFolder = path.join(rootDirectory, 'symlink-folder');
   fs.symlinkSync(rootDirectory, symlinkFolder);
 
+  if (common.isMacOS) {
+    // On macOS delay watcher start to avoid leaking previous events.
+    // Refs: https://github.com/libuv/libuv/pull/4503
+    await setTimeout(common.platformTimeout(100));
+  }
 
   const watcher = fs.watch(rootDirectory, { recursive: true });
   let watcherClosed = false;
-  watcher.on('change', function(event, filename) {
+  watcher.on('change', common.mustCallAtLeast((event, filename) => {
     assert.ok(event === 'rename', `Received ${event}`);
     assert.ok(filename === path.basename(symlinkFolder) || filename === path.basename(filePath), `Received ${filename}`);
 
@@ -46,7 +51,7 @@ tmpdir.refresh();
       watcher.close();
       watcherClosed = true;
     }
-  });
+  }));
 
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
@@ -74,9 +79,15 @@ tmpdir.refresh();
   const forbiddenFile = path.join(subDirectory, 'forbidden.txt');
   const acceptableFile = path.join(trackingSubDirectory, 'acceptable.txt');
 
+  if (common.isMacOS) {
+    // On macOS delay watcher start to avoid leaking previous events.
+    // Refs: https://github.com/libuv/libuv/pull/4503
+    await setTimeout(common.platformTimeout(100));
+  }
+
   const watcher = fs.watch(trackingSubDirectory, { recursive: true });
   let watcherClosed = false;
-  watcher.on('change', function(event, filename) {
+  watcher.on('change', common.mustCallAtLeast((event, filename) => {
     // macOS will only change the following events:
     // { event: 'rename', filename: 'symlink-folder' }
     // { event: 'rename', filename: 'acceptable.txt' }
@@ -87,7 +98,7 @@ tmpdir.refresh();
       watcher.close();
       watcherClosed = true;
     }
-  });
+  }));
 
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(forbiddenFile, 'world');

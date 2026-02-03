@@ -24,7 +24,7 @@ function onStream(stream, headers, flags) {
     'content-type': 'text/html',
     ':status': 200
   }, { waitForTrailers: true });
-  stream.on('wantTrailers', () => {
+  stream.on('wantTrailers', common.mustCall(() => {
     stream.sendTrailers({ [trailerKey]: trailerValue });
     assert.throws(
       () => stream.sendTrailers({}),
@@ -33,7 +33,7 @@ function onStream(stream, headers, flags) {
         name: 'Error'
       }
     );
-  });
+  }));
 
   assert.throws(
     () => stream.sendTrailers({}),

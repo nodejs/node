@@ -3,7 +3,7 @@
 // Like test-gc-http-client.js, but with a timeout set.
 
 const common = require('../common');
-const onGC = require('../common/ongc');
+const { onGC } = require('../common/gc');
 const http = require('http');
 
 function serverHandler(req, res) {
@@ -30,7 +30,7 @@ function getAll(requestsRemaining) {
   const req = http.get({
     hostname: 'localhost',
     pathname: '/',
-    port: server.address().port
+    port: server.address().port,
   }, cb);
 
   req.setTimeout(10, common.mustCall());

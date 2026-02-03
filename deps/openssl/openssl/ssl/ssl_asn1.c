@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "ssl_local.h"
 #include <openssl/asn1t.h>
+#include <openssl/encoder.h>
 #include <openssl/x509.h>
 
 typedef struct {
@@ -44,6 +45,7 @@ typedef struct {
     uint32_t tlsext_max_fragment_len_mode;
     ASN1_OCTET_STRING *ticket_appdata;
     uint32_t kex_group;
+    ASN1_OCTET_STRING *peer_rpk;
 } SSL_SESSION_ASN1;
 
 ASN1_SEQUENCE(SSL_SESSION_ASN1) = {
@@ -75,17 +77,18 @@ ASN1_SEQUENCE(SSL_SESSION_ASN1) = {
     ASN1_EXP_OPT(SSL_SESSION_ASN1, alpn_selected, ASN1_OCTET_STRING, 16),
     ASN1_EXP_OPT_EMBED(SSL_SESSION_ASN1, tlsext_max_fragment_len_mode, ZUINT32, 17),
     ASN1_EXP_OPT(SSL_SESSION_ASN1, ticket_appdata, ASN1_OCTET_STRING, 18),
-    ASN1_EXP_OPT_EMBED(SSL_SESSION_ASN1, kex_group, UINT32, 19)
+    ASN1_EXP_OPT_EMBED(SSL_SESSION_ASN1, kex_group, UINT32, 19),
+    ASN1_EXP_OPT(SSL_SESSION_ASN1, peer_rpk, ASN1_OCTET_STRING, 20)
 } static_ASN1_SEQUENCE_END(SSL_SESSION_ASN1)
 
-IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(SSL_SESSION_ASN1)
+    IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(SSL_SESSION_ASN1)
 
 /* Utility functions for i2d_SSL_SESSION */
 
 /* Initialise OCTET STRING from buffer and length */
 
 static void ssl_session_oinit(ASN1_OCTET_STRING **dest, ASN1_OCTET_STRING *os,
-                              const unsigned char *data, size_t len)
+    const unsigned char *data, size_t len)
 {
     os->data = (unsigned char *)data; /* justified cast: data is not modified */
     os->length = (int)len;
@@ -95,7 +98,7 @@ static void ssl_session_oinit(ASN1_OCTET_STRING **dest, ASN1_OCTET_STRING *os,
 
 /* Initialise OCTET STRING from string */
 static void ssl_session_sinit(ASN1_OCTET_STRING **dest, ASN1_OCTET_STRING *os,
-                              const char *data)
+    const char *data)
 {
     if (data != NULL)
         ssl_session_oinit(dest, os, (const unsigned char *)data, strlen(data));
@@ -125,8 +128,10 @@ int i2d_SSL_SESSION(const SSL_SESSION *in, unsigned char **pp)
 #endif
     ASN1_OCTET_STRING alpn_selected;
     ASN1_OCTET_STRING ticket_appdata;
+    ASN1_OCTET_STRING peer_rpk;
 
     long l;
+    int ret;
 
     if ((in == NULL) || ((in->cipher == NULL) && (in->cipher_id == 0)))
         return 0;
@@ -155,37 +160,45 @@ int i2d_SSL_SESSION(const SSL_SESSION *in, unsigned char **pp)
 #endif
 
     ssl_session_oinit(&as.master_key, &master_key,
-                      in->master_key, in->master_key_length);
+        in->master_key, in->master_key_length);
 
     ssl_session_oinit(&as.session_id, &session_id,
-                      in->session_id, in->session_id_length);
+        in->session_id, in->session_id_length);
 
     ssl_session_oinit(&as.session_id_context, &sid_ctx,
-                      in->sid_ctx, in->sid_ctx_length);
+        in->sid_ctx, in->sid_ctx_length);
 
-    as.time = (int64_t)in->time;
-    as.timeout = (int64_t)in->timeout;
+    as.time = (int64_t)ossl_time_to_time_t(in->time);
+    as.timeout = (int64_t)ossl_time2seconds(in->timeout);
     as.verify_result = in->verify_result;
 
     as.peer = in->peer;
 
+    as.peer_rpk = NULL;
+    peer_rpk.data = NULL;
+    if (in->peer_rpk != NULL) {
+        peer_rpk.length = i2d_PUBKEY(in->peer_rpk, &peer_rpk.data);
+        if (peer_rpk.length > 0 && peer_rpk.data != NULL)
+            as.peer_rpk = &peer_rpk;
+    }
+
     ssl_session_sinit(&as.tlsext_hostname, &tlsext_hostname,
-                      in->ext.hostname);
+        in->ext.hostname);
     if (in->ext.tick) {
         ssl_session_oinit(&as.tlsext_tick, &tlsext_tick,
-                          in->ext.tick, in->ext.ticklen);
+            in->ext.tick, in->ext.ticklen);
     }
     if (in->ext.tick_lifetime_hint > 0)
         as.tlsext_tick_lifetime_hint = in->ext.tick_lifetime_hint;
     as.tlsext_tick_age_add = in->ext.tick_age_add;
 #ifndef OPENSSL_NO_PSK
     ssl_session_sinit(&as.psk_identity_hint, &psk_identity_hint,
-                      in->psk_identity_hint);
+        in->psk_identity_hint);
     ssl_session_sinit(&as.psk_identity, &psk_identity, in->psk_identity);
-#endif                          /* OPENSSL_NO_PSK */
+#endif /* OPENSSL_NO_PSK */
 #ifndef OPENSSL_NO_SRP
     ssl_session_sinit(&as.srp_username, &srp_username, in->srp_username);
-#endif                          /* OPENSSL_NO_SRP */
+#endif /* OPENSSL_NO_SRP */
 
     as.flags = in->flags;
     as.max_early_data = in->ext.max_early_data;
@@ -194,7 +207,7 @@ int i2d_SSL_SESSION(const SSL_SESSION *in, unsigned char **pp)
         as.alpn_selected = NULL;
     else
         ssl_session_oinit(&as.alpn_selected, &alpn_selected,
-                          in->ext.alpn_selected, in->ext.alpn_selected_len);
+            in->ext.alpn_selected, in->ext.alpn_selected_len);
 
     as.tlsext_max_fragment_len_mode = in->ext.max_fragment_len_mode;
 
@@ -202,10 +215,11 @@ int i2d_SSL_SESSION(const SSL_SESSION *in, unsigned char **pp)
         as.ticket_appdata = NULL;
     else
         ssl_session_oinit(&as.ticket_appdata, &ticket_appdata,
-                          in->ticket_appdata, in->ticket_appdata_len);
+            in->ticket_appdata, in->ticket_appdata_len);
 
-    return i2d_SSL_SESSION_ASN1(&as, pp);
-
+    ret = i2d_SSL_SESSION_ASN1(&as, pp);
+    OPENSSL_free(peer_rpk.data);
+    return ret;
 }
 
 /* Utility functions for d2i_SSL_SESSION */
@@ -227,7 +241,7 @@ static int ssl_session_strndup(char **pdst, ASN1_OCTET_STRING *src)
 /* Copy an OCTET STRING, return error if it exceeds maximum length */
 
 static int ssl_session_memcpy(unsigned char *dst, size_t *pdstlen,
-                              ASN1_OCTET_STRING *src, size_t maxlen)
+    ASN1_OCTET_STRING *src, size_t maxlen)
 {
     if (src == NULL || src->length == 0) {
         *pdstlen = 0;
@@ -241,7 +255,13 @@ static int ssl_session_memcpy(unsigned char *dst, size_t *pdstlen,
 }
 
 SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
-                             long length)
+    long length)
+{
+    return d2i_SSL_SESSION_ex(a, pp, length, NULL, NULL);
+}
+SSL_SESSION *d2i_SSL_SESSION_ex(SSL_SESSION **a, const unsigned char **pp,
+    long length, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     long id;
     size_t tmpl;
@@ -284,7 +304,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
     }
 
     id = 0x03000000L | ((unsigned long)as->cipher->data[0] << 8L)
-                     | (unsigned long)as->cipher->data[1];
+        | (unsigned long)as->cipher->data[1];
 
     ret->cipher_id = id;
     ret->cipher = ssl3_get_cipher_by_id(id);
@@ -292,32 +312,45 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
         goto err;
 
     if (!ssl_session_memcpy(ret->session_id, &ret->session_id_length,
-                            as->session_id, SSL3_MAX_SSL_SESSION_ID_LENGTH))
+            as->session_id, SSL3_MAX_SSL_SESSION_ID_LENGTH))
         goto err;
 
     if (!ssl_session_memcpy(ret->master_key, &tmpl,
-                            as->master_key, TLS13_MAX_RESUMPTION_PSK_LENGTH))
+            as->master_key, TLS13_MAX_RESUMPTION_PSK_LENGTH))
         goto err;
 
     ret->master_key_length = tmpl;
 
     if (as->time != 0)
-        ret->time = (time_t)as->time;
+        ret->time = ossl_time_from_time_t(as->time);
     else
-        ret->time = time(NULL);
+        ret->time = ossl_time_now();
 
     if (as->timeout != 0)
-        ret->timeout = (time_t)as->timeout;
+        ret->timeout = ossl_seconds2time(as->timeout);
     else
-        ret->timeout = 3;
+        ret->timeout = ossl_seconds2time(3);
     ssl_session_calculate_timeout(ret);
 
     X509_free(ret->peer);
     ret->peer = as->peer;
     as->peer = NULL;
 
+    EVP_PKEY_free(ret->peer_rpk);
+    ret->peer_rpk = NULL;
+    if (as->peer_rpk != NULL) {
+        const unsigned char *data = as->peer_rpk->data;
+
+        /*
+         * |data| is incremented; we don't want to lose original ptr
+         */
+        ret->peer_rpk = d2i_PUBKEY_ex(NULL, &data, as->peer_rpk->length, libctx, propq);
+        if (ret->peer_rpk == NULL)
+            goto err;
+    }
+
     if (!ssl_session_memcpy(ret->sid_ctx, &ret->sid_ctx_length,
-                            as->session_id_context, SSL_MAX_SID_CTX_LENGTH))
+            as->session_id_context, SSL_MAX_SID_CTX_LENGTH))
         goto err;
 
     /* NB: this defaults to zero which is X509_V_OK */
@@ -358,7 +391,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 #ifndef OPENSSL_NO_SRP
     if (!ssl_session_strndup(&ret->srp_username, as->srp_username))
         goto err;
-#endif                          /* OPENSSL_NO_SRP */
+#endif /* OPENSSL_NO_SRP */
     /* Flags defaults to zero which is fine */
     ret->flags = (int32_t)as->flags;
     ret->ext.max_early_data = as->max_early_data;
@@ -392,7 +425,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
     *pp = p;
     return ret;
 
- err:
+err:
     M_ASN1_free_of(as, SSL_SESSION_ASN1);
     if ((a == NULL) || (*a != ret))
         SSL_SESSION_free(ret);

@@ -38,8 +38,8 @@ if (cluster.isWorker) {
   const serverPorts = new Set();
 
   // Test a single TCP server
-  const testConnection = (port, cb) => {
-    const socket = net.connect(port, '127.0.0.1', () => {
+  const testConnection = common.mustCallAtLeast((port, cb) => {
+    const socket = net.connect(port, '127.0.0.1', common.mustCall(() => {
       // buffer result
       let result = '';
       socket.on('data', (chunk) => { result += chunk; });
@@ -49,27 +49,27 @@ if (cluster.isWorker) {
         cb(result === 'echo');
         serverPorts.delete(port);
       }));
-    });
-  };
+    }));
+  });
 
   // Test both servers created in the cluster
-  const testCluster = (cb) => {
+  const testCluster = common.mustCallAtLeast((cb) => {
     let done = 0;
     const portsArray = Array.from(serverPorts);
 
     for (let i = 0; i < servers; i++) {
-      testConnection(portsArray[i], (success) => {
+      testConnection(portsArray[i], common.mustCall((success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
           cb();
         }
-      });
+      }));
     }
-  };
+  });
 
   // Start two workers and execute callback when both is listening
-  const startCluster = (cb) => {
+  const startCluster = common.mustCallAtLeast((cb) => {
     const workers = 8;
     let online = 0;
 
@@ -83,9 +83,9 @@ if (cluster.isWorker) {
         }
       }, servers));
     }
-  };
+  });
 
-  const test = (again) => {
+  const test = common.mustCall((again) => {
     // 1. start cluster
     startCluster(common.mustCall(() => {
       // 2. test cluster
@@ -99,7 +99,7 @@ if (cluster.isWorker) {
         }));
       }));
     }));
-  };
+  }, 2);
 
   test(true);
 }

@@ -14,7 +14,7 @@ echo "Comparing latest upstream with current revision"
 
 git fetch https://chromium.googlesource.com/chromium/src/third_party/zlib.git HEAD
 
-# Revert zconf.h changes before checking diff 
+# Revert zconf.h changes before checking diff
 perl -i -pe 's|^//#include "chromeconf.h"|#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
 git stash -- "$DEPS_DIR/zlib/zconf.h"
 
@@ -63,13 +63,13 @@ gzip -dc "$ZLIB_TARBALL" | tar xf - -C zlib/
 
 rm "$ZLIB_TARBALL"
 
-cp "$DEPS_DIR/zlib/zlib.gyp" "$DEPS_DIR/zlib/GN-scraper.py" "$DEPS_DIR/zlib/win32/zlib.def" "$DEPS_DIR"
+cp "$DEPS_DIR/zlib/zlib.gyp" "$DEPS_DIR/zlib/win32/zlib.def" "$DEPS_DIR"
 
 rm -rf "$DEPS_DIR/zlib" zlib/.git
 
 mv zlib "$DEPS_DIR/"
 
-mv "$DEPS_DIR/zlib.gyp" "$DEPS_DIR/GN-scraper.py" "$DEPS_DIR/zlib/"
+mv "$DEPS_DIR/zlib.gyp" "$DEPS_DIR/zlib/"
 
 mkdir "$DEPS_DIR/zlib/win32"
 

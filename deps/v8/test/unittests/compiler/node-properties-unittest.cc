@@ -19,7 +19,7 @@ using testing::IsNull;
 
 class NodePropertiesTest : public TestWithZone {
  public:
-  NodePropertiesTest() : TestWithZone(kCompressGraphZone) {}
+  NodePropertiesTest() = default;
 
   Node* NewMockNode(const Operator* op) {
     return Node::New(zone(), 0, op, 0, nullptr, false);

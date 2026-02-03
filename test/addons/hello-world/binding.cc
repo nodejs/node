@@ -19,7 +19,7 @@ NODE_MODULE_INITIALIZER(v8::Local<v8::Object> exports,
 static void FakeInit(v8::Local<v8::Object> exports,
                      v8::Local<v8::Value> module,
                      v8::Local<v8::Context> context) {
-  auto isolate = context->GetIsolate();
+  auto isolate = v8::Isolate::GetCurrent();
   auto exception = v8::Exception::Error(v8::String::NewFromUtf8(isolate,
       "FakeInit should never run!").ToLocalChecked());
   isolate->ThrowException(exception);

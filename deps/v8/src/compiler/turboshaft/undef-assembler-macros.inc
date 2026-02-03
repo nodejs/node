@@ -14,19 +14,34 @@
 
 #undef __
 
+#undef Assert
+
 #undef BIND
+#undef BIND_LOOP
+#undef BREAK
+#undef CASE
+#undef CONTINUE
 #undef ELSE
-#undef ELSE_IF
-#undef END_IF
+#undef FOREACH
+#undef FOREACH_IMPL_2
+#undef FOREACH_IMPL_3
 #undef GOTO
 #undef GOTO_IF
 #undef GOTO_IF_NOT
 #undef IF
 #undef IF_NOT
-#undef LIKLEY
-#undef LOOP
+#undef LIKELY
 #undef REDUCE
 #undef REDUCE_INPUT_GRAPH
+#undef TSA_DCHECK
+#undef TYPESWITCH
 #undef UNLIKELY
+#undef WHILE
+
+#undef FORCE_UNROLL_LOOP
+#undef NO_SHADOW
+#undef RE_SHADOW
+#undef NO_UNUSED
+#undef RE_UNUSED
 
 #undef V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED

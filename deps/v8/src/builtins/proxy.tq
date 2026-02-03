@@ -7,7 +7,7 @@
 namespace proxy {
 
 extern macro ProxiesCodeStubAssembler::AllocateProxy(
-    implicit context: Context)(JSReceiver, JSReceiver): JSProxy;
+    implicit context: Context)(JSReceiver, JSReceiver, int32): JSProxy;
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     implicit context: Context)(JSReceiver, JSProxy, Name, Object,

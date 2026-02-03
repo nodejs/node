@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan
+// Flags: --allow-natives-syntax --maglev
 
 var x = 1;
-var do_change = false;
+var do_change = {};
+do_change = false;
 
 function g() {
   if (do_change) {

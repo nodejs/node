@@ -25,3 +25,7 @@ only as a semver-major change, unless the related feature or project is
 documented as experimental. In addition, Node.js includes external projects as
 internal dependencies. These may be replaced or removed at any time, provided
 that doing so is not a breaking change.
+
+## History
+
+* [corepack](https://github.com/nodejs/corepack) was added in Node.js 14.9.0 and 16.9.0. It is no longer distributed as of Node.js 25.0.0.

@@ -54,21 +54,36 @@
  * integer and other types.
  */
 
+/** @{ API visibility control */
 
 /**
  * \def U_SHOW_CPLUSPLUS_API
+ * When defined to 1 (=default) and compiled with a C++ compiler, both C and C++ APIs are visible.
+ * Otherwise, only C APIs are visible; this is for C++ users who want to
+ * restrict their usage to binary stable C APIs exported by ICU DLLs.
+ * @internal
+ */
+/**
+ * \def U_SHOW_CPLUSPLUS_HEADER_API
+ * When defined to 1 (=default) and compiled with a C++ compiler, C++ header-only APIs are visible.
+ * This is for C++ users who restrict their usage to binary stable C APIs exported by ICU DLLs
+ * (U_SHOW_CPLUSPLUS_API=0)
+ * but who still want to use C++ header-only APIs which do not rely on ICU DLL exports.
  * @internal
  */
 #ifdef __cplusplus
 #   ifndef U_SHOW_CPLUSPLUS_API
 #       define U_SHOW_CPLUSPLUS_API 1
 #   endif
+#   ifndef U_SHOW_CPLUSPLUS_HEADER_API
+#       define U_SHOW_CPLUSPLUS_HEADER_API 1
+#   endif
 #else
 #   undef U_SHOW_CPLUSPLUS_API
 #   define U_SHOW_CPLUSPLUS_API 0
+#   undef U_SHOW_CPLUSPLUS_HEADER_API
+#   define U_SHOW_CPLUSPLUS_HEADER_API 0
 #endif
-
-/** @{ API visibility control */
 
 /**
  * \def U_HIDE_DRAFT_API
@@ -369,6 +384,85 @@ typedef double UDate;
 #define U_TOOLUTIL_API U_IMPORT
 #endif
 
+#ifndef U_FORCE_HIDE_DRAFT_API
+
+/**
+ * \def U_DATA_API_CLASS
+ * Set to export library symbols from inside the stubdata library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_COMMON_API_CLASS
+ * Set to export library symbols from inside the common library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_I18N_API_CLASS
+ * Set to export library symbols from inside the i18n library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_LAYOUT_API_CLASS
+ * Set to export library symbols from inside the layout engine library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_LAYOUTEX_API_CLASS
+ * Set to export library symbols from inside the layout extensions library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_IO_API_CLASS
+ * Set to export library symbols from inside the ustdio library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+/**
+ * \def U_TOOLUTIL_API_CLASS
+ * Set to export library symbols from inside the toolutil library,
+ * and to import them from outside, to be used on a class.
+ * @draft ICU 78
+ */
+
+// When used on Windows, the U_..._API macros expand to __declspec(dllexport)
+// and __declspec(dllimport), which when used on a class results in all members
+// of the class being exported, including private members, which is problematic
+// for classes that have private members that can't be exported (such as
+// templates from the standard library):
+//
+// https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-1-c4251
+//
+#if U_PLATFORM_HAS_WIN32_API
+#define U_DATA_API_CLASS
+#define U_COMMON_API_CLASS
+#define U_I18N_API_CLASS
+#define U_LAYOUT_API_CLASS
+#define U_LAYOUTEX_API_CLASS
+#define U_IO_API_CLASS
+#define U_TOOLUTIL_API_CLASS
+#else
+#define U_DATA_API_CLASS     U_DATA_API
+#define U_COMMON_API_CLASS   U_COMMON_API
+#define U_I18N_API_CLASS     U_I18N_API
+#define U_LAYOUT_API_CLASS   U_LAYOUT_API
+#define U_LAYOUTEX_API_CLASS U_LAYOUTEX_API
+#define U_IO_API_CLASS       U_IO_API
+#define U_TOOLUTIL_API_CLASS U_TOOLUTIL_API
+#endif
+
+#endif  // U_FORCE_HIDE_DRAFT_API
+
 /**
  * \def U_STANDARD_CPP_NAMESPACE
  * Control of C++ Namespace
@@ -437,6 +531,7 @@ typedef enum UErrorCode {
     U_DIFFERENT_UCA_VERSION = -121,     /**< ucol_open encountered a mismatch between UCA version and collator image version, so the collator was constructed from rules. No impact to further function */
     
     U_PLUGIN_CHANGED_LEVEL_WARNING = -120, /**< A plugin caused a level change. May not be an error, but later plugins may not load. */
+
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -568,12 +663,27 @@ typedef enum UErrorCode {
     U_FORMAT_INEXACT_ERROR,           /**< Cannot format a number exactly and rounding mode is ROUND_UNNECESSARY @stable ICU 4.8 */
     U_NUMBER_ARG_OUTOFBOUNDS_ERROR,   /**< The argument to a NumberFormatter helper method was out of bounds; the bounds are usually 0 to 999. @stable ICU 61 */
     U_NUMBER_SKELETON_SYNTAX_ERROR,   /**< The number skeleton passed to C++ NumberFormatter or C UNumberFormatter was invalid or contained a syntax error. @stable ICU 62 */
+
+    /* MessageFormat 2.0 errors */
+    U_MF_UNRESOLVED_VARIABLE_ERROR,    /**< A variable is referred to but not bound by any definition @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_SYNTAX_ERROR,                 /**< Includes all syntax errors @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_UNKNOWN_FUNCTION_ERROR,       /**< An annotation refers to a function not defined by the standard or custom function registry @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_VARIANT_KEY_MISMATCH_ERROR,   /**< In a match-construct, one or more variants had a different number of keys from the number of selectors @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_FORMATTING_ERROR,             /**< Covers all runtime errors: for example, an internally inconsistent set of options. @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_NONEXHAUSTIVE_PATTERN_ERROR,  /**< In a match-construct, the variants do not cover all possible values @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_DUPLICATE_OPTION_NAME_ERROR,  /**< In an annotation, the same option name appears more than once @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_SELECTOR_ERROR,               /**< A selector function is applied to an operand of the wrong type @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_MISSING_SELECTOR_ANNOTATION_ERROR,  /**< A selector expression evaluates to an unannotated operand. @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_DUPLICATE_DECLARATION_ERROR, /**< The same variable is declared in more than one .local or .input declaration. @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_OPERAND_MISMATCH_ERROR,     /**< An operand provided to a function does not have the required form for that function @internal ICU 75 technology preview @deprecated This API is for technology preview only. */
+    U_MF_DUPLICATE_VARIANT_ERROR, /**< A message includes a variant with the same key list as another variant. @internal ICU 76 technology preview @deprecated This API is for technology preview only. */
+    U_MF_BAD_OPTION,             /**< An option value provided to a function does not have the required form for that option. @internal ICU 77 technology preview @deprecated This API is for technology preview only. */
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal formatting API error code.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    U_FMT_PARSE_ERROR_LIMIT = 0x10114,
+    U_FMT_PARSE_ERROR_LIMIT = 0x10121,
 #endif  // U_HIDE_DEPRECATED_API
 
     /*
@@ -697,13 +807,13 @@ typedef enum UErrorCode {
      * @stable ICU 2.0
      */
     static
-    inline UBool U_SUCCESS(UErrorCode code) { return (UBool)(code<=U_ZERO_ERROR); }
+    inline UBool U_SUCCESS(UErrorCode code) { return code <= U_ZERO_ERROR; }
     /**
      * Does the error code indicate a failure?
      * @stable ICU 2.0
      */
     static
-    inline UBool U_FAILURE(UErrorCode code) { return (UBool)(code>U_ZERO_ERROR); }
+    inline UBool U_FAILURE(UErrorCode code) { return code > U_ZERO_ERROR; }
 #else
     /**
      * Does the error code indicate success?

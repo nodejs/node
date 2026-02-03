@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 // Flags: --allocation-site-pretenuring --stress-gc-during-compilation
 // Flags: --stress-scavenge=0 --gc-interval=-1
 // Flags: --max-optimized-bytecode-size=132000
+// Flags: --no-reopt-after-lazy-deopts
 
 function CheckOptimizationStatus(func, expectedOptimizationStatus) {
   let opt_status = %GetOptimizationStatus(func);
   assertTrue(
       (opt_status & expectedOptimizationStatus) !== 0,
       'Expected flag 0x' + expectedOptimizationStatus.toString(16) +
-          ' to be set in optimization status');
+          ' to be set in optimization status, but status was ' +
+          opt_status.toString(16));
 }
 
 // Trigger pretenuring decision change at entry, deopting at bytecode offset -1.

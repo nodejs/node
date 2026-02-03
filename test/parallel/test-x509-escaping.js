@@ -1,15 +1,16 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const assert = require('assert');
 const { X509Certificate } = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const { hasOpenSSL3 } = common;
+const { hasOpenSSL3 } = require('../common/crypto');
 
 // Test that all certificate chains provided by the reporter are rejected.
 {
@@ -129,10 +130,10 @@ const { hasOpenSSL3 } = common;
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           assert.strictEqual(peerCert.subjectaltname, expectedSANs[i]);
-        },
+        }),
       }, common.mustCall());
     }));
   }
@@ -236,7 +237,7 @@ const { hasOpenSSL3 } = common;
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           assert.deepStrictEqual(peerCert.infoAccess,
                                  Object.assign({ __proto__: null },
@@ -250,7 +251,7 @@ const { hasOpenSSL3 } = common;
           assert.strictEqual(obj.issuerCertificate, undefined);
           obj.issuerCertificate = obj;
           assert.deepStrictEqual(peerCert, obj);
-        },
+        }),
       }, common.mustCall());
     }));
   }
@@ -350,7 +351,7 @@ const { hasOpenSSL3 } = common;
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           const expectedObject = Object.assign({ __proto__: null },
                                                expected.legacy);
@@ -368,7 +369,7 @@ const { hasOpenSSL3 } = common;
           assert.strictEqual(obj.issuerCertificate, undefined);
           obj.issuerCertificate = obj;
           assert.deepStrictEqual(peerCert, obj);
-        },
+        }),
       }, common.mustCall());
     }));
   }
@@ -437,7 +438,7 @@ const { hasOpenSSL3 } = common;
   const cert = fixtures.readKey('incorrect_san_correct_subject-cert.pem');
 
   // The hostname is the CN, but not a SAN entry.
-  const servername = 'good.example.com';
+  const servername = process.features.openssl_is_boringssl ? undefined : 'good.example.com';
   const certX509 = new X509Certificate(cert);
   assert.strictEqual(certX509.subject, `CN=${servername}`);
   assert.strictEqual(certX509.subjectAltName, 'DNS:evil.example.com');

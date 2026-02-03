@@ -1,0 +1,7 @@
+---
+source: core/src/ast/validity.rs
+expression: output
+---
+A return type contains elided lifetimes, which aren't yet supported: &Opaque in &Opaque
+A return type contains elided lifetimes, which aren't yet supported: Foo in Foo
+

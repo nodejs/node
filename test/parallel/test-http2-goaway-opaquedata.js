@@ -19,7 +19,7 @@ server.on('stream', common.mustCall((stream) => {
 }));
 server.on('close', common.mustCall());
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   client.once('goaway', common.mustCall((code, lastStreamID, buf) => {
     assert.strictEqual(code, 0);
@@ -33,4 +33,4 @@ server.listen(0, () => {
   req.on('end', common.mustCall());
   req.on('close', common.mustCall());
   req.end();
-});
+}));

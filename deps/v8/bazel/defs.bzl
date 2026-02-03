@@ -6,6 +6,11 @@
 This module contains helper functions to compile V8.
 """
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+
 FlagInfo = provider("The value of an option.",
 fields = ["value"])
 
@@ -98,7 +103,7 @@ def _default_args():
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
-                "_WIN32_WINNT=0x0602",  # Override bazel default to Windows 8
+                "_WIN32_WINNT=0x0A00",  # Override bazel default to Windows 10
             ],
             "//conditions:default": [],
         }),
@@ -108,20 +113,25 @@ def _default_args():
                 "-fno-strict-aliasing",
                 "-Werror",
                 "-Wextra",
-                "-Wno-unknown-warning-option",
+                "-Wno-unneeded-internal-declaration",
+                "-Wno-unknown-warning-option", # b/330781959
+                "-Wno-cast-function-type-mismatch",  # b/330781959
                 "-Wno-bitwise-instead-of-logical",
                 "-Wno-builtin-assume-aligned-alignment",
                 "-Wno-unused-parameter",
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
+                "-Wno-unnecessary-virtual-specifier",
                 "-isystem .",
             ],
             "//conditions:default": [],
         }) + select({
             "@v8//bazel/config:is_clang": [
                 "-Wno-invalid-offsetof",
-                "-std=c++17",
+                "-Wno-deprecated-this-capture",
+                "-Wno-deprecated-declarations",
+                "-std=c++20",
             ],
             "@v8//bazel/config:is_gcc": [
                 "-Wno-extra",
@@ -136,12 +146,13 @@ def _default_args():
                 "-Wno-redundant-move",
                 "-Wno-return-type",
                 "-Wno-stringop-overflow",
+                "-Wno-deprecated-this-capture",
                 # Use GNU dialect, because GCC doesn't allow using
                 # ##__VA_ARGS__ when in standards-conforming mode.
-                "-std=gnu++17",
+                "-std=gnu++2a",
             ],
             "@v8//bazel/config:is_windows": [
-                "/std:c++17",
+                "/std:c++20",
             ],
             "//conditions:default": [],
         }) + select({
@@ -172,7 +183,7 @@ def _default_args():
                 "Advapi32.lib",
             ],
             "@v8//bazel/config:is_macos": ["-pthread"],
-            "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
+            "//conditions:default": ["-Wl,--no-as-needed -ldl -latomic -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
             "//conditions:default": [],
@@ -208,7 +219,7 @@ def v8_binary(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_binary(
+        cc_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -218,7 +229,7 @@ def v8_binary(
             linkopts = linkopts + default.linkopts,
             **kwargs
         )
-        native.cc_binary(
+        cc_binary(
             name = "icu/" + name,
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -229,7 +240,7 @@ def v8_binary(
             **kwargs
         )
     else:
-        native.cc_binary(
+        cc_binary(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
@@ -257,7 +268,7 @@ def v8_library(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_library(
+        cc_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -276,7 +287,7 @@ def v8_library(
             name = "noicu/" + name,
             actual = name + "_noicu",
         )
-        native.cc_library(
+        cc_library(
             name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -296,7 +307,7 @@ def v8_library(
             actual = name + "_icu",
         )
     else:
-        native.cc_library(
+        cc_library(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
@@ -312,10 +323,11 @@ def v8_library(
 # split the set of outputs by using OutputGroupInfo, that way we do not need to
 # run the torque generator twice.
 def _torque_files_impl(ctx):
-    if ctx.workspace_name == "v8":
+    # Allow building V8 as a dependency: workspace_root points to external/v8
+    # when building V8 from a different repository and empty otherwise.
+    v8root = ctx.label.workspace_root
+    if v8root == "":
         v8root = "."
-    else:
-        v8root = "external/v8"
 
     # Arguments
     args = []
@@ -413,7 +425,7 @@ def _v8_target_cpu_transition_impl(settings,
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return
+            return {}
 
     # Auto-detect target architecture based on the --cpu flag.
     mapping = {
@@ -479,9 +491,6 @@ _v8_mksnapshot = rule(
             cfg = "exec",
         ),
         "target_os": attr.string(mandatory = True),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
     },
@@ -497,6 +506,7 @@ def v8_mksnapshot(name, args, suffix = ""):
         suffix = suffix,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
+            "@v8//bazel/config:is_windows": "win",
             "//conditions:default": "",
         }),
     )
@@ -508,6 +518,7 @@ def v8_mksnapshot(name, args, suffix = ""):
         suffix = suffix,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
+            "@v8//bazel/config:is_windows": "win",
             "//conditions:default": "",
         }),
     )
@@ -537,13 +548,13 @@ def build_config_content(cpu, icu):
         ("arch", arch),
         ("asan", "false"),
         ("atomic_object_field_writes", "false"),
+        ("cet_shadow_stack", "false"),
         ("cfi", "false"),
         ("clang_coverage", "false"),
         ("clang", "true"),
         ("code_comments", "false"),
         ("component_build", "false"),
         ("concurrent_marking", "false"),
-        ("conservative_stack_scanning", "false"),
         ("current_cpu", cpu),
         ("dcheck_always_on", "false"),
         ("debug_code", "false"),
@@ -551,19 +562,23 @@ def build_config_content(cpu, icu):
         ("debugging_features", "false"),
         ("dict_property_const_tracking", "false"),
         ("direct_handle", "false"),
-        ("direct_local", "false"),
         ("disassembler", "false"),
         ("full_debug", "false"),
         ("gdbjit", "false"),
         ("has_jitless", "false"),
-        ("has_maglev", "false"),
+        ("has_maglev", "true"),
         ("has_turbofan", "true"),
         ("has_webassembly", "false"),
+        ("has_wasm_interpreter", "false"),
         ("i18n", icu),
         ("is_android", "false"),
         ("is_ios", "false"),
         ("js_shared_memory", "false"),
+        ("leaptiering", "true"),
         ("lite_mode", "false"),
+        ("local_off_stack_check", "false"),
+        ("lower_limits_mode", "false"),
+        ("memory_corruption_api", "false"),
         ("mips_arch_variant", '""'),
         ("mips_use_msa", "false"),
         ("msan", "false"),
@@ -572,13 +587,13 @@ def build_config_content(cpu, icu):
         ("pointer_compression", "true"),
         ("runtime_call_stats", "false"),
         ("sandbox", "false"),
+        ("sandbox_hardware_support", "false"),
         ("shared_ro_heap", "false"),
         ("simd_mips", "false"),
         ("simulator_run", "false"),
         ("single_generation", "false"),
         ("slow_dchecks", "false"),
         ("target_cpu", cpu),
-        ("third_party_heap", "false"),
         ("tsan", "false"),
         ("ubsan", "false"),
         ("use_sanitizer", "false"),
@@ -588,13 +603,14 @@ def build_config_content(cpu, icu):
         ("verify_csa", "false"),
         ("verify_heap", "false"),
         ("verify_predictable", "false"),
+        ("wasm_random_fuzzers", "false"),
         ("write_barriers", "false"),
     ])
 
 # TODO(victorgomes): Create a rule (instead of a macro), that can
 # dynamically populate the build config.
-def v8_build_config(name):
-    cpu = _quote("x64")
+def v8_build_config(name, arch):
+    cpu = '"' + arch + '"'
     native.genrule(
         name = "noicu/" + name,
         outs = ["noicu/" + name + ".json"],

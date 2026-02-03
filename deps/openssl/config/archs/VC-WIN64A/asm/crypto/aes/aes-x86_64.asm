@@ -1915,6 +1915,7 @@ $L$cbc_epilogue:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_AES_cbc_encrypt:
+section	.rdata rdata align=64
 ALIGN	64
 $L$AES_Te:
 	DD	0xa56363c6,0xa56363c6
@@ -2704,6 +2705,7 @@ DB	67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97
 DB	112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103
 DB	62,0
 ALIGN	64
+section .text
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16

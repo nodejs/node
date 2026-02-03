@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,36 +10,37 @@
 #include <openssl/crypto.h>
 #include "apps.h"
 #include "progs.h"
-#include <openssl/quic.h>
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_CONFIGDIR, OPT_ENGINESDIR, OPT_MODULESDIR, OPT_DSOEXT, OPT_DIRNAMESEP,
-    OPT_LISTSEP, OPT_SEEDS, OPT_CPUSETTINGS
-#ifndef OPENSSL_NO_QUIC
-    , OPT_QUIC
-#endif
+    OPT_CONFIGDIR,
+    OPT_ENGINESDIR,
+    OPT_MODULESDIR,
+    OPT_DSOEXT,
+    OPT_DIRNAMESEP,
+    OPT_LISTSEP,
+    OPT_SEEDS,
+    OPT_CPUSETTINGS,
+    OPT_WINDOWSCONTEXT
 } OPTION_CHOICE;
 
 const OPTIONS info_options[] = {
 
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 
     OPT_SECTION("Output"),
-    {"configdir", OPT_CONFIGDIR, '-', "Default configuration file directory"},
-    {"enginesdir", OPT_ENGINESDIR, '-', "Default engine module directory"},
-    {"modulesdir", OPT_MODULESDIR, '-',
-     "Default module directory (other than engine modules)"},
-    {"dsoext", OPT_DSOEXT, '-', "Configured extension for modules"},
-    {"dirnamesep", OPT_DIRNAMESEP, '-', "Directory-filename separator"},
-    {"listsep", OPT_LISTSEP, '-', "List separator character"},
-    {"seeds", OPT_SEEDS, '-', "Seed sources"},
-    {"cpusettings", OPT_CPUSETTINGS, '-', "CPU settings info"},
-#ifndef OPENSSL_NO_QUIC
-    {"quic", OPT_QUIC, '-', "QUIC info"},
-#endif
-    {NULL}
+    { "configdir", OPT_CONFIGDIR, '-', "Default configuration file directory" },
+    { "enginesdir", OPT_ENGINESDIR, '-', "Default engine module directory" },
+    { "modulesdir", OPT_MODULESDIR, '-',
+        "Default module directory (other than engine modules)" },
+    { "dsoext", OPT_DSOEXT, '-', "Configured extension for modules" },
+    { "dirnamesep", OPT_DIRNAMESEP, '-', "Directory-filename separator" },
+    { "listsep", OPT_LISTSEP, '-', "List separator character" },
+    { "seeds", OPT_SEEDS, '-', "Seed sources" },
+    { "cpusettings", OPT_CPUSETTINGS, '-', "CPU settings info" },
+    { "windowscontext", OPT_WINDOWSCONTEXT, '-', "Windows install context" },
+    { NULL }
 };
 
 int info_main(int argc, char **argv)
@@ -47,12 +48,13 @@ int info_main(int argc, char **argv)
     int ret = 1, dirty = 0, type = 0;
     char *prog;
     OPTION_CHOICE o;
+    const char *typedata;
 
     prog = opt_init(argc, argv, info_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
         default:
-opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -91,15 +93,13 @@ opthelp:
             type = OPENSSL_INFO_CPU_SETTINGS;
             dirty++;
             break;
-#ifndef OPENSSL_NO_QUIC
-        case OPT_QUIC:
-            type = OPENSSL_INFO_QUIC;
+        case OPT_WINDOWSCONTEXT:
+            type = OPENSSL_INFO_WINDOWS_CONTEXT;
             dirty++;
             break;
-#endif
         }
     }
-    if (opt_num_rest() != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
     if (dirty > 1) {
         BIO_printf(bio_err, "%s: Only one item allowed\n", prog);
@@ -110,8 +110,9 @@ opthelp:
         goto opthelp;
     }
 
-    BIO_printf(bio_out, "%s\n", OPENSSL_info(type));
+    typedata = OPENSSL_info(type);
+    BIO_printf(bio_out, "%s\n", typedata == NULL ? "Undefined" : typedata);
     ret = 0;
- end:
+end:
     return ret;
 }

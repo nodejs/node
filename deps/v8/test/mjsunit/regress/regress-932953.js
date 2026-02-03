@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --
 
 (function NonExtensibleBetweenSetterAndGetter() {
   o = {};
@@ -43,7 +43,6 @@
   }
 
   // Warm up the IC.
-  ;
   %PrepareFunctionForOptimization(f);
   f(o1);
   f(o1);
@@ -52,11 +51,23 @@
   // Reconfigure to double field.
   o3.x = 0.1;
 
-  // Migrate o2 to the new shape.
-  f(o2);
+  // Migrate o2 to the new shape. (This won't mark the new map as a migration target.)
+  assertEquals(o2, %TryMigrateInstance(o2));
 
   %OptimizeFunctionOnNextCall(f);
+  // Calling the function with the deprecated o1 should still be ok.
   f(o1);
+
+  // Ensure o1 is migrated (e.g. in jitless mode, where the unoptimized f won't
+  // necessarily migrate it).
+
+  let migrated = %TryMigrateInstance(o1);
+  if (typeof migrated === 'number') {
+    // No migration happened (o1 was already migrated).
+    migrated = o1;
+  }
+
+  assertEquals(o1, migrated);
 
   assertTrue(%HaveSameMap(o1, o2));
   assertTrue(%HaveSameMap(o1, o3));

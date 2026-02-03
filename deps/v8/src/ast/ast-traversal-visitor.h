@@ -296,6 +296,17 @@ void AstTraversalVisitor<Subclass>::VisitNativeFunctionLiteral(
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitConditionalChain(
+    ConditionalChain* expr) {
+  PROCESS_EXPRESSION(expr);
+  for (size_t i = 0; i < expr->conditional_chain_length(); ++i) {
+    RECURSE_EXPRESSION(Visit(expr->condition_at(i)));
+    RECURSE_EXPRESSION(Visit(expr->then_expression_at(i)));
+  }
+  RECURSE(Visit(expr->else_expression()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitConditional(Conditional* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->condition()));
@@ -503,6 +514,13 @@ void AstTraversalVisitor<Subclass>::VisitInitializeClassMembersStatement(
       RECURSE(Visit(prop->key()));
     }
     RECURSE(Visit(prop->value()));
+    if (prop->is_auto_accessor()) {
+      // The generated getter and setter are created after the
+      // ClassLiteralProperty value is created, so we visit them in
+      // the same order.
+      RECURSE(Visit(prop->auto_accessor_info()->generated_getter()));
+      RECURSE(Visit(prop->auto_accessor_info()->generated_setter()));
+    }
   }
 }
 
@@ -527,6 +545,18 @@ void AstTraversalVisitor<Subclass>::VisitInitializeClassStaticElementsStatement(
         break;
     }
   }
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitAutoAccessorGetterBody(
+    AutoAccessorGetterBody* stmt) {
+  PROCESS_NODE(stmt);
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitAutoAccessorSetterBody(
+    AutoAccessorSetterBody* stmt) {
+  PROCESS_NODE(stmt);
 }
 
 template <class Subclass>
@@ -561,8 +591,8 @@ void AstTraversalVisitor<Subclass>::VisitImportCallExpression(
     ImportCallExpression* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->specifier()));
-  if (expr->import_assertions()) {
-    RECURSE_EXPRESSION(Visit(expr->import_assertions()));
+  if (expr->import_options()) {
+    RECURSE_EXPRESSION(Visit(expr->import_options()));
   }
 }
 
@@ -578,6 +608,13 @@ void AstTraversalVisitor<Subclass>::VisitSuperCallReference(
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(VisitVariableProxy(expr->new_target_var()));
   RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitSuperCallForwardArgs(
+    SuperCallForwardArgs* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
 #undef PROCESS_NODE

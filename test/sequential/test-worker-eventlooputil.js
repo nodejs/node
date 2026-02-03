@@ -10,7 +10,7 @@ const {
   parentPort,
 } = require('worker_threads');
 const { performance } = require('perf_hooks');
-const { eventLoopUtilization } = require('perf_hooks').performance;
+const { eventLoopUtilization } = require('perf_hooks');
 
 // Use argv to detect whether we're running as a Worker called by this test vs.
 // this test also being called as a Worker.
@@ -62,7 +62,7 @@ let workerELU;
   metricsCh.port2.once('message', mustCall(checkWorkerIdle));
   metricsCh.port2.postMessage({ cmd: 'elu' });
   // Make sure it's still safe to call eventLoopUtilization() after the worker
-  // hass been closed.
+  // has been closed.
   worker.on('exit', mustCall(() => {
     assert.deepStrictEqual(worker.performance.eventLoopUtilization(),
                            { idle: 0, active: 0, utilization: 0 });
@@ -98,7 +98,7 @@ function checkWorkerActive() {
   const w = workerELU();
 
   metricsCh.port2.postMessage({ cmd: 'spin', dur: 50 });
-  metricsCh.port2.once('message', (wElu) => {
+  metricsCh.port2.once('message', mustCall((wElu) => {
     const w2 = workerELU(w);
 
     assert.ok(w2.active >= 50, `${w2.active} < 50`);
@@ -107,7 +107,7 @@ function checkWorkerActive() {
               `${idleActive(wElu)} >= ${idleActive(w2)}`);
 
     metricsCh.port2.postMessage({ cmd: 'close' });
-  });
+  }));
 }
 
 function idleActive(elu) {

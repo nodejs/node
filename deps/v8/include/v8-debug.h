@@ -43,6 +43,12 @@ class V8_EXPORT StackFrame {
   int GetColumn() const { return GetLocation().GetColumnNumber() + 1; }
 
   /**
+   * Returns zero based source position (character offset) for the associated
+   * function.
+   */
+  int GetSourcePosition() const;
+
+  /**
    * Returns the id of the script for the function for this StackFrame.
    * This method will return Message::kNoScriptIdInfo if it is unable to
    * retrieve the script id, or if kScriptId was not passed as an option when
@@ -131,6 +137,11 @@ class V8_EXPORT StackTrace {
   };
 
   /**
+   * Returns the (unique) ID of this stack trace.
+   */
+  int GetID() const;
+
+  /**
    * Returns a StackFrame at a particular index.
    */
   Local<StackFrame> GetFrame(Isolate* isolate, uint32_t index) const;
@@ -161,6 +172,17 @@ class V8_EXPORT StackTrace {
    * a stack trace.
    */
   static Local<String> CurrentScriptNameOrSourceURL(Isolate* isolate);
+
+  /**
+   * Returns the first valid script id at the top of
+   * the JS stack. The returned value is Message::kNoScriptIdInfo if no id
+   * was found.
+   *
+   * This method is equivalent to calling StackTrace::CurrentStackTrace and
+   * walking the resulting frames from the beginning until a non-empty id is
+   * found. The difference is that this method won't allocate a stack trace.
+   */
+  static int CurrentScriptId(Isolate* isolate);
 };
 
 }  // namespace v8

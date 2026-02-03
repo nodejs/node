@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_NAMES_PROVIDER_H_
+#define V8_WASM_NAMES_PROVIDER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_NAMES_PROVIDER_H_
-#define V8_WASM_NAMES_PROVIDER_H_
 
 #include <map>
 #include <string>
 
 #include "src/base/vector.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -38,8 +39,6 @@ class V8_EXPORT_PRIVATE NamesProvider {
                 base::Vector<const uint8_t> wire_bytes);
   ~NamesProvider();
 
-  // Returns {false} if {devtools_behavior} == false and no name for
-  // {function_index} was present in the name section.
   void PrintFunctionName(StringBuilder& out, uint32_t function_index,
                          FunctionNamesBehavior behavior = kWasmInternal,
                          IndexAsComment index_as_comment = kDontPrintIndex);
@@ -50,6 +49,10 @@ class V8_EXPORT_PRIVATE NamesProvider {
                       uint32_t label_index, uint32_t fallback_index);
   void PrintTypeName(StringBuilder& out, uint32_t type_index,
                      IndexAsComment index_as_comment = kDontPrintIndex);
+  void PrintTypeName(StringBuilder& out, ModuleTypeIndex type_index,
+                     IndexAsComment index_as_comment = kDontPrintIndex) {
+    PrintTypeName(out, type_index.index, index_as_comment);
+  }
   void PrintTableName(StringBuilder& out, uint32_t table_index,
                       IndexAsComment index_as_comment = kDontPrintIndex);
   void PrintMemoryName(StringBuilder& out, uint32_t memory_index,
@@ -84,7 +87,7 @@ class V8_EXPORT_PRIVATE NamesProvider {
 
   // Lazy loading must guard against concurrent modifications from multiple
   // {WasmModuleObject}s.
-  base::Mutex mutex_;
+  mutable base::Mutex mutex_;
   bool has_decoded_{false};
   bool has_computed_function_import_names_{false};
   bool has_computed_import_names_{false};
@@ -96,6 +99,36 @@ class V8_EXPORT_PRIVATE NamesProvider {
   std::map<uint32_t, std::string> import_export_memory_names_;
   std::map<uint32_t, std::string> import_export_global_names_;
   std::map<uint32_t, std::string> import_export_tag_names_;
+};
+
+// Specialized version for canonical type names.
+class CanonicalTypeNamesProvider {
+ public:
+  CanonicalTypeNamesProvider() = default;
+
+  void DecodeNameSections();
+  void DecodeNames(NativeModule* native_module);
+
+  void PrintTypeName(StringBuilder& out, CanonicalTypeIndex type_index,
+                     NamesProvider::IndexAsComment index_as_comment =
+                         NamesProvider::kDontPrintIndex);
+  void PrintValueType(StringBuilder& out, CanonicalValueType type);
+
+  void PrintFieldName(StringBuilder& out, CanonicalTypeIndex struct_index,
+                      uint32_t field_index);
+
+  size_t EstimateCurrentMemoryConsumption() const;
+
+ private:
+  // TODO(jkummerow): Use Zone allocation for the character payloads?
+  using StringT = base::OwnedVector<char>;
+
+  size_t DetectInlineStringThreshold();
+
+  std::vector<StringT> type_names_;
+  std::map<uint32_t, std::vector<StringT>> field_names_;
+  mutable base::Mutex mutex_;
+  size_t payload_size_estimate_{0};
 };
 
 }  // namespace wasm

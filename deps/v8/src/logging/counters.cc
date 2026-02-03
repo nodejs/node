@@ -9,11 +9,11 @@
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/log.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 StatsTable::StatsTable(Counters* counters)
     : lookup_function_(nullptr),
@@ -89,12 +89,18 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
 
 #ifdef DEBUG
 bool TimedHistogram::ToggleRunningState(bool expect_to_run) const {
-  static thread_local base::LazyInstance<
-      std::unordered_map<const TimedHistogram*, bool>>::type active_timer =
-      LAZY_INSTANCE_INITIALIZER;
-  bool is_running = (*active_timer.Pointer())[this];
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
+  static thread_local std::unordered_map<const TimedHistogram*, bool>
+      active_timer;
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+  bool is_running = active_timer[this];
   DCHECK_NE(is_running, expect_to_run);
-  (*active_timer.Pointer())[this] = !is_running;
+  active_timer[this] = !is_running;
   return true;
 }
 #endif
@@ -192,6 +198,13 @@ void CountersVisitor::VisitHistograms() {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
+#if V8_ENABLE_DRUMBRAKE
+#define HR(name, caption, min, max, num_buckets) \
+  Visit(&counters()->name##_, #caption, min, max, num_buckets);
+  HISTOGRAM_RANGE_LIST_SLOW(HR)
+#undef HR
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #define HR(name, caption) Visit(&counters()->name##_, #caption);
   HISTOGRAM_PERCENTAGE_LIST(HR)
 #undef HR
@@ -260,5 +273,31 @@ void CountersVisitor::Visit(StatsCounter* counter, const char* caption) {
   VisitStatsCounter(counter, caption);
 }
 
-}  // namespace internal
-}  // namespace v8
+void DelayedCounterUpdates::PublishImpl(Isolate* isolate) {
+  std::vector<AnyUpdate> updates;
+  {
+    base::MutexGuard mutex_guard{&mutex_};
+    updates.swap(outstanding_updates_);
+    has_updates_.store(false, std::memory_order_relaxed);
+  }
+  for (const auto& update : updates) {
+    if (const HistogramUpdate* histogram_update =
+            std::get_if<HistogramUpdate>(&update)) {
+      Histogram* histogram = (isolate->counters()->*histogram_update->fn)();
+      histogram->AddSample(histogram_update->sample);
+    } else if (const TimedHistogramUpdate* timed_histogram_update =
+                   std::get_if<TimedHistogramUpdate>(&update)) {
+      TimedHistogram* histogram =
+          (isolate->counters()->*timed_histogram_update->fn)();
+      histogram->AddTimedSample(timed_histogram_update->sample);
+    } else {
+      StatsCounterUpdate stats_counter_update =
+          std::get<StatsCounterUpdate>(update);
+      StatsCounter* stats_counter =
+          (isolate->counters()->*stats_counter_update.fn)();
+      stats_counter->Increment(stats_counter_update.increment);
+    }
+  }
+}
+
+}  // namespace v8::internal

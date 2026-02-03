@@ -1,20 +1,16 @@
-// Flags: --expose-internals
-
 'use strict';
 const { expectsError, mustCall } = require('../common');
 const assert = require('assert');
 const { createServer, maxHeaderSize } = require('http');
 const { createConnection } = require('net');
 
-const CRLF = '\r\n';
 const DUMMY_HEADER_NAME = 'Cookie: ';
 const DUMMY_HEADER_VALUE = 'a'.repeat(
   // Plus one is to make it 1 byte too big
-  maxHeaderSize - DUMMY_HEADER_NAME.length + 2
+  maxHeaderSize - DUMMY_HEADER_NAME.length + 1
 );
 const PAYLOAD_GET = 'GET /blah HTTP/1.1';
-const PAYLOAD = PAYLOAD_GET + CRLF +
-  DUMMY_HEADER_NAME + DUMMY_HEADER_VALUE + CRLF.repeat(2);
+const PAYLOAD = PAYLOAD_GET + '\r\n' + DUMMY_HEADER_NAME + DUMMY_HEADER_VALUE;
 
 const server = createServer();
 
@@ -23,18 +19,19 @@ server.on('connection', mustCall((socket) => {
     name: 'Error',
     message: 'Parse Error: Header overflow',
     code: 'HPE_HEADER_OVERFLOW',
-    bytesParsed: maxHeaderSize + PAYLOAD_GET.length + (CRLF.length * 2) + 1,
+    bytesParsed: PAYLOAD.length,
     rawPacket: Buffer.from(PAYLOAD)
   }));
+
+  // The data is not sent from the client to ensure that it is received as a
+  // single chunk.
+  socket.push(PAYLOAD);
 }));
 
 server.listen(0, mustCall(() => {
   const c = createConnection(server.address().port);
   let received = '';
 
-  c.on('connect', mustCall(() => {
-    c.write(PAYLOAD);
-  }));
   c.on('data', mustCall((data) => {
     received += data.toString();
   }));

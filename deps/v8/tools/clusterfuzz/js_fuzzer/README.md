@@ -22,7 +22,8 @@ Then run:
 
 ```bash
 $ mkdir db
-$ node build_db.js -i /path/to/web_tests -o db chakra v8 spidermonkey WebKit/JSTests
+$ node build_db.js -i /path/to/web_tests -o db chakra v8 spidermonkey WebKit/JSTests fuzzilli
+$ node validate_db.js -i db -o db/index.json
 ```
 
 This may take a while. Optionally test the fuzzing DB with:
@@ -34,7 +35,7 @@ $ node test_db.js -i db
 ## Building fuzzer
 Then, to build the fuzzer,
 ```bash
-$ ./node_modules/.bin/pkg -t node10-linux-x64 .
+$ ./node_modules/.bin/pkg -t node18-linux-x64 .
 ```
 
 Replace "linux" with either "win" or "macos" for those platforms.

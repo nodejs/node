@@ -1,8 +1,7 @@
 import { MessageEvent, ErrorEvent } from './websocket'
+import Dispatcher from './dispatcher'
 
 import {
-  EventTarget,
-  Event,
   EventListenerOptions,
   AddEventListenerOptions,
   EventListenerOrEventListenerObject
@@ -19,9 +18,9 @@ interface EventSource extends EventTarget {
   readonly CLOSED: 2
   readonly CONNECTING: 0
   readonly OPEN: 1
-  onerror: (this: EventSource, ev: ErrorEvent) => any
-  onmessage: (this: EventSource, ev: MessageEvent) => any
-  onopen: (this: EventSource, ev: Event) => any
+  onerror: ((this: EventSource, ev: ErrorEvent) => any) | null
+  onmessage: ((this: EventSource, ev: MessageEvent) => any) | null
+  onopen: ((this: EventSource, ev: Event) => any) | null
   readonly readyState: 0 | 1 | 2
   readonly url: string
   readonly withCredentials: boolean
@@ -50,7 +49,7 @@ interface EventSource extends EventTarget {
 
 export declare const EventSource: {
   prototype: EventSource
-  new (url: string | URL, init: EventSourceInit): EventSource
+  new (url: string | URL, init?: EventSourceInit): EventSource
   readonly CLOSED: 2
   readonly CONNECTING: 0
   readonly OPEN: 1
@@ -58,4 +57,10 @@ export declare const EventSource: {
 
 interface EventSourceInit {
   withCredentials?: boolean
+  // @deprecated use `node.dispatcher` instead
+  dispatcher?: Dispatcher
+  node?: {
+    dispatcher?: Dispatcher
+    reconnectionTime?: number
+  }
 }

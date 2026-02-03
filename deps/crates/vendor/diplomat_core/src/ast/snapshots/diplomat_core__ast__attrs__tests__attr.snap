@@ -1,0 +1,12 @@
+---
+source: core/src/ast/attrs.rs
+expression: attr
+---
+cfg:
+  Any:
+    - BackendName: cpp
+    - NameValue:
+        - has
+        - overloading
+meta: namespacing
+

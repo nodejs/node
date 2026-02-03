@@ -12,8 +12,8 @@
 
 #include "src/heap/base/worklist.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
-#include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
@@ -80,14 +80,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // Worklists implicitly check for emptiness on destruction.
   ~MarkingWorklists() = default;
 
-  // Calls the specified callback on each element of the deques and replaces
-  // the element with the result of the callback. If the callback returns
-  // nullptr then the element is removed from the deque.
-  // The callback must accept HeapObject and return HeapObject.
-  template <typename Callback>
-  void Update(Callback callback);
-
-  MarkingWorklist* shared() { return &shared_; }
+  MarkingWorklist* default_worklist() { return &default_; }
   MarkingWorklist* on_hold() { return &on_hold_; }
   MarkingWorklist* other() { return &other_; }
 
@@ -102,18 +95,27 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // This should be invoked at the end of marking. All worklists must be
   // empty at that point.
   void ReleaseContextWorklists();
-  bool IsUsingContextWorklists() const { return !context_worklists_.empty(); }
+  bool IsPerContextMode() const { return !context_worklists_.empty(); }
 
   void Clear();
   void Print();
 
+  bool IsEmpty() const;
+
  private:
+  struct ContextHash {
+    V8_INLINE size_t operator()(const Address context) const {
+      return std::hash<Address>{}(context);
+    }
+  };
+  using ContextToIndexMap = std::unordered_map<Address, uint32_t, ContextHash>;
+
   // Prints the stats about the global pool of the worklist.
-  void PrintWorklist(const char* worklist_name, MarkingWorklist* worklist);
+  static void PrintWorklist(const char* worklist_name,
+                            MarkingWorklist* worklist);
 
   // Worklist used for most objects.
-  // TODO(mlippautz): Rename to "default".
-  MarkingWorklist shared_;
+  MarkingWorklist default_;
 
   // Concurrent marking uses this worklist to bail out of marking objects
   // in new space's linear allocation area. Used to avoid black allocation
@@ -121,11 +123,13 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // for freshly allocatd objects.
   MarkingWorklist on_hold_;
 
-  // Per-context worklists. Objects are in the `shared_` worklist by default.
-  std::vector<ContextWorklistPair> context_worklists_;
   // Worklist used for objects that are attributed to contexts that are
   // not being measured.
   MarkingWorklist other_;
+
+  // Per-context worklists. Objects are in the `default_` worklist by default.
+  std::vector<ContextWorklistPair> context_worklists_;
+  ContextToIndexMap worklist_by_context_;
 };
 
 // A thread-local view of the marking worklists. It owns all local marking
@@ -133,7 +137,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
 // for per-context marking. In order to avoid additional indirections for
 // pushing and popping entries, the active_ worklist is not a pointer to
 // Local but an actual instance of Local with the following invariants:
-// - active_owner == worlist_by_context[active_context_].get()
+// - active_owner == worklist_by_context_[active_context_].get()
 // - *active_owner is empty (all fields are null) because its content has
 //   been moved to active_.
 class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
@@ -155,12 +159,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   inline void PushOnHold(Tagged<HeapObject> object);
   inline bool PopOnHold(Tagged<HeapObject>* object);
 
-  using WrapperSnapshot = CppMarkingState::EmbedderDataSnapshot;
-  inline bool ExtractWrapper(Tagged<Map> map, Tagged<JSObject> object,
-                             WrapperSnapshot& snapshot);
-  inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);
-  inline bool SupportsExtractWrapper();
-
   void Publish();
   bool IsEmpty();
   bool IsWrapperEmpty() const;
@@ -174,9 +172,8 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   // Merges the on-hold worklist to the shared worklist.
   void MergeOnHold();
 
-  // Returns true if wrapper objects could be directly pushed. Otherwise,
-  // objects need to be processed one by one.
-  inline bool PublishWrapper();
+  // Publishes CppHeap objects.
+  inline void PublishCppHeapObjects();
 
   // Returns the context of the active worklist.
   Address Context() const { return active_context_; }
@@ -196,15 +193,16 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   bool PopContext(Tagged<HeapObject>* object);
   Address SwitchToContextSlow(Address context);
 
-  // Points to either `shared_`, `other_` or to a per-context worklist.
+  // Points to either `default_`, `other_` or to a per-context worklist.
   MarkingWorklist::Local* active_;
-  MarkingWorklist::Local shared_;
+  MarkingWorklist::Local default_;
   MarkingWorklist::Local on_hold_;
+  MarkingWorklist::Local other_;
   Address active_context_;
   const bool is_per_context_mode_;
-  const std::unordered_map<Address, std::unique_ptr<MarkingWorklist::Local>>
-      worklist_by_context_;
-  MarkingWorklist::Local other_;
+
+  std::vector<MarkingWorklist::Local> context_worklists_;
+  const ContextToIndexMap& worklist_by_context_;
   std::unique_ptr<CppMarkingState> cpp_marking_state_;
 };
 

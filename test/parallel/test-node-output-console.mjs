@@ -11,9 +11,9 @@ function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
 }
 
-describe('console output', { concurrency: true }, () => {
+describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*');
+    return str.replaceAll(/\d+/g, '*');
   }
   const tests = [
     { name: 'console/2100bytes.js' },
@@ -23,15 +23,23 @@ describe('console output', { concurrency: true }, () => {
     {
       name: 'console/stack_overflow.js',
       transform: snapshot
-        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize)
+        .transform(
+          snapshot.basicTransform,
+          snapshot.transformProjectRoot(),
+          normalize
+        )
     },
     !skipForceColors ? { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
   ].filter(Boolean);
   const defaultTransform = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
+    .transform(snapshot.basicTransform, replaceStackTrace);
   for (const { name, transform, env } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { env });
+      await snapshot.spawnAndAssert(
+        fixtures.path(name),
+        transform ?? defaultTransform,
+        { env: { ...env, ...process.env } },
+      );
     });
   }
 });

@@ -4,6 +4,7 @@
 const common = require('../../common');
 const test_general = require(`./build/${common.buildType}/test_general`);
 const assert = require('assert');
+const { gcUntil } = require('../../common/gc');
 
 const val1 = '1';
 const val2 = 1;
@@ -17,11 +18,17 @@ class ExtendedClass extends BaseClass {
 
 const baseObject = new BaseClass();
 const extendedObject = new ExtendedClass();
+const nullProtoObject = { __proto__: null };
 
 // Test napi_strict_equals
 assert.ok(test_general.testStrictEquals(val1, val1));
 assert.strictEqual(test_general.testStrictEquals(val1, val2), false);
 assert.ok(test_general.testStrictEquals(val2, val3));
+
+// Test napi_set_prototype
+test_general.testSetPrototype(nullProtoObject, Object.prototype);
+assert.strictEqual(Object.getPrototypeOf(nullProtoObject),
+                   Object.prototype);
 
 // Test napi_get_prototype
 assert.strictEqual(test_general.testGetPrototype(baseObject),
@@ -33,7 +40,7 @@ assert.notStrictEqual(test_general.testGetPrototype(baseObject),
                       test_general.testGetPrototype(extendedObject));
 
 // Test version management functions
-assert.strictEqual(test_general.testGetVersion(), 9);
+assert.strictEqual(test_general.testGetVersion(), 10);
 
 [
   123,
@@ -79,9 +86,9 @@ async function runGCTests() {
   assert.strictEqual(test_general.derefItemWasCalled(), false);
 
   (() => test_general.wrap({}))();
-  await common.gcUntil('deref_item() was called upon garbage collecting a ' +
+  await gcUntil('deref_item() was called upon garbage collecting a ' +
                        'wrapped object.',
-                       () => test_general.derefItemWasCalled());
+                () => test_general.derefItemWasCalled());
 
   // Ensure that removing a wrap and garbage collecting does not fire the
   // finalize callback.
@@ -89,7 +96,7 @@ async function runGCTests() {
   test_general.testFinalizeWrap(z);
   test_general.removeWrap(z);
   z = null;
-  await common.gcUntil(
+  await gcUntil(
     'finalize callback was not called upon garbage collection.',
     () => (!test_general.finalizeWasCalled()));
 }

@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
+#define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
+
 // This file defines internal versions of the public API structs. These should
 // all be tidy and simple classes which maintain proper ownership (unique_ptr)
 // of each other. Each contains an instance of its corresponding public type,
 // which can be filled out with GetPublicView.
-
-#ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
-#define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "debug-helper.h"
+#include "src/common/globals.h"
 #include "src/objects/instance-type.h"
 
 namespace d = v8::debug_helper;
@@ -235,10 +236,6 @@ uintptr_t EnsureDecompressed(uintptr_t address,
 // Converts the MemoryAccessResult from attempting to read an array's length
 // into the corresponding PropertyKind for the array.
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result);
-
-// List of fully-qualified names for every Object subtype, generated based on
-// Torque class definitions.
-extern const d::ClassList kObjectClassList;
 
 }  // namespace debug_helper_internal
 }  // namespace internal

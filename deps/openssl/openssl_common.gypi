@@ -8,6 +8,7 @@
     'openssl/crypto/ec/curve448',
     'openssl/crypto/ec/curve448/arch_32',
     'openssl/providers/common/include',
+    'openssl/providers/fips/include',
     'openssl/providers/implementations/include',
     'config/',
   ],
@@ -67,7 +68,7 @@
         'TERMIOS',
       ],
       'conditions': [
-        [ 'llvm_version=="0.0"', {
+        [ 'clang==0', {
           'cflags': ['-Wno-old-style-declaration',],
         }],
       ],

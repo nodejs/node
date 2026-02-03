@@ -34,11 +34,10 @@
 
 U_NAMESPACE_BEGIN
 
-class CharString;
-namespace number {
-namespace impl {
+class FixedString;
+
+namespace number::impl {
 class DecimalQuantity;
-}
 }
 
 /**
@@ -274,7 +273,7 @@ public:
      * @return    the data type of this Formattable object.
      * @stable ICU 2.0
      */
-    Type            getType(void) const;
+    Type getType() const;
 
     /**
      * Returns true if the data type of this Formattable object
@@ -290,7 +289,7 @@ public:
      * @return    the double value of this object.
      * @stable ICU 2.0
      */
-    double          getDouble(void) const { return fValue.fDouble; }
+    double getDouble() const { return fValue.fDouble; }
 
     /**
      * Gets the double value of this object. If this object is of type
@@ -312,7 +311,7 @@ public:
      * @return    the long value of this object.
      * @stable ICU 2.0
      */
-    int32_t         getLong(void) const { return (int32_t)fValue.fInt64; }
+    int32_t getLong() const { return static_cast<int32_t>(fValue.fInt64); }
 
     /**
      * Gets the long value of this object. If the magnitude is too
@@ -338,7 +337,7 @@ public:
      * @return    the int64 value of this object.
      * @stable ICU 2.8
      */
-    int64_t         getInt64(void) const { return fValue.fInt64; }
+    int64_t getInt64() const { return fValue.fInt64; }
 
     /**
      * Gets the int64 value of this object. If this object is of a numeric
@@ -403,7 +402,7 @@ public:
      * @return   a const reference to the string value of this object.
      * @stable ICU 2.0
      */
-    inline const UnicodeString& getString(void) const;
+    inline const UnicodeString& getString() const;
 
     /**
      * Gets a const reference to the string value of this object.  If
@@ -421,7 +420,7 @@ public:
      * @return   a reference to the string value of this object.
      * @stable ICU 2.0
      */
-    inline UnicodeString& getString(void);
+    inline UnicodeString& getString();
 
     /**
      * Gets a reference to the string value of this object. If the
@@ -566,7 +565,7 @@ public:
     void            adoptObject(UObject* objectToAdopt);
 
     /**
-     * Sets the the numeric value from a decimal number string, and changes
+     * Sets the numeric value from a decimal number string, and changes
      * the type to to a numeric type appropriate for the number.
      * The syntax of the number is a "numeric string"
      * as defined in the Decimal Arithmetic Specification, available at
@@ -666,12 +665,12 @@ public:
     void adoptDecimalQuantity(number::impl::DecimalQuantity *dq);
 
     /**
-     * Internal function to return the CharString pointer.
+     * Internal function to return the FixedString pointer.
      * @param status error code
-     * @return pointer to the CharString - may become invalid if the object is modified
+     * @return pointer to the FixedString - may become invalid if the object is modified
      * @internal
      */
-    CharString *internalGetCharString(UErrorCode &status);
+    FixedString *internalGetFixedString(UErrorCode &status);
 
 #endif  /* U_HIDE_INTERNAL_API */
 
@@ -680,7 +679,7 @@ private:
      * Cleans up the memory for unwanted values.  For example, the adopted
      * string or array objects.
      */
-    void            dispose(void);
+    void dispose();
 
     /**
      * Common initialization, for use by constructors.
@@ -701,7 +700,7 @@ private:
         }               fArrayAndCount;
     } fValue;
 
-    CharString           *fDecimalStr;
+    FixedString* fDecimalStr;
 
     number::impl::DecimalQuantity *fDecimalQuantity;
 
@@ -719,11 +718,11 @@ inline UDate Formattable::getDate(UErrorCode& status) const {
     return fValue.fDate;
 }
 
-inline const UnicodeString& Formattable::getString(void) const {
+inline const UnicodeString& Formattable::getString() const {
     return *fValue.fString;
 }
 
-inline UnicodeString& Formattable::getString(void) {
+inline UnicodeString& Formattable::getString() {
     return *fValue.fString;
 }
 

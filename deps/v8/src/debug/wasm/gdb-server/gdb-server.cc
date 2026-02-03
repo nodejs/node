@@ -105,7 +105,8 @@ class TaskRunner {
   std::atomic<bool> is_terminated_;
 };
 
-GdbServer::GdbServer() : has_module_list_changed_(false) {
+GdbServer::GdbServer()
+    : has_module_list_changed_(false), zone_(&allocator_, "GDB Server Zone") {
   task_runner_ = std::make_unique<TaskRunner>();
 }
 
@@ -165,6 +166,18 @@ std::vector<GdbServer::WasmModuleInfo> GdbServer::GetLoadedModules(
     if (clear_module_list_changed_flag) has_module_list_changed_ = false;
   });
   return modules;
+}
+
+uint32_t GdbServer::GetFirstModuleId() const {
+  // Executed in the GDBServerThread.
+  uint32_t module_id = 0;
+  RunSyncTask([this, &module_id]() {
+    // Executed in the isolate thread.
+    if (!scripts_.empty()) {
+      module_id = scripts_.begin()->first;
+    }
+  });
+  return module_id;
 }
 
 bool GdbServer::GetModuleDebugHandler(uint32_t module_id,
@@ -244,8 +257,8 @@ uint32_t GdbServer::GetWasmData(uint32_t module_id, uint32_t offset,
     // Executed in the isolate thread.
     WasmModuleDebug* module_debug = nullptr;
     if (GetModuleDebugHandler(module_id, &module_debug)) {
-      bytes_read = module_debug->GetWasmData(GetTarget().GetCurrentIsolate(),
-                                             offset, buffer, size);
+      bytes_read = module_debug->GetWasmData(
+          &zone_, GetTarget().GetCurrentIsolate(), offset, buffer, size);
     }
   });
   return bytes_read;
@@ -323,17 +336,17 @@ void GdbServer::AddIsolate(Isolate* isolate) {
 
 void GdbServer::RemoveIsolate(Isolate* isolate) {
   // Executed in the isolate thread.
-  auto it = isolate_delegates_.find(isolate);
-  if (it != isolate_delegates_.end()) {
-    for (auto it = scripts_.begin(); it != scripts_.end();) {
-      if (it->second.GetIsolate() == isolate) {
-        it = scripts_.erase(it);
+  auto isolate_it = isolate_delegates_.find(isolate);
+  if (isolate_it != isolate_delegates_.end()) {
+    for (auto script_it = scripts_.begin(); script_it != scripts_.end();) {
+      if (script_it->second.GetIsolate() == isolate) {
+        script_it = scripts_.erase(script_it);
         has_module_list_changed_ = true;
       } else {
-        ++it;
+        ++script_it;
       }
     }
-    isolate_delegates_.erase(it);
+    isolate_delegates_.erase(isolate_it);
   }
 }
 
@@ -346,7 +359,8 @@ void GdbServer::Suspend() {
     v8Isolate->RequestInterrupt(
         // Executed in the isolate thread.
         [](v8::Isolate* isolate, void*) {
-          if (v8::debug::AllFramesOnStackAreBlackboxed(isolate)) {
+          i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+          if (i_isolate->debug()->AllFramesOnStackAreBlackboxed()) {
             v8::debug::SetBreakOnNextFunctionCall(isolate);
           } else {
             v8::debug::BreakRightNow(isolate);
@@ -372,7 +386,7 @@ void GdbServer::AddWasmModule(uint32_t module_id,
                               Local<debug::WasmScript> wasm_script) {
   // Executed in the isolate thread.
   DCHECK_EQ(Script::Type::kWasm, Utils::OpenHandle(*wasm_script)->type());
-  v8::Isolate* isolate = wasm_script->GetIsolate();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(Isolate::Current());
   scripts_.insert(
       std::make_pair(module_id, WasmModuleDebug(isolate, wasm_script)));
   has_module_list_changed_ = true;

@@ -30,7 +30,7 @@ struct PBKDF2Config final : public MemoryRetainer {
   ByteSource salt;
   int32_t iterations;
   int32_t length;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
 
   PBKDF2Config() = default;
 
@@ -49,22 +49,20 @@ struct PBKDF2Traits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_PBKDF2REQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       PBKDF2Config* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const PBKDF2Config& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const PBKDF2Config& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const PBKDF2Config& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const PBKDF2Config& params,
+                                                ByteSource* out);
 };
 
 using PBKDF2Job = DeriveBitsJob<PBKDF2Traits>;

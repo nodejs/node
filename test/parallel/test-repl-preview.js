@@ -57,7 +57,7 @@ function runAndWait(cmds, repl) {
 }
 
 async function tests(options) {
-  const repl = REPLServer({
+  const repl = new REPLServer({
     prompt: PROMPT,
     stream: new REPLStream(),
     ignoreUndefined: true,
@@ -157,6 +157,83 @@ async function tests(options) {
       '\x1B[90m1\x1B[39m\x1B[12G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
       '\x1B[33m1\x1B[39m',
     ]
+  }, {
+    input: 'aaaa',
+    noPreview: 'Uncaught ReferenceError: aaaa is not defined',
+    preview: [
+      'aaaa\r',
+      'Uncaught ReferenceError: aaaa is not defined',
+    ]
+  }, {
+    input: '/0',
+    noPreview: '/0',
+    preview: [
+      '/0\r',
+      '/0',
+      '^',
+      '',
+      'Uncaught SyntaxError: Invalid regular expression: missing /',
+    ]
+  }, {
+    input: '{})',
+    noPreview: '{})',
+    preview: [
+      '{})\r',
+      '{})',
+      '  ^',
+      '',
+      "Uncaught SyntaxError: Unexpected token ')'",
+    ],
+  }, {
+    input: "{ a: '{' }",
+    noPreview: "{ a: \x1B[32m'{'\x1B[39m }",
+    preview: [
+      "{ a: '{' }\r",
+      "{ a: \x1B[32m'{'\x1B[39m }",
+    ],
+  }, {
+    input: "{'{':0}",
+    noPreview: "{ \x1B[32m'{'\x1B[39m: \x1B[33m0\x1B[39m }",
+    preview: [
+      "{'{':0}",
+      "\x1B[90m{ '{': 0 }\x1B[39m\x1B[15G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r",
+      "{ \x1B[32m'{'\x1B[39m: \x1B[33m0\x1B[39m }",
+    ],
+  }, {
+    input: '{[Symbol.for("{")]: 0 }',
+    noPreview: '{ \x1B[32mSymbol({)\x1B[39m: \x1B[33m0\x1B[39m }',
+    preview: [
+      '{[Symbol.for("{")]: 0 }\r',
+      '{ \x1B[32mSymbol({)\x1B[39m: \x1B[33m0\x1B[39m }',
+    ],
+  }, {
+    input: '{},{}',
+    noPreview: '{}',
+    preview: [
+      '{},{}',
+      '\x1B[90m{}\x1B[39m\x1B[13G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '{}',
+    ],
+  }, {
+    input: '{} //',
+    noPreview: 'repl > ',
+    preview: [
+      '{} //\r',
+    ],
+  }, {
+    input: '{} //;',
+    noPreview: 'repl > ',
+    preview: [
+      '{} //;\r',
+    ],
+  }, {
+    input: '{throw 0}',
+    noPreview: 'Uncaught \x1B[33m0\x1B[39m',
+    preview: [
+      '{throw 0}',
+      '\x1B[90m0\x1B[39m\x1B[17G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      'Uncaught \x1B[33m0\x1B[39m',
+    ],
   }];
 
   const hasPreview = repl.terminal &&
@@ -177,8 +254,13 @@ async function tests(options) {
       assert.deepStrictEqual(lines, preview);
     } else {
       assert.ok(lines[0].includes(noPreview), lines.map(inspect));
-      if (preview.length !== 1 || preview[0] !== `${input}\r`)
-        assert.strictEqual(lines.length, 2);
+      if (preview.length !== 1 || preview[0] !== `${input}\r`) {
+        if (preview[preview.length - 1].includes('Uncaught SyntaxError')) {
+          assert.strictEqual(lines.length, 5);
+        } else {
+          assert.strictEqual(lines.length, 2);
+        }
+      }
     }
   }
 }

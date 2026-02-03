@@ -52,6 +52,15 @@ class V8_EXPORT Platform {
    * Foreground task runner that should be used by a Heap.
    */
   virtual std::shared_ptr<TaskRunner> GetForegroundTaskRunner() {
+    return GetForegroundTaskRunner(TaskPriority::kUserBlocking);
+  }
+
+  /**
+   * Returns a TaskRunner with a specific |priority| which can be used to post a
+   * task on the foreground thread.
+   */
+  virtual std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      TaskPriority priority) {
     return nullptr;
   }
 
@@ -127,6 +136,8 @@ class V8_EXPORT Platform {
   virtual TracingController* GetTracingController();
 };
 
+V8_EXPORT bool IsInitialized();
+
 /**
  * Process-global initialization of the garbage collector. Must be called before
  * creating a Heap.
@@ -154,7 +165,7 @@ V8_EXPORT void ShutdownProcess();
 namespace internal {
 
 V8_EXPORT void Fatal(const std::string& reason = std::string(),
-                     const SourceLocation& = SourceLocation::Current());
+                     SourceLocation = SourceLocation::Current());
 
 }  // namespace internal
 

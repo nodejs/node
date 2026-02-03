@@ -29,29 +29,19 @@
 #include <string.h>
 #ifdef WIN32
 #  include <intrin.h>
-#endif
+#endif /* defined(WIN32) */
 
 #include "nghttp3_macro.h"
 
-#if defined(_MSC_VER) && !defined(__clang__) &&                                \
-    (defined(_M_ARM) || defined(_M_ARM64))
-unsigned int __popcnt(unsigned int x) {
-  unsigned int c = 0;
-  for (; x; ++c) {
-    x &= x - 1;
-  }
-  return c;
-}
-#endif
+#ifndef NDEBUG
+/* Power-of-two test; simple portable bit trick. */
+static int ispow2(size_t n) { return n && !(n & (n - 1)); }
+#endif /* !defined(NDEBUG) */
 
 int nghttp3_ringbuf_init(nghttp3_ringbuf *rb, size_t nmemb, size_t size,
                          const nghttp3_mem *mem) {
   if (nmemb) {
-#ifdef WIN32
-    assert(1 == __popcnt((unsigned int)nmemb));
-#else
-    assert(1 == __builtin_popcount((unsigned int)nmemb));
-#endif
+    assert(ispow2(nmemb));
 
     rb->buf = nghttp3_mem_malloc(mem, nmemb * size);
     if (rb->buf == NULL) {
@@ -80,7 +70,7 @@ void nghttp3_ringbuf_free(nghttp3_ringbuf *rb) {
 
 void *nghttp3_ringbuf_push_front(nghttp3_ringbuf *rb) {
   rb->first = (rb->first - 1) & (rb->nmemb - 1);
-  rb->len = nghttp3_min(rb->nmemb, rb->len + 1);
+  rb->len = nghttp3_min_size(rb->nmemb, rb->len + 1);
 
   return (void *)&rb->buf[rb->first * rb->size];
 }
@@ -127,11 +117,7 @@ int nghttp3_ringbuf_reserve(nghttp3_ringbuf *rb, size_t nmemb) {
     return 0;
   }
 
-#ifdef WIN32
-  assert(1 == __popcnt((unsigned int)nmemb));
-#else
-  assert(1 == __builtin_popcount((unsigned int)nmemb));
-#endif
+  assert(ispow2(nmemb));
 
   buf = nghttp3_mem_malloc(rb->mem, nmemb * rb->size);
   if (buf == NULL) {

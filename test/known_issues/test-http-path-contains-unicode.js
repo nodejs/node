@@ -22,7 +22,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
 
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   http.request({
     port: server.address().port,
     path: expected,
@@ -33,4 +33,4 @@ server.listen(0, () => {
     console.log(e.message);
     process.exit(1);
   }).end();
-});
+}));

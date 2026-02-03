@@ -33,7 +33,7 @@ void RuleBasedTransliterator::_construct(const UnicodeString& rules,
                                          UTransDirection direction,
                                          UParseError& parseError,
                                          UErrorCode& status) {
-    fData = 0;
+    fData = nullptr;
     isDataOwned = true;
     if (U_FAILURE(status)) {
         return;
@@ -52,7 +52,7 @@ void RuleBasedTransliterator::_construct(const UnicodeString& rules,
         return;
     }
 
-    fData = (TransliterationRuleData*)parser.dataVector.orphanElementAt(0);
+    fData = static_cast<TransliterationRuleData*>(parser.dataVector.orphanElementAt(0));
     setMaximumContextLength(fData->ruleSet.getMaximumContextLength());
 }
 
@@ -142,7 +142,7 @@ RuleBasedTransliterator::RuleBasedTransliterator(const UnicodeString& id,
                                  const TransliterationRuleData* theData,
                                  UnicodeFilter* adoptedFilter) :
     Transliterator(id, adoptedFilter),
-    fData((TransliterationRuleData*)theData), // cast away const
+    fData(const_cast<TransliterationRuleData*>(theData)), // cast away const
     isDataOwned(false) {
     setMaximumContextLength(fData->ruleSet.getMaximumContextLength());
 }
@@ -153,7 +153,7 @@ RuleBasedTransliterator::RuleBasedTransliterator(const UnicodeString& id,
 RuleBasedTransliterator::RuleBasedTransliterator(const UnicodeString& id,
                                                  TransliterationRuleData* theData,
                                                  UBool isDataAdopted) :
-    Transliterator(id, 0),
+    Transliterator(id, nullptr),
     fData(theData),
     isDataOwned(isDataAdopted) {
     setMaximumContextLength(fData->ruleSet.getMaximumContextLength());

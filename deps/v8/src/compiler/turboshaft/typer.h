@@ -64,8 +64,7 @@ struct WordOperationTyper {
       return type_t::Set(elements, zone);
     }
 
-    auto range =
-        MakeRange(base::Vector<const word_t>{elements.data(), elements.size()});
+    auto range = MakeRange(base::VectorOf(elements));
     auto result = type_t::Range(range.first, range.second, zone);
     DCHECK(
         base::all_of(elements, [&](word_t e) { return result.Contains(e); }));
@@ -709,15 +708,19 @@ struct FloatOperationTyper {
         ((l_min == -inf || l_max == inf) && (r_min == -inf || r_max == inf));
 
     // Try to rule out -0.
-    // -0 / r (r > 0)
     bool maybe_minuszero =
+        // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
-        // 0 / r (r < 0 || r == -0)
-        || (l.Contains(0) && (r_min < 0 || r.has_minus_zero()))
-        // l / inf (l < 0 || l == -0)
-        || (r_max == inf && (l_min < 0 || l.has_minus_zero()))
-        // l / -inf (l >= 0)
-        || (r_min == -inf && l_max >= 0);
+        // 0 / r (r < 0)
+        || (l.Contains(0) && r_min < 0)
+        // -0.0..01 / r (r > 1)
+        || (l.Contains(0) && l_min < 0 && r_max > 1)
+        // 0.0..01 / r (r < -1)
+        || (l.Contains(0) && l_max >= 0 && r_min < -1)
+        // l / large (l < 0)
+        || (l_max < 0 && detail::is_minus_zero(l_max / r_max))
+        // l / -large (l > 0)
+        || (l_min > 0 && detail::is_minus_zero(l_min / r_min));
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);
@@ -735,8 +738,8 @@ struct FloatOperationTyper {
         results[2] = l_max / r_min;
         results[3] = l_max / r_max;
 
-        for (float_t r : results) {
-          if (std::isnan(r)) return type_t::Any();
+        for (float_t res : results) {
+          if (std::isnan(res)) return type_t::Any();
         }
 
         const float_t result_min = array_min(results);
@@ -1152,6 +1155,7 @@ class Typer {
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
       case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         // TODO(nicohartmann@): Support these representations.
         return Type::Any();
     }
@@ -1169,13 +1173,15 @@ class Typer {
   static Type TypeConstant(ConstantOp::Kind kind, ConstantOp::Storage value) {
     switch (kind) {
       case ConstantOp::Kind::kFloat32:
-        if (std::isnan(value.float32)) return Float32Type::NaN();
-        if (IsMinusZero(value.float32)) return Float32Type::MinusZero();
-        return Float32Type::Constant(value.float32);
+        if (value.float32.is_nan()) return Float32Type::NaN();
+        if (IsMinusZero(value.float32.get_scalar()))
+          return Float32Type::MinusZero();
+        return Float32Type::Constant(value.float32.get_scalar());
       case ConstantOp::Kind::kFloat64:
-        if (std::isnan(value.float64)) return Float64Type::NaN();
-        if (IsMinusZero(value.float64)) return Float64Type::MinusZero();
-        return Float64Type::Constant(value.float64);
+        if (value.float64.is_nan()) return Float64Type::NaN();
+        if (IsMinusZero(value.float64.get_scalar()))
+          return Float64Type::MinusZero();
+        return Float64Type::Constant(value.float64.get_scalar());
       case ConstantOp::Kind::kWord32:
         return Word32Type::Constant(static_cast<uint32_t>(value.integral));
       case ConstantOp::Kind::kWord64:
@@ -1415,6 +1421,7 @@ class Typer {
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
       case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         if (lhs.IsNone() || rhs.IsNone()) return Type::None();
         // TODO(nicohartmann@): Support those cases.
         return Word32Type::Set({0, 1}, zone);
@@ -1427,6 +1434,7 @@ class Typer {
     auto l = TruncateWord32Input(lhs, true, zone);
     auto r = TruncateWord32Input(rhs, true, zone);
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1443,6 +1451,7 @@ class Typer {
                                    ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1461,6 +1470,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<32>::LessThan(lhs.AsFloat32(),
                                                  rhs.AsFloat32(), zone);
@@ -1477,6 +1489,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<64>::LessThan(lhs.AsFloat64(),
                                                  rhs.AsFloat64(), zone);

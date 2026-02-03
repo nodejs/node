@@ -40,12 +40,12 @@ const callbacks = {
 };
 
 file
-  .on('open', function(fd) {
+  .on('open', common.mustCall((fd) => {
     console.error('open!');
     callbacks.open++;
     assert.strictEqual(typeof fd, 'number');
-  })
-  .on('drain', function() {
+  }))
+  .on('drain', common.mustCallAtLeast(() => {
     console.error('drain!', callbacks.drain);
     callbacks.drain++;
     if (callbacks.drain === -1) {
@@ -55,8 +55,8 @@ file
       assert.strictEqual(fs.readFileSync(fn, 'utf8'), EXPECTED + EXPECTED);
       file.end();
     }
-  })
-  .on('close', function() {
+  }))
+  .on('close', common.mustCall(() => {
     console.error('close!');
     assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
@@ -69,7 +69,7 @@ file
     file.on('error', common.mustNotCall());
 
     fs.unlinkSync(fn);
-  });
+  }));
 
 for (let i = 0; i < 11; i++) {
   file.write(`${i}`);

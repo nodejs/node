@@ -151,6 +151,8 @@ ada_string ada_search_params_get(ada_url_search_params result, const char* key,
                                  size_t key_length);
 ada_strings ada_search_params_get_all(ada_url_search_params result,
                                       const char* key, size_t key_length);
+void ada_search_params_reset(ada_url_search_params result, const char* input,
+                             size_t length);
 ada_url_search_params_keys_iter ada_search_params_get_keys(
     ada_url_search_params result);
 ada_url_search_params_values_iter ada_search_params_get_values(
@@ -181,5 +183,15 @@ ada_string_pair ada_search_params_entries_iter_next(
     ada_url_search_params_entries_iter result);
 bool ada_search_params_entries_iter_has_next(
     ada_url_search_params_entries_iter result);
+
+// Definitions for Ada's version number.
+typedef struct {
+  int major;
+  int minor;
+  int revision;
+} ada_version_components;
+
+const char* ada_get_version();
+ada_version_components ada_get_version_components();
 
 #endif  // ADA_C_H

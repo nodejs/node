@@ -31,7 +31,7 @@ static const OSSL_PARAM known_mdc2_settable_ctx_params[] = {
 };
 
 static const OSSL_PARAM *mdc2_settable_ctx_params(ossl_unused void *ctx,
-                                                  ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_mdc2_settable_ctx_params;
 }
@@ -43,7 +43,7 @@ static int mdc2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
     if (ctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_PAD_TYPE);

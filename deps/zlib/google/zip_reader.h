@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -51,6 +52,27 @@ class WriterDelegate {
   // Called if an error occurred while extracting the file. The WriterDelegate
   // can then remove and clean up the partially extracted data.
   virtual void OnError() {}
+};
+
+// A delegate interface used to read data from the ZIP archive.
+class ReaderDelegate {
+ public:
+  virtual ~ReaderDelegate() = default;
+
+  // Invoked to read the next chunk of data.
+  // Returns the number of bytes read and -1 on error.
+  virtual int64_t ReadBytes(base::span<uint8_t> data) = 0;
+
+  // Invoked to seek to the specified offset. Returns true on success.
+  virtual bool Seek(int64_t offset) = 0;
+
+  // Invoked to get the current offset.
+  // Returns the current offset and -1 on error.
+  virtual int64_t Tell() = 0;
+
+  // Invoked to get the size of the file.
+  // Returns the file size and -1 on error.
+  virtual int64_t GetLength() = 0;
 };
 
 // This class is used for reading ZIP archives. A typical use case of this class
@@ -142,6 +164,9 @@ class ZipReader {
 
     // Entry POSIX permissions (POSIX systems only).
     int posix_mode;
+
+    // True if the entry is a symbolic link (POSIX systems only).
+    bool is_symbolic_link = false;
   };
 
   ZipReader();
@@ -163,6 +188,10 @@ class ZipReader {
   // the given sring while extracting files, i.e. the caller should keep the
   // string until it finishes extracting files.
   bool OpenFromString(const std::string& data);
+
+  // Opens the ZIP archive from a reader delegate. The delegate must outlive
+  // the ZipReader. Returns true on success.
+  bool OpenFromReaderDelegate(ReaderDelegate* delegate);
 
   // Closes the currently opened ZIP archive. This function is called in the
   // destructor of the class, so you usually don't need to call this.
@@ -281,7 +310,7 @@ class ZipReader {
 
   // Normalizes the given path passed as UTF-16 string piece. Sets entry_.path,
   // entry_.is_directory and entry_.is_unsafe.
-  void Normalize(base::StringPiece16 in);
+  void Normalize(std::u16string_view in);
 
   // Runs the ListenerCallback at a throttled rate.
   void ReportProgress(ListenerCallback listener_callback, uint64_t bytes) const;

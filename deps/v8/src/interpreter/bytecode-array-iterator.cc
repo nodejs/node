@@ -19,7 +19,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
       start_(reinterpret_cast<uint8_t*>(
           bytecode_array_->GetFirstBytecodeAddress())),
       end_(start_ + bytecode_array_->length()),
-      cursor_(start_ + initial_offset),
+      cursor_(start_),
       operand_scale_(OperandScale::kSingle),
       prefix_size_(0),
       local_heap_(LocalHeap::Current()
@@ -27,6 +27,9 @@ BytecodeArrayIterator::BytecodeArrayIterator(
                       : Isolate::Current()->main_thread_local_heap()) {
   local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
   UpdateOperandScale();
+  if (initial_offset != 0) {
+    AdvanceTo(initial_offset);
+  }
 }
 
 BytecodeArrayIterator::BytecodeArrayIterator(
@@ -36,12 +39,15 @@ BytecodeArrayIterator::BytecodeArrayIterator(
       start_(reinterpret_cast<uint8_t*>(
           bytecode_array_->GetFirstBytecodeAddress())),
       end_(start_ + bytecode_array_->length()),
-      cursor_(start_ + initial_offset),
+      cursor_(start_),
       operand_scale_(OperandScale::kSingle),
       prefix_size_(0),
       local_heap_(nullptr) {
   // Don't add a GC callback, since we're in a no_gc scope.
   UpdateOperandScale();
+  if (initial_offset != 0) {
+    AdvanceTo(initial_offset);
+  }
 }
 
 BytecodeArrayIterator::~BytecodeArrayIterator() {
@@ -50,10 +56,34 @@ BytecodeArrayIterator::~BytecodeArrayIterator() {
   }
 }
 
+void BytecodeArrayIterator::AdvanceTo(int offset) {
+  DCHECK_GE(offset, current_offset());
+  while (current_offset() != offset && cursor_ < end_) {
+    Advance();
+  }
+  // Make sure we're always at a valid offset.
+  CHECK_EQ(current_offset(), offset);
+}
+
 void BytecodeArrayIterator::SetOffset(int offset) {
-  if (offset < 0) return;
-  cursor_ = reinterpret_cast<uint8_t*>(
-      bytecode_array()->GetFirstBytecodeAddress() + offset);
+  DCHECK_GE(offset, 0);
+  if (offset < current_offset()) {
+    Reset();
+  }
+  // Advance to the given offset instead of just setting cursor_.
+  // This way, we can guarantee that the offset is always valid.
+  AdvanceTo(offset);
+}
+
+void BytecodeArrayIterator::Reset() {
+  cursor_ = start_;
+  UpdateOperandScale();
+}
+
+// protected
+void BytecodeArrayIterator::SetOffsetUnchecked(int offset) {
+  DCHECK_GE(offset, 0);
+  cursor_ = start_ + offset;
   UpdateOperandScale();
 }
 
@@ -65,6 +95,17 @@ bool BytecodeArrayIterator::IsValidOffset(Handle<BytecodeArray> bytecode_array,
     if (it.current_offset() > offset) break;
   }
   return false;
+}
+
+// static
+bool BytecodeArrayIterator::IsValidOSREntryOffset(
+    Handle<BytecodeArray> bytecode_array, int offset) {
+  BytecodeArrayIterator it(bytecode_array, offset);
+  return it.CurrentBytecodeIsValidOSREntry();
+}
+
+bool BytecodeArrayIterator::CurrentBytecodeIsValidOSREntry() const {
+  return current_bytecode() == interpreter::Bytecode::kJumpLoop;
 }
 
 void BytecodeArrayIterator::ApplyDebugBreak() {
@@ -153,10 +194,6 @@ FeedbackSlot BytecodeArrayIterator::GetSlotOperand(int operand_index) const {
   return FeedbackVector::ToSlot(index);
 }
 
-Register BytecodeArrayIterator::GetReceiver() const {
-  return Register::FromParameterIndex(0);
-}
-
 Register BytecodeArrayIterator::GetParameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   // The parameter indices are shifted by 1 (receiver is the
@@ -173,6 +210,19 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
                                   current_operand_scale());
   return BytecodeDecoder::DecodeRegisterOperand(operand_start, operand_type,
                                                 current_operand_scale());
+}
+
+Register BytecodeArrayIterator::GetStarTargetRegister() const {
+  Bytecode bytecode = current_bytecode();
+  DCHECK(Bytecodes::IsAnyStar(bytecode));
+  if (Bytecodes::IsShortStar(bytecode)) {
+    return Register::FromShortStar(bytecode);
+  } else {
+    DCHECK_EQ(bytecode, Bytecode::kStar);
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
+    DCHECK_EQ(Bytecodes::GetOperandTypes(bytecode)[0], OperandType::kRegOut);
+    return GetRegisterOperand(0);
+  }
 }
 
 std::pair<Register, Register> BytecodeArrayIterator::GetRegisterPairOperand(
@@ -241,7 +291,7 @@ bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
 }
 
 Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
-  return Smi::cast(bytecode_array()->constant_pool()->get(index));
+  return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
 }
 
 template <typename IsolateT>

@@ -3,20 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --no-liftoff --no-wasm-lazy-compilation
-// Flags: --turboshaft-wasm --enable-testing-opcode-in-wasm
+// Flags: --enable-testing-opcode-in-wasm
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
-
-// Make sure turboshaft bails out graciously for non-implemented features.
-(function Bailout() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  builder.addFunction("bailout", makeSig([], []))
-    .addBody([kExprNopForTestingUnsupportedInLiftoff])
-    .exportFunc();
-
-  builder.instantiate();
-})();
 
 (function I32Arithmetic() {
   print(arguments.callee.name);
@@ -245,4 +234,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, wasm.br_table(0));
   assertEquals(-1, wasm.br_table(1));
   assertEquals(23, wasm.br_table(22));
+})();
+
+(function TestSubZeroFromTruncatedOptimization() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("subZeroFromTruncated", makeSig([kWasmI64], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      // i32.sub(i32.wrap_i64(local.get 0), 0)
+      // should be optimized to i32.wrap_i64(local.get 0)
+      kExprLocalGet, 0,
+      kExprI32ConvertI64,
+      kExprI32Const, 0,
+      kExprI32Sub,
+    ]);
+  let instance = builder.instantiate();
+  assertEquals(123, instance.exports.subZeroFromTruncated(123n));
 })();

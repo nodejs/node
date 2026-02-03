@@ -99,6 +99,35 @@ exports[`test/lib/commands/query.js TAP linked node > should return linked node 
 ]
 `
 
+exports[`test/lib/commands/query.js TAP missing > should return missing node 1`] = `
+[
+  {
+    "name": "b",
+    "version": "^1.0.0",
+    "_id": "b@^1.0.0",
+    "pkgid": "b@^1.0.0",
+    "path": null,
+    "realpath": null,
+    "resolved": null,
+    "from": [
+      ""
+    ],
+    "to": [],
+    "dev": true,
+    "inBundle": false,
+    "deduped": false,
+    "overridden": false,
+    "queryContext": {
+      "missing": true
+    }
+  }
+]
+`
+
+exports[`test/lib/commands/query.js TAP package-lock-only missing workspace in tree > should return empty array for missing workspace 1`] = `
+[]
+`
+
 exports[`test/lib/commands/query.js TAP package-lock-only with package lock > should return valid response with only lock info 1`] = `
 [
   {
@@ -137,6 +166,48 @@ exports[`test/lib/commands/query.js TAP package-lock-only with package lock > sh
     "from": [
       ""
     ],
+    "to": [],
+    "dev": false,
+    "inBundle": false,
+    "deduped": false,
+    "overridden": false,
+    "queryContext": {}
+  }
+]
+`
+
+exports[`test/lib/commands/query.js TAP package-lock-only with package lock and workspace > should return workspace object with package-lock-only 1`] = `
+[
+  {
+    "name": "root",
+    "workspaces": [
+      "packages/*"
+    ],
+    "pkgid": "root@",
+    "location": "",
+    "path": "{CWD}/prefix",
+    "realpath": "{CWD}/prefix",
+    "resolved": null,
+    "from": [],
+    "to": [
+      "node_modules/a"
+    ],
+    "dev": false,
+    "inBundle": false,
+    "deduped": false,
+    "overridden": false,
+    "queryContext": {}
+  },
+  {
+    "name": "a",
+    "version": "1.0.0",
+    "_id": "a@1.0.0",
+    "pkgid": "a@1.0.0",
+    "location": "packages/a",
+    "path": "{CWD}/prefix/packages/a",
+    "realpath": "{CWD}/prefix/packages/a",
+    "resolved": null,
+    "from": [],
     "to": [],
     "dev": false,
     "inBundle": false,

@@ -4,17 +4,17 @@
 
 #include "src/torque/csa-generator.h"
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
-base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
+std::optional<Stack<std::string>> CSAGenerator::EmitGraph(
     Stack<std::string> parameters) {
   for (BottomOffset i = {0}; i < parameters.AboveTop(); ++i) {
     SetDefinitionVariable(DefinitionLocation::Parameter(i.offset),
@@ -63,7 +63,7 @@ base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     out() << "\n";
     return EmitBlock(*cfg_.end());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
@@ -227,7 +227,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
-    if (parameter_types.size() != 0) {
+    if (!parameter_types.empty()) {
       ReportError("%GetClassMapConstant must not take parameters");
     }
     if (instruction.specialization_types.size() != 1) {
@@ -276,6 +276,8 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out() << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out() << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << "TNode<Uint8T>::UncheckedCast(ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
       out() << "ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt64Type())) {
@@ -301,6 +303,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   PrintCommaSeparatedList(out(), args);
   if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     out() << ")";
+    if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << ")";
+    }
   }
   if (return_type->StructSupertype()) {
     out() << ").Flatten();\n";
@@ -523,8 +528,13 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
   std::vector<const Type*> result_types =
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
-    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
-          << instruction.builtin->ExternalName();
+    if (instruction.builtin->IsJavaScript()) {
+      out() << "   CodeStubAssembler(state_).TailCallJSBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    } else {
+      out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the TailCallBuiltin signature.
       out() << ", TNode<Object>()";
@@ -574,15 +584,17 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     for (const std::string& name : result_names) {
       stack->Push(name);
     }
+    // Currently we don't support calling javascript builtins directly. If ever
+    // needed, supporting that should be as easy as generating a call to
+    // CodeStubAssembler::CallJSBuiltin here though.
+    DCHECK(!instruction.builtin->IsJavaScript());
     if (result_types.empty()) {
-      out() << "ca_.CallStubVoid("
-               "Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltinVoid(Builtin::k"
+            << instruction.builtin->ExternalName();
     } else {
       out() << "    " << lhs_name << " = ";
-      out() << "ca_.CallStub<" << lhs_type
-            << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltin<" << lhs_type << ">(Builtin::k"
+            << instruction.builtin->ExternalName();
     }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.
@@ -602,7 +614,7 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
 
     PostCallableExceptionPreparation(
         catch_name,
-        result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
+        result_types.empty() ? TypeOracle::GetVoidType() : result_types[0],
         instruction.catch_block, &pre_call_stack,
         instruction.GetExceptionObjectDefinition());
   }
@@ -629,11 +641,9 @@ void CSAGenerator::EmitInstruction(
   out() << stack->Top() << " = ";
   if (generated_type != "Object") out() << "TORQUE_CAST(";
   out() << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
-           "CallableFor(ca_."
-           "isolate(),"
+           "CallInterfaceDescriptorFor("
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
-        << function;
+        << instruction.type->function_pointer_type_id() << ")), " << function;
   if (!instruction.type->HasContextParameter()) {
     // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
     out() << ", TNode<Object>()";
@@ -647,7 +657,7 @@ void CSAGenerator::EmitInstruction(
 }
 
 std::string CSAGenerator::PreCallableExceptionPreparation(
-    base::Optional<Block*> catch_block) {
+    std::optional<Block*> catch_block) {
   std::string catch_name;
   if (catch_block) {
     catch_name = FreshCatchName();
@@ -661,8 +671,8 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
 
 void CSAGenerator::PostCallableExceptionPreparation(
     const std::string& catch_name, const Type* return_type,
-    base::Optional<Block*> catch_block, Stack<std::string>* stack,
-    const base::Optional<DefinitionLocation>& exception_object_definition) {
+    std::optional<Block*> catch_block, Stack<std::string>* stack,
+    const std::optional<DefinitionLocation>& exception_object_definition) {
   if (catch_block) {
     DCHECK(exception_object_definition);
     std::string block_name = BlockName(*catch_block);
@@ -673,7 +683,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
     if (!return_type->IsNever()) {
       out() << "      ca_.Goto(&" << catch_name << "_skip);\n";
     }
-    decls() << "      TNode<Object> "
+    decls() << "      TNode<JSAny> "
             << DefinitionToVariable(*exception_object_definition) << ";\n";
     out() << "      ca_.Bind(&" << catch_name << "__label, &"
           << DefinitionToVariable(*exception_object_definition) << ");\n";
@@ -898,6 +908,10 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string result_name =
       DefinitionToVariable(instruction.GetValueDefinition());
 
@@ -916,6 +930,10 @@ void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string value = stack->Pop();
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
@@ -1064,6 +1082,4 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

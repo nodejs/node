@@ -21,7 +21,7 @@ Throughout the documentation are indications of a section's stability. Some APIs
 are so proven and so relied upon that they are unlikely to ever change at all.
 Others are brand new and experimental, or known to be hazardous.
 
-The stability indices are as follows:
+The stability indexes are as follows:
 
 > Stability: 0 - Deprecated. The feature may emit warnings. Backward
 > compatibility is not guaranteed.
@@ -41,9 +41,12 @@ The stability indices are as follows:
 >   minimum viability.
 > * 1.2 - Release candidate. Experimental features at this stage are hopefully
 >   ready to become stable. No further breaking changes are anticipated but may
->   still occur in response to user feedback. We encourage user testing and
->   feedback so that we can know that this feature is ready to be marked as
->   stable.
+>   still occur in response to user feedback or the features' underlying
+>   specification development. We encourage user testing and feedback so that
+>   we can know that this feature is ready to be marked as stable.
+>
+> Experimental features leave the experimental status typically either by
+> graduating to stable, or are removed without a deprecation cycle.
 
 <!-- separator -->
 

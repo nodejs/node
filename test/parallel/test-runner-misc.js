@@ -25,17 +25,17 @@ if (process.argv[2] === 'child') {
     // TODO(benjamingr) add more tests to describe + AbortSignal
     // this just tests the parameter is passed
     test.describe('Abort Signal in describe', common.mustCall(({ signal }) => {
-      test.it('Supports AbortSignal', () => {
+      test.it('Supports AbortSignal', common.mustCall(() => {
         assert.strictEqual(signal.aborted, false);
-      });
+      }));
     }));
   } else assert.fail('unreachable');
 } else {
   const child = spawnSync(process.execPath, [__filename, 'child', 'abortSignal']);
   const stdout = child.stdout.toString();
-  assert.match(stdout, /^# pass 2$/m);
-  assert.match(stdout, /^# fail 0$/m);
-  assert.match(stdout, /^# cancelled 1$/m);
+  assert.match(stdout, /pass 2$/m);
+  assert.match(stdout, /fail 0$/m);
+  assert.match(stdout, /cancelled 1$/m);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 }

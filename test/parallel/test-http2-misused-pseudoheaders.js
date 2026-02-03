@@ -23,14 +23,14 @@ server.on('stream', common.mustCall((stream) => {
 
   stream.respond({}, { waitForTrailers: true });
 
-  stream.on('wantTrailers', () => {
+  stream.on('wantTrailers', common.mustCall(() => {
     assert.throws(() => {
       stream.sendTrailers({ ':status': 'bar' });
     }, {
       code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
     });
     stream.close();
-  });
+  }));
 
   stream.end('hello world');
 }));

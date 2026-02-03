@@ -1,12 +1,12 @@
-// Our coverage mapping means that stuff like this doen't count for coverage.
+// Our coverage mapping means that stuff like this doesn't count for coverage.
 // It does ensure that every command has a usage that renders, contains its
 // name, a description, and if it has completion it is a function.  That it
 // renders also ensures that any params we've defined in our commands work.
 const t = require('tap')
-const util = require('util')
+const util = require('node:util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const { commands } = require('../../lib/utils/cmd-list.js')
-const BaseCommand = require('../../lib/base-command.js')
+const BaseCommand = require('../../lib/base-cmd.js')
 
 const isAsyncFn = (v) => typeof v === 'function' && /^\[AsyncFunction:/.test(util.inspect(v))
 
@@ -37,7 +37,7 @@ t.test('load each command', async t => {
       t.ok(impl.exec.length <= 1, 'exec fn has 0 or 1 args')
 
       // workspaces
-      t.type(ctor.ignoreImplicitWorkspace, 'boolean', 'ctor has ignoreImplictWorkspace boolean')
+      t.type(ctor.ignoreImplicitWorkspace, 'boolean', 'ctor has ignoreImplicitWorkspace boolean')
       if (ctor.ignoreImplicitWorkspace !== BaseCommand.ignoreImplicitWorkspace) {
         counts.ignoreImplicitWorkspace++
       }
@@ -72,13 +72,13 @@ t.test('load each command', async t => {
       // usage
       t.match(impl.usage, cmd, 'usage contains the command')
       await npm.exec(cmd, [])
-      t.match(outputs[0][0], impl.usage, 'usage is what is output')
-      t.match(outputs[0][0], ctor.describeUsage, 'usage is what is output')
+      t.match(outputs[0], impl.usage, 'usage is what is output')
+      t.match(outputs[0], ctor.describeUsage, 'usage is what is output')
       t.notOk(impl.describeUsage, 'describe usage is only static')
     })
   }
 
-  // make sure refactors dont move or rename these static properties since
+  // make sure refactors don't move or rename these static properties since
   // we guard against the tests for them above
   t.ok(counts.completion > 0, 'has some completion functions')
   t.ok(counts.ignoreImplicitWorkspace > 0, 'has some commands that change ignoreImplicitWorkspace')

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -30,7 +30,7 @@ let client_recv_count = 0;
 let client_end_count = 0;
 let disconnect_count = 0;
 
-const server = net.createServer(function(socket) {
+const server = net.createServer(common.mustCallAtLeast((socket) => {
   console.error('SERVER: got socket connection');
   socket.resume();
 
@@ -42,13 +42,13 @@ const server = net.createServer(function(socket) {
     socket.end();
   });
 
-  socket.on('close', (had_error) => {
+  socket.on('close', common.mustCall((had_error) => {
     console.log(`SERVER had_error: ${JSON.stringify(had_error)}`);
     assert.strictEqual(had_error, false);
-  });
-});
+  }));
+}));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   console.log('SERVER listening');
   const client = net.createConnection(this.address().port);
 
@@ -58,28 +58,28 @@ server.listen(0, function() {
     console.error('CLIENT connected', client._writableState);
   });
 
-  client.on('data', function(chunk) {
+  client.on('data', common.mustCallAtLeast((chunk) => {
     client_recv_count += 1;
     console.log(`client_recv_count ${client_recv_count}`);
     assert.strictEqual(chunk, 'hello\r\n');
     console.error('CLIENT: calling end', client._writableState);
     client.end();
-  });
+  }));
 
   client.on('end', () => {
     console.error('CLIENT end');
     client_end_count++;
   });
 
-  client.on('close', (had_error) => {
+  client.on('close', common.mustCallAtLeast((had_error) => {
     console.log('CLIENT disconnect');
     assert.strictEqual(had_error, false);
     if (disconnect_count++ < N)
       client.connect(server.address().port); // reconnect
     else
       server.close();
-  });
-});
+  }));
+}));
 
 process.on('exit', () => {
   assert.strictEqual(disconnect_count, N + 1);

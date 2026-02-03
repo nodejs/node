@@ -5,8 +5,9 @@
 require('../common');
 const assert = require('assert');
 const {
-  spawnSyncAndExitWithoutError,
+  spawnSyncAndAssert,
   spawnSyncAndExit,
+  spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
@@ -84,7 +85,7 @@ let sizeWithCache;
     configPath,
   ], {
     cwd: tmpdir.path
-  }, {});
+  });
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
   sizeWithCache = stats.size;
@@ -115,14 +116,14 @@ let sizeWithoutCache;
       NODE_DEBUG_NATIVE: 'CODE_CACHE'
     },
     cwd: tmpdir.path
-  }, {});
+  });
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
   sizeWithoutCache = stats.size;
   assert(sizeWithoutCache < sizeWithCache,
          `sizeWithoutCache = ${sizeWithoutCache} >= sizeWithCache ${sizeWithCache}`);
   // Check the snapshot.
-  spawnSyncAndExitWithoutError(process.execPath, [
+  spawnSyncAndAssert(process.execPath, [
     '--snapshot-blob',
     blobPath,
     checkFile,

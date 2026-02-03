@@ -18,7 +18,7 @@ struct AddTypeAssertionsImpl {
   Zone* phase_zone;
 
   SimplifiedOperatorBuilder* simplified = jsgraph->simplified();
-  Graph* graph = jsgraph->graph();
+  TFGraph* graph = jsgraph->graph();
 
   void Run();
   void ProcessBlock(BasicBlock* block);

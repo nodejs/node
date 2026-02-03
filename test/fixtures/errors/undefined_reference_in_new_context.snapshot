@@ -8,6 +8,6 @@ ReferenceError: foo is not defined
     at Script.runInContext (node:vm:*:*)
     at Script.runInNewContext (node:vm:*:*)
     at Object.runInNewContext (node:vm:*:*)
-    at Object.<anonymous> (*undefined_reference_in_new_context.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/undefined_reference_in_new_context.js:*:*)
 
-Node.js *
+Node.js <node-version>

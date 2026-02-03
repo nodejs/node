@@ -26,9 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Falling off the end of a function returns the undefined value
-// (false in a test context).  This should happen even when inlined
-// (e.g., if --always-turbofan) and when it is the only exit from the
-// function.
+// (false in a test context).
 function always_false() {}
 function test() { return always_false() ? 0 : 1; }
 

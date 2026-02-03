@@ -1,0 +1,25 @@
+---
+source: core/src/hir/elision.rs
+expression: lt_to_borrowing_fields
+---
+{
+    Static: [
+        "this.name",
+        "_s",
+    ],
+    NonStatic(
+        Lifetime(
+            0,
+        ),
+    ): [
+        "this.p_data",
+    ],
+    NonStatic(
+        Lifetime(
+            1,
+        ),
+    ): [
+        "this.q_data",
+        "this.inner.more_data",
+    ],
+}

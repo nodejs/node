@@ -3,7 +3,7 @@
 // just a simple http server and client.
 
 const common = require('../common');
-const onGC = require('../common/ongc');
+const { onGC } = require('../common/gc');
 
 const cpus = require('os').availableParallelism();
 
@@ -35,7 +35,7 @@ function getAll(requestsRemaining) {
   const req = http.get({
     hostname: 'localhost',
     pathname: '/',
-    port: server.address().port
+    port: server.address().port,
   }, cb);
 
   count++;

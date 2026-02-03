@@ -284,6 +284,11 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   int fd;
   int rc;
 
+  if (uv__is_raw_tty_mode(mode)) {
+    /* There is only a single raw TTY mode on UNIX. */
+    mode = UV_TTY_MODE_RAW;
+  }
+
   if (tty->mode == (int) mode)
     return 0;
 
@@ -324,6 +329,8 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     case UV_TTY_MODE_IO:
       uv__tty_make_raw(&tmp);
       break;
+    default:
+      UNREACHABLE();
   }
 
   /* Apply changes after draining */
@@ -332,6 +339,37 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     tty->mode = mode;
 
   return rc;
+}
+
+
+void uv__tty_close(uv_tty_t* handle) {
+  int expected;
+  int fd;
+
+  fd = handle->io_watcher.fd;
+  if (fd == -1)
+    goto done;
+
+  /* This is used for uv_tty_reset_mode() */
+  do
+    expected = 0;
+  while (!atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
+
+  if (fd == orig_termios_fd) {
+    /* XXX(bnoordhuis) the tcsetattr is probably wrong when there are still
+     * other uv_tty_t handles active that refer to the same tty/pty but it's
+     * hard to recognize that particular situation without maintaining some
+     * kind of process-global data structure, and that still won't work in a
+     * multi-process setup.
+     */
+    uv__tcsetattr(fd, TCSANOW, &orig_termios);
+    orig_termios_fd = -1;
+  }
+
+  atomic_store(&termios_spinlock, 0);
+
+done:
+  uv__stream_close((uv_stream_t*) handle);
 }
 
 
@@ -452,7 +490,7 @@ int uv_tty_reset_mode(void) {
   saved_errno = errno;
 
   if (atomic_exchange(&termios_spinlock, 1))
-    return UV_EBUSY;  /* In uv_tty_set_mode(). */
+    return UV_EBUSY;  /* In uv_tty_set_mode() or uv__tty_close(). */
 
   err = 0;
   if (orig_termios_fd != -1)

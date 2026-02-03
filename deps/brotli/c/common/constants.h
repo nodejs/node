@@ -12,9 +12,6 @@
 #ifndef BROTLI_COMMON_CONSTANTS_H_
 #define BROTLI_COMMON_CONSTANTS_H_
 
-#include <brotli/port.h>
-#include <brotli/types.h>
-
 #include "platform.h"
 
 /* Specification: 7.3. Encoding of the context map */
@@ -195,7 +192,7 @@ typedef struct {
 } BrotliPrefixCodeRange;
 
 /* "Soft-private", it is exported, but not "advertised" as API. */
-BROTLI_COMMON_API extern const BrotliPrefixCodeRange
-    _kBrotliPrefixCodeRanges[BROTLI_NUM_BLOCK_LEN_SYMBOLS];
+BROTLI_COMMON_API extern const BROTLI_MODEL("small")
+BrotliPrefixCodeRange _kBrotliPrefixCodeRanges[BROTLI_NUM_BLOCK_LEN_SYMBOLS];
 
 #endif  /* BROTLI_COMMON_CONSTANTS_H_ */

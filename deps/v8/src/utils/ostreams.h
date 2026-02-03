@@ -159,6 +159,7 @@ struct AsHexBytes {
 };
 
 template <typename T>
+  requires requires(T t, std::ostream& os) { os << *t; }
 struct PrintIteratorRange {
   T start;
   T end;
@@ -172,8 +173,8 @@ struct PrintIteratorRange {
     endBracket = "";
     return *this;
   }
-  PrintIteratorRange& WithSeparator(const char* separator) {
-    this->separator = separator;
+  PrintIteratorRange& WithSeparator(const char* new_separator) {
+    this->separator = new_separator;
     return *this;
   }
 };
@@ -182,9 +183,9 @@ struct PrintIteratorRange {
 // {Iterator} is the common type of {std::begin} and {std::end} called on a
 // {const T&}. This function is only instantiable if that type exists.
 template <typename T>
-auto PrintCollection(const T& collection) -> PrintIteratorRange<
-    typename std::common_type<decltype(std::begin(collection)),
-                              decltype(std::end(collection))>::type> {
+auto PrintCollection(const T& collection)
+    -> PrintIteratorRange<std::common_type_t<decltype(std::begin(collection)),
+                                             decltype(std::end(collection))>> {
   return {std::begin(collection), std::end(collection)};
 }
 

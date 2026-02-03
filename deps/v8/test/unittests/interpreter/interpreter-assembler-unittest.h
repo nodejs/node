@@ -28,7 +28,7 @@ class InterpreterAssemblerTestState : public compiler::CodeAssemblerState {
 
 class InterpreterAssemblerTest : public TestWithIsolateAndZone {
  public:
-  InterpreterAssemblerTest() : TestWithIsolateAndZone(kCompressGraphZone) {}
+  InterpreterAssemblerTest() = default;
   ~InterpreterAssemblerTest() override = default;
 
   class InterpreterAssemblerForTest final : public InterpreterAssembler {

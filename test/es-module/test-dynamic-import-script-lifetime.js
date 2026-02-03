@@ -28,5 +28,5 @@ vm.runInThisContext(code, {
     await m.link(() => {});
     await m.evaluate();
     return m;
-  }
+  },
 });

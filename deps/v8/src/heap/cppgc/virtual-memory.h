@@ -25,6 +25,9 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   VirtualMemory(PageAllocator*, size_t size, size_t alignment,
                 void* hint = nullptr);
 
+  // Takes already reserved virtual memory.
+  VirtualMemory(PageAllocator*, void* reserved, size_t size);
+
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
   ~VirtualMemory() V8_NOEXCEPT;

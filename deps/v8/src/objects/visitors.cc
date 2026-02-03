@@ -4,7 +4,7 @@
 
 #include "src/objects/visitors.h"
 
-#include "src/codegen/reloc-info.h"
+#include "src/codegen/reloc-info-inl.h"
 
 #ifdef DEBUG
 #include "src/objects/instruction-stream-inl.h"
@@ -31,7 +31,7 @@ void ObjectVisitor::VisitRelocInfo(Tagged<InstructionStream> host,
                                    RelocIterator* it) {
   // RelocInfo iteration is only valid for fully-initialized InstructionStream
   // objects. Callers must ensure this.
-  DCHECK_NE(host->raw_code(kAcquireLoad), Smi::zero());
+  DCHECK(host->IsFullyInitialized());
   for (; !it->done(); it->next()) {
     it->rinfo()->Visit(host, this);
   }

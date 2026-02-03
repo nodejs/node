@@ -22,7 +22,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-common.skipIfDumbTerminal();
+
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const assert = require('assert');
 const readline = require('readline');
@@ -31,7 +34,7 @@ const {
   getStringWidth,
   stripVTControlCharacters
 } = require('internal/util/inspect');
-const { EventEmitter, getEventListeners } = require('events');
+const { EventEmitter, listenerCount } = require('events');
 const { Writable, Readable } = require('stream');
 
 class FakeInput extends EventEmitter {
@@ -44,7 +47,7 @@ class FakeInput extends EventEmitter {
 function isWarned(emitter) {
   for (const name in emitter) {
     const listeners = emitter[name];
-    if (listeners && listeners.warned) return true;
+    if (listeners?.warned) return true;
   }
   return false;
 }
@@ -281,10 +284,10 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   // ['foo', 'baz', 'bar', bat'];
   let callCount = 0;
-  rli.on('line', (line) => {
+  rli.on('line', common.mustCallAtLeast((line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
-  });
+  }));
   fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
@@ -357,10 +360,10 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   let callCount = 0;
-  rli.on('line', (line) => {
+  rli.on('line', common.mustCallAtLeast((line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
-  });
+  }));
   fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
@@ -965,10 +968,10 @@ for (let i = 0; i < 12; i++) {
   {
     const [rli, fi] = getInterface({ terminal });
     let called = false;
-    rli.on('line', (line) => {
+    rli.on('line', common.mustCallAtLeast((line) => {
       called = true;
       assert.strictEqual(line, 'a');
-    });
+    }));
     fi.emit('data', 'a');
     assert.ok(!called);
     fi.emit('data', '\n');
@@ -1017,10 +1020,10 @@ for (let i = 0; i < 12; i++) {
     const buf = Buffer.from('☮', 'utf8');
     const [rli, fi] = getInterface({ terminal });
     let callCount = 0;
-    rli.on('line', (line) => {
+    rli.on('line', common.mustCallAtLeast((line) => {
       callCount++;
       assert.strictEqual(line, buf.toString('utf8'));
-    });
+    }));
     for (const i of buf) {
       fi.emit('data', Buffer.from([i]));
     }
@@ -1059,6 +1062,16 @@ for (let i = 0; i < 12; i++) {
     }));
     rli.write('bar\n');
     rli.close();
+  }
+
+  // Calling only the first question callback
+  {
+    const [rli] = getInterface({ terminal });
+    rli.question('foo?', common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.question('hello?', common.mustNotCall());
+    rli.write('bar\n');
   }
 
   // Calling the question multiple times
@@ -1179,12 +1192,54 @@ for (let i = 0; i < 12; i++) {
     question('What\'s your name?').then(common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      question('How are you?')
-        .then(common.mustNotCall(), common.expectsError({
+      assert.rejects(
+        question('How are you?'),
+        {
           code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
-        }));
+        }).then(common.mustCall());
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call write after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      assert.throws(() => {
+        rli.write('I said Node.js');
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call pause/resume after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      // No 'resume' nor 'pause' event should be emitted after close
+      rli.on('resume', common.mustNotCall());
+      rli.on('pause', common.mustNotCall());
+      assert.throws(() => {
+        rli.pause();
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+      assert.throws(() => {
+        rli.resume();
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
     }));
     fi.emit('data', 'Node.js\n');
   }
@@ -1329,6 +1384,26 @@ for (let i = 0; i < 12; i++) {
       rli.close();
     }), delay);
   }
+
+  // Write correctly if paused
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustCall((line) => {
+      assert.strictEqual(line, 'bar');
+    }));
+    rli.pause();
+    rli.write('bar\n');
+    assert.strictEqual(rli.paused, false);
+    rli.close();
+  }
+
+  // Write undefined
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustNotCall());
+    rli.write();
+    rli.close();
+  }
 });
 
 // Ensure that the _wordLeft method works even for large input
@@ -1364,7 +1439,7 @@ for (let i = 0; i < 12; i++) {
     signal,
   });
   rl.on('close', common.mustCall());
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {
@@ -1376,10 +1451,10 @@ for (let i = 0; i < 12; i++) {
     output: fi,
     signal,
   });
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  assert.strictEqual(listenerCount(signal, 'abort'), 1);
   rl.on('close', common.mustCall());
   ac.abort();
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {
@@ -1391,9 +1466,9 @@ for (let i = 0; i < 12; i++) {
     output: fi,
     signal,
   });
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  assert.strictEqual(listenerCount(signal, 'abort'), 1);
   rl.close();
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {

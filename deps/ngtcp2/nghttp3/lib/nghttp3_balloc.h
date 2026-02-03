@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -40,7 +40,10 @@ typedef struct nghttp3_memblock_hd nghttp3_memblock_hd;
  * nghttp3_memblock_hd is the header of memory block.
  */
 struct nghttp3_memblock_hd {
-  nghttp3_memblock_hd *next;
+  union {
+    nghttp3_memblock_hd *next;
+    uint64_t pad;
+  };
 };
 
 /*
@@ -61,7 +64,7 @@ typedef struct nghttp3_balloc {
 
 /*
  * nghttp3_balloc_init initializes |balloc| with |blklen| which is the
- * size of memory block.
+ * size of memory block.  |blklen| must be divisible by 16.
  */
 void nghttp3_balloc_init(nghttp3_balloc *balloc, size_t blklen,
                          const nghttp3_mem *mem);
@@ -89,4 +92,4 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n);
  */
 void nghttp3_balloc_clear(nghttp3_balloc *balloc);
 
-#endif /* NGHTTP3_BALLOC_H */
+#endif /* !defined(NGHTTP3_BALLOC_H) */

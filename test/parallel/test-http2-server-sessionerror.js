@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(() => {
         assert.strictEqual(err.message, 'Session closed with error code 2');
       }
     }))
-    .on('close', () => {
+    .on('close', common.mustCall(() => {
       server.removeAllListeners('error');
       http2.connect(url)
       .on('error', common.mustCall((err) => {
@@ -60,5 +60,5 @@ server.listen(0, common.mustCall(() => {
         }
       }))
         .on('close', () => server.close());
-    });
+    }));
 }));

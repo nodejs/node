@@ -57,8 +57,8 @@ public:
     bool operator==(const NFRule& rhs) const;
     bool operator!=(const NFRule& rhs) const { return !operator==(rhs); }
 
-    ERuleType getType() const { return (ERuleType)(baseValue <= kNoBase ? (ERuleType)baseValue : kOtherRule); }
-    void setType(ERuleType ruleType) { baseValue = (int32_t)ruleType; }
+    ERuleType getType() const { return (baseValue <= kNoBase ? static_cast<ERuleType>(baseValue) : kOtherRule); }
+    void setType(ERuleType ruleType) { baseValue = static_cast<int32_t>(ruleType); }
 
     int64_t getBaseValue() const { return baseValue; }
     void setBaseValue(int64_t value, UErrorCode& status);
@@ -66,6 +66,8 @@ public:
     char16_t getDecimalPoint() const { return decimalPoint; }
 
     int64_t getDivisor() const;
+    
+    bool hasModulusSubstitution() const;
 
     void doFormat(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void doFormat(double  number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
@@ -75,6 +77,7 @@ public:
                   UBool isFractional, 
                   double upperBound,
                   uint32_t nonNumericalExecutedRuleMask,
+                  int32_t recursionCount,
                   Formattable& result) const;
 
     UBool shouldRollBack(int64_t number) const;
@@ -96,6 +99,7 @@ private:
     double matchToDelimiter(const UnicodeString& text, int32_t startPos, double baseValue,
                             const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub, 
                             uint32_t nonNumericalExecutedRuleMask,
+                            int32_t recursionCount,
                             double upperBound) const;
     void stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosition& pp) const;
 
@@ -117,6 +121,9 @@ private:
 
     NFRule(const NFRule &other); // forbid copying of this class
     NFRule &operator=(const NFRule &other); // forbid copying of this class
+    
+    // TODO: temporary hack to allow MultiplierSubstitution to get to formatter's rounding mode
+    friend class MultiplierSubstitution;
 };
 
 U_NAMESPACE_END

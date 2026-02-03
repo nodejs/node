@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref --allow-natives-syntax
+// Flags: --allow-natives-syntax --wasm-staging
 // We just want speculative inlining, but the "stress" variant doesn't like
 // that flag for some reason, so use the GC flag which implies it.
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kSig_w_v = makeSig([], [kWasmStringRef]);
@@ -103,7 +101,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
 
   builder.addMemory(1, undefined);
   const kMemIndex = 0;
-  builder.addDataSegment(0, [65, 0]);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], [65, 0]);
 
   let a8 = builder.addArray(kWasmI8, true);
   let a16 = builder.addArray(kWasmI16, true);

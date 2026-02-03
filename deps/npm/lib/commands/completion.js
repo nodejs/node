@@ -4,7 +4,7 @@
 // zsh or bash when calling a function for completion, based on the cursor
 // position and the command line thus far.  These are:
 // COMP_CWORD: the index of the "word" in the command line being completed
-// COMP_LINE: the full command line thusfar as a string
+// COMP_LINE: the full command line thus far as a string
 // COMP_POINT: the cursor index at the point of triggering completion
 //
 // We parse the command line with nopt, like npm does, and then create an
@@ -27,22 +27,22 @@
 // Matches are wrapped with ' to escape them, if necessary, and then printed
 // one per line for the shell completion method to consume in IFS=$'\n' mode
 // as an array.
-//
 
-const fs = require('fs/promises')
+const fs = require('node:fs/promises')
 const nopt = require('nopt')
-const { resolve } = require('path')
-
+const { resolve } = require('node:path')
+const { output } = require('proc-log')
 const Npm = require('../npm.js')
 const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
 const { commands, aliases, deref } = require('../utils/cmd-list.js')
+const { isWindowsShell } = require('../utils/is-windows.js')
+const BaseCommand = require('../base-cmd.js')
+
+const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
+
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
-const { isWindowsShell } = require('../utils/is-windows.js')
-const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
-
-const BaseCommand = require('../base-command.js')
 
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
@@ -164,7 +164,7 @@ class Completion extends BaseCommand {
         return this.wrap(opts, comps)
       }
     } catch {
-      // it wasnt a valid command, so do nothing
+      // it wasn't a valid command, so do nothing
     }
   }
 
@@ -185,7 +185,7 @@ class Completion extends BaseCommand {
     }
 
     if (compls.length > 0) {
-      this.npm.output(compls.join('\n'))
+      output.standard(compls.join('\n'))
     }
   }
 }
@@ -248,7 +248,7 @@ const configCompl = opts => {
 
 // expand with the valid values of various config values.
 // not yet implemented.
-const configValueCompl = opts => []
+const configValueCompl = () => []
 
 // check if the thing is a flag or not.
 const isFlag = word => {
@@ -265,7 +265,7 @@ const isFlag = word => {
 
 // complete against the npm commands
 // if they all resolve to the same thing, just return the thing it already is
-const cmdCompl = (opts, npm) => {
+const cmdCompl = (opts) => {
   const allCommands = commands.concat(Object.keys(aliases))
   const matches = allCommands.filter(c => c.startsWith(opts.partialWord))
   if (!matches.length) {

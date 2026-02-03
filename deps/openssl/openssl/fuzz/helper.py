@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 #

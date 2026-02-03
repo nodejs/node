@@ -9,13 +9,65 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/cppgc/trace-event.h"
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 class HeapBase;
 
-extern v8::base::LazyMutex g_process_mutex;
+class ProcessGlobalLock final {
+ public:
+  enum class Reason {
+    kForGC,
+    kForCrossThreadHandleCreation,
+  };
+
+  template <Reason reason>
+  V8_INLINE static void Lock() {
+    process_mutex_.Pointer()->Lock();
+
+#if defined(V8_USE_PERFETTO)
+    switch (reason) {
+      case Reason::kForGC:
+        TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("cppgc"), "AcquiredForGC",
+                          perfetto::NamedTrack("CppGC.ProcessGlobalLock"));
+        break;
+      case Reason::kForCrossThreadHandleCreation:
+#ifdef DEBUG
+        TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("cppgc"),
+                          "AcquiredForCrossThreadHandleCreation",
+                          perfetto::NamedTrack("CppGC.ProcessGlobalLock"));
+#endif  // DEBUG
+        break;
+    }
+#endif  // defined(V8_USE_PERFETTO)
+  }
+
+  template <Reason reason>
+  V8_INLINE static void Unlock() {
+#if defined(V8_USE_PERFETTO)
+    switch (reason) {
+      case Reason::kForGC:
+        TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("cppgc"),
+                        perfetto::NamedTrack("CppGC.ProcessGlobalLock"));
+        break;
+      case Reason::kForCrossThreadHandleCreation:
+#ifdef DEBUG
+        TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("cppgc"),
+                        perfetto::NamedTrack("CppGC.ProcessGlobalLock"));
+#endif  // DEBUG
+        break;
+    }
+#endif  // defined(V8_USE_PERFETTO)
+
+    process_mutex_.Pointer()->Unlock();
+  }
+
+  V8_INLINE static void AssertHeld() { process_mutex_.Pointer()->AssertHeld(); }
+
+ private:
+  static v8::base::LazyMutex process_mutex_;
+};
 
 class V8_EXPORT_PRIVATE HeapRegistry final {
  public:
@@ -48,7 +100,6 @@ HeapRegistry::Subscription::~Subscription() {
   HeapRegistry::UnregisterHeap(heap_);
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal
 
 #endif  // V8_HEAP_CPPGC_PROCESS_HEAP_H_

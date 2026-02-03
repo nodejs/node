@@ -21,57 +21,78 @@ namespace internal {
 namespace wasm {
 
 WireBytesRef ConstantExpression::wire_bytes_ref() const {
-  DCHECK_EQ(kind(), kWireBytesRef);
+  DCHECK_EQ(kind(), Kind::kWireBytesRef);
   return WireBytesRef(OffsetField::decode(bit_field_),
                       LengthField::decode(bit_field_));
 }
 
-ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
-                                        ValueType expected, Isolate* isolate,
-                                        Handle<WasmInstanceObject> instance) {
+ValueOrError EvaluateConstantExpression(
+    Zone* zone, ConstantExpression expr, ValueType expected,
+    const WasmModule* module, Isolate* isolate,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   switch (expr.kind()) {
-    case ConstantExpression::kEmpty:
+    case ConstantExpression::Kind::kEmpty:
       UNREACHABLE();
-    case ConstantExpression::kI32Const:
+    case ConstantExpression::Kind::kI32Const:
       return WasmValue(expr.i32_value());
-    case ConstantExpression::kRefNull:
-      return WasmValue(
-          expected == kWasmExternRef || expected == kWasmNullExternRef
-              ? Handle<Object>::cast(isolate->factory()->null_value())
-              : Handle<Object>::cast(isolate->factory()->wasm_null()),
-          ValueType::RefNull(expr.repr()));
-    case ConstantExpression::kRefFunc: {
+    case ConstantExpression::Kind::kRefNull:
+      return WasmValue(expected.use_wasm_null()
+                           ? Cast<Object>(isolate->factory()->wasm_null())
+                           : Cast<Object>(isolate->factory()->null_value()),
+                       module->canonical_type(ValueType::RefNull(expr.type())));
+    case ConstantExpression::Kind::kRefFunc: {
       uint32_t index = expr.index();
-      Handle<Object> value =
-          WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
-                                                              index);
-      return WasmValue(value, expected);
+      bool function_is_shared =
+          module->type(module->functions[index].sig_index).is_shared;
+      DirectHandle<WasmFuncRef> value =
+          WasmTrustedInstanceData::GetOrCreateFuncRef(
+              isolate,
+              function_is_shared ? shared_trusted_instance_data
+                                 : trusted_instance_data,
+              index);
+      return WasmValue(value, module->canonical_type(expected));
     }
-    case ConstantExpression::kWireBytesRef: {
+    case ConstantExpression::Kind::kWireBytesRef: {
       WireBytesRef ref = expr.wire_bytes_ref();
 
       base::Vector<const uint8_t> module_bytes =
-          instance->module_object()->native_module()->wire_bytes();
+          trusted_instance_data->native_module()->wire_bytes();
 
       const uint8_t* start = module_bytes.begin() + ref.offset();
       const uint8_t* end = module_bytes.begin() + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-      FunctionBody body(&sig, ref.offset(), start, end);
-      WasmFeatures detected;
-      // We use FullValidationTag so we do not have to create another template
-      // instance of WasmFullDecoder, which would cost us >50Kb binary code
-      // size.
-      WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
-                      kConstantExpression>
-          decoder(zone, instance->module(), WasmFeatures::All(), &detected,
-                  body, instance->module(), isolate, instance);
+      // We have already validated the expression, so we might as well
+      // revalidate it as non-shared, which is strictly more permissive.
+      // TODO(14616): Rethink this.
+      constexpr bool kIsShared = false;
+      FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
+      WasmDetectedFeatures detected;
+      ValueOrError result;
+      {
+        // We need a scope for the decoder because its destructor resets some
+        // Zone elements, which has to be done before we reset the Zone
+        // afterwards.
+        // We use FullValidationTag so we do not have to create another template
+        // instance of WasmFullDecoder, which would cost us >50Kb binary code
+        // size.
+        WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                        kConstantExpression>
+            decoder(zone, module, WasmEnabledFeatures::All(), &detected, body,
+                    module, isolate, trusted_instance_data,
+                    shared_trusted_instance_data);
 
-      decoder.DecodeFunctionBody();
+        decoder.DecodeFunctionBody();
 
-      return decoder.interface().has_error()
-                 ? ValueOrError(decoder.interface().error())
-                 : ValueOrError(decoder.interface().computed_value());
+        result = decoder.interface().has_error()
+                     ? ValueOrError(decoder.interface().error())
+                     : ValueOrError(decoder.interface().computed_value());
+      }
+
+      zone->Reset();
+
+      return result;
     }
   }
 }

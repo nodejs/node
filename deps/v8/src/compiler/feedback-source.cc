@@ -8,7 +8,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-FeedbackSource::FeedbackSource(Handle<FeedbackVector> vector_,
+FeedbackSource::FeedbackSource(IndirectHandle<FeedbackVector> vector_,
                                FeedbackSlot slot_)
     : vector(vector_), slot(slot_) {
   DCHECK(!slot.IsInvalid());
@@ -20,10 +20,6 @@ FeedbackSource::FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_)
 int FeedbackSource::index() const {
   CHECK(IsValid());
   return FeedbackVector::GetIndex(slot);
-}
-
-bool operator==(FeedbackSource const& lhs, FeedbackSource const& rhs) {
-  return FeedbackSource::Equal()(lhs, rhs);
 }
 
 bool operator!=(FeedbackSource const& lhs, FeedbackSource const& rhs) {

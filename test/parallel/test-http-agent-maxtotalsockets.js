@@ -48,12 +48,12 @@ function start(param = {}) {
   server.keepAliveTimeout = 0;
   server2.keepAliveTimeout = 0;
 
-  const countdown = new Countdown(12, () => {
+  const countdown = new Countdown(12, common.mustCall(() => {
     assert.strictEqual(getRequestCount(), 0);
     agent.destroy();
     server.close();
     server2.close();
-  });
+  }));
 
   function handler(s) {
     for (let i = 0; i < 6; i++) {

@@ -8,7 +8,7 @@
 // and may deoptimize eagerly or lazily.
 // This test ensures the eager deoptimization is handled correctly.
 
-// Flags: --allow-natives-syntax --no-always-turbofan
+// Flags: --allow-natives-syntax
 
 var getIteratorCount = 0;
 var iteratorCount = 0;

@@ -4,11 +4,9 @@
 
 // Original: mutate_expressions.js
 1;
-
 /* ExpressionMutator: Cloned sibling */
 2;
 let foo = undefined;
-
 /* ExpressionMutator: Cloned sibling */
 3;
 2;

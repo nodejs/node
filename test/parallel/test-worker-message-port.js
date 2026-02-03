@@ -52,12 +52,12 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   port1.postMessage(input);
   // Check that the message still gets delivered if `port2` has its
   // `on('message')` handler attached at a later point in time.
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     port2.on('message', common.mustCall((received) => {
       assert.deepStrictEqual(received, input);
       port2.close(common.mustCall());
     }));
-  });
+  }));
 }
 
 {
@@ -70,16 +70,16 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   // `on('message')` handler attached at a later point in time, even if a
   // listener was removed previously.
   port2.addListener('message', dummy);
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     port2.removeListener('message', dummy);
     port1.postMessage(input);
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       port2.on('message', common.mustCall((received) => {
         assert.deepStrictEqual(received, input);
         port2.close(common.mustCall());
       }));
-    });
-  });
+    }));
+  }));
 }
 
 {

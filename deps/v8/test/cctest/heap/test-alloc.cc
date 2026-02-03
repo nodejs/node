@@ -41,7 +41,7 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-Handle<Object> HeapTester::TestAllocateAfterFailures() {
+DirectHandle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the factory's retrying logic does in the last-resort case,
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
@@ -63,7 +63,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
-      3 * (Page::kPageSize / 10);
+      3 * (PageMetadata::kPageSize / 10);
   static const size_t kLargeObjectSpaceFillerSize =
       FixedArray::SizeFor(kLargeObjectSpaceFillerLength);
   CHECK_GT(kLargeObjectSpaceFillerSize,
@@ -92,14 +92,13 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   return CcTest::i_isolate()->factory()->true_value();
 }
 
-
 HEAP_TEST(StressHandles) {
   // For TestAllocateAfterFailures.
   v8_flags.stress_concurrent_allocation = false;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<Object> o = TestAllocateAfterFailures();
+  DirectHandle<Object> o = TestAllocateAfterFailures();
   CHECK(IsTrue(*o, CcTest::i_isolate()));
   env->Exit();
 }
@@ -119,13 +118,12 @@ void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
   UNREACHABLE();
 }
 
-
-Handle<AccessorInfo> TestAccessorInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name = isolate->factory()->NewStringFromStaticChars("get");
+DirectHandle<AccessorInfo> TestAccessorInfo(Isolate* isolate,
+                                            PropertyAttributes attributes) {
+  DirectHandle<String> name =
+      isolate->factory()->NewStringFromStaticChars("get");
   return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
 }
-
 
 TEST(StressJS) {
   // For TestAllocateAfterFailures in TestGetter.
@@ -136,11 +134,12 @@ TEST(StressJS) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
-  Handle<NativeContext> context(isolate->native_context());
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtin::kEmptyFunction);
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(
+          factory->function_string(), Builtin::kEmptyFunction, 0, kDontAdapt);
   info->set_language_mode(LanguageMode::kStrict);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();
   CHECK(!function->shared()->construct_as_builtin());
 
@@ -148,17 +147,17 @@ TEST(StressJS) {
   factory->NewJSObject(function);
 
   // Patch the map to have an accessor for "get".
-  Handle<Map> map(function->initial_map(), isolate);
-  Handle<DescriptorArray> instance_descriptors(
+  DirectHandle<Map> map(function->initial_map(), isolate);
+  DirectHandle<DescriptorArray> instance_descriptors(
       map->instance_descriptors(isolate), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;
-  Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
+  DirectHandle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Name::cast(foreign->name()), isolate), foreign, attrs);
+      DirectHandle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(isolate, &d);
 
   // Add the Foo constructor the global object.

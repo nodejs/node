@@ -44,8 +44,8 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (int i = 0; i < script_context_table_->used(kAcquireLoad); ++i) {
-      Tagged<Context> context = script_context_table_->get_context(i);
+    for (int i = 0; i < script_context_table_->length(kAcquireLoad); ++i) {
+      Tagged<Context> context = script_context_table_->get(i);
       EXPECT_TRUE(context->IsScriptContext());
     }
   }
@@ -84,8 +84,7 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
       }
       auto script_context_table = Handle<ScriptContextTable>(
           native_context_->synchronized_script_context_table(), &local_heap);
-      Handle<Context> context(script_context_table->get_context(i),
-                              &local_heap);
+      DirectHandle<Context> context(script_context_table->get(i), &local_heap);
       EXPECT_TRUE(!context.is_null());
     }
   }
@@ -102,25 +101,25 @@ TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
   const bool kIgnoreDuplicateNames = true;
 
   Factory* factory = i_isolate()->factory();
-  Handle<NativeContext> native_context = factory->NewNativeContext();
-  Handle<Map> script_context_map =
-      factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+  DirectHandle<NativeContext> native_context = factory->NewNativeContext();
+  DirectHandle<Map> script_context_map = factory->NewContextfulMap(
+      native_context, SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
   script_context_map->set_native_context(*native_context);
   native_context->set_script_context_map(*script_context_map);
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
 
-  Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
+  DirectHandle<ScopeInfo> scope_info =
+      i_isolate()->factory()->global_this_binding_scope_info();
 
   for (int i = 0; i < 10; ++i) {
-    Handle<Context> script_context =
+    DirectHandle<Context> script_context =
         factory->NewScriptContext(native_context, scope_info);
 
     script_context_table =
-        ScriptContextTable::Extend(i_isolate(), script_context_table,
-                                   script_context, kIgnoreDuplicateNames);
+        ScriptContextTable::Add(i_isolate(), script_context_table,
+                                script_context, kIgnoreDuplicateNames);
   }
 
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
@@ -138,9 +137,9 @@ TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
   sema_started.Wait();
 
   for (int i = 0; i < 100; ++i) {
-    Handle<Context> context =
+    DirectHandle<Context> context =
         factory->NewScriptContext(native_context, scope_info);
-    script_context_table = ScriptContextTable::Extend(
+    script_context_table = ScriptContextTable::Add(
         i_isolate(), script_context_table, context, kIgnoreDuplicateNames);
   }
 
@@ -153,20 +152,20 @@ TEST_F(ConcurrentScriptContextTableTest,
 
   Factory* factory = i_isolate()->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
-  Handle<Map> script_context_map =
-      factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+  DirectHandle<Map> script_context_map = factory->NewContextfulMap(
+      native_context, SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
   script_context_map->set_native_context(*native_context);
   native_context->set_script_context_map(*script_context_map);
 
-  Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
+  DirectHandle<ScopeInfo> scope_info =
+      i_isolate()->factory()->global_this_binding_scope_info();
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
-  Handle<Context> context =
+  DirectHandle<Context> context =
       factory->NewScriptContext(native_context, scope_info);
-  script_context_table =
-      ScriptContextTable::Extend(i_isolate(), script_context_table, context);
+  script_context_table = ScriptContextTable::Add(
+      i_isolate(), script_context_table, context, false);
   int initialized_entries = 1;
   g_initialized_entries.store(initialized_entries, std::memory_order_release);
 
@@ -187,9 +186,9 @@ TEST_F(ConcurrentScriptContextTableTest,
 
   const bool kIgnoreDuplicateNames = true;
   for (; initialized_entries < 1000; ++initialized_entries) {
-    Handle<Context> new_context =
+    DirectHandle<Context> new_context =
         factory->NewScriptContext(native_context, scope_info);
-    script_context_table = ScriptContextTable::Extend(
+    script_context_table = ScriptContextTable::Add(
         i_isolate(), script_context_table, new_context, kIgnoreDuplicateNames);
     native_context->synchronized_set_script_context_table(
         *script_context_table);

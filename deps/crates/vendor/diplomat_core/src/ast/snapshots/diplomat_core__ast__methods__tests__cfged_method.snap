@@ -1,0 +1,34 @@
+---
+source: core/src/ast/methods.rs
+expression: "Method::from_syn(&syn::parse_quote! {\n                #[doc = r\" Some docs.\"]\n                #[diplomat::rust_link(foo::Bar::batz, FnInStruct)]\n                #[cfg(any(feature = \"foo\", not(feature = \"bar\")))] fn\n                foo(x: u64, y: MyCustomStruct) {}\n            },\n    PathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\n    None, &Attrs::default())"
+---
+name: foo
+docs:
+  - Some docs.
+  - - path:
+        elements:
+          - foo
+          - Bar
+          - batz
+      typ: FnInStruct
+      display: Normal
+abi_name: MyStructContainingMethod_foo
+self_param: ~
+params:
+  - name: x
+    ty:
+      Primitive: u64
+    attrs: {}
+  - name: y
+    ty:
+      Named:
+        path:
+          elements:
+            - MyCustomStruct
+        lifetimes: []
+    attrs: {}
+return_type: ~
+lifetime_env: {}
+attrs:
+  cfg:
+    - "# [cfg (any (feature = \"foo\" , not (feature = \"bar\")))]"

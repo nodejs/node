@@ -57,14 +57,14 @@ function parent() {
 
 function test(environ, shouldWrite, section, forceColors = false) {
   let expectErr = '';
-  const expectOut = shouldWrite ? 'enabled\n' : 'disabled\n';
+  const expectOut = shouldWrite ? 'outer enabled\ninner enabled\n' : 'outer disabled\ninner disabled\n';
 
   const spawn = require('child_process').spawn;
   const child = spawn(process.execPath, [__filename, 'child', section], {
     env: Object.assign(process.env, {
       NODE_DEBUG: environ,
-      FORCE_COLOR: forceColors ? 'true' : 'false'
-    })
+      FORCE_COLOR: forceColors ? 'true' : 'false',
+    }),
   });
 
   if (shouldWrite) {
@@ -73,9 +73,8 @@ function test(environ, shouldWrite, section, forceColors = false) {
       const addCodes = (arr) => [`\x1B[${arr[0]}m`, `\x1B[${arr[1]}m`];
       const num = addCodes(colors[styles.number]);
       const str = addCodes(colors[styles.string]);
-      const regexp = addCodes(colors[styles.regexp]);
       const start = `${section.toUpperCase()} ${num[0]}${child.pid}${num[1]}`;
-      const debugging = `${regexp[0]}/debugging/${regexp[1]}`;
+      const debugging = styles.regexp('/debugging/');
       expectErr =
         `${start}: this { is: ${str[0]}'a'${str[1]} } ${debugging}\n` +
         `${start}: num=1 str=a obj={"foo":"bar"}\n`;
@@ -115,13 +114,20 @@ function child(section) {
   const tty = require('tty');
   // Make sure we check for colors, no matter of the stream's default.
   Object.defineProperty(process.stderr, 'hasColors', {
-    value: tty.WriteStream.prototype.hasColors
+    value: tty.WriteStream.prototype.hasColors,
   });
+
+  let innerDebug = null;
   // eslint-disable-next-line no-restricted-syntax
   const debug = util.debuglog(section, common.mustCall((cb) => {
     assert.strictEqual(typeof cb, 'function');
+    innerDebug = cb;
   }));
   debug('this', { is: 'a' }, /debugging/);
   debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
-  console.log(debug.enabled ? 'enabled' : 'disabled');
+  console.log(debug.enabled ? 'outer enabled' : 'outer disabled');
+  console.log(innerDebug.enabled ? 'inner enabled' : 'inner disabled');
+
+  assert.strictEqual(typeof Object.getOwnPropertyDescriptor(debug, 'enabled').get, 'function');
+  assert.strictEqual(typeof Object.getOwnPropertyDescriptor(innerDebug, 'enabled').get, 'function');
 }

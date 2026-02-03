@@ -24,13 +24,13 @@ async function test(format) {
   const writer = gzip.writable.getWriter();
 
   const compressed_data = [];
-  const reader_function = ({ value, done }) => {
+  const reader_function = common.mustCallAtLeast(({ value, done }) => {
     if (value)
       compressed_data.push(value);
     if (!done)
       return reader.read().then(reader_function);
     assert.strictEqual(dec.decode(Buffer.concat(compressed_data)), 'hello');
-  };
+  });
   const reader_promise = reader.read().then(reader_function);
 
   await Promise.all([
@@ -41,7 +41,7 @@ async function test(format) {
   ]);
 }
 
-Promise.all(['gzip', 'deflate', 'deflate-raw'].map((i) => test(i))).then(common.mustCall());
+Promise.all(['gzip', 'deflate', 'deflate-raw', 'brotli'].map((i) => test(i))).then(common.mustCall());
 
 [1, 'hello', false, {}].forEach((i) => {
   assert.throws(() => new CompressionStream(i), {

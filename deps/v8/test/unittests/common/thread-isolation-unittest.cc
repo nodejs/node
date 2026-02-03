@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/common/code-memory-access.h"
+#include "src/common/code-memory-access-inl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-TEST(ThreadIsolation, ReuseJitPage) {
+void InitializeThreadIsolation() {
+  // We don't provide a pkey allocator for the tests in this file, so we need to
+  // disable the force_memory_protection_keys flag.
+  v8_flags.force_memory_protection_keys = false;
   ThreadIsolation::Initialize(nullptr);
+}
+
+TEST(ThreadIsolation, ReuseJitPage) {
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -28,7 +35,7 @@ TEST(ThreadIsolation, ReuseJitPage) {
 }
 
 TEST(ThreadIsolation, CatchJitPageOverlap) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -39,7 +46,7 @@ TEST(ThreadIsolation, CatchJitPageOverlap) {
 }
 
 TEST(ThreadIsolation, JitAllocation) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -60,7 +67,7 @@ TEST(ThreadIsolation, JitAllocation) {
 }
 
 TEST(ThreadIsolation, CatchOOBJitAllocation) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -72,7 +79,7 @@ TEST(ThreadIsolation, CatchOOBJitAllocation) {
 }
 
 TEST(ThreadIsolation, MergeJitPages) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -98,78 +105,69 @@ TEST(ThreadIsolation, MergeJitPages) {
   ThreadIsolation::UnregisterJitPage(address3, size);
 }
 
-TEST(ThreadIsolation, UnregisterAllocationsExcept) {
-  ThreadIsolation::Initialize(nullptr);
-
-  Address address1 = 0x4100000;
-  size_t size = 0x1000;
-  ThreadIsolation::RegisterJitPage(address1, size);
-
-  std::vector<base::AddressRegion> allocations;
-  std::vector<base::Address> to_keep;
-
-  allocations.emplace_back(address1, 1);
-  allocations.emplace_back(address1 + 1, 1);
-  allocations.emplace_back(address1 + 10, 1);
-  allocations.emplace_back(address1 + size - 1, 1);
-
-  for (auto allocation : allocations) {
-    ThreadIsolation::RegisterJitAllocationForTesting(allocation.begin(),
-                                                     allocation.size());
-  }
-
-  to_keep.emplace_back(address1);
-  to_keep.emplace_back(address1 + size - 1);
-
-  ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
-      address1, size, to_keep);
-
-  // Everything should be free except first and last byte.
-  ThreadIsolation::RegisterJitAllocationForTesting(address1 + 1, size - 2);
-
-  // But we should've kept to_keep[0].
-  EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitAllocationForTesting(to_keep[0], 1); }, "");
-
-  ThreadIsolation::UnregisterJitPage(address1, size);
-}
-
-TEST(ThreadIsolation, UnregisterAllocationsExceptNextPage) {
-  ThreadIsolation::Initialize(nullptr);
+TEST(ThreadIsolation, FreeRange) {
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
   Address address2 = address1 + size;
+  Address address3 = address2 + size;
   ThreadIsolation::RegisterJitPage(address1, size);
   ThreadIsolation::RegisterJitPage(address2, size);
+  ThreadIsolation::RegisterJitPage(address3, size);
 
-  std::vector<base::AddressRegion> allocations;
-  std::vector<base::Address> to_keep;
+  ThreadIsolation::RegisterJitAllocationForTesting(address2 - 1, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(address2, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(address2 + 1, size - 2);
+  ThreadIsolation::RegisterJitAllocationForTesting(address3 - 1, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(address3, 1);
 
-  allocations.emplace_back(address1, 1);
-  allocations.emplace_back(address1 + 1, 1);
-  allocations.emplace_back(address1 + 10, 1);
-  allocations.emplace_back(address1 + size - 1, 1);
-
-  allocations.emplace_back(address2, 1);
-
-  for (auto allocation : allocations) {
-    ThreadIsolation::RegisterJitAllocationForTesting(allocation.begin(),
-                                                     allocation.size());
+  {
+    WritableJitPage jit_page(address2, size);
+    EXPECT_FALSE(jit_page.Empty());
+    jit_page.FreeRange(address2, 0);
+    EXPECT_FALSE(jit_page.Empty());
+    jit_page.FreeRange(address2, size);
+    EXPECT_TRUE(jit_page.Empty());
+    // Freeing an already free range should not crash.
+    jit_page.FreeRange(address2, size);
   }
-
-  ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
-      address1, size, to_keep);
-
-  // Everything should be free.
-  ThreadIsolation::RegisterJitAllocationForTesting(address1, size);
-
-  // But we should've kept the allocation on the next page.
-  EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitAllocationForTesting(address2, 1); }, "");
+  {
+    WritableJitPage jit_page(address1, size);
+    EXPECT_FALSE(jit_page.Empty());
+    jit_page.FreeRange(address1, size);
+    EXPECT_TRUE(jit_page.Empty());
+  }
+  {
+    WritableJitPage jit_page(address3, size);
+    EXPECT_FALSE(jit_page.Empty());
+    jit_page.FreeRange(address3, size);
+    EXPECT_TRUE(jit_page.Empty());
+  }
 
   ThreadIsolation::UnregisterJitPage(address1, size);
   ThreadIsolation::UnregisterJitPage(address2, size);
+  ThreadIsolation::UnregisterJitPage(address3, size);
+}
+
+TEST(ThreadIsolation, InvalidFreeRange) {
+  InitializeThreadIsolation();
+
+  Address address1 = 0x4100000;
+  size_t size = 0x1000;
+  ThreadIsolation::RegisterJitPage(address1, size);
+
+  ThreadIsolation::RegisterJitAllocationForTesting(address1, 2);
+
+  {
+    WritableJitPage jit_page(address1, size);
+    EXPECT_FALSE(jit_page.Empty());
+    // We should die when trying to partially free an allocation.
+    EXPECT_DEATH_IF_SUPPORTED({ jit_page.FreeRange(address1, 1); }, "");
+    jit_page.FreeRange(address1, 2);
+  }
+
+  ThreadIsolation::UnregisterJitPage(address1, size);
 }
 
 }  // namespace internal

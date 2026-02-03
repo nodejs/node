@@ -31,11 +31,11 @@
    libcurl) */
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
 #  define WIN32
-#endif
+#endif /* (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32) */
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 #include <stdlib.h>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
@@ -43,9 +43,9 @@ extern "C" {
    compliant.  See compiler macros and version number in
    https://sourceforge.net/p/predef/wiki/Compilers/ */
 #  include <stdint.h>
-#else /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
+#else /* !(defined(_MSC_VER) && (_MSC_VER < 1800)) */
 #  include <inttypes.h>
-#endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
+#endif /* !(defined(_MSC_VER) && (_MSC_VER < 1800)) */
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -57,22 +57,22 @@ extern "C" {
 #elif defined(WIN32)
 #  ifdef BUILDING_NGHTTP3
 #    define NGHTTP3_EXTERN __declspec(dllexport)
-#  else /* !BUILDING_NGHTTP3 */
+#  else /* !defined(BUILDING_NGHTTP3) */
 #    define NGHTTP3_EXTERN __declspec(dllimport)
-#  endif /* !BUILDING_NGHTTP3 */
-#else    /* !defined(WIN32) */
+#  endif /* !defined(BUILDING_NGHTTP3) */
+#else    /* !(defined(NGHTTP3_STATICLIB) || defined(WIN32)) */
 #  ifdef BUILDING_NGHTTP3
 #    define NGHTTP3_EXTERN __attribute__((visibility("default")))
-#  else /* !BUILDING_NGHTTP3 */
+#  else /* !defined(BUILDING_NGHTTP3) */
 #    define NGHTTP3_EXTERN
-#  endif /* !BUILDING_NGHTTP3 */
-#endif   /* !defined(WIN32) */
+#  endif /* !defined(BUILDING_NGHTTP3) */
+#endif   /* !(defined(NGHTTP3_STATICLIB) || defined(WIN32)) */
 
 #ifdef _MSC_VER
 #  define NGHTTP3_ALIGN(N) __declspec(align(N))
-#else /* !_MSC_VER */
+#else /* !defined(_MSC_VER) */
 #  define NGHTTP3_ALIGN(N) __attribute__((aligned(N)))
-#endif /* !_MSC_VER */
+#endif /* !defined(_MSC_VER) */
 
 /**
  * @typedef
@@ -80,6 +80,59 @@ extern "C" {
  * :type:`nghttp3_ssize` is signed counterpart of size_t.
  */
 typedef ptrdiff_t nghttp3_ssize;
+
+/**
+ * @typedef
+ *
+ * :type:`nghttp3_tstamp` is a timestamp with nanosecond resolution.
+ * ``UINT64_MAX`` is an invalid value, and it is often used to
+ * indicate that no value is set.  This type is available since
+ * v1.12.0.
+ */
+typedef uint64_t nghttp3_tstamp;
+
+/**
+ * @typedef
+ *
+ * :type:`nghttp3_duration` is a period of time in nanosecond
+ * resolution.  ``UINT64_MAX`` is an invalid value, and it is often
+ * used to indicate that no value is set.  This type is available
+ * since v1.12.0.
+ */
+typedef uint64_t nghttp3_duration;
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_NANOSECONDS` is a count of tick which corresponds
+ * to 1 nanosecond.  This macro is available since v1.12.0.
+ */
+#define NGHTTP3_NANOSECONDS ((nghttp3_duration)1ULL)
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_MICROSECONDS` is a count of tick which corresponds
+ * to 1 microsecond.  This macro is available since v1.12.0.
+ */
+#define NGHTTP3_MICROSECONDS ((nghttp3_duration)(1000ULL * NGHTTP3_NANOSECONDS))
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_MILLISECONDS` is a count of tick which corresponds
+ * to 1 millisecond.  This macro is available since v1.12.0.
+ */
+#define NGHTTP3_MILLISECONDS                                                   \
+  ((nghttp3_duration)(1000ULL * NGHTTP3_MICROSECONDS))
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_SECONDS` is a count of tick which corresponds to 1
+ * second.  This macro is available since v1.12.0.
+ */
+#define NGHTTP3_SECONDS ((nghttp3_duration)(1000ULL * NGHTTP3_MILLISECONDS))
 
 /**
  * @macro
@@ -264,6 +317,14 @@ typedef ptrdiff_t nghttp3_ssize;
  * allowed.
  */
 #define NGHTTP3_ERR_H3_STREAM_CREATION_ERROR -609
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_ERR_H3_EXCESSIVE_LOAD` indicates that a local
+ * endpoint detected that its remote endpoint is exhibiting a behavior
+ * that might generating excessive load.
+ */
+#define NGHTTP3_ERR_H3_EXCESSIVE_LOAD -610
 /**
  * @macro
  *
@@ -624,7 +685,7 @@ typedef struct nghttp3_buf {
    */
   uint8_t *end;
   /**
-   * :member:`pos` pointers to the start of data.  Typically, this
+   * :member:`pos` points to the start of data.  Typically, this
    * points to the address that next data should be read.  Initially,
    * it points to :member:`begin`.
    */
@@ -1091,6 +1152,32 @@ typedef struct nghttp3_qpack_nv {
 } nghttp3_qpack_nv;
 
 /**
+ * @enum
+ *
+ * :type:`nghttp3_qpack_indexing_strat` defines the QPACK dynamic
+ * table indexing strategies for fields not defined in
+ * :type:`nghttp3_qpack_token`.  This type is available since v1.13.0.
+
+ */
+typedef enum nghttp3_qpack_indexing_strat {
+  /**
+   * :enum:`NGHTTP3_QPACK_INDEXING_STRAT_NONE` does not index any
+   * fields not defined in :type:`nghttp3_qpack_token`.  This is the
+   * default strategy.  You can still use
+   * :macro:`NGHTTP3_NV_FLAG_TRY_INDEX` to index a particular field.
+   * This enum is available since v1.13.0.
+   */
+  NGHTTP3_QPACK_INDEXING_STRAT_NONE,
+  /**
+   * :enum:`NGHTTP3_QPACK_INDEXING_STRAT_EAGER` indexes all fields not
+   * defined in :type:`nghttp3_qpack_token`.  Please note that QPACK
+   * encoder might not index the field in various reasons.  This enum
+   * is available since v1.13.0.
+   */
+  NGHTTP3_QPACK_INDEXING_STRAT_EAGER
+} nghttp3_qpack_indexing_strat;
+
+/**
  * @struct
  *
  * :type:`nghttp3_qpack_encoder` is QPACK encoder.  The details of
@@ -1116,10 +1203,42 @@ typedef struct nghttp3_qpack_encoder nghttp3_qpack_encoder;
  *
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ *
+ * See also `nghttp3_qpack_encoder_new2`.  This function calls
+ * `nghttp3_qpack_encoder_new2` with the given parameters and 0 as
+ * seed.
  */
 NGHTTP3_EXTERN int nghttp3_qpack_encoder_new(nghttp3_qpack_encoder **pencoder,
                                              size_t hard_max_dtable_capacity,
                                              const nghttp3_mem *mem);
+
+/**
+ * @function
+ *
+ * `nghttp3_qpack_encoder_new2` initializes QPACK encoder.  |pencoder|
+ * must be non-NULL pointer.  |hard_max_dtable_capacity| is the upper
+ * bound of the dynamic table capacity.  |seed| must be unpredictable
+ * value, and is used to seed the internal data structure.  |mem| is a
+ * memory allocator.  This function allocates memory for
+ * :type:`nghttp3_qpack_encoder` itself, and assigns its pointer to
+ * |*pencoder| if it succeeds.
+ *
+ * The maximum dynamic table capacity is still 0.  In order to change
+ * the maximum dynamic table capacity, call
+ * `nghttp3_qpack_encoder_set_max_dtable_capacity`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ *
+ * This function is available since v1.11.0.
+ */
+NGHTTP3_EXTERN int nghttp3_qpack_encoder_new2(nghttp3_qpack_encoder **pencoder,
+                                              size_t hard_max_dtable_capacity,
+                                              uint64_t seed,
+                                              const nghttp3_mem *mem);
 
 /**
  * @function
@@ -1161,8 +1280,8 @@ NGHTTP3_EXTERN void nghttp3_qpack_encoder_del(nghttp3_qpack_encoder *encoder);
  *      anymore.
  */
 NGHTTP3_EXTERN int nghttp3_qpack_encoder_encode(
-    nghttp3_qpack_encoder *encoder, nghttp3_buf *pbuf, nghttp3_buf *rbuf,
-    nghttp3_buf *ebuf, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen);
+  nghttp3_qpack_encoder *encoder, nghttp3_buf *pbuf, nghttp3_buf *rbuf,
+  nghttp3_buf *ebuf, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen);
 
 /**
  * @function
@@ -1182,7 +1301,7 @@ NGHTTP3_EXTERN int nghttp3_qpack_encoder_encode(
  *     |encoder| is unable to process input because it is malformed.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_qpack_encoder_read_decoder(
-    nghttp3_qpack_encoder *encoder, const uint8_t *src, size_t srclen);
+  nghttp3_qpack_encoder *encoder, const uint8_t *src, size_t srclen);
 
 /**
  * @function
@@ -1205,6 +1324,18 @@ nghttp3_qpack_encoder_set_max_dtable_capacity(nghttp3_qpack_encoder *encoder,
 NGHTTP3_EXTERN void
 nghttp3_qpack_encoder_set_max_blocked_streams(nghttp3_qpack_encoder *encoder,
                                               size_t max_blocked_streams);
+
+/**
+ * @function
+ *
+ * `nghttp3_qpack_encoder_set_indexing_strat` sets the dynamic table
+ * indexing strategy |strat| to |encoder|.  This function is available
+ * since v1.13.0.
+
+ */
+NGHTTP3_EXTERN void
+nghttp3_qpack_encoder_set_indexing_strat(nghttp3_qpack_encoder *encoder,
+                                         nghttp3_qpack_indexing_strat strat);
 
 /**
  * @function
@@ -1343,7 +1474,7 @@ NGHTTP3_EXTERN void nghttp3_qpack_decoder_del(nghttp3_qpack_decoder *decoder);
  *     Could not interpret encoder stream instruction.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_qpack_decoder_read_encoder(
-    nghttp3_qpack_decoder *decoder, const uint8_t *src, size_t srclen);
+  nghttp3_qpack_decoder *decoder, const uint8_t *src, size_t srclen);
 
 /**
  * @function
@@ -1436,9 +1567,9 @@ nghttp3_qpack_decoder_get_icnt(const nghttp3_qpack_decoder *decoder);
  *     HTTP field is too large.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_qpack_decoder_read_request(
-    nghttp3_qpack_decoder *decoder, nghttp3_qpack_stream_context *sctx,
-    nghttp3_qpack_nv *nv, uint8_t *pflags, const uint8_t *src, size_t srclen,
-    int fin);
+  nghttp3_qpack_decoder *decoder, nghttp3_qpack_stream_context *sctx,
+  nghttp3_qpack_nv *nv, uint8_t *pflags, const uint8_t *src, size_t srclen,
+  int fin);
 
 /**
  * @function
@@ -1568,7 +1699,7 @@ typedef void (*nghttp3_debug_vprintf_callback)(const char *format,
  *   times because this is important.
  */
 NGHTTP3_EXTERN void nghttp3_set_debug_vprintf_callback(
-    nghttp3_debug_vprintf_callback debug_vprintf_callback);
+  nghttp3_debug_vprintf_callback debug_vprintf_callback);
 
 /**
  * @macrosection
@@ -1605,7 +1736,10 @@ NGHTTP3_EXTERN void nghttp3_set_debug_vprintf_callback(
 typedef struct nghttp3_conn nghttp3_conn;
 
 #define NGHTTP3_SETTINGS_V1 1
-#define NGHTTP3_SETTINGS_VERSION NGHTTP3_SETTINGS_V1
+#define NGHTTP3_SETTINGS_V2 2
+#define NGHTTP3_SETTINGS_V3 3
+#define NGHTTP3_SETTINGS_V4 4
+#define NGHTTP3_SETTINGS_VERSION NGHTTP3_SETTINGS_V4
 
 /**
  * @struct
@@ -1615,7 +1749,11 @@ typedef struct nghttp3_conn nghttp3_conn;
 typedef struct nghttp3_settings {
   /**
    * :member:`max_field_section_size` specifies the maximum header
-   * section (block) size.
+   * section (block) size.  nghttp3 library does not enforce this
+   * limit.  Applications are responsible for imposing their own
+   * limits to protect against resource exhaustion.  See
+   * https://datatracker.ietf.org/doc/html/rfc9114#section-4.2.2 for
+   * details.
    */
   uint64_t max_field_section_size;
   /**
@@ -1652,7 +1790,85 @@ typedef struct nghttp3_settings {
    * Datagrams (see :rfc:`9297`).
    */
   uint8_t h3_datagram;
+  /* The following fields have been added since NGHTTP3_SETTINGS_V2. */
+  /**
+   * :member:`origin_list`, if set, must contain a serialized HTTP/3
+   * ORIGIN frame (see :rfc:`9412`) payload.  The ORIGIN frame payload
+   * is a sequence of zero or more of a length prefixed byte string.
+   * The length is encoded in 2 bytes in network byte order.  If
+   * :member:`origin_list->len <nghttp3_vec.len>` is zero, an empty
+   * ORIGIN frame is sent.  An application must keep the buffer
+   * pointed by :member:`origin_list->base <nghttp3_vec.base>` alive
+   * until the :type:`nghttp3_conn` to which this field was passed is
+   * freed by `nghttp3_conn_del`.  The object pointed to by this field
+   * is copied internally, and does not need to be kept alive.  Only
+   * server uses this field.  This field is available since v1.11.0.
+   */
+  const nghttp3_vec *origin_list;
+  /* The following fields have been added since NGHTTP3_SETTINGS_V3. */
+  /**
+   * :member:`glitch_ratelim_burst` is the maximum number of tokens
+   * available to "glitch" rate limiter.  "glitch" is a suspicious
+   * activity from a remote endpoint.  If detected, certain amount of
+   * tokens are consumed.  If no tokens are available to consume, the
+   * connection is closed.  The rate of token generation is specified
+   * by :member:`glitch_ratelim_rate`.  This feature is enabled only
+   * when `nghttp3_conn_read_stream2` is used.  This field has been
+   * available since v1.12.0.
+   */
+  uint64_t glitch_ratelim_burst;
+  /**
+   * :member:`glitch_ratelim_rate` is the number of tokens generated
+   * per second.  See :member:`glitch_ratelim_burst` for "glitch" rate
+   * limiter.  This field has been available since v1.12.0.
+   */
+  uint64_t glitch_ratelim_rate;
+  /**
+   * :member:`qpack_indexing_strat` defines the QPACK dynamic table
+   * indexing strategy for those fields that are not defined in
+   * :type:`nghttp3_qpack_token`.  This field has been available since
+   * v1.13.0.
+   */
+  nghttp3_qpack_indexing_strat qpack_indexing_strat;
 } nghttp3_settings;
+
+#define NGHTTP3_PROTO_SETTINGS_V1 1
+#define NGHTTP3_PROTO_SETTINGS_VERSION NGHTTP3_PROTO_SETTINGS_V1
+
+/**
+ * @struct
+ *
+ * :type:`nghttp3_proto_settings` contains HTTP/3 settings that this
+ * library can recognize.  This field is available since v1.14.0.
+ */
+typedef struct nghttp3_proto_settings {
+  /**
+   * :member:`max_field_section_size` specifies the maximum header
+   * section (block) size.
+   */
+  uint64_t max_field_section_size;
+  /**
+   * :member:`qpack_max_dtable_capacity` is the maximum size of QPACK
+   * dynamic table.
+   */
+  size_t qpack_max_dtable_capacity;
+  /**
+   * :member:`qpack_blocked_streams` is the maximum number of streams
+   * which can be blocked while they are being decoded.
+   */
+  size_t qpack_blocked_streams;
+  /**
+   * :member:`enable_connect_protocol`, if set to nonzero, enables
+   * Extended CONNECT Method (see :rfc:`9220`).  Client ignores this
+   * field.
+   */
+  uint8_t enable_connect_protocol;
+  /**
+   * :member:`h3_datagram`, if set to nonzero, enables HTTP/3
+   * Datagrams (see :rfc:`9297`).
+   */
+  uint8_t h3_datagram;
+} nghttp3_proto_settings;
 
 /**
  * @functypedef
@@ -1878,6 +2094,11 @@ typedef int (*nghttp3_shutdown)(nghttp3_conn *conn, int64_t id,
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   Deprecated since v1.14.0.  Use :type:`nghttp3_recv_settings2`
+ *   instead.  New settings will not be notified with this callback.
+ *
  * :type:`nghttp3_recv_settings` is a callback function which is
  * invoked when SETTINGS frame is received.  |settings| is a received
  * remote HTTP/3 settings.
@@ -1891,8 +2112,65 @@ typedef int (*nghttp3_recv_settings)(nghttp3_conn *conn,
                                      const nghttp3_settings *settings,
                                      void *conn_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_origin` is a callback function which is invoked
+ * when a single origin in ORIGIN frame is received.  |origin| is a
+ * received origin of length |originlen|.  |originlen| never be 0.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_recv_origin)(nghttp3_conn *conn, const uint8_t *origin,
+                                   size_t originlen, void *conn_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_end_origin` is a callback function which is invoked
+ * when an ORIGIN frame has been completely processed.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_end_origin)(nghttp3_conn *conn, void *conn_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_rand` is a callback function which is invoked when
+ * unpredictable data of |destlen| bytes are needed.  The
+ * implementation must write unpredictable data of |destlen| bytes
+ * into the buffer pointed by |dest|.
+ */
+typedef void (*nghttp3_rand)(uint8_t *dest, size_t destlen);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_settings2` is a callback function which is
+ * invoked when SETTINGS frame is received.  |settings| is a received
+ * remote HTTP/3 settings.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.  This callback is available
+ * since v1.14.0.
+ */
+typedef int (*nghttp3_recv_settings2)(nghttp3_conn *conn,
+                                      const nghttp3_proto_settings *settings,
+                                      void *conn_user_data);
+
 #define NGHTTP3_CALLBACKS_V1 1
-#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V1
+#define NGHTTP3_CALLBACKS_V2 2
+#define NGHTTP3_CALLBACKS_V3 3
+#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V3
 
 /**
  * @struct
@@ -1982,10 +2260,43 @@ typedef struct nghttp3_callbacks {
    */
   nghttp3_shutdown shutdown;
   /**
+   * .. warning::
+   *
+   *   Deprecated since v1.14.0.  Use :member:`recv_settings2`
+   *   instead.
+   *
    * :member:`recv_settings` is a callback function which is invoked
    * when SETTINGS frame is received.
    */
   nghttp3_recv_settings recv_settings;
+  /* The following fields have been added since NGHTTP3_CALLBACKS_V2. */
+  /**
+   * :member:`recv_origin` is a callback function which is invoked
+   * when a single origin in an ORIGIN frame is received.  This field
+   * is available since v1.11.0.
+   */
+  nghttp3_recv_origin recv_origin;
+  /**
+   * :member:`end_origin` is a callback function which is invoked when
+   * an ORIGIN frame has been completely processed.  This field is
+   * available since v1.11.0.
+   */
+  nghttp3_end_origin end_origin;
+  /**
+   * :member:`rand` is a callback function which is invoked when
+   * unpredictable data are needed.  Although this field is optional
+   * due to the backward compatibility, it is recommended to specify
+   * this field to harden the runtime behavior against suspicious
+   * activities of a remote endpoint.  This field is available since
+   * v1.11.0.
+   */
+  nghttp3_rand rand;
+  /**
+   * :member:`recv_settings2` is a callback function which is invoked
+   * when SETTINGS frame is received.  This field is available since
+   * v1.14.0.
+   */
+  nghttp3_recv_settings2 recv_settings2;
 } nghttp3_callbacks;
 
 /**
@@ -2004,6 +2315,10 @@ typedef struct nghttp3_callbacks {
  *   <nghttp3_settings.qpack_blocked_streams>` = 0
  * - :member:`enable_connect_protocol
  *   <nghttp3_settings.enable_connect_protocol>` = 0
+ * - :member:`glitch_ratelim_burst
+ *   <nghttp3_settings.glitch_ratelim_burst>` = 1000
+ * - :member:`glitch_ratelim_rate
+ *   <nghttp3_settings.glitch_ratelim_rate>` = 33
  */
 NGHTTP3_EXTERN void
 nghttp3_settings_default_versioned(int settings_version,
@@ -2100,13 +2415,18 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   Deprecated since v1.12.0.  Use `nghttp3_conn_read_stream2`
+ *   instead.
+ *
  * `nghttp3_conn_read_stream` reads data |src| of length |srclen| on
  * stream identified by |stream_id|.  It returns the number of bytes
  * consumed.  The "consumed" means that application can increase flow
  * control credit (both stream and connection) of underlying QUIC
  * connection by that amount.  It does not include the amount of data
  * carried by DATA frame which contains application data (excluding
- * any control or QPACK unidirectional streams) .  See
+ * any control or QPACK unidirectional streams).  See
  * :type:`nghttp3_recv_data` to handle those bytes.  If |fin| is
  * nonzero, this is the last data from remote endpoint in this stream.
  *
@@ -2118,14 +2438,51 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
                                                       int64_t stream_id,
                                                       const uint8_t *src,
                                                       size_t srclen, int fin);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_read_stream2` reads data |src| of length |srclen| on
+ * stream identified by |stream_id|.  It returns the number of bytes
+ * consumed.  The "consumed" means that application can increase flow
+ * control credit (both stream and connection) of underlying QUIC
+ * connection by that amount.  It does not include the amount of data
+ * carried by DATA frame which contains application data (excluding
+ * any control or QPACK unidirectional streams).  See
+ * :type:`nghttp3_recv_data` to handle those bytes.  If |fin| is
+ * nonzero, this is the last data from remote endpoint in this stream.
+ * |ts| is the current timestamp, and must be non-decreasing.  It
+ * should be obtained from the clock that is steadily increasing.
+ *
+ * This function returns the number of bytes consumed, or one of the
+ * following negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
+ *     User callback failed.
+ *
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
+ *
+ * This function is available since v1.12.0.
+ */
+NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream2(nghttp3_conn *conn,
+                                                       int64_t stream_id,
+                                                       const uint8_t *src,
+                                                       size_t srclen, int fin,
+                                                       nghttp3_tstamp ts);
 
 /**
  * @function
@@ -2152,9 +2509,10 @@ NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_writev_stream(nghttp3_conn *conn,
                                                         int64_t *pstream_id,
@@ -2198,6 +2556,9 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  * If a stream denoted by |stream_id| is not found, this function
  * returns 0.
  *
+ * Alternatively, `nghttp3_conn_update_ack_offset` can be used to
+ * accomplish the same thing.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2206,6 +2567,31 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  */
 NGHTTP3_EXTERN int nghttp3_conn_add_ack_offset(nghttp3_conn *conn,
                                                int64_t stream_id, uint64_t n);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_update_ack_offset` tells |conn| that QUIC stack has
+ * acknowledged the stream data up to |offset| for a stream denoted by
+ * |stream_id|.
+ *
+ * If a stream denoted by |stream_id| is not found, this function
+ * returns 0.
+ *
+ * Alternatively, `nghttp3_conn_add_ack_offset` can be used to
+ * accomplish the same thing.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     |offset| is less than the number of bytes acknowledged so far.
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
+ *     User callback failed.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_update_ack_offset(nghttp3_conn *conn,
+                                                  int64_t stream_id,
+                                                  uint64_t offset);
 
 /**
  * @function
@@ -2314,9 +2700,9 @@ NGHTTP3_EXTERN int nghttp3_conn_resume_stream(nghttp3_conn *conn,
 /**
  * @function
  *
- * `nghttp3_conn_close_stream` closes stream identified by
- * |stream_id|.  QUIC application error code |app_error_code| is the
- * reason of the closure.
+ * `nghttp3_conn_close_stream` tells the library that a stream
+ * identified by |stream_id| has been closed.  QUIC application error
+ * code |app_error_code| is the reason of the closure.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2419,8 +2805,8 @@ nghttp3_conn_set_max_concurrent_streams(nghttp3_conn *conn,
  * stream.
  */
 typedef nghttp3_ssize (*nghttp3_read_data_callback)(
-    nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec, size_t veccnt,
-    uint32_t *pflags, void *conn_user_data, void *stream_user_data);
+  nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec, size_t veccnt,
+  uint32_t *pflags, void *conn_user_data, void *stream_user_data);
 
 /**
  * @struct
@@ -2450,8 +2836,6 @@ typedef struct nghttp3_data_reader {
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
- *     |stream_id| identifies unidirectional stream.
  * :macro:`NGHTTP3_ERR_CONN_CLOSING`
  *     Connection is shutting down, and no new stream is allowed.
  * :macro:`NGHTTP3_ERR_STREAM_IN_USE`
@@ -2460,8 +2844,8 @@ typedef struct nghttp3_data_reader {
  *     Out of memory.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_request(
-    nghttp3_conn *conn, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen,
-    const nghttp3_data_reader *dr, void *stream_user_data);
+  nghttp3_conn *conn, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen,
+  const nghttp3_data_reader *dr, void *stream_user_data);
 
 /**
  * @function
@@ -2667,7 +3051,7 @@ typedef struct NGHTTP3_ALIGN(8) nghttp3_pri {
  *     Stream not found.
  */
 NGHTTP3_EXTERN int nghttp3_conn_get_stream_priority_versioned(
-    nghttp3_conn *conn, int pri_version, nghttp3_pri *dest, int64_t stream_id);
+  nghttp3_conn *conn, int pri_version, nghttp3_pri *dest, int64_t stream_id);
 
 /**
  * @function
@@ -2720,8 +3104,8 @@ NGHTTP3_EXTERN int nghttp3_conn_set_client_stream_priority(nghttp3_conn *conn,
  *     Out of memory.
  */
 NGHTTP3_EXTERN int nghttp3_conn_set_server_stream_priority_versioned(
-    nghttp3_conn *conn, int64_t stream_id, int pri_version,
-    const nghttp3_pri *pri);
+  nghttp3_conn *conn, int64_t stream_id, int pri_version,
+  const nghttp3_pri *pri);
 
 /**
  * @function
@@ -2884,7 +3268,7 @@ NGHTTP3_EXTERN int nghttp3_err_is_fatal(int liberr);
  */
 #define nghttp3_conn_set_server_stream_priority(CONN, STREAM_ID, PRI)          \
   nghttp3_conn_set_server_stream_priority_versioned(                           \
-      (CONN), (STREAM_ID), NGHTTP3_PRI_VERSION, (PRI))
+    (CONN), (STREAM_ID), NGHTTP3_PRI_VERSION, (PRI))
 
 /*
  * `nghttp3_conn_get_stream_priority` is a wrapper around
@@ -2906,6 +3290,6 @@ NGHTTP3_EXTERN int nghttp3_err_is_fatal(int liberr);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGHTTP3_H */
+#endif /* !defined(NGHTTP3_H) */

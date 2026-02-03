@@ -41,6 +41,7 @@
     function closeAllPickers() {
       for (const picker of pickers) {
         picker.parentNode.classList.remove('expanded');
+        picker.ariaExpanded = false;
       }
 
       window.removeEventListener('click', closeAllPickers);
@@ -58,6 +59,7 @@
     for (const picker of pickers) {
       const parentNode = picker.parentNode;
 
+      picker.ariaExpanded = parentNode.classList.contains('expanded');
       picker.addEventListener('click', function(e) {
         e.preventDefault();
 
@@ -65,7 +67,7 @@
           closeAllPickers as window event trigger already closed all the pickers,
           if it already closed there is nothing else to do here
         */
-        if (parentNode.classList.contains('expanded')) {
+        if (picker.ariaExpanded === 'true') {
           return;
         }
 
@@ -75,9 +77,11 @@
         */
 
         requestAnimationFrame(function() {
+          picker.ariaExpanded = true;
           parentNode.classList.add('expanded');
           window.addEventListener('click', closeAllPickers);
           window.addEventListener('keydown', onKeyDown);
+          parentNode.querySelector('.picker a').focus();
         });
       });
     }
@@ -183,6 +187,20 @@
     });
   }
 
+  function setupSidebarScroll() {
+    const sidebarLinks = document.querySelectorAll('#column2 a');
+
+    let link;
+    for (link of sidebarLinks) {
+      if (link.pathname === window.location.pathname) break;
+    }
+
+    if (!link) return;
+
+    link.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+
   function bootstrap() {
     // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
@@ -202,6 +220,8 @@
     setupFlavorToggles();
 
     setupCopyButton();
+
+    setupSidebarScroll();
   }
 
   if (document.readyState === 'loading') {

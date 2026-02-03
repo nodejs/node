@@ -2,12 +2,12 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_DEBUG_H_
+#define V8_WASM_WASM_DEBUG_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_DEBUG_H_
-#define V8_WASM_WASM_DEBUG_H_
 
 #include <algorithm>
 #include <memory>
@@ -19,6 +19,7 @@
 #include "src/base/macros.h"
 #include "src/base/vector.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -30,9 +31,10 @@ namespace wasm {
 class DebugInfoImpl;
 class NativeModule;
 class WasmCode;
-class WireBytesRef;
-class WasmValue;
 struct WasmFunction;
+struct WasmModule;
+class WasmValue;
+class WireBytesRef;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -45,6 +47,7 @@ class DebugSideTable {
     struct Value {
       int index;
       ValueType type;
+      const WasmModule* module;
       Storage storage;
       union {
         int32_t i32_const;  // if kind == kConstant
@@ -54,7 +57,9 @@ class DebugSideTable {
 
       bool operator==(const Value& other) const {
         if (index != other.index) return false;
-        if (type != other.type) return false;
+        if (!EquivalentTypes(type, other.type, module, other.module)) {
+          return false;
+        }
         if (storage != other.storage) return false;
         switch (storage) {
           case kConstant:
@@ -65,7 +70,6 @@ class DebugSideTable {
             return stack_offset == other.stack_offset;
         }
       }
-      bool operator!=(const Value& other) const { return !(*this == other); }
 
       bool is_constant() const { return storage == kConstant; }
       bool is_register() const { return storage == kRegister; }
@@ -174,18 +178,19 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // For the frame inspection methods below:
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
-  int GetNumLocals(Address pc);
+  int GetNumLocals(Address pc, Isolate* isolate);
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate);
-  int GetStackDepth(Address pc);
+  int GetStackDepth(Address pc, Isolate* isolate);
 
-  const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
+  const wasm::WasmFunction& GetFunctionAtAddress(Address pc, Isolate* isolate);
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
+  bool IsFrameBlackboxed(WasmFrame* frame);
   // Returns true if we stay inside the passed frame (or a called frame) after
   // the step. False if the frame will return after the step.
   bool PrepareStep(WasmFrame*);

@@ -11,18 +11,14 @@
 **********************************************************************
 */
 #include "locbased.h"
-#include "cstring.h"
+#include "uresimp.h"
 
 U_NAMESPACE_BEGIN
 
-Locale LocaleBased::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    const char* id = getLocaleID(type, status);
-    return Locale((id != 0) ? id : "");
-}
-
-const char* LocaleBased::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
+const Locale& LocaleBased::getLocale(const Locale& valid, const Locale& actual,
+                                     ULocDataLocaleType type, UErrorCode& status) {
     if (U_FAILURE(status)) {
-        return nullptr;
+        return Locale::getRoot();
     }
 
     switch(type) {
@@ -32,24 +28,19 @@ const char* LocaleBased::getLocaleID(ULocDataLocaleType type, UErrorCode& status
         return actual;
     default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
+        return Locale::getRoot();
+    }
+}
+
+const char* LocaleBased::getLocaleID(const Locale& valid, const Locale& actual,
+                                     ULocDataLocaleType type, UErrorCode& status) {
+    const Locale& locale = getLocale(valid, actual, type, status);
+
+    if (U_FAILURE(status)) {
         return nullptr;
     }
-}
 
-void LocaleBased::setLocaleIDs(const char* validID, const char* actualID) {
-    if (validID != 0) {
-      uprv_strncpy(valid, validID, ULOC_FULLNAME_CAPACITY);
-      valid[ULOC_FULLNAME_CAPACITY-1] = 0; // always terminate
-    }
-    if (actualID != 0) {
-      uprv_strncpy(actual, actualID, ULOC_FULLNAME_CAPACITY);
-      actual[ULOC_FULLNAME_CAPACITY-1] = 0; // always terminate
-    }
-}
-
-void LocaleBased::setLocaleIDs(const Locale& validID, const Locale& actualID) {
-  uprv_strcpy(valid, validID.getName());
-  uprv_strcpy(actual, actualID.getName());
+    return locale == Locale::getRoot() ? kRootLocaleName : locale.getName();
 }
 
 U_NAMESPACE_END

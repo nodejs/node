@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
-                Graph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
+                TFGraph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
                 SourcePositionTable* source_positions,
                 NodeOriginTable* node_origins) {
   DCHECK_EQ(loop_node->opcode(), IrOpcode::kLoop);

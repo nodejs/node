@@ -1,11 +1,12 @@
 'use strict';
 const common = require('../common.js');
 const StringDecoder = require('string_decoder').StringDecoder;
+const assert = require('node:assert');
 
 const bench = common.createBenchmark(main, {
   encoding: ['ascii', 'utf8', 'base64-utf8', 'base64-ascii', 'utf16le'],
-  inLen: [32, 128, 1024, 4096],
-  chunkLen: [16, 64, 256, 1024],
+  inLen: [32, 128, 1024],
+  chunkLen: [16, 256, 1024],
   n: [25e5],
 });
 
@@ -75,10 +76,13 @@ function main({ encoding, inLen, chunkLen, n }) {
 
   const nChunks = chunks.length;
 
+  let avoidDeadCode;
   bench.start();
   for (let i = 0; i < n; ++i) {
+    avoidDeadCode = '';
     for (let j = 0; j < nChunks; ++j)
-      sd.write(chunks[j]);
+      avoidDeadCode += sd.write(chunks[j]);
   }
   bench.end(n);
+  assert.ok(avoidDeadCode);
 }

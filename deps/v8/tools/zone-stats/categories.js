@@ -72,7 +72,6 @@ export const CATEGORIES = new Map([
       'V8.TFLoadElimination',
       'V8.TFLocateSpillSlots',
       'V8.TFLoopPeeling',
-      'V8.TFMachineOperatorOptimization',
       'V8.TFMeetRegisterConstraints',
       'V8.TFMemoryOptimization',
       'V8.TFOptimizeMoves',

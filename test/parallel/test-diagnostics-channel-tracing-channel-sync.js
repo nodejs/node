@@ -29,18 +29,18 @@ const handlers = {
 assert.strictEqual(channel.start.hasSubscribers, false);
 channel.subscribe(handlers);
 assert.strictEqual(channel.start.hasSubscribers, true);
-const result1 = channel.traceSync(function(arg1) {
+const result1 = channel.traceSync(common.mustCall(function(arg1) {
   assert.strictEqual(arg1, arg);
   assert.strictEqual(this, thisArg);
   return expectedResult;
-}, input, thisArg, arg);
+}), input, thisArg, arg);
 assert.strictEqual(result1, expectedResult);
 
 channel.unsubscribe(handlers);
 assert.strictEqual(channel.start.hasSubscribers, false);
-const result2 = channel.traceSync(function(arg1) {
+const result2 = channel.traceSync(common.mustCall(function(arg1) {
   assert.strictEqual(arg1, arg);
   assert.strictEqual(this, thisArg);
   return expectedResult;
-}, input, thisArg, arg);
+}), input, thisArg, arg);
 assert.strictEqual(result2, expectedResult);

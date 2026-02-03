@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const debuglog = require('util').debuglog('test');
@@ -29,7 +29,7 @@ let chars_recved = 0;
 let npauses = 0;
 let totalLength = 0;
 
-const server = net.createServer((connection) => {
+const server = net.createServer(common.mustCallAtLeast((connection) => {
   const body = 'C'.repeat(1024);
   let n = 1;
   debuglog('starting write loop');
@@ -49,15 +49,15 @@ const server = net.createServer((connection) => {
     `writableLength: ${connection.writableLength}, totalLength: ${totalLength}`,
   );
   connection.end();
-});
+}));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   debuglog(`server started on port ${port}`);
   let paused = false;
   const client = net.createConnection(port);
   client.setEncoding('ascii');
-  client.on('data', (d) => {
+  client.on('data', common.mustCallAtLeast((d) => {
     chars_recved += d.length;
     debuglog(`got ${chars_recved}`);
     if (!paused) {
@@ -66,20 +66,20 @@ server.listen(0, () => {
       paused = true;
       debuglog('pause');
       const x = chars_recved;
-      setTimeout(() => {
+      setTimeout(common.mustCall(() => {
         assert.strictEqual(chars_recved, x);
         client.resume();
         debuglog('resume');
         paused = false;
-      }, 100);
+      }), 100);
     }
-  });
+  }));
 
   client.on('end', () => {
     server.close();
     client.end();
   });
-});
+}));
 
 
 process.on('exit', () => {

@@ -5,9 +5,11 @@
 #include "third_party/zlib/google/zip_reader.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -15,7 +17,6 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -209,16 +210,17 @@ bool ZipReader::OpenEntry() {
 
   // Get entry info.
   unz_file_info64 info = {};
-  char path_in_zip[internal::kZipMaxPath] = {};
+  auto path_in_zip = base::HeapArray<char>::WithSize(internal::kZipMaxPath);
   if (const UnzipError err{unzGetCurrentFileInfo64(
-          zip_file_, &info, path_in_zip, sizeof(path_in_zip) - 1, nullptr, 0,
-          nullptr, 0)};
+          zip_file_, &info, path_in_zip.data(), path_in_zip.size() - 1,
+          nullptr, 0, nullptr, 0)};
       err != UNZ_OK) {
     LOG(ERROR) << "Cannot get entry from ZIP: " << err;
     return false;
   }
 
-  entry_.path_in_original_encoding = path_in_zip;
+  DCHECK(path_in_zip[info.size_filename] == '\0');
+  entry_.path_in_original_encoding = path_in_zip.data();
 
   // Convert path from original encoding to Unicode.
   std::u16string path_in_utf16;
@@ -260,14 +262,16 @@ bool ZipReader::OpenEntry() {
 
 #if defined(OS_POSIX)
   entry_.posix_mode = (info.external_fa >> 16L) & (S_IRWXU | S_IRWXG | S_IRWXO);
+  entry_.is_symbolic_link = S_ISLNK(info.external_fa >> 16L);
 #else
   entry_.posix_mode = 0;
+  entry_.is_symbolic_link = false;
 #endif
 
   return true;
 }
 
-void ZipReader::Normalize(base::StringPiece16 in) {
+void ZipReader::Normalize(std::u16string_view in) {
   entry_.is_unsafe = true;
 
   // Directory entries in ZIP have a path ending with "/".
@@ -281,15 +285,16 @@ void ZipReader::Normalize(base::StringPiece16 in) {
 
   for (;;) {
     // Consume initial path separators.
-    const base::StringPiece16::size_type i = in.find_first_not_of(u'/');
-    if (i == base::StringPiece16::npos)
+    const std::u16string_view::size_type i = in.find_first_not_of(u'/');
+    if (i == std::u16string_view::npos) {
       break;
+    }
 
     in.remove_prefix(i);
     DCHECK(!in.empty());
 
     // Isolate next path component.
-    const base::StringPiece16 part = in.substr(0, in.find_first_of(u'/'));
+    const std::u16string_view part = in.substr(0, in.find_first_of(u'/'));
     DCHECK(!part.empty());
 
     in.remove_prefix(part.size());

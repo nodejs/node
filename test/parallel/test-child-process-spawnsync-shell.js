@@ -19,6 +19,12 @@ else
   assert.strictEqual(doesNotExist.status, 127);  // Exit code of /bin/sh
 
 // Verify that passing arguments works
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing args to a child process with shell option true can lead to security ' +
+  'vulnerabilities, as the arguments are not escaped, only concatenated.',
+  'DEP0190');
+
 internalCp.spawnSync = common.mustCall(function(opts) {
   assert.strictEqual(opts.args[opts.args.length - 1].replace(/"/g, ''),
                      'echo foo');
@@ -36,8 +42,8 @@ const command = cp.spawnSync(cmd, { shell: true });
 assert.strictEqual(command.stdout.toString().trim(), 'bar');
 
 // Verify that the environment is properly inherited
-const env = cp.spawnSync(`"${process.execPath}" -pe process.env.BAZ`, {
-  env: { ...process.env, BAZ: 'buzz' },
+const env = cp.spawnSync(`"${common.isWindows ? process.execPath : '$NODE'}" -pe process.env.BAZ`, {
+  env: { ...process.env, BAZ: 'buzz', NODE: process.execPath },
   shell: true
 });
 

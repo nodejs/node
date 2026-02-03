@@ -13,12 +13,7 @@ const path = require('path');
 {
   const scriptFullPath = fixtures.path('debugger', 'three-lines.js');
   const script = path.relative(process.cwd(), scriptFullPath);
-  const cli = startCLI(['--port=0', script]);
-
-  function onFatal(error) {
-    cli.quit();
-    throw error;
-  }
+  const cli = startCLI([script]);
 
   cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
@@ -85,6 +80,6 @@ const path = require('path');
         { filename: script, line: 1 },
       );
     })
-    .then(() => cli.quit())
-    .then(null, onFatal);
+    .finally(() => cli.quit())
+    .then(common.mustCall());
 }

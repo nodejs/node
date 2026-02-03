@@ -1,40 +1,42 @@
-## c-ares version 1.27.0 - Feb 23 2024
+## c-ares version 1.34.6 - December 8 2025
 
-This is a security, feature, and bugfix release.
+This is a security release.
 
 Security:
-
-* Moderate. CVE-2024-25629. Reading malformatted `/etc/resolv.conf`,
-  `/etc/nsswitch.conf` or the `HOSTALIASES` file could result in a crash.
-  [GHSA-mg26-v6qh-x48q](https://github.com/c-ares/c-ares/security/advisories/GHSA-mg26-v6qh-x48q)
-
-Features:
-
-* New function `ares_queue_active_queries()` to retrieve number of in-flight
-  queries. [PR #712](https://github.com/c-ares/c-ares/pull/712)
-* New function `ares_queue_wait_empty()` to wait for the number of in-flight
-  queries to reach zero. [PR #710](https://github.com/c-ares/c-ares/pull/710)
-* New `ARES_FLAG_NO_DEFLT_SVR` for `ares_init_options()` to return a failure if
-  no DNS servers can be found rather than attempting to use `127.0.0.1`. This
-  also introduces a new ares status code of `ARES_ENOSERVER`. [PR #713](https://github.com/c-ares/c-ares/pull/713)
+* CVE-2025-62408. A use-after-free bug has been uncovered in read_answers() that
+  was introduced in v1.32.3. Please see https://github.com/c-ares/c-ares/security/advisories/GHSA-jq53-42q6-pqr5
 
 Changes:
-
-* EDNS Packet size should be 1232 as per DNS Flag Day. [PR #705](https://github.com/c-ares/c-ares/pull/705)
+* Ignore Windows IDN Search Domains until proper IDN support is added. [PR #1034](https://github.com/c-ares/c-ares/pull/1034)
 
 Bugfixes:
+* Event Thread could stall when not notified of new queries on existing
+  connections that are in a bad state
+  [PR #1032](https://github.com/c-ares/c-ares/pull/1032)
+* fix conversion of invalid service to port number in ares_getaddrinfo()
+  [PR #1029](https://github.com/c-ares/c-ares/pull/1029)
+* fix memory leak in ares_uri
+  [PR #1012](https://github.com/c-ares/c-ares/pull/1012)
+* Ignore ares_event_configchg_init failures
+  [PR #1009](https://github.com/c-ares/c-ares/pull/1009)
+* Use XOR for random seed generation on fallback logic.
+  [PR #994](https://github.com/c-ares/c-ares/pull/994)
+* Fix clang build on windows.
+  [PR #996](https://github.com/c-ares/c-ares/pull/996)
+* Fix IPv6 link-local nameservers in /etc/resolv.conf
+  [PR #996](https://github.com/c-ares/c-ares/pull/997)
+* Fix a few build issues on MidnightBSD.
+  [PR #983](https://github.com/c-ares/c-ares/pull/983)
 
-* Windows DNS suffix search list memory leak. [PR #711](https://github.com/c-ares/c-ares/pull/711)
-* Fix warning due to ignoring return code of `write()`. [PR #709](https://github.com/c-ares/c-ares/pull/709)
-* CMake: don't override target output locations if not top-level. [Issue #708](https://github.com/c-ares/c-ares/issues/708)
-* Fix building c-ares without thread support. [PR #700](https://github.com/c-ares/c-ares/pull/700)
+Thanks go to these friendly people for their efforts and contributions for this
+release:
 
-Thanks go to these friendly people for their efforts and contributions for this release:
-
-* Anthony Alayo (@anthonyalayo)
 * Brad House (@bradh352)
-* Cheng Zhao (@zcbenz)
-* Cristian Rodríguez (@crrodriguez)
-* Daniel Stenberg (@bagder)
-* Oliver Welsh (@oliverwelsh)
-* Vojtěch Vobr (@vojtechvobr)
+* (@F3lixTheCat)
+* Lucas Holt (@laffer1)
+* @oargon
+* Pavel P (@pps83)
+* Sean Harmer (@seanharmer)
+* Uwe (@nixblik)
+
+

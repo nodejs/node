@@ -13,9 +13,11 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+if (!isMainThread) {
   common.skip('--require does not work with Workers');
+}
 
 const inspector = require('inspector');
 const msg = 'Test inspector logging';
@@ -24,13 +26,13 @@ let asserted = false;
 async function testConsoleLog() {
   const session = new inspector.Session();
   session.connect();
-  session.on('inspectorNotification', (data) => {
+  session.on('inspectorNotification', common.mustCallAtLeast((data) => {
     if (data.method === 'Runtime.consoleAPICalled') {
       assert.strictEqual(data.params.args.length, 1);
       assert.strictEqual(data.params.args[0].value, msg);
       asserted = true;
     }
-  });
+  }));
   session.post('Runtime.enable');
   console.log(msg);
   session.disconnect();

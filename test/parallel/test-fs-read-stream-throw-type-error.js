@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
@@ -14,11 +14,11 @@ fs.createReadStream(example, null);
 fs.createReadStream(example, 'utf8');
 fs.createReadStream(example, { encoding: 'utf8' });
 
-const createReadStreamErr = (path, opt, error) => {
+const createReadStreamErr = common.mustCallAtLeast((path, opt, error) => {
   assert.throws(() => {
     fs.createReadStream(path, opt);
   }, error);
-};
+});
 
 const typeError = {
   code: 'ERR_INVALID_ARG_TYPE',

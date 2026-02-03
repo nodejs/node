@@ -5,10 +5,14 @@
 #ifndef INCLUDE_V8_OBJECT_H_
 #define INCLUDE_V8_OBJECT_H_
 
+#include "cppgc/garbage-collected.h"
+#include "cppgc/name-provider.h"
+#include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-maybe.h"              // NOLINT(build/include_directory)
 #include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
 #include "v8-primitive.h"          // NOLINT(build/include_directory)
+#include "v8-sandbox.h"            // NOLINT(build/include_directory)
 #include "v8-traced-handle.h"      // NOLINT(build/include_directory)
 #include "v8-value.h"              // NOLINT(build/include_directory)
 #include "v8config.h"              // NOLINT(build/include_directory)
@@ -20,6 +24,19 @@ class Function;
 class FunctionTemplate;
 template <typename T>
 class PropertyCallbackInfo;
+
+/**
+ * A tag for embedder data. Objects with different C++ types should use
+ * different values of EmbedderDataTypeTag when written to embedder data. The
+ * allowed range is 0..V8_EMBEDDER_DATA_TAG_COUNT - 1. If this is not
+ * sufficient, V8_EMBEDDER_DATA_TAG_COUNT can be increased.
+ */
+using EmbedderDataTypeTag = uint16_t;
+
+constexpr EmbedderDataTypeTag kEmbedderDataTypeTagDefault = 0;
+
+V8_EXPORT internal::ExternalPointerTag ToExternalPointerTag(
+    v8::EmbedderDataTypeTag api_tag);
 
 /**
  * A private symbol
@@ -146,18 +163,13 @@ enum PropertyAttribute {
 };
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when
- * setting|getting a particular property. See Object and ObjectTemplate's
- * method SetAccessor.
+ * Accessor[Getter|Setter] are used as callback functions when setting|getting
+ * a particular data property. See Object::SetNativeDataProperty and
+ * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorGetterCallback =
-    void (*)(Local<String> property, const PropertyCallbackInfo<Value>& info);
 using AccessorNameGetterCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
-using AccessorSetterCallback = void (*)(Local<String> property,
-                                        Local<Value> value,
-                                        const PropertyCallbackInfo<void>& info);
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);
@@ -170,12 +182,11 @@ using AccessorNameSetterCallback =
  * the kind of cross-context access that should be allowed.
  *
  */
-enum AccessControl {
-  DEFAULT = 0,
-  ALL_CAN_READ = 1,
-  ALL_CAN_WRITE = 1 << 1,
-  PROHIBITS_OVERWRITING V8_ENUM_DEPRECATED("unused") = 1 << 2
-};
+enum V8_DEPRECATED(
+    "This enum is no longer used and will be removed in V8 14.3.")
+    AccessControl {
+      DEFAULT V8_ENUM_DEPRECATED("not used") = 0,
+    };
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -242,6 +253,9 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
                                         Local<Value> key, Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+                                        Local<Value> key, Local<Value> value,
+                                        MaybeLocal<Object> receiver);
 
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
@@ -297,6 +311,9 @@ class V8_EXPORT Object : public Value {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+                                              Local<Value> key,
+                                              MaybeLocal<Object> receiver);
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               uint32_t index);
@@ -343,21 +360,12 @@ class V8_EXPORT Object : public Value {
                                            uint32_t index);
 
   /**
-   * Note: SideEffectType affects the getter only, not the setter.
+   * Sets an accessor property like Template::SetAccessorProperty, but
+   * this method sets on this object directly.
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetAccessor(
-      Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
-      MaybeLocal<Value> data = MaybeLocal<Value>(),
-      AccessControl settings = DEFAULT, PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-
   void SetAccessorProperty(Local<Name> name, Local<Function> getter,
                            Local<Function> setter = Local<Function>(),
-                           PropertyAttribute attributes = None,
-                           AccessControl settings = DEFAULT);
+                           PropertyAttribute attributes = None);
 
   /**
    * Sets a native data property like Template::SetNativeDataProperty, but
@@ -430,19 +438,19 @@ class V8_EXPORT Object : public Value {
       KeyConversionMode key_conversion = KeyConversionMode::kKeepNumbers);
 
   /**
-   * Get the prototype object.  This does not skip objects marked to
-   * be skipped by __proto__ and it does not consult the security
-   * handler.
+   * Get the prototype object (same as calling Object.getPrototypeOf(..)).
+   * This does not consult the security handler.
+   * TODO(http://crbug.com/333672197): rename back to GetPrototype().
    */
-  Local<Value> GetPrototype();
+  Local<Value> GetPrototypeV2();
 
   /**
-   * Set the prototype object.  This does not skip objects marked to
-   * be skipped by __proto__ and it does not consult the security
-   * handler.
+   * Set the prototype object (same as calling Object.setPrototypeOf(..)).
+   * This does not consult the security handler.
+   * TODO(http://crbug.com/333672197): rename back to SetPrototype().
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
-                                                 Local<Value> prototype);
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
+                                                   Local<Value> prototype);
 
   /**
    * Finds an instance of the given function template in the prototype
@@ -503,9 +511,40 @@ class V8_EXPORT Object : public Value {
    * must have been set by SetAlignedPointerInInternalField, everything else
    * leads to undefined behavior.
    */
-  V8_INLINE void* GetAlignedPointerFromInternalField(int index);
+  V8_INLINE void* GetAlignedPointerFromInternalField(int index,
+                                                     EmbedderDataTypeTag tag);
+  V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
+                                                     int index,
+                                                     EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromInternalField(int index) {
+    return GetAlignedPointerFromInternalField(index,
+                                              kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
+                                                     int index) {
+    return GetAlignedPointerFromInternalField(isolate, index,
+                                              kEmbedderDataTypeTagDefault);
+  }
 
   /** Same as above, but works for PersistentBase. */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const PersistentBase<Object>& object, int index,
+      EmbedderDataTypeTag tag) {
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index, tag);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
@@ -513,6 +552,16 @@ class V8_EXPORT Object : public Value {
   }
 
   /** Same as above, but works for TracedReference. */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const BasicTracedReference<Object>& object, int index,
+      EmbedderDataTypeTag tag) {
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index, tag);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
@@ -524,12 +573,125 @@ class V8_EXPORT Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
-  void SetAlignedPointerInInternalField(int index, void* value);
+  void SetAlignedPointerInInternalField(int index, void* value,
+                                        EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
+      "instead.")
+  void SetAlignedPointerInInternalField(int index, void* value) {
+    SetAlignedPointerInInternalField(index, value, kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   void SetAlignedPointerInInternalFields(int argc, int indices[],
                                          void* values[]);
 
+  // Type information for a Wrappable object that got wrapped with
+  // `v8::Object::Wrap()`.
+  struct WrapperTypeInfo {
+    const int16_t type_id;
+  };
+
+  // v8::Object::Wrappable serves as the base class for all C++ objects that can
+  // be wrapped by a JavaScript object using `v8::Object::Wrap()`.
+  //
+  // Note that v8::Object::Wrappable` inherits from `NameProvider` and provides
+  // `GetWrapperTypeInfo` to allow subclasses to have smaller object sizes.
+  class Wrappable : public cppgc::GarbageCollected<Wrappable>,
+                    public cppgc::NameProvider {
+   public:
+    virtual const WrapperTypeInfo* GetWrapperTypeInfo() const {
+      return nullptr;
+    }
+
+    const char* GetHumanReadableName() const override { return "internal"; }
+
+    virtual void Trace(cppgc::Visitor* visitor) const {}
+  };
+
   /**
-   * HasOwnProperty() is like JavaScript's Object.prototype.hasOwnProperty().
+   * Unwraps a JS wrapper object.
+   *
+   * \param tag The tag for retrieving the wrappable instance. Must match the
+   * tag that has been used for a previous `Wrap()` operation.
+   * \param isolate The Isolate for the `wrapper` object.
+   * \param wrapper The JS wrapper object that should be unwrapped.
+   * \returns the C++ wrappable instance, or nullptr if the JS object has never
+   * been wrapped.
+   */
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper);
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper);
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper);
+
+  template <typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper,
+                             CppHeapPointerTagRange tag_range);
+  template <typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper,
+                             CppHeapPointerTagRange tag_range);
+  template <typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper,
+                             CppHeapPointerTagRange tag_range);
+
+  /**
+   * Wraps a JS wrapper with a C++ instance.
+   *
+   * \param tag The pointer tag that should be used for storing this object.
+   * Future `Unwrap()` operations must provide a matching tag.
+   * \param isolate The Isolate for the `wrapper` object.
+   * \param wrapper The JS wrapper object.
+   * \param wrappable The C++ object instance that is wrapped by the JS object.
+   */
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper,
+                             Wrappable* wrappable);
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper,
+                             Wrappable* wrappable);
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper,
+                             Wrappable* wrappable);
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper,
+                             Wrappable* wrappable, CppHeapPointerTag tag);
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper,
+                             Wrappable* wrappable, CppHeapPointerTag tag);
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper,
+                             Wrappable* wrappable, CppHeapPointerTag tag);
+
+  // Version of Wrap() function for v8::Context::Global() objects.
+  // Unlike the functions above it wraps both JSGlobalProxy and its hidden
+  // prototype (JSGlobalObject or remote object).
+  static void WrapGlobal(v8::Isolate* isolate,
+                         const v8::Local<v8::Object>& wrapper,
+                         Wrappable* wrappable, CppHeapPointerTag tag);
+
+  // Checks that wrappables set on JSGlobalProxy and its hidden prototype are
+  // the same.
+  static bool CheckGlobalWrappable(v8::Isolate* isolate,
+                                   const v8::Local<v8::Object>& wrapper,
+                                   CppHeapPointerTagRange tag_range);
+
+  /**
+   * HasOwnProperty() is like JavaScript's
+   * Object.prototype.hasOwnProperty().
    *
    * See also v8::Object::Has() and v8::Object::HasRealNamedProperty().
    */
@@ -605,27 +767,40 @@ class V8_EXPORT Object : public Value {
   int GetIdentityHash();
 
   /**
-   * Clone this object with a fast but shallow copy.  Values will point
-   * to the same values as the original object.
+   * Clone this object with a fast but shallow copy. Values will point to the
+   * same values as the original object.
+   *
+   * Prefer using version with Isolate parameter.
    */
-  // TODO(dcarney): take an isolate and optionally bail out?
+  Local<Object> Clone(v8::Isolate* isolate);
   Local<Object> Clone();
 
   /**
    * Returns the context in which the object was created.
+   *
+   * Prefer using version with Isolate parameter.
    */
+  MaybeLocal<Context> GetCreationContext(v8::Isolate* isolate);
+  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
   MaybeLocal<Context> GetCreationContext();
 
   /**
-   * Shortcut for GetCreationContext().ToLocalChecked().
+   * Shortcut for GetCreationContext(...).ToLocalChecked().
+   *
+   * Prefer using version with Isolate parameter.
    **/
+  Local<Context> GetCreationContextChecked(v8::Isolate* isolate);
+  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
   Local<Context> GetCreationContextChecked();
 
   /** Same as above, but works for Persistents */
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
-      const PersistentBase<Object>& object) {
-    return object.template value<Object>()->GetCreationContext();
+      v8::Isolate* isolate, const PersistentBase<Object>& object) {
+    return object.template value<Object>()->GetCreationContext(isolate);
   }
+  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
+  V8_INLINE static MaybeLocal<Context> GetCreationContext(
+      const PersistentBase<Object>& object);
 
   /**
    * Gets the context in which the object was created (see GetCreationContext())
@@ -637,8 +812,31 @@ class V8_EXPORT Object : public Value {
    * try to expand the embedder data attached to the context.
    * In case the Local<Context> is already available because of other reasons,
    * it's fine to keep using Context::GetAlignedPointerFromEmbedderData().
+   *
+   * Prefer using version with Isolate parameter if you have an Isolate,
+   * otherwise use the other one.
    */
-  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      v8::Isolate* isolate, int index, EmbedderDataTypeTag tag);
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      int index, EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
+                                                           int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        isolate, index, kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        index, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Checks whether a callback is set by the
@@ -653,11 +851,15 @@ class V8_EXPORT Object : public Value {
   bool IsConstructor() const;
 
   /**
-   * True if this object can carry information relevant to the embedder in its
-   * embedder fields, false otherwise. This is generally true for objects
-   * constructed through function templates but also holds for other types where
-   * V8 automatically adds internal fields at compile time, such as e.g.
-   * v8::ArrayBuffer.
+   * Returns true if this object can be generally used to wrap object objects.
+   * This means that the object either follows the convention of using embedder
+   * fields to denote type/instance pointers or is using the Wrap()/Unwrap()
+   * APIs for the same purpose. Returns false otherwise.
+   *
+   * Note that there may be other objects that use embedder fields but are not
+   * used as API wrapper objects. E.g., v8::Promise may in certain configuration
+   * use embedder fields but promises are not generally supported as API
+   * wrappers. The method will return false in those cases.
    */
   bool IsApiWrapper() const;
 
@@ -684,15 +886,6 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> CallAsConstructor(
       Local<Context> context, int argc, Local<Value> argv[]);
-
-  /**
-   * Return the isolate to which the Object belongs to.
-   */
-  Isolate* GetIsolate();
-
-  V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
-    return handle.template value<Object>()->GetIsolate();
-  }
 
   /**
    * If this object is a Set, Map, WeakSet or WeakMap, this returns a
@@ -732,10 +925,18 @@ class V8_EXPORT Object : public Value {
   bool IsCodeLike(Isolate* isolate) const;
 
  private:
+  static void* Unwrap(v8::Isolate* isolate, internal::Address wrapper_obj,
+                      CppHeapPointerTagRange tag_range);
+  static void Wrap(v8::Isolate* isolate, internal::Address wrapper_obj,
+                   CppHeapPointerTag tag, void* wrappable);
+
   Object();
   static void CheckCast(Value* obj);
   Local<Data> SlowGetInternalField(int index);
-  void* SlowGetAlignedPointerFromInternalField(int index);
+  void* SlowGetAlignedPointerFromInternalField(int index,
+                                               EmbedderDataTypeTag tag);
+  void* SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate, int index,
+                                               EmbedderDataTypeTag tag);
 };
 
 // --- Implementation ---
@@ -749,23 +950,25 @@ Local<Data> Object::GetInternalField(int index) {
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
   if (I::CanHaveInternalField(instance_type)) {
-    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
+    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
+                 (I::kEmbedderDataSlotSize * index);
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
-    // dealing with potential endiannes issues.
+    // dealing with potential endianness issues.
     value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
 
-    auto isolate = reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    auto* isolate = I::GetCurrentIsolate();
     return Local<Data>::New(isolate, value);
   }
 #endif
   return SlowGetInternalField(index);
 }
 
-void* Object::GetAlignedPointerFromInternalField(int index) {
+void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
+                                                 int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -773,17 +976,174 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
-  if (I::CanHaveInternalField(instance_type)) {
-    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index) +
+  if (V8_LIKELY(I::CanHaveInternalField(instance_type))) {
+    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
+                 (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
-    Isolate* isolate = I::GetIsolateForSandbox(obj);
-    A value =
-        I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
-            isolate, obj, offset);
+    A value = I::ReadExternalPointerField(isolate, obj, offset,
+                                          ToExternalPointerTag(tag));
     return reinterpret_cast<void*>(value);
   }
 #endif
-  return SlowGetAlignedPointerFromInternalField(index);
+  return SlowGetAlignedPointerFromInternalField(isolate, index, tag);
+}
+
+void* Object::GetAlignedPointerFromInternalField(int index,
+                                                 EmbedderDataTypeTag tag) {
+#if !defined(V8_ENABLE_CHECKS)
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  // Fast path: If the object is a plain JSObject, which is the common case, we
+  // know where to find the internal fields and can return the value directly.
+  auto instance_type = I::GetInstanceType(obj);
+  if (V8_LIKELY(I::CanHaveInternalField(instance_type))) {
+    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
+                 (I::kEmbedderDataSlotSize * index) +
+                 I::kEmbedderDataSlotExternalPointerOffset;
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
+    A value = I::ReadExternalPointerField(isolate, obj, offset,
+                                          ToExternalPointerTag(tag));
+    return reinterpret_cast<void*>(value);
+  }
+#endif
+  return SlowGetAlignedPointerFromInternalField(index, tag);
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper) {
+  CppHeapPointerTagRange tag_range(tag, tag);
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper) {
+  CppHeapPointerTagRange tag_range(tag, tag);
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper) {
+  CppHeapPointerTagRange tag_range(tag, tag);
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  CppHeapPointerTagRange tag_range) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  CppHeapPointerTagRange tag_range) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <typename T>
+T* Object::Unwrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  CppHeapPointerTagRange tag_range) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+void Object::Wrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  v8::Object::Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
 }
 
 Private* Private::Cast(Data* data) {

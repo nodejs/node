@@ -1,19 +1,20 @@
 #include "path.h"
 #include <string>
 #include <vector>
+#include "ada.h"
 #include "env-inl.h"
 #include "node_internals.h"
-#include "util.h"
+#include "node_url.h"
 
 namespace node {
 
 #ifdef _WIN32
-bool IsPathSeparator(const char c) noexcept {
-  return c == kPathSeparator || c == '/';
+constexpr bool IsPathSeparator(const char c) noexcept {
+  return c == '\\' || c == '/';
 }
 #else   // POSIX
-bool IsPathSeparator(const char c) noexcept {
-  return c == kPathSeparator;
+constexpr bool IsPathSeparator(const char c) noexcept {
+  return c == '/';
 }
 #endif  // _WIN32
 
@@ -89,7 +90,11 @@ std::string NormalizeString(const std::string_view path,
 }
 
 #ifdef _WIN32
-bool IsWindowsDeviceRoot(const char c) noexcept {
+constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept {
+  return path.size() > 2 && IsWindowsDeviceRoot(path[0]) &&
+         (path[1] == ':' && (path[2] == '/' || path[2] == '\\'));
+}
+constexpr bool IsWindowsDeviceRoot(const char c) noexcept {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
@@ -101,7 +106,7 @@ std::string PathResolve(Environment* env,
   const size_t numArgs = paths.size();
   auto cwd = env->GetCwd(env->exec_path());
 
-  for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
+  for (int i = numArgs - 1; i >= -1; i--) {
     std::string path;
     if (i >= 0) {
       path = std::string(paths[i]);
@@ -115,7 +120,7 @@ std::string PathResolve(Environment* env,
       // a UNC path at this points, because UNC paths are always absolute.
       std::string resolvedDevicePath;
       const std::string envvar = "=" + resolvedDevice;
-      credentials::SafeGetenv(envvar.c_str(), &resolvedDevicePath);
+      credentials::SafeGetenv(envvar.c_str(), &resolvedDevicePath, env);
       path = resolvedDevicePath.empty() ? cwd : resolvedDevicePath;
 
       // Verify that a cwd was found and that it actually points
@@ -171,9 +176,16 @@ std::string PathResolve(Environment* env,
               j++;
             }
             if (j == len || j != last) {
-              // We matched a UNC root
-              device = "\\\\" + firstPart + "\\" + path.substr(last, j - last);
-              rootEnd = j;
+              if (firstPart != "." && firstPart != "?") {
+                // We matched a UNC root
+                device =
+                    "\\\\" + firstPart + "\\" + path.substr(last, j - last);
+                rootEnd = j;
+              } else {
+                // We matched a device root (e.g. \\\\.\\PHYSICALDRIVE0)
+                device = "\\\\" + firstPart;
+                rootEnd = 4;
+              }
             }
           }
         }
@@ -240,8 +252,7 @@ std::string PathResolve(Environment* env,
   const size_t numArgs = paths.size();
 
   for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
-    const std::string& path =
-        (i >= 0) ? std::string(paths[i]) : env->GetCwd(env->exec_path());
+    const std::string& path = (i >= 0) ? std::string(paths[i]) : cwd;
 
     if (!path.empty()) {
       resolvedPath = std::string(path) + "/" + resolvedPath;
@@ -267,5 +278,105 @@ std::string PathResolve(Environment* env,
   return normalizedPath;
 }
 #endif  // _WIN32
+
+void ToNamespacedPath(Environment* env, BufferValue* path) {
+#ifdef _WIN32
+  if (path->length() == 0) return;
+  std::string resolved_path = node::PathResolve(env, {path->ToStringView()});
+  if (resolved_path.size() <= 2) {
+    return;
+  }
+
+  // SAFETY: We know that resolved_path.size() > 2, therefore accessing [0],
+  // [1], and [2] is safe.
+  if (resolved_path[0] == '\\') {
+    // Possible UNC root
+    if (resolved_path[1] == '\\') {
+      if (resolved_path[2] != '?' && resolved_path[2] != '.') {
+        // Matched non-long UNC root, convert the path to a long UNC path
+        std::string_view unc_prefix = R"(\\?\UNC\)";
+        size_t new_length = unc_prefix.size() + resolved_path.size() - 2;
+        path->AllocateSufficientStorage(new_length + 1);
+        path->SetLength(new_length);
+        memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
+        memcpy(path->out() + unc_prefix.size(),
+               resolved_path.c_str() + 2,
+               resolved_path.size() - 2 + 1);
+        return;
+      }
+    }
+  } else if (IsWindowsDeviceRoot(resolved_path[0]) && resolved_path[1] == ':' &&
+             resolved_path[2] == '\\') {
+    // Matched device root, convert the path to a long UNC path
+    std::string_view new_prefix = R"(\\?\)";
+    size_t new_length = new_prefix.size() + resolved_path.size();
+    path->AllocateSufficientStorage(new_length + 1);
+    path->SetLength(new_length);
+    memcpy(path->out(), new_prefix.data(), new_prefix.size());
+    memcpy(path->out() + new_prefix.size(),
+           resolved_path.c_str(),
+           resolved_path.size() + 1);
+    return;
+  }
+
+  size_t new_length = resolved_path.size();
+  path->AllocateSufficientStorage(new_length + 1);
+  path->SetLength(new_length);
+  memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
+#endif
+}
+
+// Reverse the logic applied by path.toNamespacedPath() to create a
+// namespace-prefixed path.
+void FromNamespacedPath(std::string* path) {
+#ifdef _WIN32
+  if (path->starts_with("\\\\?\\UNC\\")) {
+    *path = path->substr(8);
+    path->insert(0, "\\\\");
+  } else if (path->starts_with("\\\\?\\")) {
+    *path = path->substr(4);
+  }
+#endif
+}
+
+// Check if a path looks like an absolute path or file URL.
+bool IsAbsoluteFilePath(std::string_view path) {
+  if (path.starts_with("file://")) {
+    return true;
+  }
+#ifdef _WIN32
+  if (path.size() > 0 && path[0] == '\\') return true;
+  if (IsWindowsDriveLetter(path)) return true;
+#endif
+  if (path.size() > 0 && path[0] == '/') return true;
+  return false;
+}
+
+// Normalizes paths by resolving file URLs and converting to a consistent
+// format with forward slashes.
+std::string NormalizeFileURLOrPath(Environment* env, std::string_view path) {
+  std::string normalized_string(path);
+  constexpr std::string_view file_scheme = "file://";
+  if (normalized_string.starts_with(file_scheme)) {
+    auto out = ada::parse<ada::url_aggregator>(normalized_string);
+    auto file_path = url::FileURLToPath(env, *out);
+    if (!file_path.has_value()) {
+      return std::string();
+    }
+    normalized_string = file_path.value();
+  }
+  normalized_string = NormalizeString(normalized_string, false, "/");
+#ifdef _WIN32
+  if (IsWindowsDriveLetter(normalized_string)) {
+    normalized_string[0] = ToLower(normalized_string[0]);
+  }
+  for (char& c : normalized_string) {
+    if (c == '\\') {
+      c = '/';
+    }
+  }
+#endif
+  return normalized_string;
+}
 
 }  // namespace node

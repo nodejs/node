@@ -30,7 +30,6 @@
 // prefix/postfix decrement/increment operators.
 
 // Optimization stress is not useful for early syntax errors.
-// Flags: --noalways-turbofan
 
 "use strict";
 

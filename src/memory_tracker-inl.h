@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "cppgc_helpers.h"
 #include "memory_tracker.h"
 #include "util-inl.h"
 
@@ -28,10 +29,27 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     CHECK_NOT_NULL(retainer_);
     v8::HandleScope handle_scope(tracker->isolate());
     v8::Local<v8::Object> obj = retainer_->WrappedObject();
-    if (!obj.IsEmpty()) wrapper_node_ = tracker->graph()->V8Node(obj);
+    if (!obj.IsEmpty())
+      wrapper_node_ = tracker->graph()->V8Node(obj.As<v8::Value>());
 
     name_ = retainer_->MemoryInfoName();
     size_ = retainer_->SelfSize();
+    detachedness_ = retainer_->GetDetachedness();
+  }
+
+  inline MemoryRetainerNode(MemoryTracker* tracker, const CppgcMixin* mixin)
+      : retainer_(mixin) {
+    // In this case, the MemoryRetainerNode is merely a wrapper
+    // to be used in the NodeMap and stack. The actual node being using to add
+    // edges is always the merged wrapper node of the cppgc-managed wrapper.
+    CHECK_NOT_NULL(retainer_);
+    v8::Isolate* isolate = tracker->isolate();
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Object> obj = mixin->object(isolate);
+    wrapper_node_ = tracker->graph()->V8Node(obj.As<v8::Value>());
+
+    name_ = retainer_->MemoryInfoName();
+    size_ = 0;
     detachedness_ = retainer_->GetDetachedness();
   }
 
@@ -59,6 +77,11 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     }
     return is_root_node_;
   }
+
+  bool IsCppgcWrapper() const {
+    return retainer_ != nullptr && retainer_->IsCppgcWrapper();
+  }
+
   v8::EmbedderGraph::Node::Detachedness GetDetachedness() override {
     return detachedness_;
   }
@@ -93,7 +116,7 @@ void MemoryTracker::TrackInlineFieldWithSize(const char* edge_name,
                                              const char* node_name) {
   if (size > 0) AddNode(GetNodeName(node_name, edge_name), size, edge_name);
   CHECK(CurrentNode());
-  CurrentNode()->size_ -= size;
+  AdjustCurrentNodeSize(-static_cast<int>(size));
 }
 
 void MemoryTracker::TrackField(const char* edge_name,
@@ -154,7 +177,7 @@ void MemoryTracker::TrackField(const char* edge_name,
   // Fall back to edge name if node names are not provided
   if (CurrentNode() != nullptr && subtract_from_self) {
     // Shift the self size of this container out to a separate node
-    CurrentNode()->size_ -= sizeof(T);
+    AdjustCurrentNodeSize(-static_cast<int>(sizeof(T)));
   }
   PushNode(GetNodeName(node_name, edge_name), sizeof(T), edge_name);
   for (Iterator it = value.begin(); it != value.end(); ++it) {
@@ -185,7 +208,7 @@ void MemoryTracker::TrackField(const char* edge_name,
                                const T& value,
                                const char* node_name) {
   // For numbers, creating new nodes is not worth the overhead.
-  CurrentNode()->size_ += sizeof(T);
+  AdjustCurrentNodeSize(static_cast<int>(sizeof(T)));
 }
 
 template <typename T, typename U>
@@ -230,7 +253,9 @@ void MemoryTracker::TrackField(const char* edge_name,
                                const v8::Local<T>& value,
                                const char* node_name) {
   if (!value.IsEmpty())
-    graph_->AddEdge(CurrentNode(), graph_->V8Node(value), edge_name);
+    graph_->AddEdge(CurrentNode(),
+                    graph_->V8Node(value.template As<v8::Value>()),
+                    edge_name);
 }
 
 template <typename T>
@@ -270,6 +295,22 @@ void MemoryTracker::TrackInlineField(const char* name,
   TrackInlineFieldWithSize(name, sizeof(value), "uv_async_t");
 }
 
+void MemoryTracker::Track(const CppgcMixin* retainer, const char* edge_name) {
+  v8::HandleScope handle_scope(isolate_);
+  auto it = seen_.find(retainer);
+  if (it != seen_.end()) {
+    if (CurrentNode() != nullptr) {
+      graph_->AddEdge(CurrentNode(), it->second, edge_name);
+    }
+    return;  // It has already been tracked, no need to call MemoryInfo again
+  }
+  MemoryRetainerNode* n = PushNode(retainer, edge_name);
+  retainer->MemoryInfo(this);
+  CHECK_EQ(CurrentNode(), n->JSWrapperNode());
+  // This is a dummy MemoryRetainerNode. The real graph node is wrapper_node_.
+  PopNode();
+}
+
 void MemoryTracker::Track(const MemoryRetainer* retainer,
                           const char* edge_name) {
   v8::HandleScope handle_scope(isolate_);
@@ -291,12 +332,54 @@ void MemoryTracker::TrackInlineField(const MemoryRetainer* retainer,
                                      const char* edge_name) {
   Track(retainer, edge_name);
   CHECK(CurrentNode());
-  CurrentNode()->size_ -= retainer->SelfSize();
+  AdjustCurrentNodeSize(-(static_cast<int>(retainer->SelfSize())));
 }
 
-MemoryRetainerNode* MemoryTracker::CurrentNode() const {
+template <typename T>
+inline void MemoryTracker::TraitTrack(const T& retainer,
+                                      const char* edge_name) {
+  MemoryRetainerNode* n =
+      PushNode(MemoryRetainerTraits<T>::MemoryInfoName(retainer),
+               MemoryRetainerTraits<T>::SelfSize(retainer),
+               edge_name);
+  MemoryRetainerTraits<T>::MemoryInfo(this, retainer);
+  CHECK_EQ(CurrentNode(), n);
+  CHECK_NE(n->size_, 0);
+  PopNode();
+}
+
+template <typename T>
+inline void MemoryTracker::TraitTrackInline(const T& retainer,
+                                            const char* edge_name) {
+  TraitTrack(retainer, edge_name);
+  CHECK(CurrentNode());
+  AdjustCurrentNodeSize(
+      -(static_cast<int>(MemoryRetainerTraits<T>::SelfSize(retainer))));
+}
+
+v8::EmbedderGraph::Node* MemoryTracker::CurrentNode() const {
   if (node_stack_.empty()) return nullptr;
-  return node_stack_.top();
+  MemoryRetainerNode* n = node_stack_.top();
+  if (n->IsCppgcWrapper()) {
+    return n->JSWrapperNode();
+  }
+  return n;
+}
+
+MemoryRetainerNode* MemoryTracker::AddNode(const CppgcMixin* retainer,
+                                           const char* edge_name) {
+  auto it = seen_.find(retainer);
+  if (it != seen_.end()) {
+    return it->second;
+  }
+
+  MemoryRetainerNode* n = new MemoryRetainerNode(this, retainer);
+  seen_[retainer] = n;
+  if (CurrentNode() != nullptr) {
+    graph_->AddEdge(CurrentNode(), n->JSWrapperNode(), edge_name);
+  }
+
+  return n;
 }
 
 MemoryRetainerNode* MemoryTracker::AddNode(const MemoryRetainer* retainer,
@@ -330,6 +413,13 @@ MemoryRetainerNode* MemoryTracker::AddNode(const char* node_name,
   return n;
 }
 
+MemoryRetainerNode* MemoryTracker::PushNode(const CppgcMixin* retainer,
+                                            const char* edge_name) {
+  MemoryRetainerNode* n = AddNode(retainer, edge_name);
+  node_stack_.push(n);
+  return n;
+}
+
 MemoryRetainerNode* MemoryTracker::PushNode(const MemoryRetainer* retainer,
                                             const char* edge_name) {
   MemoryRetainerNode* n = AddNode(retainer, edge_name);
@@ -347,6 +437,14 @@ MemoryRetainerNode* MemoryTracker::PushNode(const char* node_name,
 
 void MemoryTracker::PopNode() {
   node_stack_.pop();
+}
+
+void MemoryTracker::AdjustCurrentNodeSize(int diff) {
+  if (node_stack_.empty()) return;
+  MemoryRetainerNode* n = node_stack_.top();
+  if (!n->IsCppgcWrapper()) {
+    n->size_ = static_cast<size_t>(static_cast<int>(n->size_) + diff);
+  }
 }
 
 }  // namespace node

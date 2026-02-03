@@ -41,6 +41,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#include <type_traits>
+
 #include "unicode/uobject.h"
 #include "unicode/std_string.h"
 
@@ -258,13 +260,36 @@ private:
   CheckedArrayByteSink &operator=(const CheckedArrayByteSink &) = delete;
 };
 
+namespace prv {
+/** @internal */
+template<typename StringClass, typename = void>
+struct value_type_or_char {
+  /** @internal */
+  using type = char;
+};
+/** @internal */
+template<typename StringClass>
+struct value_type_or_char<StringClass, std::void_t<typename StringClass::value_type>> {
+  /** @internal */
+  using type = typename StringClass::value_type;
+};
+/** @internal */
+template<typename StringClass>
+using value_type_or_char_t = typename value_type_or_char<StringClass>::type;
+}
+
 /** 
  * Implementation of ByteSink that writes to a "string".
- * The StringClass is usually instantiated with a std::string.
+ * The StringClass is usually instantiated with a std::string or a std::u8string.
+ * StringClass must have public member functions reserve(integer type), capacity(), length(), and
+ * append(value type, integer type) with the same semantics as those of std::basic_string, and must
+ * have an 8-bit value type.  If the value type is not char, it must be a public member type
+ * StringClass::value_type.
  * @stable ICU 4.2
  */
 template<typename StringClass>
 class StringByteSink : public ByteSink {
+  using Unit = typename prv::value_type_or_char_t<StringClass>;
  public:
   /**
    * Constructs a ByteSink that will append bytes to the dest string.
@@ -281,7 +306,7 @@ class StringByteSink : public ByteSink {
    */
   StringByteSink(StringClass* dest, int32_t initialAppendCapacity) : dest_(dest) {
     if (initialAppendCapacity > 0 &&
-        (uint32_t)initialAppendCapacity > (dest->capacity() - dest->length())) {
+        static_cast<uint32_t>(initialAppendCapacity) > dest->capacity() - dest->length()) {
       dest->reserve(dest->length() + initialAppendCapacity);
     }
   }
@@ -291,7 +316,13 @@ class StringByteSink : public ByteSink {
    * @param n the number of bytes; must be non-negative
    * @stable ICU 4.2
    */
-  virtual void Append(const char* data, int32_t n) override { dest_->append(data, n); }
+  virtual void Append(const char* data, int32_t n) override {
+    if constexpr (std::is_same_v<Unit, char>) {
+      dest_->append(data, n);
+    } else {
+      dest_->append(reinterpret_cast<const Unit*>(data), n);
+    }
+  }
  private:
   StringClass* dest_;
 

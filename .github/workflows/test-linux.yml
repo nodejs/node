@@ -3,7 +3,11 @@ name: Test Linux
 on:
   pull_request:
     paths-ignore:
+      - .mailmap
       - README.md
+      - vcbuild.bat
+      - test/internet/**
+      - '**.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -14,7 +18,11 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - .mailmap
       - README.md
+      - vcbuild.bat
+      - test/internet/**
+      - '**.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
 
@@ -23,8 +31,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
+  CLANG_VERSION: '19'
+  CC: sccache clang-19
+  CXX: sccache clang++-19
+  SCCACHE_GHA_ENABLED: 'true'
+  RUSTC_VERSION: '1.82'
 
 permissions:
   contents: read
@@ -32,18 +45,43 @@ permissions:
 jobs:
   test-linux:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
+          path: node
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./node/.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Set up sccache
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
+        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
       - name: Test
-        run: make run-ci -j4 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
+        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+      - name: Re-run test in a folder whose name contains unusual chars
+        run: |
+          mv node "$DIR"
+          cd "$DIR"
+          ./tools/test.py --flaky-tests keep_retrying -p actions -j 4
+        env:
+          DIR: dir%20with $unusual"chars?'åß∂ƒ©∆¬…`

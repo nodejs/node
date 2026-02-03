@@ -31,42 +31,17 @@ enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
 // This means that any scalar type with stricter alignment requirements (in
 // practice: long double) cannot be used unrestricted in garbage-collected
 // objects.
-#if defined(V8_TARGET_ARCH_64_BIT)
+#if defined(V8_HOST_ARCH_64_BIT)
 constexpr size_t kAllocationGranularity = 8;
-#else   // !V8_TARGET_ARCH_64_BIT
+#else   // !V8_HOST_ARCH_64_BIT
 constexpr size_t kAllocationGranularity = 4;
-#endif  // !V8_TARGET_ARCH_64_BIT
+#endif  // !V8_HOST_ARCH_64_BIT
 constexpr size_t kAllocationMask = kAllocationGranularity - 1;
 
 constexpr size_t kPageSizeLog2 = 17;
 constexpr size_t kPageSize = 1 << kPageSizeLog2;
 constexpr size_t kPageOffsetMask = kPageSize - 1;
 constexpr size_t kPageBaseMask = ~kPageOffsetMask;
-
-#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_DARWIN)
-// No guard pages on ARM64 macOS. This target has 16 kiB pages, meaning that
-// the guard pages do not protect anything, since there is no inaccessible
-// region surrounding the allocation.
-//
-// However, with a 4k guard page size (as below), we avoid putting any data
-// inside the "guard pages" region. Effectively, this wastes 2 * 4kiB of memory
-// for each 128kiB page, since this is memory we pay for (since accounting as at
-// the OS page level), but never use.
-//
-// The layout of pages is broadly:
-// | guard page | header | payload | guard page |
-// <---  4k --->                    <---  4k --->
-// <------------------ 128k -------------------->
-//
-// Since this is aligned on an OS page boundary (16k), the guard pages are part
-// of the first and last OS page, respectively. So they are really private dirty
-// memory which we never use.
-constexpr size_t kGuardPageSize = 0;
-#else
-// Guard pages are always put into memory. Whether they are actually protected
-// depends on the allocator provided to the garbage collector.
-constexpr size_t kGuardPageSize = 4096;
-#endif
 
 constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 

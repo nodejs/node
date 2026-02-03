@@ -11,7 +11,9 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+// In multi-cage mode we create one cage per isolate
+// and we don't share objects between cages.
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
 
 namespace v8 {
 namespace internal {
@@ -31,6 +33,7 @@ class InfiniteLooperThread final : public ParkingThread {
         sema_execute_complete_(sema_execute_complete) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     IsolateWithContextWrapper isolate_wrapper;
     v8::Isolate* v8_isolate = isolate_wrapper.v8_isolate();
     v8::Isolate::Scope isolate_scope(v8_isolate);

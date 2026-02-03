@@ -1,19 +1,15 @@
 const common = require('../../common');
-common.skipIfWorker();
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
+  common.skip('This test only works on a main thread');
+}
 
 const assert = require('assert');
 
 {
   assert.throws(() => {
     process.binding();
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-  }));
-}
-
-{
-  assert.throws(() => {
-    process.binding('async_wrap');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
   }));

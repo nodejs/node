@@ -6,6 +6,7 @@
 #define V8_REGEXP_REGEXP_BYTECODE_GENERATOR_INL_H_
 
 #include "src/regexp/regexp-bytecode-generator.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/regexp/regexp-bytecodes.h"
 

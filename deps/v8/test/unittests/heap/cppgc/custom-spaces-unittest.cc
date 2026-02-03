@@ -101,7 +101,7 @@ struct SpaceTrait<internal::CustomGCed2> {
 
 template <typename T>
 struct SpaceTrait<
-    T, std::enable_if_t<std::is_base_of<internal::CustomGCedBase, T>::value>> {
+    T, std::enable_if_t<std::is_base_of_v<internal::CustomGCedBase, T>>> {
   using Space = CustomSpace1;
 };
 

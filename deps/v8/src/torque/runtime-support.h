@@ -13,13 +13,12 @@ struct Identity {
 };
 
 template <class T>
-struct UnderlyingTypeHelper : Identity<typename std::underlying_type<T>::type> {
-};
+struct UnderlyingTypeHelper : Identity<std::underlying_type_t<T>> {};
 
 template <class T>
 using UnderlyingTypeIfEnum =
-    typename std::conditional_t<std::is_enum<T>::value, UnderlyingTypeHelper<T>,
-                                Identity<T>>::type;
+    std::conditional_t<std::is_enum_v<T>, UnderlyingTypeHelper<T>,
+                       Identity<T>>::type;
 
 // Utility for extracting the underlying type of an enum, returns the type
 // itself if not an enum.

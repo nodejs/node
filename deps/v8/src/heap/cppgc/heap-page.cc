@@ -21,10 +21,7 @@
 #include "src/heap/cppgc/remembered-set.h"
 #include "src/heap/cppgc/stats-collector.h"
 
-namespace cppgc {
-namespace internal {
-
-static_assert(api_constants::kGuardPageSize == kGuardPageSize);
+namespace cppgc::internal {
 
 namespace {
 
@@ -139,7 +136,7 @@ void BasePage::AllocateSlotSet() {
 
 void BasePage::SlotSetDeleter::operator()(SlotSet* slot_set) const {
   DCHECK_NOT_NULL(slot_set);
-  SlotSet::Delete(slot_set, SlotSet::BucketsForSize(page_size_));
+  SlotSet::Delete(slot_set);
 }
 
 void BasePage::ResetSlotSet() { slot_set_.reset(); }
@@ -147,16 +144,20 @@ void BasePage::ResetSlotSet() { slot_set_.reset(); }
 
 BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
     : BasePageHandle(heap),
-      space_(space),
+      space_(&space),
       type_(type)
 #if defined(CPPGC_YOUNG_GENERATION)
       ,
       slot_set_(nullptr, SlotSetDeleter{})
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 {
-  DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
-                    kPageOffsetMask);
-  DCHECK_EQ(&heap.raw_heap(), space_.raw_heap());
+  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(this) & kPageOffsetMask);
+  DCHECK_EQ(&heap.raw_heap(), space_->raw_heap());
+}
+
+void BasePage::ChangeOwner(BaseSpace& space) {
+  DCHECK_EQ(space_->raw_heap(), space.raw_heap());
+  space_ = &space;
 }
 
 // static
@@ -193,12 +194,14 @@ NormalPage* NormalPage::TryCreate(PageBackend& page_backend,
 // static
 void NormalPage::Destroy(NormalPage* page) {
   DCHECK(page);
+  HeapBase& heap = page->heap();
   const BaseSpace& space = page->space();
   DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
+  USE(space);
   page->~NormalPage();
-  PageBackend* backend = page->heap().page_backend();
-  page->heap().stats_collector()->NotifyFreedMemory(kPageSize);
-  backend->FreeNormalPageMemory(space.index(), reinterpret_cast<Address>(page));
+  PageBackend* backend = heap.page_backend();
+  heap.stats_collector()->NotifyFreedMemory(kPageSize);
+  backend->FreeNormalPageMemory(reinterpret_cast<Address>(page));
 }
 
 NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
@@ -206,8 +209,6 @@ NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
   DCHECK_LT(kLargeObjectSizeThreshold,
             static_cast<size_t>(PayloadEnd() - PayloadStart()));
 }
-
-NormalPage::~NormalPage() = default;
 
 NormalPage::iterator NormalPage::begin() {
   const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
@@ -237,17 +238,8 @@ ConstAddress NormalPage::PayloadEnd() const {
   return const_cast<NormalPage*>(this)->PayloadEnd();
 }
 
-// static
-size_t NormalPage::PayloadSize() {
-  const size_t header_size =
-      RoundUp(sizeof(NormalPage), kAllocationGranularity);
-  return kPageSize - 2 * kGuardPageSize - header_size;
-}
-
 LargePage::LargePage(HeapBase& heap, BaseSpace& space, size_t size)
     : BasePage(heap, space, PageType::kLarge), payload_size_(size) {}
-
-LargePage::~LargePage() = default;
 
 // static
 size_t LargePage::AllocationSize(size_t payload_size) {
@@ -288,7 +280,7 @@ void LargePage::Destroy(LargePage* page) {
     // Destroy() happens on the mutator but another concurrent sweeper task may
     // add add a live object using `BaseSpace::AddPage()` while iterating the
     // pages.
-    v8::base::LockGuard<v8::base::Mutex> guard(&space.pages_mutex());
+    v8::base::MutexGuard guard(&space.pages_mutex());
     DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   }
 #endif  // DEBUG
@@ -320,5 +312,4 @@ ConstAddress LargePage::PayloadEnd() const {
   return const_cast<LargePage*>(this)->PayloadEnd();
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal

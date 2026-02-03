@@ -73,8 +73,8 @@ Object {
   "rb": "rebuild",
   "remove": "uninstall",
   "rm": "uninstall",
-  "rum": "run-script",
-  "run": "run-script",
+  "rum": "run",
+  "run-script": "run",
   "s": "search",
   "se": "search",
   "show": "view",
@@ -86,7 +86,7 @@ Object {
   "unlink": "uninstall",
   "up": "update",
   "upgrade": "update",
-  "urn": "run-script",
+  "urn": "run",
   "v": "view",
   "verison": "version",
   "why": "explain",
@@ -119,7 +119,6 @@ Array [
   "get",
   "help",
   "help-search",
-  "hook",
   "init",
   "install",
   "install-ci-test",
@@ -144,7 +143,7 @@ Array [
   "repo",
   "restart",
   "root",
-  "run-script",
+  "run",
   "sbom",
   "search",
   "set",
@@ -156,6 +155,7 @@ Array [
   "team",
   "test",
   "token",
+  "undeprecate",
   "uninstall",
   "unpublish",
   "unstar",
@@ -195,7 +195,7 @@ safer to use a registry-provided authentication bearer token stored in the
 If you do not want your scoped package to be publicly viewable (and
 installable) set \`--access=restricted\`.
 
-Unscoped packages can not be set to \`restricted\`.
+Unscoped packages cannot be set to \`restricted\`.
 
 Note: This defaults to not changing the current access level for existing
 packages. Specifying a value of \`restricted\` or \`public\` during publish will
@@ -263,9 +263,9 @@ config is given, this value will always be set to \`legacy\`.
 * Type: null or Date
 
 If passed to \`npm install\`, will rebuild the npm tree such that only
-versions that were available **on or before** the \`--before\` time get
-installed. If there's no versions available for the current set of direct
-dependencies, the command will error.
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
 
 If the requested version is a \`dist-tag\` and the given tag does not pass the
 \`--before\` filter, the most recent version less than or equal to that tag
@@ -290,7 +290,7 @@ systems.
 
 #### \`browser\`
 
-* Default: OS X: \`"open"\`, Windows: \`"start"\`, Others: \`"xdg-open"\`
+* Default: macOS: \`"open"\`, Windows: \`"start"\`, Others: \`"xdg-open"\`
 * Type: null, Boolean, or String
 
 The browser that is called by npm commands to open websites.
@@ -299,6 +299,17 @@ Set to \`false\` to suppress browser behavior and instead print urls to
 terminal.
 
 Set to \`true\` to use default system URL opener.
+
+
+
+#### \`bypass-2fa\`
+
+* Default: false
+* Type: Boolean
+
+When creating a Granular Access Token with \`npm token create\`, setting this
+to true will allow the token to bypass two-factor authentication. This is
+useful for automation and CI/CD workflows.
 
 
 
@@ -405,7 +416,7 @@ are same as \`cpu\` field of package.json, which comes from \`process.arch\`.
 
 #### \`depth\`
 
-* Default: \`Infinity\` if \`--all\` is set, otherwise \`1\`
+* Default: \`Infinity\` if \`--all\` is set; otherwise, \`0\`
 * Type: null or Number
 
 The depth to go when recursing packages for \`npm ls\`.
@@ -544,7 +555,7 @@ This can be overridden by setting the \`--force\` flag.
 
 Tells to expect a specific number of results from the command.
 
-This config can not be used with: \`expect-results\`
+This config cannot be used with: \`expect-results\`
 
 #### \`expect-results\`
 
@@ -554,7 +565,18 @@ This config can not be used with: \`expect-results\`
 Tells npm whether or not to expect results from the command. Can be either
 true (expect some results) or false (expect no results).
 
-This config can not be used with: \`expect-result-count\`
+This config cannot be used with: \`expect-result-count\`
+
+#### \`expires\`
+
+* Default: null
+* Type: null or Number
+
+When creating a Granular Access Token with \`npm token create\`, this sets the
+expiration in days. If not specified, the server will determine the default
+expiration.
+
+
 
 #### \`fetch-retries\`
 
@@ -743,10 +765,10 @@ library.
 * Default: false
 * Type: Boolean
 
-If true, npm will not exit with an error code when \`run-script\` is invoked
-for a script that isn't defined in the \`scripts\` section of \`package.json\`.
-This option can be used when it's desirable to optionally run a script when
-it's present and fail if the script fails. This is useful, for example, when
+If true, npm will not exit with an error code when \`run\` is invoked for a
+script that isn't defined in the \`scripts\` section of \`package.json\`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
 
@@ -760,9 +782,9 @@ This value is not exported to the environment for child processes.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-\`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm run-script\`
-will still run their intended script if \`ignore-scripts\` is set, but they
-will *not* run any pre- or post-scripts.
+\`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm run\` will still
+run their intended script if \`ignore-scripts\` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
@@ -851,6 +873,25 @@ A module that will be loaded by the \`npm init\` command. See the
 documentation for the
 [init-package-json](https://github.com/npm/init-package-json) module for
 more information, or [npm init](/commands/npm-init).
+
+
+
+#### \`init-private\`
+
+* Default: false
+* Type: Boolean
+
+The value \`npm init\` should use by default for the package's private flag.
+
+
+
+#### \`init-type\`
+
+* Default: "commonjs"
+* Type: String
+
+The value that \`npm init\` should use by default for the package.json type
+field.
 
 
 
@@ -973,8 +1014,8 @@ instead of the current working directory. See
 
 #### \`lockfile-version\`
 
-* Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3,
-  otherwise maintain current lockfile version.
+* Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3;
+  otherwise, maintain current lockfile version.
 * Type: null, 1, 2, 3, "1", "2", or "3"
 
 Set the lockfile format version to be used in package-lock.json and
@@ -1062,6 +1103,29 @@ Any "%s" in the message will be replaced with the version number.
 
 
 
+#### \`name\`
+
+* Default: null
+* Type: null or String
+
+When creating a Granular Access Token with \`npm token create\`, this sets the
+name/description for the token.
+
+
+
+#### \`node-gyp\`
+
+* Default: The path to the node-gyp bin that ships with npm
+* Type: Path
+
+This is the location of the "node-gyp" bin. By default it uses one that
+ships with npm itself.
+
+You can use this config to specify your own "node-gyp" to run when it is
+required to build a package.
+
+
+
 #### \`node-options\`
 
 * Default: null
@@ -1097,7 +1161,7 @@ allow the CLI to fill in missing cache data, see \`--prefer-offline\`.
 #### \`omit\`
 
 * Default: 'dev' if the \`NODE_ENV\` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.
@@ -1123,6 +1187,27 @@ This option causes npm to create lock files without a \`resolved\` key for
 registry dependencies. Subsequent installs will need to resolve tarball
 endpoints with the configured registry, likely resulting in a longer install
 time.
+
+
+
+#### \`orgs\`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific organizations.
+
+
+
+#### \`orgs-permission\`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with \`npm token create\`, sets the
+permission level for organizations. Options are "read-only", "read-write",
+or "no-access".
 
 
 
@@ -1193,6 +1278,37 @@ For \`list\` this means the output will be based on the tree described by the
 
 
 
+#### \`packages\`
+
+* Default:
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific packages.
+
+
+
+#### \`packages-all\`
+
+* Default: false
+* Type: Boolean
+
+When creating a Granular Access Token with \`npm token create\`, grants the
+token access to all packages instead of limiting to specific packages.
+
+
+
+#### \`packages-and-scopes-permission\`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with \`npm token create\`, sets the
+permission level for packages and scopes. Options are "read-only",
+"read-write", or "no-access".
+
+
+
 #### \`parseable\`
 
 * Default: false
@@ -1200,6 +1316,16 @@ For \`list\` this means the output will be based on the tree described by the
 
 Output parseable results from commands that write to standard output. For
 \`npm search\`, this will be tab-separated table format.
+
+
+
+#### \`password\`
+
+* Default: null
+* Type: null or String
+
+Password for authentication. Can be provided via command line when creating
+tokens, though it's generally safer to be prompted for it.
 
 
 
@@ -1258,11 +1384,12 @@ a semver. Like the \`rc\` in \`1.2.0-rc.8\`.
 
 #### \`progress\`
 
-* Default: \`true\` unless running in a known CI system
+* Default: \`true\` when not in CI and both stderr and stdout are TTYs and not
+  in a dumb terminal
 * Type: Boolean
 
 When set to \`true\`, npm will display a progress bar during time intensive
-operations, if \`process.stderr\` is a TTY.
+operations, if \`process.stderr\` and \`process.stdout\` are a TTY.
 
 Set to \`false\` to suppress the progress bar.
 
@@ -1276,7 +1403,7 @@ Set to \`false\` to suppress the progress bar.
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
 
-This config can not be used with: \`provenance-file\`
+This config cannot be used with: \`provenance-file\`
 
 #### \`provenance-file\`
 
@@ -1285,7 +1412,7 @@ This config can not be used with: \`provenance-file\`
 
 When publishing, the provenance bundle at the given path will be used.
 
-This config can not be used with: \`provenance\`
+This config cannot be used with: \`provenance\`
 
 #### \`proxy\`
 
@@ -1377,7 +1504,7 @@ Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
 
 Save installed packages to a package.json file as \`devDependencies\`.
 
-
+This config cannot be used with: \`save-optional\`, \`save-peer\`, \`save-prod\`
 
 #### \`save-exact\`
 
@@ -1396,7 +1523,7 @@ rather than using npm's default semver range operator.
 
 Save installed packages to a package.json file as \`optionalDependencies\`.
 
-
+This config cannot be used with: \`save-dev\`, \`save-peer\`, \`save-prod\`
 
 #### \`save-peer\`
 
@@ -1405,7 +1532,7 @@ Save installed packages to a package.json file as \`optionalDependencies\`.
 
 Save installed packages to a package.json file as \`peerDependencies\`
 
-
+This config cannot be used with: \`save-dev\`, \`save-optional\`, \`save-prod\`
 
 #### \`save-prefix\`
 
@@ -1434,7 +1561,7 @@ you want to move it to be a non-optional production dependency.
 This is the default behavior if \`--save\` is true, and neither \`--save-dev\`
 or \`--save-optional\` are true.
 
-
+This config cannot be used with: \`save-dev\`, \`save-optional\`, \`save-peer\`
 
 #### \`sbom-format\`
 
@@ -1484,6 +1611,17 @@ This will also cause \`npm init\` to create a scoped package.
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 \`\`\`
+
+
+
+#### \`scopes\`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).
 
 
 
@@ -1612,11 +1750,14 @@ See also the \`ca\` config.
 If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.
 
-Also the tag that is added to the package@version specified by the \`npm tag\`
-command, if no explicit tag is given.
+It is the tag added to the package@version specified in the \`npm dist-tag
+add\` command, if no explicit tag is given.
 
 When used by the \`npm diff\` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
+
+If used in the \`npm publish\` command, this is the tag that will be added to
+the package submitted to the registry.
 
 
 
@@ -1648,6 +1789,15 @@ You can quickly view it with this [json](https://npm.im/json) command line:
 
 Timing information will also be reported in the terminal. To suppress this
 while still writing the timing file, use \`--silent\`.
+
+
+
+#### \`token-description\`
+
+* Default: null
+* Type: null or String
+
+Description text for the token when using \`npm token create\`.
 
 
 
@@ -2067,6 +2217,7 @@ Array [
   "before",
   "bin-links",
   "browser",
+  "bypass-2fa",
   "ca",
   "cache",
   "cache-max",
@@ -2078,8 +2229,6 @@ Array [
   "color",
   "commit-hooks",
   "cpu",
-  "os",
-  "libc",
   "depth",
   "description",
   "dev",
@@ -2094,8 +2243,9 @@ Array [
   "dry-run",
   "editor",
   "engine-strict",
-  "expect-results",
   "expect-result-count",
+  "expect-results",
+  "expires",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2122,7 +2272,9 @@ Array [
   "init-author-url",
   "init-license",
   "init-module",
+  "init-type",
   "init-version",
+  "init-private",
   "init.author.email",
   "init.author.name",
   "init.author.url",
@@ -2135,30 +2287,34 @@ Array [
   "key",
   "legacy-bundling",
   "legacy-peer-deps",
+  "libc",
   "link",
   "local-address",
-  "sbom-format",
-  "sbom-type",
   "location",
   "lockfile-version",
   "loglevel",
   "logs-dir",
   "logs-max",
   "long",
+  "name",
   "maxsockets",
   "message",
+  "node-gyp",
   "node-options",
   "noproxy",
   "offline",
   "omit",
   "omit-lockfile-registry-resolved",
   "only",
+  "orgs",
   "optional",
+  "os",
   "otp",
   "package",
   "package-lock",
   "package-lock-only",
   "pack-destination",
+  "packages",
   "parseable",
   "prefer-dedupe",
   "prefer-offline",
@@ -2182,7 +2338,15 @@ Array [
   "save-peer",
   "save-prefix",
   "save-prod",
+  "sbom-format",
+  "sbom-type",
   "scope",
+  "scopes",
+  "packages-all",
+  "packages-and-scopes-permission",
+  "orgs-permission",
+  "password",
+  "token-description",
   "script-shell",
   "searchexclude",
   "searchlimit",
@@ -2227,6 +2391,7 @@ Array [
   "before",
   "bin-links",
   "browser",
+  "bypass-2fa",
   "ca",
   "cache",
   "cache-max",
@@ -2238,8 +2403,6 @@ Array [
   "color",
   "commit-hooks",
   "cpu",
-  "os",
-  "libc",
   "depth",
   "description",
   "dev",
@@ -2254,6 +2417,7 @@ Array [
   "dry-run",
   "editor",
   "engine-strict",
+  "expires",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2275,31 +2439,36 @@ Array [
   "include",
   "include-staged",
   "include-workspace-root",
+  "init-private",
   "install-links",
   "install-strategy",
   "json",
   "key",
   "legacy-bundling",
   "legacy-peer-deps",
+  "libc",
   "local-address",
-  "sbom-format",
-  "sbom-type",
   "location",
   "lockfile-version",
   "loglevel",
+  "name",
   "maxsockets",
   "message",
+  "node-gyp",
   "noproxy",
   "offline",
   "omit",
   "omit-lockfile-registry-resolved",
   "only",
+  "orgs",
   "optional",
+  "os",
   "otp",
   "package",
   "package-lock",
   "package-lock-only",
   "pack-destination",
+  "packages",
   "parseable",
   "prefer-dedupe",
   "prefer-offline",
@@ -2322,7 +2491,15 @@ Array [
   "save-peer",
   "save-prefix",
   "save-prod",
+  "sbom-format",
+  "sbom-type",
   "scope",
+  "scopes",
+  "packages-all",
+  "packages-and-scopes-permission",
+  "orgs-permission",
+  "password",
+  "token-description",
   "script-shell",
   "searchexclude",
   "searchlimit",
@@ -2347,13 +2524,14 @@ Array [
 
 exports[`test/lib/docs.js TAP config > keys that are not flattened 1`] = `
 Array [
-  "expect-results",
   "expect-result-count",
+  "expect-results",
   "init-author-email",
   "init-author-name",
   "init-author-url",
   "init-license",
   "init-module",
+  "init-type",
   "init-version",
   "init.author.email",
   "init.author.name",
@@ -2391,6 +2569,7 @@ Object {
   "before": null,
   "binLinks": true,
   "browser": null,
+  "bypass-2fa": false,
   "ca": null,
   "cache": "{CWD}/cache/_cacache",
   "call": "",
@@ -2412,6 +2591,7 @@ Object {
   "dryRun": false,
   "editor": "{EDITOR}",
   "engineStrict": false,
+  "expires": null,
   "force": false,
   "foregroundScripts": false,
   "formatPackageLock": true,
@@ -2426,6 +2606,7 @@ Object {
   "ignoreScripts": false,
   "includeStaged": false,
   "includeWorkspaceRoot": false,
+  "initPrivate": false,
   "installLinks": false,
   "installStrategy": "hoisted",
   "json": false,
@@ -2438,7 +2619,9 @@ Object {
   "logColor": false,
   "maxSockets": 15,
   "message": "%s",
+  "name": null,
   "nodeBin": "{NODE}",
+  "nodeGyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "nodeVersion": "2.2.2",
   "noProxy": "",
   "npmBin": "{CWD}/other/bin/npm-cli.js",
@@ -2448,13 +2631,19 @@ Object {
   "offline": false,
   "omit": Array [],
   "omitLockfileRegistryResolved": false,
+  "orgs": null,
+  "orgsPermission": null,
   "os": null,
   "otp": null,
   "package": Array [],
   "packageLock": true,
   "packageLockOnly": false,
+  "packages": Array [],
+  "packagesAll": false,
+  "packagesAndScopesPermission": null,
   "packDestination": ".",
   "parseable": false,
+  "password": null,
   "preferDedupe": false,
   "preferOffline": false,
   "preferOnline": false,
@@ -2480,6 +2669,7 @@ Object {
   "sbomFormat": null,
   "sbomType": "library",
   "scope": "",
+  "scopes": null,
   "scriptShell": undefined,
   "search": Object {
     "description": true,
@@ -2496,6 +2686,7 @@ Object {
   "strictSSL": true,
   "tagVersionPrefix": "v",
   "timeout": 300000,
+  "tokenDescription": null,
   "tufCache": "{CWD}/cache/_tuf",
   "umask": 0,
   "unicode": false,
@@ -2552,7 +2743,7 @@ exports[`test/lib/docs.js TAP usage access > must match snapshot 1`] = `
 Set access level on published packages
 
 Usage:
-npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list packages [<user>|<scope>|<scope:team>] [<package>]
 npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
@@ -2566,7 +2757,7 @@ Options:
 Run "npm help access" for more info
 
 \`\`\`bash
-npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list packages [<user>|<scope>|<scope:team>] [<package>]
 npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
@@ -2621,7 +2812,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help audit" for more info
 
@@ -2654,7 +2845,7 @@ npm bugs [<pkgname> [<pkgname> ...]]
 Options:
 [--no-browser|--browser <browser>] [--registry <registry>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 alias: issues
 
@@ -2674,13 +2865,16 @@ alias: issues
 `
 
 exports[`test/lib/docs.js TAP usage cache > must match snapshot 1`] = `
-Manipulates packages cache
+Manipulates packages and npx cache
 
 Usage:
 npm cache add <package-spec>
 npm cache clean [<key>]
 npm cache ls [<name>@<version>]
 npm cache verify
+npm cache npx ls
+npm cache npx rm [<key>...]
+npm cache npx info <key>...
 
 Options:
 [--cache <cache>]
@@ -2692,6 +2886,9 @@ npm cache add <package-spec>
 npm cache clean [<key>]
 npm cache ls [<name>@<version>]
 npm cache verify
+npm cache npx ls
+npm cache npx rm [<key>...]
+npm cache npx info <key>...
 \`\`\`
 
 Note: This command is unaware of workspaces.
@@ -2712,7 +2909,7 @@ Options:
 [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
 [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -2811,7 +3008,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: ddp
 
@@ -2848,7 +3045,7 @@ Usage:
 npm deprecate <package-spec> <message>
 
 Options:
-[--registry <registry>] [--otp <otp>]
+[--registry <registry>] [--otp <otp>] [--dry-run]
 
 Run "npm help deprecate" for more info
 
@@ -2860,6 +3057,7 @@ Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
+#### \`dry-run\`
 `
 
 exports[`test/lib/docs.js TAP usage diff > must match snapshot 1`] = `
@@ -2874,7 +3072,7 @@ Options:
 [--diff-src-prefix <path>] [--diff-dst-prefix <path>] [--diff-text] [-g|--global]
 [--tag <tag>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 Run "npm help diff" for more info
 
@@ -2907,7 +3105,7 @@ npm dist-tag ls [<package-spec>]
 
 Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 alias: dist-tags
 
@@ -2935,7 +3133,7 @@ npm docs [<pkgname> [<pkgname> ...]]
 Options:
 [--no-browser|--browser <browser>] [--registry <registry>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 alias: home
 
@@ -2958,7 +3156,7 @@ exports[`test/lib/docs.js TAP usage doctor > must match snapshot 1`] = `
 Check the health of your npm environment
 
 Usage:
-npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
+npm doctor [connection] [registry] [versions] [environment] [permissions] [cache]
 
 Options:
 [--registry <registry>]
@@ -2966,7 +3164,7 @@ Options:
 Run "npm help doctor" for more info
 
 \`\`\`bash
-npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
+npm doctor [connection] [registry] [versions] [environment] [permissions] [cache]
 \`\`\`
 
 Note: This command is unaware of workspaces.
@@ -3006,7 +3204,7 @@ npm exec --package=foo -c '<cmd> [args...]'
 Options:
 [--package <package-spec> [--package <package-spec> ...]] [-c|--call <call>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 alias: x
 
@@ -3084,7 +3282,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help find-dupes" for more info
 
@@ -3197,53 +3395,26 @@ Note: This command is unaware of workspaces.
 #### \`long\`
 `
 
-exports[`test/lib/docs.js TAP usage hook > must match snapshot 1`] = `
-Manage registry hooks
-
-Usage:
-npm hook add <pkg> <url> <secret> [--type=<type>]
-npm hook ls [pkg]
-npm hook rm <id>
-npm hook update <id> <url> <secret>
-
-Options:
-[--registry <registry>] [--otp <otp>]
-
-Run "npm help hook" for more info
-
-\`\`\`bash
-npm hook add <pkg> <url> <secret> [--type=<type>]
-npm hook ls [pkg]
-npm hook rm <id>
-npm hook update <id> <url> <secret>
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
-#### \`otp\`
-`
-
 exports[`test/lib/docs.js TAP usage init > must match snapshot 1`] = `
 Create a package.json file
 
 Usage:
-npm init <package-spec> (same as \`npx <package-spec>\`)
+npm init <package-spec> (same as \`npx create-<package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 Options:
 [--init-author-name <name>] [--init-author-url <url>] [--init-license <license>]
-[--init-module <module>] [--init-version <version>] [-y|--yes] [-f|--force]
-[--scope <@scope>]
+[--init-module <module>] [--init-type <type>] [--init-version <version>]
+[--init-private] [-y|--yes] [-f|--force] [--scope <@scope>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--no-workspaces-update] [--include-workspace-root]
+[--workspaces] [--no-workspaces-update] [--include-workspace-root]
 
 aliases: create, innit
 
 Run "npm help init" for more info
 
 \`\`\`bash
-npm init <package-spec> (same as \`npx <package-spec>\`)
+npm init <package-spec> (same as \`npx create-<package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 aliases: create, innit
@@ -3253,7 +3424,9 @@ aliases: create, innit
 #### \`init-author-url\`
 #### \`init-license\`
 #### \`init-module\`
+#### \`init-type\`
 #### \`init-version\`
+#### \`init-private\`
 #### \`yes\`
 #### \`force\`
 #### \`scope\`
@@ -3276,10 +3449,11 @@ Options:
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
-[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>] [--libc <libc>]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--before <date>]
+[--no-bin-links] [--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
+[--libc <libc>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 
@@ -3306,6 +3480,7 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
+#### \`before\`
 #### \`bin-links\`
 #### \`fund\`
 #### \`dry-run\`
@@ -3331,7 +3506,7 @@ Options:
 [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
 [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: cit, clean-install-test, sit
 
@@ -3374,10 +3549,11 @@ Options:
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
-[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>] [--libc <libc>]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--before <date>]
+[--no-bin-links] [--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
+[--libc <libc>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: it
 
@@ -3404,6 +3580,7 @@ alias: it
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
+#### \`before\`
 #### \`bin-links\`
 #### \`fund\`
 #### \`dry-run\`
@@ -3431,7 +3608,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: ln
 
@@ -3476,7 +3653,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--link] [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: la
 
@@ -3560,7 +3737,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--link] [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: list
 
@@ -3650,6 +3827,7 @@ npm outdated [<package-spec> ...]
 Options:
 [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[--before <date>]
 
 Run "npm help outdated" for more info
 
@@ -3663,6 +3841,7 @@ npm outdated [<package-spec> ...]
 #### \`parseable\`
 #### \`global\`
 #### \`workspace\`
+#### \`before\`
 `
 
 exports[`test/lib/docs.js TAP usage owner > must match snapshot 1`] = `
@@ -3676,7 +3855,7 @@ npm owner ls <package-spec>
 Options:
 [--registry <registry>] [--otp <otp>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces]
+[--workspaces]
 
 alias: author
 
@@ -3705,7 +3884,7 @@ npm pack <package-spec>
 Options:
 [--dry-run] [--json] [--pack-destination <pack-destination>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root] [--ignore-scripts]
 
 Run "npm help pack" for more info
 
@@ -3719,6 +3898,7 @@ npm pack <package-spec>
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
+#### \`ignore-scripts\`
 `
 
 exports[`test/lib/docs.js TAP usage ping > must match snapshot 1`] = `
@@ -3755,7 +3935,7 @@ npm pkg fix
 Options:
 [-f|--force] [--json]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces]
+[--workspaces]
 
 Run "npm help pkg" for more info
 
@@ -3778,7 +3958,7 @@ exports[`test/lib/docs.js TAP usage prefix > must match snapshot 1`] = `
 Display prefix
 
 Usage:
-npm prefix [-g]
+npm prefix
 
 Options:
 [-g|--global]
@@ -3786,7 +3966,7 @@ Options:
 Run "npm help prefix" for more info
 
 \`\`\`bash
-npm prefix [-g]
+npm prefix
 \`\`\`
 
 Note: This command is unaware of workspaces.
@@ -3834,7 +4014,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--dry-run] [--json] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help prune" for more info
 
@@ -3863,8 +4043,7 @@ npm publish <package-spec>
 Options:
 [--tag <tag>] [--access <restricted|public>] [--dry-run] [--otp <otp>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-[--provenance|--provenance-file <file>]
+[--workspaces] [--include-workspace-root] [--provenance|--provenance-file <file>]
 
 Run "npm help publish" for more info
 
@@ -3892,7 +4071,7 @@ npm query <selector>
 Options:
 [-g|--global]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--package-lock-only]
+[--workspaces] [--include-workspace-root] [--package-lock-only]
 [--expect-results|--expect-result-count <count>]
 
 Run "npm help query" for more info
@@ -3919,7 +4098,7 @@ npm rebuild [<package-spec>] ...]
 Options:
 [-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 alias: rb
 
@@ -3950,7 +4129,7 @@ npm repo [<pkgname> [<pkgname> ...]]
 Options:
 [--no-browser|--browser <browser>] [--registry <registry>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 Run "npm help repo" for more info
 
@@ -4004,25 +4183,25 @@ Note: This command is unaware of workspaces.
 #### \`global\`
 `
 
-exports[`test/lib/docs.js TAP usage run-script > must match snapshot 1`] = `
+exports[`test/lib/docs.js TAP usage run > must match snapshot 1`] = `
 Run arbitrary package scripts
 
 Usage:
-npm run-script <command> [-- <args>]
+npm run <command> [-- <args>]
 
 Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--if-present] [--ignore-scripts]
+[--workspaces] [--include-workspace-root] [--if-present] [--ignore-scripts]
 [--foreground-scripts] [--script-shell <script-shell>]
 
-aliases: run, rum, urn
+aliases: run-script, rum, urn
 
-Run "npm help run-script" for more info
+Run "npm help run" for more info
 
 \`\`\`bash
-npm run-script <command> [-- <args>]
+npm run <command> [-- <args>]
 
-aliases: run, rum, urn
+aliases: run-script, rum, urn
 \`\`\`
 
 #### \`workspace\`
@@ -4045,7 +4224,7 @@ Options:
 [--package-lock-only] [--sbom-format <cyclonedx|spdx>]
 [--sbom-type <library|application|framework>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces]
+[--workspaces]
 
 Run "npm help sbom" for more info
 
@@ -4065,30 +4244,31 @@ exports[`test/lib/docs.js TAP usage search > must match snapshot 1`] = `
 Search for packages
 
 Usage:
-npm search [search terms ...]
+npm search <search term> [<search term> ...]
 
 Options:
-[-l|--long] [--json] [--color|--no-color|--color always] [-p|--parseable]
-[--no-description] [--searchopts <searchopts>] [--searchexclude <searchexclude>]
-[--registry <registry>] [--prefer-online] [--prefer-offline] [--offline]
+[--json] [--color|--no-color|--color always] [-p|--parseable] [--no-description]
+[--searchlimit <number>] [--searchopts <searchopts>]
+[--searchexclude <searchexclude>] [--registry <registry>] [--prefer-online]
+[--prefer-offline] [--offline]
 
 aliases: find, s, se
 
 Run "npm help search" for more info
 
 \`\`\`bash
-npm search [search terms ...]
+npm search <search term> [<search term> ...]
 
 aliases: find, s, se
 \`\`\`
 
 Note: This command is unaware of workspaces.
 
-#### \`long\`
 #### \`json\`
 #### \`color\`
 #### \`parseable\`
 #### \`description\`
+#### \`searchlimit\`
 #### \`searchopts\`
 #### \`searchexclude\`
 #### \`registry\`
@@ -4275,26 +4455,64 @@ Manage your authentication tokens
 Usage:
 npm token list
 npm token revoke <id|token>
-npm token create [--read-only] [--cidr=list]
+npm token create
 
 Options:
-[--read-only] [--cidr <cidr> [--cidr <cidr> ...]] [--registry <registry>]
-[--otp <otp>]
+[--name <name>] [--token-description <token-description>] [--expires <expires>]
+[--packages <packages> [--packages <packages> ...]] [--packages-all]
+[--scopes <scopes> [--scopes <scopes> ...]] [--orgs <orgs> [--orgs <orgs> ...]]
+[--packages-and-scopes-permission <read-only|read-write|no-access>]
+[--orgs-permission <read-only|read-write|no-access>]
+[--cidr <cidr> [--cidr <cidr> ...]] [--bypass-2fa] [--password <password>]
+[--registry <registry>] [--otp <otp>] [--read-only]
 
 Run "npm help token" for more info
 
 \`\`\`bash
 npm token list
 npm token revoke <id|token>
-npm token create [--read-only] [--cidr=list]
+npm token create
 \`\`\`
 
 Note: This command is unaware of workspaces.
 
-#### \`read-only\`
+#### \`name\`
+#### \`token-description\`
+#### \`expires\`
+#### \`packages\`
+#### \`packages-all\`
+#### \`scopes\`
+#### \`orgs\`
+#### \`packages-and-scopes-permission\`
+#### \`orgs-permission\`
 #### \`cidr\`
+#### \`bypass-2fa\`
+#### \`password\`
 #### \`registry\`
 #### \`otp\`
+#### \`read-only\`
+`
+
+exports[`test/lib/docs.js TAP usage undeprecate > must match snapshot 1`] = `
+Undeprecate a version of a package
+
+Usage:
+npm undeprecate <package-spec>
+
+Options:
+[--registry <registry>] [--otp <otp>] [--dry-run]
+
+Run "npm help undeprecate" for more info
+
+\`\`\`bash
+npm undeprecate <package-spec>
+\`\`\`
+
+Note: This command is unaware of workspaces.
+
+#### \`registry\`
+#### \`otp\`
+#### \`dry-run\`
 `
 
 exports[`test/lib/docs.js TAP usage uninstall > must match snapshot 1`] = `
@@ -4307,7 +4525,7 @@ Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-g|--global]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: unlink, remove, rm, r, un
 
@@ -4336,7 +4554,7 @@ npm unpublish [<package-spec>]
 Options:
 [--dry-run] [-f|--force]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces]
+[--workspaces]
 
 Run "npm help unpublish" for more info
 
@@ -4385,9 +4603,10 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--ignore-scripts] [--no-audit] [--before <date>] [--no-bin-links] [--no-fund]
+[--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: up, upgrade, udpate
 
@@ -4411,6 +4630,7 @@ aliases: up, upgrade, udpate
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
+#### \`before\`
 #### \`bin-links\`
 #### \`fund\`
 #### \`dry-run\`
@@ -4429,8 +4649,10 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 Options:
 [--allow-same-version] [--no-commit-hooks] [--no-git-tag-version] [--json]
 [--preid prerelease-id] [--sign-git-tag]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--no-workspaces-update] [--include-workspace-root]
+[--workspaces] [--no-workspaces-update] [--include-workspace-root]
+[--ignore-scripts]
 
 alias: verison
 
@@ -4448,10 +4670,12 @@ alias: verison
 #### \`json\`
 #### \`preid\`
 #### \`sign-git-tag\`
+#### \`save\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`workspaces-update\`
 #### \`include-workspace-root\`
+#### \`ignore-scripts\`
 `
 
 exports[`test/lib/docs.js TAP usage view > must match snapshot 1`] = `
@@ -4462,7 +4686,7 @@ npm view [<package-spec>] [<field>[.subfield]...]
 
 Options:
 [--json] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[--workspaces] [--include-workspace-root]
 
 aliases: info, show, v
 

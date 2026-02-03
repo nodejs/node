@@ -14,6 +14,7 @@
 #include "node_exit_code.h"
 
 namespace node {
+class Environment;
 namespace sea {
 // A special number that will appear at the beginning of the single executable
 // preparation blobs ready to be injected into the binary. We use this to check
@@ -27,26 +28,63 @@ enum class SeaFlags : uint32_t {
   kUseSnapshot = 1 << 1,
   kUseCodeCache = 1 << 2,
   kIncludeAssets = 1 << 3,
+  kIncludeExecArgv = 1 << 4,
+};
+
+enum class SeaExecArgvExtension : uint8_t {
+  kNone = 0,
+  kEnv = 1,
+  kCli = 2,
+};
+
+struct SeaConfig {
+  std::string main_path;
+  std::string output_path;
+  std::string executable_path;
+  SeaFlags flags = SeaFlags::kDefault;
+  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
+  std::unordered_map<std::string, std::string> assets;
+  std::vector<std::string> exec_argv;
 };
 
 struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
+  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
   std::string_view code_path;
   std::string_view main_code_or_snapshot;
   std::optional<std::string_view> code_cache;
   std::unordered_map<std::string_view, std::string_view> assets;
+  std::vector<std::string_view> exec_argv;
 
   bool use_snapshot() const;
   bool use_code_cache() const;
 
-  static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
+  static constexpr size_t kHeaderSize =
+      sizeof(kMagic) + sizeof(SeaFlags) + sizeof(SeaExecArgvExtension);
 };
 
 bool IsSingleExecutable();
+std::string_view FindSingleExecutableBlob();
 SeaResource FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
-node::ExitCode BuildSingleExecutableBlob(
+node::ExitCode WriteSingleExecutableBlob(
     const std::string& config_path,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args);
+
+// Try loading the Environment as a single-executable application.
+// Returns true if it is loaded as a single-executable application.
+// Otherwise returns false and the caller is expected to call LoadEnvironment()
+// differently.
+bool MaybeLoadSingleExecutableApplication(Environment* env);
+std::optional<SeaConfig> ParseSingleExecutableConfig(
+    const std::string& config_path);
+ExitCode BuildSingleExecutable(const std::string& sea_config_path,
+                               const std::vector<std::string>& args,
+                               const std::vector<std::string>& exec_args);
+ExitCode GenerateSingleExecutableBlob(
+    std::vector<char>* out,
+    const SeaConfig& config,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args);
 }  // namespace sea

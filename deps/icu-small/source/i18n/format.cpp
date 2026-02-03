@@ -70,9 +70,8 @@ FieldPosition::clone() const {
 // default constructor
 
 Format::Format()
-    : UObject()
+    : UObject(), actualLocale(Locale::getRoot()), validLocale(Locale::getRoot())
 {
-    *validLocale = *actualLocale = 0;
 }
 
 // -------------------------------------
@@ -97,8 +96,8 @@ Format&
 Format::operator=(const Format& that)
 {
     if (this != &that) {
-        uprv_strcpy(validLocale, that.validLocale);
-        uprv_strcpy(actualLocale, that.actualLocale);
+        actualLocale = that.actualLocale;
+        validLocale = that.validLocale;
     }
     return *this;
 }
@@ -196,20 +195,18 @@ void Format::syntaxError(const UnicodeString& pattern,
 
 Locale
 Format::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocale(type, status);
+    return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
 const char *
 Format::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocaleID(type, status);
+    return LocaleBased::getLocaleID(validLocale,actualLocale, type, status);
 }
 
 void
 Format::setLocaleIDs(const char* valid, const char* actual) {
-    U_LOCALE_BASED(locBased, *this);
-    locBased.setLocaleIDs(valid, actual);
+    actualLocale = Locale(actual);
+    validLocale = Locale(valid);
 }
 
 U_NAMESPACE_END

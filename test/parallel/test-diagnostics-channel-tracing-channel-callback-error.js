@@ -27,10 +27,10 @@ const handlers = {
 
 channel.subscribe(handlers);
 
-channel.traceCallback(function(cb, err) {
+channel.traceCallback(common.mustCall(function(cb, err) {
   assert.deepStrictEqual(this, thisArg);
   setImmediate(cb, err);
-}, 0, input, thisArg, common.mustCall((err, res) => {
+}), 0, input, thisArg, common.mustCall((err, res) => {
   assert.strictEqual(err, expectedError);
   assert.strictEqual(res, undefined);
 }), expectedError);

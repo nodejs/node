@@ -22,7 +22,7 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SUBDIRS = includes
 
-EXTRA_DIST = Makefile.msvc CMakeLists.txt version.rc.in
+EXTRA_DIST = Makefile.msvc CMakeLists.txt version.rc.in config.cmake.in
 
 AM_CFLAGS = $(WARNCFLAGS) $(EXTRACFLAG)
 AM_CPPFLAGS = -I$(srcdir)/includes -I$(builddir)/includes -DBUILDING_NGHTTP2 \

@@ -145,7 +145,7 @@ assert.strictEqual(
     Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
     { showHidden: true }
   ),
-  "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
+  "[String: 'hello'] { [length]: 5, Symbol(foo): 123 }"
 );
 
 assert.match(util.inspect((new JSStream())._externalStream),
@@ -172,56 +172,67 @@ assert.doesNotMatch(
   const dv = new DataView(ab, 1, 2);
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, [byteLength]: 4 }'
   );
   assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer {' +
-                      ' [Uint8Contents]: <01 02 03 04>, byteLength: 4 }\n}');
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer {' +
+                      ' [Uint8Contents]: <01 02 03 04>, [byteLength]: 4 }\n}');
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, [byteLength]: 4 }'
   );
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { [Uint8Contents]: ' +
-                       '<01 02 03 04>, byteLength: 4 }\n}');
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer { [Uint8Contents]: ' +
+                       '<01 02 03 04>, [byteLength]: 4 }\n}');
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
                      'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, ' +
-                       'byteLength: 4, x: 42 }');
-  assert.strictEqual(util.inspect(dv, showHidden),
+                       '[byteLength]: 4, x: 42 }');
+  assert.strictEqual(util.inspect(dv, { showHidden, breakLength: 82 }),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { [Uint8Contents]: <01 02 03 04>,' +
-                       ' byteLength: 4, x: 42 },\n' +
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer { [Uint8Contents]: <01 02 03 04>,' +
+                       ' [byteLength]: 4, x: 42 },\n' +
                      '  y: 1337\n}');
 }
 
 {
   const ab = new ArrayBuffer(42);
+  const dv = new DataView(ab);
+
   assert.strictEqual(ab.byteLength, 42);
   new MessageChannel().port1.postMessage(ab, [ ab ]);
   assert.strictEqual(ab.byteLength, 0);
   assert.strictEqual(util.inspect(ab),
-                     'ArrayBuffer { (detached), byteLength: 0 }');
+                     'ArrayBuffer { (detached), [byteLength]: 0 }');
+
+  assert.strictEqual(
+    util.inspect(dv),
+    'DataView {\n' +
+    '      [byteLength]: 0,\n' +
+    '      [byteOffset]: undefined,\n' +
+    '      [buffer]: ArrayBuffer { (detached), [byteLength]: 0 }\n' +
+    '    }',
+  );
 }
 
 // Truncate output for ArrayBuffers using plural or singular bytes
 {
   const ab = new ArrayBuffer(3);
-  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 2 }),
+  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 2, breakLength: 82 }),
                      'ArrayBuffer { [Uint8Contents]' +
-                      ': <00 00 ... 1 more byte>, byteLength: 3 }');
-  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 1 }),
+                      ': <00 00 ... 1 more byte>, [byteLength]: 3 }');
+  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 1, breakLength: 82 }),
                      'ArrayBuffer { [Uint8Contents]' +
-                      ': <00 ... 2 more bytes>, byteLength: 3 }');
+                      ': <00 ... 2 more bytes>, [byteLength]: 3 }');
 }
 
 // Now do the same checks but from a different context.
@@ -231,35 +242,35 @@ assert.doesNotMatch(
   const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab });
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, [byteLength]: 4 }'
   );
   assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
-                       ' byteLength: 4 }\n}');
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
+                       ' [byteLength]: 4 }\n}');
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, [byteLength]: 4 }'
   );
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
-                       ' byteLength: 4 }\n}');
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
+                       ' [byteLength]: 4 }\n}');
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
                      'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, ' +
-                       'byteLength: 4, x: 42 }');
-  assert.strictEqual(util.inspect(dv, showHidden),
+                       '[byteLength]: 4, x: 42 }');
+  assert.strictEqual(util.inspect(dv, { showHidden, breakLength: 82 }),
                      'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
-                       ' byteLength: 4, x: 42 },\n' +
+                     '  [byteLength]: 2,\n' +
+                     '  [byteOffset]: 1,\n' +
+                     '  [buffer]: ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
+                       ' [byteLength]: 4, x: 42 },\n' +
                      '  y: 1337\n}');
 }
 
@@ -286,7 +297,7 @@ assert.doesNotMatch(
       `  [length]: ${length},\n` +
       `  [byteLength]: ${byteLength},\n` +
       '  [byteOffset]: 0,\n' +
-      `  [buffer]: ArrayBuffer { byteLength: ${byteLength} }\n]`);
+      `  [buffer]: ArrayBuffer { [byteLength]: ${byteLength} }\n]`);
   assert.strictEqual(
     util.inspect(array, false),
     `${constructor.name}(${length}) [ 65, 97 ]`
@@ -320,7 +331,7 @@ assert.doesNotMatch(
       `  [length]: ${length},\n` +
       `  [byteLength]: ${byteLength},\n` +
       '  [byteOffset]: 0,\n' +
-      `  [buffer]: ArrayBuffer { byteLength: ${byteLength} }\n]`);
+      `  [buffer]: ArrayBuffer { [byteLength]: ${byteLength} }\n]`);
   assert.strictEqual(
     util.inspect(array, false),
     `${constructor.name}(${length}) [ 65, 97 ]`
@@ -678,8 +689,57 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 }
 
 {
-  const tmp = Error.stackTraceLimit;
+  // No own errors or cause property.
+  const { stackTraceLimit } = Error;
   Error.stackTraceLimit = 0;
+
+  const e1 = new Error('e1');
+  const e2 = new TypeError('e2');
+  const e3 = false;
+
+  const errors = [e1, e2, e3];
+  const aggregateError = new AggregateError(errors, 'Foobar');
+
+  assert.deepStrictEqual(aggregateError.errors, errors);
+  assert.strictEqual(
+    util.inspect(aggregateError),
+    '[AggregateError: Foobar] {\n  [errors]: [ [Error: e1], [TypeError: e2], false ]\n}'
+  );
+
+
+  const custom = new Error('No own errors property');
+  Object.setPrototypeOf(custom, aggregateError);
+
+  assert.strictEqual(
+    util.inspect(custom),
+    '[AggregateError: No own errors property]'
+  );
+
+  const cause = [new Error('cause')];
+  const causeError = new TypeError('Foobar', { cause: [new Error('cause')] });
+
+  assert.strictEqual(
+    util.inspect(causeError),
+    '[TypeError: Foobar] { [cause]: [ [Error: cause] ] }'
+  );
+
+  const custom2 = new Error('No own cause property');
+  Object.setPrototypeOf(custom2, causeError);
+
+  assert.deepStrictEqual(custom2.cause, cause);
+  assert.strictEqual(
+    util.inspect(custom2),
+    '[TypeError: No own cause property]'
+  );
+
+  Error.stackTraceLimit = stackTraceLimit;
+}
+
+{
+  const tmp = Error.stackTraceLimit;
+  // Force stackTraceLimit = 0 for this test, but make it non-enumerable
+  // so it doesn't appear in inspect() output when inspecting Error in other tests.
+  Object.defineProperty(Error, 'stackTraceLimit', { value: 0, enumerable: false });
   const err = new Error('foo');
   const err2 = new Error('foo\nbar');
   assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
@@ -770,23 +830,25 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 // Note: Symbols are not supported by `Error#toString()` which is called by
 // accessing the `stack` property.
 [
-  [404, '404: foo', '[404]'],
-  [0, '0: foo', '[RangeError: foo]'],
-  [0n, '0: foo', '[RangeError: foo]'],
+  [404, '404 [RangeError]: foo', '[RangeError: foo\n    404]'],
+  [0, '0 [RangeError]: foo', '[RangeError: foo]'],
+  [0n, '0 [RangeError]: foo', '[RangeError: foo]'],
   [null, 'null: foo', '[RangeError: foo]'],
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
-  [false, 'false: foo', '[RangeError: foo]'],
+  [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3: foo', '[1,2,3]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[RangeError: foo\n    [\n      1,\n      2,\n      3\n    ]]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
+  const result = util.inspect(err);
   assert(
-    util.inspect(err).startsWith(outputStart),
+    result.startsWith(outputStart),
     util.format(
-      'The name set to %o did not result in the expected output "%s"',
+      'The name set to %o did not result in the expected output "%s", got "%s"',
       value,
-      outputStart
+      outputStart,
+      result.split('\n')[0]
     )
   );
 
@@ -823,7 +885,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
 {
   const x = { [util.inspect.custom]: util.inspect };
   assert(util.inspect(x).includes(
-    '[Symbol(nodejs.util.inspect.custom)]: [Function: inspect] {\n'));
+    'Symbol(nodejs.util.inspect.custom): [Function: inspect] {\n'));
 }
 
 // `util.inspect` should display the escaped value of a key.
@@ -920,7 +982,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
   testColorStyle('null', null);
   testColorStyle('string', 'test string');
   testColorStyle('date', new Date());
-  testColorStyle('regexp', /regexp/);
+  // RegExp now uses token-level highlighting; verified in a dedicated test file.
 }
 
 // An object with "hasOwnProperty" overwritten should not throw.
@@ -1022,11 +1084,11 @@ util.inspect({ hasOwnProperty: null });
 
   assert.strictEqual(util.inspect(subject), '{ baz: \'quux\' }');
 
-  subject[inspect] = (depth, opts) => {
+  subject[inspect] = common.mustCall((depth, opts) => {
     assert.strictEqual(opts.customInspectOptions, true);
     assert.strictEqual(opts.seen, null);
     return {};
-  };
+  });
 
   util.inspect(subject, { customInspectOptions: true, seen: null });
 }
@@ -1045,7 +1107,7 @@ util.inspect({ hasOwnProperty: null });
   const UIC = 'nodejs.util.inspect.custom';
   assert.strictEqual(
     util.inspect(subject),
-    `{\n  a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]]\n}`
+    `{\n  a: 123,\n  Symbol(${UIC}): [Function: [${UIC}]]\n}`
   );
 }
 
@@ -1145,27 +1207,29 @@ if (typeof Symbol !== 'undefined') {
 
   subject[Symbol('sym\nbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    '{ [Symbol(sym\\nbol)]: 42 }'
+    '{ Symbol(sym\\nbol): 42 }'
   );
 
   Object.defineProperty(
     subject,
     Symbol(),
     { enumerable: false, value: 'non-enum' });
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    "{ [Symbol(sym\\nbol)]: 42, [Symbol()]: 'non-enum' }"
+    "{ Symbol(sym\\nbol): 42, [Symbol()]: 'non-enum' }"
   );
 
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject),
-                     '[ 1, 2, 3, [Symbol(symbol)]: 42 ]');
+  assert.strictEqual(
+    util.inspect(subject),
+    '[ 1, 2, 3, Symbol(symbol): 42 ]'
+  );
 }
 
 // Test Set.
@@ -1263,9 +1327,9 @@ if (typeof Symbol !== 'undefined') {
 // a bonafide native Promise.
 {
   const oldPromise = Promise;
-  global.Promise = function() { this.bar = 42; };
+  globalThis.Promise = function() { this.bar = 42; };
   assert.strictEqual(util.inspect(new Promise()), '{ bar: 42 }');
-  global.Promise = oldPromise;
+  globalThis.Promise = oldPromise;
 }
 
 // Test Map iterators.
@@ -1411,11 +1475,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) [Set] { 1, 2, 3 }');
+                     'SetSubclass(3) { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass(1) [Map] { 'foo' => 42 }");
+                     "MapSubclass(1) { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass [Promise] { <pending> }');
+                     'PromiseSubclass { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1426,6 +1490,29 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
+
+  class MiddleErrorPart extends Error {}
+  assert(util.inspect(new MiddleErrorPart('foo')).includes('MiddleErrorPart: foo'));
+
+  class MapClass extends Map {}
+  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
+                     "MapClass(1) { 'key' => 'value' }");
+
+  class AbcMap extends Map {}
+  assert.strictEqual(util.inspect(new AbcMap([['key', 'value']])),
+                     "AbcMap(1) { 'key' => 'value' }");
+
+  class SetAbc extends Set {}
+  assert.strictEqual(util.inspect(new SetAbc([1, 2, 3])),
+                     'SetAbc(3) { 1, 2, 3 }');
+
+  class FooSet extends Set {}
+  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
+                     'FooSet(3) { 1, 2, 3 }');
+
+  class Settings extends Set {}
+  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
+                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
@@ -1462,7 +1549,7 @@ if (typeof Symbol !== 'undefined') {
 }
 
 {
-  const x = new function() {}; // eslint-disable-line new-parens
+  const x = new function() {}; // eslint-disable-line @stylistic/js/new-parens
   assert.strictEqual(util.inspect(x), '{}');
 }
 
@@ -1589,7 +1676,7 @@ util.inspect(process);
   const obj = { [util.inspect.custom]: 'fhqwhgads' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(nodejs.util.inspect.custom)]: 'fhqwhgads' }"
+    "{ Symbol(nodejs.util.inspect.custom): 'fhqwhgads' }"
   );
 }
 
@@ -1598,7 +1685,7 @@ util.inspect(process);
   const obj = { [Symbol.toStringTag]: 'a' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+    "{ Symbol(Symbol.toStringTag): 'a' }"
   );
   Object.defineProperty(obj, Symbol.toStringTag, {
     value: 'a',
@@ -1642,7 +1729,20 @@ util.inspect(process);
     }
   }
 
-  assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+  assert.strictEqual(util.inspect(new ThrowingClass()), 'ThrowingClass {}');
+
+  const y = {
+    get [Symbol.toStringTag]() {
+      return JSON.stringify(this);
+    }
+  };
+  const x = { y };
+  y.x = x;
+
+  assert.strictEqual(
+    util.inspect(x),
+    '<ref *1> {\n  y: { x: [Circular *1], Symbol(Symbol.toStringTag): [Getter] }\n}'
+  );
 
   class NotStringClass {
     get [Symbol.toStringTag]() {
@@ -1797,7 +1897,7 @@ util.inspect(process);
     '    [byteLength]: 0,',
     '    [byteOffset]: 0,',
     '    [buffer]: ArrayBuffer {',
-    '      byteLength: 0,',
+    '      [byteLength]: 0,',
     '      foo: true',
     '    }',
     '  ],',
@@ -1815,7 +1915,7 @@ util.inspect(process);
     '      [byteLength]: 0,',
     '      [byteOffset]: 0,',
     '      [buffer]: ArrayBuffer {',
-    '        byteLength: 0,',
+    '        [byteLength]: 0,',
     '        foo: true',
     '      }',
     '    ],',
@@ -1845,7 +1945,7 @@ util.inspect(process);
     '    [length]: 0,',
     '    [byteLength]: 0,',
     '    [byteOffset]: 0,',
-    '    [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
+    '    [buffer]: ArrayBuffer { [byteLength]: 0, foo: true }',
     '  ],',
     '  [Set Iterator] {',
     '    [ 1, 2, [length]: 2 ],',
@@ -1856,7 +1956,7 @@ util.inspect(process);
     '      [length]: 0,',
     '      [byteLength]: 0,',
     '      [byteOffset]: 0,',
-    '      [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
+    '      [buffer]: ArrayBuffer { [byteLength]: 0, foo: true }',
     '    ],',
     '    [Circular *1],',
     "    [Symbol(Symbol.toStringTag)]: 'Map Iterator'",
@@ -1884,7 +1984,7 @@ util.inspect(process);
     '    [byteLength]: 0,',
     '    [byteOffset]: 0,',
     '    [buffer]: ArrayBuffer {',
-    '      byteLength: 0,',
+    '      [byteLength]: 0,',
     '      foo: true } ],',
     '  [Set Iterator] {',
     '    [ 1,',
@@ -1898,7 +1998,7 @@ util.inspect(process);
     '      [byteLength]: 0,',
     '      [byteOffset]: 0,',
     '      [buffer]: ArrayBuffer {',
-    '        byteLength: 0,',
+    '        [byteLength]: 0,',
     '        foo: true } ],',
     '    [Circular *1],',
     '    [Symbol(Symbol.toStringTag)]:',
@@ -2056,7 +2156,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // Verify that classes are properly inspected.
 [
-  /* eslint-disable spaced-comment, no-multi-spaces, brace-style */
+  /* eslint-disable @stylistic/js/spaced-comment, @stylistic/js/no-multi-spaces, @stylistic/js/brace-style */
   // The whitespace is intentional.
   [class   { }, '[class (anonymous)]'],
   [class extends Error { log() {} }, '[class (anonymous) extends Error]'],
@@ -2064,14 +2164,14 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
    '[class A]'],
   [class
   // Random { // comments /* */ are part of the toString() result
-  /* eslint-disable-next-line space-before-blocks */
+  /* eslint-disable-next-line @stylistic/js/space-before-blocks */
   äß/**/extends/*{*/TypeError{}, '[class äß extends TypeError]'],
   /* The whitespace and new line is intended! */
   // Foobar !!!
   [class X   extends /****/ Error
   // More comments
   {}, '[class X extends Error]'],
-  /* eslint-enable spaced-comment, no-multi-spaces, brace-style */
+  /* eslint-enable @stylistic/js/spaced-comment, @stylistic/js/no-multi-spaces, @stylistic/js/brace-style */
 ].forEach(([clazz, string]) => {
   const inspected = util.inspect(clazz);
   assert.strictEqual(inspected, string);
@@ -2111,7 +2211,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // "class" properties should not be detected as "class".
 {
-  // eslint-disable-next-line space-before-function-paren
+  // eslint-disable-next-line @stylistic/js/space-before-function-paren
   let obj = { class () {} };
   assert.strictEqual(
     util.inspect(obj),
@@ -2204,12 +2304,12 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new BigUint64Array(2), '[BigUint64Array(2): null prototype] [ 0n, 0n ]'],
   [new ArrayBuffer(16), '[ArrayBuffer: null prototype] {\n' +
      '  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>,\n' +
-     '  byteLength: undefined\n}'],
+     '  [byteLength]: undefined\n}'],
   [new DataView(new ArrayBuffer(16)),
-   '[DataView: null prototype] {\n  byteLength: undefined,\n  ' +
-     'byteOffset: undefined,\n  buffer: undefined\n}'],
+   '[DataView: null prototype] {\n  [byteLength]: undefined,\n  ' +
+     '[byteOffset]: undefined,\n  [buffer]: undefined\n}'],
   [new SharedArrayBuffer(2), '[SharedArrayBuffer: null prototype] ' +
-     '{\n  [Uint8Contents]: <00 00>,\n  byteLength: undefined\n}'],
+     '{\n  [Uint8Contents]: <00 00>,\n  [byteLength]: undefined\n}'],
   [/foobar/, '[RegExp: null prototype] /foobar/'],
   [new Date('Sun, 14 Feb 2010 11:48:40 GMT'),
    '[Date: null prototype] 2010-02-14T11:48:40.000Z'],
@@ -2259,7 +2359,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value[Symbol('foo')] = 'yeah';
   res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert.match(res, /\[Symbol\(foo\)]: 'yeah'/);
+  assert.match(res, /Symbol\(foo\): 'yeah'/);
 });
 
 assert.strictEqual(inspect(1n), '1n');
@@ -2275,7 +2375,7 @@ assert.strictEqual(
   Object.defineProperty(obj, 'Non\nenumerable\tkey', { value: true });
   assert.strictEqual(
     util.inspect(obj, { showHidden: true }),
-    '{ [Non\\nenumerable\\tkey]: true }'
+    '{ [\'Non\\nenumerable\\tkey\']: true }'
   );
 }
 
@@ -2340,6 +2440,20 @@ assert.strictEqual(
   inspect.styles.string = stringStyle;
 }
 
+// Special (extra) properties follow normal coloring:
+// only the name is colored, ":" and space are unstyled.
+{
+  const [open, close] = inspect.colors[inspect.styles.string];
+  const keyPattern = (k) => new RegExp(
+    `\\u001b\\[${open}m\\[${k}\\]\\u001b\\[${close}m: `
+  );
+  const colored = util.inspect(new Uint8Array(0), { showHidden: true, colors: true });
+  assert.match(colored, keyPattern('BYTES_PER_ELEMENT'));
+  assert.match(colored, keyPattern('length'));
+  assert.match(colored, keyPattern('byteLength'));
+  assert.match(colored, keyPattern('byteOffset'));
+}
+
 assert.strictEqual(
   inspect([1, 3, 2], { sorted: true }),
   inspect([1, 3, 2])
@@ -2366,7 +2480,7 @@ assert.strictEqual(
   arr[Symbol('a')] = false;
   assert.strictEqual(
     inspect(arr, { sorted: true }),
-    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+    '[ 3, 2, 1, Symbol(a): false, Symbol(b): true, a: 1, b: 2, c: 3 ]'
   );
 }
 
@@ -2462,14 +2576,10 @@ assert.strictEqual(
     set foo(val) { foo = val; },
     get inc() { return ++foo; }
   };
-  const thrower = { get foo() { throw new Error('Oops'); } };
   assert.strictEqual(
     inspect(get, { getters: true, colors: true }),
     '{ foo: \u001b[36m[Getter:\u001b[39m ' +
       '\u001b[33m1\u001b[39m\u001b[36m]\u001b[39m }');
-  assert.strictEqual(
-    inspect(thrower, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (Oops)>] }');
   assert.strictEqual(
     inspect(getset, { getters: true }),
     '{ foo: [Getter/Setter: 1], inc: [Getter: 2] }');
@@ -2485,6 +2595,239 @@ assert.strictEqual(
     '{\n  foo: [Getter/Setter] Set(3) { [ [Object], 2, {} ], ' +
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
+
+// Property getter throwing an error.
+{
+  const error = new Error('Oops');
+  error.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (Error: Oops\n' +
+    '      at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '      at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '}',
+  );
+};
+
+// Property getter throwing an error with getters that throws.
+// https://github.com/nodejs/node/issues/60683
+{
+  const badError = new Error();
+
+  const innerError = new Error('Oops');
+  innerError.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw innerError;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(badError, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw badError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    name: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    message: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    cause: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
+// Property getter throwing an error with getters that throws recursivly.
+{
+  const recursivelyThrowingErrorDesc = {
+    __proto__: null,
+    // eslint-disable-next-line no-restricted-syntax
+    get() { throw createRecursivelyThrowingError(); },
+    configurable: true,
+    enumerable: true,
+  };
+  const createRecursivelyThrowingError = () =>
+    Object.defineProperties(new Error(), {
+      cause: recursivelyThrowingErrorDesc,
+      name: recursivelyThrowingErrorDesc,
+      message: recursivelyThrowingErrorDesc,
+      stack: recursivelyThrowingErrorDesc,
+    });
+  const thrower = Object.defineProperty({}, 'foo', recursivelyThrowingErrorDesc);
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: 1 }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Error])>],\n' +
+    '    name: [Getter: <Inspection threw ([Error])>],\n' +
+    '    message: [Getter: <Inspection threw ([Error])>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+
+  [{ getters: true, depth: 2 }, { getters: true }].forEach((options) => {
+    assert.strictEqual(
+      inspect(thrower, options),
+      '{\n' +
+      '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+      '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    cause: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    name: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    message: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>]\n' +
+      '  })>]\n' +
+      '}'
+    );
+  });
+}
+
+// Property getter throwing an error whose own getters throw that same error (infinite recursion).
+{
+  const badError = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw badError;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(badError, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw badError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: Infinity }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (<ref *1> [object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Circular *1])>],\n' +
+    '    name: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    message: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Circular *1])>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
+// Property getter throwing uncommon values.
+[
+  {
+    val: undefined,
+    expected: '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  },
+  {
+    val: null,
+    expected: '{ foo: [Getter: <Inspection threw (null)>] }'
+  },
+  {
+    val: true,
+    expected: '{ foo: [Getter: <Inspection threw (true)>] }'
+  },
+  {
+    val: 1,
+    expected: '{ foo: [Getter: <Inspection threw (1)>] }'
+  },
+  {
+    val: 1n,
+    expected: '{ foo: [Getter: <Inspection threw (1n)>] }'
+  },
+  {
+    val: Symbol(),
+    expected: '{ foo: [Getter: <Inspection threw (Symbol())>] }'
+  },
+  {
+    val: () => {},
+    expected: '{ foo: [Getter: <Inspection threw ([Function: val])>] }'
+  },
+  {
+    val: 'string',
+    expected: "{ foo: [Getter: <Inspection threw ('string')>] }"
+  },
+  {
+    val: [],
+    expected: '{ foo: [Getter: <Inspection threw ([])>] }'
+  },
+  {
+    val: { get message() { return 'Oops'; } },
+    expected: "{ foo: [Getter: <Inspection threw ({ message: [Getter: 'Oops'] })>] }"
+  },
+  {
+    val: Error,
+    expected: '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
+  },
+].forEach(({ val, expected }) => {
+  assert.strictEqual(
+    inspect({
+      get foo() { throw val; }
+    }, { getters: true }),
+    expected,
+  );
+});
 
 // Check compact number mode.
 {
@@ -2824,7 +3167,7 @@ assert.strictEqual(
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
     'Error: CWD is grayed out, even cwd that are percent encoded!',
-    '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/test/node_modules/foo/node_modules/@namespace/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
     // This file is not an actual Node.js core file.
@@ -2847,11 +3190,10 @@ assert.strictEqual(
       frame.replaceAll('/', '\\'))
     ).join('\n');
   }
-  const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
-  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
+  util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
+    let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
-    }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
+    }).replaceAll(new RegExp(`(\\(?${RegExp.escape(process.cwd())}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
     });
     if (expected.includes(process.cwd()) && expected.endsWith(')')) {
@@ -2865,7 +3207,7 @@ assert.strictEqual(
       expected = expected.replaceAll('/', '\\');
     }
     assert.strictEqual(line, expected);
-  });
+  }));
 
   // Check ESM
   const encodedCwd = url.pathToFileURL(process.cwd());
@@ -2908,11 +3250,180 @@ assert.strictEqual(
 }
 
 {
+  // Use a fake stack to verify the expected colored outcome.
+  const err = new Error('Hide duplicate frames in long stack');
+  err.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 5 duplicate lines matching above 1 lines 5 times...\x1B[39m\n' +
+
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above 5 lines 2 times...\x1B[39m\n' +
+
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
+
+  // Use a fake stack to verify the expected colored outcome.
+  const err2 = new Error('Hide duplicate frames in long stack');
+  err2.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+
+    // 3
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 6 * 1
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 10
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    // 2 * 2
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err2, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 6 duplicate lines matching above 1 lines 6 times...\x1B[39m\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above lines ...\x1B[39m\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
+}
+
+{
   // Cross platform checks.
   const err = new Error('foo');
-  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
+  util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
     assert(i < 2 || line.startsWith('\u001b[90m'));
-  });
+  }));
 }
 
 {
@@ -2998,25 +3509,26 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.strictEqual(
+  assert.match(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    '<ref *1> Foo [Map] {\n' +
-    '    [constructor]: [class Bar extends Foo] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: 'Bar',\n" +
-    '      [prototype]: [Circular *1],\n' +
-    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
-    '    },\n' +
-    "    [xyz]: [Getter: 'YES!'],\n" +
-    '    [Symbol(nodejs.util.inspect.custom)]: ' +
-      '[Function: [nodejs.util.inspect.custom]] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: '[nodejs.util.inspect.custom]'\n" +
-    '    },\n' +
-    '    [abc]: [Getter: true],\n' +
-    '    [def]: [Getter/Setter: false]\n' +
-    '  }'
+    new RegExp('^' + RegExp.escape(
+      '<ref *1> Foo [Map] {\n' +
+      '  [constructor]: [class Bar extends Foo] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: 'Bar',\n" +
+      '    [prototype]: [Circular *1],\n' +
+      '    [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '  },\n' +
+      "  [xyz]: [Getter: 'YES!'],\n" +
+      '  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: '[nodejs.util.inspect.custom]'\n" +
+      '  },\n' +
+      '  [abc]: [Getter: true],\n' +
+      '  [def]: [Getter/Setter: false]\n' +
+      '}'
+    ) + '$', 's')
   );
 
   assert.strictEqual(
@@ -3170,7 +3682,7 @@ assert.strictEqual(
   }
 
   // Consistency check.
-  assert(fullObjectGraph(global).has(Function.prototype));
+  assert(fullObjectGraph(globalThis).has(Function.prototype));
 }
 
 {
@@ -3215,7 +3727,7 @@ assert.strictEqual(
     '[GeneratorFunction: generator] {\n' +
     '  [length]: 0,\n' +
     "  [name]: 'generator',\n" +
-    "  [prototype]: Object [Generator] { [Symbol(Symbol.toStringTag)]: 'Generator' },\n" + // eslint-disable-line max-len
+    "  [prototype]: Object [Generator] { [Symbol(Symbol.toStringTag)]: 'Generator' },\n" + // eslint-disable-line @stylistic/js/max-len
     "  [Symbol(Symbol.toStringTag)]: 'GeneratorFunction'\n" +
     '}'
   );
@@ -3248,6 +3760,13 @@ assert.strictEqual(
   assert.strictEqual(
     util.inspect({ ['__proto__']: { a: 1 } }),
     "{ ['__proto__']: { a: 1 } }"
+  );
+
+  const o = { ['__proto__']: { a: 1 } };
+  Object.defineProperty(o, '__proto__', { enumerable: false });
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    "{ [['__proto__']]: { a: 1 } }"
   );
 }
 
@@ -3304,6 +3823,27 @@ assert.strictEqual(
     util.inspect(-123456789.12345678, { numericSeparator: true }),
     '-123_456_789.123_456_78'
   );
+
+  // Regression test for https://github.com/nodejs/node/issues/59376
+  // numericSeparator should work correctly for negative fractional numbers
+  {
+    // Test the exact values from the GitHub issue
+    const values = [0.1234, -0.12, -0.123, -0.1234, -1.234];
+    assert.strictEqual(
+      util.inspect(values, { numericSeparator: true }),
+      '[ 0.123_4, -0.12, -0.123, -0.123_4, -1.234 ]'
+    );
+
+    // Test individual negative fractional numbers between -1 and 0
+    assert.strictEqual(
+      util.inspect(-0.1234, { numericSeparator: true }),
+      '-0.123_4'
+    );
+    assert.strictEqual(
+      util.inspect(-0.12345, { numericSeparator: true }),
+      '-0.123_45'
+    );
+  }
 }
 
 // Regression test for https://github.com/nodejs/node/issues/41244
@@ -3312,5 +3852,184 @@ assert.strictEqual(
     get [Symbol.iterator]() {
       throw new Error();
     }
-  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+  }), '{ Symbol(Symbol.iterator): [Getter] }');
+}
+
+{
+  const sym = Symbol('bar()');
+  const o = {
+    'foo': 0,
+    'Symbol(foo)': 0,
+    [Symbol('foo')]: 0,
+    [Symbol('foo()')]: 0,
+    [sym]: 0,
+  };
+  Object.defineProperty(o, sym, { enumerable: false });
+
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    '{\n' +
+    '  foo: 0,\n' +
+    "  'Symbol(foo)': 0,\n" +
+    '  Symbol(foo): 0,\n' +
+    '  Symbol(foo()): 0,\n' +
+    '  [Symbol(bar())]: 0\n' +
+    '}',
+  );
+}
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+{
+  const prototypes = [
+    Array.prototype,
+    ArrayBuffer.prototype,
+    Buffer.prototype,
+    Function.prototype,
+    Map.prototype,
+    Object.prototype,
+    Reflect.getPrototypeOf(Uint8Array.prototype),
+    Set.prototype,
+    Uint8Array.prototype,
+  ];
+  const descriptors = new Map();
+  const buffer = Buffer.from('Hello');
+  const o = {
+    arrayBuffer: new ArrayBuffer(), buffer, typedArray: Uint8Array.from(buffer),
+    array: [], func() {}, set: new Set([1]), map: new Map(),
+  };
+  for (const BuiltinPrototype of prototypes) {
+    descriptors.set(BuiltinPrototype, Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor'));
+    Object.defineProperty(BuiltinPrototype, 'constructor', {
+      get: () => BuiltinPrototype,
+      configurable: true,
+    });
+  }
+  assert.strictEqual(
+    util.inspect(o),
+    '{\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, [byteLength]: 0 },\n' +
+    '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
+    '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
+    '  array: [],\n' +
+    '  func: [Function: func],\n' +
+    '  set: Set(1) { 1 },\n' +
+    '  map: Map(0) {}\n' +
+    '}',
+  );
+  for (const [BuiltinPrototype, desc] of descriptors) {
+    Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+  }
+}
+
+{
+  function f() {}
+  Object.defineProperty(f, 'name', { value: Symbol('f') });
+
+  assert.strictEqual(
+    util.inspect(f),
+    '[Function: Symbol(f)]',
+  );
+}
+
+{
+  const error = new EvalError();
+  const re = /a/g;
+  error.name = re;
+  assert.strictEqual(error.name, re);
+  assert.strictEqual(
+    util.inspect(error),
+    `${re} [EvalError]
+${error.stack.split('\n').slice(1).join('\n')}`,
+  );
+}
+
+{
+  const error = new Error();
+  error.stack = [Symbol('foo')];
+
+  assert.strictEqual(
+    inspect(error),
+    '[Error\n    [\n      Symbol(foo)\n    ]]'
+  );
+}
+
+{
+  const prepareStackTrace = Error.prepareStackTrace;
+
+  Error.prepareStackTrace = (error) => error;
+
+  const error = new Error('foo');
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+
+  Error.prepareStackTrace = prepareStackTrace;
+}
+
+{
+  const error = new Error('foo');
+  error.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+}
+
+{
+  const error = new Error('foo');
+  const error2 = new Error('bar');
+  error.stack = error2;
+  error2.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Error: bar\n        [Circular *1]]]');
+}
+
+{
+  Object.defineProperty(Error, Symbol.hasInstance,
+                        { __proto__: null, value: common.mustNotCall(), configurable: true });
+  const error = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw error;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(error, {
+    name: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  assert.strictEqual(inspect(error), `[object Error] {\n  stack: [Getter/Setter],\n  name: [Getter],\n  cause: [Getter]\n}`);
+  assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
+  delete Error[Symbol.hasInstance];
 }

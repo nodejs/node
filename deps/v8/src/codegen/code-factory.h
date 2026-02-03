@@ -8,7 +8,6 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
-#include "src/objects/type-hints.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -26,8 +25,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // stack and the arguments count is passed via register) which currently
   // can't be expressed in CallInterfaceDescriptor. Therefore only the code
   // is exported here.
-  static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1,
-                                    bool switch_to_central_stack = false);
+  static DirectHandle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1,
+                                          bool switch_to_central_stack = false);
 
   static Handle<Code> CEntry(Isolate* isolate, int result_size = 1,
                              ArgvMode argv_mode = ArgvMode::kStack,
@@ -41,15 +40,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable DefineNamedOwnIC(Isolate* isolate);
   static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
 
-  static Callable ResumeGenerator(Isolate* isolate);
-
-  static Callable ApiGetter(Isolate* isolate);
   static Callable CallApiCallback(Isolate* isolate);
-
-  static Callable NonPrimitiveToPrimitive(
-      Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  static Callable OrdinaryToPrimitive(Isolate* isolate,
-                                      OrdinaryToPrimitiveHint hint);
 
   static Callable StringAdd(Isolate* isolate,
                             StringAddFlags flags = STRING_ADD_CHECK_NONE);
@@ -59,29 +50,19 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  // TODO(ishell): not used, remove.
   static Callable Call_WithFeedback(Isolate* isolate, ConvertReceiverMode mode);
   static Callable CallWithArrayLike(Isolate* isolate);
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
-  static Callable CallVarargs(Isolate* isolate);
+
   static Callable CallForwardVarargs(Isolate* isolate);
   static Callable CallFunctionForwardVarargs(Isolate* isolate);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructWithSpread(Isolate* isolate);
-  static Callable ConstructFunction(Isolate* isolate);
-  static Callable ConstructVarargs(Isolate* isolate);
   static Callable ConstructForwardVarargs(Isolate* isolate);
   static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
-
-  static Callable InterpreterPushArgsThenCall(Isolate* isolate,
-                                              ConvertReceiverMode receiver_mode,
-                                              InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsThenConstruct(
-      Isolate* isolate, InterpreterPushArgsMode mode);
-  static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
-  static Callable InterpreterOnStackReplacement(Isolate* isolate);
-  static Callable InterpreterOnStackReplacement_ToBaseline(Isolate* isolate);
 
   static Callable ArrayNoArgumentConstructor(
       Isolate* isolate, ElementsKind kind,

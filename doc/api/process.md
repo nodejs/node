@@ -176,95 +176,6 @@ process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced serialization for `child_process`][] for more details.
 
-### Event: `'multipleResolves'`
-
-<!-- YAML
-added: v10.12.0
-deprecated:
-  - v17.6.0
-  - v16.15.0
--->
-
-> Stability: 0 - Deprecated
-
-* `type` {string} The resolution type. One of `'resolve'` or `'reject'`.
-* `promise` {Promise} The promise that resolved or rejected more than once.
-* `value` {any} The value with which the promise was either resolved or
-  rejected after the original resolve.
-
-The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
-
-* Resolved more than once.
-* Rejected more than once.
-* Rejected after resolve.
-* Resolved after reject.
-
-This is useful for tracking potential errors in an application while using the
-`Promise` constructor, as multiple resolutions are silently swallowed. However,
-the occurrence of this event does not necessarily indicate an error. For
-example, [`Promise.race()`][] can trigger a `'multipleResolves'` event.
-
-Because of the unreliability of the event in cases like the
-[`Promise.race()`][] example above it has been deprecated.
-
-```mjs
-import process from 'node:process';
-
-process.on('multipleResolves', (type, promise, reason) => {
-  console.error(type, promise, reason);
-  setImmediate(() => process.exit(1));
-});
-
-async function main() {
-  try {
-    return await new Promise((resolve, reject) => {
-      resolve('First call');
-      resolve('Swallowed resolve');
-      reject(new Error('Swallowed reject'));
-    });
-  } catch {
-    throw new Error('Failed');
-  }
-}
-
-main().then(console.log);
-// resolve: Promise { 'First call' } 'Swallowed resolve'
-// reject: Promise { 'First call' } Error: Swallowed reject
-//     at Promise (*)
-//     at new Promise (<anonymous>)
-//     at main (*)
-// First call
-```
-
-```cjs
-const process = require('node:process');
-
-process.on('multipleResolves', (type, promise, reason) => {
-  console.error(type, promise, reason);
-  setImmediate(() => process.exit(1));
-});
-
-async function main() {
-  try {
-    return await new Promise((resolve, reject) => {
-      resolve('First call');
-      resolve('Swallowed resolve');
-      reject(new Error('Swallowed reject'));
-    });
-  } catch {
-    throw new Error('Failed');
-  }
-}
-
-main().then(console.log);
-// resolve: Promise { 'First call' } 'Swallowed resolve'
-// reject: Promise { 'First call' } Error: Swallowed reject
-//     at Promise (*)
-//     at new Promise (<anonymous>)
-//     at main (*)
-// First call
-```
-
 ### Event: `'rejectionHandled'`
 
 <!-- YAML
@@ -326,6 +237,20 @@ reflecting rejections that start unhandled and then become handled. It is
 possible to record such errors in an error log, either periodically (which is
 likely best for long-running application) or upon process exit (which is likely
 most convenient for scripts).
+
+### Event: `'workerMessage'`
+
+<!-- YAML
+added:
+- v22.5.0
+- v20.19.0
+-->
+
+* `value` {any} A value transmitted using [`postMessageToThread()`][].
+* `source` {number} The transmitting worker thread ID or `0` for the main thread.
+
+The `'workerMessage'` event is emitted for any incoming message send by the other
+party by using [`postMessageToThread()`][].
 
 ### Event: `'uncaughtException'`
 
@@ -566,6 +491,10 @@ address such failures, a non-operational
 `resource.loaded`, which would prevent the `'unhandledRejection'` event from
 being emitted.
 
+If an `'unhandledRejection'` event is emitted but not handled it will
+be raised as an uncaught exception. This alongside other behaviors of
+`'unhandledRejection'` events can changed via the [`--unhandled-rejections`][] flag.
+
 ### Event: `'warning'`
 
 <!-- YAML
@@ -676,6 +605,10 @@ A few of the warning types that are most common include:
 * `'TimeoutOverflowWarning'` - Indicates that a numeric value that cannot fit
   within a 32-bit signed integer has been provided to either the `setTimeout()`
   or `setInterval()` functions.
+* `'TimeoutNegativeWarning'` - Indicates that a negative number has provided to
+  either the `setTimeout()` or `setInterval()` functions.
+* `'TimeoutNaNWarning'` - Indicates that a value which is not a number has
+  provided to either the `setTimeout()` or `setInterval()` functions.
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
@@ -809,7 +742,7 @@ This feature is not available in [`Worker`][] threads.
 added: v10.10.0
 -->
 
-* {Set}
+* Type: {Set}
 
 The `process.allowedNodeEnvironmentFlags` property is a special,
 read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
@@ -872,11 +805,11 @@ contain what _would have_ been allowable.
 added: v0.5.0
 -->
 
-* {string}
+* Type: {string}
 
 The operating system CPU architecture for which the Node.js binary was compiled.
 Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
-`'mipsel'`, `'ppc'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
+`'mipsel'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
 
 ```mjs
 import { arch } from 'node:process';
@@ -896,13 +829,13 @@ console.log(`This processor architecture is ${arch}`);
 added: v0.1.27
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.argv` property returns an array containing the command-line
 arguments passed when the Node.js process was launched. The first element will
 be [`process.execPath`][]. See `process.argv0` if access to the original value
-of `argv[0]` is needed. The second element will be the path to the JavaScript
-file being executed. The remaining elements will be any additional command-line
+of `argv[0]` is needed. If a [program entry point][] was provided, the second element
+will be the absolute path to it. The remaining elements are additional command-line
 arguments.
 
 For example, assuming the following script for `process-args.js`:
@@ -947,7 +880,7 @@ Would generate the output:
 added: v6.4.0
 -->
 
-* {string}
+* Type: {string}
 
 The `process.argv0` property stores a read-only copy of the original value of
 `argv[0]` passed when Node.js starts.
@@ -960,6 +893,28 @@ $ bash -c 'exec -a customArgv0 ./node'
 'customArgv0'
 ```
 
+## `process.availableMemory()`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+changes:
+  - version:
+    - v24.0.0
+    - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
+-->
+
+* Type: {number}
+
+Gets the amount of free memory that is still available to the process
+(in bytes).
+
+See [`uv_get_available_memory`][uv_get_available_memory] for more
+information.
+
 ## `process.channel`
 
 <!-- YAML
@@ -970,7 +925,7 @@ changes:
     description: The object no longer accidentally exposes native C++ bindings.
 -->
 
-* {Object}
+* Type: {Object}
 
 If the Node.js process was spawned with an IPC channel (see the
 [Child Process][] documentation), the `process.channel`
@@ -1054,7 +1009,7 @@ changes:
     description: Modifying process.config has been deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.config` property returns a frozen `Object` containing the
 JavaScript representation of the configure options used to compile the current
@@ -1085,7 +1040,6 @@ An example of the possible output looks like:
      node_shared_zlib: 'false',
      node_use_openssl: 'true',
      node_shared_openssl: 'false',
-     strict_aliasing: 'true',
      target_arch: 'x64',
      v8_use_snapshot: 1
    }
@@ -1098,7 +1052,7 @@ An example of the possible output looks like:
 added: v0.7.2
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `process.connected` property will return
@@ -1114,33 +1068,26 @@ over the IPC channel using `process.send()`.
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version:
+    - v24.0.0
+    - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
+  - version:
+    - v22.0.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52039
+    description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
-> Stability: 1 - Experimental
-
-* {number|undefined}
+* Type: {number}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
-is unknown, `undefined` is returned.
+is unknown, `0` is returned.
 
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
-information.
-
-## `process.availableMemory()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-* {number}
-
-Gets the amount of free memory that is still available to the process
-(in bytes).
-
-See [`uv_get_available_memory`][uv_get_available_memory] for more
 information.
 
 ## `process.cpuUsage([previousValue])`
@@ -1221,7 +1168,7 @@ console.log(`Current directory: ${cwd()}`);
 added: v0.7.2
 -->
 
-* {number}
+* Type: {number}
 
 The port used by the Node.js debugger when enabled.
 
@@ -1569,7 +1516,7 @@ changes:
     description: Implicit conversion of variable value to string is deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.env` property returns an object containing the user environment.
 See environ(7).
@@ -1697,7 +1644,7 @@ unlike the main thread.
 added: v0.7.7
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -1707,20 +1654,18 @@ the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
 ```bash
-node --harmony script.js --version
+node --icu-data-dir=./foo --require ./bar.js script.js --version
 ```
 
 Results in `process.execArgv`:
 
-<!-- eslint-disable semi -->
-
-```js
-['--harmony']
+```json
+["--icu-data-dir=./foo", "--require", "./bar.js"]
 ```
 
 And `process.argv`:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 ['/usr/local/bin/node', 'script.js', '--version']
@@ -1735,16 +1680,45 @@ threads with this property.
 added: v0.1.100
 -->
 
-* {string}
+* Type: {string}
 
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 '/usr/local/bin/node'
 ```
+
+## `process.execve(file[, args[, env]])`
+
+<!-- YAML
+added:
+  - v23.11.0
+  - v22.15.0
+-->
+
+> Stability: 1 - Experimental
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
+* `env` {Object} Environment key-value pairs.
+  No key or value can contain a null-byte (`\u0000`).
+  **Default:** `process.env`.
+
+Replaces the current process with a new process.
+
+This is achieved by using the `execve` POSIX function and therefore no memory or other
+resources from the current process are preserved, except for the standard input,
+standard output and standard error file descriptor.
+
+All other resources are discarded by the system when the processes are swapped, without triggering
+any exit or close events and without running any cleanup handler.
+
+This function will never return, unless an error occurred.
+
+This function is not available on Windows or IBM i.
 
 ## `process.exit([code])`
 
@@ -1865,15 +1839,414 @@ changes:
                  represents an integer.
 -->
 
-* {integer|string|null|undefined} The exit code. For string type, only
+* Type: {integer|string|null|undefined} The exit code. For string type, only
   integer strings (e.g.,'1') are allowed. **Default:** `undefined`.
 
 A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
-previous setting of `process.exitCode`.
+The value of `process.exitCode` can be updated by either assigning a value to
+`process.exitCode` or by passing an argument to [`process.exit()`][]:
+
+```console
+$ node -e 'process.exitCode = 9'; echo $?
+9
+$ node -e 'process.exit(42)'; echo $?
+42
+$ node -e 'process.exitCode = 9; process.exit(42)'; echo $?
+42
+```
+
+The value can also be set implicitly by Node.js when unrecoverable errors occur (e.g.
+such as the encountering of an unsettled top-level await). However explicit
+manipulations of the exit code always take precedence over implicit ones:
+
+```console
+$ node --input-type=module -e 'await new Promise(() => {})'; echo $?
+13
+$ node --input-type=module -e 'process.exitCode = 9; await new Promise(() => {})'; echo $?
+9
+```
+
+## `process.features.cached_builtins`
+
+<!-- YAML
+added: v12.0.0
+-->
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build is caching builtin modules.
+
+## `process.features.debug`
+
+<!-- YAML
+added: v0.5.5
+-->
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build is a debug build.
+
+## `process.features.inspector`
+
+<!-- YAML
+added: v11.10.0
+-->
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes the inspector.
+
+## `process.features.ipv6`
+
+<!-- YAML
+added: v0.5.3
+deprecated:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 0 - Deprecated. This property is always true, and any checks based on it are
+> redundant.
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for IPv6.
+
+Since all Node.js builds have IPv6 support, this value is always `true`.
+
+## `process.features.require_module`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+ - v20.19.0
+-->
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build supports
+[loading ECMAScript modules using `require()`][].
+
+## `process.features.tls`
+
+<!-- YAML
+added: v0.5.3
+-->
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for TLS.
+
+## `process.features.tls_alpn`
+
+<!-- YAML
+added: v4.8.0
+deprecated:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 0 - Deprecated. Use `process.features.tls` instead.
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
+
+In Node.js 11.0.0 and later versions, the OpenSSL dependencies feature unconditional ALPN support.
+This value is therefore identical to that of `process.features.tls`.
+
+## `process.features.tls_ocsp`
+
+<!-- YAML
+added: v0.11.13
+deprecated:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 0 - Deprecated. Use `process.features.tls` instead.
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
+
+In Node.js 11.0.0 and later versions, the OpenSSL dependencies feature unconditional OCSP support.
+This value is therefore identical to that of `process.features.tls`.
+
+## `process.features.tls_sni`
+
+<!-- YAML
+added: v0.5.3
+deprecated:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 0 - Deprecated. Use `process.features.tls` instead.
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
+
+In Node.js 11.0.0 and later versions, the OpenSSL dependencies feature unconditional SNI support.
+This value is therefore identical to that of `process.features.tls`.
+
+## `process.features.typescript`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+changes:
+  - version:
+      - v25.2.0
+      - v24.12.0
+    pr-url: https://github.com/nodejs/node/pull/60600
+    description: Type stripping is now stable.
+-->
+
+> Stability: 1.2 - Release candidate
+
+* Type: {boolean|string}
+
+A value that is `"strip"` by default,
+`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
+Node.js is run with `--no-strip-types`.
+
+## `process.features.uv`
+
+<!-- YAML
+added: v0.5.3
+deprecated:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 0 - Deprecated. This property is always true, and any checks based on it are
+> redundant.
+
+* Type: {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for libuv.
+
+Since it's not possible to build Node.js without libuv, this value is always `true`.
+
+## `process.finalization.register(ref, callback)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
+
+This function registers a callback to be called when the process emits the `exit`
+event if the `ref` object was not garbage collected. If the object `ref` was garbage collected
+before the `exit` event is emitted, the callback will be removed from the finalization registry,
+and it will not be called on process exit.
+
+Inside the callback you can release the resources allocated by the `ref` object.
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
+
+The idea of ​​this function is to help you free up resources when the starts process exiting,
+but also let the object be garbage collected if it is no longer being used.
+
+Eg: you can register an object that contains a buffer, you want to make sure that buffer is released
+when the process exit, but if the object is garbage collected before the process exit, we no longer
+need to release the buffer, so in this case we just remove the callback from the finalization registry.
+
+```cjs
+const { finalization } = require('node:process');
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+}
+
+setup();
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+}
+
+setup();
+```
+
+The code above relies on the following assumptions:
+
+* arrow functions are avoided
+* regular functions are recommended to be within the global context (root)
+
+Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
+
+Arrow functions will hold the previous context. Consider, for example:
+
+```js
+class Test {
+  constructor() {
+    finalization.register(this, (ref) => ref.dispose());
+
+    // Even something like this is highly discouraged
+    // finalization.register(this, () => this.dispose());
+  }
+  dispose() {}
+}
+```
+
+It is very unlikely (not impossible) that this object will be garbage collected,
+but if it is not, `dispose` will be called when `process.exit` is called.
+
+Be careful and avoid relying on this feature for the disposal of critical resources,
+as it is not guaranteed that the callback will be called under all circumstances.
+
+## `process.finalization.registerBeforeExit(ref, callback)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference
+  to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
+
+This function behaves exactly like the `register`, except that the callback will be called
+when the process emits the `beforeExit` event if `ref` object was not garbage collected.
+
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
+
+## `process.finalization.unregister(ref)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference
+  to the resource that was registered previously.
+
+This function remove the register of the object from the finalization
+registry, so the callback will not be called anymore.
+
+```cjs
+const { finalization } = require('node:process');
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+
+  // Do something
+
+  myDisposableObject.dispose();
+  finalization.unregister(myDisposableObject);
+}
+
+setup();
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  // Please make sure that the function passed to finalization.register()
+  // does not create a closure around unnecessary objects.
+  function onFinalize(obj, event) {
+    // You can do whatever you want with the object
+    obj.dispose();
+  }
+
+  finalization.register(myDisposableObject, onFinalize);
+
+  // Do something
+
+  myDisposableObject.dispose();
+  finalization.unregister(myDisposableObject);
+}
+
+setup();
+```
 
 ## `process.getActiveResourcesInfo()`
 
@@ -1881,9 +2254,13 @@ previous setting of `process.exitCode`.
 added:
   - v17.3.0
   - v16.14.0
+changes:
+  - version:
+    - v24.0.0
+    - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {string\[]}
 
@@ -1914,6 +2291,48 @@ console.log('After:', getActiveResourcesInfo());
 //   Before: [ 'TTYWrap', 'TTYWrap', 'TTYWrap' ]
 //   After: [ 'TTYWrap', 'TTYWrap', 'TTYWrap', 'Timeout' ]
 ```
+
+## `process.getBuiltinModule(id)`
+
+<!-- YAML
+added:
+- v22.3.0
+- v20.16.0
+-->
+
+* `id` {string} ID of the built-in module being requested.
+* Returns: {Object|undefined}
+
+`process.getBuiltinModule(id)` provides a way to load built-in modules
+in a globally available function. ES Modules that need to support
+other environments can use it to conditionally load a Node.js built-in
+when it is run in Node.js, without having to deal with the resolution
+error that can be thrown by `import` in a non-Node.js environment or
+having to use dynamic `import()` which either turns the module into
+an asynchronous module, or turns a synchronous API into an asynchronous one.
+
+```mjs
+if (globalThis.process?.getBuiltinModule) {
+  // Run in Node.js, use the Node.js fs module.
+  const fs = globalThis.process.getBuiltinModule('fs');
+  // If `require()` is needed to load user-modules, use createRequire()
+  const module = globalThis.process.getBuiltinModule('module');
+  const require = module.createRequire(import.meta.url);
+  const foo = require('foo');
+}
+```
+
+If `id` specifies a built-in module available in the current Node.js process,
+`process.getBuiltinModule(id)` method returns the corresponding built-in
+module. If `id` does not correspond to any built-in module, `undefined`
+is returned.
+
+`process.getBuiltinModule(id)` accepts built-in module IDs that are recognized
+by [`module.isBuiltin(id)`][]. Some built-in modules must be loaded with the
+`node:` prefix, see [built-in modules with mandatory `node:` prefix][].
+The references returned by `process.getBuiltinModule(id)` always point to
+the built-in module corresponding to `id` even if users modify
+[`require.cache`][] so that `require(id)` returns something else.
 
 ## `process.getegid()`
 
@@ -2061,8 +2480,7 @@ if (process.getuid) {
 }
 ```
 
-This function is only available on POSIX platforms (i.e. not Windows or
-Android).
+This function not available on Windows.
 
 ## `process.hasUncaughtExceptionCaptureCallback()`
 
@@ -2281,10 +2699,16 @@ debugger. See [Signal Events][].
 ## `process.loadEnvFile(path)`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
+changes:
+  - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 * `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
 
@@ -2310,7 +2734,7 @@ deprecated: v14.0.0
 
 > Stability: 0 - Deprecated: Use [`require.main`][] instead.
 
-* {Object}
+* Type: {Object}
 
 The `process.mainModule` property provides an alternative way of retrieving
 [`require.main`][]. The difference is that if the main module changes at
@@ -2393,6 +2817,13 @@ The `process.memoryUsage()` method iterates over each page to gather
 information about memory usage which might be slow depending on the
 program memory allocations.
 
+### A note on process memoryUsage
+
+On Linux or other systems where glibc is commonly used, an application may have sustained
+`rss` growth despite stable `heapTotal` due to fragmentation caused by the glibc `malloc`
+implementation. See [nodejs/node#21973][] on how to switch to an alternative `malloc`
+implementation to address the performance issue.
+
 ## `process.memoryUsage.rss()`
 
 <!-- YAML
@@ -2432,6 +2863,11 @@ console.log(memoryUsage.rss());
 <!-- YAML
 added: v0.1.26
 changes:
+  - version:
+    - v22.7.0
+    - v20.18.0
+    pr-url: https://github.com/nodejs/node/pull/51280
+    description: Changed stability to Legacy.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2441,6 +2877,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/1077
     description: Additional arguments after `callback` are now supported.
 -->
+
+> Stability: 3 - Legacy: Use [`queueMicrotask()`][] instead.
 
 * `callback` {Function}
 * `...args` {any} Additional arguments to pass when invoking the `callback`
@@ -2576,34 +3014,40 @@ function definitelyAsync(arg, cb) {
 
 ### When to use `queueMicrotask()` vs. `process.nextTick()`
 
-The [`queueMicrotask()`][] API is an alternative to `process.nextTick()` that
-also defers execution of a function using the same microtask queue used to
-execute the then, catch, and finally handlers of resolved promises. Within
-Node.js, every time the "next tick queue" is drained, the microtask queue
+The [`queueMicrotask()`][] API is an alternative to `process.nextTick()` that instead of using the
+"next tick queue" defers execution of a function using the same microtask queue used to execute the
+then, catch, and finally handlers of resolved promises.
+
+Within Node.js, every time the "next tick queue" is drained, the microtask queue
 is drained immediately after.
+
+So in CJS modules `process.nextTick()` callbacks are always run before `queueMicrotask()` ones.
+However since ESM modules are processed already as part of the microtask queue, there
+`queueMicrotask()` callbacks are always executed before `process.nextTick()` ones since Node.js
+is already in the process of draining the microtask queue.
 
 ```mjs
 import { nextTick } from 'node:process';
 
-Promise.resolve().then(() => console.log(2));
-queueMicrotask(() => console.log(3));
-nextTick(() => console.log(1));
+Promise.resolve().then(() => console.log('resolve'));
+queueMicrotask(() => console.log('microtask'));
+nextTick(() => console.log('nextTick'));
 // Output:
-// 1
-// 2
-// 3
+// resolve
+// microtask
+// nextTick
 ```
 
 ```cjs
 const { nextTick } = require('node:process');
 
-Promise.resolve().then(() => console.log(2));
-queueMicrotask(() => console.log(3));
-nextTick(() => console.log(1));
+Promise.resolve().then(() => console.log('resolve'));
+queueMicrotask(() => console.log('microtask'));
+nextTick(() => console.log('nextTick'));
 // Output:
-// 1
-// 2
-// 3
+// nextTick
+// resolve
+// microtask
 ```
 
 For _most_ userland use cases, the `queueMicrotask()` API provides a portable
@@ -2658,7 +3102,7 @@ needed, use `queueMicrotask()`.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.noDeprecation` property indicates whether the `--no-deprecation`
 flag is set on the current Node.js process. See the documentation for
@@ -2672,9 +3116,9 @@ flag's behavior.
 added: v20.0.0
 -->
 
-* {Object}
+* Type: {Object}
 
-This API is available through the [`--experimental-permission`][] flag.
+This API is available through the [`--permission`][] flag.
 
 `process.permission` is an object whose methods are used to manage permissions
 for the current process. Additional documentation is available in the
@@ -2719,7 +3163,7 @@ process.permission.has('fs.read');
 added: v0.1.15
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.pid` property returns the PID of the process.
 
@@ -2741,7 +3185,7 @@ console.log(`This process is pid ${pid}`);
 added: v0.1.16
 -->
 
-* {string}
+* Type: {string}
 
 The `process.platform` property returns a string identifying the operating
 system platform for which the Node.js binary was compiled.
@@ -2781,7 +3225,7 @@ added:
   - v6.13.0
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.ppid` property returns the PID of the parent of the
 current process.
@@ -2798,6 +3242,27 @@ const { ppid } = require('node:process');
 console.log(`The parent process is pid ${ppid}`);
 ```
 
+## `process.ref(maybeRefable)`
+
+<!-- YAML
+added:
+  - v23.6.0
+  - v22.14.0
+-->
+
+> Stability: 1 - Experimental
+
+* `maybeRefable` {any} An object that may be "refable".
+
+An object is "refable" if it implements the Node.js "Refable protocol".
+Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`
+and `Symbol.for('nodejs.unref')` methods. "Ref'd" objects will keep the Node.js
+event loop alive, while "unref'd" objects will not. Historically, this was
+implemented by using `ref()` and `unref()` methods directly on the objects.
+This pattern, however, is being deprecated in favor of the "Refable protocol"
+in order to better support Web Platform API types whose APIs cannot be modified
+to add `ref()` and `unref()` methods but still need to support that behavior.
+
 ## `process.release`
 
 <!-- YAML
@@ -2808,7 +3273,7 @@ changes:
     description: The `lts` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.release` property returns an `Object` containing metadata related
 to the current release, including URLs for the source tarball and headers-only
@@ -2864,7 +3329,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {Object}
+* Type: {Object}
 
 `process.report` is an object whose methods are used to generate diagnostic
 reports for the current process. Additional documentation is available in the
@@ -2878,7 +3343,7 @@ added:
  - v12.17.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
@@ -2908,7 +3373,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Directory where the report is written. The default value is the empty string,
 indicating that reports are written to the current working directory of the
@@ -2938,7 +3403,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Filename where the report is written. If set to the empty string, the output
 filename will be comprised of a timestamp, PID, and sequence number. The default
@@ -3016,7 +3481,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on fatal errors, such as out of
 memory errors or failed C++ assertions.
@@ -3045,7 +3510,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated when the process receives the
 signal specified by `process.report.signal`.
@@ -3074,7 +3539,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on uncaught exception.
 
@@ -3090,6 +3555,18 @@ const { report } = require('node:process');
 console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
 
+### `process.report.excludeEnv`
+
+<!-- YAML
+added:
+  - v23.3.0
+  - v22.13.0
+-->
+
+* Type: {boolean}
+
+If `true`, a diagnostic report is generated without the environment variables.
+
 ### `process.report.signal`
 
 <!-- YAML
@@ -3102,7 +3579,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 The signal used to trigger the creation of a diagnostic report. Defaults to
 `'SIGUSR2'`.
@@ -3175,7 +3652,7 @@ added: v12.6.0
   * `systemCPUTime` {integer} maps to `ru_stime` computed in microseconds.
     It is the same value as [`process.cpuUsage().system`][process.cpuUsage].
   * `maxRSS` {integer} maps to `ru_maxrss` which is the maximum resident set
-    size used in kilobytes.
+    size used in kibibytes (1024 bytes).
   * `sharedMemorySize` {integer} maps to `ru_ixrss` but is not supported by
     any platform.
   * `unsharedDataSize` {integer} maps to `ru_idrss` but is not supported by
@@ -3522,11 +3999,11 @@ added:
   - v14.18.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1 - Experimental: Use [`module.setSourceMapsSupport()`][] instead.
 
 * `val` {boolean}
 
-This function enables or disables the [Source Map v3][Source Map] support for
+This function enables or disables the [Source Map][] support for
 stack traces.
 
 It provides same features as launching Node.js process with commandline options
@@ -3534,6 +4011,9 @@ It provides same features as launching Node.js process with commandline options
 
 Only source maps in JavaScript files that are loaded after source maps has been
 enabled will be parsed and loaded.
+
+This implies calling `module.setSourceMapsSupport()` with an option
+`{ nodeModules: true, generatedCode: true }`.
 
 ## `process.setUncaughtExceptionCaptureCallback(fn)`
 
@@ -3569,16 +4049,16 @@ added:
   - v18.19.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1 - Experimental: Use [`module.getSourceMapsSupport()`][] instead.
 
-* {boolean}
+* Type: {boolean}
 
 The `process.sourceMapsEnabled` property returns whether the
-[Source Map v3][Source Map] support for stack traces is enabled.
+[Source Map][] support for stack traces is enabled.
 
 ## `process.stderr`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stderr` property returns a stream connected to
 `stderr` (fd `2`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -3590,7 +4070,7 @@ a [Writable][] stream.
 
 ### `process.stderr.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
@@ -3598,7 +4078,7 @@ this field does not exist.
 
 ## `process.stdin`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdin` property returns a stream connected to
 `stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -3617,7 +4097,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 ### `process.stdin.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdin`. The value is fixed at `0`. In [`Worker`][] threads,
@@ -3625,7 +4105,7 @@ this field does not exist.
 
 ## `process.stdout`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdout` property returns a stream connected to
 `stdout` (fd `1`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -3651,7 +4131,7 @@ stdin.pipe(stdout);
 
 ### `process.stdout.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdout`. The value is fixed at `1`. In [`Worker`][] threads,
@@ -3711,7 +4191,7 @@ See the [TTY][] documentation for more information.
 added: v0.9.12
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The initial value of `process.throwDeprecation` indicates whether the
 `--throw-deprecation` flag is set on the current Node.js process.
@@ -3736,13 +4216,34 @@ Thrown:
 [DeprecationWarning: test] { name: 'DeprecationWarning' }
 ```
 
+## `process.threadCpuUsage([previousValue])`
+
+<!-- YAML
+added:
+ - v23.9.0
+ - v22.19.0
+-->
+
+* `previousValue` {Object} A previous return value from calling
+  `process.threadCpuUsage()`
+* Returns: {Object}
+  * `user` {integer}
+  * `system` {integer}
+
+The `process.threadCpuUsage()` method returns the user and system CPU time usage of
+the current worker thread, in an object with properties `user` and `system`, whose
+values are microsecond values (millionth of a second).
+
+The result of a previous call to `process.threadCpuUsage()` can be passed as the
+argument to the function, to get a diff reading.
+
 ## `process.title`
 
 <!-- YAML
 added: v0.1.104
 -->
 
-* {string}
+* Type: {string}
 
 The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
@@ -3752,7 +4253,7 @@ When a new value is assigned, different platforms will impose different maximum
 length restrictions on the title. Usually such restrictions are quite limited.
 For instance, on Linux and macOS, `process.title` is limited to the size of the
 binary name plus the length of the command-line arguments because setting the
-`process.title` overwrites the `argv` memory of the process. Node.js v0.8
+`process.title` overwrites the `argv` memory of the process. Node.js 0.8
 allowed for longer process title strings by also overwriting the `environ`
 memory but that was potentially insecure and confusing in some (rather obscure)
 cases.
@@ -3767,13 +4268,36 @@ Services Manager.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.traceDeprecation` property indicates whether the
 `--trace-deprecation` flag is set on the current Node.js process. See the
 documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
+
+## `process.traceProcessWarnings`
+
+<!-- YAML
+added: v6.10.0
+-->
+
+* {boolean}
+
+The `process.traceProcessWarnings` property indicates whether the `--trace-warnings` flag
+is set on the current Node.js process. This property allows programmatic control over the
+tracing of warnings, enabling or disabling stack traces for warnings at runtime.
+
+```js
+// Enable trace warnings
+process.traceProcessWarnings = true;
+
+// Emit a warning with a stack trace
+process.emitWarning('Warning with stack trace');
+
+// Disable trace warnings
+process.traceProcessWarnings = false;
+```
 
 ## `process.umask()`
 
@@ -3828,6 +4352,27 @@ console.log(
 
 In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 
+## `process.unref(maybeRefable)`
+
+<!-- YAML
+added:
+  - v23.6.0
+  - v22.14.0
+-->
+
+> Stability: 1 - Experimental
+
+* `maybeRefable` {any} An object that may be "unref'd".
+
+An object is "unrefable" if it implements the Node.js "Refable protocol".
+Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`
+and `Symbol.for('nodejs.unref')` methods. "Ref'd" objects will keep the Node.js
+event loop alive, while "unref'd" objects will not. Historically, this was
+implemented by using `ref()` and `unref()` methods directly on the objects.
+This pattern, however, is being deprecated in favor of the "Refable protocol"
+in order to better support Web Platform API types whose APIs cannot be modified
+to add `ref()` and `unref()` methods but still need to support that behavior.
+
 ## `process.uptime()`
 
 <!-- YAML
@@ -3848,7 +4393,7 @@ seconds.
 added: v0.1.3
 -->
 
-* {string}
+* Type: {string}
 
 The `process.version` property contains the Node.js version string.
 
@@ -3882,7 +4427,7 @@ changes:
     description: The `icu` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies. `process.versions.modules` indicates the current
@@ -3904,30 +4449,35 @@ console.log(versions);
 Will generate an object similar to:
 
 ```console
-{ node: '20.2.0',
-  acorn: '8.8.2',
-  ada: '2.4.0',
-  ares: '1.19.0',
-  base64: '0.5.0',
-  brotli: '1.0.9',
-  cjs_module_lexer: '1.2.2',
-  cldr: '43.0',
-  icu: '73.1',
-  llhttp: '8.1.0',
-  modules: '115',
-  napi: '8',
-  nghttp2: '1.52.0',
-  nghttp3: '0.7.0',
-  ngtcp2: '0.8.1',
-  openssl: '3.0.8+quic',
-  simdutf: '3.2.9',
-  tz: '2023c',
-  undici: '5.22.0',
-  unicode: '15.0',
-  uv: '1.44.2',
-  uvwasi: '0.0.16',
-  v8: '11.3.244.8-node.9',
-  zlib: '1.2.13' }
+{ node: '26.0.0-pre',
+  acorn: '8.15.0',
+  ada: '3.4.1',
+  amaro: '1.1.5',
+  ares: '1.34.6',
+  brotli: '1.2.0',
+  merve: '1.0.0',
+  cldr: '48.0',
+  icu: '78.2',
+  llhttp: '9.3.0',
+  modules: '144',
+  napi: '10',
+  nbytes: '0.1.1',
+  ncrypto: '0.0.1',
+  nghttp2: '1.68.0',
+  nghttp3: '',
+  ngtcp2: '',
+  openssl: '3.5.4',
+  simdjson: '4.2.4',
+  simdutf: '7.3.3',
+  sqlite: '3.51.2',
+  tz: '2025c',
+  undici: '7.18.2',
+  unicode: '17.0',
+  uv: '1.51.0',
+  uvwasi: '0.0.23',
+  v8: '14.3.127.18-node.10',
+  zlib: '1.3.1-e00f703',
+  zstd: '1.5.7' }
 ```
 
 ## Exit codes
@@ -3983,7 +4533,7 @@ cases:
   code will be `128` + `6`, or `134`.
 
 [Advanced serialization for `child_process`]: child_process.md#advanced-serialization
-[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [Child Process]: child_process.md
 [Cluster]: cluster.md
 [Duplex]: stream.md#duplex-and-transform-streams
@@ -3992,15 +4542,15 @@ cases:
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
-[Source Map]: https://sourcemaps.info/spec.html
+[Source Map]: https://tc39.es/ecma426/
 [Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
-[`--experimental-permission`]: cli.md#--experimental-permission
 [`--no-deprecation`]: cli.md#--no-deprecation
+[`--permission`]: cli.md#--permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect
@@ -4009,15 +4559,18 @@ cases:
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
-[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#class-worker
 [`Worker` constructor]: worker_threads.md#new-workerfilename-options
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
 [`domain`]: domain.md
+[`module.getSourceMapsSupport()`]: module.md#modulegetsourcemapssupport
+[`module.isBuiltin(id)`]: module.md#moduleisbuiltinmodulename
+[`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
+[`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
@@ -4031,15 +4584,20 @@ cases:
 [`queueMicrotask()`]: globals.md#queuemicrotaskcallback
 [`readable.read()`]: stream.md#readablereadsize
 [`require()`]: globals.md#require
+[`require.cache`]: modules.md#requirecache
 [`require.main`]: modules.md#accessing-the-main-module
 [`subprocess.kill()`]: child_process.md#subprocesskillsignal
 [`v8.setFlagsFromString()`]: v8.md#v8setflagsfromstringflags
+[built-in modules with mandatory `node:` prefix]: modules.md#built-in-modules-with-mandatory-node-prefix
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
+[loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
+[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
 [process_warning]: #event-warning
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [report documentation]: report.md
 [terminal raw mode]: tty.md#readstreamsetrawmodemode
 [uv_get_available_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_available_memory

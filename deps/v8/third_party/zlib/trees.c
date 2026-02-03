@@ -1,5 +1,5 @@
 /* trees.c -- output deflated data using Huffman coding
- * Copyright (C) 1995-2021 Jean-loup Gailly
+ * Copyright (C) 1995-2024 Jean-loup Gailly
  * detect_data_type() function provided freely by Cosmin Truta, 2006
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
@@ -141,11 +141,18 @@ local TCONST static_tree_desc static_bl_desc =
  * Output a short LSB first on the stream.
  * IN assertion: there is enough room in pendingBuf.
  */
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+#define put_short(s, w) { \
+    uint16_t data = (uint16_t)(w); \
+    zmemcpy(&s->pending_buf[s->pending], &data, sizeof(data)); \
+    s->pending += 2; \
+  }
+#else
 #define put_short(s, w) { \
     put_byte(s, (uch)((w) & 0xff)); \
     put_byte(s, (uch)((ush)(w) >> 8)); \
 }
-
+#endif /* DEFLATE_CHUNK_WRITE_64LE */
 /* ===========================================================================
  * Reverse the first len bits of a code, using straightforward code (a faster
  * method would use a table)
@@ -164,6 +171,13 @@ local unsigned bi_reverse(unsigned code, int len) {
  * Flush the bit buffer, keeping at most 7 bits in it.
  */
 local void bi_flush(deflate_state *s) {
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+    while (s->bi_valid >= 16) {
+        put_short(s, s->bi_buf);
+        s->bi_buf >>= 16;
+        s->bi_valid -= 16;
+    }
+#endif /* DEFLATE_CHUNK_WRITE_64LE */
     if (s->bi_valid == 16) {
         put_short(s, s->bi_buf);
         s->bi_buf = 0;
@@ -173,12 +187,21 @@ local void bi_flush(deflate_state *s) {
         s->bi_buf >>= 8;
         s->bi_valid -= 8;
     }
+
+    Assert(s->bi_valid >= 0 && s->bi_valid <= 7, "bad bi_flush");
 }
 
 /* ===========================================================================
  * Flush the bit buffer and align the output on a byte boundary
  */
 local void bi_windup(deflate_state *s) {
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+    while (s->bi_valid >= 16) {
+        put_short(s, s->bi_buf);
+        s->bi_buf >>= 16;
+        s->bi_valid -= 16;
+    }
+#endif /* DEFLATE_CHUNK_WRITE_64LE */
     if (s->bi_valid > 8) {
         put_short(s, s->bi_buf);
     } else if (s->bi_valid > 0) {
@@ -248,7 +271,28 @@ local void gen_trees_header(void);
  * Send a value on a given number of bits.
  * IN assertion: length <= 16 and value fits in length bits.
  */
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+local void send_bits(deflate_state *s, uint64_t value, int length)
+{
+    Tracevv((stderr," l %2d v %4llx ", length, (unsigned long long)value));
+    Assert(s->bi_valid >= 0 && s->bi_valid <= 63, "invalid bi_valid");
+    Assert(length > 0 && length <= 15, "invalid length");
 #ifdef ZLIB_DEBUG
+    s->bits_sent += (ulg)length;
+#endif
+
+    s->bi_buf |= (value << s->bi_valid);
+    s->bi_valid += length;
+
+    if (s->bi_valid >= Buf_size) {
+      zmemcpy(&s->pending_buf[s->pending], &s->bi_buf, sizeof(s->bi_buf));
+      s->pending += 8;
+      s->bi_valid -= Buf_size;
+      s->bi_buf = value >> (length - s->bi_valid);
+    }
+    Assert(s->bi_valid >= 0 && s->bi_valid <= 63, "invalid bi_valid");
+}
+#elif defined(ZLIB_DEBUG)
 local void send_bits(deflate_state *s, int value, int length) {
     Tracevv((stderr," l %2d v %4x ", length, value));
     Assert(length > 0 && length <= 15, "invalid length");
@@ -268,8 +312,7 @@ local void send_bits(deflate_state *s, int value, int length) {
         s->bi_valid += length;
     }
 }
-#else /* !ZLIB_DEBUG */
-
+#else /* !ZLIB_DEBUG && !DEFLATE_CHUNK_WRITE_64LE */
 #define send_bits(s, value, length) \
 { int len = length;\
   if (s->bi_valid > (int)Buf_size - len) {\
@@ -283,7 +326,7 @@ local void send_bits(deflate_state *s, int value, int length) {
     s->bi_valid += len;\
   }\
 }
-#endif /* ZLIB_DEBUG */
+#endif /* DEFLATE_CHUNK_WRITE_64LE */
 
 
 /* the arguments must not have side effects */
@@ -899,14 +942,19 @@ local void compress_block(deflate_state *s, const ct_data *ltree,
                           const ct_data *dtree) {
     unsigned dist;      /* distance of matched string */
     int lc;             /* match length or unmatched char (if dist == 0) */
-    unsigned sx = 0;    /* running index in sym_buf */
+    unsigned sx = 0;    /* running index in symbol buffers */
     unsigned code;      /* the code to send */
     int extra;          /* number of extra bits to send */
 
     if (s->sym_next != 0) do {
+#ifdef LIT_MEM
+        dist = s->d_buf[sx];
+        lc = s->l_buf[sx++];
+#else
         dist = s->sym_buf[sx++] & 0xff;
         dist += (unsigned)(s->sym_buf[sx++] & 0xff) << 8;
         lc = s->sym_buf[sx++];
+#endif
         if (dist == 0) {
             send_code(s, lc, ltree); /* send a literal byte */
             Tracecv(isgraph(lc), (stderr," '%c' ", lc));
@@ -931,8 +979,13 @@ local void compress_block(deflate_state *s, const ct_data *ltree,
             }
         } /* literal or match pair ? */
 
-        /* Check that the overlay between pending_buf and sym_buf is ok: */
+        /* Check for no overlay of pending_buf on needed symbols */
+#ifdef LIT_MEM
+        Assert(s->pending < (s->lit_bufsize << 1) + (sx << 1),
+               "pendingBuf overflow");
+#else
         Assert(s->pending < s->lit_bufsize + sx, "pendingBuf overflow");
+#endif
 
     } while (sx < s->sym_next);
 
@@ -1082,9 +1135,14 @@ void ZLIB_INTERNAL _tr_flush_block(deflate_state *s, charf *buf,
  * the current block must be flushed.
  */
 int ZLIB_INTERNAL _tr_tally(deflate_state *s, unsigned dist, unsigned lc) {
+#ifdef LIT_MEM
+    s->d_buf[s->sym_next] = (ush)dist;
+    s->l_buf[s->sym_next++] = (uch)lc;
+#else
     s->sym_buf[s->sym_next++] = (uch)dist;
     s->sym_buf[s->sym_next++] = (uch)(dist >> 8);
     s->sym_buf[s->sym_next++] = (uch)lc;
+#endif
     if (dist == 0) {
         /* lc is the unmatched char */
         s->dyn_ltree[lc].Freq++;

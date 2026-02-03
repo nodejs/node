@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,19 +19,19 @@
 
 #if defined(OPENSSL_RAND_SEED_NONE)
 /* none means none */
-# undef OPENSSL_RAND_SEED_OS
+#undef OPENSSL_RAND_SEED_OS
 #endif
 
 #if defined(OPENSSL_RAND_SEED_OS)
-# if _WRS_VXWORKS_MAJOR >= 7
-#   define RAND_SEED_VXRANDLIB
-# else
-#   error "VxWorks <7 only support RAND_SEED_NONE"
-# endif
+#if _WRS_VXWORKS_MAJOR >= 7
+#define RAND_SEED_VXRANDLIB
+#else
+#error "VxWorks <7 only support RAND_SEED_NONE"
+#endif
 #endif
 
 #if defined(RAND_SEED_VXRANDLIB)
-# include <randomNumGen.h>
+#include <randomNumGen.h>
 #endif
 
 /* Macro to convert two thirty two bit values into a sixty four bit one */
@@ -76,26 +76,6 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 {
 }
 
-int ossl_rand_pool_add_additional_data(RAND_POOL *pool)
-{
-    struct {
-        CRYPTO_THREAD_ID tid;
-        uint64_t time;
-    } data;
-
-    memset(&data, 0, sizeof(data));
-
-    /*
-     * Add some noise from the thread id and a high resolution timer.
-     * The thread id adds a little randomness if the drbg is accessed
-     * concurrently (which is the case for the <master> drbg).
-     */
-    data.tid = CRYPTO_THREAD_get_current_id();
-    data.time = get_timer_bits();
-
-    return ossl_rand_pool_add(pool, (unsigned char *)&data, sizeof(data), 0);
-}
-
 int ossl_pool_add_nonce_data(RAND_POOL *pool)
 {
     struct {
@@ -125,8 +105,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
     size_t bytes_needed;
 
     bytes_needed = ossl_rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
-    if (bytes_needed > 0)
-    {
+    if (bytes_needed > 0) {
         int retryCount = 0;
         STATUS result = ERROR;
         unsigned char *buffer;
@@ -136,7 +115,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
             RANDOM_NUM_GEN_STATUS status = randStatus();
 
             if ((status == RANDOM_NUM_GEN_ENOUGH_ENTROPY)
-                    || (status == RANDOM_NUM_GEN_MAX_ENTROPY) ) {
+                || (status == RANDOM_NUM_GEN_MAX_ENTROPY)) {
                 result = randBytes(buffer, bytes_needed);
                 if (result == OK)
                     ossl_rand_pool_add_end(pool, bytes_needed, 8 * bytes_needed);

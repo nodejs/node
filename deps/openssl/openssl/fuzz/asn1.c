@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
+#include <openssl/x509_acert.h>
 #include "internal/nelem.h"
 #include "fuzzer.h"
 
@@ -174,6 +175,7 @@ static ASN1_ITEM_EXP *item_type[] = {
 #endif
     ASN1_ITEM_ref(SXNET),
     ASN1_ITEM_ref(SXNETID),
+    ASN1_ITEM_ref(OSSL_TARGETING_INFORMATION),
     ASN1_ITEM_ref(USERNOTICE),
     ASN1_ITEM_ref(X509),
     ASN1_ITEM_ref(X509_ALGOR),
@@ -209,88 +211,87 @@ static ASN1_ITEM_EXP *item_type[] = {
 
 static ASN1_PCTX *pctx;
 
-#define DO_TEST(TYPE, D2I, I2D, PRINT) { \
-    const unsigned char *p = buf; \
-    unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
-    \
-    if (type != NULL) { \
-        int len2; \
-        BIO *bio = BIO_new(BIO_s_null()); \
-        \
-        if (bio != NULL) { \
-            PRINT(bio, type); \
-            BIO_free(bio); \
-        } \
-        len2 = I2D(type, &der); \
-        if (len2 != 0) {} \
-        OPENSSL_free(der); \
-        TYPE ## _free(type); \
-    } \
-}
+#define DO_TEST(TYPE, D2I, I2D, PRINT)        \
+    {                                         \
+        const unsigned char *p = buf;         \
+        unsigned char *der = NULL;            \
+        TYPE *type = D2I(NULL, &p, len);      \
+                                              \
+        if (type != NULL) {                   \
+            int len2;                         \
+            BIO *bio = BIO_new(BIO_s_null()); \
+                                              \
+            if (bio != NULL) {                \
+                PRINT(bio, type);             \
+                BIO_free(bio);                \
+            }                                 \
+            len2 = I2D(type, &der);           \
+            if (len2 != 0) { }                \
+            OPENSSL_free(der);                \
+            TYPE##_free(type);                \
+        }                                     \
+    }
 
-#define DO_TEST_PRINT_OFFSET(TYPE, D2I, I2D, PRINT) { \
-    const unsigned char *p = buf; \
-    unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
-    \
-    if (type != NULL) { \
-        BIO *bio = BIO_new(BIO_s_null()); \
-        \
-        if (bio != NULL) { \
-            PRINT(bio, type, 0); \
-            BIO_free(bio); \
-        } \
-        I2D(type, &der); \
-        OPENSSL_free(der); \
-        TYPE ## _free(type); \
-    } \
-}
+#define DO_TEST_PRINT_OFFSET(TYPE, D2I, I2D, PRINT) \
+    {                                               \
+        const unsigned char *p = buf;               \
+        unsigned char *der = NULL;                  \
+        TYPE *type = D2I(NULL, &p, len);            \
+                                                    \
+        if (type != NULL) {                         \
+            BIO *bio = BIO_new(BIO_s_null());       \
+                                                    \
+            if (bio != NULL) {                      \
+                PRINT(bio, type, 0);                \
+                BIO_free(bio);                      \
+            }                                       \
+            I2D(type, &der);                        \
+            OPENSSL_free(der);                      \
+            TYPE##_free(type);                      \
+        }                                           \
+    }
 
-#define DO_TEST_PRINT_PCTX(TYPE, D2I, I2D, PRINT) { \
-    const unsigned char *p = buf; \
-    unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
-    \
-    if (type != NULL) { \
-        BIO *bio = BIO_new(BIO_s_null()); \
-        \
-        if (bio != NULL) { \
-            PRINT(bio, type, 0, pctx); \
-            BIO_free(bio); \
-        } \
-        I2D(type, &der); \
-        OPENSSL_free(der); \
-        TYPE ## _free(type); \
-    } \
-}
+#define DO_TEST_PRINT_PCTX(TYPE, D2I, I2D, PRINT) \
+    {                                             \
+        const unsigned char *p = buf;             \
+        unsigned char *der = NULL;                \
+        TYPE *type = D2I(NULL, &p, len);          \
+                                                  \
+        if (type != NULL) {                       \
+            BIO *bio = BIO_new(BIO_s_null());     \
+                                                  \
+            if (bio != NULL) {                    \
+                PRINT(bio, type, 0, pctx);        \
+                BIO_free(bio);                    \
+            }                                     \
+            I2D(type, &der);                      \
+            OPENSSL_free(der);                    \
+            TYPE##_free(type);                    \
+        }                                         \
+    }
 
-
-#define DO_TEST_NO_PRINT(TYPE, D2I, I2D) { \
-    const unsigned char *p = buf; \
-    unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
-    \
-    if (type != NULL) { \
-        BIO *bio = BIO_new(BIO_s_null()); \
-        \
-        BIO_free(bio); \
-        I2D(type, &der); \
-        OPENSSL_free(der); \
-        TYPE ## _free(type); \
-    } \
-}
-
+#define DO_TEST_NO_PRINT(TYPE, D2I, I2D)      \
+    {                                         \
+        const unsigned char *p = buf;         \
+        unsigned char *der = NULL;            \
+        TYPE *type = D2I(NULL, &p, len);      \
+                                              \
+        if (type != NULL) {                   \
+            BIO *bio = BIO_new(BIO_s_null()); \
+                                              \
+            BIO_free(bio);                    \
+            I2D(type, &der);                  \
+            OPENSSL_free(der);                \
+            TYPE##_free(type);                \
+        }                                     \
+    }
 
 int FuzzerInitialize(int *argc, char ***argv)
 {
     FuzzerSetRand();
     pctx = ASN1_PCTX_new();
-    ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT |
-        ASN1_PCTX_FLAGS_SHOW_SEQUENCE | ASN1_PCTX_FLAGS_SHOW_SSOF |
-        ASN1_PCTX_FLAGS_SHOW_TYPE | ASN1_PCTX_FLAGS_SHOW_FIELD_STRUCT_NAME);
-    ASN1_PCTX_set_str_flags(pctx, ASN1_STRFLGS_UTF8_CONVERT |
-        ASN1_STRFLGS_SHOW_TYPE | ASN1_STRFLGS_DUMP_ALL);
+    ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT | ASN1_PCTX_FLAGS_SHOW_SEQUENCE | ASN1_PCTX_FLAGS_SHOW_SSOF | ASN1_PCTX_FLAGS_SHOW_TYPE | ASN1_PCTX_FLAGS_SHOW_FIELD_STRUCT_NAME);
+    ASN1_PCTX_set_str_flags(pctx, ASN1_STRFLGS_UTF8_CONVERT | ASN1_STRFLGS_SHOW_TYPE | ASN1_STRFLGS_DUMP_ALL);
 
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
@@ -304,7 +305,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
     int n;
 
-
     for (n = 0; item_type[n] != NULL; ++n) {
         const uint8_t *b = buf;
         unsigned char *der = NULL;
@@ -312,10 +312,16 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         ASN1_VALUE *o = ASN1_item_d2i(NULL, &b, len, i);
 
         if (o != NULL) {
-            BIO *bio = BIO_new(BIO_s_null());
-            if (bio != NULL) {
-                ASN1_item_print(bio, o, 4, i, pctx);
-                BIO_free(bio);
+            /*
+             * Don't print excessively long output to prevent spurious fuzzer
+             * timeouts.
+             */
+            if (b - buf < 10000) {
+                BIO *bio = BIO_new(BIO_s_null());
+                if (bio != NULL) {
+                    ASN1_item_print(bio, o, 4, i, pctx);
+                    BIO_free(bio);
+                }
             }
             if (ASN1_item_i2d(o, &der, i) > 0) {
                 OPENSSL_free(der);
@@ -343,22 +349,22 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 #endif
 #ifndef OPENSSL_NO_DSA
     DO_TEST_NO_PRINT(DSA_SIG, d2i_DSA_SIG, i2d_DSA_SIG);
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     DO_TEST_NO_PRINT(DSA, d2i_DSAPrivateKey, i2d_DSAPrivateKey);
     DO_TEST_NO_PRINT(DSA, d2i_DSAPublicKey, i2d_DSAPublicKey);
     DO_TEST_NO_PRINT(DSA, d2i_DSAparams, i2d_DSAparams);
-# endif
+#endif
 #endif
 #ifndef OPENSSL_NO_DEPRECATED_3_0
     DO_TEST_NO_PRINT(RSA, d2i_RSAPublicKey, i2d_RSAPublicKey);
 #endif
 #ifndef OPENSSL_NO_EC
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     DO_TEST_PRINT_OFFSET(EC_GROUP, d2i_ECPKParameters, i2d_ECPKParameters, ECPKParameters_print);
     DO_TEST_PRINT_OFFSET(EC_KEY, d2i_ECPrivateKey, i2d_ECPrivateKey, EC_KEY_print);
     DO_TEST(EC_KEY, d2i_ECParameters, i2d_ECParameters, ECParameters_print);
     DO_TEST_NO_PRINT(ECDSA_SIG, d2i_ECDSA_SIG, i2d_ECDSA_SIG);
-# endif
+#endif
 #endif
     DO_TEST_PRINT_PCTX(EVP_PKEY, d2i_AutoPrivateKey, i2d_PrivateKey, EVP_PKEY_print_private);
     DO_TEST(SSL_SESSION, d2i_SSL_SESSION, i2d_SSL_SESSION, SSL_SESSION_print);

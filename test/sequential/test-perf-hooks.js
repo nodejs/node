@@ -1,11 +1,12 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const { performance } = require('perf_hooks');
 // Get the start time as soon as possible.
 const testStartTime = performance.now();
 const assert = require('assert');
 const { writeSync } = require('fs');
+const { isMainThread } = require('worker_threads');
 
 // Use writeSync to stdout to avoid disturbing the loop.
 function log(str) {
@@ -27,15 +28,10 @@ const epsilon = 50;
 {
   const uptime1 = Date.now() - performance.timeOrigin;
   const uptime2 = performance.now();
-  const uptime3 = process.uptime() * 1000;
   assert(Math.abs(uptime1 - uptime2) < epsilon,
          `Date.now() - performance.timeOrigin (${uptime1}) - ` +
          `performance.now() (${uptime2}) = ` +
          `${uptime1 - uptime2} >= +- ${epsilon}`);
-  assert(Math.abs(uptime1 - uptime3) < epsilon,
-         `Date.now() - performance.timeOrigin (${uptime1}) - ` +
-         `process.uptime() * 1000 (${uptime3}) = ` +
-         `${uptime1 - uptime3} >= +- ${epsilon}`);
 }
 
 assert.strictEqual(performance.nodeTiming.name, 'node');
@@ -57,8 +53,8 @@ function checkNodeTiming(timing) {
   // performance.now() i.e. measures Node.js instance up time.
   assert.strictEqual(typeof timing.duration, 'number');
   assert(timing.duration > 0, `timing.duration ${timing.duration} <= 0`);
-  assert(delta < 10,
-         `now (${now}) - timing.duration (${timing.duration}) = ${delta} >= ${10}`);
+  assert(delta < epsilon,
+         `now (${now}) - timing.duration (${timing.duration}) = ${delta} >= ${epsilon}`);
 
   // Check that the following fields do not change.
   assert.strictEqual(timing.startTime, initialTiming.startTime);
@@ -91,6 +87,18 @@ checkNodeTiming(initialTiming);
   // The whole process starts before this test starts.
   assert(nodeStart < testStartTime,
          `nodeStart ${nodeStart} >= ${testStartTime}`);
+
+  {
+    // Due to https://github.com/nodejs/node/pull/46588,
+    // The difference between process.uptime() and (Date.now() - performance.timeOrigin)
+    // is roughly performance.nodeTiming.nodeStart
+    const uptime1 = Date.now() - performance.timeOrigin;  // now - process start time
+    const uptime3 = process.uptime() * 1000;  // now - node start time
+    assert(Math.abs(uptime1 - uptime3 - nodeStart) < epsilon,
+           `Date.now() - performance.timeOrigin (${uptime1}) - ` +
+          `process.uptime() * 1000 (${uptime3}) = ` +
+          `${uptime1 - uptime3} >= +- ${epsilon}`);
+  }
 
   assert.strictEqual(typeof v8Start, 'number');
   assert(v8Start > 0, `v8Start ${v8Start} <= 0`);
@@ -131,7 +139,7 @@ function checkValue(timing, name, min, max) {
 }
 
 let loopStart = initialTiming.loopStart;
-if (common.isMainThread) {
+if (isMainThread) {
   // In the main thread, the loop does not start until we start an operation
   // that requires it, e.g. setTimeout().
   assert.strictEqual(initialTiming.loopStart, -1);

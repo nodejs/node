@@ -6,6 +6,7 @@
 #define V8_CODEGEN_ASSEMBLER_INL_H_
 
 #include "src/codegen/assembler.h"
+// Include the non-inl header before the rest of the headers.
 
 #if V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/assembler-ia32-inl.h"
@@ -15,13 +16,13 @@
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/codegen/arm/assembler-arm-inl.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/assembler-mips64-inl.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/codegen/loong64/assembler-loong64-inl.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/codegen/s390/assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 #include "src/codegen/riscv/assembler-riscv-inl.h"

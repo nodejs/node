@@ -4,7 +4,7 @@
 
 // New space must be at max capacity to trigger pretenuring decision.
 // Flags: --allow-natives-syntax --verify-heap --max-semi-space-size=1
-// Flags: --expose-gc --no-always-turbofan
+// Flags: --expose-gc
 
 var global = [];  // Used to keep some objects alive.
 

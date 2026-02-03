@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rab-gsab --allow-natives-syntax
-// Flags: --harmony-array-find-last
+// Flags: --js-staging --allow-natives-syntax
 
 "use strict";
 
@@ -8171,7 +8170,8 @@ SortCallbackGrows(ArraySortHelper);
     assertThrows(() => { Object.freeze(lengthTracking); }, TypeError);
     assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
   }
-  // Freezing zero-length TAs doesn't throw.
+  // Freezing zero-length TAs throws because [[PreventExtensions]] returns false
+  // for variable-length TAs.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -8182,12 +8182,10 @@ SortCallbackGrows(ArraySortHelper);
     const lengthTrackingWithOffset = new ctor(
         rab, 4 * ctor.BYTES_PER_ELEMENT);
 
-    Object.freeze(fixedLength);
-    Object.freeze(fixedLengthWithOffset);
-    Object.freeze(lengthTrackingWithOffset);
+    assertThrows(() => { Object.freeze(fixedLength); }, TypeError);
+    assertThrows(() => { Object.freeze(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
   }
-  // If the buffer has been resized to make length-tracking TAs zero-length,
-  // freezing them also doesn't throw.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -8196,10 +8194,10 @@ SortCallbackGrows(ArraySortHelper);
         rab, 2 * ctor.BYTES_PER_ELEMENT);
 
     rab.resize(2 * ctor.BYTES_PER_ELEMENT);
-    Object.freeze(lengthTrackingWithOffset);
+    assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
 
     rab.resize(0 * ctor.BYTES_PER_ELEMENT);
-    Object.freeze(lengthTracking);
+    assertThrows(() => { Object.freeze(lengthTracking); }, TypeError);
   }
 })();
 
@@ -8368,5 +8366,26 @@ SortCallbackGrows(ArraySortHelper);
 
     // This should not throw.
     new ctor(rab);
+  }
+})();
+
+
+(function SetValueToNumberResizesToInBounds() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(0,
+                                           1 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+
+    const evil = { valueOf: () => {
+      // Resize so that `lengthTracking` is no longer OOB.
+      rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+      if (IsBigIntTypedArray(lengthTracking)) {
+        return 2n;
+      }
+      return 2;
+    }};
+
+    lengthTracking[0] = evil;
+    assertEquals([2], ToNumbers(lengthTracking));
   }
 })();

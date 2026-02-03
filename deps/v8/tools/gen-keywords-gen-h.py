@@ -39,8 +39,8 @@ def checked_sub(pattern: Union[str, re.Pattern[str]],
                 flags: int = 0) -> str:
   out, n = re.subn(pattern, sub, out, flags=flags)
   if n != count:
-    raise Exception("Didn't get exactly %d replacement(s) for pattern: %s" %
-                    (count, pattern))
+    raise Exception("Expected %d and got %d replacement(s) for pattern: %s" %
+                    (count, n, pattern))
   return out
 
 
@@ -59,11 +59,11 @@ def trim_and_dcheck_char_table(out: str) -> str:
   # rest of the table and mask out the char
 
   reads_re = re.compile(
-      r'asso_values\[static_cast<unsigned char>\(str\[(\d+)\]\)\]')
+      r'asso_values\[static_cast<unsigned char>\((str\[\w+\](\+\d)?)\)\]')
 
   dchecks = []
   for str_read in reads_re.finditer(out):
-    dchecks.append("DCHECK_LT(str[%d], 128);" % int(str_read.group(1)))
+    dchecks.append("DCHECK_LT(%s, 129);" % str_read.group(1))
 
   if TRIM_CHAR_TABLE:
     out = checked_sub(
@@ -80,7 +80,7 @@ def trim_and_dcheck_char_table(out: str) -> str:
   else:
     out = checked_sub(
         r'static const unsigned char asso_values\[\]\s*=\s*\{',
-        "".join(dchecks) + r'static const unsigned char asso_values[128] = {',
+        "".join(dchecks) + r'static const unsigned char asso_values[129] = {',
         out,
         flags=re.MULTILINE)
 
@@ -124,7 +124,7 @@ def pad_tables(out: str) -> str:
   # Pad the word list.
   single_wordlist_entry = r"""
       (?:\#line\ \d+\ ".*"$\s*)?
-      \{\s*"[a-z]*"\s*,\s*Token::[A-Z_]+\}
+      \{\s*"[a-z]*"\s*,\s*Token::[a-zA-Z_]+\}
     """
   out = checked_sub(
       r"""
@@ -137,7 +137,7 @@ def pad_tables(out: str) -> str:
     """ % {'single_wordlist_entry': single_wordlist_entry},
       r'static const struct PerfectKeywordHashTableEntry kPerfectKeywordHashTable[%d] = {\1 %s }'
       % (new_table_length, "".join(
-          [',{"",Token::IDENTIFIER}'] * table_padding_len)),
+          [',{"",Token::kIdentifier}'] * table_padding_len)),
       out,
       flags=re.MULTILINE | re.VERBOSE)
 
@@ -167,7 +167,7 @@ def return_token(out: str) -> str:
                     r'return kPerfectKeywordHashTable[key].value;', out)
 
   # Change the return value when the keyword is not found
-  out = checked_sub(r'return 0;', r'return Token::IDENTIFIER;', out)
+  out = checked_sub(r'return 0;', r'return Token::kIdentifier;', out)
 
   return out
 
@@ -177,11 +177,11 @@ def memcmp_to_while(out: str) -> str:
   # Careful, this replacement is quite flaky, because otherwise the regex is
   # unreadable.
   return checked_sub(
-      re.escape("if (*str == *s && !memcmp (str + 1, s + 1, len - 1))") + r"\s*"
-      + re.escape("return kPerfectKeywordHashTable[key].value;"),
+      re.escape("if (*str == *s && !memcmp (str + 1, s + 1, len - 1))") +
+      r"\s*" + re.escape("return kPerfectKeywordHashTable[key].value;"),
       """
       while(*s!=0) {
-        if (*s++ != *str++) return Token::IDENTIFIER;
+        if (*s++ != *str++) return Token::kIdentifier;
       }
       return kPerfectKeywordHashTable[key].value;
       """,

@@ -1,10 +1,12 @@
 # NAME
 
-brotli(1) -- brotli, unbrotli - compress or decompress files
+brotli(1) -- brotli, brcat, unbrotli - compress or decompress files
 
 # SYNOPSIS
 
 `brotli` [*OPTION|FILE*]...
+
+`brcat` is equivalent to `brotli --decompress --concatenated --stdout`
 
 `unbrotli` is equivalent to `brotli --decompress`
 
@@ -83,9 +85,15 @@ Conflicting or duplicate _options_ are not allowed.
     `(pow(2, NUM) - 16)`; 0 lets compressor decide over the optimal value;
     bigger windows size improve density; decoder might require up to window size
     memory to operate
+* `-C B64`, `--comment=B64`:
+    set comment; argument is base64-decoded first;
+    when decoding: check stream comment;
+    when encoding: embed comment (fingerprint)
 * `-D FILE`, `--dictionary=FILE`:
     use FILE as raw (LZ77) dictionary; same dictionary MUST be used both for
     compression and decompression
+* `-K`, `--concatenated`:
+    when decoding, allow concatenated brotli streams as input
 * `-S SUF`, `--suffix=SUF`:
     output file suffix (default: `.br`)
 * `-V`, `--version`:

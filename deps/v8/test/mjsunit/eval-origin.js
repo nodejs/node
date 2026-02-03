@@ -8,26 +8,28 @@ Error.prepareStackTrace = function(exception, frames) {
   return frames[0].getEvalOrigin();
 }
 
-var source = "new Error()";
+var sc = 0;
+// TODO(4921)
+Object.defineProperty(globalThis, "source", {get() { return `new Error(${sc++})` }});
 var eval_origin;
 var geval = eval;
 var log = [];
 
 (function() {
-  log.push([geval(source).stack, "17:13"]);
-  log.push([geval(source).stack, "18:13"]);
-  // log.push([geval(source).stack, "19:13"]);  TODO(4921).
+  log.push([geval(source).stack, "19:13"]);
+  log.push([geval(source).stack, "20:13"]);
+  log.push([geval(source).stack, "21:13"]);
 })();
 
 (function() {
-  log.push([eval(source).stack, "23:13"]);
-  log.push([eval(source).stack, "24:13"]);
-  // log.push([eval(source).stack, "25:13"]);  TODO(4921).
+  log.push([eval(source).stack, "25:13"]);
+  log.push([eval(source).stack, "26:13"]);
+  log.push([eval(source).stack, "27:13"]);
 })();
 
-log.push([eval(source).stack, "28:11"]);
-log.push([eval(source).stack, "29:11"]);
-// log.push([eval(source).stack, "30:11"]);  TODO(4921).
+log.push([eval(source).stack, "30:11"]);
+log.push([eval(source).stack, "31:11"]);
+log.push([eval(source).stack, "32:11"]);
 
 Error.prepareStackTrace = undefined;
 

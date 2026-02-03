@@ -77,7 +77,7 @@ Reduction TypeNarrowingReducer::Reduce(Node* node) {
   return NoChange();
 }
 
-Graph* TypeNarrowingReducer::graph() const { return jsgraph()->graph(); }
+TFGraph* TypeNarrowingReducer::graph() const { return jsgraph()->graph(); }
 
 Zone* TypeNarrowingReducer::zone() const { return graph()->zone(); }
 

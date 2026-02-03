@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-to-js-generic-wrapper --wasm-staging --experimental-wasm-type-reflection
+// Flags: --wasm-generic-wrapper --experimental-wasm-type-reflection
 // Flags: --wasm-wrapper-tiering-budget=1 --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -592,7 +592,7 @@ function TestCallRefFromParam(numParams, jsFunc, mode) {
 
   let body = [];
   for (let i = 1; i <= numParams; ++i) {
-    body.push(kExprLocalGet, ...wasmSignedLeb(i));
+    body.push(kExprLocalGet, ...wasmUnsignedLeb(i));
   }
   body.push(kExprLocalGet, 0, kExprCallRef, sigId);
 

@@ -58,10 +58,6 @@ assert.strictEqual(process.env.COMMENTS, undefined);
 assert.strictEqual(process.env.EQUAL_SIGNS, 'equals==');
 // Retains inner quotes
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES, '{"foo": "bar"}');
-// Respects equals signs in values
-assert.strictEqual(process.env.EQUAL_SIGNS, 'equals==');
-// Retains inner quotes
-assert.strictEqual(process.env.RETAIN_INNER_QUOTES, '{"foo": "bar"}');
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_STRING, '{"foo": "bar"}');
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_BACKTICKS, '{"foo": "bar\'s"}');
 // Retains spaces in string
@@ -83,4 +79,8 @@ assert.strictEqual(process.env.EXPAND_NEWLINES, 'expand\nnew\nlines');
 assert.strictEqual(process.env.DONT_EXPAND_UNQUOTED, 'dontexpand\\nnewlines');
 assert.strictEqual(process.env.DONT_EXPAND_SQUOTED, 'dontexpand\\nnewlines');
 // Ignore export before key
-assert.strictEqual(process.env.EXAMPLE, 'ignore export');
+assert.strictEqual(process.env.EXPORT_EXAMPLE, 'ignore export');
+// Ignore spaces before double quotes to avoid quoted strings as value
+assert.strictEqual(process.env.SPACE_BEFORE_DOUBLE_QUOTES, 'space before double quotes');
+assert.strictEqual(process.env.A, 'B=C');
+assert.strictEqual(process.env.B, 'C=D');

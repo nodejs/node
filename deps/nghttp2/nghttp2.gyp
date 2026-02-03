@@ -67,6 +67,17 @@
       'sources': [
         '<@(nghttp2_sources)',
       ]
+    },
+    {
+      'target_name': 'sfparse',
+      'type': 'static_library',
+      'include_dirs': ['lib'],
+      'sources': [
+        'lib/sfparse.c',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [ 'lib/includes' ]
+      }
     }
   ]
 }

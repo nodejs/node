@@ -25,7 +25,7 @@ server.on('secureConnection', common.mustCall((socket) => {
   }));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   // If the client does not send an ALPN connection, and the server has not been
   // configured with allowHTTP1, then the server should destroy the socket
   // after unknownProtocolTimeout.
@@ -42,6 +42,7 @@ server.listen(0, function() {
     rejectUnauthorized: false,
     ALPNProtocols: ['bogus']
   }).on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ECONNRESET');
+    const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
+    assert.ok(allowedErrors.includes(err.code), `'${err.code}' was not one of ${allowedErrors}.`);
   }));
-});
+}));

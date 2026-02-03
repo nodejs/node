@@ -1,0 +1,21 @@
+---
+source: core/src/ast/functions.rs
+expression: "Function::from_syn(&syn::parse_quote! { fn some_func(a : f32, b: f64) {} },\n&Attrs::default())"
+---
+name: some_func
+abi_name: diplomat_external_some_func
+params:
+  - name: a
+    ty:
+      Primitive: f32
+    attrs: {}
+  - name: b
+    ty:
+      Primitive: f64
+    attrs: {}
+output_type: ~
+lifetimes: {}
+attrs: {}
+docs:
+  - ""
+  - []

@@ -4,6 +4,7 @@
 
 #include "src/sandbox/code-pointer-table.h"
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate.h"
 #include "src/logging/counters.h"
 #include "src/sandbox/code-pointer-table-inl.h"
@@ -18,9 +19,6 @@ uint32_t CodePointerTable::Sweep(Space* space, Counters* counters) {
   counters->code_pointers_count()->AddSample(num_live_entries);
   return num_live_entries;
 }
-
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodePointerTable,
-                                GetProcessWideCodePointerTable)
 
 }  // namespace internal
 }  // namespace v8

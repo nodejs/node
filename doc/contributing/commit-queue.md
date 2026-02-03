@@ -1,10 +1,8 @@
 # Commit queue
 
-> Stability: 1 - Experimental
-
 _tl;dr: You can land pull requests by adding the `commit-queue` label to it._
 
-Commit Queue is an experimental feature for the project which simplifies the
+Commit Queue is a feature for the project which simplifies the
 landing process by automating it via GitHub Actions. With it, collaborators can
 land pull requests by adding the `commit-queue` label to a PR. All
 checks will run via `@node-core/utils`, and if the pull request is ready to
@@ -18,7 +16,7 @@ implementation details, reasoning for design choices, and current limitations.
 From a high-level, the Commit Queue works as follow:
 
 1. Collaborators will add `commit-queue` label to pull requests ready to land
-2. Every five minutes the queue will do the following for each pull request
+2. Every five minutes the queue will do the following for each mergeable pull request
    with the label:
    1. Check if the PR also has a `request-ci` label (if it has, skip this PR
       since it's pending a CI run)
@@ -56,6 +54,8 @@ of the commit queue:
 2. A CI must've ran and succeeded since the last change on the PR
 3. A collaborator must have approved the PR since the last change
 4. Only Jenkins CI and GitHub Actions are checked (V8 CI and CITGM are ignored)
+5. The PR must target the `main` branch (PRs opened against other branches, such
+   as backport PRs, are ignored)
 
 ## Implementation
 

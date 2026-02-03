@@ -1,13 +1,13 @@
 import { skipIfInspectorDisabled } from '../common/index.mjs';
 skipIfInspectorDisabled();
 
-import { path } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
 
-const script = path('debugger', 'twenty-lines.js');
-const cli = startCLI(['--port=0', script]);
+const script = fixtures.path('debugger', 'twenty-lines.js');
+const cli = startCLI([script]);
 
 function onFatal(error) {
   cli.quit();

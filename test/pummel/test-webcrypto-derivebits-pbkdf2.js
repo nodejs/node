@@ -6,7 +6,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (common.isPi) {
+if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 
@@ -362,50 +362,40 @@ const kDerivations = {
 };
 
 async function setupBaseKeys() {
-  const promises = [];
-
   const baseKeys = {};
   const noBits = {};
   const noKey = {};
   let wrongKey = null;
 
-  Object.keys(kPasswords).forEach((size) => {
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveKey', 'deriveBits'])
-        .then((key) => baseKeys[size] = key));
-
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits'])
-        .then((key) => noKey[size] = key));
-
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveKey'])
-        .then((key) => noBits[size] = key));
-  });
-
-  promises.push(
-    subtle.generateKey(
-      { name: 'ECDH', namedCurve: 'P-521' },
+  await Promise.all(Object.keys(kPasswords).flatMap((size) => [
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
       false,
       ['deriveKey', 'deriveBits'])
-      .then((key) => wrongKey = key.privateKey));
+        .then((key) => baseKeys[size] = key),
 
-  await Promise.all(promises);
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveBits'])
+        .then((key) => noKey[size] = key),
+
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey'])
+        .then((key) => noBits[size] = key),
+  ]).concat(subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-521' },
+    false,
+    ['deriveKey', 'deriveBits'])
+      .then((key) => wrongKey = key.privateKey)));
 
   return { baseKeys, noBits, noKey, wrongKey };
 }
@@ -450,12 +440,12 @@ async function testDeriveBitsBadLengths(
         name: 'OperationError',
       }),
     assert.rejects(
-      subtle.deriveBits(algorithm, baseKeys[size], 0), {
-        message: /length cannot be zero/,
+      subtle.deriveBits(algorithm, baseKeys[size], null), {
+        message: 'length cannot be null',
         name: 'OperationError',
       }),
     assert.rejects(
-      subtle.deriveBits(algorithm, baseKeys[size], null), {
+      subtle.deriveBits(algorithm, baseKeys[size]), {
         message: 'length cannot be null',
         name: 'OperationError',
       }),
@@ -483,7 +473,6 @@ async function testDeriveBitsBadHash(
           ...algorithm,
           hash: hash.substring(0, 3) + hash.substring(4),
         }, baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
     assert.rejects(
@@ -493,7 +482,6 @@ async function testDeriveBitsBadHash(
           hash: 'HKDF',
         },
         baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
   ]);
@@ -571,10 +559,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -585,10 +570,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
   ]);
 }
 
@@ -688,3 +670,19 @@ async function testWrongKeyType(
 
   await Promise.all(variations);
 })().then(common.mustCall());
+
+
+// https://github.com/w3c/webcrypto/pull/380
+{
+  crypto.subtle.importKey('raw', new Uint8Array(0), 'PBKDF2', false, ['deriveBits']).then((key) => {
+    return crypto.subtle.deriveBits({
+      name: 'PBKDF2',
+      hash: { name: 'SHA-256' },
+      iterations: 10,
+      salt: new Uint8Array(0),
+    }, key, 0);
+  }).then((bits) => {
+    assert.deepStrictEqual(bits, new ArrayBuffer(0));
+  })
+  .then(common.mustCall());
+}

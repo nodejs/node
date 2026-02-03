@@ -278,32 +278,34 @@ void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsObject());
   StreamBase* source = StreamBase::FromObject(args[0].As<Object>());
   StreamBase* sink = StreamBase::FromObject(args[1].As<Object>());
+  CHECK_NOT_NULL(source);
+  CHECK_NOT_NULL(sink);
 
   if (StreamPipe::New(source, sink, args.This()).IsNothing()) return;
 }
 
 void StreamPipe::Start(const FunctionCallbackInfo<Value>& args) {
   StreamPipe* pipe;
-  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.This());
   pipe->is_closed_ = false;
   pipe->writable_listener_.OnStreamWantsWrite(65536);
 }
 
 void StreamPipe::Unpipe(const FunctionCallbackInfo<Value>& args) {
   StreamPipe* pipe;
-  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.This());
   pipe->Unpipe();
 }
 
 void StreamPipe::IsClosed(const FunctionCallbackInfo<Value>& args) {
   StreamPipe* pipe;
-  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.This());
   args.GetReturnValue().Set(pipe->is_closed_);
 }
 
 void StreamPipe::PendingWrites(const FunctionCallbackInfo<Value>& args) {
   StreamPipe* pipe;
-  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&pipe, args.This());
   args.GetReturnValue().Set(pipe->pending_writes_);
 }
 

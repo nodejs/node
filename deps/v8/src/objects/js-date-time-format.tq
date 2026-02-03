@@ -11,6 +11,9 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;
   date_style: DateTimeStyle: 3 bit;
   time_style: DateTimeStyle: 3 bit;
+  has_to_locale_string_time_zone: bool: 1 bit;
+
+  explicit_components_in_options: int32: 11 bit;
 }
 
 extern class JSDateTimeFormat extends JSObject {

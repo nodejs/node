@@ -29,9 +29,9 @@ const dnsPromises = dns.promises;
 (async function() {
   let res;
 
-  res = await dnsPromises.lookup(null);
-  assert.strictEqual(res.address, null);
-  assert.strictEqual(res.family, 4);
+  await assert.rejects(dnsPromises.lookup(null), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
 
   res = await dnsPromises.lookup('127.0.0.1');
   assert.strictEqual(res.address, '127.0.0.1');
@@ -43,10 +43,9 @@ const dnsPromises = dns.promises;
 })().then(common.mustCall());
 
 // Try resolution without hostname.
-dns.lookup(null, common.mustSucceed((result, addressType) => {
-  assert.strictEqual(result, null);
-  assert.strictEqual(addressType, 4);
-}));
+assert.throws(() => dns.lookup(null, common.mustNotCall()), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
 dns.lookup('127.0.0.1', common.mustSucceed((result, addressType) => {
   assert.strictEqual(result, '127.0.0.1');

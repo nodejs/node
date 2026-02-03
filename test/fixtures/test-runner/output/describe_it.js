@@ -5,8 +5,23 @@ const { describe, it, test } = require('node:test');
 const util = require('util');
 
 
-it.todo('sync pass todo', () => {
+it.expectFailure('sync expect fail (method)', () => {
+  throw new Error('should pass');
+});
 
+it('sync expect fail (options)', { expectFailure: true }, () => {
+  throw new Error('should pass');
+});
+
+it.expectFailure('async expect fail (method)', async () => {
+  throw new Error('should pass');
+});
+
+it('async expect fail (options)', { expectFailure: true }, async () => {
+  throw new Error('should pass');
+});
+
+it.todo('sync pass todo', () => {
 });
 
 it('sync pass todo with message', { todo: 'this is a passing todo' }, () => {
@@ -16,11 +31,19 @@ it.todo('sync todo', () => {
   throw new Error('should not count as a failure');
 });
 
+it.todo('sync todo with expect fail', { expectFailure: true }, () => {
+  throw new Error('should not count as an expected failure');
+});
+
 it('sync todo with message', { todo: 'this is a failing todo' }, () => {
   throw new Error('should not count as a failure');
 });
 
 it.skip('sync skip pass', () => {
+});
+
+it.skip('sync skip expect fail', { expectFailure: true }, () => {
+  throw new Error('should not fail');
 });
 
 it('sync skip pass with message', { skip: 'this is skipped' }, () => {
@@ -311,7 +334,7 @@ describe('timeouts', () => {
 
   it('timed out callback test', { timeout: 5 }, (t, done) => {
     setTimeout(() => {
-        // Empty timer so the process doesn't exit before the timeout triggers.
+      // Empty timer so the process doesn't exit before the timeout triggers.
     }, 5);
     setTimeout(done, 30_000_000).unref();
   });
@@ -372,20 +395,20 @@ describe('rejected thenable', () => {
   };
 });
 
-describe("async describe function", async () => {
+describe('async describe function', async () => {
   await null;
 
-  await it("it inside describe 1", async () => {
-    await null
+  await it('it inside describe 1', async () => {
+    await null;
   });
-  await it("it inside describe 2", async () => {
+  await it('it inside describe 2', async () => {
     await null;
   });
 
-  describe("inner describe", async () => {
+  describe('inner describe', async () => {
     await null;
 
-    it("it inside inner describe", async () => {
+    it('it inside inner describe', async () => {
       await null;
     });
   });

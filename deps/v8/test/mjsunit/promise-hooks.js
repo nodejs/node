@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --deopt-every-n-times=0 --ignore-unhandled-promises
+// Flags: --allow-natives-syntax --turbofan --deopt-every-n-times=0 --ignore-unhandled-promises
 
 let log = [];
 let asyncId = 0;
@@ -184,6 +184,7 @@ function exceptions() {
 // when context promise hooks are attached.
 function optimizerBailout(test, verify) {
   // Warm up test method
+  %DeoptimizeFunction(test);
   %PrepareFunctionForOptimization(test);
   assertUnoptimized(test);
   test();
@@ -200,7 +201,8 @@ function optimizerBailout(test, verify) {
 
   // Verify that attaching hooks deopts the async function
   d8.promise.setHooks(initHook, beforeHook, afterHook, resolveHook);
-  // assertUnoptimized(test);
+  %DeoptimizeFunction(test);
+  assertUnoptimized(test);
 
   // Verify log structure of deoptimized call
   %PrepareFunctionForOptimization(test);

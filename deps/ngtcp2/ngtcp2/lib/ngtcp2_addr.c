@@ -31,8 +31,11 @@
 
 ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
                               ngtcp2_socklen addrlen) {
-  dest->addrlen = addrlen;
-  dest->addr = (ngtcp2_sockaddr *)addr;
+  *dest = (ngtcp2_addr){
+    .addr = (ngtcp2_sockaddr *)addr,
+    .addrlen = addrlen,
+  };
+
   return dest;
 }
 
@@ -51,19 +54,19 @@ void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
   }
 }
 
-static int sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
-  assert(a->sa_family == b->sa_family);
+int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
+  if (a->sa_family != b->sa_family) {
+    return 0;
+  }
 
   switch (a->sa_family) {
   case NGTCP2_AF_INET: {
-    const ngtcp2_sockaddr_in *ai = (const ngtcp2_sockaddr_in *)(void *)a,
-                             *bi = (const ngtcp2_sockaddr_in *)(void *)b;
+    const ngtcp2_sockaddr_in *ai = (void *)a, *bi = (void *)b;
     return ai->sin_port == bi->sin_port &&
            memcmp(&ai->sin_addr, &bi->sin_addr, sizeof(ai->sin_addr)) == 0;
   }
   case NGTCP2_AF_INET6: {
-    const ngtcp2_sockaddr_in6 *ai = (const ngtcp2_sockaddr_in6 *)(void *)a,
-                              *bi = (const ngtcp2_sockaddr_in6 *)(void *)b;
+    const ngtcp2_sockaddr_in6 *ai = (void *)a, *bi = (void *)b;
     return ai->sin6_port == bi->sin6_port &&
            memcmp(&ai->sin6_addr, &bi->sin6_addr, sizeof(ai->sin6_addr)) == 0;
   }
@@ -73,39 +76,36 @@ static int sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
 }
 
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
-  return a->addr->sa_family == b->addr->sa_family &&
-         sockaddr_eq(a->addr, b->addr);
+  return ngtcp2_sockaddr_eq(a->addr, b->addr);
 }
 
-uint32_t ngtcp2_addr_compare(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
-  uint32_t flags = NGTCP2_ADDR_COMPARE_FLAG_NONE;
+uint32_t ngtcp2_addr_cmp(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
+  uint32_t flags = NGTCP2_ADDR_CMP_FLAG_NONE;
   const ngtcp2_sockaddr *a = aa->addr;
   const ngtcp2_sockaddr *b = bb->addr;
 
   if (a->sa_family != b->sa_family) {
-    return NGTCP2_ADDR_COMPARE_FLAG_FAMILY;
+    return NGTCP2_ADDR_CMP_FLAG_FAMILY;
   }
 
   switch (a->sa_family) {
   case NGTCP2_AF_INET: {
-    const ngtcp2_sockaddr_in *ai = (const ngtcp2_sockaddr_in *)(void *)a,
-                             *bi = (const ngtcp2_sockaddr_in *)(void *)b;
+    const ngtcp2_sockaddr_in *ai = (void *)a, *bi = (void *)b;
     if (memcmp(&ai->sin_addr, &bi->sin_addr, sizeof(ai->sin_addr))) {
-      flags |= NGTCP2_ADDR_COMPARE_FLAG_ADDR;
+      flags |= NGTCP2_ADDR_CMP_FLAG_ADDR;
     }
     if (ai->sin_port != bi->sin_port) {
-      flags |= NGTCP2_ADDR_COMPARE_FLAG_PORT;
+      flags |= NGTCP2_ADDR_CMP_FLAG_PORT;
     }
     return flags;
   }
   case NGTCP2_AF_INET6: {
-    const ngtcp2_sockaddr_in6 *ai = (const ngtcp2_sockaddr_in6 *)(void *)a,
-                              *bi = (const ngtcp2_sockaddr_in6 *)(void *)b;
+    const ngtcp2_sockaddr_in6 *ai = (void *)a, *bi = (void *)b;
     if (memcmp(&ai->sin6_addr, &bi->sin6_addr, sizeof(ai->sin6_addr))) {
-      flags |= NGTCP2_ADDR_COMPARE_FLAG_ADDR;
+      flags |= NGTCP2_ADDR_CMP_FLAG_ADDR;
     }
     if (ai->sin6_port != bi->sin6_port) {
-      flags |= NGTCP2_ADDR_COMPARE_FLAG_PORT;
+      flags |= NGTCP2_ADDR_CMP_FLAG_PORT;
     }
     return flags;
   }

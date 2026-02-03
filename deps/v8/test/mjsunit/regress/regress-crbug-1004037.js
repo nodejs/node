@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-turbofan
+// Flags: --no-lazy-feedback-allocation
+// Flags: --invocation-count-for-turbofan=1
 
 __v_1 = {};
 __v_1.__defineGetter__('x', function () { });
@@ -20,4 +21,5 @@ try {
 } catch (e) { }
 
 __proto__ = __v_1;
+assertThrows(() => __f_3(), ReferenceError);
 assertThrows(() => __f_3(), ReferenceError);

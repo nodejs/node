@@ -4,13 +4,16 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (!common.hasOpenSSL3)
+const { hasOpenSSL3 } = require('../common/crypto');
+
+if (!hasOpenSSL3)
   common.skip('this test requires OpenSSL 3.x');
 
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { isMainThread } = require('worker_threads');
 
-if (common.isMainThread) {
+if (isMainThread) {
   // TODO(richardlau): Decide if `crypto.setFips` should error if the
   // provider named "fips" is not available.
   crypto.setFips(1);
@@ -27,9 +30,9 @@ if (common.isMainThread) {
 
 {
   // Startup test. Should not hang.
-  const { path } = require('../common/fixtures');
+  const fixtures = require('../common/fixtures');
   const { spawnSync } = require('node:child_process');
-  const baseConf = path('openssl3-conf', 'base_only.cnf');
+  const baseConf = fixtures.path('openssl3-conf', 'base_only.cnf');
   const cp = spawnSync(process.execPath,
                        [ `--openssl-config=${baseConf}`, '-p', '"hello"' ],
                        { encoding: 'utf8' });

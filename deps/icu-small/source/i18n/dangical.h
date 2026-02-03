@@ -68,27 +68,7 @@ class DangiCalendar : public ChineseCalendar {
    */
   virtual DangiCalendar* clone() const override;
 
-  //----------------------------------------------------------------------
-  // Internal methods & astronomical calculations
-  //----------------------------------------------------------------------
-
-  /**
-   * @return      The related Gregorian year; will be obtained by modifying the value
-   *              obtained by get from UCAL_EXTENDED_YEAR field
-   * @internal
-   */
-  virtual int32_t getRelatedYear(UErrorCode &status) const override;
-
-  /**
-   * @param year  The related Gregorian year to set; will be modified as necessary then
-   *              set in UCAL_EXTENDED_YEAR field
-   * @internal
-   */
-  virtual void setRelatedYear(int32_t year) override;
-
  private:
-
-  const TimeZone* getDangiCalZoneAstroCalc(UErrorCode &status) const;
 
   // UObject stuff
  public: 
@@ -120,6 +100,8 @@ class DangiCalendar : public ChineseCalendar {
    */
   const char * getType() const override;
 
+ protected:
+  virtual Setting getSetting(UErrorCode& status) const override;
 
  private:
  

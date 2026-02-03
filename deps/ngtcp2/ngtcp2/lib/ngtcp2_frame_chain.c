@@ -27,18 +27,7 @@
 #include <string.h>
 #include <assert.h>
 
-ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent);
-
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
-  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
-  if (*pfrc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_frame_chain_init(*pfrc);
-
-  return 0;
-}
+ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent)
 
 int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_objalloc *objalloc) {
@@ -47,7 +36,7 @@ int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_frame_chain_init(*pfrc);
+  ngtcp2_frame_chain_init(*pfrc, NGTCP2_FRAME_CHAIN_FLAG_NONE);
 
   return 0;
 }
@@ -59,7 +48,7 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_frame_chain_init(*pfrc);
+  ngtcp2_frame_chain_init(*pfrc, NGTCP2_FRAME_CHAIN_FLAG_MALLOC);
 
   return 0;
 }
@@ -68,17 +57,26 @@ int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
                                                    ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem) {
-  size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
+  int rv;
 
-  if (datacnt > 1) {
-    need = sizeof(ngtcp2_vec) * (datacnt - 1);
-
-    if (need > avail) {
-      return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
-    }
+  if (datacnt > NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES) {
+    rv = ngtcp2_frame_chain_extralen_new(
+      pfrc,
+      sizeof(ngtcp2_vec) * (datacnt - NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES),
+      mem);
+  } else {
+    rv = ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
   }
 
-  return ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
+  if (rv != 0) {
+    return rv;
+  }
+
+  (*pfrc)->fr.stream.data =
+    (ngtcp2_vec *)(void *)((uint8_t *)*pfrc +
+                           offsetof(ngtcp2_frame_chain, buf));
+
+  return 0;
 }
 
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
@@ -86,13 +84,13 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
                                               size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem) {
-  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token);
   int rv;
   uint8_t *p;
   ngtcp2_frame *fr;
 
-  if (tokenlen > avail) {
-    rv = ngtcp2_frame_chain_extralen_new(pfrc, tokenlen - avail, mem);
+  if (tokenlen > NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES) {
+    rv = ngtcp2_frame_chain_extralen_new(
+      pfrc, tokenlen - NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES, mem);
   } else {
     rv = ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
   }
@@ -101,30 +99,15 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   }
 
   fr = &(*pfrc)->fr;
-  fr->type = NGTCP2_FRAME_NEW_TOKEN;
+  fr->new_token.type = NGTCP2_FRAME_NEW_TOKEN;
 
-  p = (uint8_t *)fr + sizeof(ngtcp2_new_token);
+  p = (uint8_t *)*pfrc + offsetof(ngtcp2_frame_chain, buf);
   memcpy(p, token, tokenlen);
 
   fr->new_token.token = p;
   fr->new_token.tokenlen = tokenlen;
 
   return 0;
-}
-
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem) {
-  ngtcp2_frame_chain_binder *binder;
-
-  if (frc == NULL) {
-    return;
-  }
-
-  binder = frc->binder;
-  if (binder && --binder->refcount == 0) {
-    ngtcp2_mem_free(mem, binder);
-  }
-
-  ngtcp2_mem_free(mem, frc);
 }
 
 void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
@@ -136,42 +119,23 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
     return;
   }
 
-  switch (frc->fr.type) {
-  case NGTCP2_FRAME_CRYPTO:
-  case NGTCP2_FRAME_STREAM:
-    if (frc->fr.stream.datacnt &&
-        sizeof(ngtcp2_vec) * (frc->fr.stream.datacnt - 1) >
-            sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream)) {
-      ngtcp2_frame_chain_del(frc, mem);
-
-      return;
-    }
-
-    break;
-  case NGTCP2_FRAME_NEW_TOKEN:
-    if (frc->fr.new_token.tokenlen >
-        sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token)) {
-      ngtcp2_frame_chain_del(frc, mem);
-
-      return;
-    }
-
-    break;
-  }
-
   binder = frc->binder;
   if (binder && --binder->refcount == 0) {
     ngtcp2_mem_free(mem, binder);
   }
 
-  frc->binder = NULL;
+  if (frc->flags & NGTCP2_FRAME_CHAIN_FLAG_MALLOC) {
+    ngtcp2_mem_free(mem, frc);
+    return;
+  }
 
   ngtcp2_objalloc_frame_chain_release(objalloc, frc);
 }
 
-void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) {
+void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc, uint32_t flags) {
   frc->next = NULL;
   frc->binder = NULL;
+  frc->flags = flags;
 }
 
 void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,

@@ -1,9 +1,36 @@
 #ifndef SRC_JS_NATIVE_API_TYPES_H_
 #define SRC_JS_NATIVE_API_TYPES_H_
 
+// Use INT_MAX, this should only be consumed by the pre-processor anyway.
+#define NAPI_VERSION_EXPERIMENTAL 2147483647
+#ifndef NAPI_VERSION
+#ifdef NAPI_EXPERIMENTAL
+#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
+#else
+// The baseline version for Node-API.
+// NAPI_VERSION controls which version is used by default when compiling
+// a native addon. If the addon developer wants to use functions from a
+// newer Node-API version not yet available in all LTS versions, they can
+// set NAPI_VERSION to explicitly depend on that version.
+#define NAPI_VERSION 8
+#endif
+#endif
+
+#if defined(NAPI_EXPERIMENTAL) &&                                              \
+    !defined(NODE_API_EXPERIMENTAL_NO_WARNING) &&                              \
+    !defined(NODE_WANT_INTERNALS)
+#ifdef _MSC_VER
+#pragma message("NAPI_EXPERIMENTAL is enabled. "                               \
+                "Experimental features may be unstable.")
+#else
+#warning "NAPI_EXPERIMENTAL is enabled. " \
+       "Experimental features may be unstable."
+#endif
+#endif
+
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
-// became part of it's API.
+// become part of its API.
 #include <stddef.h>  // NOLINT(modernize-deprecated-headers)
 #include <stdint.h>  // NOLINT(modernize-deprecated-headers)
 
@@ -27,7 +54,7 @@ typedef struct napi_env__* napi_env;
 // meaning that they do not affect the state of the JS engine, and can
 // therefore be called synchronously from a finalizer that itself runs
 // synchronously during GC. Such APIs can receive either a `napi_env` or a
-// `node_api_nogc_env` as their first parameter, because we should be able to
+// `node_api_basic_env` as their first parameter, because we should be able to
 // also call them during normal, non-garbage-collecting operations, whereas
 // APIs that affect the state of the JS engine can only receive a `napi_env` as
 // their first parameter, because we must not call them during GC. In lieu of
@@ -37,19 +64,21 @@ typedef struct napi_env__* napi_env;
 // expecting a non-const value.
 //
 // In conjunction with appropriate CFLAGS to warn us if we're passing a const
-// (nogc) environment into an API that expects a non-const environment, and the
-// definition of nogc finalizer function pointer types below, which receive a
-// nogc environment as their first parameter, and can thus only call nogc APIs
-// (unless the user explicitly casts the environment), we achieve the ability
-// to ensure at compile time that we do not call APIs that affect the state of
-// the JS engine from a synchronous (nogc) finalizer.
+// (basic) environment into an API that expects a non-const environment, and
+// the definition of basic finalizer function pointer types below, which
+// receive a basic environment as their first parameter, and can thus only call
+// basic APIs (unless the user explicitly casts the environment), we achieve
+// the ability to ensure at compile time that we do not call APIs that affect
+// the state of the JS engine from a synchronous (basic) finalizer.
 #if !defined(NAPI_EXPERIMENTAL) ||                                             \
     (defined(NAPI_EXPERIMENTAL) &&                                             \
-     defined(NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT))
+     (defined(NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT) ||                       \
+      defined(NODE_API_EXPERIMENTAL_BASIC_ENV_OPT_OUT)))
 typedef struct napi_env__* node_api_nogc_env;
 #else
 typedef const struct napi_env__* node_api_nogc_env;
 #endif
+typedef node_api_nogc_env node_api_basic_env;
 
 typedef struct napi_value__* napi_value;
 typedef struct napi_ref__* napi_ref;
@@ -103,6 +132,8 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+#define NODE_API_HAS_FLOAT16_ARRAY
+  napi_float16_array,
 } napi_typedarray_type;
 
 typedef enum {
@@ -147,13 +178,15 @@ typedef void(NAPI_CDECL* napi_finalize)(napi_env env,
 
 #if !defined(NAPI_EXPERIMENTAL) ||                                             \
     (defined(NAPI_EXPERIMENTAL) &&                                             \
-     defined(NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT))
+     (defined(NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT) ||                       \
+      defined(NODE_API_EXPERIMENTAL_BASIC_ENV_OPT_OUT)))
 typedef napi_finalize node_api_nogc_finalize;
 #else
 typedef void(NAPI_CDECL* node_api_nogc_finalize)(node_api_nogc_env env,
                                                  void* finalize_data,
                                                  void* finalize_hint);
 #endif
+typedef node_api_nogc_finalize node_api_basic_finalize;
 
 typedef struct {
   // One of utf8name or name should be NULL.

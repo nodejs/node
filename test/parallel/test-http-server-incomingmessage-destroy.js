@@ -17,9 +17,9 @@ server.listen(0, common.mustCall(() => {
     port: server.address().port
   }, (res) => {
     res.resume();
-  }).on('error', (error) => {
+  }).on('error', common.mustCall((error) => {
     assert.strictEqual(error.message, 'socket hang up');
     assert.strictEqual(error.code, 'ECONNRESET');
     server.close();
-  });
+  }));
 }));

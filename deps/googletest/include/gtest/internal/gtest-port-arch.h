@@ -56,6 +56,8 @@
 #elif WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE)
 #define GTEST_OS_WINDOWS_PHONE 1
 #define GTEST_OS_WINDOWS_TV_TITLE 1
+#elif WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_GAMES)
+#define GTEST_OS_WINDOWS_GAMES 1
 #else
 // WINAPI_FAMILY defined but no known partition matched.
 // Default to desktop.
@@ -117,6 +119,8 @@
 #define GTEST_OS_NXP_QN9090 1
 #elif defined(NRF52)
 #define GTEST_OS_NRF52 1
+#elif defined(__EMSCRIPTEN__)
+#define GTEST_OS_EMSCRIPTEN 1
 #endif  // __CYGWIN__
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_ARCH_H_

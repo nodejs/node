@@ -31,12 +31,11 @@ tmpdir.refresh();
 const filename = tmpdir.resolve('big');
 let count = 0;
 
-const server = http.createServer((req, res) => {
-  let timeoutId;
+const server = http.createServer(common.mustCall((req, res) => {
   assert.strictEqual(req.method, 'POST');
   req.pause();
 
-  setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     req.resume();
   }, 1000);
 
@@ -51,11 +50,16 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end();
   });
-});
+}));
 server.listen(0);
 
 server.on('listening', () => {
-  common.createZeroFilledFile(filename);
+
+  // Create a zero-filled file
+  const fd = fs.openSync(filename, 'w');
+  fs.ftruncateSync(fd, 10 * 1024 * 1024);
+  fs.closeSync(fd);
+
   makeRequest();
 });
 

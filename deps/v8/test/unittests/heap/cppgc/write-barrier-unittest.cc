@@ -8,8 +8,10 @@
 #include <initializer_list>
 #include <vector>
 
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/pointer-policies.h"
+#include "include/cppgc/macros.h"
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
@@ -395,6 +397,8 @@ TEST_F(WriteBarrierTest, DijkstraWriteBarrierBailoutIfMarked) {
 namespace {
 
 struct InlinedObject {
+  CPPGC_DISALLOW_NEW();
+
   void Trace(cppgc::Visitor* v) const { v->Trace(ref); }
 
   Member<GCed> ref;

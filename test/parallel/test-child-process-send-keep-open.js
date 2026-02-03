@@ -23,7 +23,7 @@ if (process.argv[2] !== 'child') {
     assert.strictEqual(signalCode, null);
   }));
 
-  const server = net.createServer((socket) => {
+  const server = net.createServer(common.mustCall((socket) => {
     child.on('message', common.mustCall((msg) => {
       assert.strictEqual(msg, 'child_done');
       socket.end('parent', () => {
@@ -33,7 +33,7 @@ if (process.argv[2] !== 'child') {
     }));
 
     child.send('socket', socket, { keepOpen: true }, common.mustSucceed());
-  });
+  }));
 
   server.listen(0, () => {
     const socket = net.connect(server.address().port, common.localhostIPv4);
