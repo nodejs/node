@@ -1,14 +1,8 @@
 'use strict';
 const fs = require('fs');
-const sea = require('node:sea');
 const assert = require('assert');
 
-// Test getSeaVfs() returns a VFS instance
-const vfs = sea.getVfs();
-assert.ok(vfs !== null, 'getSeaVfs() should not return null');
-console.log('getSeaVfs returned VFS instance');
-
-// Test that the VFS is mounted at /sea by default
+// Test that the VFS is automatically mounted at /sea
 // and contains our assets
 
 // Read the config file through standard fs (via VFS hooks)
@@ -47,12 +41,5 @@ const mathModule = require('/sea/modules/math.js');
 assert.strictEqual(mathModule.add(2, 3), 5, 'math.add should work');
 assert.strictEqual(mathModule.multiply(4, 5), 20, 'math.multiply should work');
 console.log('direct require from VFS tests passed');
-
-// Test getSeaVfs with custom prefix
-const customVfs = sea.getVfs({ prefix: '/custom' });
-// Note: getSeaVfs is a singleton, so it returns the same instance
-// with the same mount point (/sea) regardless of options passed after first call
-assert.strictEqual(customVfs, vfs, 'Should return the same cached instance');
-console.log('Cached VFS instance test passed');
 
 console.log('All SEA VFS tests passed!');

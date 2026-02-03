@@ -180,32 +180,23 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 
 Instead of using the `node:sea` API to access individual assets, you can use
 the Virtual File System (VFS) to access bundled assets through standard `fs`
-APIs. The VFS automatically populates itself with all assets defined in the
-SEA configuration and mounts them at a virtual path (default: `/sea`).
-
-To use the VFS with SEA:
+APIs. When running as a Single Executable Application, the VFS is automatically
+initialized and mounted at `/sea`. All assets defined in the SEA configuration
+are accessible through this virtual path.
 
 ```cjs
 const fs = require('node:fs');
-const sea = require('node:sea');
 
-// Get the SEA VFS (returns null if not running as SEA)
-const vfs = sea.getVfs();
+// Assets are automatically available at /sea when running as SEA
+const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
+const data = fs.readFileSync('/sea/data/file.txt');
 
-if (vfs) {
-  // Now you can use standard fs APIs to read bundled assets
-  const rawConfig = fs.readFileSync('/sea/config.json', 'utf8');
-  const data = fs.readFileSync('/sea/data/file.txt');
-  
-  cons config = JSON.parse(rawconfig);
+// Directory operations work too
+const files = fs.readdirSync('/sea/assets');
 
-  // Directory operations work too
-  const files = fs.readdirSync('/sea/assets');
-
-  // Check if a bundled file exists
-  if (fs.existsSync('/sea/optional.json')) {
-    // ...
-  }
+// Check if a bundled file exists
+if (fs.existsSync('/sea/optional.json')) {
+  // ...
 }
 ```
 
@@ -223,41 +214,16 @@ The VFS supports the following `fs` operations on bundled assets:
 
 #### Loading modules from VFS in SEA
 
-Once the VFS is initialized with `sea.getVfs()`, you can use `require()` directly
-with absolute VFS paths:
+You can use `require()` directly with absolute VFS paths:
 
 ```cjs
-const sea = require('node:sea');
-
-// Initialize VFS - this must be called first
-sea.getVfs();
-
-// Now you can require bundled modules directly
+// Require bundled modules directly
 const myModule = require('/sea/lib/mymodule.js');
 const utils = require('/sea/utils/helpers.js');
 ```
 
 The SEA's `require()` function automatically detects VFS paths (paths starting
-with the VFS mount point, e.g., `/sea/`) and loads modules from the virtual
-file system.
-
-#### Custom mount prefix
-
-By default, the VFS is mounted at `/sea`. You can specify a custom prefix
-when initializing the VFS:
-
-```cjs
-const fs = require('node:fs');
-const sea = require('node:sea');
-
-const vfs = sea.getSeaVfs({ prefix: '/app' });
-
-// Assets are now accessible under /app
-const config = fs.readFileSync('/app/config.json', 'utf8');
-```
-
-Note: `sea.getVfs()` returns a singleton. The `prefix` option is only used
-on the first call; subsequent calls return the same cached instance.
+with `/sea/`) and loads modules from the virtual file system.
 
 ### Startup snapshot support
 
