@@ -11,7 +11,7 @@ jobs:
   notifyOnForcePush:
     name: Notify on Force Push on `main`
     if: github.repository == 'nodejs/node' && github.event.forced
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8  # 2.2.1
@@ -30,7 +30,7 @@ jobs:
   notifyOnMissingMetadata:
     name: Notify on Push on `main` that lacks metadata
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       pull-requests: write
     steps:

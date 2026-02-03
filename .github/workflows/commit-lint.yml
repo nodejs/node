@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   lint-commit-message:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Compute number of commits in the PR
         id: nb-of-commits
