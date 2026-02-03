@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests the SEA VFS integration - sea.getVfs() and sea.hasAssets()
+// This tests the SEA VFS integration - automatic VFS mount at /sea
 
 require('../common');
 
