@@ -175,6 +175,25 @@ added: v15.4.0
 The `'close'` event is emitted when the {FileHandle} has been closed and can no
 longer be used.
 
+#### `FileHandle.isFileHandle(value)`
+
+<!-- YAML
+added: v22.0.0
+-->
+
+* `value` {any} The value to test.
+* Returns: {boolean} `true` if the given value is a {FileHandle}, `false` otherwise.
+
+Returns `true` if the given value is a {FileHandle} instance.
+
+```mjs
+import { open, FileHandle } from 'node:fs/promises';
+
+const filehandle = await open('thefile.txt', 'r');
+console.log(FileHandle.isFileHandle(filehandle)); // true
+console.log(FileHandle.isFileHandle({})); // false
+```
+
 #### `filehandle.appendFile(data[, options])`
 
 <!-- YAML
