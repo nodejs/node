@@ -143,8 +143,8 @@ const vfs = require('node:vfs');
   }));
 
   setTimeout(() => {
-    // Use addFile to write directly to provider, bypassing mount path logic
-    myVfs.addFile('/data/file.txt', 'updated via fs.watch');
+    // Write to mounted path to trigger watcher
+    myVfs.writeFileSync('/virtual/data/file.txt', 'updated via fs.watch');
   }, 100);
 }
 
@@ -164,8 +164,8 @@ const vfs = require('node:vfs');
   fs.watchFile('/virtual2/data/watchfile.txt', { interval: 50, persistent: false }, listener);
 
   setTimeout(() => {
-    // Use addFile to write directly to provider, bypassing mount path logic
-    myVfs.addFile('/data/watchfile.txt', 'updated via fs.watchFile');
+    // Write to mounted path to trigger watcher
+    myVfs.writeFileSync('/virtual2/data/watchfile.txt', 'updated via fs.watchFile');
   }, 100);
 }
 
@@ -185,8 +185,8 @@ const vfs = require('node:vfs');
   }));
 
   setTimeout(() => {
-    // Use addFile to write directly to provider, bypassing mount path logic
-    myVfs.addFile('/file.txt', 'vfs updated');
+    // Write to mounted path to trigger watcher
+    myVfs.writeFileSync('/overlay-test/file.txt', 'vfs updated');
   }, 100);
 }
 
@@ -282,7 +282,7 @@ const vfs = require('node:vfs');
 
     // Schedule a change
     setTimeout(() => {
-      myVfs.addFile('/promises-test.txt', 'updated');
+      myVfs.writeFileSync('/virtual-promises/promises-test.txt', 'updated');
     }, 100);
 
     // Schedule abort after getting one event
@@ -370,7 +370,7 @@ const vfs = require('node:vfs');
   }));
 
   setTimeout(() => {
-    myVfs.addFile('/data/subdir/nested.txt', 'updated nested');
+    myVfs.writeFileSync('/virtual-recursive/data/subdir/nested.txt', 'updated nested');
   }, 100);
 }
 
