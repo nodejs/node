@@ -241,6 +241,7 @@ added: REPLACEME
 -->
 
 * `prefix` {string} The path prefix where the VFS will be mounted.
+* Returns: {VirtualFileSystem} The VFS instance (for chaining or `using`).
 
 Mounts the virtual file system at the specified path prefix. After mounting,
 files in the VFS can be accessed via the `fs` module using paths that start
@@ -261,6 +262,24 @@ myVfs.mount('/virtual');
 
 // Now accessible as /virtual/data.txt
 require('node:fs').readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
+```
+
+The VFS supports the [Explicit Resource Management][] proposal. Use the `using`
+declaration to automatically unmount when leaving scope:
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+{
+  using myVfs = vfs.create();
+  myVfs.writeFileSync('/data.txt', 'Hello');
+  myVfs.mount('/virtual');
+
+  fs.readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
+} // VFS is automatically unmounted here
+
+fs.existsSync('/virtual/data.txt'); // false - VFS is unmounted
 ```
 
 ### `vfs.mounted`
@@ -874,5 +893,6 @@ This is particularly dangerous because:
 * **Limit VFS usage**: Only use VFS in controlled environments where you trust
   all loaded modules.
 
+[Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
 [Security considerations]: #security-considerations
 [Single Executable Applications]: single-executable-applications.md
