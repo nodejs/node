@@ -40,6 +40,7 @@
 #define GOOGLETEST_INCLUDE_GTEST_GTEST_MATCHERS_H_
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <ostream>
@@ -485,6 +486,15 @@ class [[nodiscard]] Matcher : public internal::MatcherBase<T> {
   // Implicit constructor here allows people to write
   // EXPECT_CALL(foo, Bar(5)) instead of EXPECT_CALL(foo, Bar(Eq(5))) sometimes
   Matcher(T value);  // NOLINT
+
+  // Implicit constructor here allows people to write
+  // EXPECT_THAT(foo, nullptr) instead of EXPECT_THAT(foo, IsNull()) for smart
+  // pointer types.
+  //
+  // The second argument is needed to avoid capturing literal '0'.
+  template <typename U>
+  Matcher(U,  // NOLINT
+          std::enable_if_t<std::is_same_v<U, std::nullptr_t>>* = nullptr);
 };
 
 // The following two specializations allow the user to write str
@@ -895,11 +905,19 @@ inline internal::EqMatcher<T> Eq(T x) {
   return internal::EqMatcher<T>(x);
 }
 
-// Constructs a Matcher<T> from a 'value' of type T.  The constructed
+// Constructs a Matcher<T> from a 'value' of type T. The constructed
 // matcher matches any value that's equal to 'value'.
 template <typename T>
 Matcher<T>::Matcher(T value) {
   *this = Eq(value);
+}
+
+// Constructs a Matcher<T> from nullptr. The constructed matcher matches any
+// value that is equal to nullptr.
+template <typename T>
+template <typename U>
+Matcher<T>::Matcher(U, std::enable_if_t<std::is_same_v<U, std::nullptr_t>>*) {
+  *this = Eq(nullptr);
 }
 
 // Creates a monomorphic matcher that matches anything with type Lhs
