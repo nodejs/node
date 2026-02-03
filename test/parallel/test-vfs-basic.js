@@ -297,3 +297,55 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.existsSync('/dest.txt'), true);
   assert.strictEqual(myVfs.readFileSync('/dest.txt', 'utf8'), 'copy me');
 }
+
+// Test Symbol.dispose unmounts the VFS
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'content');
+  myVfs.mount('/virtual');
+
+  assert.strictEqual(myVfs.mounted, true);
+
+  // Call Symbol.dispose directly
+  myVfs[Symbol.dispose]();
+
+  assert.strictEqual(myVfs.mounted, false);
+}
+
+// Test Symbol.dispose is safe to call when not mounted
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'content');
+
+  assert.strictEqual(myVfs.mounted, false);
+
+  // Should not throw
+  myVfs[Symbol.dispose]();
+
+  assert.strictEqual(myVfs.mounted, false);
+}
+
+// Test Symbol.dispose is safe to call multiple times
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'content');
+  myVfs.mount('/virtual');
+
+  myVfs[Symbol.dispose]();
+  assert.strictEqual(myVfs.mounted, false);
+
+  // Should not throw when called again
+  myVfs[Symbol.dispose]();
+  assert.strictEqual(myVfs.mounted, false);
+}
+
+// Test mount() returns the VFS instance for chaining
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'content');
+
+  const result = myVfs.mount('/virtual');
+  assert.strictEqual(result, myVfs);
+
+  myVfs.unmount();
+}
