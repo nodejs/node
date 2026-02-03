@@ -148,8 +148,8 @@ test('mock.fs() exposes vfs property', (t) => {
   // Access the underlying VFS
   const vfs = mockFs.vfs;
   assert.ok(vfs);
-  assert.strictEqual(typeof vfs.addFile, 'function');
   assert.strictEqual(typeof vfs.readFileSync, 'function');
+  assert.strictEqual(typeof vfs.writeFileSync, 'function');
 
   // Use VFS directly (requires full path including mount point)
   const content = vfs.readFileSync('/vfs-prop-test/file.txt', 'utf8');
