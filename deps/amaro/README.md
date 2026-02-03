@@ -32,11 +32,11 @@ It is possible to use Amaro as an external loader to execute TypeScript files.
 This allows the installed Amaro to override the Amaro version used by Node.js.
 In order to use Amaro as an external loader, type stripping needs to be enabled.
 
-In node v23 and later you can omit the `--experimental-strip-types` flag, as it is enabled by default.
-
 ```bash
-node --experimental-strip-types --import="amaro/strip" file.ts
+node --import="amaro/strip" file.ts
 ```
+
+> In node v22.18.0 and later you can omit the `--experimental-strip-types` flag, as it is enabled by default.
 
 Enabling TypeScript feature transformation:
 
