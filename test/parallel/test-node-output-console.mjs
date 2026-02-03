@@ -7,37 +7,20 @@ const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-function replaceStackTrace(str) {
-  return snapshot.replaceStackTrace(str, '$1at *$7\n');
-}
-
 describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  function normalize(str) {
-    return str.replaceAll(/\d+/g, '*');
-  }
   const tests = [
     { name: 'console/2100bytes.js' },
     { name: 'console/console_low_stack_space.js' },
     { name: 'console/console.js' },
     { name: 'console/hello_world.js' },
-    {
-      name: 'console/stack_overflow.js',
-      transform: snapshot
-        .transform(
-          snapshot.basicTransform,
-          snapshot.transformProjectRoot(),
-          normalize
-        )
-    },
+    { name: 'console/stack_overflow.js' },
     !skipForceColors ? { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
   ].filter(Boolean);
-  const defaultTransform = snapshot
-    .transform(snapshot.basicTransform, replaceStackTrace);
-  for (const { name, transform, env } of tests) {
+  for (const { name, env } of tests) {
     it(name, async () => {
       await snapshot.spawnAndAssert(
         fixtures.path(name),
-        transform ?? defaultTransform,
+        snapshot.defaultTransform,
         { env: { ...env, ...process.env } },
       );
     });

@@ -14,13 +14,8 @@ not ok 2 - fails
   error: 'fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.eval (eval at <anonymous> (<project-root>/test/fixtures/test-runner/output/eval_tap.js:3:1), <anonymous>:6:11)
+    <node-internal-frames>
   ...
 1..2
 # tests 2
