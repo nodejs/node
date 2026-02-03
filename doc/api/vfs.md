@@ -468,27 +468,6 @@ myVfs.provider.setReadOnly();
 // myVfs.writeFileSync('/app/config.json', 'new content');
 ```
 
-## Class: `SEAProvider`
-
-<!-- YAML
-added: REPLACEME
--->
-
-The `SEAProvider` provides read-only access to assets bundled in a Single
-Executable Application (SEA). It can only be used when running as a SEA.
-
-```cjs
-const { create, SEAProvider } = require('node:vfs');
-
-// Only works in SEA builds
-try {
-  const seaVfs = create(new SEAProvider());
-  seaVfs.mount('/assets');
-} catch (err) {
-  console.log('Not running as SEA');
-}
-```
-
 ## Class: `RealFSProvider`
 
 <!-- YAML

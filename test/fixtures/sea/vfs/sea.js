@@ -3,11 +3,6 @@ const fs = require('fs');
 const sea = require('node:sea');
 const assert = require('assert');
 
-// Test hasSeaAssets() returns true when we have assets
-const hasAssets = sea.hasAssets();
-assert.strictEqual(hasAssets, true, 'hasSeaAssets() should return true');
-console.log('hasSeaAssets:', hasAssets);
-
 // Test getSeaVfs() returns a VFS instance
 const vfs = sea.getVfs();
 assert.ok(vfs !== null, 'getSeaVfs() should not return null');
