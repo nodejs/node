@@ -1,17 +1,11 @@
-<project-root>/test/fixtures/errors/promise_always_throw_unhandled.js:*
+<project-root>/test/fixtures/errors/promise_always_throw_unhandled.js:10
   throw new Error('One');
         ^
 
 Error: One
-    at *
+    at <project-root>/test/fixtures/errors/promise_always_throw_unhandled.js:10:9
     at new Promise (<anonymous>)
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/promise_always_throw_unhandled.js:9:14)
+    at <node-internal-frames>
 
 Node.js <node-version>

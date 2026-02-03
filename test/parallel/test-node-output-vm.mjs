@@ -4,13 +4,6 @@ import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
 describe('vm output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  function normalize(str) {
-    return str.replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
-  }
-
-  const defaultTransform = snapshot
-    .transform(snapshot.basicTransform, snapshot.transformProjectRoot(), normalize);
-
   const tests = [
     { name: 'vm/vm_caught_custom_runtime_error.js' },
     { name: 'vm/vm_display_runtime_error.js' },
@@ -20,7 +13,7 @@ describe('vm output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   ];
   for (const { name } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), snapshot.defaultTransform);
     });
   }
 });
