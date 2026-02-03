@@ -37,12 +37,40 @@ is useful for:
 * Creating virtual module systems
 * Embedding configuration or data files in applications
 
-## Mount mode
+## Operating modes
 
-The VFS operates in **mount mode only**. When mounted at a path prefix (e.g.,
-`/virtual`), the VFS handles all operations for paths starting with that
-prefix. There is no overlay mode that would merge virtual and real file system
-contents at the same paths.
+The VFS supports two operating modes:
+
+### Standard mode (default)
+
+When mounted at a path prefix (e.g., `/virtual`), the VFS handles **all**
+operations for paths starting with that prefix. The VFS completely shadows
+any real file system paths under the mount point.
+
+### Overlay mode
+
+When created with `{ overlay: true }`, the VFS selectively intercepts only
+paths that exist within the VFS. Paths that don't exist in the VFS fall through
+to the real file system. This is useful for mocking specific files while leaving
+others unchanged.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+// Overlay mode: only intercept files that exist in VFS
+const myVfs = vfs.create({ overlay: true });
+myVfs.writeFileSync('/etc/config.json', '{"mocked": true}');
+myVfs.mount('/');
+
+// This reads from VFS (file exists in VFS)
+fs.readFileSync('/etc/config.json', 'utf8'); // '{"mocked": true}'
+
+// This reads from real FS (file doesn't exist in VFS)
+fs.readFileSync('/etc/hostname', 'utf8'); // Real file content
+```
+
+See [Security considerations][] for important warnings about overlay mode.
 
 ## Basic usage
 
@@ -317,6 +345,21 @@ All paths are relative to the VFS root (not the mount point).
 
 These methods accept the same argument types as their `fs` counterparts,
 including `string`, `Buffer`, `TypedArray`, and `DataView` where applicable.
+
+#### Overlay mode behavior
+
+When overlay mode is enabled, the following behavior applies to `fs` operations
+on mounted paths:
+
+* **Read operations** (`readFile`, `readdir`, `stat`, `lstat`, `access`,
+  `exists`, `realpath`, `readlink`): Check VFS first. If the path doesn't exist
+  in VFS, fall through to the real file system.
+* **Write operations** (`writeFile`, `appendFile`, `mkdir`, `rename`, `unlink`,
+  `rmdir`, `symlink`, `copyFile`): Always operate on VFS. New files are created
+  in VFS, and attempting to modify a real file that doesn't exist in VFS will
+  create a new VFS file instead.
+* **File descriptors**: Once a file is opened, all subsequent operations on that
+  descriptor stay within the same layer (VFS or real FS) where it was opened.
 
 #### Synchronous Methods
 
