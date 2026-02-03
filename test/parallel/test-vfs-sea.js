@@ -9,13 +9,6 @@ const sea = require('node:sea');
 
 // Test that SEA functions are exported from sea module
 assert.strictEqual(typeof sea.getVfs, 'function');
-assert.strictEqual(typeof sea.hasAssets, 'function');
-
-// Test hasSeaAssets() returns false when not running as SEA
-{
-  const hasAssets = sea.hasAssets();
-  assert.strictEqual(hasAssets, false);
-}
 
 // Test getSeaVfs() returns null when not running as SEA
 {

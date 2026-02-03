@@ -189,11 +189,10 @@ To use the VFS with SEA:
 const fs = require('node:fs');
 const sea = require('node:sea');
 
-// Check if SEA assets are available
-if (sea.hasAssets()) {
-  // Initialize and mount the SEA VFS
-  const vfs = sea.getVfs();
+// Get the SEA VFS (returns null if not running as SEA)
+const vfs = sea.getVfs();
 
+if (vfs) {
   // Now you can use standard fs APIs to read bundled assets
   const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
   const data = fs.readFileSync('/sea/data/file.txt');
