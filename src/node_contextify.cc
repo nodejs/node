@@ -1644,13 +1644,13 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
     Local<String> filename,
     bool* cache_rejected,
     bool is_cjs_scope,
-    ScriptCompiler::CachedData* cached_data) {
+    ScriptCompiler::CachedData* cached_data,
+    Local<Symbol> host_defined_option_symbol) {
   Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
 
-  Local<Symbol> symbol = env->vm_dynamic_import_default_internal();
-  Local<PrimitiveArray> hdo =
-      loader::ModuleWrap::GetHostDefinedOptions(isolate, symbol);
+  Local<PrimitiveArray> hdo = loader::ModuleWrap::GetHostDefinedOptions(
+      isolate, host_defined_option_symbol);
   ScriptOrigin origin(filename,
                       0,               // line offset
                       0,               // column offset
@@ -1743,6 +1743,12 @@ static void CompileFunctionForCJSLoader(
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
 
+  Local<Symbol> host_defined_option_symbol =
+      env->vm_dynamic_import_default_internal();
+  if (args.Length() > 4 && args[4].As<Boolean>()->Value()) {
+    host_defined_option_symbol = env->embedder_module_hdo();
+  }
+
   bool cache_rejected = false;
   Local<Function> fn;
   Local<Value> cjs_exception;
@@ -1771,8 +1777,14 @@ static void CompileFunctionForCJSLoader(
   {
     ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
-    if (!CompileFunctionForCJSLoader(
-             env, context, code, filename, &cache_rejected, true, cached_data)
+    if (!CompileFunctionForCJSLoader(env,
+                                     context,
+                                     code,
+                                     filename,
+                                     &cache_rejected,
+                                     true,
+                                     cached_data,
+                                     host_defined_option_symbol)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
@@ -1933,8 +1945,14 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
     Local<Function> fn;
     TryCatchScope try_catch(env);
     ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-    if (CompileFunctionForCJSLoader(
-            env, context, code, filename, &cache_rejected, cjs_var, nullptr)
+    if (CompileFunctionForCJSLoader(env,
+                                    context,
+                                    code,
+                                    filename,
+                                    &cache_rejected,
+                                    cjs_var,
+                                    nullptr,
+                                    env->vm_dynamic_import_default_internal())
             .ToLocal(&fn)) {
       args.GetReturnValue().Set(false);
       return;
