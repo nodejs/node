@@ -175,110 +175,6 @@ added: REPLACEME
 
 Creates a new `VirtualFileSystem` instance.
 
-### `vfs.provider`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {VirtualProvider}
-
-The underlying provider for this VFS instance. Can be used to access
-provider-specific methods like `setReadOnly()` for `MemoryProvider`.
-
-```cjs
-const vfs = require('node:vfs');
-
-const myVfs = vfs.create();
-
-// Access the provider
-console.log(myVfs.provider.readonly); // false
-myVfs.provider.setReadOnly();
-console.log(myVfs.provider.readonly); // true
-```
-
-### `vfs.mount(prefix)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `prefix` {string} The path prefix where the VFS will be mounted.
-
-Mounts the virtual file system at the specified path prefix. After mounting,
-files in the VFS can be accessed via the `fs` module using paths that start
-with the prefix.
-
-If a real file system path already exists at the mount prefix, the VFS
-**shadows** that path. All operations to paths under the mount prefix will be
-directed to the VFS, making the real files inaccessible until the VFS is
-unmounted. See [Security considerations][] for important warnings about this
-behavior.
-
-```cjs
-const vfs = require('node:vfs');
-
-const myVfs = vfs.create();
-myVfs.writeFileSync('/data.txt', 'Hello');
-myVfs.mount('/virtual');
-
-// Now accessible as /virtual/data.txt
-require('node:fs').readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
-```
-
-### `vfs.unmount()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Unmounts the virtual file system. After unmounting, virtual files are no longer
-accessible through the `fs` module. The VFS can be remounted at the same or a
-different path by calling `mount()` again. Unmounting also resets the virtual
-working directory if one was set.
-
-### `vfs.mounted`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-Returns `true` if the VFS is currently mounted.
-
-### `vfs.overlay`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-Returns `true` if overlay mode is enabled. In overlay mode, the VFS only
-intercepts paths that exist in the VFS, allowing other paths to fall through
-to the real file system.
-
-### `vfs.mountPoint`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string | null}
-
-The current mount point, or `null` if not mounted.
-
-### `vfs.readonly`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-Returns `true` if the underlying provider is read-only.
-
 ### `vfs.chdir(path)`
 
 <!-- YAML
@@ -310,6 +206,110 @@ has been set yet.
 
 Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
 
+### `vfs.mount(prefix)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `prefix` {string} The path prefix where the VFS will be mounted.
+
+Mounts the virtual file system at the specified path prefix. After mounting,
+files in the VFS can be accessed via the `fs` module using paths that start
+with the prefix.
+
+If a real file system path already exists at the mount prefix, the VFS
+**shadows** that path. All operations to paths under the mount prefix will be
+directed to the VFS, making the real files inaccessible until the VFS is
+unmounted. See [Security considerations][] for important warnings about this
+behavior.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/data.txt', 'Hello');
+myVfs.mount('/virtual');
+
+// Now accessible as /virtual/data.txt
+require('node:fs').readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
+```
+
+### `vfs.mounted`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Returns `true` if the VFS is currently mounted.
+
+### `vfs.mountPoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string | null}
+
+The current mount point, or `null` if not mounted.
+
+### `vfs.overlay`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Returns `true` if overlay mode is enabled. In overlay mode, the VFS only
+intercepts paths that exist in the VFS, allowing other paths to fall through
+to the real file system.
+
+### `vfs.provider`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {VirtualProvider}
+
+The underlying provider for this VFS instance. Can be used to access
+provider-specific methods like `setReadOnly()` for `MemoryProvider`.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+// Access the provider
+console.log(myVfs.provider.readonly); // false
+myVfs.provider.setReadOnly();
+console.log(myVfs.provider.readonly); // true
+```
+
+### `vfs.readonly`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Returns `true` if the underlying provider is read-only.
+
+### `vfs.unmount()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Unmounts the virtual file system. After unmounting, virtual files are no longer
+accessible through the `fs` module. The VFS can be remounted at the same or a
+different path by calling `mount()` again. Unmounting also resets the virtual
+working directory if one was set.
+
 ### File System Methods
 
 The `VirtualFileSystem` class provides methods that mirror the `fs` module API.
@@ -328,10 +328,10 @@ including `string`, `Buffer`, `TypedArray`, and `DataView` where applicable.
 * `vfs.lstatSync(path[, options])` - Get file stats (no symlink follow)
 * `vfs.mkdirSync(path[, options])` - Create a directory
 * `vfs.openSync(path, flags[, mode])` - Open a file
-* `vfs.readFileSync(path[, options])` - Read a file
-* `vfs.readSync(fd, buffer, offset, length, position)` - Read from fd
-* `vfs.readlinkSync(path[, options])` - Read symlink target
 * `vfs.readdirSync(path[, options])` - Read directory contents
+* `vfs.readFileSync(path[, options])` - Read a file
+* `vfs.readlinkSync(path[, options])` - Read symlink target
+* `vfs.readSync(fd, buffer, offset, length, position)` - Read from fd
 * `vfs.realpathSync(path[, options])` - Resolve symlinks
 * `vfs.renameSync(oldPath, newPath)` - Rename a file or directory
 * `vfs.rmdirSync(path)` - Remove a directory
