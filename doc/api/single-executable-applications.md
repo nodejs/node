@@ -194,8 +194,10 @@ const vfs = sea.getVfs();
 
 if (vfs) {
   // Now you can use standard fs APIs to read bundled assets
-  const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
+  const rawConfig = fs.readFileSync('/sea/config.json', 'utf8');
   const data = fs.readFileSync('/sea/data/file.txt');
+  
+  cons config = JSON.parse(rawconfig);
 
   // Directory operations work too
   const files = fs.readdirSync('/sea/assets');
