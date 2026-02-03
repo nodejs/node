@@ -112,7 +112,6 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 test-child-process-fork-net-server: SKIP
 test-cli-node-options: SKIP
 test-cluster-shared-leak: SKIP
-test-fs-promises-watch-iterator: SKIP
 test-http-writable-true-after-close: SKIP
 test-http2-connect-method: SKIP
 test-net-error-twice: SKIP
