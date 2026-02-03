@@ -983,19 +983,31 @@ void ChannelWrap::EnsureServers() {
 
   ares_get_servers_ports(channel_, &servers);
 
-  /* if no server or multi-servers, ignore */
+  /* if no server, ignore */
   if (servers == nullptr) return;
+
+  /* if multi-servers, mark as non-default and ignore */
   if (servers->next != nullptr) {
     ares_free_data(servers);
     is_servers_default_ = false;
     return;
   }
 
-  /* if the only server is not 127.0.0.1, ignore */
-  if (servers[0].family != AF_INET ||
-      servers[0].addr.addr4.s_addr != htonl(INADDR_LOOPBACK) ||
-      servers[0].tcp_port != 0 ||
-      servers[0].udp_port != 0) {
+  /* Check if the only server is a loopback address (IPv4 127.0.0.1 or IPv6
+   * ::1). Newer c-ares versions may set tcp_port/udp_port to 53 instead of 0,
+   * so we no longer check port values. */
+  bool is_loopback = false;
+  if (servers[0].family == AF_INET) {
+    is_loopback = (servers[0].addr.addr4.s_addr == htonl(INADDR_LOOPBACK));
+  } else if (servers[0].family == AF_INET6) {
+    static const unsigned char kIPv6Loopback[16] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+    is_loopback =
+        (memcmp(&servers[0].addr.addr6, kIPv6Loopback, sizeof(kIPv6Loopback)) ==
+         0);
+  }
+
+  if (!is_loopback) {
     ares_free_data(servers);
     is_servers_default_ = false;
     return;
@@ -1769,6 +1781,10 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value utf8name(args.GetIsolate(), string);
   auto plain_name = utf8name.ToStringView();
   std::string name = ada::idna::to_ascii(plain_name);
+
+  // Ensure c-ares did not fall back to loopback resolver.
+  channel->EnsureServers();
+
   channel->ModifyActivityQueryCount(1);
   int err = wrap->Send(name.c_str());
   if (err) {
