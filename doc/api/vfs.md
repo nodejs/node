@@ -695,6 +695,38 @@ myVfs.symlinkSync('/etc/passwd', '/passwd-link');
 // myVfs.readFileSync('/passwd-link'); // Throws ENOENT
 ```
 
+### Symlinks in overlay mode
+
+In overlay mode (`{ overlay: true }`), VFS and real file system symlinks remain
+completely independent:
+
+* **VFS symlinks** can only target other VFS paths. A VFS symlink cannot point
+  to a real file system file, even if that file exists at the same logical path.
+* **Real file system symlinks** can only target other real file system paths.
+  A real symlink cannot point to a VFS file.
+* **No cross-layer resolution** occurs. When following a symlink, the resolution
+  stays entirely within either the VFS layer or the real file system layer.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+const myVfs = vfs.create({ overlay: true });
+myVfs.mkdirSync('/data');
+myVfs.writeFileSync('/data/config.json', '{"source": "vfs"}');
+myVfs.symlinkSync('/data/config.json', '/data/link');
+myVfs.mount('/app');
+
+// VFS symlink resolves within VFS
+fs.readFileSync('/app/data/link', 'utf8'); // '{"source": "vfs"}'
+
+// If /app/data/real-link is a real FS symlink pointing to /app/data/config.json,
+// it will NOT resolve to the VFS file - it looks for a real file at that path
+```
+
+This design ensures predictable behavior: symlinks always resolve within their
+own layer, preventing unexpected interactions between virtual and real files.
+
 ## Worker threads
 
 VFS instances are **not shared across worker threads**. Each worker thread has
