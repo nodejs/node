@@ -6835,6 +6835,34 @@
     "search": "",
     "hash": ""
   },
+  {
+    "input": "..",
+    "base": "abc://x/y/z/C:/",
+    "href": "abc://x/y/z/",
+    "protocol": "abc:",
+    "username": "",
+    "password": "",
+    "hostname": "x",
+    "port": "",
+    "host": "x",
+    "pathname": "/y/z/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "..",
+    "base": "file://x/C:/",
+    "href": "file://x/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "hostname": "x",
+    "port": "",
+    "host": "x",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
   "# Do not drop the host in the presence of a drive letter",
   {
     "input": "file://example.net/C:/",
