@@ -558,16 +558,23 @@ written from scratch for Node.js. You can figure out which version of `undici` i
 in your Node.js process reading the `process.versions.undici` property.
 
 ### Differences from the Web Standard `fetch()`
-**what is undici**? 
-**Undici** is HTTP client rather than a browser networking stack. While the API shape follows the WHATWG Fetch specification, some browser-specific behaviors do not apply.
 
-Notable differences:-
+Node.js implements `fetch()` using the **Undici** HTTP client
+rather than a browser networking stack. Although the API shape
+follows the WHATWG Fetch specification, some browser-specific
+behaviors do not apply in Node.js environments.
 
-- No support for browser features such as service workers, cache modes, or referrer policies.
-- CORS restrictions do not apply in Node.js.
-- Networking behavior (TLS, proxies, connection pooling) follows Node.js rules via Undici.
-- Some options accepted by browser `fetch()` may be ignored or behave differently.
--`Request` and `Response` objects are designed for server-side usage.
+Notable differences:
+
+* Browser features such as service workers, cache modes,
+  and referrer policies are not supported.
+* CORS restrictions do not apply in Node.js.
+* Networking behavior (TLS, proxies, connection pooling)
+  follows Node.js rules via Undici.
+* Some options accepted by browser `fetch()` may be ignored
+  or behave differently.
+* `Request` and `Response` objects are designed for 
+  server-side usage.
 
 ### Custom dispatcher
 
