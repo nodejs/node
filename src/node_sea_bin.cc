@@ -405,8 +405,8 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
   int src_mode = static_cast<int>(req.statbuf.st_mode);
   uv_fs_req_cleanup(&req);
 
-  std::string exe;
-  r = ReadFileSync(&exe, config.executable_path.c_str());
+  std::vector<uint8_t> exe_data;
+  r = ReadFileSync(config.executable_path.c_str(), &exe_data);
   if (r != 0) {
     FPrintF(stderr,
             "Error: Couldn't read executable %s: %s\n",
@@ -415,9 +415,6 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
     return ExitCode::kGenericUserError;
   }
 
-  // TODO(joyeecheung): add a variant of ReadFileSync that reads into
-  // vector<uint8_t> directly and avoid this copy.
-  std::vector<uint8_t> exe_data(exe.begin(), exe.end());
   std::vector<char> sea_blob;
   ExitCode code =
       GenerateSingleExecutableBlob(&sea_blob, config, args, exec_args);
