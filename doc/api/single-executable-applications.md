@@ -188,8 +188,10 @@ are accessible through this virtual path.
 const fs = require('node:fs');
 
 // Assets are automatically available at /sea when running as SEA
-const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
+const rawConfig = fs.readFileSync('/sea/config.json', 'utf8');
 const data = fs.readFileSync('/sea/data/file.txt');
+
+const config = JSON.parse(rawConfig);
 
 // Directory operations work too
 const files = fs.readdirSync('/sea/assets');
