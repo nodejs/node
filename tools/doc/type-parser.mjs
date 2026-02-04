@@ -65,6 +65,7 @@ const customTypesMap = {
     'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
 
   'AsyncLocalStorage': 'async_context.html#class-asynclocalstorage',
+  'RunScope': 'async_context.html#class-runscope',
 
   'AsyncHook': 'async_hooks.html#async_hookscreatehookoptions',
   'AsyncResource': 'async_hooks.html#class-asyncresource',
