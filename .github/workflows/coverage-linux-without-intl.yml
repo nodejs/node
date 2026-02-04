@@ -39,6 +39,7 @@ env:
   CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang
   CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++
   SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+  SCCACHE_IDLE_TIMEOUT: '0'
 
 permissions:
   contents: read
