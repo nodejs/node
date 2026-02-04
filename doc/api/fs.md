@@ -2441,13 +2441,6 @@ See the POSIX close(2) documentation for more detail.
 
 ### `fs.copyFile(src, dest[, mode], callback)`
 
-Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists.
-
-**Note:** `fs.copyFile()` always dereferences symbolic links. If `src` is a
-symbolic link, the contents of the target file will be copied rather than the
-link itself.
-
 <!-- YAML
 added: v8.5.0
 changes:
