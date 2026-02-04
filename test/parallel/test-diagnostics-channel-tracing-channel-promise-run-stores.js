@@ -16,7 +16,7 @@ channel.start.bindStore(store, common.mustCall(() => {
   return firstContext;
 }));
 
-channel.asyncStart.bindStore(store, common.mustNotCall(() => {
+channel.asyncStart.bindStore(store, common.mustCall(() => {
   return secondContext;
 }));
 
@@ -27,5 +27,7 @@ channel.tracePromise(common.mustCall(async () => {
   // Should _not_ switch to second context as promises don't have an "after"
   // point at which to do a runStores.
   assert.deepStrictEqual(store.getStore(), firstContext);
+})).then(common.mustCall(() => {
+  assert.strictEqual(store.getStore(), undefined);
 }));
 assert.strictEqual(store.getStore(), undefined);

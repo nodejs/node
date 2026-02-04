@@ -282,6 +282,53 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 });
 ```
 
+#### `diagnostics_channel.boundedChannel(nameOrChannels)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|BoundedChannel} Channel name or
+  object containing all the [BoundedChannel Channels][]
+* Returns: {BoundedChannel} Collection of channels to trace with
+
+Creates a [`BoundedChannel`][] wrapper for the given channels. If a name is
+given, the corresponding channels will be created in the form of
+`tracing:${name}:${eventType}` where `eventType` is `start` or `end`.
+
+A `BoundedChannel` is a simplified version of [`TracingChannel`][] that only
+traces synchronous operations. It only has `start` and `end` events, without
+`asyncStart`, `asyncEnd`, or `error` events, making it suitable for tracing
+operations that don't involve asynchronous continuations or error handling.
+
+```mjs
+import { boundedChannel, channel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+// or...
+
+const wc2 = boundedChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
+```cjs
+const { boundedChannel, channel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+// or...
+
+const wc2 = boundedChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
 ### Class: `Channel`
 
 <!-- YAML
@@ -619,6 +666,77 @@ channel.runStores({ some: 'message' }, () => {
   store.getStore(); // Span({ some: 'message' })
 });
 ```
+
+#### `channel.withStoreScope(data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `data` {any} Message to bind to stores
+* Returns: {RunStoresScope} Disposable scope object
+
+Creates a disposable scope that binds the given data to any AsyncLocalStorage
+instances bound to the channel and publishes it to subscribers. The scope
+automatically restores the previous storage contexts when disposed.
+
+This method enables the use of JavaScript's explicit resource management
+(`using` syntax with `Symbol.dispose`) to manage store contexts without
+closure wrapping.
+
+```mjs
+import { channel } from 'node:diagnostics_channel';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+```cjs
+const { channel } = require('node:diagnostics_channel');
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+### Class: `RunStoresScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `RunStoresScope` represents a disposable scope created by
+[`channel.withStoreScope(data)`][]. It manages the lifecycle of store
+contexts and ensures they are properly restored when the scope exits.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
 
 ### Class: `TracingChannel`
 
@@ -1025,6 +1143,281 @@ if (channels.hasSubscribers) {
   // Do something
 }
 ```
+
+### Class: `BoundedChannel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `BoundedChannel` is a simplified version of [`TracingChannel`][] that
+only traces synchronous operations. It consists of two channels (`start` and
+`end`) instead of five, omitting the `asyncStart`, `asyncEnd`, and `error`
+events. This makes it suitable for tracing operations that don't involve
+asynchronous continuations or error handling.
+
+Like `TracingChannel`, it is recommended to create and reuse a single
+`BoundedChannel` at the top-level of the file rather than creating them
+dynamically.
+
+#### `boundedChannel.hasSubscribers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `true` if any of the individual channels has a subscriber,
+  `false` if not.
+
+Check if any of the `start` or `end` channels have subscribers.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+#### `boundedChannel.subscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+
+Subscribe to the bounded channel events. This is equivalent to calling
+[`channel.subscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+#### `boundedChannel.unsubscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+* Returns: {boolean} `true` if all handlers were successfully unsubscribed,
+  `false` otherwise.
+
+Unsubscribe from the bounded channel events. This is equivalent to calling
+[`channel.unsubscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+#### `boundedChannel.run(context, fn[, thisArg[, ...args]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* `fn` {Function} Function to wrap a trace around
+* `thisArg` {any} The receiver to be used for the function call
+* `...args` {any} Optional arguments to pass to the function
+* Returns: {any} The return value of the given function
+
+Trace a synchronous function call. This will produce a `start` event and `end`
+event around the execution. This runs the given function using
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events have any bound stores set to match this trace context.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+#### `boundedChannel.withScope([context])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* Returns: {BoundedChannelScope} Disposable scope object
+
+Create a disposable scope for tracing a synchronous operation using JavaScript's
+explicit resource management (`using` syntax). The scope automatically publishes
+`start` and `end` events, enters bound stores, and handles cleanup when disposed.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+### Class: `BoundedChannelScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `BoundedChannelScope` represents a disposable scope created by
+[`boundedChannel.withScope(context)`][]. It manages the lifecycle of a traced
+operation, automatically publishing events and managing store contexts.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+### BoundedChannel Channels
+
+A `BoundedChannel` consists of two diagnostics channels representing the
+lifecycle of a scope created with the `using` syntax:
+
+* `tracing:${name}:start` - Published when the `using` statement executes (scope creation)
+* `tracing:${name}:end` - Published when exiting the block (scope disposal)
+
+When using the `using` syntax with \[`boundedChannel.withScope([context])`]\[], the `start`
+event is published immediately when the statement executes, and the `end` event
+is automatically published when disposal occurs at the end of the block. All
+events share the same context object, which can be extended with additional
+properties like `result` during scope execution.
 
 ### TracingChannel Channels
 
@@ -1518,15 +1911,19 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+[BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`BoundedChannel`]: #class-boundedchannel
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
+[`boundedChannel.withScope(context)`]: #boundedchannelwithscopecontext
 [`channel.bindStore(store)`]: #channelbindstorestore-transform
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
