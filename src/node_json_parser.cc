@@ -1,8 +1,17 @@
 #include "node_json_parser.h"
+#include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "simdjson.h"
-#include "env-inl.h"
+#include "simdutf.h"
+
+#define THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error)               \
+  do {                                                                         \
+    if ((error)) {                                                             \
+      THROW_ERR_MODULE_NOT_INSTANTIATED((isolate));                            \
+      return MaybeLocal<Value>();                                              \
+    }                                                                          \
+  } while (0)
 
 namespace node {
 namespace json_parser {
@@ -30,15 +39,14 @@ inline MaybeLocal<Value> ToV8Number(Isolate* isolate,
   T value;
   simdjson::error_code error = std::move(element.get<T>()).get(value);
 
-  if (error) {
-    THROW_ERR_MODULE_NOT_INSTANTIATED(isolate);
-    return MaybeLocal<Value>();
-  }
+  THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
   return MaybeLocal<Value>(Number::New(isolate, static_cast<T>(value)));
 }
 
 string ObjectToString(Isolate* isolate, Local<Value> value) {
+  // TODO(araujogui): investigate if V8 WriteUtf8V2 is faster than
+  // convert_utf16_to_utf8
   Utf8Value utf8_value(isolate, value);
   return string(*utf8_value);
 }
@@ -61,10 +69,7 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
       bool value;
       simdjson::error_code error = element.get_bool().get(value);
 
-      if (error) {
-        THROW_ERR_MODULE_NOT_INSTANTIATED(isolate);
-        return MaybeLocal<Value>();
-      }
+      THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
       return MaybeLocal<Value>(Boolean::New(isolate, value));
     }
@@ -77,10 +82,7 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
       string value;
       simdjson::error_code error = element.get_string().get(value);
 
-      if (error) {
-        THROW_ERR_MODULE_NOT_INSTANTIATED(isolate);
-        return MaybeLocal<Value>();
-      }
+      THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
       return String::NewFromUtf8(isolate, value.c_str());
     }
@@ -88,10 +90,7 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
       simdjson::dom::array array;
       simdjson::error_code error = element.get_array().get(array);
 
-      if (error) {
-        THROW_ERR_MODULE_NOT_INSTANTIATED(isolate);
-        return MaybeLocal<Value>();
-      }
+      THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
       Local<Array> v8_array =
           v8::Array::New(isolate, array.size());
@@ -116,10 +115,7 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
       simdjson::dom::object object;
       simdjson::error_code error = element.get_object().get(object);
 
-      if (error) {
-        THROW_ERR_MODULE_NOT_INSTANTIATED(isolate);
-        return MaybeLocal<Value>();
-      }
+      THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
       Local<Object> v8_object = Object::New(isolate);
       Local<Context> context = isolate->GetCurrentContext();
@@ -197,6 +193,8 @@ void Initialize(Local<Object> target,
 
 }  // namespace json_parser
 }  // namespace node
+
+#undef THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(json_parser, node::json_parser::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(json_parser,
