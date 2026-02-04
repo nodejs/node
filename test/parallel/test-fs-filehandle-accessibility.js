@@ -42,11 +42,11 @@ async function testIsFileHandleMethod() {
     await fileHandle.close();
   }
 
-  // Test 6: Test instanceof check
+  // Test 6: Test that FileHandle instances are recognized by isFileHandle
   const fileHandle2 = await fsPromises.open(testFilePath, 'r');
   try {
-    assert(fileHandle2 instanceof fs.FileHandle, 'fileHandle should be instance of FileHandle');
-    assert(fileHandle2 instanceof fsPromises.FileHandle, 'fileHandle should be instance of fs.promises.FileHandle');
+    assert.strictEqual(fs.FileHandle.isFileHandle(fileHandle2), true);
+    assert.strictEqual(fsPromises.FileHandle.isFileHandle(fileHandle2), true);
   } finally {
     await fileHandle2.close();
   }
