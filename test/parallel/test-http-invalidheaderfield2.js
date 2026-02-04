@@ -60,7 +60,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
 
 
 // ============================================================================
-// Strict header value validation (default) - per RFC 7230/9110
+// Strict header value validation (default) - per RFC 7230
 // Rejects control characters (0x00-0x1f except HTAB) and DEL (0x7f)
 // ============================================================================
 
