@@ -57,6 +57,7 @@
   V(http2)                                                                     \
   V(http_parser)                                                               \
   V(inspector)                                                                 \
+  V(json_parser)                                                               \
   V(internal_only_v8)                                                          \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
