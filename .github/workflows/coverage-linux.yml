@@ -39,6 +39,7 @@ env:
   CC: sccache clang
   CXX: sccache clang++
   SCCACHE_GHA_ENABLED: 'true'
+  SCCACHE_IDLE_TIMEOUT: '0'
 
 permissions:
   contents: read
