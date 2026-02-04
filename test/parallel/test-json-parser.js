@@ -53,9 +53,27 @@ describe('node:json', () => {
     );
   });
 
-  test('throws SyntaxError on invalid JSON', () => {
+  test('throws SyntaxError on invalid string JSON', () => {
     assert.throws(
       () => parse('not valid json'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
+
+  test('throws SyntaxError on invalid object JSON', () => {
+    assert.throws(
+      () => parse('{"key": "property}'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
+
+  test('throws SyntaxError on invalid array JSON', () => {
+    assert.throws(
+      () => parse('[1,2,3,]'),
       {
         name: 'SyntaxError',
       }
