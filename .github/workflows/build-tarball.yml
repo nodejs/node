@@ -69,6 +69,7 @@ jobs:
       CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++
       SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      SCCACHE_IDLE_TIMEOUT: '0'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
