@@ -56,8 +56,6 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
         raw_fields_count_(raw_fields_count) {}
 
   void RecordStats(Tagged<HeapObject> host) {
-    if (SafeIsAnyHole(host)) return;
-
     size_t old_pointer_fields_count = *tagged_fields_count_;
     VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =
@@ -213,12 +211,12 @@ V8_NOINLINE static void DumpJSONArray(std::stringstream& stream, size_t* array,
   stream << PrintCollection(base::Vector<size_t>(array, len));
 }
 
-void ObjectStats::PrintKeyAndId(const char* key, int gc_count) {
+void ObjectStats::PrintKeyAndId(const char* key, GCEpoch gc_count) {
   PrintF("\"isolate\": \"%p\", \"id\": %d, \"key\": \"%s\", ",
-         reinterpret_cast<void*>(isolate()), gc_count, key);
+         reinterpret_cast<void*>(isolate()), gc_count.value(), key);
 }
 
-void ObjectStats::PrintInstanceTypeJSON(const char* key, int gc_count,
+void ObjectStats::PrintInstanceTypeJSON(const char* key, GCEpoch gc_count,
                                         const char* name, int index) {
   PrintF("{ ");
   PrintKeyAndId(key, gc_count);
@@ -238,7 +236,7 @@ void ObjectStats::PrintInstanceTypeJSON(const char* key, int gc_count,
 
 void ObjectStats::PrintJSON(const char* key) {
   double time = isolate()->time_millis_since_init();
-  int gc_count = heap()->gc_count();
+  GCEpoch gc_count = heap()->gc_count();
 
   // gc_descriptor
   PrintF("{ ");
@@ -338,7 +336,7 @@ void ObjectStats::DumpInstanceTypeData(std::stringstream& stream,
 
 void ObjectStats::Dump(std::stringstream& stream) {
   double time = isolate()->time_millis_since_init();
-  int gc_count = heap()->gc_count();
+  GCEpoch gc_count = heap()->gc_count();
 
   stream << "{";
   stream << "\"isolate\":\"" << reinterpret_cast<void*>(isolate()) << "\",";
@@ -407,6 +405,7 @@ int ObjectStats::HistogramIndexFromSize(size_t size) {
 void ObjectStats::RecordObject(Tagged<HeapObject> obj, int type, size_t size) {
 #ifdef V8_COMPRESS_POINTERS
   if (!v8_flags.trace_gc_object_stats_all_objects) return;
+  if (obj.is_null()) return;
 
   if (obj.IsInMainCageBase()) {
     objects_main_.emplace_back(ObjectData{
@@ -591,9 +590,6 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     Tagged<HeapObject> parent, Tagged<HeapObject> obj,
     ObjectStats::VirtualInstanceType type) {
-  // Don't bother recording holes, they're anyway RO space and it's complicated
-  // with unmapped pages.
-  if (SafeIsAnyHole(obj)) return false;
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
@@ -1029,9 +1025,13 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  Tagged<DescriptorArray> array = map->instance_descriptors(cage_base());
-  if (map->owns_descriptors() &&
-      array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
+  if (Tagged<DescriptorArray> array;
+      map->owns_descriptors() &&
+#if V8_ENABLE_WEBASSEMBLY
+      !IsWasmObjectMap(map) &&
+#endif  // V8_ENABLE_WEBASSEMBLY
+      (array = map->instance_descriptors(cage_base())) !=
+          ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already
     // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
     // of those are for (abandoned) prototypes, and which of those are
@@ -1155,7 +1155,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (!IsTheHole(entry) && IsFixedArrayExact(entry)) {
+    if (IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, Cast<HeapObject>(entry),
           StatsEnum::EMBEDDED_OBJECT_TYPE);

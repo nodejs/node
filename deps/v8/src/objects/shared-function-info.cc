@@ -68,8 +68,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   UpdateFunctionMapIndex();
 
   set_age(0);
-
-  clear_padding();
+  set_feedback_slot(0);
 }
 
 // LINT.IfChange(GetSharedFunctionInfoCode)
@@ -229,16 +228,10 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
 
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                                   IsolateForSandbox isolate) {
-  if (other->HasTrustedData()) {
-    SetTrustedData(
-        TrustedCast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
-  } else {
-    SetUntrustedData(other->GetUntrustedData());
-  }
-
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
                          kReleaseStore);
+
   set_outer_scope_info_or_feedback_metadata(
       other->outer_scope_info_or_feedback_metadata(cage_base));
   set_script(other->script(cage_base, kAcquireLoad), kReleaseStore);
@@ -254,6 +247,16 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_unique_id(other->unique_id());
   set_age(0);
 
+  // Install code last to ensure that the entire SFI is properly initialized if
+  // it's compiled.
+  if (other->HasTrustedData()) {
+    SetTrustedData(
+        TrustedCast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
+  } else {
+    SetUntrustedData(other->GetUntrustedData());
+  }
+
+  set_feedback_slot(other->feedback_slot());
 #if DEBUG
   // This should now be byte-for-byte identical to the input except for the age
   // field (could be reset concurrently). Compare content before age field now:
@@ -341,8 +344,8 @@ Handle<String> SharedFunctionInfo::DebugName(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   FunctionKind function_kind = shared->kind();
-  if (IsClassMembersInitializerFunction(function_kind)) {
-    return function_kind == FunctionKind::kClassMembersInitializerFunction
+  if (IsClassInitializerFunction(function_kind)) {
+    return IsClassInstanceInitializerFunction(function_kind)
                ? isolate->factory()->instance_members_initializer_string()
                : isolate->factory()->static_initializer_string();
   }
@@ -891,7 +894,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   std::unordered_set<uint32_t> ids({isolate->next_unique_sfi_id()});
   CombinedHeapObjectIterator it(isolate->heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (IsAnyHole(o) || !IsSharedFunctionInfo(o)) continue;
+    if (!IsSharedFunctionInfo(o)) continue;
     auto result = ids.emplace(Cast<SharedFunctionInfo>(o)->unique_id());
     // If previously inserted...
     if (!result.second) return false;

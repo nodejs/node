@@ -14,7 +14,7 @@
 #include "src/heap/heap-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
 
@@ -61,7 +61,17 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
   // The table is not reclaimed in the young generation, so we only need to mark
   // through to the C++ pointer.
 
-  if (auto cpp_heap_pointer = slot.try_load(isolate_, kAnyCppHeapPointer)) {
+#ifdef V8_COMPRESS_POINTERS
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullExternalPointerHandle) {
+    return;
+  }
+  const CppHeapPointerTable& table = isolate_->cpp_heap_pointer_table();
+  Address cpp_heap_pointer = table.Get(handle, kAnyCppHeapPointer);
+#else   // !V8_COMPRESS_POINTERS
+  Address cpp_heap_pointer = slot.load();
+#endif  // !V8_COMPRESS_POINTERS
+  if (cpp_heap_pointer) {
     marking_worklists_local_.cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }
@@ -127,7 +137,7 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   // set to a non-null value before the marking pause.
   // TODO(342905179): Avoid adding null handle locations to the remset, and
   // instead make external pointer writes invoke a marking barrier.
-  auto slot_chunk = MutablePageMetadata::FromHeapObject(isolate_, host);
+  auto slot_chunk = MutablePage::FromHeapObject(isolate_, host);
   RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
       AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
 }
@@ -211,8 +221,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     const size_t visited_size = Base::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
-          MutablePageMetadata::cast(
-              MemoryChunkMetadata::FromHeapObject(isolate_, heap_object)),
+          MutablePage::cast(BasePage::FromHeapObject(isolate_, heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     return true;
@@ -273,10 +282,10 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 V8_INLINE void
 YoungGenerationMarkingVisitor<marking_mode>::IncrementLiveBytesCached(
-    MutablePageMetadata* chunk, intptr_t by) {
+    MutablePage* chunk, intptr_t by) {
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(by, kObjectAlignment8GbHeap));
-  const size_t hash = base::hash<MutablePageMetadata*>()(chunk) & kEntriesMask;
+  const size_t hash = base::hash<MutablePage*>()(chunk) & kEntriesMask;
   auto& entry = live_bytes_data_[hash];
   if (entry.first && entry.first != chunk) {
     entry.first->IncrementLiveBytesAtomically(entry.second);

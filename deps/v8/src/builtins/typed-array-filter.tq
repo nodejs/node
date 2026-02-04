@@ -18,8 +18,8 @@ transitioning javascript builtin TypedArrayPrototypeFilter(
         otherwise ThrowTypeError(
         MessageTemplate::kNotTypedArray, kBuiltinNameFilter);
 
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0])
         otherwise ThrowCalledNonCallable(arguments[0]);
@@ -66,7 +66,8 @@ transitioning javascript builtin TypedArrayPrototypeFilter(
 
     // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
     const typedArray: JSTypedArray = TypedArraySpeciesCreateByLength(
-        kBuiltinNameFilter, array, Unsigned(kept.length));
+        kBuiltinNameFilter, array, Unsigned(kept.length),
+        TypedArrayAccessMode::kWrite);
 
     // 11. Let n be 0.
     // 12. For each element e of kept, do
@@ -80,8 +81,9 @@ transitioning javascript builtin TypedArrayPrototypeFilter(
 
     // 13. Return A.
     return typedArray;
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFilter);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameFilter);
   }
 }
 }

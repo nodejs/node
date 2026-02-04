@@ -60,6 +60,9 @@
     'arm': {
       'filepath': '/arm/',
     },
+    'riscv': {
+      'filepath': '/riscv/',
+    },
     'merges': {
       'filepath': '.',
     },
@@ -138,6 +141,9 @@
     'arm': [
       'v8-mips-ports@googlegroups.com',
       'v8-ppc-ports@googlegroups.com',
+      'v8-risc-v-ports@chromium.org',
+    ],
+    'riscv': [
       'v8-risc-v-ports@chromium.org',
     ],
     'merges': [

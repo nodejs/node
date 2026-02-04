@@ -131,8 +131,7 @@ namespace {
 void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
                                    Heap* heap) {
   CodePageMemoryModificationScopeForDebugging scope(
-      MemoryChunkMetadata::FromAddress(heap->isolate(),
-                                       reinterpret_cast<Address>(instr)));
+      BasePage::FromAddress(heap->isolate(), reinterpret_cast<Address>(instr)));
   instr->SetInstructionBits(value);
 }
 }  // namespace
@@ -4711,13 +4710,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
 #undef VECTOR_MULTIPLY_EVEN_ODD
 #define VECTOR_MERGE(type, is_low_side)                                    \
   DECODE_VX_INSTRUCTION(t, a, b, T)                                        \
-  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;        \
+  constexpr size_t kItemCount = kSimd128Size / sizeof(type);               \
+  type temps[kItemCount] = {0};                                            \
+  constexpr size_t index_limit = kItemCount / 2;                           \
   for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;     \
        i < index_limit; i++, source_index++) {                             \
-    set_simd_register_by_lane<type>(                                       \
-        t, 2 * i, get_simd_register_by_lane<type>(a, source_index));       \
-    set_simd_register_by_lane<type>(                                       \
-        t, (2 * i) + 1, get_simd_register_by_lane<type>(b, source_index)); \
+    temps[2 * i] = get_simd_register_by_lane<type>(a, source_index);       \
+    temps[(2 * i) + 1] = get_simd_register_by_lane<type>(b, source_index); \
+  }                                                                        \
+  for (size_t i = 0; i < kItemCount; i++) {                                \
+    set_simd_register_by_lane<type>(t, i, temps[i]);                       \
   }
     case VMRGLW: {
       VECTOR_MERGE(int32_t, true)

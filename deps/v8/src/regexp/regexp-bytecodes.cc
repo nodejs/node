@@ -6,6 +6,7 @@
 
 #include <cctype>
 
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -13,17 +14,18 @@ namespace internal {
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc) {
-  int bytecode = *reinterpret_cast<const int32_t*>(pc) & BYTECODE_MASK;
-  PrintF("%s", RegExpBytecodeName(bytecode));
+  // TODO(jgruber): Now that we know about operand types, improve printing.
+  RegExpBytecode bytecode = RegExpBytecodes::FromPtr(pc);
+  PrintF("%s", RegExpBytecodes::Name(bytecode));
 
   // Args and the bytecode as hex.
-  for (int i = 0; i < RegExpBytecodeLength(bytecode); i++) {
+  for (int i = 0; i < RegExpBytecodes::Size(bytecode); i++) {
     PrintF(", %02x", pc[i]);
   }
   PrintF(" ");
 
   // Args as ascii.
-  for (int i = 1; i < RegExpBytecodeLength(bytecode); i++) {
+  for (int i = 1; i < RegExpBytecodes::Size(bytecode); i++) {
     unsigned char b = pc[i];
     PrintF("%c", std::isprint(b) ? b : '.');
   }
@@ -36,11 +38,12 @@ void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
 
   ptrdiff_t offset = 0;
 
+  // TODO(pthier): Consider using the RegExpBytecodeIterator.
   while (offset < length) {
     const uint8_t* const pc = code_base + offset;
     PrintF("%p  %4" V8PRIxPTRDIFF "  ", pc, offset);
     RegExpBytecodeDisassembleSingle(code_base, pc);
-    offset += RegExpBytecodeLength(*pc);
+    offset += RegExpBytecodes::Size(RegExpBytecodes::FromPtr(pc));
   }
 }
 

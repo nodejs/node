@@ -100,12 +100,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   using MacroAssemblerBase::MacroAssemblerBase;
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type);
+  enum ShadowStackStatus { kPush, kNoPush };
+  void EnterFrame(StackFrame::Type type, ShadowStackStatus ss = kPush);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
     // Out-of-line constant pool not implemented on RISC-V.
     UNREACHABLE();
   }
   void LeaveFrame(StackFrame::Type type);
+  // Push a fixed frame, consisting of ra, fp.
+  void PushCommonFrame(Register marker_reg = no_reg);
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -243,6 +246,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) final;
   void StoreRootRelative(int32_t offset, Register value) final;
 
+  MemOperand AsMemOperand(IsolateFieldId id) {
+    DCHECK(root_array_available());
+    return MemOperand(kRootRegister, IsolateData::GetOffset(id));
+  }
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
   // only guaranteed to be correct as long as the scratch register
@@ -333,10 +340,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
-#ifdef V8_ENABLE_LEAPTIERING
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                            uint16_t argument_count);
-#endif
 #ifdef V8_ENABLE_WEBASSEMBLY
   void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
   void CallWasmCodePointer(Register target, uint64_t signature_hash,
@@ -365,7 +370,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Enforce platform specific stack alignment.
   void EnforceStackAlignment();
 #endif
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -659,14 +664,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
-
-  void Amosub_w(bool aq, bool rl, Register rd, Register rs1, Register rs2) {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.Acquire();
-    sub(temp, zero_reg, rs2);
-    amoadd_w(aq, rl, rd, rs1, temp);
-  }
-
   // Convert smi to word-size sign-extended value.
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
@@ -936,6 +933,33 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   using Trapper = std::function<void(int)>;
 
+#define ATOMIC_BINOP32(name)                                     \
+  void Amo##name##_w(                                            \
+      bool aq, bool rl, Register rd, Register rs1, Register rs2, \
+      Trapper&& trapper = [](int) {});
+
+#define ATOMIC_BINOP64(name)                                     \
+  void Amo##name##_d(                                            \
+      bool aq, bool rl, Register rd, Register rs1, Register rs2, \
+      Trapper&& trapper = [](int) {});
+
+  ATOMIC_BINOP32(Add)
+  ATOMIC_BINOP32(Sub)
+  ATOMIC_BINOP32(And)
+  ATOMIC_BINOP32(Or)
+  ATOMIC_BINOP32(Xor)
+  ATOMIC_BINOP32(Swap)
+#ifdef V8_TARGET_ARCH_RISCV64
+  ATOMIC_BINOP64(Add)
+  ATOMIC_BINOP64(Sub)
+  ATOMIC_BINOP64(And)
+  ATOMIC_BINOP64(Or)
+  ATOMIC_BINOP64(Xor)
+  ATOMIC_BINOP64(Swap)
+#endif
+#undef ATOMIC_BINOP32
+#undef ATOMIC_BINOP64
+
   void Lb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Lbu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -989,7 +1013,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadDouble(
       FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int){});
   void StoreDouble(
-      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int){});
+      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int) {});
 
   void Ll(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sc(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -1531,6 +1555,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }
   void StoreReceiver(Register rec) { StoreWord(rec, MemOperand(sp, 0)); }
 
+  // Requires the vector unit to be configured for 128-bit SIMD.
+  void StoreSimd128(
+      VRegister vs, MemOperand dst, Trapper&& trapper = [](int) {});
+  // Requires the vector unit to be configured for 128-bit SIMD.
+  void LoadSimd128(
+      VRegister vd, MemOperand src, Trapper&& trapper = [](int) {});
+
   bool IsNear(Label* L, Condition cond, int rs_reg);
 
   // Swap two registers.  If the scratch register is omitted then a slightly
@@ -1676,7 +1707,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_RISCV64)
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register actual_parameter_count,
@@ -1750,13 +1781,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                            Register closure);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      Register flags, Register feedback_vector, CodeKind current_code_kind,
-      Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                               Register feedback_vector);
-#endif
 
   // -------------------------------------------------------------------------
   // Support functions.
@@ -1893,7 +1917,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DecodeField<Field>(reg, reg);
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Load the entrypoint pointer of a JSDispatchTable entry.
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
@@ -1911,7 +1934,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
 #endif  // V8_TARGET_ARCH_RISCV64
-#endif  // V8_ENABLE_LEAPTIERING
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
                                  MemOperand field_operand);
@@ -1972,9 +1994,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
                                    TruncFunc trunc);
-
-  // Push a fixed frame, consisting of ra, fp.
-  void PushCommonFrame(Register marker_reg = no_reg);
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

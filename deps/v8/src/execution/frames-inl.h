@@ -198,24 +198,27 @@ int ApiCallbackExitFrame::ComputeParametersCount() const {
 
 Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
-  int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
+  int offset = ApiCallbackExitFrameConstants::kFirstJSArgumentOffset +
                i * kSystemPointerSize;
   return Tagged<Object>(base::Memory<Address>(fp() + offset));
 }
 
-bool ApiCallbackExitFrame::IsConstructor() const {
-  Tagged<Object> new_context(base::Memory<Address>(
-      fp() + ApiCallbackExitFrameConstants::kNewTargetOffset));
-  return !IsUndefined(new_context, isolate());
+inline ApiConstructExitFrame::ApiConstructExitFrame(
+    StackFrameIteratorBase* iterator)
+    : ApiCallbackExitFrame(iterator) {}
+
+inline FullObjectSlot ApiConstructExitFrame::new_target_slot() const {
+  return FullObjectSlot(fp() +
+                        ApiConstructExitFrameConstants::kFCINewTargetOffset);
 }
 
 inline ApiAccessorExitFrame::ApiAccessorExitFrame(
     StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
-inline FullObjectSlot ApiAccessorExitFrame::property_name_slot() const {
+inline FullObjectSlot ApiAccessorExitFrame::property_key_slot() const {
   return FullObjectSlot(fp() +
-                        ApiAccessorExitFrameConstants::kPropertyNameOffset);
+                        ApiAccessorExitFrameConstants::kPropertyKeyOffset);
 }
 
 inline FullObjectSlot ApiAccessorExitFrame::receiver_slot() const {
@@ -226,15 +229,23 @@ inline FullObjectSlot ApiAccessorExitFrame::holder_slot() const {
   return FullObjectSlot(fp() + ApiAccessorExitFrameConstants::kHolderOffset);
 }
 
-Tagged<Name> ApiAccessorExitFrame::property_name() const {
-  return Cast<Name>(*property_name_slot());
-}
-
 Tagged<Object> ApiAccessorExitFrame::receiver() const {
   return *receiver_slot();
 }
 
 Tagged<Object> ApiAccessorExitFrame::holder() const { return *holder_slot(); }
+
+inline ApiNamedAccessorExitFrame::ApiNamedAccessorExitFrame(
+    StackFrameIteratorBase* iterator)
+    : ApiAccessorExitFrame(iterator) {}
+
+Tagged<Name> ApiNamedAccessorExitFrame::property_name() const {
+  return Cast<Name>(*property_key_slot());
+}
+
+inline ApiIndexedAccessorExitFrame::ApiIndexedAccessorExitFrame(
+    StackFrameIteratorBase* iterator)
+    : ApiAccessorExitFrame(iterator) {}
 
 inline CommonFrame::CommonFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {}
@@ -435,7 +446,7 @@ inline bool StackFrameIteratorForProfiler::IsValidFrameType(
 #endif  // V8_ENABLE_WEBASSEMBLY
   return StackFrame::IsJavaScript(type) || type == StackFrame::EXIT ||
          type == StackFrame::BUILTIN_EXIT ||
-         type == StackFrame::API_ACCESSOR_EXIT ||
+         type == StackFrame::API_NAMED_ACCESSOR_EXIT ||
          type == StackFrame::API_CALLBACK_EXIT ||
 #if V8_ENABLE_WEBASSEMBLY
          type == StackFrame::WASM || type == StackFrame::WASM_TO_JS ||

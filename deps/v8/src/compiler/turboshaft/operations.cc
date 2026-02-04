@@ -112,8 +112,17 @@ void ValidateOpInputRep(
           OpcodeName(input_op.opcode));
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
+    if (input_op.Is<Opmask::kTaggedIndexConstant>()) {
+      // TODO(dmercadier): TaggedIndex is sometimes treated as a WordPtr and
+      // sometimes as Tagged. We should clean this up and have a single
+      // consistent representation for TaggedIndex.
+      if (expected_rep == any_of(RegisterRepresentation::Tagged(),
+                                 RegisterRepresentation::WordPtr())) {
+        return;
+      }
+    }
     if (input_rep.AllowImplicitRepresentationChangeTo(
-            expected_rep, graph.IsCreatedFromTurbofan())) {
+            expected_rep, graph.IsCreatedFromTurbofan(), graph.IsTurbolev())) {
       return;
     }
   }
@@ -181,12 +190,16 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, Word32SignHintOp::Sign sign) {
-  switch (sign) {
-    case Word32SignHintOp::Sign::kSigned:
-      return os << "Signed";
-    case Word32SignHintOp::Sign::kUnsigned:
-      return os << "Unsigned";
+std::ostream& operator<<(std::ostream& os, TypeHintOp::Type type) {
+  switch (type) {
+    case TypeHintOp::Type::kInt32:
+      return os << "Int32";
+    case TypeHintOp::Type::kUint32:
+      return os << "Uint32";
+    case TypeHintOp::Type::kFloat64:
+      return os << "Float64";
+    case TypeHintOp::Type::kHoleyFloat64:
+      return os << "HoleyFloat64";
   }
 }
 
@@ -449,10 +462,12 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
 
 std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
   switch (kind) {
-    case SelectOp::Implementation::kBranch:
+    case SelectOp::Implementation::kForceBranch:
       return os << "Branch";
-    case SelectOp::Implementation::kCMove:
+    case SelectOp::Implementation::kForceCMove:
       return os << "CMove";
+    case SelectOp::Implementation::kAny:
+      return os << "Any";
   }
 }
 
@@ -637,6 +652,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", protected";
+  if (kind.is_immutable) os << ", immutable";
   os << ", " << loaded_rep;
   os << ", " << result_rep;
   if (element_size_log2 != 0)
@@ -689,6 +705,12 @@ void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
   os << "[opkind: " << kind << ']';
 }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void SwitchSandboxModeOp::PrintOptions(std::ostream& os) const {
+  os << "[sandbox mode: " << static_cast<int>(sandbox_mode) << ']';
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
   os << "[memory order: " << memory_order << ']';
 }
@@ -727,6 +749,36 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
+void TaggedBitcastOp::Validate(const Graph& graph) const {
+  if (kind == Kind::kSmi) {
+    DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
+           (from.IsTaggedOrCompressed() && to.IsWord()));
+    DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
+                       to == RegisterRepresentation::Word64(),
+                   Is64());
+  } else {
+    // TODO(nicohartmann@): Without implicit truncation, the first case might
+    // not be correct anymore.
+    DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
+           (from == RegisterRepresentation::Tagged() &&
+            to == RegisterRepresentation::WordPtr()) ||
+           (from == RegisterRepresentation::Compressed() &&
+            to == RegisterRepresentation::Word32()));
+
+    if (to == RegisterRepresentation::Tagged() ||
+        to == RegisterRepresentation::Compressed()) {
+      // We shouldn't bitcast-to-tagged load results. Instead, we should
+      // correctly load tagged values as RegisterRepresentation::Tagged().
+      // There is one exception to this rule: tagged atomic loads, which aren't
+      // supported by the instruction selector and thus need to be bitcasted to
+      // Tagged. This is safe for load elimination because we don't
+      // load-eliminate atomic loads anyways.
+      DCHECK(!graph.Get(input()).Is<LoadOp>() ||
+             graph.Get(input()).Cast<LoadOp>().kind.is_atomic);
+    }
+  }
+}
+
 void AllocateOp::PrintOptions(std::ostream& os) const {
   os << '[' << type << ", ";
   switch (alignment) {
@@ -743,11 +795,13 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
+#if V8_ENABLE_SANDBOX
+void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
   os << ']';
 }
+#endif
 
 void FrameStateOp::PrintOptions(std::ostream& os) const {
   os << '[';
@@ -1346,20 +1400,11 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind) {
-  switch (kind) {
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi:
-      return os << "Smi";
-  }
-}
-
-std::ostream& operator<<(
-    std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
-                          input_interpretation) {
+    ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation) {
   switch (input_interpretation) {
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned:
+    case ConvertWordToSmiOrDeoptOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kUnsigned:
+    case ConvertWordToSmiOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
 }
@@ -1377,10 +1422,8 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Bit";
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64:
       return os << "HoleyFloat64";
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
 }
 
@@ -1897,6 +1940,9 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   os << '[';
   switch (kind) {
+    case Kind::kI8x1:
+      os << "I8x1, ";
+      break;
     case Kind::kI8x2:
       os << "I8x2, ";
       break;
@@ -2315,5 +2361,70 @@ bool Operation::IsProtectedLoad() const {
   return false;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+IsSmiDecision CombineDecisions(IsSmiDecision left, IsSmiDecision right) {
+  if (left == right) return left;
+  return IsSmiDecision::kUnknown;
+}
+IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
+  constexpr int kMaxDepth = 3;
+  DCHECK_LE(depth, kMaxDepth);
+
+  const Operation& op = graph.Get(idx);
+  switch (op.opcode) {
+    case Opcode::kConstant: {
+      const ConstantOp& cst = op.Cast<ConstantOp>();
+      if (cst.kind == ConstantOp::Kind::kNumber) {
+        // For kNumber, we don't know yet whether this will turn into a Smi or
+        // a HeapNumber.
+        return IsSmiDecision::kUnknown;
+      }
+      return (cst.IsIntegral() || cst.kind == ConstantOp::Kind::kSmi)
+                 ? IsSmiDecision::kTrue
+                 : IsSmiDecision::kFalse;
+    }
+    case Opcode::kAllocate:
+      return IsSmiDecision::kFalse;
+    case Opcode::kConvertUntaggedToJSPrimitive: {
+      using Kind = ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind;
+      switch (op.Cast<ConvertUntaggedToJSPrimitiveOp>().kind) {
+        case Kind::kBigInt:
+        case Kind::kBoolean:
+        case Kind::kHeapNumber:
+        case Kind::kHeapNumberOrUndefined:
+        case Kind::kString:
+          return IsSmiDecision::kFalse;
+        case Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case Kind::kNumber:
+          return IsSmiDecision::kUnknown;
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kLoad: {
+      switch (op.Cast<LoadOp>().loaded_rep) {
+        case MemoryRepresentation::TaggedPointer():
+          return IsSmiDecision::kFalse;
+        case MemoryRepresentation::TaggedSigned():
+          return IsSmiDecision::kTrue;
+        default:
+          return IsSmiDecision::kUnknown;
+      }
+    }
+    case Opcode::kPhi:
+      if (depth == kMaxDepth) return IsSmiDecision::kUnknown;
+      return std::accumulate(
+          op.inputs().begin() + 1, op.inputs().end(),
+          DecideObjectIsSmi(graph, op.input(0), depth + 1),
+          [&](IsSmiDecision acc, OpIndex input_idx) {
+            return CombineDecisions(
+                acc, DecideObjectIsSmi(graph, input_idx, depth + 1));
+          });
+    default:
+      break;
+  }
+
+  return IsSmiDecision::kUnknown;
+}
 
 }  // namespace v8::internal::compiler::turboshaft

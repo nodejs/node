@@ -75,7 +75,8 @@ struct builtin : CallDescriptorBuilder {
       DCHECK_EQ(base::tmp::length_v<arguments_t>, arguments_count);
       DCHECK_EQ(desc->ParameterCount(),
                 arguments_count + (Derived::kNeedsContext ? 1 : 0));
-      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc);
+      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc,
+                                                           arguments_count);
 
       // Verify properties.
       DCHECK_EQ(desc->NeedsFrameState(),
@@ -88,6 +89,21 @@ struct builtin : CallDescriptorBuilder {
       // Derived::kCanTriggerLazyDeopt);
     }
 #endif  // DEBUG
+  };
+
+  struct ArrayPrototypeJoinImpl : public Descriptor<ArrayPrototypeJoinImpl> {
+    static constexpr auto kFunction = Builtin::kArrayPrototypeJoinImpl;
+    struct Arguments : ArgumentsBase {
+      ARG(V<JSReceiver>, o)
+      ARG(V<Number>, len)
+      ARG(V<String>, separator)
+    };
+    using returns_t = std::tuple<V<JSAny>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
   struct BigIntAdd : public Descriptor<BigIntAdd> {
@@ -327,19 +343,26 @@ struct builtin : CallDescriptorBuilder {
   using NewRestArgumentsElements =
       NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
 
-  struct NumberToString : public Descriptor<NumberToString> {
-    static constexpr auto kFunction = Builtin::kNumberToString;
-    struct Arguments : ArgumentsBase {
-      ARG(V<Number>, input)
-    };
-    using returns_t = std::tuple<V<String>>;
-
-    static constexpr bool kCanTriggerLazyDeopt = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+#define DECLARE_NUMBER_TO_STRING(Name, Type)                       \
+  struct Name##ToString : public Descriptor<Name##ToString> {      \
+    static constexpr auto kFunction = Builtin::k##Name##ToString;  \
+    struct Arguments : ArgumentsBase {                             \
+      ARG(V<Type>, input)                                          \
+    };                                                             \
+    using returns_t = std::tuple<V<String>>;                       \
+                                                                   \
+    static constexpr bool kCanTriggerLazyDeopt = false;            \
+    static constexpr bool kNeedsContext = false;                   \
+    static constexpr Operator::Properties kProperties =            \
+        Operator::kEliminatable;                                   \
+    static constexpr OpEffects kEffects =                          \
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity(); \
   };
+  DECLARE_NUMBER_TO_STRING(Int32, Word32)
+  DECLARE_NUMBER_TO_STRING(Float64, Float64)
+  DECLARE_NUMBER_TO_STRING(Smi, Smi)
+  DECLARE_NUMBER_TO_STRING(Number, Number)
+#undef DECLARE_NUMBER_TO_STRING
 
   struct ToString : public Descriptor<ToString> {
     static constexpr auto kFunction = Builtin::kToString;
@@ -524,12 +547,14 @@ struct builtin : CallDescriptorBuilder {
     };
     using returns_t = std::tuple<V<String>>;
 
-    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+        Operator::kFoldable | Operator::kIdempotent;
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap()
+                                              .CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanDependOnChecks();
   };
 #endif  // V8_INTL_SUPPORT
 
@@ -687,6 +712,36 @@ struct builtin : CallDescriptorBuilder {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct GetProperty : public Descriptor<GetProperty> {
+    static constexpr auto kFunction = Builtin::kGetProperty;
+    struct Arguments : ArgumentsBase {
+      ARG(V<JSAny>, object)
+      ARG(V<Object>, key)
+    };
+    using returns_t = std::tuple<V<JSAny>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct GetPropertyWithReceiver : public Descriptor<GetPropertyWithReceiver> {
+    static constexpr auto kFunction = Builtin::kGetPropertyWithReceiver;
+    struct Arguments : ArgumentsBase {
+      ARG(V<JSAny>, object)
+      ARG(V<Object>, key)
+      ARG(V<JSAny>, receiver)
+      ARG(V<Object>, on_non_existent)
+    };
+    using returns_t = std::tuple<V<JSAny>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1151,7 +1206,8 @@ struct BuiltinCallDescriptor {
 
   struct WasmThrow : public Descriptor<WasmThrow> {
     static constexpr auto kFunction = Builtin::kWasmThrow;
-    using arguments_t = std::tuple<V<Object>, V<FixedArray>>;
+    using arguments_t =
+        std::tuple<V<Object>, V<FixedArray>, V<WasmTrustedInstanceData>>;
     using results_t = std::tuple<OpIndex>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1670,8 +1726,24 @@ struct BuiltinCallDescriptor {
 
   struct WasmFXResume : public Descriptor<WasmFXResume> {
     static constexpr auto kFunction = Builtin::kWasmFXResume;
-    using arguments_t = std::tuple<V<WordPtr>>;  // StackMemory to be resumed.
-    using results_t = std::tuple<>;
+    // Target stack and arg buffer.
+    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>>;
+    // Return values buffer.
+    using results_t = std::tuple<V<WordPtr>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct WasmFXResumeThrow : public Descriptor<WasmFXResumeThrow> {
+    static constexpr auto kFunction = Builtin::kWasmFXResumeThrow;
+    // Target stack, tag, exception array and instance.
+    using arguments_t = std::tuple<V<WordPtr>, V<WasmTagObject>, V<FixedArray>,
+                                   V<WasmTrustedInstanceData>>;
+    // Return values buffer.
+    using results_t = std::tuple<V<WordPtr>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -1682,8 +1754,9 @@ struct BuiltinCallDescriptor {
   struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =
-        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>>;
-    using results_t = std::tuple<>;
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>>;
+    // Arg buffer.
+    using results_t = std::tuple<V<WordPtr>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;

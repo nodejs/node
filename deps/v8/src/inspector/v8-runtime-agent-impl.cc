@@ -63,8 +63,8 @@ static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char maxCallStackSizeToCapture[] = "maxCallStackSizeToCapture";
 static const char runtimeEnabled[] = "runtimeEnabled";
-static const char bindings[] = "bindings";
-static const char globalBindingsKey[] = "";
+static const char contextBindings[] = "contextBindings";
+static const char globalBindings[] = "globalBindings";
 }  // namespace V8RuntimeAgentImplState
 
 using protocol::Runtime::RemoteObject;
@@ -894,11 +894,11 @@ protocol::DictionaryValue* getOrCreateDictionary(
 Response V8RuntimeAgentImpl::addBinding(
     const String16& name, std::optional<int> executionContextId,
     std::optional<String16> executionContextName) {
+  if (executionContextId.has_value() && executionContextName.has_value()) {
+    return Response::InvalidParams(
+        "executionContextName is mutually exclusive with executionContextId");
+  }
   if (executionContextId.has_value()) {
-    if (executionContextName.has_value()) {
-      return Response::InvalidParams(
-          "executionContextName is mutually exclusive with executionContextId");
-    }
     int contextId = executionContextId.value();
     InspectedContext* context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
@@ -910,22 +910,25 @@ Response V8RuntimeAgentImpl::addBinding(
     return Response::Success();
   }
 
-  // If it's a globally exposed binding, i.e. no context name specified, use
-  // a special value for the context name.
-  String16 contextKey = V8RuntimeAgentImplState::globalBindingsKey;
+  // * The persisting of bindings with by context name is required, as a new
+  // context with the same name can be created later on, and we need to expose
+  // the bindings in that new context.
+  // * The persisting of global bindings is required, as global bindings need to
+  // be applied for each new context.
+  // * There is no need in persisting bindings by context id, as it is
+  // guaranteed that a context with the same id will not be created later on, so
+  // the bindings will never be applied in that context.
   if (executionContextName.has_value()) {
-    contextKey = executionContextName.value();
-    if (contextKey == V8RuntimeAgentImplState::globalBindingsKey) {
-      return Response::InvalidParams("Invalid executionContextName");
-    }
+    protocol::DictionaryValue* contextBindings = getOrCreateDictionary(
+        m_state, V8RuntimeAgentImplState::contextBindings);
+    protocol::DictionaryValue* bindings =
+        getOrCreateDictionary(contextBindings, executionContextName.value());
+    bindings->setBoolean(name, true);
+  } else {
+    protocol::DictionaryValue* globalBindings =
+        getOrCreateDictionary(m_state, V8RuntimeAgentImplState::globalBindings);
+    globalBindings->setBoolean(name, true);
   }
-  // Only persist non context-specific bindings, as contextIds don't make
-  // any sense when state is restored in a different process.
-  protocol::DictionaryValue* bindings =
-      getOrCreateDictionary(m_state, V8RuntimeAgentImplState::bindings);
-  protocol::DictionaryValue* contextBindings =
-      getOrCreateDictionary(bindings, contextKey);
-  contextBindings->setBoolean(name, true);
 
   m_inspector->forEachContext(
       m_session->contextGroupId(),
@@ -988,9 +991,20 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
 }
 
 Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (bindings) bindings->remove(name);
+  protocol::DictionaryValue* contextBindings =
+      m_state->getObject(V8RuntimeAgentImplState::contextBindings);
+  if (contextBindings) {
+    for (size_t i = 0; i < contextBindings->size(); ++i) {
+      protocol::DictionaryValue* bindings_for_context =
+          protocol::DictionaryValue::cast(contextBindings->at(i).second);
+      bindings_for_context->remove(name);
+    }
+  }
+  protocol::DictionaryValue* globalBindings =
+      m_state->getObject(V8RuntimeAgentImplState::globalBindings);
+  if (globalBindings) {
+    globalBindings->remove(name);
+  }
   m_activeBindings.erase(name);
   return Response::Success();
 }
@@ -1043,20 +1057,25 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
   const String16 contextName = context->humanReadableName();
   if (!m_enabled) return;
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings) return;
+
   protocol::DictionaryValue* globalBindings =
-      bindings->getObject(V8RuntimeAgentImplState::globalBindingsKey);
+      m_state->getObject(V8RuntimeAgentImplState::globalBindings);
   if (globalBindings) {
-    for (size_t i = 0; i < globalBindings->size(); ++i)
+    for (size_t i = 0; i < globalBindings->size(); ++i) {
       addBinding(context, globalBindings->at(i).first);
+    }
   }
+
   protocol::DictionaryValue* contextBindings =
-      contextName.isEmpty() ? nullptr : bindings->getObject(contextName);
+      m_state->getObject(V8RuntimeAgentImplState::contextBindings);
   if (contextBindings) {
-    for (size_t i = 0; i < contextBindings->size(); ++i)
-      addBinding(context, contextBindings->at(i).first);
+    protocol::DictionaryValue* bindings =
+        contextBindings->getObject(contextName);
+    if (bindings) {
+      for (size_t i = 0; i < bindings->size(); ++i) {
+        addBinding(context, bindings->at(i).first);
+      }
+    }
   }
 }
 
@@ -1093,8 +1112,20 @@ Response V8RuntimeAgentImpl::enable() {
   m_session->reportAllContexts(this);
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
-  for (const auto& message : storage->messages()) {
-    if (!reportMessage(message.get(), false)) break;
+  // reportMessage() may call back into JavaScript for some of the ValueMirrors
+  // and that JavaScript could add more log messages, invalidating iterators
+  // used here, hence we need to guard against that.
+  // See http://crbug.com/446941355 for more details.
+  const auto& messages = storage->messages();
+  const size_t size = messages.size();
+  for (size_t i = 0; i < size; ++i) {
+    if (size < messages.size()) {
+      // Also guard against the case where the message queue was cleared.
+      break;
+    }
+    if (!reportMessage(messages[i].get(), false)) {
+      break;
+    }
   }
   return Response::Success();
 }
@@ -1106,7 +1137,8 @@ Response V8RuntimeAgentImpl::disable() {
                          TRACE_EVENT_FLAG_FLOW_IN);
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
-  m_state->remove(V8RuntimeAgentImplState::bindings);
+  m_state->remove(V8RuntimeAgentImplState::contextBindings);
+  m_state->remove(V8RuntimeAgentImplState::globalBindings);
   m_inspector->debugger()->setMaxCallStackSizeToCapture(this, -1);
   m_session->setCustomObjectFormatterEnabled(false);
   reset();

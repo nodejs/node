@@ -240,10 +240,10 @@ using RefTypeKindField = IsSharedField::Next<RefTypeKind, 3>;
 static_assert(RefTypeKindField::is_valid(RefTypeKind::kLastValue));
 
 // Stores the index if {has_index()}, or the {StandardType} otherwise.
-using PayloadField = RefTypeKindField::Next<uint32_t, 20>;
+using PayloadField = RefTypeKindField::Next<uint32_t, 21>;
 
 // Reserved for future use.
-using ReservedField = PayloadField::Next<uint32_t, 4>;
+using ReservedField = PayloadField::Next<uint32_t, 3>;
 static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
@@ -612,9 +612,6 @@ class ValueTypeBase {
 
   /************************* Incremental transition ***************************/
   // The following methods are deprecated. Their usage should be replaced.
-  constexpr bool is_reference() const { return is_ref(); }
-  constexpr bool is_object_reference() const { return is_ref(); }
-
   static constexpr ValueTypeBase Primitive(ValueKind kind) {
     switch (kind) {
       case kI32:
@@ -795,10 +792,6 @@ class HeapType : public ValueTypeBase {
     }
     return generic_heaptype_name();
   }
-
-  /************************* Incremental transition ***************************/
-  // The following methods are deprecated. Their usage should be replaced.
-  constexpr bool is_index() const { return has_index(); }
 
  private:
   // Hide inherited methods that don't make sense for HeapTypes.
@@ -1057,10 +1050,6 @@ class IndependentHeapType : public IndependentValueType {
 // replace with ValueType methods.
 
 constexpr bool is_reference(ValueKind kind) {
-  return kind == kRef || kind == kRefNull;
-}
-
-constexpr bool is_object_reference(ValueKind kind) {
   return kind == kRef || kind == kRefNull;
 }
 

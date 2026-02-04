@@ -27,6 +27,10 @@ extern class JSGeneratorObject extends JSObject {
 
 extern class JSAsyncFunctionObject extends JSGeneratorObject {
   promise: JSPromise;
+  // Resolve/reject closures for await, reused across all await expressions.
+  // Initialized to undefined, lazily allocated on first await.
+  await_resolve_closure: JSFunction|Undefined;
+  await_reject_closure: JSFunction|Undefined;
 }
 
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {

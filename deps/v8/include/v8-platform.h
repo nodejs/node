@@ -316,6 +316,29 @@ class JobTask {
   virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
 };
 
+// Allows a thread to temporarily boost another thread's priority to match its
+// own priority. The priority is reset when the object is destroyed, which must
+// happens on the boosted thread.
+class ScopedBoostablePriority {
+ public:
+  ScopedBoostablePriority() = default;
+  virtual ~ScopedBoostablePriority() = default;
+  ScopedBoostablePriority(const ScopedBoostablePriority&) = delete;
+  ScopedBoostablePriority& operator=(const ScopedBoostablePriority& other) =
+      delete;
+
+  // Boosts the priority of the thread where this ScopedBoostablePriority was
+  // created. Can be called from any thread, but requires proper external
+  // synchronization with the constructor, destructor and any other call to
+  // BoostPriority/Reset(). If called multiple times, only the first call takes
+  // effect.
+  virtual bool BoostPriority() = 0;
+
+  // Resets the priority of the thread where this ScopedBoostablePriority was
+  // created to its original priority.
+  virtual void Reset() = 0;
+};
+
 /**
  * A "blocking call" refers to any call that causes the calling thread to wait
  * off-CPU. It includes but is not limited to calls that wait on synchronous
@@ -369,7 +392,7 @@ class ConvertableToTraceFormat {
  *
  * Can be implemented by an embedder to record trace events from V8.
  *
- * Will become obsolete in Perfetto SDK build (v8_use_perfetto = true).
+ * Will become obsolete in Perfetto build (v8_use_perfetto = true).
  */
 class TracingController {
  public:
@@ -445,6 +468,77 @@ class TracingController {
    */
   virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
 };
+
+// Opaque type representing a handle to a shared memory region.
+class SharedMemoryHandle {
+ public:
+  // For the handle itself, we use the underlying type (e.g. unsigned int)
+  // instead of e.g. mach_port_t to avoid pulling in large OS header files into
+  // this header file. Instead, the users of these routines are expected to
+  // include the respective OS headers in addition to this one.
+
+#if V8_OS_DARWIN
+  // A mach_port_t referencing a memory entry object.
+  using PlatformHandle = unsigned int;
+#elif V8_OS_FUCHSIA
+  // A zx_handle_t to a VMO.
+  using PlatformHandle = uint32_t;
+#elif V8_OS_WIN
+  // A Windows HANDLE to a file mapping object.
+  using PlatformHandle = void*;
+#else
+  // A file descriptor.
+  using PlatformHandle = int;
+#endif
+
+  static constexpr SharedMemoryHandle FromPlatformHandle(
+      PlatformHandle handle) {
+    return SharedMemoryHandle(handle);
+  }
+
+  PlatformHandle GetPlatformHandle() const { return handle_; }
+
+ private:
+  SharedMemoryHandle() = delete;
+  explicit constexpr SharedMemoryHandle(PlatformHandle handle)
+      : handle_(handle) {}
+
+  PlatformHandle handle_;
+};
+
+#define DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS(Wrap, Unwrap)                    \
+  V8_DEPRECATE_SOON("Use SharedMemoryHandle::FromPlatformHandle instead")     \
+  inline SharedMemoryHandle Wrap(SharedMemoryHandle::PlatformHandle handle) { \
+    return SharedMemoryHandle::FromPlatformHandle(handle);                    \
+  }                                                                           \
+  V8_DEPRECATE_SOON("Use SharedMemoryHandle::GetPlatformHandle instead")      \
+  inline SharedMemoryHandle::PlatformHandle Unwrap(                           \
+      SharedMemoryHandle handle) {                                            \
+    return handle.GetPlatformHandle();                                        \
+  }
+
+#if V8_OS_DARWIN
+DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS(SharedMemoryHandleFromMachMemoryEntry,
+                                     MachMemoryEntryFromSharedMemoryHandle)
+#elif V8_OS_FUCHSIA
+DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS(SharedMemoryHandleFromVMO,
+                                     VMOFromSharedMemoryHandle)
+#elif V8_OS_WIN
+DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS(SharedMemoryHandleFromFileMapping,
+                                     FileMappingFromSharedMemoryHandle)
+#else
+DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS(SharedMemoryHandleFromFileDescriptor,
+                                     FileDescriptorFromSharedMemoryHandle)
+#endif
+
+#undef DEFINE_SHARED_MEMORY_HANDLE_WRAPPERS
+
+// TODO(https://crbug.com/463925491): Remove this type alias once Chromium's
+// "gin" V8 binding migrates off it.
+using PlatformSharedMemoryHandle = std::optional<SharedMemoryHandle>;
+V8_DEPRECATE_SOON("Use std::nullopt instead")
+static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle =
+    std::nullopt;
 
 /**
  * A V8 memory page allocator.
@@ -703,57 +797,6 @@ class ThreadIsolatedAllocator {
   virtual int Pkey() const { return -1; }
 };
 
-// Opaque type representing a handle to a shared memory region.
-using PlatformSharedMemoryHandle = intptr_t;
-static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
-
-// Conversion routines from the platform-dependent shared memory identifiers
-// into the opaque PlatformSharedMemoryHandle type. These use the underlying
-// types (e.g. unsigned int) instead of the typedef'd ones (e.g. mach_port_t)
-// to avoid pulling in large OS header files into this header file. Instead,
-// the users of these routines are expected to include the respecitve OS
-// headers in addition to this one.
-#if V8_OS_DARWIN
-// Convert between a shared memory handle and a mach_port_t referencing a memory
-// entry object.
-inline PlatformSharedMemoryHandle SharedMemoryHandleFromMachMemoryEntry(
-    unsigned int port) {
-  return static_cast<PlatformSharedMemoryHandle>(port);
-}
-inline unsigned int MachMemoryEntryFromSharedMemoryHandle(
-    PlatformSharedMemoryHandle handle) {
-  return static_cast<unsigned int>(handle);
-}
-#elif V8_OS_FUCHSIA
-// Convert between a shared memory handle and a zx_handle_t to a VMO.
-inline PlatformSharedMemoryHandle SharedMemoryHandleFromVMO(uint32_t handle) {
-  return static_cast<PlatformSharedMemoryHandle>(handle);
-}
-inline uint32_t VMOFromSharedMemoryHandle(PlatformSharedMemoryHandle handle) {
-  return static_cast<uint32_t>(handle);
-}
-#elif V8_OS_WIN
-// Convert between a shared memory handle and a Windows HANDLE to a file mapping
-// object.
-inline PlatformSharedMemoryHandle SharedMemoryHandleFromFileMapping(
-    void* handle) {
-  return reinterpret_cast<PlatformSharedMemoryHandle>(handle);
-}
-inline void* FileMappingFromSharedMemoryHandle(
-    PlatformSharedMemoryHandle handle) {
-  return reinterpret_cast<void*>(handle);
-}
-#else
-// Convert between a shared memory handle and a file descriptor.
-inline PlatformSharedMemoryHandle SharedMemoryHandleFromFileDescriptor(int fd) {
-  return static_cast<PlatformSharedMemoryHandle>(fd);
-}
-inline int FileDescriptorFromSharedMemoryHandle(
-    PlatformSharedMemoryHandle handle) {
-  return static_cast<int>(handle);
-}
-#endif
-
 /**
  * Possible permissions for memory pages.
  */
@@ -970,7 +1013,16 @@ class VirtualAddressSpace {
    */
   virtual V8_WARN_UNUSED_RESULT Address
   AllocateSharedPages(Address hint, size_t size, PagePermissions permissions,
-                      PlatformSharedMemoryHandle handle, uint64_t offset) = 0;
+                      SharedMemoryHandle handle, uint64_t offset) = 0;
+
+  // TODO(https://crbug.com/463925491): Remove me once API users change from
+  // PlatformSharedMemoryHandle to SharedMemoryHandle.
+  V8_DEPRECATE_SOON("Use AllocateSharedPages() with SharedMemoryHandle")
+  V8_WARN_UNUSED_RESULT Address AllocateSharedPages(
+      Address hint, size_t size, PagePermissions permissions,
+      std::optional<SharedMemoryHandle> handle, uint64_t offset) {
+    return AllocateSharedPages(hint, size, permissions, *handle, offset);
+  }
 
   /**
    * Frees previously allocated shared pages.
@@ -1048,7 +1100,7 @@ class VirtualAddressSpace {
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
       std::optional<MemoryProtectionKeyId> key = std::nullopt,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) = 0;
+      std::optional<SharedMemoryHandle> handle = std::nullopt) = 0;
 
   //
   // TODO(v8) maybe refactor the methods below before stabilizing the API. For
@@ -1341,6 +1393,14 @@ class Platform {
       TaskPriority priority, std::unique_ptr<JobTask> job_task,
       SourceLocation location = SourceLocation::Current()) {
     return CreateJobImpl(priority, std::move(job_task), location);
+  }
+
+  /**
+   * Instantiates a ScopedBoostablePriority to boost a thread's priority.
+   */
+  virtual std::unique_ptr<ScopedBoostablePriority>
+  CreateBoostablePriorityScope() {
+    return nullptr;
   }
 
   /**

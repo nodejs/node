@@ -961,6 +961,9 @@ cc_library(
     hdrs = ["internal/iterator_traits.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":config",
         "//absl/meta:type_traits",

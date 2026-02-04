@@ -328,10 +328,33 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandFlag16(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
-          case interpreter::OperandType::kIdx:
-            EXPECT_THAT(m.BytecodeOperandIdx(i),
+          case interpreter::OperandType::kEmbeddedFeedback:
+            EXPECT_THAT(m.BytecodeOperandEmbeddedFeedback(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kConstantPoolIndex:
+            EXPECT_THAT(m.BytecodeOperandConstantPoolIndex(i),
                         c::IsChangeUint32ToWord(
                             m.IsUnsignedOperand(offset, operand_size)));
+            break;
+          case interpreter::OperandType::kFeedbackSlot:
+            EXPECT_THAT(m.BytecodeOperandFeedbackSlot(i),
+                        c::IsChangeUint32ToWord(
+                            m.IsUnsignedOperand(offset, operand_size)));
+            break;
+          case interpreter::OperandType::kContextSlot:
+            EXPECT_THAT(m.BytecodeOperandContextSlot(i),
+                        c::IsChangeUint32ToWord(
+                            m.IsUnsignedOperand(offset, operand_size)));
+            break;
+          case interpreter::OperandType::kCoverageSlot:
+            EXPECT_THAT(m.BytecodeOperandCoverageSlot(i),
+                        c::IsChangeUint32ToWord(
+                            m.IsUnsignedOperand(offset, operand_size)));
+            break;
+          case interpreter::OperandType::kAbortReason:
+            EXPECT_THAT(m.BytecodeOperandAbortReason(i),
+                        m.IsUnsignedOperand(offset, operand_size));
             break;
           case interpreter::OperandType::kNativeContextIndex:
             EXPECT_THAT(m.BytecodeOperandNativeContextIndex(i),

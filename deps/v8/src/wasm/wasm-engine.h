@@ -52,6 +52,8 @@ struct ModuleWireBytes;
 class StreamingDecoder;
 class WasmEnabledFeatures;
 class WasmOrphanedGlobalHandle;
+class WasmImportWrapperCache;
+class WasmStackEntryWrapperCache;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -216,8 +218,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
                         MaybeDirectHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, WasmEnabledFeatures enabled,
-      CompileTimeImports compile_imports, DirectHandle<Context> context,
+      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
@@ -390,8 +391,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Free dead code.
   using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
-  void FreeDeadCode(const DeadCodeMap&, std::vector<WasmCode*>&);
-  void FreeDeadCodeLocked(const DeadCodeMap&, std::vector<WasmCode*>&);
+  void FreeDeadCode(const DeadCodeMap&, std::vector<WasmCode*>& import_wrappers,
+                    std::vector<WasmCode*>& stack_wrappers);
+  void FreeDeadCodeLocked(const DeadCodeMap&,
+                          std::vector<WasmCode*>& import_wrappers,
+                          std::vector<WasmCode*>& stack_wrappers);
 
   DirectHandle<Script> GetOrCreateScript(Isolate*,
                                          const std::shared_ptr<NativeModule>&,
@@ -452,10 +456,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   struct NativeModuleInfo;
 
   AsyncCompileJob* CreateAsyncCompileJob(
-      Isolate* isolate, WasmEnabledFeatures enabled,
-      CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
-      const char* api_method_name,
+      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
+      base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerCodeGC_Locked(size_t dead_code_limit);
@@ -557,6 +559,7 @@ V8_EXPORT_PRIVATE WasmCodeManager* GetWasmCodeManager();
 // Returns a reference to the WasmImportWrapperCache shared by the entire
 // process.
 V8_EXPORT_PRIVATE WasmImportWrapperCache* GetWasmImportWrapperCache();
+V8_EXPORT_PRIVATE WasmStackEntryWrapperCache* GetWasmStackEntryWrapperCache();
 
 V8_EXPORT_PRIVATE CanonicalTypeNamesProvider* GetCanonicalTypeNamesProvider();
 

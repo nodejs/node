@@ -95,8 +95,7 @@ class YoungGenerationMarkingVisitor final
     return marking_worklists_local_;
   }
 
-  V8_INLINE void IncrementLiveBytesCached(MutablePageMetadata* chunk,
-                                          intptr_t by);
+  V8_INLINE void IncrementLiveBytesCached(MutablePage* chunk, intptr_t by);
 
   void PublishWorklists() {
     marking_worklists_local_.Publish();
@@ -125,8 +124,7 @@ class YoungGenerationMarkingVisitor final
   static constexpr size_t kEntriesMask = kNumEntries - 1;
   // Fixed-size hashmap that caches live bytes. Hashmap entries are evicted to
   // the global counters on collision.
-  std::array<std::pair<MutablePageMetadata*, size_t>, kNumEntries>
-      live_bytes_data_;
+  std::array<std::pair<MutablePage*, size_t>, kNumEntries> live_bytes_data_;
 
   Isolate* const isolate_;
   MarkingWorklists::Local marking_worklists_local_;

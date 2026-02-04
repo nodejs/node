@@ -99,8 +99,13 @@ StackMemory::StackSegment::~StackSegment() {
   }
 }
 
-void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate) {
-  for (StackFrameIterator it(isolate, this); !it.done(); it.Advance()) {
+void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
+                          ThreadLocalTop* thread) {
+  StackFrameIterator it =
+      IsActive() ? StackFrameIterator(isolate, thread,
+                                      StackFrameIterator::FirstStackOnly{})
+                 : StackFrameIterator(isolate, this);
+  for (; !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
   v->VisitRootPointer(
@@ -190,6 +195,7 @@ void StackMemory::Reset() {
   size_ = active_segment_->size_;
   clear_stack_switch_info();
   current_cont_ = {};
+  func_ref_ = {};
 }
 
 bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {

@@ -1030,11 +1030,12 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
 // CombineContiguousImpl() repeatedly with the chunk stride size.
-uint64_t CombineLargeContiguousImplOn32BitLengthGt8(const unsigned char* first,
-                                                    size_t len, uint64_t state);
-uint64_t CombineLargeContiguousImplOn64BitLengthGt32(const unsigned char* first,
-                                                     size_t len,
-                                                     uint64_t state);
+uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
+                                                    const unsigned char* first,
+                                                    size_t len);
+uint64_t CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
+                                                     const unsigned char* first,
+                                                     size_t len);
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineSmallContiguousImpl(
     uint64_t state, const unsigned char* first, size_t len) {
@@ -1092,7 +1093,7 @@ inline uint64_t CombineContiguousImpl(
     return CombineSmallContiguousImpl(PrecombineLengthMix(state, len), first,
                                       len);
   }
-  return CombineLargeContiguousImplOn32BitLengthGt8(first, len, state);
+  return CombineLargeContiguousImplOn32BitLengthGt8(state, first, len);
 }
 
 inline uint64_t CombineContiguousImpl(
@@ -1115,7 +1116,7 @@ inline uint64_t CombineContiguousImpl(
   // We must not mix length into the state here because calling
   // CombineContiguousImpl twice with PiecewiseChunkSize() must be equivalent
   // to calling CombineLargeContiguousImpl once with 2 * PiecewiseChunkSize().
-  return CombineLargeContiguousImplOn64BitLengthGt32(first, len, state);
+  return CombineLargeContiguousImplOn64BitLengthGt32(state, first, len);
 }
 
 #if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE) && \

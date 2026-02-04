@@ -184,7 +184,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (!IsTheHole(*object) && IsCell(*object)) {
+  if (IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
     return Cast<Cell>(object);
   }
@@ -1054,14 +1054,7 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   // (We have a status for kErrored, so don't set to kEvaluated.)
   module->set_async_evaluation_ordinal(kAsyncEvaluateDidFinish);
 
-  // 7. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
-  for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
-    // a. Perform AsyncModuleExecutionRejected(m, error).
-    DirectHandle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
-    AsyncModuleExecutionRejected(isolate, m, exception);
-  }
-
-  // 8. If module.[[TopLevelCapability]] is not EMPTY, then
+  // 7. If module.[[TopLevelCapability]] is not EMPTY, then
   if (!IsUndefined(module->top_level_capability(), isolate)) {
     // a. Assert: module.[[CycleRoot]] and module are the same Module Record.
     DCHECK_EQ(*module->GetCycleRoot(isolate), *module);
@@ -1073,6 +1066,12 @@ void SourceTextModule::AsyncModuleExecutionRejected(
     JSPromise::Reject(capability, exception);
   }
 
+  // 8. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
+  for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
+    // a. Perform AsyncModuleExecutionRejected(m, error).
+    DirectHandle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
+    AsyncModuleExecutionRejected(isolate, m, exception);
+  }
   // 9. Return UNUSED.
 }
 

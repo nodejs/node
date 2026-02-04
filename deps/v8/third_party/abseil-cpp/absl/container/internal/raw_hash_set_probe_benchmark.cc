@@ -58,6 +58,10 @@ struct Policy {
   using key_type = T;
   using init_type = T;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   template <class allocator_type, class Arg>
   static void construct(allocator_type* alloc, slot_type* slot,
                         const Arg& arg) {

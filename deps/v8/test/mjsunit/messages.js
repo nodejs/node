@@ -166,13 +166,13 @@ for (constructor of typedArrayConstructors) {
     const ta = new constructor([1]);
     %ArrayBufferDetach(ta.buffer);
     ta.find(() => {});
-  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.find on a detached or out-of-bounds ArrayBuffer", TypeError);
 
   test(() => {
     const ta = new constructor([1]);
     %ArrayBufferDetach(ta.buffer);
     ta.findIndex(() => {});
-  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached or out-of-bounds ArrayBuffer", TypeError);
 }
 
 // kFirstArgumentNotRegExp
@@ -418,7 +418,7 @@ test(function() {
   new Promise(1);
 }, "Promise resolver 1 is not a function", TypeError);
 
-// kStrictDeleteProperty
+// kStrictCannotDeleteProperty
 test(function() {
   "use strict";
   var o = {};

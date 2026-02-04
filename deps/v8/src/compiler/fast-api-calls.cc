@@ -319,9 +319,7 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
                    inputs[0], c_signature, c_arg_count, stack_slot);
 
   Node* exception = __ Load(MachineType::IntPtr(),
-                            __ ExternalConstant(ExternalReference::Create(
-                                IsolateAddressId::kExceptionAddress, isolate_)),
-                            0);
+                            __ IsolateField(IsolateFieldId::kException), 0);
 
   Node* the_hole =
       __ Load(MachineType::IntPtr(), __ LoadRootRegister(),

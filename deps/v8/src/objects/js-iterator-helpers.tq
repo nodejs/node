@@ -22,15 +22,23 @@ extern class JSIteratorFilterHelper extends JSIteratorHelper {
 
 extern class JSIteratorTakeHelper extends JSIteratorHelper {
   remaining: Number;
+  innerAlive: Boolean;
 }
 
 extern class JSIteratorDropHelper extends JSIteratorHelper {
   remaining: Number;
+  innerAlive: Boolean;
 }
 
 extern class JSIteratorFlatMapHelper extends JSIteratorHelper {
   mapper: Callable;
   counter: Number;
   innerIterator: iterator::IteratorRecord;
+  innerAlive: Boolean;
+}
+
+extern class JSIteratorConcatHelper extends JSIteratorHelper {
+  iterables: FixedArray;
+  current: Smi;
   innerAlive: Boolean;
 }

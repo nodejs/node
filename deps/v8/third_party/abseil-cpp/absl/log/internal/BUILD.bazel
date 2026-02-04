@@ -548,3 +548,34 @@ cc_test(
         "@google_benchmark//:benchmark_main",
     ],
 )
+
+cc_library(
+    name = "container",
+    hdrs = ["container.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        "//absl/base:config",
+        "//absl/meta:requires",
+        "//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "container_test",
+    srcs = ["container_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":container",
+        "//absl/base:config",
+        "//absl/strings",
+        "//absl/strings:str_format",
+        "//absl/types:span",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

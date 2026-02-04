@@ -17,16 +17,15 @@ enum class CollectionType : uint8_t {
   kMajor,
 };
 
-// Specifies whether free memory should be transparently discarded when it is
-// not yet released. This is generally enabled for free list entries on memory
-// reducing GCs. Windows is the exception where these calls are too expensive.
-//
-// In order to minimize actual discard calls various components optimize the
-// calls here. E.g., we assume that whole pages are freed through a page pool
-// (which doesn't discard on adding) that is fully released after a GC cycle.
+// Specifies how free memory should be returned to the system.
 enum class FreeMemoryHandling : uint8_t {
-  kDoNotDiscard,
-  kDiscardWherePossible
+  // Do not discard or decommit free memory.
+  kRetainMemory,
+  // Return memory to the system as much as possible:
+  // - Discard free address ranges as they are found, if supported by the
+  //   current build configuration (see CanDiscardMemory()).
+  // - Decommit pooled pages at the end of a sweep cycle.
+  kReleaseMemory
 };
 
 struct MarkingConfig {
@@ -52,7 +51,7 @@ struct SweepingConfig {
   SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
   CompactableSpaceHandling compactable_space_handling =
       CompactableSpaceHandling::kSweep;
-  FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
+  FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kRetainMemory;
 };
 
 struct GCConfig {
@@ -107,7 +106,7 @@ struct GCConfig {
   StackState stack_state = StackState::kMayContainHeapPointers;
   MarkingType marking_type = MarkingType::kAtomic;
   SweepingType sweeping_type = SweepingType::kAtomic;
-  FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
+  FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kRetainMemory;
   IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
 };
 

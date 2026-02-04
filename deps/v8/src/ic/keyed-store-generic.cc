@@ -1094,7 +1094,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         CSA_DCHECK(this, IsPrivateSymbol(name));
         // For private names, we miss to the runtime which will throw.
         // For private symbols, we extend and store an own property.
-        Branch(IsPrivateName(CAST(name)), slow, &extensible);
+        Branch(IsAnyPrivateName(CAST(name)), slow, &extensible);
       }
 
       BIND(&extensible);

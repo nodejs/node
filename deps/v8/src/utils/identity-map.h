@@ -9,6 +9,7 @@
 
 #include "src/base/hashing.h"
 #include "src/handles/handles.h"
+#include "src/heap/heap.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {
@@ -89,7 +90,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
 
   base::hash<uintptr_t> hasher_;
   Heap* heap_;
-  int gc_counter_;
+  GCEpoch gc_counter_;
   int size_;
   int capacity_;
   int mask_;

@@ -44,7 +44,12 @@ ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 template <size_t Alignment>
-struct alignas(Alignment) AlignedType {};
+struct alignas(Alignment) AlignedType {
+  // When alignment is sufficient for the allocated memory to store pointers,
+  // include a pointer member so that swisstable backing arrays end up in the
+  // pointer-containing partition for heap partitioning.
+  std::conditional_t<(Alignment < alignof(void*)), char, void*> pointer;
+};
 
 // Allocates at least n bytes aligned to the specified alignment.
 // Alignment must be a power of 2. It must be positive.

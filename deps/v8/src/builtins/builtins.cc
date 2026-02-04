@@ -677,6 +677,11 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kInterpreterEntryTrampoline:
       return JSBuiltinStateFlag::kJSTrampoline;
 
+    // This is rather not a JS trampoline but a crash pad which is allowed
+    // to be installed into any JSFunction because it doesn't return.
+    case Builtin::kIllegal:
+      return JSBuiltinStateFlag::kJSTrampoline;
+
     // These are core JS builtins which are instantiated lazily.
     case Builtin::kConsoleAssert:
     case Builtin::kArrayFromAsyncIterableOnFulfilled:
@@ -764,18 +769,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kV8BreakIteratorInternalFirst:
     case Builtin::kV8BreakIteratorInternalNext:
       return JSBuiltinStateFlag::kCoreJSLazy;
-
-    // --harmony_remove_intl_locale_info_getters
-    case Builtin::kLocalePrototypeCalendars:
-    case Builtin::kLocalePrototypeCollations:
-    case Builtin::kLocalePrototypeHourCycles:
-    case Builtin::kLocalePrototypeNumberingSystems:
-    case Builtin::kLocalePrototypeTextInfo:
-    case Builtin::kLocalePrototypeTimeZones:
-    case Builtin::kLocalePrototypeWeekInfo:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          !v8_flags.harmony_remove_intl_locale_info_getters);
-
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_TEMPORAL_SUPPORT
@@ -825,17 +818,12 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kAtomicsMutexLockWithTimeout:
     case Builtin::kAtomicsMutexTryLock:
     case Builtin::kAtomicsMutexIsMutex:
-    case Builtin::kAtomicsMutexLockAsync:
     case Builtin::kAtomicsConditionConstructor:
     case Builtin::kAtomicsConditionWait:
     case Builtin::kAtomicsConditionNotify:
     case Builtin::kAtomicsConditionIsCondition:
-    case Builtin::kAtomicsConditionWaitAsync:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
     case Builtin::kSharedStructConstructor:
-    case Builtin::kAtomicsMutexAsyncUnlockResolveHandler:
-    case Builtin::kAtomicsMutexAsyncUnlockRejectHandler:
-    case Builtin::kAtomicsConditionAcquireLock:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
 
     // --js-promise-try
@@ -890,12 +878,22 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kUint8ArrayPrototypeSetFromHex:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
 
+    // --js-iterator-sequencing:
+    case Builtin::kIteratorConcat:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
+
     // --js-upsert
     case Builtin::kMapPrototypeGetOrInsert:
     case Builtin::kMapPrototypeGetOrInsertComputed:
     case Builtin::kWeakMapPrototypeGetOrInsert:
     case Builtin::kWeakMapPrototypeGetOrInsertComputed:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
+
+    // --js-immutable-arraybuffer
+    case Builtin::kArrayBufferPrototypeGetImmutable:
+    case Builtin::kArrayBufferPrototypeTransferToImmutable:
+    case Builtin::kArrayBufferPrototypeSliceToImmutable:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
 
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants

@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "src/api/api-inl.h"
@@ -756,10 +757,10 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
     Isolate* isolate, std::string_view locale_in) {
   if (!IsStructurallyValidLanguageTag(locale_in)) {
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(
-                     MessageTemplate::kInvalidLanguageTag,
-                     isolate->factory()->NewStringFromAsciiChecked(locale_in)));
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                           isolate->factory()
+                                               ->NewStringFromUtf8(locale_in)
+                                               .ToHandleChecked()));
   }
 
   std::string locale(locale_in);
@@ -790,30 +791,33 @@ Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
   // language tag is parsed all the way to the end, it indicates that the input
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
-  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
+  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale, error);
 
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
 
   // Use LocaleBuilder to validate locale.
   icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
   icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
 
   return maybe_to_language_tag;
@@ -916,11 +920,11 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   std::vector<std::string> requested_locales;
   if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales))
     return {};
-  std::string requested_locale = requested_locales.empty()
-                                     ? isolate->DefaultLocale()
-                                     : requested_locales[0];
+  std::string_view requested_locale = requested_locales.empty()
+                                          ? isolate->DefaultLocale()
+                                          : requested_locales[0];
   size_t dash = requested_locale.find('-');
-  if (dash != std::string::npos) {
+  if (dash != std::string_view::npos) {
     requested_locale = requested_locale.substr(0, dash);
   }
 
@@ -945,7 +949,8 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   // Greek (el) does not require any adjustment.
   if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
                   (requested_locale == "lt") || (requested_locale == "az"))) {
-    return LocaleConvertCase(isolate, s, to_upper, requested_locale.c_str());
+    return LocaleConvertCase(isolate, s, to_upper,
+                             std::string(requested_locale).c_str());
   } else {
     if (to_upper) {
       return ConvertToUpper(isolate, s);
@@ -2011,25 +2016,17 @@ icu::LocaleMatcher BuildLocaleMatcher(
 
 class Iterator : public icu::Locale::Iterator {
  public:
-  Iterator(std::vector<std::string>::const_iterator begin,
-           std::vector<std::string>::const_iterator end)
-      : iter_(begin), end_(end) {}
+  Iterator(const std::vector<icu::Locale>& locales)
+      : locales_(locales), iter_(locales.cbegin()) {}
   ~Iterator() override = default;
 
-  UBool hasNext() const override { return iter_ != end_; }
+  UBool hasNext() const override { return iter_ != locales_.cend(); }
 
-  const icu::Locale& next() override {
-    UErrorCode status = U_ZERO_ERROR;
-    locale_ = icu::Locale::forLanguageTag(iter_->c_str(), status);
-    DCHECK(U_SUCCESS(status));
-    ++iter_;
-    return locale_;
-  }
+  const icu::Locale& next() override { return *(iter_++); }
 
  private:
-  std::vector<std::string>::const_iterator iter_;
-  std::vector<std::string>::const_iterator end_;
-  icu::Locale locale_;
+  const std::vector<icu::Locale>& locales_;
+  std::vector<icu::Locale>::const_iterator iter_;
 };
 
 // ecma402/#sec-bestfitmatcher
@@ -2052,7 +2049,15 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::set<std::string>& available_locales,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
-  Iterator iter(requested_locales.cbegin(), requested_locales.cend());
+  std::vector<icu::Locale> locales;
+  for (std::string locale_str : requested_locales) {
+    icu::Locale locale = icu::Locale::forLanguageTag(locale_str, status);
+    if (U_SUCCESS(status)) {
+      locales.push_back(locale);
+    }
+    status = U_ZERO_ERROR;
+  }
+  Iterator iter(locales);
   std::string bestfit = BuildLocaleMatcher(isolate, available_locales, &status)
                             .getBestMatchResult(iter, status)
                             .makeResolvedLocale(status)
@@ -2182,18 +2187,22 @@ MaybeDirectHandle<JSArray> AvailableCollations(Isolate* isolate) {
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  return Intl::ToJSArray(isolate, "co", enumeration.get(),
-                         Intl::RemoveCollation, true);
+  return Intl::ToJSArray(
+      isolate,
+      [](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType("co", value));
+      },
+      enumeration.get(), Intl::RemoveCollation, true);
 }
 
 MaybeDirectHandle<JSArray> VectorToJSArray(
     Isolate* isolate, const std::vector<std::string>& array) {
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int32_t>(array.size()));
-  int32_t index = 0;
+      factory->NewFixedArray(static_cast<uint32_t>(array.size()));
+  uint32_t index = 0;
   for (const std::string& item : array) {
-    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item);
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
@@ -2265,7 +2274,11 @@ MaybeDirectHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
   }
   // Need to filter out isAlgorithmic
   return Intl::ToJSArray(
-      isolate, "nu", enumeration.get(),
+      isolate,
+      [](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType("nu", value));
+      },
+      enumeration.get(),
       [](const char* value) {
         UErrorCode status = U_ZERO_ERROR;
         std::unique_ptr<icu::NumberingSystem> numbering_system(
@@ -2291,10 +2304,10 @@ MaybeDirectHandle<JSArray> AvailableUnits(Isolate* isolate) {
   Factory* factory = isolate->factory();
   std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
   DirectHandle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int32_t>(sanctioned.size()));
-  int32_t index = 0;
+      factory->NewFixedArray(static_cast<uint32_t>(sanctioned.size()));
+  uint32_t index = 0;
   for (const std::string& item : sanctioned) {
-    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item);
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
@@ -2664,7 +2677,8 @@ MaybeDirectHandle<String> Intl::Normalize(Isolate* isolate,
   // Getting a singleton. Should not free it.
   const icu::Normalizer2* normalizer =
       icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
-  DCHECK(U_SUCCESS(status));
+  // This should only fail on OOM
+  CHECK(U_SUCCESS(status));
   DCHECK_NOT_NULL(normalizer);
   int32_t normalized_prefix_length =
       normalizer->spanQuickCheckYes(input, status);
@@ -2900,7 +2914,7 @@ MaybeDirectHandle<String> Intl::FormattedToString(
 }
 
 MaybeDirectHandle<JSArray> Intl::ToJSArray(
-    Isolate* isolate, const char* unicode_key,
+    Isolate* isolate, const std::function<std::string(const char*)>& transforms,
     icu::StringEnumeration* enumeration,
     const std::function<bool(const char*)>& removes, bool sort) {
   UErrorCode status = U_ZERO_ERROR;
@@ -2908,11 +2922,12 @@ MaybeDirectHandle<JSArray> Intl::ToJSArray(
   for (const char* item = enumeration->next(nullptr, status);
        U_SUCCESS(status) && item != nullptr;
        item = enumeration->next(nullptr, status)) {
-    if (unicode_key != nullptr) {
-      item = uloc_toUnicodeLocaleType(unicode_key, item);
+    std::string current(item);
+    if (transforms != nullptr) {
+      current = (transforms)(item);
     }
-    if (removes == nullptr || !(removes)(item)) {
-      array.push_back(item);
+    if (removes == nullptr || !(removes)(current.c_str())) {
+      array.push_back(current);
     }
   }
 
@@ -3102,7 +3117,11 @@ std::string Intl::DefaultTimeZone() {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(id, canonical, status);
-  DCHECK(U_SUCCESS(status));
+  if (!U_SUCCESS(status)) {
+    // System timezone APIs can't be trusted to return real, canonicalizeable
+    // timezones, so we return UTC when we can't canonicalize it.
+    return "UTC";
+  }
   return Intl::TimeZoneIdToString(canonical);
 }
 

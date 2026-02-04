@@ -27,24 +27,6 @@ namespace v8::internal::wasm {
     if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
-constexpr char kNameString[] = "name";
-constexpr char kSourceMappingURLString[] = "sourceMappingURL";
-constexpr char kInstTraceString[] = "metadata.code.trace_inst";
-constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
-#if V8_CC_GNU
-// TODO(miladfarca): remove once switched to using Clang.
-__attribute__((used))
-#endif
-constexpr char kCompilationPriorityString[] =
-    "metadata.code.compilation_priority";
-constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
-constexpr char kCallTargetsString[] = "metadata.code.call_targets";
-constexpr char kDebugInfoString[] = ".debug_info";
-constexpr char kExternalDebugInfoString[] = "external_debug_info";
-constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
-
 inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
     case kExternalFunction:
@@ -57,6 +39,8 @@ inline const char* ExternalKindName(ImportExportKindCode kind) {
       return "global";
     case kExternalTag:
       return "tag";
+    case kExternalExactFunction:
+      return "exact function";
   }
   return "unknown";
 }
@@ -306,7 +290,7 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
   path += buf.begin();
   size_t rv = 0;
   if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
-    rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
+    rv = fwrite(module_bytes.begin(), module_bytes.size(), 1, file);
     base::Fclose(file);
   }
   if (rv != 1) {
@@ -630,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (!hp.is_index()) {
+        if (!hp.has_index()) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
@@ -977,7 +961,8 @@ class ModuleDecoderImpl : public Decoder {
           .module_name = module_name, .field_name = field_name, .kind = kind});
       WasmImport* import = &module_->import_table.back();
       switch (kind) {
-        case kExternalFunction: {
+        case kExternalFunction:
+        case kExternalExactFunction: {
           // ===== Imported function ===========================================
           import->index = static_cast<uint32_t>(module_->functions.size());
           module_->num_imported_functions++;
@@ -986,6 +971,18 @@ class ModuleDecoderImpl : public Decoder {
               .imported = true,
           });
           WasmFunction* function = &module_->functions.back();
+          if (kind == kExternalExactFunction) {
+            if (!enabled_features_.has_custom_descriptors()) {
+              // We haven't decoded any bytes since {consume_u8("kind")}.
+              errorf(pc_ - 1,
+                     "Invalid import kind %d, enable with "
+                     "--experimental-wasm-custom-descriptors",
+                     kind);
+              break;
+            }
+            function->exact = true;
+            detected_features_->add_custom_descriptors();
+          }
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
           break;
@@ -995,7 +992,7 @@ class ModuleDecoderImpl : public Decoder {
           import->index = static_cast<uint32_t>(module_->tables.size());
           const uint8_t* type_position = pc();
           ValueType type = consume_value_type(module_.get());
-          if (!type.is_object_reference()) {
+          if (!type.is_ref()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
@@ -1162,7 +1159,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       ValueType table_type = consume_value_type(module_.get());
-      if (!table_type.is_object_reference()) {
+      if (!table_type.is_ref()) {
         error(type_position, "Only reference types can be used as table types");
         break;
       }
@@ -1353,6 +1350,7 @@ class ModuleDecoderImpl : public Decoder {
           exp->index = consume_tag_index(module_.get(), &tag);
           break;
         }
+        case kExternalExactFunction:
         default:
           errorf(kind_pos, "invalid export kind 0x%02x", exp->kind);
           break;
@@ -1878,9 +1876,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->compilation_priorities = std::move(compilation_priorities);
-      } else {
-        TRACE("DecodeCompilationPriority error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCompilationPriority error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole compilation priority section in the outer decoder.
@@ -1929,12 +1928,17 @@ class ModuleDecoderImpl : public Decoder {
 
           uint8_t frequency = inner.consume_u8("frequency");
 
+          if (!(frequency <= 64 || frequency == 127)) {
+            inner.error("invalid frequency");
+            break;
+          }
+
           // Skip remaining hint bytes.
           if (hint_length > 1) {
             inner.consume_bytes(hint_length - 1);
           }
 
-          frequencies.emplace(std::pair{func_index, byte_offset}, frequency);
+          frequencies[func_index].emplace_back(byte_offset, frequency);
         }
       }
 
@@ -1947,9 +1951,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->instruction_frequencies = std::move(frequencies);
-      } else {
-        TRACE("DecodeInstructionFrequencies error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeInstructionFrequencies error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole instruction frequencies section in the outer decoder.
@@ -2038,8 +2043,8 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
 
-          call_targets.emplace(std::pair{func_index, byte_offset},
-                               call_targets_for_offset);
+          call_targets[func_index].emplace_back(byte_offset,
+                                                call_targets_for_offset);
         }
         if (inner.failed()) break;
       }
@@ -2052,8 +2057,10 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the call-target hints for the module.
       if (inner.ok()) {
         module_->call_targets = std::move(call_targets);
-      } else {
-        TRACE("DecodeCallTargets error: %s", inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCallTargets error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole call-targets section in the outer decoder.
@@ -2274,7 +2281,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.is_reference()) {
+      } else if (global.type.is_ref()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -2586,7 +2593,8 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = ValueType::Ref(functype, functype_is_shared,
                                           RefTypeKind::kFunction);
           if (enabled_features_.has_custom_descriptors() &&
-              index >= module->num_imported_functions) {
+              (index >= module->num_imported_functions ||
+               module->functions[index].exact)) {
             type = type.AsExact();
           }
           TYPE_CHECK(type)

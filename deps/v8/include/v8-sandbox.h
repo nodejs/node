@@ -62,41 +62,7 @@ enum class CppHeapPointerTag : uint16_t {
   kLastTag = 0x7fff,
 };
 
-// Convenience struct to represent tag ranges. This is used for type checks
-// against supertypes, which cover a range of types (their subtypes).
-// Both the lower- and the upper bound are inclusive. In other words, this
-// struct represents the range [lower_bound, upper_bound].
-// TODO(saelo): reuse internal::TagRange here.
-struct CppHeapPointerTagRange {
-  constexpr CppHeapPointerTagRange(CppHeapPointerTag lower,
-                                   CppHeapPointerTag upper)
-      : lower_bound(lower), upper_bound(upper) {}
-  CppHeapPointerTag lower_bound;
-  CppHeapPointerTag upper_bound;
-
-  // Check whether the tag of the given CppHeapPointerTable entry is within
-  // this range. This method encodes implementation details of the
-  // CppHeapPointerTable, which is necessary as it is used by
-  // ReadCppHeapPointerField below.
-  // Returns true if the check is successful and the tag of the given entry is
-  // within this range, false otherwise.
-  bool CheckTagOf(uint64_t entry) {
-    // Note: the cast to uint32_t is important here. Otherwise, the uint16_t's
-    // would be promoted to int in the range check below, which would result in
-    // undefined behavior (signed integer undeflow) if the actual value is less
-    // than the lower bound. Then, the compiler would take advantage of the
-    // undefined behavior and turn the range check into a simple
-    // `actual_tag <= last_tag` comparison, which is incorrect.
-    uint32_t actual_tag = static_cast<uint16_t>(entry);
-    // The actual_tag is shifted to the left by one and contains the marking
-    // bit in the LSB. To ignore that during the type check, simply add one to
-    // the (shifted) range.
-    constexpr int kTagShift = internal::kCppHeapPointerTagShift;
-    uint32_t first_tag = static_cast<uint32_t>(lower_bound) << kTagShift;
-    uint32_t last_tag = (static_cast<uint32_t>(upper_bound) << kTagShift) + 1;
-    return actual_tag >= first_tag && actual_tag <= last_tag;
-  }
-};
+using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 
 constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
     CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kLastTag);
@@ -142,9 +108,12 @@ template <typename T>
 V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
                                             Address heap_object_ptr, int offset,
                                             CppHeapPointerTagRange tag_range) {
+  // This is a specialized version of the the CppHeapPointerTable accessors
+  // which (1) allows the code to be inlined into the callers for performance
+  // and (2) is optimized for code size as there are a huge number of callers
+  // from auto-generated bindings code.
+
 #ifdef V8_COMPRESS_POINTERS
-  // See src/sandbox/cppheap-pointer-table-inl.h. Logic duplicated here so
-  // it can be inlined and doesn't require an additional call.
   const CppHeapPointerHandle handle =
       Internals::ReadRawField<CppHeapPointerHandle>(heap_object_ptr, offset);
   const uint32_t index = handle >> kExternalPointerIndexShift;
@@ -153,9 +122,21 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
       reinterpret_cast<const std::atomic<Address>*>(&table[index]);
   Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
 
-  Address pointer = entry;
-  if (V8_LIKELY(tag_range.CheckTagOf(entry))) {
-    pointer = entry >> kCppHeapPointerPayloadShift;
+  // Note: the cast to uint32_t is important here. Otherwise, the uint16_t's
+  // would be promoted to int in the range check below, which would result in
+  // undefined behavior (signed integer underflow) if the actual value is less
+  // than the lower bound. Then, the compiler would take advantage of the
+  // undefined behavior and turn the range check into a simple
+  // `actual_tag <= last_tag` comparison, which is incorrect.
+  uint32_t actual_tag = static_cast<uint16_t>(entry);
+  // The actual_tag is shifted to the left by one and contains the marking
+  // bit in the LSB. To ignore that during the type check, simply add one to
+  // the (shifted) range.
+  constexpr int kTagShift = internal::kCppHeapPointerTagShift;
+  uint32_t first_tag = static_cast<uint32_t>(tag_range.first) << kTagShift;
+  uint32_t last_tag = (static_cast<uint32_t>(tag_range.last) << kTagShift) + 1;
+  if (V8_LIKELY(actual_tag >= first_tag && actual_tag <= last_tag)) {
+    entry = entry >> kCppHeapPointerPayloadShift;
   } else {
     // If the type check failed, we simply return nullptr here. That way:
     //  1. The null handle always results in nullptr being returned here, which
@@ -174,13 +155,23 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
     //     between returning nullptr or the original entry, since it will
     //     simply compile to a `csel x0, x8, xzr, lo` instead of a
     //     `csel x0, x10, x8, lo` instruction.
-    pointer = 0;
+    //  3. The machine code sequence ends up being pretty short, which is
+    //     important here as this code will be inlined into a lot of functions.
+    entry = 0;
   }
-  return reinterpret_cast<T*>(pointer);
+  return reinterpret_cast<T*>(entry);
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(
       Internals::ReadRawField<Address>(heap_object_ptr, offset));
 #endif  // !V8_COMPRESS_POINTERS
+}
+
+// TODO(saelo): temporary workaround needed to introduce range-based type
+// checks for the external pointer table. See comment above
+// ExternalPointerCanBeEmpty(ExternalPointerTagRange) function for details.
+V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
+    CppHeapPointerTagRange tag_range) {
+  return true;
 }
 
 }  // namespace internal

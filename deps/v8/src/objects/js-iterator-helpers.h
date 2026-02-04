@@ -113,6 +113,17 @@ class JSIteratorFlatMapHelper
   TQ_OBJECT_CONSTRUCTORS(JSIteratorFlatMapHelper)
 };
 
+// The iterator helper returned by Iterator.concat.
+class JSIteratorConcatHelper
+    : public TorqueGeneratedJSIteratorConcatHelper<JSIteratorConcatHelper,
+                                                   JSIteratorHelper> {
+ public:
+  DECL_PRINTER(JSIteratorConcatHelper)
+  DECL_VERIFIER(JSIteratorConcatHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorConcatHelper)
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -40,6 +40,8 @@
 #include "src/codegen/s390/register-s390.h"
 #elif V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/register-ppc.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/codegen/loong64/register-loong64.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif
@@ -378,6 +380,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     printing_visitor_->PreProcessGraph(graph_);
   }
 
+  // LINT.IfChange(maglev_constant_nodes)
   for (const auto& [ref, constant] : graph_->constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
@@ -402,11 +405,16 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
+  DCHECK(graph_->shifted_int53().empty());
   for (const auto& [value, constant] : graph_->intptr()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
   for (const auto& [value, constant] : graph_->float64()) {
+    constant->regalloc_info()->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->holey_float64()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
@@ -418,6 +426,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
   }
+  // LINT.ThenChange()
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
@@ -736,7 +745,8 @@ GET_NODE_RESULT_REGISTER_T(DoubleRegister, AssignedDoubleRegister)
 }  // namespace
 #endif  // DEBUG
 
-void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
+void StraightForwardRegisterAllocator::AllocateNode(NodeBase* node) {
+  DCHECK(node->Is<Node>() || node->Is<Throw>());
   // We shouldn't be visiting any gap moves during allocation, we should only
   // have inserted gap moves in past visits.
   DCHECK(!node->Is<GapMove>());
@@ -802,13 +812,19 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
-  // Result register should not be in temporaries.
-  DCHECK_IMPLIES(GetNodeResultRegister(node) != Register::no_reg(),
-                 !node->regalloc_info()->general_temporaries().has(
-                     GetNodeResultRegister(node)));
-  DCHECK_IMPLIES(GetNodeResultDoubleRegister(node) != DoubleRegister::no_reg(),
-                 !node->regalloc_info()->double_temporaries().has(
-                     GetNodeResultDoubleRegister(node)));
+#ifdef DEBUG
+  if (node->Is<ValueNode>()) {
+    // Result register should not be in temporaries.
+    ValueNode* as_value_node = node->Cast<ValueNode>();
+    DCHECK_IMPLIES(GetNodeResultRegister(as_value_node) != Register::no_reg(),
+                   !node->regalloc_info()->general_temporaries().has(
+                       GetNodeResultRegister(as_value_node)));
+    DCHECK_IMPLIES(
+        GetNodeResultDoubleRegister(as_value_node) != DoubleRegister::no_reg(),
+        !node->regalloc_info()->double_temporaries().has(
+            GetNodeResultDoubleRegister(as_value_node)));
+  }
+#endif
 
   // All the temporaries should be free by the end.
   DCHECK_EQ(
@@ -1058,8 +1074,9 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   current_node_ = node;
 
-  // Control nodes can't lazy deopt at the moment.
-  DCHECK(!node->properties().can_lazy_deopt());
+  // Only Throw can lazy deopt and throw so far.
+  DCHECK_EQ(node->properties().can_lazy_deopt(), node->Is<Throw>());
+  DCHECK_EQ(node->properties().can_throw(), node->Is<Throw>());
 
   if (node->Is<Abort>()) {
     // Do nothing.
@@ -1091,6 +1108,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->Process(node, GetCurrentState());
     }
+  } else if (node->Is<Throw>()) {
+    AllocateNode(node);
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // No temporaries.
     DCHECK(node->regalloc_info()->general_temporaries().is_empty());
@@ -1115,9 +1134,15 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
           UpdateUse(phi->input(predecessor_id));
         }
       }
+    } else if (target->is_edge_split_block()) {
+      // MaglevOptimizer can rewrite control flow when folding conditionals.
+      // This can make a spurious edge split block connected by unconditional
+      // jumps.
+      // TODO(victorgomes): consider eliminating those empty blocks before
+      // regalloc.
+      InitializeEmptyBlockRegisterValues(node, target);
     } else {
       // Fallthrough.
-      DCHECK(!target->is_edge_split_block());
       DCHECK_EQ(unconditional->id() + 1, target->first_id());
       DCHECK(AllUsedRegistersLiveAt(target));
     }
@@ -2380,7 +2405,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // This can only happen for conversion nodes, as they can split and take
       // over the liveness of the node they are converting.
       // TODO(v8:7700): Overeager DCHECK.
-      // DCHECK(node->properties().is_conversion());
+      // DCHECK(node->is_conversion());
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load " << PrintNodeLabel(node)
@@ -2429,7 +2454,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // TODO(v8:7700): This DCHECK is overeager, {incoming} can be a Phi node
       // containing conversion nodes.
       // DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
-      //                incoming->properties().is_conversion());
+      //                incoming->is_conversion());
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load incoming "

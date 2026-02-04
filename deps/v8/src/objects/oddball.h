@@ -65,6 +65,8 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedOddballAsserts;
+  template <typename>
+  friend class StringBuiltinsReducer;
 
   UnalignedDoubleMember to_number_raw_;
   TaggedMember<String> to_string_;

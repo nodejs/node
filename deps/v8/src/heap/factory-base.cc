@@ -12,9 +12,9 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
@@ -88,7 +88,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Tagged<Code> code = TrustedCast<Code>(
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  code->init_self_indirect_pointer(isolate());
+  code->InitAndPublish(isolate());
   code->initialize_flags(options.kind, options.is_context_specialized,
                          options.is_turbofanned);
   code->set_builtin_id(options.builtin);
@@ -175,7 +175,7 @@ DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
 }
 
 template <typename Impl>
-Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(uint32_t length,
                                                     AllocationType allocation,
                                                     AllocationHint hint) {
   return FixedArray::New(isolate(), length, allocation, hint);
@@ -211,8 +211,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   return NewFixedArrayWithFiller(fixed_array_map(), length, the_hole_value(),
                                  allocation);
@@ -220,7 +219,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    DirectHandle<Map> map, int length, DirectHandle<HeapObject> filler,
+    DirectHandle<Map> map, uint32_t length, DirectHandle<HeapObject> filler,
     AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
@@ -235,8 +234,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 
 template <typename Impl>
 DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length > FixedArray::kMaxLength) {
     base::FatalNoSecurityImpact("Invalid FixedArray size %d", length);
@@ -253,7 +251,7 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
 
 template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   return FixedDoubleArray::New(isolate(), length, allocation);
 }
 
@@ -346,7 +344,9 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, allocation, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = TrustedCast<BytecodeArray>(result);
-  instance->init_self_indirect_pointer(isolate());
+  // BytecodeArrays are initially unpublished and are only published to the
+  // sandbox after bytecode verification.
+  instance->InitDontPublish(isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
@@ -360,7 +360,6 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();
-  wrapper->set_bytecode(instance);
   return handle(instance, isolate());
 }
 
@@ -479,7 +478,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
       Cast<SharedFunctionInfo>(NewWithImmortalMap(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
 
-  shared->clear_padding();
   shared->CopyFrom(*other, isolate());
 
   return handle(shared, isolate());
@@ -526,7 +524,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
       TrustedCast<UncompiledDataWithoutPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -544,7 +542,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
       TrustedCast<UncompiledDataWithPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -564,7 +562,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
       TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -584,7 +582,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       TrustedCast<UncompiledDataWithPreparseDataAndJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -1341,8 +1339,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(),
-                                      result)
+    LargePage::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(), result)
         ->marking_progress_tracker()
         .Enable(size);
   }

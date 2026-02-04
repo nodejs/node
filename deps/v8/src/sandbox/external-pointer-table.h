@@ -9,7 +9,6 @@
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
 #include "src/common/globals.h"
-#include "src/sandbox/check.h"
 #include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/tagged-payload.h"
 #include "src/utils/allocation.h"
@@ -109,97 +108,22 @@ struct ExternalPointerTableEntry {
 
  private:
   friend class ExternalPointerTable;
+  friend class ExternalPointerTableEntryPrinter;
 
-  // TODO(saelo): generalize this payload struct and reuse it for all other
-  // pointer table that use type tags. For that, we probably will have to make
-  // this more flexible, allowing shifts and masks to be applied to both the
-  // tag- and payload bits since the tables store the tag bits differently.
-  struct Payload {
-    Payload(Address pointer, ExternalPointerTag tag)
-        : encoded_word_(Tag(pointer, tag)) {}
-
-    static Address Tag(Address pointer, ExternalPointerTag tag) {
-      DCHECK_LE(tag, kLastExternalPointerTag);
-      return pointer | (static_cast<Address>(tag) << kExternalPointerTagShift);
-    }
-
-    static bool CheckTag(Address content, ExternalPointerTagRange tag_range) {
-      // TODO(saelo): use well-known null entries per type tag instead of a
-      // generic null entry. Then this check can be removed.
-      if (ExternalPointerCanBeEmpty(tag_range) && !content) {
-        return true;
-      }
-
-      ExternalPointerTag tag = static_cast<ExternalPointerTag>(
-          (content & kExternalPointerTagMask) >> kExternalPointerTagShift);
-      return tag_range.Contains(tag);
-    }
-
-    Address Untag(ExternalPointerTagRange tag_range) const {
-      Address content = encoded_word_;
-      SBXCHECK(CheckTag(content, tag_range));
-      return content & kExternalPointerPayloadMask;
-    }
-
-    Address Untag(ExternalPointerTag tag) const {
-      return Untag(ExternalPointerTagRange(tag, tag));
-    }
-
-    bool IsTaggedWithTagIn(ExternalPointerTagRange tag_range) const {
-      return CheckTag(encoded_word_, tag_range);
-    }
-
-    bool IsTaggedWith(ExternalPointerTag tag) const {
-      return IsTaggedWithTagIn(ExternalPointerTagRange(tag));
-    }
-
-    void SetMarkBit() { encoded_word_ |= kExternalPointerMarkBit; }
-
-    void ClearMarkBit() { encoded_word_ &= ~kExternalPointerMarkBit; }
-
-    bool HasMarkBitSet() const {
-      return encoded_word_ & kExternalPointerMarkBit;
-    }
-
-    uint32_t ExtractFreelistLink() const {
-      return static_cast<uint32_t>(encoded_word_);
-    }
-
-    ExternalPointerTag ExtractTag() const {
-      return static_cast<ExternalPointerTag>(
-          (encoded_word_ & kExternalPointerTagMask) >>
-          kExternalPointerTagShift);
-    }
-
-    bool ContainsFreelistLink() const {
-      return IsTaggedWith(kExternalPointerFreeEntryTag);
-    }
-
-    bool ContainsEvacuationEntry() const {
-      return IsTaggedWith(kExternalPointerEvacuationEntryTag);
-    }
-
-    Address ExtractEvacuationEntryHandleLocation() const {
-      return Untag(kExternalPointerEvacuationEntryTag);
-    }
-
-    bool ContainsPointer() const {
-      return !ContainsFreelistLink() && !ContainsEvacuationEntry();
-    }
-
-    bool operator==(Payload other) const {
-      return encoded_word_ == other.encoded_word_;
-    }
-
-    bool operator!=(Payload other) const {
-      return encoded_word_ != other.encoded_word_;
-    }
-
-   private:
-    Address encoded_word_;
+  struct ExternalPointerTablePayloadTaggingScheme {
+    using TagType = ExternalPointerTag;
+    static constexpr uint64_t kMarkBit = kExternalPointerMarkBit;
+    static constexpr uint64_t kTagShift = kExternalPointerTagShift;
+    static constexpr uint64_t kTagMask = kExternalPointerTagMask;
+    static constexpr uint64_t kPayloadMask = kExternalPointerPayloadMask;
+    static constexpr uint64_t kPayloadShift = 0;
+    static constexpr TagType kFreeEntryTag = kExternalPointerFreeEntryTag;
+    static constexpr TagType kEvacuationEntryTag =
+        kExternalPointerEvacuationEntryTag;
   };
+  using Payload = TaggedPayload<ExternalPointerTablePayloadTaggingScheme>;
 
-  inline Payload GetRawPayload() {
+  inline Payload GetRawPayload() const {
     return payload_.load(std::memory_order_relaxed);
   }
   inline void SetRawPayload(Payload new_payload) {
@@ -480,6 +404,23 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 };
+
+#ifdef OBJECT_PRINT
+
+class ExternalPointerTableEntryPrinter {
+ public:
+  static void PrintHeader(const char* space_name);
+  static void PrintIfInUse(
+      ExternalPointerHandle handle, const ExternalPointerTableEntry& entry,
+      std::function<bool(ExternalPointerTag)> entry_callback);
+  static void PrintFooter();
+};
+
+template <>
+class TableEntryPrinter<ExternalPointerTableEntry>
+    : public ExternalPointerTableEntryPrinter {};
+
+#endif  // OBJECT_PRINT
 
 }  // namespace internal
 }  // namespace v8

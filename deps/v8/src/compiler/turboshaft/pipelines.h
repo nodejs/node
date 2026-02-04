@@ -7,9 +7,10 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
-#include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/basic-block-call-graph-profiler.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/block-instrumentation-phase.h"
@@ -48,9 +49,25 @@ struct SimplificationAndNormalizationPhase {
   void Run(PipelineData* data, Zone* temp_zone);
 };
 
+namespace detail {
+enum class NoLinkage { kNoLinkage };
+}  // namespace detail
+constexpr detail::NoLinkage kNoLinkage = detail::NoLinkage::kNoLinkage;
+
 class V8_EXPORT_PRIVATE Pipeline {
  public:
-  explicit Pipeline(PipelineData* data) : data_(data) {}
+  // TODO(dmercadier): remove Linkage for the arguments here and make it an
+  // input to the PipelineData constructor instead.
+  Pipeline(PipelineData* data, const Linkage* linkage) : data_(data) {
+    DCHECK_NULL(data->linkage());
+    data_->set_linkage(linkage);
+  }
+
+  Pipeline(PipelineData* data, detail::NoLinkage) : data_(data) {
+    DCHECK_NULL(data->linkage());
+  }
+
+  ~Pipeline() { data_->set_linkage(nullptr); }
 
   PipelineData* data() const { return data_; }
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -235,10 +252,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     if (V8_UNLIKELY(data()->pipeline_kind() == TurboshaftPipelineKind::kCSA ||
                     data()->pipeline_kind() ==
                         TurboshaftPipelineKind::kTSABuiltin)) {
-      if (profile) {
-        RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
-      }
-
       if (v8_flags.reorder_builtins &&
           Builtins::IsBuiltinId(info()->builtin())) {
         UnparkedScopeIfNeeded unparked_scope(data()->broker());
@@ -273,6 +286,10 @@ class V8_EXPORT_PRIVATE Pipeline {
         ZoneWithName<kTempZoneName> temp_zone(data()->zone_stats(),
                                               kTempZoneName);
         CopyingPhase<>::Run(data(), temp_zone);
+
+        if (profile) {
+          RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
+        }
       }
     }
 
@@ -521,7 +538,8 @@ class V8_EXPORT_PRIVATE Pipeline {
 
 class BuiltinPipeline : public Pipeline {
  public:
-  explicit BuiltinPipeline(PipelineData* data) : Pipeline(data) {}
+  explicit BuiltinPipeline(PipelineData* data, const Linkage* linkage)
+      : Pipeline(data, linkage) {}
 
   void OptimizeBuiltin();
 

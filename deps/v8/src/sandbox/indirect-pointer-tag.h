@@ -98,10 +98,9 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   IF_WASM(V, kWasmSuspenderIndirectPointerTag, 15)           \
   V(kLastPerIsolateTrustedTag, 14)
 
-#define INDIRECT_POINTER_TAG_LIST(V)       \
-  SHARED_TRUSTED_POINTER_TAG_LIST(V)       \
-  PER_ISOLATE_INDIRECT_POINTER_TAG_LIST(V) \
-  V(kUnpublishedIndirectPointerTag, 34)
+#define INDIRECT_POINTER_TAG_LIST(V) \
+  SHARED_TRUSTED_POINTER_TAG_LIST(V) \
+  PER_ISOLATE_INDIRECT_POINTER_TAG_LIST(V)
 
 #define MAKE_TAG(i) \
   (kAllTagsForAndBasedTypeChecking[i] << kIndirectPointerTagShift)
@@ -149,6 +148,25 @@ enum IndirectPointerTag : uint64_t {
   // uses a dedicated bit.
   kFreeTrustedPointerTableEntryTag = kTrustedPointerTableFreeEntryBit,
 
+  // A special tag for objects that should not (yet) be exposed to the sandbox.
+  //
+  // There are basically two ways to use this:
+  //
+  // 1. If the initialization of a group of related objects fails, and the
+  // individual objects aren't in a consistent state afterwards, then they can
+  // all be unpublished through the use of a TrustedPointerPublishingScope.
+  //
+  // 2. If certain types of objects need to be validated before being
+  // accessible from within the sandbox (for example, bytecode arrays), then
+  // these objects can first be created in an unpublished state and then only
+  // be published after successful validation.
+  //
+  // We use a tag value here that includes the free entry bit such that these
+  // entries cannot be used even with the kUnknownIndirectPointerTag (for which
+  // we still have some legitimate use cases). If we ever manage to remove the
+  // kUnknownIndirectPointerTag then we could also simplify this tag.
+  kUnpublishedIndirectPointerTag = kIndirectPointerTagMask,
+
 // "Regular" tags. One per supported instance type.
 #define INDIRECT_POINTER_TAG_ENUM_DECL(name, tag_id) name = MAKE_TAG(tag_id),
   INDIRECT_POINTER_TAG_LIST(INDIRECT_POINTER_TAG_ENUM_DECL)
@@ -157,15 +175,22 @@ enum IndirectPointerTag : uint64_t {
 
 #undef MAKE_TAG
 
-#define VALIDATE_INDIRECT_POINTER_TAG(name, tag_id)        \
-  static_assert((name & kIndirectPointerTagMask) == name); \
-  static_assert((name & kIndirectPointerTagMaskWithoutFreeEntryBit) == name);
+// Some basic checks to ensure that tag masks work as expected and that special
+// entries (e.g. free or unpublished entries) cannot be used.
+#define VALIDATE_INDIRECT_POINTER_TAG(name, tag_id)                           \
+  static_assert((name & kIndirectPointerTagMask) == name);                    \
+  static_assert((name & kIndirectPointerTagMaskWithoutFreeEntryBit) == name); \
+  static_assert((kFreeTrustedPointerTableEntryTag & ~name) != 0);             \
+  static_assert((kUnpublishedIndirectPointerTag & ~name) != 0);
 INDIRECT_POINTER_TAG_LIST(VALIDATE_INDIRECT_POINTER_TAG)
 #undef VALIDATE_INDIRECT_POINTER_TAG
 static_assert((kFreeTrustedPointerTableEntryTag & kIndirectPointerTagMask) ==
               kFreeTrustedPointerTableEntryTag);
 static_assert((kFreeTrustedPointerTableEntryTag &
                kIndirectPointerTagMaskWithoutFreeEntryBit) == 0);
+// Unpublished entries must never be usable, even with the "wildcard" tag.
+static_assert((kUnpublishedIndirectPointerTag & ~kUnknownIndirectPointerTag) !=
+              0);
 
 // True if the external pointer must be accessed from the shared isolate's
 // external pointer table.

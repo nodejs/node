@@ -55,7 +55,7 @@ assertEquals($g_desc1.index, $s1);
 
 let $g_s0 = builder.addGlobal(wasmRefType($s0), false, false, [
   kExprGlobalGet, $g_desc0.index,
-  kGCPrefix, kExprStructNewDefault, $s0,
+  kGCPrefix, kExprStructNewDefaultDesc, $s0,
 ]);
 
 let $sideeffect = builder.addImport("m", "sideeffect", kSig_v_v);
@@ -68,14 +68,14 @@ function MakeFunctions(type_index) {
     kExprLocalGet, 0,
     ...(type_index == $s1 ? [kExprI32Const, 2] : []),
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprStructNew, type_index,
+    kGCPrefix, kExprStructNewDesc, type_index,
   ]);
 
   builder.addFunction("oneshot_s" + type_index, sig_r_i).exportFunc().addBody([
     kExprLocalGet, 0,
     ...(type_index == $s1 ? [kExprI32Const, 2] : []),
     kGCPrefix, kExprStructNewDefault, desc_index,
-    kGCPrefix, kExprStructNew, type_index,
+    kGCPrefix, kExprStructNewDesc, type_index,
   ]);
 
   builder.addFunction("get_desc_s" + type_index, sig_r_r).exportFunc().addBody([
@@ -377,3 +377,53 @@ assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
     }
   }
 })();
+
+// Using struct.new_desc to allocate a type without a descriptor is invalid.
+(() => {
+  for (let [expr, name] of
+    [[kExprStructNewDesc, "struct.new_desc"],
+      [kExprStructNewDefaultDesc, "struct.new_default_desc"]]) {
+    let builder = new WasmModuleBuilder();
+    let $nodesc = builder.addStruct({});
+    builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
+      kGCPrefix, expr, $nodesc,
+      kExprDrop
+    ]);
+
+    let expected = new RegExp(
+      `.*"invalid-${name}" failed: descriptor allocation used for type 0 ` +
+      'without descriptor.*');
+    let buffer = builder.toBuffer();
+    assertThrowsAsync(
+      WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+  }
+})();
+
+// TODO(tlively): Uncomment this once users have transitioned to the new
+// struct.new_desc and struct.new_default_desc instructions.
+// // Using struct.new to allocate a type with a descriptor is invalid.
+// (() => {
+//   for (let [expr, name] of
+//     [[kExprStructNew, "struct.new"],
+//       [kExprStructNewDefault, "struct.new_default"]]) {
+//     let builder = new WasmModuleBuilder();
+//     builder.startRecGroup();
+//     let $desc = builder.nextTypeIndex() + 1;
+//     let $withdesc = builder.addStruct({ descriptor: $desc });
+//     builder.addStruct({ describes: $withdesc });
+//     builder.endRecGroup();
+
+//     builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
+//       kGCPrefix, kExprStructNewDefault, $desc,
+//       kGCPrefix, expr, $withdesc,
+//       kExprDrop
+//     ]);
+
+//     let expected = new RegExp(
+//       `.*"invalid-${name}" failed: non-descriptor allocation used for type 0 ` +
+//       'with descriptor.*');
+//     let buffer = builder.toBuffer();
+//     assertThrowsAsync(
+//       WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+//   }
+// })();

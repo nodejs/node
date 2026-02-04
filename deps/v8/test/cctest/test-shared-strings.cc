@@ -14,7 +14,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -850,7 +850,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
       // old space.
       heap::InvokeMajorGC(heap);
       heap::ForceEvacuationCandidate(
-          i::PageMetadata::FromHeapObject(*one_byte_seq));
+          i::NormalPage::FromHeapObject(*one_byte_seq));
 
       one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
     }
@@ -956,8 +956,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePageMetadata::cast(
-            MutablePageMetadata::cast(old_object_chunk->Metadata())),
+        MutablePage::cast(MutablePage::cast(old_object_chunk->Metadata())),
         slot.address()));
 
     {
@@ -975,8 +974,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1021,8 +1019,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     }
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
 
     {
       // We need to invoke GC without stack, otherwise no compaction is
@@ -1041,8 +1038,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1098,11 +1094,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       old_object->set(0, *one_byte_seq);
       slot = old_object->RawFieldOfFirstElement();
       CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
-          MutablePageMetadata::cast(old_object_chunk->Metadata()),
-          slot.address()));
+          MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
 
-      heap::ForceEvacuationCandidate(
-          PageMetadata::FromHeapObject(*one_byte_seq));
+      heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*one_byte_seq));
       one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
     }
     {
@@ -1124,8 +1118,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1178,8 +1171,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
     // create an OLD_TO_SHARED slot.
     ObjectSlot slot = young_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::FromHeapObject(i_isolate, *young_object),
-        slot.address()));
+        MutablePage::FromHeapObject(i_isolate, *young_object), slot.address()));
   }
 }
 
@@ -2214,7 +2206,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       young_object->set(0, **shared_string_);
 
       heap::EmptyNewSpaceUsingGC(heap);
-      heap->CompleteSweepingFull();
+      heap->CompleteSweepingFull(CompleteSweepingReason::kTesting);
 
       // Object should get promoted using page promotion, so address should
       // remain the same.
@@ -2226,7 +2218,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          MutablePage::FromHeapObject(i_client, *young_object),
           slot.address()));
     }
 
@@ -2314,7 +2306,7 @@ UNINITIALIZED_TEST(
 
   // Start an incremental shared GC such that shared_string resides on an
   // evacuation candidate.
-  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*shared_string));
+  heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*shared_string));
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
   {
@@ -2413,7 +2405,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          MutablePage::FromHeapObject(i_client, *young_object),
           slot.address()));
     }
 

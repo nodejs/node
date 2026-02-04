@@ -101,22 +101,12 @@ inline void AllocationSite::Initialize() {
                      SKIP_WRITE_BARRIER);
 }
 
-inline bool AllocationSite::IsZombie() const {
-  return pretenure_decision() == kZombie;
-}
-
 inline bool AllocationSite::IsMaybeTenure() const {
   return pretenure_decision() == kMaybeTenure;
 }
 
 inline bool AllocationSite::PretenuringDecisionMade() const {
   return pretenure_decision() != kUndecided;
-}
-
-inline void AllocationSite::MarkZombie() {
-  DCHECK(!IsZombie());
-  Initialize();
-  set_pretenure_decision(kZombie);
 }
 
 inline ElementsKind AllocationSite::GetElementsKind() const {
@@ -205,8 +195,6 @@ inline void AllocationSite::set_memento_create_count(int count) {
 }
 
 int AllocationSite::IncrementMementoFoundCount(int increment) {
-  DCHECK(!IsZombie());
-
   int new_value = memento_found_count() + increment;
   set_memento_found_count(new_value);
   return new_value;
@@ -228,16 +216,11 @@ inline void AllocationSiteWithWeakNext::set_weak_next(
   weak_next_.store(this, value, mode);
 }
 
-inline bool AllocationMemento::IsValid() const {
-  return !allocation_site_.load()->IsZombie();
-}
-
 void AllocationMemento::set_allocation_site(Tagged<AllocationSite> value,
                                             WriteBarrierMode mode) {
   allocation_site_.store(this, value, mode);
 }
 inline Tagged<AllocationSite> AllocationMemento::GetAllocationSite() const {
-  DCHECK(IsValid());
   return allocation_site_.load();
 }
 

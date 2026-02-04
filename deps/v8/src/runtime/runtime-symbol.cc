@@ -28,8 +28,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateBrandSymbol) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<String> name = args.at<String>(0);
-  DirectHandle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
-  symbol->set_is_private_brand();
+  DirectHandle<Symbol> symbol = isolate->factory()->NewPrivateBrandSymbol(name);
   return *symbol;
 }
 
@@ -59,7 +58,7 @@ RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   auto symbol = Cast<Symbol>(args[0]);
-  return isolate->heap()->ToBoolean(symbol->is_private());
+  return isolate->heap()->ToBoolean(symbol->is_any_private());
 }
 }  // namespace internal
 }  // namespace v8

@@ -31,7 +31,8 @@
 ['simulator_run and arch == ppc64', {
   # Slow tests
   'wasm/module/regress-406925416.wasm': [PASS, SLOW],
-  'wasm/module/regress-419085592.wasm': [PASS, SLOW]
+  'wasm/module/regress-419085592.wasm': [PASS, SLOW],
+  'wasm/module/regress-419922463.wasm': [PASS, SLOW]
 }],  # 'simulator_run and arch == ppc64'
 
 ]

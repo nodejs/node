@@ -1114,6 +1114,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void AbortCSADcheck(Node* message);
   void DebugBreak();
   void Unreachable();
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  void EnterSandbox();
+  void ExitSandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   void Comment(const std::string& msg);
   void StaticAssert(Node* value, const char* source);
 

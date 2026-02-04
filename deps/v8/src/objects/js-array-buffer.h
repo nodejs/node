@@ -83,6 +83,9 @@ class JSArrayBuffer
   // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_resizable_by_js)
 
+  // [is_immutable]: true if this is an ImmutableArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_immutable)
+
   // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
   // An empty ArrayBuffer will have a byte_length of zero but not necessarily a
   // nullptr backing_store. An ArrayBuffer with a byte_length of zero may not
@@ -167,6 +170,17 @@ class JSArrayBuffer
       v8::ArrayBuffer::kEmbedderFieldCount > 0;
 
   class BodyDescriptor;
+
+  static uint32_t NotValidMask(TypedArrayAccessMode mode) {
+    switch (mode) {
+      case TypedArrayAccessMode::kRead:
+        return JSArrayBuffer::WasDetachedBit::kMask;
+      case TypedArrayAccessMode::kWrite:
+        return JSArrayBuffer::WasDetachedBit::kMask |
+               JSArrayBuffer::IsImmutableBit::kMask;
+    }
+    UNREACHABLE();
+  }
 
  private:
   void DetachInternal(bool force_for_wasm_memory, Isolate* isolate);
@@ -306,6 +320,8 @@ class JSArrayBufferView
   DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
 
   // [byte_length]: length of typed array in bytes.
+  // Only use for fixed-size arrays (`!IsVariableLength()`). Otherwise use
+  // `JSTypedArray::GetByteLength()`.
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   DECL_VERIFIER(JSArrayBufferView)
@@ -409,7 +425,8 @@ class JSTypedArray
       Isolate* isolate);
 
   static inline MaybeDirectHandle<JSTypedArray> Validate(
-      Isolate* isolate, DirectHandle<Object> receiver, const char* method_name);
+      Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
+      TypedArrayAccessMode access_mode = TypedArrayAccessMode::kRead);
 
   // Dispatched behavior.
   DECL_PRINTER(JSTypedArray)

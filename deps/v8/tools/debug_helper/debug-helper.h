@@ -172,6 +172,13 @@ struct HeapAddresses {
   // A pointer to the static array
   // v8::internal::MemoryChunk::metadata_pointer_table_.
   uintptr_t metadata_pointer_table;
+
+  // The offset of the heap_ member within the Isolate class. This is needed
+  // because the offset can vary between builds due to compilation differences.
+  // Should be obtained from debug symbols (PDB, DWARF, etc.) in the debugger.
+  // If zero, the library will attempt to use Isolate::FromHeap() which may
+  // fail if the offset differs between the debugger build and target build.
+  uintptr_t isolate_heap_member_offset;
 };
 
 }  // namespace debug_helper

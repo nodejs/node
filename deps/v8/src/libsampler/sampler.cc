@@ -237,8 +237,7 @@ void SamplerManager::RemoveSampler(Sampler* sampler) {
   auto it = sampler_map_.find(thread_id);
   DCHECK_NE(it, sampler_map_.end());
   SamplerList& samplers = it->second;
-  samplers.erase(std::remove(samplers.begin(), samplers.end(), sampler),
-                 samplers.end());
+  std::erase(samplers, sampler);
   if (samplers.empty()) {
     sampler_map_.erase(it);
   }

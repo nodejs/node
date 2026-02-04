@@ -646,6 +646,19 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangesFromToSmi) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, ChangesFloat32ToUin64) {
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Float32());
+    m.Return(m.Emit(TSUnop::kChangeUint32ToUint64,
+                    m.Emit(TSUnop::kBitcastFloat32ToWord32, m.Parameter(0))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kRiscvBitcastDL, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 using CombineChangeFloat64ToInt32WithRoundFloat64 =
     TurboshaftInstructionSelectorTestWithParam<Conversion>;
 

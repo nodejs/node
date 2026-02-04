@@ -20,7 +20,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
-#include "src/regexp/regexp-bytecodes.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
@@ -35,6 +35,17 @@
 
 namespace v8 {
 namespace internal {
+
+using REB = RegExpBytecode;
+
+namespace {
+
+RegExpBytecode GetBytecode(DirectHandle<TrustedByteArray> bytecode_array,
+                           int i) {
+  return RegExpBytecodes::FromByte(bytecode_array->get(i));
+}
+
+}  // namespace
 
 TEST_F(TestWithNativeContext, ConvertRegExpFlagsToString) {
   RunJS("let regexp = new RegExp(/ab+c/ig);");
@@ -1244,7 +1255,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeLotsOfRegisters) {
 
 TEST_F(RegExpTest, MacroAssembler) {
   Zone zone(i_isolate()->allocator(), ZONE_NAME);
-  RegExpBytecodeGenerator m(i_isolate(), &zone);
+  RegExpBytecodeGenerator m(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
   // ^f(o)o.
   Label start, fail, backtrack;
 
@@ -1815,8 +1826,9 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeNoChangeBytecode(&orig);
   CreatePeepholeNoChangeBytecode(&opt);
@@ -1851,8 +1863,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilChar) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharBytecode(&orig);
   CreatePeepholeSkipUntilCharBytecode(&opt);
@@ -1869,19 +1882,21 @@ TEST_F(RegExpTest, PeepholeSkipUntilChar) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
-                        RegExpBytecodeLength(BC_CHECK_CHAR) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
-  int length_optimized_expected = RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR) +
-                                  RegExpBytecodeLength(BC_POP_BT);
+  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+                        RegExpBytecodes::Size(REB::kCheckCharacter) +
+                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+                        RegExpBytecodes::Size(REB::kGoTo) +
+                        RegExpBytecodes::Size(REB::kBacktrack);
+  int length_optimized_expected = RegExpBytecodes::Size(REB::kSkipUntilChar) +
+                                  RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_CHAR, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT,
-           array_optimized->get(RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR)));
+  CHECK_EQ(REB::kSkipUntilChar, GetBytecode(array_optimized, 0));
+  CHECK_EQ(
+      REB::kBacktrack,
+      GetBytecode(array_optimized, RegExpBytecodes::Size(REB::kSkipUntilChar)));
 }
 
 void CreatePeepholeSkipUntilBitInTableBytecode(RegExpMacroAssembler* m,
@@ -1905,8 +1920,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilBitInTableBytecode(&orig, factory);
   CreatePeepholeSkipUntilBitInTableBytecode(&opt, factory);
@@ -1923,20 +1939,22 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
-                        RegExpBytecodeLength(BC_CHECK_BIT_IN_TABLE) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
+  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+                        RegExpBytecodes::Size(REB::kCheckBitInTable) +
+                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+                        RegExpBytecodes::Size(REB::kGoTo) +
+                        RegExpBytecodes::Size(REB::kBacktrack);
   int length_optimized_expected =
-      RegExpBytecodeLength(BC_SKIP_UNTIL_BIT_IN_TABLE) +
-      RegExpBytecodeLength(BC_POP_BT);
+      RegExpBytecodes::Size(REB::kSkipUntilBitInTable) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_BIT_IN_TABLE, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT, array_optimized->get(
-                          RegExpBytecodeLength(BC_SKIP_UNTIL_BIT_IN_TABLE)));
+  CHECK_EQ(REB::kSkipUntilBitInTable, GetBytecode(array_optimized, 0));
+  CHECK_EQ(REB::kBacktrack,
+           GetBytecode(array_optimized,
+                       RegExpBytecodes::Size(REB::kSkipUntilBitInTable)));
 }
 
 void CreatePeepholeSkipUntilCharPosCheckedBytecode(RegExpMacroAssembler* m) {
@@ -1953,8 +1971,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharPosChecked) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharPosCheckedBytecode(&orig);
   CreatePeepholeSkipUntilCharPosCheckedBytecode(&opt);
@@ -1971,21 +1990,24 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharPosChecked) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_CHECK_CURRENT_POSITION) +
-                        RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR_UNCHECKED) +
-                        RegExpBytecodeLength(BC_CHECK_CHAR) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
+  int length_expected =
+      RegExpBytecodes::Size(REB::kCheckPosition) +
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacterUnchecked) +
+      RegExpBytecodes::Size(REB::kCheckCharacter) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
   int length_optimized_expected =
-      RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_POS_CHECKED) +
-      RegExpBytecodeLength(BC_POP_BT);
+      RegExpBytecodes::Size(REB::kSkipUntilCharPosChecked) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_CHAR_POS_CHECKED, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT, array_optimized->get(RegExpBytecodeLength(
-                          BC_SKIP_UNTIL_CHAR_POS_CHECKED)));
+  CHECK_EQ(REB::kSkipUntilCharPosChecked, GetBytecode(array_optimized, 0));
+  CHECK_EQ(REB::kBacktrack,
+           GetBytecode(array_optimized,
+                       RegExpBytecodes::Size(REB::kSkipUntilCharPosChecked)));
 }
 
 void CreatePeepholeSkipUntilCharAndBytecode(RegExpMacroAssembler* m) {
@@ -2002,8 +2024,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharAnd) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharAndBytecode(&orig);
   CreatePeepholeSkipUntilCharAndBytecode(&opt);
@@ -2020,20 +2043,24 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharAnd) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_CHECK_CURRENT_POSITION) +
-                        RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR_UNCHECKED) +
-                        RegExpBytecodeLength(BC_AND_CHECK_CHAR) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
-  int length_optimized_expected = RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_AND) +
-                                  RegExpBytecodeLength(BC_POP_BT);
+  int length_expected =
+      RegExpBytecodes::Size(REB::kCheckPosition) +
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacterUnchecked) +
+      RegExpBytecodes::Size(REB::kCheckCharacterAfterAnd) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
+  int length_optimized_expected =
+      RegExpBytecodes::Size(REB::kSkipUntilCharAnd) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_CHAR_AND, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT,
-           array_optimized->get(RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_AND)));
+  CHECK_EQ(REB::kSkipUntilCharAnd, GetBytecode(array_optimized, 0));
+  CHECK_EQ(REB::kBacktrack,
+           GetBytecode(array_optimized,
+                       RegExpBytecodes::Size(REB::kSkipUntilCharAnd)));
 }
 
 void CreatePeepholeSkipUntilCharOrCharBytecode(RegExpMacroAssembler* m) {
@@ -2051,8 +2078,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharOrChar) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharOrCharBytecode(&orig);
   CreatePeepholeSkipUntilCharOrCharBytecode(&opt);
@@ -2069,21 +2097,23 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharOrChar) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
-                        RegExpBytecodeLength(BC_CHECK_CHAR) +
-                        RegExpBytecodeLength(BC_CHECK_CHAR) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
+  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+                        RegExpBytecodes::Size(REB::kCheckCharacter) +
+                        RegExpBytecodes::Size(REB::kCheckCharacter) +
+                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+                        RegExpBytecodes::Size(REB::kGoTo) +
+                        RegExpBytecodes::Size(REB::kBacktrack);
   int length_optimized_expected =
-      RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_OR_CHAR) +
-      RegExpBytecodeLength(BC_POP_BT);
+      RegExpBytecodes::Size(REB::kSkipUntilCharOrChar) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_CHAR_OR_CHAR, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT, array_optimized->get(
-                          RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_OR_CHAR)));
+  CHECK_EQ(REB::kSkipUntilCharOrChar, GetBytecode(array_optimized, 0));
+  CHECK_EQ(REB::kBacktrack,
+           GetBytecode(array_optimized,
+                       (RegExpBytecodes::Size(REB::kSkipUntilCharOrChar))));
 }
 
 void CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(RegExpMacroAssembler* m,
@@ -2111,8 +2141,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&orig, factory);
   CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&opt, factory);
@@ -2129,22 +2160,24 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
   int length_optimized = array_optimized->length();
 
-  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
-                        RegExpBytecodeLength(BC_CHECK_GT) +
-                        RegExpBytecodeLength(BC_CHECK_BIT_IN_TABLE) +
-                        RegExpBytecodeLength(BC_GOTO) +
-                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
-                        RegExpBytecodeLength(BC_POP_BT);
+  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+                        RegExpBytecodes::Size(REB::kCheckCharacterGT) +
+                        RegExpBytecodes::Size(REB::kCheckBitInTable) +
+                        RegExpBytecodes::Size(REB::kGoTo) +
+                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+                        RegExpBytecodes::Size(REB::kGoTo) +
+                        RegExpBytecodes::Size(REB::kBacktrack);
   int length_optimized_expected =
-      RegExpBytecodeLength(BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) +
-      RegExpBytecodeLength(BC_POP_BT);
+      RegExpBytecodes::Size(REB::kSkipUntilGtOrNotBitInTable) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
 
-  CHECK_EQ(BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE, array_optimized->get(0));
-  CHECK_EQ(BC_POP_BT, array_optimized->get(RegExpBytecodeLength(
-                          BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE)));
+  CHECK_EQ(REB::kSkipUntilGtOrNotBitInTable, GetBytecode(array_optimized, 0));
+  CHECK_EQ(REB::kBacktrack,
+           GetBytecode(array_optimized, RegExpBytecodes::Size(
+                                            REB::kSkipUntilGtOrNotBitInTable)));
 }
 
 void CreatePeepholeLabelFixupsInsideBytecode(RegExpMacroAssembler* m,
@@ -2174,8 +2207,9 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   {
     Label dummy_before, dummy_after, dummy_inside;
@@ -2188,13 +2222,13 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
 
   CHECK_EQ(0x00, dummy_before.pos());
   CHECK_EQ(0x28, dummy_inside.pos());
-  CHECK_EQ(0x38, dummy_after.pos());
+  CHECK_EQ(0x3C, dummy_after.pos());
 
   const Label* labels[] = {&dummy_before, &dummy_after, &dummy_inside};
   const int label_positions[4][3] = {
-      {0x04, 0x3C},  // dummy_before
-      {0x0C, 0x44},  // dummy after
-      {0x14, 0x4C}   // dummy inside
+      {0x04, 0x40},  // dummy_before
+      {0x0C, 0x48},  // dummy after
+      {0x14, 0x50}   // dummy inside
   };
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
@@ -2216,13 +2250,13 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
 
   const int pos_fixups[] = {
       0,  // Position before optimization should be unchanged.
-      4,  // Position after first replacement should be 4 (optimized size (20) -
-          // original size (32) + preserve length (16)).
+      0,  // Position after first replacement should be 0 (optimized size (36) -
+          // original size (36)).
   };
   const int target_fixups[] = {
       0,  // dummy_before should be unchanged
-      4,  // dummy_inside should be 4
-      4   // dummy_after should be 4
+      0,  // dummy_after should be unchanged
+      4   // dummy_inside should be 4
   };
 
   for (int label_idx = 0; label_idx < 3; label_idx++) {
@@ -2278,8 +2312,9 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   {
     Label dummy_before, dummy_between, dummy_after, dummy_inside;
@@ -2291,17 +2326,17 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
                                            &dummy_after, &dummy_inside);
 
   CHECK_EQ(0x00, dummy_before.pos());
-  CHECK_EQ(0x40, dummy_between.pos());
-  CHECK_EQ(0x70, dummy_inside.pos());
-  CHECK_EQ(0x80, dummy_after.pos());
+  CHECK_EQ(0x44, dummy_between.pos());
+  CHECK_EQ(0x74, dummy_inside.pos());
+  CHECK_EQ(0x88, dummy_after.pos());
 
   const Label* labels[] = {&dummy_before, &dummy_between, &dummy_after,
                            &dummy_inside};
   const int label_positions[4][3] = {
-      {0x04, 0x44, 0x84},  // dummy_before
-      {0x0C, 0x4C, 0x8C},  // dummy between
-      {0x14, 0x54, 0x94},  // dummy after
-      {0x1C, 0x5C, 0x9C}   // dummy inside
+      {0x04, 0x48, 0x8C},  // dummy_before
+      {0x0C, 0x50, 0x94},  // dummy between
+      {0x14, 0x58, 0x9C},  // dummy after
+      {0x1C, 0x60, 0xA4}   // dummy inside
   };
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
@@ -2323,17 +2358,14 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
 
   const int pos_fixups[] = {
       0,    // Position before optimization should be unchanged.
-      -12,  // Position after first replacement should be -12 (optimized size =
-            // 20 - 32 = original size).
-      -8    // Position after second replacement should be -8 (-12 from first
-            // optimization -12 from second optimization + 16 preserved
-            // bytecodes).
+      -16,  // Position after first replacement.
+      -16   // Position after second replacement.
   };
   const int target_fixups[] = {
-      0,    // dummy_before should be unchanged
-      -12,  // dummy_between should be -12
-      -8,   // dummy_inside should be -8
-      -8    // dummy_after should be -8
+      0,    // dummy_before
+      -16,  // dummy_between
+      -16,  // dummy_after
+      -12   // dummy_inside
   };
 
   for (int label_idx = 0; label_idx < 4; label_idx++) {

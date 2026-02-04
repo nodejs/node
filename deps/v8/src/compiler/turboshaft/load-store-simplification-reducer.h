@@ -9,6 +9,7 @@
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -130,6 +131,41 @@ class LoadStoreSimplificationReducer : public Next,
                                         expected_low, expected_high, kind,
                                         offset);
   }
+
+#if V8_ENABLE_SANDBOX
+  V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
+                                       bool is_immutable,
+                                       IndirectPointerTag tag) {
+    // We need to disable GVN in this function so that the `Load` isn't GVNed
+    // (because it's actually load a pointer but isn't marked as such (because
+    // the pointer it loads needs to be decoded before it can be used, so the GC
+    // wouldn't know how to interpret it)), and the Word64BitwiseAnd that
+    // follows also produces a pointer but once again isn't marked as such
+    // (because there is currently no way in Turboshaft to mark a WordBinop as
+    // producing a Tagged result). Either of those operation getting GVNed could
+    // lead to stale pointers, depending on GC timings.
+    // TODO(dmercadier,mliedtke): this DisableValueNumbering is actually a bit
+    // brittle, because if we ever do the lowering earlier in the pipeline, or
+    // if we introduce a later phase with a GVN, then the problem will come
+    // back. Cleaner solutions are mentioned in
+    // https://crbug.com/471363817#comment8.
+    DisableValueNumbering disabled_gvn(this);
+    V<Word32> table_index =
+        __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
+    V<Word64> table_offset = __ ChangeUint32ToUint64(
+        __ Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
+    LoadOp::Kind kind = LoadOp::Kind::RawAligned();
+    if (is_immutable) kind = kind.Immutable();
+    V<WordPtr> decoded_ptr =
+        __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
+
+    // Untag the pointer and remove the marking bit in one operation.
+    decoded_ptr =
+        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
+    // Bitcast to tagged to this gets scanned by the GC properly.
+    return __ BitcastWordPtrToTagged(decoded_ptr);
+  }
+#endif
 
  private:
   bool CanEncodeOffset(int32_t offset, bool tagged_base) const {

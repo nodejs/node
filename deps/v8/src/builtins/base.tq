@@ -461,11 +461,14 @@ extern enum MessageTemplate {
   kBigIntTooBig,
   kBigIntDivZero,
   kNotTypedArray,
-  kDetachedOperation,
+  kTypedArrayDetachedErrorOperation,
+  kTypedArrayValidateErrorOperation,
+  kTypedArrayValidateWriteErrorOperation,
   kBadSortComparisonFunction,
   kIncompatibleMethodReceiver,
   kInvalidDataViewAccessorOffset,
   kTypedArraySetOffsetOutOfBounds,
+  kTypedArrayImmutableBufferErrorOperation,
   kInvalidArgument,
   kInvalidRegExpExecResult,
   kInvalidSizeValue,
@@ -511,7 +514,6 @@ extern enum MessageTemplate {
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
   kWasmTrapResume,
-  kWasmObjectsAreOpaque,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,
@@ -948,6 +950,7 @@ extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro SmiToString(Smi): String;
+extern macro Int32ToString(int32): String;
 extern macro Float64ToString(float64): String;
 extern macro StringToNumber(String): Number;
 extern transitioning macro NonNumberToNumber(
@@ -1414,9 +1417,11 @@ extern macro Uint64Constant(constexpr uint64): uint64;
 extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
 extern macro Float64Constant(constexpr IntegerLiteral): float64;
+extern macro Float32Constant(constexpr float32): float32;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
+extern macro SmiConstant(constexpr BuiltinsName): Smi;
 extern macro SmiConstant(constexpr bool): Smi;
 extern macro SmiConstant(constexpr uint32): Smi;
 macro SmiConstant(il: constexpr IntegerLiteral): Smi {
@@ -2239,3 +2244,5 @@ extern macro LoadSimd128(intptr): Simd128;
 extern macro I8x16BitMask(I8X16): int32;
 extern macro I8x16Eq(I8X16, I8X16): I8X16;
 extern macro I8x16Splat(int32): I8X16;
+
+extern enum TypedArrayAccessMode extends int31 { kRead, kWrite }

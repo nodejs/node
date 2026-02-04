@@ -11,19 +11,14 @@ namespace internal {
 
 RelocInfoStatus ConstantPool::RecordEntry64(uint64_t data,
                                             RelocInfo::Mode rmode) {
+  CHECK(!emitted_);
   ConstantPoolKey key(data, rmode);
   return RecordKey(std::move(key), assm_->pc_offset());
 }
 
 RelocInfoStatus ConstantPool::RecordKey(ConstantPoolKey key, int offset) {
   RelocInfoStatus status = GetRelocInfoStatusFor(key);
-  if (status == RelocInfoStatus::kMustRecord) {
-    size_t count = ++deduped_entry_count_;
-    if (count == 1) first_use_ = offset;
-    // The next check in position depends on the entry count, so we
-    // potentially update the position here.
-    MaybeUpdateNextCheckIn();
-  }
+  if (status == RelocInfoStatus::kMustRecord) deduped_entry_count_++;
   entries_.insert(std::make_pair(key, offset));
   return status;
 }
@@ -39,34 +34,34 @@ RelocInfoStatus ConstantPool::GetRelocInfoStatusFor(
   return RelocInfoStatus::kMustRecord;
 }
 
-void ConstantPool::EmitAndClear(Jump jump) {
+void ConstantPool::Emit() {
+  if (emitted_) return;
+  emitted_ = true;
+
   // Since we do not know how much space the constant pool is going to take
   // up, we cannot handle getting here while the trampoline pool is blocked.
   CHECK(!assm_->pools_blocked());
 
   // Prevent recursive pool emission.
-  int margin = SizeIfEmittedAt(jump, assm_->pc_offset());
-  Assembler::BlockPoolsScope block_pools(assm_, ConstantPoolEmission::kSkip,
-                                         margin);
+  if (IsEmpty()) return;
+  int margin = SizeIfEmittedAt(assm_->pc_offset());
+  Assembler::BlockPoolsScope block_pools(assm_, margin);
 
   // The pc offset may have changed as a result of blocking pools. We can
   // now go ahead and compute the required padding and the correct size.
-  int padding = PaddingIfEmittedAt(jump, assm_->pc_offset());
-  int size = SizeOfPool(jump, padding);
+  int padding = PaddingIfEmittedAt(assm_->pc_offset());
+  int size = SizeOfPool(padding);
   Label before_pool;
   assm_->bind(&before_pool);
   assm_->RecordConstPool(size, block_pools);
 
-  // Emit the constant pool. It is preceded by an optional branch if {jump}
-  // is {Jump::kRequired} and a header which will:
+  // Emit the constant pool. It is preceded by a header which will:
   //  1) Encode the size of the constant pool, for use by the disassembler.
   //  2) Terminate the program, to try to prevent execution from accidentally
   //     flowing into the constant pool.
   //  3) Align the pool entries using the computed padding.
-
-  Label after_pool;
   assm_->RecordComment("[ Constant Pool");
-  EmitPrologue(size, jump == Jump::kRequired ? &after_pool : nullptr);
+  EmitPrologue(size);
   for (int i = 0; i < padding; i++) assm_->db(0xcc);
   EmitEntries();
 
@@ -86,14 +81,12 @@ void ConstantPool::EmitAndClear(Jump jump) {
   }
 
   assm_->RecordComment("]");
-  assm_->bind(&after_pool);
   DCHECK_EQ(size, assm_->SizeOfCodeGeneratedSince(&before_pool));
   Clear();
 }
 
 void ConstantPool::Clear() {
   entries_.clear();
-  first_use_ = -1;
   deduped_entry_count_ = 0;
 }
 
@@ -122,64 +115,33 @@ void ConstantPool::EmitEntries() {
 
 void ConstantPool::Emit(const ConstantPoolKey& key) { assm_->dq(key.value()); }
 
-bool ConstantPool::ShouldEmitNow(Jump jump, size_t margin) const {
-  if (IsEmpty()) return false;
-  if (EntryCount() > ConstantPool::kApproxMaxEntryCount) return true;
-
-  // We compute {distance}, i.e. the distance from the first instruction
-  // accessing an entry in the constant pool to any of the constant pool
-  // entries, respectively. This is required because we do not guarantee
-  // that entries are emitted in order of reference, i.e. it is possible
-  // that the entry with the earliest reference is emitted last.
-  int pc_offset = assm_->pc_offset();
-  int size = SizeIfEmittedAt(jump, pc_offset);
-  size_t pool_end = pc_offset + margin + size;
-  size_t distance = pool_end - first_use_;
-
-  if (distance + kCheckInterval >= kMaxDistToPool) {
-    // We will be out of range at the next check.
-    return true;
-  } else if (jump == Jump::kOmitted && distance >= kOpportunityDistToPool) {
-    // We can emit the constant pool without a jump here and the distance
-    // indicates that this may be a good time.
-    return true;
-  } else {
-    // We ask to get the constant pool emitted if the {distance} exceeds
-    // the desired approximate distance to the pool.
-    return distance >= kApproxDistToPool;
-  }
-}
-
-int ConstantPool::AlignmentIfEmittedAt(Jump jump, int pc_offset) const {
+int ConstantPool::AlignmentIfEmittedAt(int pc_offset) const {
+  if (IsEmpty()) return 0;
   // For now, the alignment does not depend on the {pc_offset}.
-  return IsEmpty() ? 0 : kInt64Size;
+#ifdef RISCV_CONSTANT_POOL_ALIGNMENT
+  static_assert(base::bits::IsPowerOfTwo(RISCV_CONSTANT_POOL_ALIGNMENT));
+  static_assert(RISCV_CONSTANT_POOL_ALIGNMENT >= kInt64Size);
+  static_assert(RISCV_CONSTANT_POOL_ALIGNMENT <= RISCV_CODE_ALIGNMENT);
+  return RISCV_CONSTANT_POOL_ALIGNMENT;
+#else
+  return kInt64Size;
+#endif
 }
 
-int ConstantPool::PaddingIfEmittedAt(Jump jump, int pc_offset) const {
-  int alignment = AlignmentIfEmittedAt(jump, pc_offset);
+int ConstantPool::PaddingIfEmittedAt(int pc_offset) const {
+  int alignment = AlignmentIfEmittedAt(pc_offset);
   if (alignment == 0) return 0;
-  int entries_offset = pc_offset + SizeOfPrologue(jump);
+  int entries_offset = pc_offset + SizeOfPrologue();
   return RoundUp(entries_offset, alignment) - entries_offset;
 }
 
-bool ConstantPool::IsInRangeIfEmittedAt(Jump jump, int pc_offset) const {
-  // Check that all entries are in range if the pool is emitted at {pc_offset}.
-  if (IsEmpty()) return true;
-  size_t pool_end = pc_offset + SizeIfEmittedAt(jump, pc_offset);
-  return pool_end < first_use_ + kMaxDistToPool;
-}
-
-void ConstantPool::EmitPrologue(int size, Label* after) {
+void ConstantPool::EmitPrologue(int size) {
   // Encoded constant pool size is expressed in number of 32-bits words,
-  // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself. The word count may exceed 12 bits,
-  // so 'auipc' is used as the marker.
+  // and includes prologue and alignment, but not the size of the marker
+  // itself. The word count may exceed 12 bits, so 'auipc' is used as the
+  // marker.
   const int kAuipcSize = kInstrSize;
   int encoded_size = size - kAuipcSize;
-  if (after) {
-    assm_->b(after);
-    encoded_size -= kInstrSize;  // Jump isn't included in encoded size.
-  }
   DCHECK(IsAligned(encoded_size, kInt32Size));
   int encoded_words = encoded_size / kInt32Size;
   DCHECK(is_int20(encoded_words));
@@ -187,20 +149,18 @@ void ConstantPool::EmitPrologue(int size, Label* after) {
   assm_->EmitPoolGuard();
 }
 
-int ConstantPool::SizeOfPrologue(Jump jump) const {
+int ConstantPool::SizeOfPrologue() const {
   // Prologue is:
-  //   j     L           ;; Optional, only if {jump} is required.
   //   auipc x0, #words  ;; Pool marker, encodes size in 32-bit words.
   //   j     0x0         ;; Pool guard.
   //   <padding>         ;; Optional to align the following constants.
   //   <constants>
   //   <padding>         ;; Optional to round up to full 32-bit words.
-  // L:
-  return (jump == Jump::kRequired) ? 3 * kInstrSize : 2 * kInstrSize;
+  return 2 * kInstrSize;
 }
 
-int ConstantPool::SizeOfPool(Jump jump, int padding) const {
-  int prologue_size = SizeOfPrologue(jump);
+int ConstantPool::SizeOfPool(int padding) const {
+  int prologue_size = SizeOfPrologue();
   int padding_after = RoundUp(padding, kInt32Size) - padding;
   DCHECK(v8_flags.riscv_c_extension || padding_after == 0);
   int entries_size = static_cast<int>(EntryCount() * kInt64Size);
@@ -225,29 +185,6 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
   assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLo12Offset(Lo12, instr_load));
-}
-
-void ConstantPool::Check(Emission force_emit, Jump jump, size_t margin) {
-  // Some short sequence of instruction must not be broken up by constant pool
-  // emission, such sequences are protected by an Assembler::BlockPoolsScope.
-  if (assm_->pools_blocked()) {
-    // Something is wrong if emission is forced and blocked at the same time.
-    DCHECK_EQ(force_emit, Emission::kIfNeeded);
-    return;
-  }
-
-  // We emit a constant pool only if :
-  //  * it is not empty
-  //  * emission is forced by parameter force_emit (e.g. at function end).
-  //  * emission is mandatory or opportune according to {ShouldEmitNow}.
-  if (!IsEmpty() &&
-      (force_emit == Emission::kForced || ShouldEmitNow(jump, margin))) {
-    EmitAndClear(jump);
-  }
-
-  // Update the last check position and maybe the next one.
-  check_last_ = assm_->pc_offset();
-  MaybeUpdateNextCheckIn();
 }
 
 }  // namespace internal

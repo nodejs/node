@@ -802,7 +802,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
     v8::HandleScope scope(isolate());
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
-    i::MutablePageMetadata::FromHeapObject(i_isolate(), *two_byte_string)
+    i::MutablePage::FromHeapObject(i_isolate(), *two_byte_string)
         ->set_forced_evacuation_candidate_for_testing(true);
   }
   InvokeMajorGC();
@@ -865,7 +865,7 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
     v8::HandleScope scope(isolate());
     i::Handle<i::String> two_byte_string =
         v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
-    i::MutablePageMetadata::FromHeapObject(i_isolate(), *two_byte_string)
+    i::MutablePage::FromHeapObject(i_isolate(), *two_byte_string)
         ->set_forced_evacuation_candidate_for_testing(true);
   }
   InvokeMajorGC();

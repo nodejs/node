@@ -10,6 +10,7 @@
   "is_android": false,
   "is_ios": false,
   "lite_mode": false,
+  "memory_corruption_api": false,
   "msan": false,
   "sandbox_hardware_support": false,
   "simulator_run": false,

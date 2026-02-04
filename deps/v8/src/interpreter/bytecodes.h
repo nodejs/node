@@ -39,16 +39,16 @@ namespace interpreter {
   V(Star1, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
   V(Star0, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)
 
-#define CALL_PROPERTY_BYTECODES(V)                                            \
-  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)         \
-  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kReg, OperandType::kIdx)                                     \
-  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                  \
-  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg,                  \
-    OperandType::kIdx)
+#define CALL_PROPERTY_BYTECODES(V)                                             \
+  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,   \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kFeedbackSlot) \
+  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
+  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
+  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
+    OperandType::kFeedbackSlot)
 
 // The list of bytecodes which have unique handlers (no other bytecode is
 // executed using identical code).
@@ -92,19 +92,20 @@ namespace interpreter {
   V(LdaTheHole, ImplicitRegisterUse::kWriteAccumulator)                        \
   V(LdaTrue, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaFalse, ImplicitRegisterUse::kWriteAccumulator)                          \
-  V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)    \
+  V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator,                       \
+    OperandType::kConstantPoolIndex)                                           \
   V(LdaContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,              \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm)          \
   V(LdaContextSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kContextSlot, OperandType::kUImm)                             \
   V(LdaImmutableContextSlot, ImplicitRegisterUse::kWriteAccumulator,           \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm)          \
   V(LdaCurrentContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,       \
-    OperandType::kIdx)                                                         \
+    OperandType::kContextSlot)                                                 \
   V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
-    OperandType::kIdx)                                                         \
+    OperandType::kContextSlot)                                                 \
   V(LdaImmutableCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,    \
-    OperandType::kIdx)                                                         \
+    OperandType::kContextSlot)                                                 \
   /* - [Register Loads ] */                                                    \
   V(Star, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)         \
   V(Mov, ImplicitRegisterUse::kNone, OperandType::kReg, OperandType::kRegOut)  \
@@ -120,53 +121,61 @@ namespace interpreter {
     OperandType::kFlag8)                                                       \
                                                                                \
   /* Globals */                                                                \
-  V(LdaGlobal, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,      \
-    OperandType::kIdx)                                                         \
+  V(LdaGlobal, ImplicitRegisterUse::kWriteAccumulator,                         \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
   V(LdaGlobalInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,             \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
   V(StaGlobal, ImplicitRegisterUse::kReadAndClobberAccumulator,                \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
                                                                                \
   /* Context operations */                                                     \
   V(StaContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,               \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm)          \
   V(StaCurrentContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kContextSlot)                                                 \
   V(StaContextSlot, ImplicitRegisterUse::kReadAccumulator, OperandType::kReg,  \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kContextSlot, OperandType::kUImm)                             \
   V(StaCurrentContextSlot, ImplicitRegisterUse::kReadAccumulator,              \
-    OperandType::kIdx)                                                         \
+    OperandType::kContextSlot)                                                 \
                                                                                \
   /* Load-Store lookup slots */                                                \
-  V(LdaLookupSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)  \
+  V(LdaLookupSlot, ImplicitRegisterUse::kWriteAccumulator,                     \
+    OperandType::kConstantPoolIndex)                                           \
   V(LdaLookupContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,        \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kContextSlot,                \
+    OperandType::kUImm)                                                        \
   V(LdaLookupContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kContextSlot,                \
+    OperandType::kUImm)                                                        \
   V(LdaLookupGlobalSlot, ImplicitRegisterUse::kWriteAccumulator,               \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kUImm)                                                        \
   V(LdaLookupSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,         \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(LdaLookupContextSlotNoCellInsideTypeof,                                    \
-    ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,                 \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    ImplicitRegisterUse::kWriteAccumulator, OperandType::kConstantPoolIndex,   \
+    OperandType::kContextSlot, OperandType::kUImm)                             \
   V(LdaLookupContextSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,  \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kContextSlot,                \
+    OperandType::kUImm)                                                        \
   V(LdaLookupGlobalSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,   \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kUImm)                                                        \
   V(StaLookupSlot, ImplicitRegisterUse::kReadWriteAccumulator,                 \
-    OperandType::kIdx, OperandType::kFlag8)                                    \
+    OperandType::kConstantPoolIndex, OperandType::kFlag8)                      \
                                                                                \
   /* Property loads (LoadIC) operations */                                     \
   V(GetNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
-    OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kConstantPoolIndex,                        \
+    OperandType::kFeedbackSlot)                                                \
   V(GetNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,     \
-    OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kConstantPoolIndex,                        \
+    OperandType::kFeedbackSlot)                                                \
   V(GetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(GetEnumeratedKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
                                                                                \
   /* Operations on module variables */                                         \
   V(LdaModuleVariable, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -176,89 +185,95 @@ namespace interpreter {
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
   V(SetNamedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
-    OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kConstantPoolIndex,                        \
+    OperandType::kFeedbackSlot)                                                \
   V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
-    OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kConstantPoolIndex,                        \
+    OperandType::kFeedbackSlot)                                                \
   V(SetKeyedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
   V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(StaInArrayLiteral, ImplicitRegisterUse::kReadAndClobberAccumulator,        \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(Sub, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(Mul, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(Div, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(Mod, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(Exp, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(BitwiseOr, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(BitwiseXor, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg, \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(BitwiseAnd, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg, \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ShiftLeft, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ShiftRight, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg, \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ShiftRightLogical, ImplicitRegisterUse::kReadWriteAccumulator,             \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Specialized binary operators. */                                          \
   V(Add_StringConstant_Internalize,                                            \
     ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg /* lhs */,   \
-    OperandType::kIdx /* feedback_slot */,                                     \
+    OperandType::kFeedbackSlot /* feedback_slot */,                            \
     OperandType::kFlag8 /* AddStringConstantAndInternalizeVariant */)          \
                                                                                \
   /* Binary operators with immediate operands */                               \
   V(AddSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(SubSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(MulSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(DivSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ModSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ExpSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(BitwiseOrSmi, ImplicitRegisterUse::kReadWriteAccumulator,                  \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   V(BitwiseXorSmi, ImplicitRegisterUse::kReadWriteAccumulator,                 \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   V(BitwiseAndSmi, ImplicitRegisterUse::kReadWriteAccumulator,                 \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   V(ShiftLeftSmi, ImplicitRegisterUse::kReadWriteAccumulator,                  \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   V(ShiftRightSmi, ImplicitRegisterUse::kReadWriteAccumulator,                 \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   V(ShiftRightLogicalSmi, ImplicitRegisterUse::kReadWriteAccumulator,          \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Unary Operators */                                                        \
-  V(Inc, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)        \
-  V(Dec, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)        \
-  V(Negate, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)     \
+  V(Inc, ImplicitRegisterUse::kReadWriteAccumulator,                           \
+    OperandType::kFeedbackSlot)                                                \
+  V(Dec, ImplicitRegisterUse::kReadWriteAccumulator,                           \
+    OperandType::kFeedbackSlot)                                                \
+  V(Negate, ImplicitRegisterUse::kReadWriteAccumulator,                        \
+    OperandType::kFeedbackSlot)                                                \
   V_TSA(BitwiseNot, ImplicitRegisterUse::kReadWriteAccumulator,                \
-        OperandType::kIdx)                                                     \
+        OperandType::kFeedbackSlot)                                            \
   V(ToBooleanLogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)           \
   V(LogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)                    \
-  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)     \
+  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator,                        \
+    OperandType::kFeedbackSlot)                                                \
   V(DeletePropertyStrict, ImplicitRegisterUse::kReadWriteAccumulator,          \
     OperandType::kReg)                                                         \
   V(DeletePropertySloppy, ImplicitRegisterUse::kReadWriteAccumulator,          \
@@ -273,20 +288,20 @@ namespace interpreter {
   /* Call operations */                                                        \
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   CALL_PROPERTY_BYTECODES(V)                                                   \
   V(CallUndefinedReceiver, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(CallUndefinedReceiver0, ImplicitRegisterUse::kWriteAccumulator,            \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(CallUndefinedReceiver1, ImplicitRegisterUse::kWriteAccumulator,            \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
+    OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
   V(CallUndefinedReceiver2, ImplicitRegisterUse::kWriteAccumulator,            \
     OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(CallWithSpread, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kFeedbackSlot) \
   V(CallRuntime, ImplicitRegisterUse::kWriteAccumulator,                       \
     OperandType::kRuntimeId, OperandType::kRegList, OperandType::kRegCount)    \
   V(CallRuntimeForPair, ImplicitRegisterUse::kClobberAccumulator,              \
@@ -302,74 +317,80 @@ namespace interpreter {
                                                                                \
   /* Construct operators */                                                    \
   V(Construct, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kFeedbackSlot) \
   V(ConstructWithSpread, ImplicitRegisterUse::kReadWriteAccumulator,           \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(ConstructForwardAllArgs, ImplicitRegisterUse::kReadWriteAccumulator,       \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Effectful Test Operators */                                               \
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(TestEqualStrict, ImplicitRegisterUse::kReadWriteAccumulator,               \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestLessThan, ImplicitRegisterUse::kReadWriteAccumulator,                  \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestGreaterThan, ImplicitRegisterUse::kReadWriteAccumulator,               \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestLessThanOrEqual, ImplicitRegisterUse::kReadWriteAccumulator,           \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestGreaterThanOrEqual, ImplicitRegisterUse::kReadWriteAccumulator,        \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestInstanceOf, ImplicitRegisterUse::kReadWriteAccumulator,                \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestIn, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,     \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
                                                                                \
   /* Cast operators */                                                         \
   V(ToName, ImplicitRegisterUse::kReadWriteAccumulator)                        \
-  V(ToNumber, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)   \
-  V(ToNumeric, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)  \
+  V(ToNumber, ImplicitRegisterUse::kReadWriteAccumulator,                      \
+    OperandType::kFeedbackSlot)                                                \
+  V(ToNumeric, ImplicitRegisterUse::kReadWriteAccumulator,                     \
+    OperandType::kFeedbackSlot)                                                \
   V(ToObject, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)     \
   V(ToString, ImplicitRegisterUse::kReadWriteAccumulator)                      \
   V(ToBoolean, ImplicitRegisterUse::kReadWriteAccumulator)                     \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, ImplicitRegisterUse::kWriteAccumulator,               \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag16)                \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kFlag16)                                                      \
   V(CreateArrayLiteral, ImplicitRegisterUse::kWriteAccumulator,                \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kFlag8)                                                       \
   V(CreateArrayFromIterable, ImplicitRegisterUse::kReadWriteAccumulator)       \
   V(CreateEmptyArrayLiteral, ImplicitRegisterUse::kWriteAccumulator,           \
-    OperandType::kIdx)                                                         \
+    OperandType::kFeedbackSlot)                                                \
   V(CreateObjectLiteral, ImplicitRegisterUse::kWriteAccumulator,               \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kFlag8)                                                       \
   V(CreateEmptyObjectLiteral, ImplicitRegisterUse::kWriteAccumulator)          \
   V(CloneObject, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,    \
-    OperandType::kFlag8, OperandType::kIdx)                                    \
+    OperandType::kFlag8, OperandType::kFeedbackSlot)                           \
                                                                                \
   /* Tagged templates */                                                       \
   V(GetTemplateObject, ImplicitRegisterUse::kWriteAccumulator,                 \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
                                                                                \
   /* Closure allocation */                                                     \
-  V(CreateClosure, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,  \
-    OperandType::kIdx, OperandType::kFlag8)                                    \
+  V(CreateClosure, ImplicitRegisterUse::kWriteAccumulator,                     \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot,               \
+    OperandType::kFlag8)                                                       \
                                                                                \
   /* Context allocation */                                                     \
   V(CreateBlockContext, ImplicitRegisterUse::kWriteAccumulator,                \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(CreateCatchContext, ImplicitRegisterUse::kWriteAccumulator,                \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kConstantPoolIndex)                        \
   V(CreateFunctionContext, ImplicitRegisterUse::kWriteAccumulator,             \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kConstantPoolIndex, OperandType::kUImm)                       \
   V(CreateFunctionContextWithCells, ImplicitRegisterUse::kWriteAccumulator,    \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kConstantPoolIndex, OperandType::kUImm)                       \
   V(CreateEvalContext, ImplicitRegisterUse::kWriteAccumulator,                 \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kConstantPoolIndex, OperandType::kUImm)                       \
   V(CreateWithContext, ImplicitRegisterUse::kWriteAccumulator,                 \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kConstantPoolIndex)                        \
                                                                                \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, ImplicitRegisterUse::kWriteAccumulator)             \
@@ -379,36 +400,36 @@ namespace interpreter {
   /* Control Flow -- carefully ordered for efficient checks */                 \
   /* - [Unconditional jumps] */                                                \
   V(JumpLoop, ImplicitRegisterUse::kClobberAccumulator, OperandType::kUImm,    \
-    OperandType::kImm, OperandType::kIdx)                                      \
+    OperandType::kImm, OperandType::kFeedbackSlot)                             \
   /* - [Forward jumps] */                                                      \
   V(Jump, ImplicitRegisterUse::kNone, OperandType::kUImm)                      \
   /* - [Start constant jumps] */                                               \
-  V(JumpConstant, ImplicitRegisterUse::kNone, OperandType::kIdx)               \
+  V(JumpConstant, ImplicitRegisterUse::kNone, OperandType::kConstantPoolIndex) \
   /* - [Conditional jumps] */                                                  \
   /* - [Conditional constant jumps] */                                         \
   V(JumpIfNullConstant, ImplicitRegisterUse::kReadAccumulator,                 \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfNotNullConstant, ImplicitRegisterUse::kReadAccumulator,              \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfUndefinedConstant, ImplicitRegisterUse::kReadAccumulator,            \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfNotUndefinedConstant, ImplicitRegisterUse::kReadAccumulator,         \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfUndefinedOrNullConstant, ImplicitRegisterUse::kReadAccumulator,      \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfTrueConstant, ImplicitRegisterUse::kReadAccumulator,                 \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfFalseConstant, ImplicitRegisterUse::kReadAccumulator,                \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfJSReceiverConstant, ImplicitRegisterUse::kReadAccumulator,           \
-    OperandType::kIdx)                                                         \
-  V(JumpIfForInDoneConstant, ImplicitRegisterUse::kNone, OperandType::kIdx,    \
-    OperandType::kReg, OperandType::kReg)                                      \
+    OperandType::kConstantPoolIndex)                                           \
+  V(JumpIfForInDoneConstant, ImplicitRegisterUse::kNone,                       \
+    OperandType::kConstantPoolIndex, OperandType::kReg, OperandType::kReg)     \
   /* - [Start ToBoolean jumps] */                                              \
   V(JumpIfToBooleanTrueConstant, ImplicitRegisterUse::kReadAccumulator,        \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(JumpIfToBooleanFalseConstant, ImplicitRegisterUse::kReadAccumulator,       \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   /* - [End constant jumps] */                                                 \
   /* - [Conditional immediate jumps] */                                        \
   V(JumpIfToBooleanTrue, ImplicitRegisterUse::kReadAccumulator,                \
@@ -433,19 +454,19 @@ namespace interpreter {
                                                                                \
   /* Smi-table lookup for switch statements */                                 \
   V(SwitchOnSmiNoFeedback, ImplicitRegisterUse::kReadAccumulator,              \
-    OperandType::kIdx, OperandType::kUImm, OperandType::kImm)                  \
+    OperandType::kConstantPoolIndex, OperandType::kUImm, OperandType::kImm)    \
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInEnumerate, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg) \
   V(ForInPrepare, ImplicitRegisterUse::kReadAndClobberAccumulator,             \
-    OperandType::kRegOutTriple, OperandType::kIdx)                             \
+    OperandType::kRegOutTriple, OperandType::kFeedbackSlot)                    \
   V(ForInNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
-    OperandType::kReg, OperandType::kRegPair, OperandType::kIdx)               \
+    OperandType::kReg, OperandType::kRegPair, OperandType::kFeedbackSlot)      \
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
   /* Optimizing For..of */                                                     \
   V(ForOfNext, ImplicitRegisterUse::kClobberAccumulator, OperandType::kReg,    \
-    OperandType::kReg, OperandType::kRegOutPair)                               \
+    OperandType::kReg, OperandType::kRegOutPair, OperandType::kFeedbackSlot)   \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \
@@ -455,14 +476,14 @@ namespace interpreter {
   V(ReThrow, ImplicitRegisterUse::kReadAccumulator)                            \
   V(Return, ImplicitRegisterUse::kReadAccumulator)                             \
   V(ThrowReferenceErrorIfHole, ImplicitRegisterUse::kReadAccumulator,          \
-    OperandType::kIdx)                                                         \
+    OperandType::kConstantPoolIndex)                                           \
   V(ThrowSuperNotCalledIfHole, ImplicitRegisterUse::kReadAccumulator)          \
   V(ThrowSuperAlreadyCalledIfNotHole, ImplicitRegisterUse::kReadAccumulator)   \
   V(ThrowIfNotSuperConstructor, ImplicitRegisterUse::kNone, OperandType::kReg) \
                                                                                \
   /* Generators */                                                             \
   V(SwitchOnGeneratorState, ImplicitRegisterUse::kNone, OperandType::kReg,     \
-    OperandType::kIdx, OperandType::kUImm)                                     \
+    OperandType::kConstantPoolIndex, OperandType::kUImm)                       \
   V(SuspendGenerator, ImplicitRegisterUse::kReadAccumulator,                   \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kUImm)                                                        \
@@ -471,16 +492,16 @@ namespace interpreter {
                                                                                \
   /* Iterator protocol operations */                                           \
   V(GetIterator, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,    \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kFeedbackSlot, OperandType::kFeedbackSlot)                    \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, ImplicitRegisterUse::kClobberAccumulator)                        \
                                                                                \
   /* Block Coverage */                                                         \
-  V(IncBlockCounter, ImplicitRegisterUse::kNone, OperandType::kIdx)            \
+  V(IncBlockCounter, ImplicitRegisterUse::kNone, OperandType::kCoverageSlot)   \
                                                                                \
   /* Execution Abort (internal error) */                                       \
-  V(Abort, ImplicitRegisterUse::kNone, OperandType::kIdx)
+  V(Abort, ImplicitRegisterUse::kNone, OperandType::kAbortReason)
 
 #ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 #define BYTECODE_LIST_WITH_UNIQUE_HANDLERS(V, V_TSA) \
@@ -770,7 +791,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   }
 
   // Returns true if the bytecode is a conditional jump taking
-  // a constant pool entry (OperandType::kIdx).
+  // a constant pool entry (OperandType::kConstantPoolIndex).
   static constexpr bool IsConditionalJumpConstant(Bytecode bytecode) {
     return bytecode >= Bytecode::kJumpIfNullConstant &&
            bytecode <= Bytecode::kJumpIfToBooleanFalseConstant;
@@ -797,7 +818,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   }
 
   // Returns true if the bytecode is a jump or conditional jump taking a
-  // constant pool entry (OperandType::kIdx).
+  // constant pool entry (OperandType::kConstantPoolIndex).
   static constexpr bool IsJumpConstant(Bytecode bytecode) {
     return bytecode >= Bytecode::kJumpConstant &&
            bytecode <= Bytecode::kJumpIfToBooleanFalseConstant;
@@ -883,6 +904,15 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     return bytecode == Bytecode::kExtraWide || bytecode == Bytecode::kWide ||
            bytecode == Bytecode::kDebugBreakExtraWide ||
            bytecode == Bytecode::kDebugBreakWide;
+  }
+
+  static constexpr bool IsCompareWithEmbeddedFeedback(Bytecode bytecode) {
+    return bytecode == Bytecode::kTestEqualStrict;
+  }
+
+  // Returns true if the bytecode has a embedded feedback slot
+  static constexpr bool IsEmbeddedFeedbackBytecode(Bytecode bytecode) {
+    return IsCompareWithEmbeddedFeedback(bytecode);
   }
 
   // Returns true if the bytecode returns.

@@ -36,7 +36,7 @@ class JSSegmentIterator
   // ecma402 #sec-CreateSegmentIterator
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
       Isolate* isolate, DirectHandle<String> input_string,
-      icu::BreakIterator* icu_break_iterator,
+      DirectHandle<Managed<icu::BreakIterator>> incoming_break_iterator,
       JSSegmenter::Granularity granularity);
 
   // ecma402 #sec-segment-iterator-prototype-next

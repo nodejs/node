@@ -103,8 +103,7 @@ class FastApiCallLoweringReducer : public Next {
       Label<> trigger_exception(this);
 
       V<Object> exception =
-          __ Load(__ ExternalConstant(ExternalReference::Create(
-                      IsolateAddressId::kExceptionAddress, isolate_)),
+          __ Load(__ IsolateField(IsolateFieldId::kException),
                   LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
       GOTO_IF_NOT(LIKELY(__ TaggedEqual(
                       exception,
@@ -330,7 +329,7 @@ class FastApiCallLoweringReducer : public Next {
         return __ HeapConstant(factory_->undefined_value());
       case CTypeInfo::Type::kBool:
         static_assert(sizeof(bool) == 1, "unsupported bool size");
-        return __ Word32BitwiseAnd(result, __ Word32Constant(0xFF));
+        return __ Word32BitwiseAnd(result, 0xFF);
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
       case CTypeInfo::Type::kFloat32:
@@ -423,8 +422,7 @@ class FastApiCallLoweringReducer : public Next {
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::UintPtr());
 
-    OpIndex context_address = __ ExternalConstant(
-        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate_));
+    OpIndex context_address = __ IsolateField(IsolateFieldId::kContext);
 
     __ StoreOffHeap(context_address, __ BitcastHeapObjectToWordPtr(context),
                     MemoryRepresentation::UintPtr());

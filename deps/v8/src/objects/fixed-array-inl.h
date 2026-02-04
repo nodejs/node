@@ -63,6 +63,11 @@ int detail::ArrayHeaderBase<S, true>::length() const {
 }
 
 template <class S>
+uint32_t detail::ArrayHeaderBase<S, true>::ulength() const {
+  return static_cast<uint32_t>(length());
+}
+
+template <class S>
 int detail::ArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
   return length_.Acquire_Load().value();
 }
@@ -81,6 +86,11 @@ void detail::ArrayHeaderBase<S, true>::set_length(int value,
 template <class S>
 int detail::ArrayHeaderBase<S, true>::capacity() const {
   return length();
+}
+
+template <class S>
+uint32_t detail::ArrayHeaderBase<S, true>::ucapacity() const {
+  return static_cast<uint32_t>(capacity());
 }
 
 template <class S>
@@ -112,7 +122,7 @@ bool TaggedArrayBase<D, S, P>::IsCowArray() const {
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   return objects()[index].Relaxed_Load();
@@ -120,27 +130,27 @@ TaggedArrayBase<D, S, P>::get(int index) const {
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, RelaxedLoadTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].Relaxed_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, AcquireLoadTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].Acquire_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, SeqCstAccessTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].SeqCst_Load();
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -150,12 +160,12 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 
 template <class D, class S, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value) {
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value) {
   set(index, value, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    RelaxedStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -164,13 +174,13 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 
 template <class D, class S, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
                                    RelaxedStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    ReleaseStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -179,13 +189,13 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 
 template <class D, class S, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
                                    ReleaseStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    SeqCstAccessTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -194,14 +204,14 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 
 template <class D, class S, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
                                    SeqCstAccessTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::swap(int index, Tagged<ElementT> value,
+TaggedArrayBase<D, S, P>::swap(uint32_t index, Tagged<ElementT> value,
                                SeqCstAccessTag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -210,7 +220,8 @@ TaggedArrayBase<D, S, P>::swap(int index, Tagged<ElementT> value,
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::compare_and_swap(int index, Tagged<ElementT> expected,
+TaggedArrayBase<D, S, P>::compare_and_swap(uint32_t index,
+                                           Tagged<ElementT> expected,
                                            Tagged<ElementT> value,
                                            SeqCstAccessTag,
                                            WriteBarrierMode mode) {
@@ -221,8 +232,8 @@ TaggedArrayBase<D, S, P>::compare_and_swap(int index, Tagged<ElementT> expected,
 
 template <class D, class S, class P>
 void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
-                                            int dst_index, Tagged<D> src,
-                                            int src_index, int len,
+                                            uint32_t dst_index, Tagged<D> src,
+                                            uint32_t src_index, uint32_t len,
                                             WriteBarrierMode mode) {
   if (len == 0) return;
 
@@ -240,8 +251,8 @@ void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
 
 template <class D, class S, class P>
 void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
-                                            int dst_index, Tagged<D> src,
-                                            int src_index, int len,
+                                            uint32_t dst_index, Tagged<D> src,
+                                            uint32_t src_index, uint32_t len,
                                             WriteBarrierMode mode) {
   if (len == 0) return;
 
@@ -282,7 +293,7 @@ TaggedArrayBase<D, S, P>::RawFieldOfFirstElement() const {
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::SlotType
-TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
+TaggedArrayBase<D, S, P>::RawFieldOfElementAt(uint32_t index) const {
   return SlotType(&objects()[index]);
 }
 
@@ -429,33 +440,34 @@ inline int WeakArrayList::capacity(RelaxedLoadTag) const {
   return value;
 }
 
-bool FixedArray::is_the_hole(Isolate* isolate, int index) {
+bool FixedArray::is_the_hole(Isolate* isolate, uint32_t index) {
   return IsTheHole(get(index), isolate);
 }
 
-void FixedArray::set_the_hole(Isolate* isolate, int index) {
+void FixedArray::set_the_hole(Isolate* isolate, uint32_t index) {
   set_the_hole(ReadOnlyRoots(isolate), index);
 }
 
-void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
+void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, uint32_t index) {
   set(index, ro_roots.the_hole_value(), SKIP_WRITE_BARRIER);
 }
 
-void FixedArray::FillWithHoles(int from, int to) {
+void FixedArray::FillWithHoles(uint32_t from, uint32_t to) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  for (int i = from; i < to; i++) {
+  for (uint32_t i = from; i < to; i++) {
     set(i, roots.the_hole_value(), SKIP_WRITE_BARRIER);
   }
 }
 
-void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
-                              int len, WriteBarrierMode mode) {
+void FixedArray::MoveElements(Isolate* isolate, uint32_t dst_index,
+                              uint32_t src_index, uint32_t len,
+                              WriteBarrierMode mode) {
   MoveElements(isolate, this, dst_index, this, src_index, len, mode);
 }
 
-void FixedArray::CopyElements(Isolate* isolate, int dst_index,
-                              Tagged<FixedArray> src, int src_index, int len,
-                              WriteBarrierMode mode) {
+void FixedArray::CopyElements(Isolate* isolate, uint32_t dst_index,
+                              Tagged<FixedArray> src, uint32_t src_index,
+                              uint32_t len, WriteBarrierMode mode) {
   CopyElements(isolate, this, dst_index, src, src_index, len, mode);
 }
 
@@ -600,18 +612,18 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
   return handle(xs, isolate);
 }
 
-double FixedDoubleArray::get_scalar(int index) {
+double FixedDoubleArray::get_scalar(uint32_t index) {
   DCHECK(!is_the_hole(index));
   return values()[index].value();
 }
 
-uint64_t FixedDoubleArray::get_representation(int index) {
+uint64_t FixedDoubleArray::get_representation(uint32_t index) {
   DCHECK(IsInBounds(index));
   return values()[index].value_as_bits();
 }
 
-Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
-                                     Isolate* isolate) {
+Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array,
+                                     uint32_t index, Isolate* isolate) {
   if (array->is_the_hole(index)) {
     return isolate->factory()->the_hole_value();
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -623,7 +635,7 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
   }
 }
 
-void FixedDoubleArray::set(int index, double value) {
+void FixedDoubleArray::set(uint32_t index, double value) {
   if (std::isnan(value)) {
     value = std::numeric_limits<double>::quiet_NaN();
   }
@@ -632,43 +644,44 @@ void FixedDoubleArray::set(int index, double value) {
 }
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-void FixedDoubleArray::set_undefined(int index) {
-  values()[index].set_value(UndefinedNan());
+void FixedDoubleArray::set_undefined(uint32_t index) {
+  DCHECK(IsInBounds(index));
+  values()[index].set_value_as_bits(kUndefinedNanInt64);
   DCHECK(!is_the_hole(index));
   DCHECK(is_undefined(index));
 }
 
-bool FixedDoubleArray::is_undefined(int index) {
+bool FixedDoubleArray::is_undefined(uint32_t index) {
   return get_representation(index) == kUndefinedNanInt64;
 }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
+void FixedDoubleArray::set_the_hole(Isolate* isolate, uint32_t index) {
   set_the_hole(index);
 }
 
-void FixedDoubleArray::set_the_hole(int index) {
+void FixedDoubleArray::set_the_hole(uint32_t index) {
   DCHECK(IsInBounds(index));
   values()[index].set_value_as_bits(kHoleNanInt64);
 }
 
-bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
+bool FixedDoubleArray::is_the_hole(Isolate* isolate, uint32_t index) {
   return is_the_hole(index);
 }
 
-bool FixedDoubleArray::is_the_hole(int index) {
+bool FixedDoubleArray::is_the_hole(uint32_t index) {
   return get_representation(index) == kHoleNanInt64;
 }
 
-void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
-                                    int src_index, int len,
+void FixedDoubleArray::MoveElements(Isolate* isolate, uint32_t dst_index,
+                                    uint32_t src_index, uint32_t len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
   MemMove(&values()[dst_index], &values()[src_index], len * kElementSize);
 }
 
-void FixedDoubleArray::FillWithHoles(int from, int to) {
-  for (int i = from; i < to; i++) {
+void FixedDoubleArray::FillWithHoles(uint32_t from, uint32_t to) {
+  for (uint32_t i = from; i < to; i++) {
     set_the_hole(i);
   }
 }
@@ -753,9 +766,9 @@ MaybeObjectSlot WeakArrayList::data_start() {
   return RawMaybeWeakField(kObjectsOffset);
 }
 
-void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
-                                 Tagged<WeakArrayList> src, int src_index,
-                                 int len, WriteBarrierMode mode) {
+void WeakArrayList::CopyElements(Isolate* isolate, uint32_t dst_index,
+                                 Tagged<WeakArrayList> src, uint32_t src_index,
+                                 uint32_t len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
   DCHECK_LE(src_index + len, src->capacity());

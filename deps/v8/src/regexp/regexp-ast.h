@@ -309,35 +309,40 @@ class RegExpClassRanges final : public RegExpTree {
   //     the specified ranges.
   // CONTAINS_SPLIT_SURROGATE: The character class contains part of a split
   //     surrogate and should not be unicode-desugared (crbug.com/641091).
-  // IS_CASE_FOLDED: If case folding is required (/i), it was already
+  // NO_CASE_FOLDING_NEEDED: If case folding is required (/i), it was already
   //     performed on individual ranges and should not be applied again.
   enum Flag {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
-    IS_CASE_FOLDED = 1 << 2,
+    NO_CASE_FOLDING_NEEDED = 1 << 2,
+    IS_CERTAINLY_ONE_CODE_POINT = 1 << 3,
+    IS_CERTAINLY_TWO_CODE_POINTS = 1 << 4,
   };
   using ClassRangesFlags = base::Flags<Flag>;
 
   RegExpClassRanges(Zone* zone, ZoneList<CharacterRange>* ranges,
-                    ClassRangesFlags class_ranges_flags = ClassRangesFlags())
-      : set_(ranges), class_ranges_flags_(class_ranges_flags) {
-    // Convert the empty set of ranges to the negated Everything() range.
-    if (ranges->is_empty()) {
-      ranges->Add(CharacterRange::Everything(), zone);
-      class_ranges_flags_ ^= NEGATED;
-    }
-  }
+                    ClassRangesFlags class_ranges_flags = ClassRangesFlags());
   explicit RegExpClassRanges(StandardCharacterSet standard_set_type)
       : set_(standard_set_type), class_ranges_flags_() {}
 
   DECL_BOILERPLATE(ClassRanges);
 
   bool IsTextElement() override { return true; }
-  int min_match() override { return 1; }
+  int min_match() override {
+    if (is_certainly_two_code_points()) {
+      return 2;
+    }
+    return 1;
+  }
   // The character class may match two code units for unicode regexps.
   // TODO(yangguo): we should split this class for usage in TextElement, and
   //                make max_match() dependent on the character class content.
-  int max_match() override { return 2; }
+  int max_match() override {
+    if (is_certainly_one_code_point()) {
+      return 1;
+    }
+    return 2;
+  }
 
   void AppendToText(RegExpText* text, Zone* zone) override;
 
@@ -357,8 +362,14 @@ class RegExpClassRanges final : public RegExpTree {
   bool contains_split_surrogate() const {
     return (class_ranges_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
   }
-  bool is_case_folded() const {
-    return (class_ranges_flags_ & IS_CASE_FOLDED) != 0;
+  bool no_case_folding_needed() const {
+    return (class_ranges_flags_ & NO_CASE_FOLDING_NEEDED) != 0;
+  }
+  bool is_certainly_one_code_point() const {
+    return (class_ranges_flags_ & IS_CERTAINLY_ONE_CODE_POINT) != 0;
+  }
+  bool is_certainly_two_code_points() const {
+    return (class_ranges_flags_ & IS_CERTAINLY_TWO_CODE_POINTS) != 0;
   }
 
  private:

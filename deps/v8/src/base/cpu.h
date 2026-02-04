@@ -64,7 +64,7 @@ class V8_BASE_EXPORT CPU final {
   static const int kNvidiaDenverV10 = 0x002;
 
   // PPC-specific part codes
-  enum { kPPCPower8, kPPCPower9, kPPCPower10, kPPCPower11 };
+  enum { kPPCPower9, kPPCPower10, kPPCPower11 };
 
   // General features
   bool has_fpu() const { return has_fpu_; }

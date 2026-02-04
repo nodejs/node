@@ -8,6 +8,7 @@
 #include <cassert>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "src/base/hashing.h"
@@ -35,7 +36,7 @@ struct QualifiedName {
   explicit QualifiedName(std::string name)
       : QualifiedName({}, std::move(name)) {}
 
-  static QualifiedName Parse(std::string qualified_name);
+  static QualifiedName Parse(std::string_view qualified_name);
 
   bool HasNamespaceQualification() const {
     return !namespace_qualification.empty();

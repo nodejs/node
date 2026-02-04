@@ -1,0 +1,24 @@
+// Copyright 2024 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_HEAP_LARGE_PAGE_INL_H_
+#define V8_HEAP_LARGE_PAGE_INL_H_
+
+#include "src/heap/large-page.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/mutable-page-inl.h"
+
+namespace v8 {
+namespace internal {
+
+// static
+LargePage* LargePage::FromHeapObject(Isolate* i, Tagged<HeapObject> o) {
+  return cast(MutablePage::FromHeapObject(i, o));
+}
+
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_HEAP_LARGE_PAGE_INL_H_

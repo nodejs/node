@@ -24,7 +24,11 @@ extern enum AddressType extends uint8 constexpr 'wasm::AddressType' {
   kI64
 }
 
-type WasmCodePointer = uint32;
+type WasmCodePointer extends uint32;
+
+Convert<uintptr, WasmCodePointer>(p: WasmCodePointer): uintptr {
+  return Convert<uintptr>(Convert<uint32>(p));
+}
 
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;

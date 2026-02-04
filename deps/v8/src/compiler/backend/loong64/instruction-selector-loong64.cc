@@ -2087,28 +2087,24 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           // actual value, or was already defined, which means it is scheduled
           // *AFTER* this branch).
           OpIndex node = projection->input();
-          OptionalOpIndex result = FindProjection(node, 0);
-          if (!result.valid() || IsDefined(result.value())) {
-            if (const OverflowCheckedBinopOp* binop =
-                    TryCast<OverflowCheckedBinopOp>(node)) {
-              const bool is64 = binop->rep == WordRepresentation::Word64();
-              switch (binop->kind) {
-                case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop(this, node,
-                                    is64 ? kLoong64AddOvf_d : kLoong64Add_d,
-                                    cont);
-                case OverflowCheckedBinopOp::Kind::kSignedSub:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop(this, node,
-                                    is64 ? kLoong64SubOvf_d : kLoong64Sub_d,
-                                    cont);
-                case OverflowCheckedBinopOp::Kind::kSignedMul:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop(this, node,
-                                    is64 ? kLoong64MulOvf_d : kLoong64MulOvf_w,
-                                    cont);
-              }
+          if (const OverflowCheckedBinopOp* binop =
+                  TryCast<OverflowCheckedBinopOp>(node);
+              binop && CanDoBranchIfOverflowFusion(node)) {
+            const bool is64 = binop->rep == WordRepresentation::Word64();
+            switch (binop->kind) {
+              case OverflowCheckedBinopOp::Kind::kSignedAdd:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(
+                    this, node, is64 ? kLoong64AddOvf_d : kLoong64Add_d, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedSub:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(
+                    this, node, is64 ? kLoong64SubOvf_d : kLoong64Sub_d, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedMul:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node,
+                                  is64 ? kLoong64MulOvf_d : kLoong64MulOvf_w,
+                                  cont);
             }
           }
         }

@@ -85,25 +85,32 @@
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
 
-#define COMMON_OP_LIST(V) \
-  CONSTANT_OP_LIST(V)     \
-  INNER_OP_LIST(V)        \
-  V(Unreachable)          \
-  V(DeadValue)            \
-  V(Dead)                 \
-  V(Plug)                 \
-  V(SLVerifierHint)       \
+#define COMMON_OP_LIST(V)      \
+  CONSTANT_OP_LIST(V)          \
+  INNER_OP_LIST(V)             \
+  V(Unreachable)               \
+  V(DeadValue)                 \
+  V(Dead)                      \
+  V(Plug)                      \
+  V(SLVerifierHint)            \
+  V(MajorGCForCompilerTesting) \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.
 // Arguments are JSName (the name with a 'JS' prefix), and Name.
-#define JS_COMPARE_BINOP_LIST(V)        \
+#define JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSEqual, Equal)                     \
-  V(JSStrictEqual, StrictEqual)         \
   V(JSLessThan, LessThan)               \
   V(JSGreaterThan, GreaterThan)         \
   V(JSLessThanOrEqual, LessThanOrEqual) \
   V(JSGreaterThanOrEqual, GreaterThanOrEqual)
+
+#define JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V) \
+  V(JSStrictEqual, StrictEqual)
+
+#define JS_COMPARE_BINOP_LIST(V)  \
+  JS_COMPARE_BINOP_COMMON_LIST(V) \
+  JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V)
 
 #define JS_BITWISE_BINOP_LIST(V) \
   V(JSBitwiseOr, BitwiseOr)      \
@@ -886,7 +893,8 @@
   V(SignExtendWord16ToInt64)             \
   V(SignExtendWord32ToInt64)             \
   V(StackPointerGreaterThan)             \
-  V(TraceInstruction)
+  V(TraceInstruction)                    \
+  IF_HARDWARE_SANDBOX(V, SwitchSandboxMode)
 
 #define MACHINE_SIMD128_OP_LIST(V)        \
   IF_WASM(V, F64x2Splat)                  \
@@ -1037,6 +1045,7 @@
   IF_WASM(V, I32x4Abs)                    \
   IF_WASM(V, I32x4BitMask)                \
   IF_WASM(V, I32x4DotI16x8S)              \
+  IF_WASM(V, I32x4AddPairwise)            \
   IF_WASM(V, I32x4ExtMulLowI16x8S)        \
   IF_WASM(V, I32x4ExtMulHighI16x8S)       \
   IF_WASM(V, I32x4ExtMulLowI16x8U)        \
@@ -1158,6 +1167,7 @@
   IF_WASM(V, I8x8Shuffle)                 \
   IF_WASM(V, I8x4Shuffle)                 \
   IF_WASM(V, I8x2Shuffle)                 \
+  IF_WASM(V, I8x1Shuffle)                 \
   IF_WASM(V, V128AnyTrue)                 \
   IF_WASM(V, I64x2AllTrue)                \
   IF_WASM(V, I32x4AllTrue)                \
@@ -1326,7 +1336,11 @@
   V(F64x4RelaxedMin)               \
   V(F64x4RelaxedMax)               \
   V(I32x8RelaxedTruncF32x8S)       \
-  V(I32x8RelaxedTruncF32x8U)
+  V(I32x8RelaxedTruncF32x8U)       \
+  V(F32x8Ceil)                     \
+  V(F32x8Floor)                    \
+  V(F32x8Trunc)                    \
+  V(F32x8NearestInt)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \
@@ -1510,13 +1524,13 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   static bool isAtomicOpOpcode(Value value) {
     switch (value) {
-    #define CASE(Name, ...) \
-      case k##Name:         \
-        return true;
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
       MACHINE_ATOMIC_OP_LIST(CASE)
       default:
         return false;
-    #undef CASE
+#undef CASE
     }
     UNREACHABLE();
   }

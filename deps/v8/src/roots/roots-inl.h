@@ -12,7 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/read-only-heap-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
@@ -136,8 +136,8 @@ bool ReadOnlyRoots::IsNameForProtector(Tagged<HeapObject> object) const {
 void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
   // The symbols and strings that can cause protector invalidation should
   // reside on the same page so we can do a fast range check.
-  CHECK_EQ(PageMetadata::FromAddress(first_name_for_protector()),
-           PageMetadata::FromAddress(last_name_for_protector()));
+  CHECK_EQ(NormalPage::FromAddress(first_name_for_protector()),
+           NormalPage::FromAddress(last_name_for_protector()));
 }
 
 Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {

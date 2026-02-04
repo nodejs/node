@@ -165,6 +165,8 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler, int stack_slots) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   // We cannot emit a const pool within the safepoint table.
   Assembler::BlockConstPoolScope block_const_pool(assembler);
+#elif defined(V8_TARGET_ARCH_LOONG64)
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(assembler);
 #endif
 
   // Make sure the safepoint table is properly aligned. Pad with nops.

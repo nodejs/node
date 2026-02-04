@@ -243,7 +243,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
-  builder.ForOfNext(reg, reg, pair);
+  builder.ForOfNext(reg, reg, pair, 1);
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::kNotInside)
@@ -360,7 +360,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::kEq, reg, 1)
-      .CompareOperation(Token::kEqStrict, reg, 2)
+      .CompareOperation(Token::kEqStrict, reg, -1)
       .CompareOperation(Token::kLessThan, reg, 3)
       .CompareOperation(Token::kGreaterThan, reg, 4)
       .CompareOperation(Token::kLessThanEq, reg, 5)
@@ -464,7 +464,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .ForInStep(reg);
 
   // Wide constant pool loads
-  for (int i = 0; i < 256; i++) {
+  for (int i = 0; i < 1024; i++) {
     // Emit junk in constant pool to force wide constant pool index.
     builder.LoadLiteral(2.5321 + i);
   }
@@ -765,7 +765,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
-  CHECK_EQ(*(iterator.GetConstantForIndexOperand(0, isolate())),
+  CHECK_EQ(*(iterator.GetConstantForOperand(0, isolate())),
            Smi::FromInt(kFarJumpDistance));
   iterator.Advance();
 
@@ -773,7 +773,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrueConstant);
-  CHECK_EQ(*(iterator.GetConstantForIndexOperand(0, isolate())),
+  CHECK_EQ(*(iterator.GetConstantForOperand(0, isolate())),
            Smi::FromInt(kFarJumpDistance - 5));
   iterator.Advance();
 
@@ -781,7 +781,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalseConstant);
-  CHECK_EQ(*(iterator.GetConstantForIndexOperand(0, isolate())),
+  CHECK_EQ(*(iterator.GetConstantForOperand(0, isolate())),
            Smi::FromInt(kFarJumpDistance - 10));
   iterator.Advance();
 
@@ -789,7 +789,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrueConstant);
-  CHECK_EQ(*(iterator.GetConstantForIndexOperand(0, isolate())),
+  CHECK_EQ(*(iterator.GetConstantForOperand(0, isolate())),
            Smi::FromInt(kFarJumpDistance - 15));
   iterator.Advance();
 
@@ -798,7 +798,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   CHECK_EQ(iterator.current_bytecode(),
            Bytecode::kJumpIfToBooleanFalseConstant);
-  CHECK_EQ(*(iterator.GetConstantForIndexOperand(0, isolate())),
+  CHECK_EQ(*(iterator.GetConstantForOperand(0, isolate())),
            Smi::FromInt(kFarJumpDistance - 20));
   iterator.Advance();
 }

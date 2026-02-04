@@ -2549,10 +2549,12 @@ TEST_F(WasmModuleVerifyTest, InstructionFrequencies) {
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   InstructionFrequencies& frequencies = result.value()->instruction_frequencies;
-  EXPECT_EQ(3U, frequencies.size());
-  EXPECT_EQ(31U, frequencies.at({0, 5}));
-  EXPECT_EQ(31U, frequencies.at({0, 11}));
-  EXPECT_EQ(32U, frequencies.at({1, 1}));
+  EXPECT_EQ(2U, frequencies.size());
+  EXPECT_EQ(2U, frequencies.at(0).size());
+  EXPECT_EQ((std::make_pair(uint32_t{5}, uint8_t{31})), frequencies.at(0)[0]);
+  EXPECT_EQ((std::make_pair(uint32_t{11}, uint8_t{31})), frequencies.at(0)[1]);
+  EXPECT_EQ(1U, frequencies.at(1).size());
+  EXPECT_EQ((std::make_pair(uint32_t{1}, uint8_t{32})), frequencies.at(1)[0]);
 }
 
 TEST_F(WasmModuleVerifyTest, InstructionFrequenciesOutOfOrderFunctions) {
@@ -2646,7 +2648,8 @@ TEST_F(WasmModuleVerifyTest, InstructionFrequenciesHintLengthGreaterThanOne) {
   EXPECT_OK(result);
   InstructionFrequencies& frequencies = result.value()->instruction_frequencies;
   EXPECT_EQ(1U, frequencies.size());
-  EXPECT_EQ(31U, frequencies.at({0, 11}));
+  EXPECT_EQ(1U, frequencies.at(0).size());
+  EXPECT_EQ((std::make_pair(uint32_t{11}, uint8_t{31})), frequencies.at(0)[0]);
 }
 
 TEST_F(WasmModuleVerifyTest, InstructionFrequenciesHintLengthZero) {
@@ -2736,22 +2739,29 @@ TEST_F(WasmModuleVerifyTest, CallTargets) {
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   CallTargets& targets = result.value()->call_targets;
-  EXPECT_EQ(3U, targets.size());
+  EXPECT_EQ(2U, targets.size());
 
-  CallTargetVector& elements0 = targets.at({0, 10});
-  EXPECT_EQ(1U, elements0.size());
-  EXPECT_EQ((CallTarget{0, 99}), elements0[0]);
+  EXPECT_EQ(2U, targets.at(0).size());
 
-  CallTargetVector& elements1 = targets.at({0, 20});
-  EXPECT_EQ(2U, elements1.size());
-  EXPECT_EQ((CallTarget{128, 50}), elements1[0]);
-  EXPECT_EQ((CallTarget{500'000, 40}), elements1[1]);
+  std::pair<uint32_t, CallTargetVector>& elements0 = targets.at(0)[0];
+  EXPECT_EQ(10U, elements0.first);
+  EXPECT_EQ(1U, elements0.second.size());
+  EXPECT_EQ((CallTarget{0, 99}), elements0.second[0]);
 
-  CallTargetVector& elements2 = targets.at({1, 30});
-  EXPECT_EQ(3U, elements2.size());
-  EXPECT_EQ((CallTarget{0, 10}), elements2[0]);
-  EXPECT_EQ((CallTarget{1, 20}), elements2[1]);
-  EXPECT_EQ((CallTarget{2, 30}), elements2[2]);
+  std::pair<uint32_t, CallTargetVector>& elements1 = targets.at(0)[1];
+  EXPECT_EQ(20U, elements1.first);
+  EXPECT_EQ(2U, elements1.second.size());
+  EXPECT_EQ((CallTarget{128, 50}), elements1.second[0]);
+  EXPECT_EQ((CallTarget{500'000, 40}), elements1.second[1]);
+
+  EXPECT_EQ(1U, targets.at(1).size());
+
+  std::pair<uint32_t, CallTargetVector>& elements2 = targets.at(1)[0];
+  EXPECT_EQ(30U, elements2.first);
+  EXPECT_EQ(3U, elements2.second.size());
+  EXPECT_EQ((CallTarget{0, 10}), elements2.second[0]);
+  EXPECT_EQ((CallTarget{1, 20}), elements2.second[1]);
+  EXPECT_EQ((CallTarget{2, 30}), elements2.second[2]);
 }
 
 TEST_F(WasmModuleVerifyTest, CallTargetsFunctionIndexOverflows) {

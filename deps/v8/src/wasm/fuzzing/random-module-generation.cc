@@ -8,6 +8,7 @@
 #include <array>
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/wasm/function-body-decoder.h"
@@ -293,7 +294,7 @@ ValueType GetValueTypeHelper(WasmModuleGenerationOptions options,
         nullability, kNotShared, RefTypeKind::kOther /* unknown */);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
-  if (types[chosen_id].is_reference()) {
+  if (types[chosen_id].is_ref()) {
     return ValueType::RefMaybeNull(types[chosen_id].heap_type(), nullability);
   }
   // Otherwise, just return the picked type.
@@ -320,7 +321,7 @@ void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
 uint32_t GenerateRefTypeElementSegment(DataRange* range,
                                        WasmModuleBuilder* builder,
                                        ValueType element_type) {
-  DCHECK(element_type.is_object_reference());
+  DCHECK(element_type.is_ref());
   DCHECK(element_type.has_index());
   WasmModuleBuilder::WasmElemSegment segment(
       builder->zone(), element_type, false,
@@ -572,8 +573,8 @@ class BodyGen {
     //   Resetting locals in each iteration can create interesting loop-phis.
     // TODO(evih): Iterate through existing locals and try to reuse them instead
     // of creating new locals.
-    for (auto it = param_types.rbegin(); it != param_types.rend(); it++) {
-      uint32_t local = builder_->AddLocal(*it);
+    for (ValueType type : base::Reversed(param_types)) {
+      uint32_t local = builder_->AddLocal(type);
       builder_->EmitSetLocal(local);
     }
 
@@ -857,8 +858,7 @@ class BodyGen {
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
-    if (break_types.empty() ||
-        !break_types[break_types.size() - 1].is_reference()) {
+    if (break_types.empty() || !break_types[break_types.size() - 1].is_ref()) {
       // Invalid break_types for br_on_non_null.
       Generate<wanted_kind>(data);
       return;
@@ -1525,7 +1525,7 @@ class BodyGen {
   }
 
   bool new_object(HeapType type, DataRange* data, Nullability nullable) {
-    DCHECK(type.is_index());
+    DCHECK(type.has_index());
 
     ModuleTypeIndex index = type.ref_index();
     bool new_default = data->get<bool>();
@@ -1536,25 +1536,23 @@ class BodyGen {
       bool can_be_defaultable = std::all_of(
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
+      bool has_descriptor = builder_->builder()->HasDescriptor(index);
 
       WasmOpcode opcode;
       if (new_default && can_be_defaultable) {
-        opcode = kExprStructNewDefault;
+        opcode =
+            has_descriptor ? kExprStructNewDefaultDesc : kExprStructNewDefault;
       } else {
-        opcode = kExprStructNew;
+        opcode = has_descriptor ? kExprStructNewDesc : kExprStructNew;
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
       }
-      {
-        const TypeDefinition& struct_def =
-            builder_->builder()->GetType_Unsafe(index);
-        if (struct_def.has_descriptor()) {
-          GenerateRef(HeapType::Index(struct_def.descriptor, false,
-                                      RefTypeKind::kStruct)
-                          .AsExact(),
-                      data, kNonNullable);
-        }
+      if (has_descriptor) {
+        ModuleTypeIndex descriptor = builder_->builder()->GetDescriptor(index);
+        GenerateRef(
+            HeapType::Index(descriptor, false, RefTypeKind::kStruct).AsExact(),
+            data, kNonNullable);
       }
       builder_->EmitWithPrefix(opcode);
       builder_->EmitU32V(index);
@@ -1575,8 +1573,7 @@ class BodyGen {
           // This is more restrictive than it has to be.
           // TODO(14034): Also support nonnullable and non-index reference
           // types.
-          if (element_type.is_reference() && element_type.is_nullable() &&
-              element_type.has_index()) {
+          if (element_type.has_index() && element_type.is_nullable()) {
             // Add a new element segment with the corresponding type.
             uint32_t element_segment = GenerateRefTypeElementSegment(
                 data, builder_->builder(), element_type);
@@ -1589,7 +1586,7 @@ class BodyGen {
             builder_->EmitU32V(index);
             builder_->EmitU32V(element_segment);
             break;
-          } else if (!element_type.is_reference()) {
+          } else if (!element_type.is_ref()) {
             // Lazily create a data segment if the module doesn't have one yet.
             if (builder_->builder()->NumDataSegments() == 0) {
               GeneratePassiveDataSegment(data, builder_->builder());
@@ -2007,7 +2004,7 @@ class BodyGen {
         builder_->builder()->GetArrayType(array_index);
     DCHECK(array_type->mutability());
     ValueType element_type = array_type->element_type().Unpacked();
-    if (element_type.is_reference()) {
+    if (element_type.is_ref()) {
       return;
     }
     if (builder_->builder()->NumDataSegments() == 0) {
@@ -2037,8 +2034,7 @@ class BodyGen {
     // This is more restrictive than it has to be.
     // TODO(14034): Also support nonnullable and non-index reference
     // types.
-    if (!element_type.is_reference() || element_type.is_non_nullable() ||
-        !element_type.has_index()) {
+    if (!element_type.has_index() || element_type.is_non_nullable()) {
       return;
     }
     // Add a new element segment with the corresponding type.
@@ -2492,7 +2488,7 @@ class BodyGen {
       return false;
     }
     ValueType break_type = break_types.last();
-    if (!break_type.is_reference()) {
+    if (!break_type.is_ref()) {
       return false;
     }
 
@@ -3821,7 +3817,7 @@ class BodyGen {
     if (recursion_limit_reached() || data->size() == 0) {
       // For defaultable types, prefer to emit *.new_default, because that
       // makes functions more interesting to execute than ref.null.
-      if (type.is_index()) {
+      if (type.has_index()) {
         ModuleTypeIndex index = type.ref_index();
         const TypeDefinition& type_def =
             builder_->builder()->GetType_Unsafe(index);
@@ -4215,9 +4211,8 @@ class BodyGen {
 
     if (return_types.size() == 0 || param_types.size() == 0 ||
         !primitive(return_types[0])) {
-      for (auto iter = param_types.rbegin(); iter != param_types.rend();
-           ++iter) {
-        Consume(*iter);
+      for (ValueType type : base::Reversed(param_types)) {
+        Consume(type);
       }
       Generate(return_types, data);
       return;
@@ -4854,17 +4849,16 @@ WasmInitExpr GenerateStructNewInitExpr(
       range.get<bool>();
 
   if (use_new_default) {
-    ZoneVector<WasmInitExpr>* descriptor = nullptr;
     const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
     if (struct_def.has_descriptor()) {
-      descriptor = zone->New<ZoneVector<WasmInitExpr>>(zone);
       ValueType type =
           ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
               .AsExact();
-      descriptor->push_back(GenerateInitExpr(
-          zone, range, builder, type, structs, arrays, recursion_depth + 1));
+      WasmInitExpr descriptor = GenerateInitExpr(
+          zone, range, builder, type, structs, arrays, recursion_depth + 1);
+      return WasmInitExpr::StructNewDefaultDesc(zone, index, descriptor);
     }
-    return WasmInitExpr::StructNewDefault(index, descriptor);
+    return WasmInitExpr::StructNewDefault(index);
   } else {
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
@@ -4881,6 +4875,7 @@ WasmInitExpr GenerateStructNewInitExpr(
               .AsExact();
       elements->push_back(GenerateInitExpr(zone, range, builder, type, structs,
                                            arrays, recursion_depth + 1));
+      return WasmInitExpr::StructNewDesc(index, elements);
     }
     return WasmInitExpr::StructNew(index, elements);
   }

@@ -72,7 +72,7 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
@@ -84,8 +84,8 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key = std::nullopt,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) override;
+      std::optional<MemoryProtectionKeyId> key,
+      std::optional<SharedMemoryHandle> handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions access) override;
@@ -124,7 +124,7 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
@@ -136,8 +136,8 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key = std::nullopt,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) override;
+      std::optional<MemoryProtectionKeyId> key,
+      std::optional<SharedMemoryHandle> handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions permissions) override;

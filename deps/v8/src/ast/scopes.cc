@@ -117,9 +117,9 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   DCHECK(!is_script_scope());
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
-  private_name_lookup_skips_outer_class_ =
+  set_private_name_lookup_skips_outer_class(
       outer_scope->is_class_scope() &&
-      outer_scope->AsClassScope()->IsParsingHeritage();
+      outer_scope->AsClassScope()->IsParsingHeritage());
   outer_scope_->AddInnerScope(this);
 }
 
@@ -194,9 +194,9 @@ ModuleScope::ModuleScope(Handle<ScopeInfo> scope_info,
 
 ClassScope::ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous)
     : Scope(zone, outer_scope, CLASS_SCOPE),
-      rare_data_and_is_parsing_heritage_(nullptr),
-      is_anonymous_class_(is_anonymous) {
+      rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
+  set_is_anonymous_class(is_anonymous);
 }
 
 template <typename IsolateT>
@@ -257,11 +257,11 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
 #endif
   set_language_mode(scope_info->language_mode());
   DCHECK_EQ(ContextHeaderLength(), num_heap_slots_);
-  private_name_lookup_skips_outer_class_ =
-      scope_info->PrivateNameLookupSkipsOuterClass();
+  set_private_name_lookup_skips_outer_class(
+      scope_info->PrivateNameLookupSkipsOuterClass());
   // We don't really need to use the preparsed scope data; this is just to
   // shorten the recursion in SetMustUsePreparseData.
-  must_use_preparsed_scope_data_ = true;
+  set_must_use_preparsed_scope_data(true);
 
   if (scope_type == BLOCK_SCOPE) {
     // Set is_block_scope_for_object_literal_ based on the existence of the home
@@ -272,10 +272,10 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
     DCHECK_IMPLIES(home_object_index >= 0,
                    scope_type == CLASS_SCOPE || scope_type == BLOCK_SCOPE);
     if (home_object_index >= 0) {
-      is_block_scope_for_object_literal_ = true;
+      set_is_block_scope_for_object_literal(true);
     }
   }
-  has_context_cells_ = scope_info->HasContextCells();
+  set_has_context_cells(scope_info->HasContextCells());
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
@@ -288,12 +288,12 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   SetDefaults();
   if (scope_info->SloppyEvalCanExtendVars()) {
     DCHECK(!is_eval_scope());
-    sloppy_eval_can_extend_vars_ = true;
-    is_dynamic_scope_ = true;
+    set_sloppy_eval_can_extend_vars(true);
+    set_is_dynamic_scope(true);
   }
   if (scope_info->ClassScopeHasPrivateBrand()) {
     DCHECK(IsClassConstructor(function_kind()));
-    class_scope_has_private_brand_ = true;
+    set_class_scope_has_private_brand(true);
   }
 }
 
@@ -319,30 +319,30 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
 }
 
 void DeclarationScope::SetDefaults() {
-  is_declaration_scope_ = true;
-  has_simple_parameters_ = true;
+  set_is_declaration_scope(true);
+  set_has_simple_parameters(true);
+  set_force_eager_compilation(false);
+  set_has_rest(false);
+  set_has_arguments_parameter(false);
+  set_uses_super_property(false);
+  set_should_eager_compile(false);
+  set_was_lazily_parsed(false);
+  set_is_skipped_function(false);
+  set_has_checked_syntax(false);
+  set_has_this_reference(false);
+  set_has_this_declaration((is_function_scope() && !is_arrow_scope()) ||
+                           is_module_scope());
+  set_needs_private_name_context_chain_recalc(false);
+  set_class_scope_has_private_brand(false);
 #if V8_ENABLE_WEBASSEMBLY
-  is_asm_module_ = false;
+  set_is_asm_module(false);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  force_eager_compilation_ = false;
-  has_arguments_parameter_ = false;
-  uses_super_property_ = false;
-  has_checked_syntax_ = false;
-  has_this_reference_ = false;
-  has_this_declaration_ =
-      (is_function_scope() && !is_arrow_scope()) || is_module_scope();
-  needs_private_name_context_chain_recalc_ = false;
-  has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
   arguments_ = nullptr;
   rare_data_ = nullptr;
-  should_eager_compile_ = false;
-  was_lazily_parsed_ = false;
-  is_skipped_function_ = false;
   preparse_data_builder_ = nullptr;
-  class_scope_has_private_brand_ = false;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -365,31 +365,25 @@ void Scope::SetDefaults() {
   start_position_ = kNoSourcePosition;
   end_position_ = kNoSourcePosition;
 
-  calls_eval_ = false;
-  sloppy_eval_can_extend_vars_ = false;
-  scope_nonlinear_ = false;
-  is_hidden_ = false;
-  is_dynamic_scope_ = scope_type_ == WITH_SCOPE;
-
-  inner_scope_calls_eval_ = false;
-  force_context_allocation_for_parameters_ = false;
-
-  is_declaration_scope_ = false;
-
-  private_name_lookup_skips_outer_class_ = false;
-
-  must_use_preparsed_scope_data_ = false;
-
-  needs_home_object_ = false;
-  is_block_scope_for_object_literal_ = false;
-
-  has_using_declaration_ = false;
-  has_await_using_declaration_ = false;
-
-  is_wrapped_function_ = false;
-
-  has_context_cells_ = (is_script_scope() && v8_flags.script_context_cells) ||
-                       (is_function_scope() && v8_flags.function_context_cells);
+  bool is_dynamic_scope = scope_type_ == WITH_SCOPE;
+  bool has_context_cells =
+      (is_script_scope() && v8_flags.script_context_cells) ||
+      (is_function_scope() && v8_flags.function_context_cells);
+  flags_ = IsStrictField::encode(false) | CallsEvalField::encode(false) |
+           SloppyEvalCanExtendVarsField::encode(false) |
+           ScopeNonlinearField::encode(false) | IsHiddenField::encode(false) |
+           IsDynamicScopeField::encode(is_dynamic_scope) |
+           InnerScopeCallsEvalField::encode(false) |
+           ForceContextAllocationForParametersField::encode(false) |
+           IsDeclarationScopeField::encode(false) |
+           PrivateNameLookupSkipsOuterClassField::encode(false) |
+           MustUsePreparsedScopeDataField::encode(false) |
+           NeedsHomeObjectField::encode(false) |
+           IsBlockScopeForObjectLiteralField::encode(false) |
+           HasUsingDeclarationField::encode(false) |
+           HasAwaitUsingDeclarationField::encode(false) |
+           IsWrappedFunctionField::encode(false) |
+           HasContextCellsField::encode(has_context_cells);
 
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
@@ -403,12 +397,10 @@ bool Scope::HasSimpleParameters() {
 }
 
 void DeclarationScope::set_should_eager_compile() {
-  should_eager_compile_ = !was_lazily_parsed_;
+  set_should_eager_compile(!was_lazily_parsed());
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void DeclarationScope::set_is_asm_module() { is_asm_module_ = true; }
-
 bool Scope::IsAsmModule() const {
   return is_function_scope() && AsDeclarationScope()->is_asm_module();
 }
@@ -430,7 +422,8 @@ bool Scope::ContainsAsmModule() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Scope::is_debug_evaluate_scope() const {
-  return is_dynamic_scope_ && scope_info_->IsDebugEvaluateScope();
+  return IsDynamicScopeField::decode(flags_) &&
+         scope_info_->IsDebugEvaluateScope();
 }
 
 template <typename IsolateT>
@@ -472,7 +465,7 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
           zone, FUNCTION_SCOPE, ast_value_factory, handle(scope_info, isolate));
 #if V8_ENABLE_WEBASSEMBLY
       if (scope_info->IsAsmModule()) {
-        outer_scope->AsDeclarationScope()->set_is_asm_module();
+        outer_scope->AsDeclarationScope()->set_is_asm_module(true);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (scope_info->scope_type() == EVAL_SCOPE) {
@@ -740,7 +733,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // The outer scope is never lazy.
   scope->set_should_eager_compile();
 
-  if (scope->must_use_preparsed_scope_data_) {
+  if (scope->must_use_preparsed_scope_data()) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
     info->consumed_preparse_data()->RestoreScopeAllocationData(
@@ -808,7 +801,7 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   // we should set argumentsObjectNeeded to false if has lexical
   // declared arguments only when hasParameterExpressions is false
   if (!was_added && IsLexicalVariableMode(arguments_->mode()) &&
-      has_simple_parameters_) {
+      has_simple_parameters()) {
     // Check if there's lexically declared variable named arguments to avoid
     // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;
@@ -907,7 +900,9 @@ Scope* Scope::FinalizeBlockScope() {
     unresolved_list_.Clear();
   }
 
-  if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
+  if (inner_scope_calls_eval()) {
+    outer_scope()->set_inner_scope_calls_eval(true);
+  }
 
   // No need to propagate sloppy_eval_can_extend_vars_, since if it was relevant
   // to this scope we would have had to bail out at the top.
@@ -943,14 +938,14 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     for (; inner_scope->sibling() != top_inner_scope_;
          inner_scope = inner_scope->sibling()) {
       inner_scope->outer_scope_ = new_parent;
-      if (inner_scope->inner_scope_calls_eval_) {
-        new_parent->inner_scope_calls_eval_ = true;
+      if (inner_scope->inner_scope_calls_eval()) {
+        new_parent->set_inner_scope_calls_eval(true);
       }
       DCHECK_NE(inner_scope, new_parent);
     }
     inner_scope->outer_scope_ = new_parent;
-    if (inner_scope->inner_scope_calls_eval_) {
-      new_parent->inner_scope_calls_eval_ = true;
+    if (inner_scope->inner_scope_calls_eval()) {
+      new_parent->set_inner_scope_calls_eval(true);
     }
     new_parent->inner_scope_ = new_parent->sibling_;
     inner_scope->sibling_ = nullptr;
@@ -975,11 +970,11 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_->calls_eval_) {
+  if (outer_scope_->calls_eval()) {
     new_parent->RecordEvalCall();
-    outer_scope_->calls_eval_ = false;
-    declaration_scope_->sloppy_eval_can_extend_vars_ = false;
-    declaration_scope_->is_dynamic_scope_ = false;
+    outer_scope_->set_calls_eval(false);
+    declaration_scope_->set_sloppy_eval_can_extend_vars(false);
+    declaration_scope_->set_is_dynamic_scope(false);
   }
 }
 
@@ -1044,10 +1039,10 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
                                              int position) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
-  DCHECK(!has_rest_);
+  DCHECK(!has_rest());
   DCHECK(!is_optional || !is_rest);
   DCHECK(!is_being_lazily_parsed_);
-  DCHECK(!was_lazily_parsed_);
+  DCHECK(!was_lazily_parsed());
   Variable* var;
   if (mode == VariableMode::kTemporary) {
     var = NewTemporary(name);
@@ -1056,18 +1051,13 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
     DCHECK_EQ(mode, VariableMode::kVar);
     DCHECK(var->is_parameter());
   }
-  has_rest_ = is_rest;
+  set_has_rest(is_rest);
   var->set_initializer_position(position);
   params_.Add(var, zone());
   if (!is_rest) ++num_parameters_;
   if (name == ast_value_factory->arguments_string()) {
-    has_arguments_parameter_ = true;
+    set_has_arguments_parameter(true);
   }
-  // Params are automatically marked as used to make sure that the debugger and
-  // function.arguments sees them.
-  // TODO(verwaest): Reevaluate whether we always need to do this, since
-  // strict-mode function.arguments does not make the arguments available.
-  var->set_is_used();
   return var;
 }
 
@@ -1075,8 +1065,8 @@ void DeclarationScope::RecordParameter(bool is_rest) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(is_being_lazily_parsed_);
-  DCHECK(!has_rest_);
-  has_rest_ = is_rest;
+  DCHECK(!has_rest());
+  set_has_rest(is_rest);
   if (!is_rest) ++num_parameters_;
 }
 
@@ -1291,7 +1281,7 @@ Variable* Scope::NewTemporary(const AstRawString* name,
 
 Declaration* DeclarationScope::CheckConflictingVarDeclarations(
     bool* allowed_catch_binding_var_redeclaration) {
-  if (has_checked_syntax_) return nullptr;
+  if (has_checked_syntax()) return nullptr;
   for (Declaration* decl : decls_) {
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check
@@ -1452,8 +1442,8 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
 bool DeclarationScope::AllowsLazyCompilation() const {
   // Functions which force eager compilation and class member initializer
   // functions are not lazily compilable.
-  return !force_eager_compilation_ &&
-         !IsClassMembersInitializerFunction(function_kind());
+  return !force_eager_compilation() &&
+         !IsClassInitializerFunction(function_kind());
 }
 
 int Scope::ContextChainLength(Scope* scope) const {
@@ -1678,7 +1668,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   unresolved_list_.Clear();
   sloppy_block_functions_.Clear();
   rare_data_ = nullptr;
-  has_rest_ = false;
+  set_has_rest(false);
   function_ = nullptr;
 
   DCHECK_NE(zone(), ast_value_factory->single_parse_zone());
@@ -1694,7 +1684,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
     // Prepare scope for use in the outer zone.
     variables_ = VariableMap(ast_value_factory->single_parse_zone());
     if (!IsArrowFunction(function_kind_)) {
-      has_simple_parameters_ = true;
+      set_has_simple_parameters(true);
       DeclareDefaultFunctionVariables(ast_value_factory);
     }
   }
@@ -1704,7 +1694,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   is_being_lazily_parsed_ = false;
 #endif
 
-  was_lazily_parsed_ = !aborted;
+  set_was_lazily_parsed(!aborted);
 }
 
 bool Scope::IsSkippableFunctionScope() {
@@ -1739,7 +1729,7 @@ void DeclarationScope::SavePreparseDataForDeclarationScope(Parser* parser) {
 void DeclarationScope::AnalyzePartially(Parser* parser,
                                         AstNodeFactory* ast_node_factory,
                                         bool maybe_in_arrowhead) {
-  DCHECK(!force_eager_compilation_);
+  DCHECK(!force_eager_compilation());
   UnresolvedList new_unresolved_list;
 
   // We don't need to do partial analysis for top level functions, since they
@@ -1879,6 +1869,11 @@ void PrintVar(int indent, Variable* var) {
     PrintF("never assigned");
     comma = true;
   }
+  if (!var->is_used()) {
+    if (comma) PrintF(", ");
+    PrintF("never used");
+    comma = true;
+  }
   if (var->initialization_flag() == kNeedsInitialization &&
       !var->binding_needs_init()) {
     if (comma) PrintF(", ");
@@ -1969,7 +1964,7 @@ void Scope::Print(int n) {
   if (private_name_lookup_skips_outer_class()) {
     Indent(n1, "// scope skips outer class for #-names\n");
   }
-  if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
+  if (inner_scope_calls_eval()) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
@@ -2129,7 +2124,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     if (scope->outer_scope_ == outer_scope_end) break;
-    if (V8_UNLIKELY(scope->is_dynamic_scope_)) {
+    if (V8_UNLIKELY(scope->is_dynamic_scope())) {
       DCHECK(!scope->is_script_scope());
       if (scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
@@ -2402,10 +2397,12 @@ bool Scope::MustAllocate(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
+  // TODO(dcarney): hoist this check out of MustAllocate since it's mutating
+  // state and confusing.
   if (!var->raw_name()->IsEmpty() &&
-      (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
+      (inner_scope_calls_eval() || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
-    if (inner_scope_calls_eval_ && !var->is_this()) var->SetMaybeAssigned();
+    if (inner_scope_calls_eval() && !var->is_this()) var->SetMaybeAssigned();
   }
   CHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
@@ -2429,7 +2426,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
       return true;
     }
   }
-  return var->has_forced_context_allocation() || inner_scope_calls_eval_;
+  return var->has_forced_context_allocation() || inner_scope_calls_eval();
 }
 
 void Scope::AllocateStackSlot(Variable* var) {
@@ -2451,7 +2448,7 @@ void DeclarationScope::AllocateParameterLocals() {
   bool has_mapped_arguments = false;
   if (arguments_ != nullptr) {
     DCHECK(!is_arrow_scope());
-    if (MustAllocate(arguments_) && !has_arguments_parameter_) {
+    if (MustAllocate(arguments_) && !has_arguments_parameter()) {
       // 'arguments' is used and does not refer to a function
       // parameter of the same name. If the arguments object
       // aliases formal parameters, we conservatively allocate
@@ -2464,6 +2461,14 @@ void DeclarationScope::AllocateParameterLocals() {
       arguments_ = nullptr;
     }
   }
+  // TODO(dcarney): move check from MustAllocate here for parameters.
+  // Mark all remaining parameters as used if they are reachable through
+  // arguments.
+  if (arguments_ != nullptr) {
+    for (int i = 0; i < num_parameters(); i++) {
+      parameter(i)->set_is_used();
+    }
+  }
 
   // The same parameter may occur multiple times in the parameters_ list.
   // If it does, and if it is not copied into the context object, it must
@@ -2472,7 +2477,7 @@ void DeclarationScope::AllocateParameterLocals() {
   for (int i = num_parameters() - 1; i >= 0; --i) {
     Variable* var = params_[i];
     DCHECK_NOT_NULL(var);
-    DCHECK(!has_rest_ || var != rest_parameter());
+    DCHECK(!has_rest() || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
     if (has_mapped_arguments) {
       var->set_is_used();
@@ -2484,12 +2489,13 @@ void DeclarationScope::AllocateParameterLocals() {
 
   // If we have mapped arguments, do not use context cells.
   if (has_mapped_arguments) {
-    has_context_cells_ = false;
+    set_has_context_cells(false);
   }
 }
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
-  if (!MustAllocate(var)) return;
+  // TODO(dcarney): eliminate this check.
+  USE(MustAllocate(var));
   if (has_forced_context_allocation_for_parameters() ||
       MustAllocateInContext(var)) {
     DCHECK(var->IsUnallocated() || var->IsContextSlot());
@@ -2558,7 +2564,7 @@ void DeclarationScope::AllocateLocals() {
     function_ = nullptr;
   }
 
-  DCHECK(!has_rest_ || !MustAllocate(rest_parameter()) ||
+  DCHECK(!has_rest() || !MustAllocate(rest_parameter()) ||
          !rest_parameter()->IsUnallocated());
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
@@ -2611,7 +2617,7 @@ void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
-    if (scope->sloppy_eval_can_extend_vars_) {
+    if (scope->sloppy_eval_can_extend_vars()) {
       scope->num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
     }
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
@@ -2654,7 +2660,7 @@ void Scope::AllocateVariablesRecursively() {
     // do not allocate context cells.
     if (scope->is_function_scope() &&
         scope->ContextLocalCount() > v8_flags.function_context_cells_max_size) {
-      scope->has_context_cells_ = false;
+      scope->set_has_context_cells(false);
     }
 
     // Allocation done.
@@ -2743,13 +2749,13 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
   //
   // This method fixes both cases by, in outermost to innermost order, copying
   // the value of the skip bit from outer scopes that don't require a Context.
-  DCHECK(needs_private_name_context_chain_recalc_);
+  DCHECK(needs_private_name_context_chain_recalc());
   this->ForEach([](Scope* scope) {
     Scope* outer = scope->outer_scope();
     if (!outer) return Iteration::kDescend;
     if (!outer->NeedsContext()) {
-      scope->private_name_lookup_skips_outer_class_ =
-          outer->private_name_lookup_skips_outer_class();
+      scope->set_private_name_lookup_skips_outer_class(
+          outer->private_name_lookup_skips_outer_class());
     }
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
@@ -2766,8 +2772,8 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
        scope = scope->outer_scope() != nullptr
                    ? scope->outer_scope()->GetClosureScope()
                    : nullptr) {
-    if (scope->needs_private_name_context_chain_recalc_) return;
-    scope->needs_private_name_context_chain_recalc_ = true;
+    if (scope->needs_private_name_context_chain_recalc()) return;
+    scope->set_needs_private_name_context_chain_recalc(true);
   }
 }
 
@@ -2993,9 +2999,10 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
       is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
-    has_static_private_methods_ |=
-        (result->is_static() &&
-         IsPrivateMethodOrAccessorVariableMode(result->mode()));
+    if (result->is_static() &&
+        IsPrivateMethodOrAccessorVariableMode(result->mode())) {
+      set_has_static_private_methods(true);
+    }
   } else if (IsComplementaryAccessorPair(result->mode(), mode) &&
              result->is_static_flag() == is_static_flag) {
     *was_added = true;
@@ -3175,9 +3182,10 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
         // If the variable being accessed is a static private method, we need to
         // save the class variable in the context to check that the receiver is
         // the class during runtime.
-        has_explicit_static_private_methods_access_ |=
-            (var->is_static() &&
-             IsPrivateMethodOrAccessorVariableMode(var->mode()));
+        if (var->is_static() &&
+            IsPrivateMethodOrAccessorVariableMode(var->mode())) {
+          set_has_explicit_static_private_methods_access(true);
+        }
       }
     }
 

@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 
+#include <string_view>
+
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -25,11 +27,11 @@ HeapObjectName NameTraitBase::GetNameFromTypeSignature(const char* signature) {
   //    static HeapObjectName NameTrait<int>::GetNameFor(...) [T = int]
   if (!signature) return {NameProvider::kNoNameDeducible, false};
 
-  const std::string raw(signature);
+  const std::string_view raw(signature);
   const auto start_pos = raw.rfind("T = ") + 4;
-  DCHECK_NE(std::string::npos, start_pos);
+  DCHECK_NE(std::string_view::npos, start_pos);
   const auto len = raw.length() - start_pos - 1;
-  const std::string name = raw.substr(start_pos, len);
+  const std::string name = std::string(raw.substr(start_pos, len));
   char* name_buffer = new char[name.length() + 1];
   int written = snprintf(name_buffer, name.length() + 1, "%s", name.c_str());
   DCHECK_EQ(static_cast<size_t>(written), name.length());

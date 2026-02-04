@@ -94,7 +94,7 @@ v8_source_set("cctest_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/test-alloc.cc",
-    "heap/test-array-buffer-tracker.cc",
+    "heap/test-array-buffer-sweeper.cc",
     "heap/test-compaction.cc",
     "heap/test-concurrent-allocation.cc",
     "heap/test-concurrent-marking.cc",
@@ -209,25 +209,13 @@ v8_source_set("cctest_sources") {
     ]
   }
 
-  if (v8_current_cpu == "arm") {
-    sources += [
-      ### gcmole(arm) ###
-      "assembler-helper-arm.cc",
-      "assembler-helper-arm.h",
-      "test-assembler-arm.cc",
-      "test-macro-assembler-arm.cc",
-      "test-sync-primitives-arm.cc",
-    ]
-  } else if (v8_current_cpu == "arm64") {
+  if (v8_current_cpu == "arm64") {
     sources += [
       ### gcmole(arm64) ###
-      "test-assembler-arm64.cc",
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-sync-primitives-arm64.cc",
-      "test-utils-arm64.cc",
-      "test-utils-arm64.h",
     ]
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
@@ -235,20 +223,7 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "x86") {
     sources += [
       ### gcmole(ia32) ###
-      "test-assembler-ia32.cc",
       "test-log-stack-tracer.cc",
-    ]
-  } else if (v8_current_cpu == "mips64") {
-    sources += [
-      ### gcmole(mips64) ###
-      "test-assembler-mips64.cc",
-      "test-macro-assembler-mips64.cc",
-    ]
-  } else if (v8_current_cpu == "mips64el") {
-    sources += [
-      ### gcmole(mips64el) ###
-      "test-assembler-mips64.cc",
-      "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
@@ -258,45 +233,6 @@ v8_source_set("cctest_sources") {
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
-  } else if (v8_current_cpu == "ppc64") {
-    sources += [
-      ### gcmole(ppc) ###
-      "test-assembler-ppc.cc",
-    ]
-  } else if (v8_current_cpu == "s390x") {
-    sources += [
-      ### gcmole(s390) ###
-      "test-assembler-s390.cc",
-    ]
-    if (current_os == "zos" && is_component_build) {
-      # for OpcodeFormatTable:
-      sources += [
-        "../../src/codegen/s390/constants-s390.cc",
-        "../../src/codegen/s390/constants-s390.h",
-      ]
-    }
-  } else if (v8_current_cpu == "riscv64") {
-    sources += [
-      ### gcmole(riscv64) ###
-      "test-assembler-riscv64.cc",
-      "test-helper-riscv64.cc",
-      "test-macro-assembler-riscv64.cc",
-      "test-simple-riscv64.cc",
-    ]
-  } else if (v8_current_cpu == "riscv32") {
-    sources += [
-      ### gcmole(riscv32) ###
-      "test-assembler-riscv32.cc",
-      "test-helper-riscv32.cc",
-      "test-macro-assembler-riscv32.cc",
-      "test-simple-riscv32.cc",
-    ]
-  } else if (v8_current_cpu == "loong64") {
-    sources += [
-      ### gcmole(loong64) ###
-      "test-assembler-loong64.cc",
-      "test-macro-assembler-loong64.cc",
-    ]
   }
 
   if (v8_use_perfetto) {

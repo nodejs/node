@@ -6,6 +6,9 @@
 #define V8_SANDBOX_CODE_SANDBOXING_MODE_H_
 
 #include <cinttypes>
+#include <ostream>
+
+#include "src/base/logging.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +32,16 @@ enum class CodeSandboxingMode : uint8_t {
   // In this mode, code can read and write all process' memory.
   kUnsandboxed,
 };
+
+inline std::ostream& operator<<(std::ostream& os, CodeSandboxingMode mode) {
+  switch (mode) {
+    case CodeSandboxingMode::kSandboxed:
+      return os << "kSandboxed";
+    case CodeSandboxingMode::kUnsandboxed:
+      return os << "kUnsandboxed";
+  }
+  UNREACHABLE();
+}
 
 }  // namespace internal
 }  // namespace v8

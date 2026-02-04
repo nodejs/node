@@ -16,12 +16,13 @@ transitioning javascript builtin TypedArrayPrototypeKeys(
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
 
-    EnsureAttached(array) otherwise IsDetached;
+    EnsureValid(array, TypedArrayAccessMode::kRead) otherwise IsDetached;
     return CreateArrayIterator(array, IterationKind::kKeys);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameKeys);
   } label IsDetached deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameKeys);
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayDetachedErrorOperation, kBuiltinNameKeys);
   }
 }
 }

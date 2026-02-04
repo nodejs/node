@@ -59,36 +59,41 @@ enum YoungGenerationSpeedMode {
       GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
       flow_flags)
 
-#define TRACE_GC1(tracer, scope_id, thread_kind)                \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(           \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind); \
-  TRACE_EVENT0(TRACE_GC_CATEGORIES,                             \
+#define TRACE_GC1(tracer, scope_id, thread_kind_or_job_delegate) \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(            \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                \
+      thread_kind_or_job_delegate);                              \
+  TRACE_EVENT0(TRACE_GC_CATEGORIES,                              \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
 
-#define TRACE_GC1_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,       \
-                            flow_flags)                                   \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
-  TRACE_EVENT_WITH_FLOW0(                                                 \
-      TRACE_GC_CATEGORIES,                                                \
-      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
+#define TRACE_GC1_WITH_FLOW(tracer, scope_id, thread_kind_or_job_delegate, \
+                            bind_id, flow_flags)                           \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                      \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                          \
+      thread_kind_or_job_delegate);                                        \
+  TRACE_EVENT_WITH_FLOW0(                                                  \
+      TRACE_GC_CATEGORIES,                                                 \
+      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id,  \
       flow_flags)
 
-#define TRACE_GC_EPOCH(tracer, scope_id, thread_kind)                     \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
-  TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               "epoch", tracer->CurrentEpoch(scope_id))
+#define TRACE_GC_EPOCH(tracer, scope_id, thread_kind_or_job_delegate, ...)    \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                             \
+      thread_kind_or_job_delegate);                                           \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              "epoch", tracer->CurrentEpoch(), ##__VA_ARGS__)
 
-#define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,  \
-                                 flow_flags)                              \
+#define TRACE_GC_EPOCH_WITH_FLOW(                                         \
+    tracer, scope_id, thread_kind_or_job_delegate, bind_id, flow_flags)   \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                         \
+      thread_kind_or_job_delegate);                                       \
   TRACE_EVENT_WITH_FLOW1(                                                 \
       TRACE_GC_CATEGORIES,                                                \
       GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
-      flow_flags, "epoch", tracer->CurrentEpoch(scope_id))
+      flow_flags, "epoch", tracer->CurrentEpoch())
 
 #define TRACE_GC_NOTE(note)                  \
   do {                                       \
@@ -137,6 +142,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     };
 
     V8_INLINE Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
+    V8_INLINE Scope(GCTracer* tracer, ScopeId scope, JobDelegate* delegate);
     V8_INLINE ~Scope();
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
@@ -147,7 +153,9 @@ class V8_EXPORT_PRIVATE GCTracer {
    private:
     GCTracer* const tracer_;
     const ScopeId scope_;
+#ifdef DEBUG
     const ThreadKind thread_kind_;
+#endif  // DEBUG
     const base::TimeTicks start_time_;
 #ifdef V8_RUNTIME_CALL_STATS
     RuntimeCallTimer timer_;
@@ -207,6 +215,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     // Currently in loading state.
     bool is_loading = false;
+
+    // Currently in input state.
+    bool is_input_handling = false;
 
     // Size of objects in heap set in constructor.
     size_t start_object_size = 0;
@@ -304,11 +315,12 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer(Heap* heap, base::TimeTicks startup_time,
            GarbageCollectionReason initial_gc_reason =
                GarbageCollectionReason::kUnknown);
+  ~GCTracer();
 
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
 
-  V8_INLINE CollectionEpoch CurrentEpoch(Scope::ScopeId id) const;
+  V8_INLINE CollectionEpoch CurrentEpoch() const;
 
   // Start and stop an observable pause.
   void StartObservablePause(base::TimeTicks time);
@@ -540,9 +552,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The starting time of the observable pause if set.
   std::optional<base::TimeTicks> start_of_observable_pause_;
 
-  // We need two epochs, since there can be scavenges during sweeping.
-  CollectionEpoch epoch_young_ = 0;
-  CollectionEpoch epoch_full_ = 0;
+  CollectionEpoch epoch_ = 0;
 
   // Incremental marking speed for major GCs. Marking for minor GCs is ignored.
   double recorded_major_incremental_marking_speed_ = 0.0;
@@ -628,6 +638,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   perfetto::NamedTrack parent_track_;
   perfetto::NamedTrack phase_track_;
   perfetto::NamedTrack state_track_;
+  perfetto::NamedTrack priority_track_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);

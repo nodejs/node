@@ -77,7 +77,7 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord32) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Word32CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());
@@ -91,7 +91,7 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord64) {
   StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                   MachineType::Int64());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Word64CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());

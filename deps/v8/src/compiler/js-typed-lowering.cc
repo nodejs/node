@@ -379,7 +379,8 @@ class JSBinopReduction final {
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode()) &&
+        !JSOperator::IsBinaryWithEmbeddedFeedback(node_->opcode())) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.
@@ -417,7 +418,8 @@ class JSBinopReduction final {
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode()) &&
+        !JSOperator::IsBinaryWithEmbeddedFeedback(node_->opcode())) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.
@@ -537,8 +539,13 @@ class JSBinopReduction final {
   }
 
   CompareOperationHint GetCompareOperationHint(Node* node) const {
-    const FeedbackParameter& p = FeedbackParameterOf(node->op());
-    return lowering_->broker()->GetFeedbackForCompareOperation(p.feedback());
+    if (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())) {
+      const EmbeddedHintParameter& p = EmbeddedHintParameterOf(node->op());
+      return std::get<CompareOperationHint>(p.hint());
+    } else {
+      const FeedbackParameter& p = FeedbackParameterOf(node->op());
+      return lowering_->broker()->GetFeedbackForCompareOperation(p.feedback());
+    }
   }
 
   void update_effect(Node* effect) {
@@ -1647,52 +1654,44 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
       gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
           .Then([&] { return value; })
           .Else([&] {
-            return gasm.SelectIf<Object>(gasm.IsTheHole(value))
-                .Then([&] { return value; })
-                .Else([&] {
-                  TNode<Map> value_map =
-                      gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
-                  return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
+            TNode<Map> value_map =
+                gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+            return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
+                .Then([&] {
+                  TNode<HeapObject> heap_value =
+                      TNode<HeapObject>::UncheckedCast(value);
+                  TNode<Int32T> state = gasm.LoadField<Int32T>(
+                      AccessBuilder::ForContextCellState(), heap_value);
+                  static_assert(ContextCell::State::kConst == 0);
+                  static_assert(ContextCell::State::kSmi == 1);
+                  return gasm
+                      .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
+                          state, gasm.Int32Constant(ContextCell::kSmi)))
                       .Then([&] {
-                        TNode<HeapObject> heap_value =
-                            TNode<HeapObject>::UncheckedCast(value);
-                        TNode<Int32T> state = gasm.LoadField<Int32T>(
-                            AccessBuilder::ForContextCellState(), heap_value);
-                        static_assert(ContextCell::State::kConst == 0);
-                        static_assert(ContextCell::State::kSmi == 1);
+                        return gasm.LoadField<Object>(
+                            AccessBuilder::ForContextCellTaggedValue(),
+                            heap_value);
+                      })
+                      .Else([&] {
                         return gasm
-                            .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
-                                state, gasm.Int32Constant(ContextCell::kSmi)))
+                            .MachineSelectIf<Object>(gasm.Word32Equal(
+                                state, gasm.Int32Constant(ContextCell::kInt32)))
                             .Then([&] {
-                              return gasm.LoadField<Object>(
-                                  AccessBuilder::ForContextCellTaggedValue(),
+                              return gasm.LoadField<Number>(
+                                  AccessBuilder::ForContextCellInt32Value(),
                                   heap_value);
                             })
                             .Else([&] {
-                              return gasm
-                                  .MachineSelectIf<Object>(gasm.Word32Equal(
-                                      state,
-                                      gasm.Int32Constant(ContextCell::kInt32)))
-                                  .Then([&] {
-                                    return gasm.LoadField<Number>(
-                                        AccessBuilder::
-                                            ForContextCellInt32Value(),
-                                        heap_value);
-                                  })
-                                  .Else([&] {
-                                    return gasm.LoadField<Number>(
-                                        AccessBuilder::
-                                            ForContextCellFloat64Value(),
-                                        heap_value);
-                                  })
-                                  .Value();
+                              return gasm.LoadField<Number>(
+                                  AccessBuilder::ForContextCellFloat64Value(),
+                                  heap_value);
                             })
                             .Value();
                       })
-                      .Else([&] { return value; })
-                      .ExpectFalse()
                       .Value();
                 })
+                .Else([&] { return value; })
+                .ExpectFalse()
                 .Value();
           })
           .Value();
@@ -1752,27 +1751,19 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
                         new_value);
       })
       .Else([&] {
-        gasm.If(gasm.IsTheHole(old_value))
+        TNode<Map> old_value_map =
+            gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
+        gasm.If(gasm.IsContextCellMap(old_value_map))
             .Then([&] {
+              gasm.DetachContextCell(context, new_value,
+                                     static_cast<int>(access.index()),
+                                     frame_state);
+            })
+            .Else([&] {
               gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
                               context, new_value);
             })
-            .Else([&] {
-              TNode<Map> old_value_map =
-                  gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
-              gasm.If(gasm.IsContextCellMap(old_value_map))
-                  .Then([&] {
-                    gasm.DetachContextCell(context, new_value,
-                                           static_cast<int>(access.index()),
-                                           frame_state);
-                  })
-                  .Else([&] {
-                    gasm.StoreField(
-                        AccessBuilder::ForContextSlot(access.index()), context,
-                        new_value);
-                  })
-                  .ExpectFalse();
-            });
+            .ExpectFalse();
       });
 
   ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());
@@ -1872,7 +1863,8 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 
   // These SBXCHECKs are a defense-in-depth measure to ensure that we always
   // generate valid calls here (with matching signatures).
-  SBXCHECK(Builtins::IsCpp(builtin));
+  SBXCHECK(Builtins::IsCpp(builtin) &&
+           Builtins::IsEnabledAndNotJSTrampoline(builtin));
   SBXCHECK_GE(arity + kJSArgcReceiverSlots,
               Builtins::GetFormalParameterCount(builtin));
 
@@ -1913,11 +1905,24 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   static_assert(BuiltinArguments::kNewTargetIndex == 0);
   static_assert(BuiltinArguments::kTargetIndex == 1);
   static_assert(BuiltinArguments::kArgcIndex == 2);
-  static_assert(BuiltinArguments::kPaddingIndex == 3);
+
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
-  node->InsertInput(zone, 4, jsgraph->PaddingConstant());
+
+#if V8_TARGET_ARCH_ARM64
+  // Make sure we insert required stack-alignment padding between extra
+  // arguments and JS arguments.
+  static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
+  static_assert(BuiltinArguments::kNumExtraArgs == 4);
+  // Just use an existing value as padding in order to avoid generation
+  // of unnecessary instructions.
+  node->InsertInput(zone, 4, argc_node);
+#else
+  // No padding required.
+  static_assert(BuiltinArguments::kNumExtraArgs == 3);
+#endif  // V8_TARGET_ARCH_ARM64
+
   int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 
   Address entry = Builtins::CppEntryOf(builtin);

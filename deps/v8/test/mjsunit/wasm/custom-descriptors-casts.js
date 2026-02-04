@@ -39,11 +39,11 @@ let $glob_desc2 = builder.addGlobal(desc2_type, false, false, [
 
 let $glob_s0 = builder.addGlobal(kWasmAnyRef, true, false, [
   kExprGlobalGet, $glob_desc0.index,
-  kGCPrefix, kExprStructNew, $s0,
+  kGCPrefix, kExprStructNewDesc, $s0,
 ]);
 let $glob_s1 = builder.addGlobal(kWasmAnyRef, true, false, [
   kExprGlobalGet, $glob_desc1.index,
-  kGCPrefix, kExprStructNew, $s1,
+  kGCPrefix, kExprStructNewDesc, $s1,
 ]);
 
 function MakeFuncs(name, type_index, global_index, exact_bit) {

@@ -12,6 +12,7 @@
 #include "src/heap/memory-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/utils/ostreams.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -368,7 +369,13 @@ PoolTestMixin<TMixin>::~PoolTestMixin() {
 
 // See v8:5945.
 TEST_F(PoolTest, UnmapOnTeardown) {
-  PageMetadata* page =
+  // Disable the heartbeat task for the test as otherwise it may concurrently
+  // release the page that is later checked for permissions.
+  FlagScope<int> reset_memory_pool_timeout(&v8_flags.memory_pool_timeout, 0);
+  // Then wait for the task to finish, if scheduled.
+  pool()->CancelAndWaitForTaskToFinishForTesting();
+
+  NormalPage* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);

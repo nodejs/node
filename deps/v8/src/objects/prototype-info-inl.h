@@ -26,6 +26,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/prototype-info-tq-inl.inc"
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo)
 
 DEF_GETTER(PrototypeInfo, derived_maps, Tagged<HeapObject>) {
@@ -130,8 +131,7 @@ void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
 }
 
 bool PrototypeInfo::IsPrototypeInfoFast(Tagged<Object> object) {
-  bool is_proto_info = object != Smi::zero();
-  DCHECK_EQ(is_proto_info, IsPrototypeInfo(object));
+  bool is_proto_info = IsPrototypeInfo(object);
   return is_proto_info;
 }
 

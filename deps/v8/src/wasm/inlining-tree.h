@@ -15,6 +15,7 @@
 
 #include "src/utils/utils.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8::internal::wasm {
@@ -37,11 +38,14 @@ class InliningTree : public ZoneObject {
 
  public:
   using CasesPerCallSite = base::Vector<InliningTree*>;
+  enum class Mode { kUninitialized, kVector, kMap };
 
   static InliningTree* CreateRoot(Zone* zone, const WasmModule* module,
+                                  const WireBytesStorage* wire_bytes,
                                   uint32_t function_index) {
     InliningTree* tree = zone->New<InliningTree>(
-        zone->New<Data>(zone, module, function_index), function_index,
+        zone->New<Data>(zone, module, wire_bytes, function_index),
+        function_index,
         1.0,         // Relative call count
         0,           // Wire byte size. `0` causes the root node to always get
                      // expanded, regardless of budget.
@@ -93,12 +97,19 @@ class InliningTree : public ZoneObject {
   static constexpr uint32_t kMaxInliningNestingDepth = 7;
 
   base::Vector<CasesPerCallSite> function_calls() { return function_calls_; }
+  ZoneMap<uint32_t, CasesPerCallSite>& function_calls_map() {
+    return function_calls_map_;
+  }
   base::Vector<bool> has_non_inlineable_targets() {
     return has_non_inlineable_targets_;
+  }
+  ZoneMap<uint32_t, bool>& has_non_inlineable_targets_map() {
+    return has_non_inlineable_targets_map_;
   }
   bool feedback_found() { return feedback_found_; }
   bool is_inlined() { return is_inlined_; }
   uint32_t function_index() { return function_index_; }
+  Mode mode() { return mode_; }
 
  private:
   friend class v8::internal::Zone;  // For `zone->New<InliningTree>`.
@@ -124,9 +135,11 @@ class InliningTree : public ZoneObject {
   }
 
   struct Data {
-    Data(Zone* zone, const WasmModule* module, uint32_t topmost_caller_index)
+    Data(Zone* zone, const WasmModule* module,
+         const WireBytesStorage* wire_bytes, uint32_t topmost_caller_index)
         : zone(zone),
           module(module),
+          wire_bytes(wire_bytes),
           topmost_caller_index(topmost_caller_index) {
       double scaled = BudgetScaleFactor(module);
       // We found experimentally that we need to allow a larger growth factor
@@ -158,6 +171,7 @@ class InliningTree : public ZoneObject {
 
     Zone* zone;
     const WasmModule* module;
+    const WireBytesStorage* wire_bytes;
     double max_growth_factor;
     size_t budget_cap;
     uint32_t topmost_caller_index;
@@ -171,6 +185,8 @@ class InliningTree : public ZoneObject {
         function_index_(function_index),
         relative_call_count_(relative_call_count),
         wire_byte_size_(wire_byte_size),
+        function_calls_map_(shared->zone),
+        has_non_inlineable_targets_map_(shared->zone),
         depth_(depth),
         caller_index_(caller_index),
         feedback_slot_(feedback_slot),
@@ -189,6 +205,7 @@ class InliningTree : public ZoneObject {
                            size_t inlined_wire_byte_count);
 
   Data* data_;
+  Mode mode_{Mode::kUninitialized};
   uint32_t function_index_;
   double relative_call_count_;
   int wire_byte_size_;
@@ -196,7 +213,9 @@ class InliningTree : public ZoneObject {
   bool feedback_found_ = false;
 
   base::Vector<CasesPerCallSite> function_calls_{};
+  ZoneMap<uint32_t, CasesPerCallSite> function_calls_map_;
   base::Vector<bool> has_non_inlineable_targets_{};
+  ZoneMap<uint32_t, bool> has_non_inlineable_targets_map_;
 
   uint32_t depth_;
 
@@ -210,36 +229,186 @@ void InliningTree::Inline() {
   is_inlined_ = true;
   auto& feedback_map = data_->module->type_feedback.feedback_for_function;
   auto feedback_it = feedback_map.find(function_index_);
-  if (feedback_it == feedback_map.end()) return;
-  const FunctionTypeFeedback& feedback = feedback_it->second;
-  base::Vector<CallSiteFeedback> type_feedback =
-      feedback.feedback_vector.as_vector();
-  if (type_feedback.empty()) return;  // No feedback yet.
-  DCHECK_EQ(type_feedback.size(), feedback.call_targets.size());
-  feedback_found_ = true;
-  function_calls_ =
-      data_->zone->AllocateVector<CasesPerCallSite>(type_feedback.size());
-  has_non_inlineable_targets_ =
-      data_->zone->AllocateVector<bool>(type_feedback.size());
-  for (size_t i = 0; i < type_feedback.size(); i++) {
-    function_calls_[i] = data_->zone->AllocateVector<InliningTree*>(
-        type_feedback[i].num_cases());
-    has_non_inlineable_targets_[i] =
-        type_feedback[i].has_non_inlineable_targets();
-    for (int the_case = 0; the_case < type_feedback[i].num_cases();
-         the_case++) {
-      uint32_t callee_index = type_feedback[i].function_index(the_case);
-      double relative_call_count =
-          feedback.num_invocations != 0
-              ? static_cast<double>(type_feedback[i].call_count(the_case)) /
-                    feedback.num_invocations
-              : 0.0;
-      function_calls_[i][the_case] = data_->zone->New<InliningTree>(
-          data_, callee_index,
-          // Propagate relative call counts into the nested InliningTree.
-          relative_call_count * relative_call_count_,
-          data_->module->functions[callee_index].code.length(), function_index_,
-          static_cast<int>(i), the_case, depth_ + 1);
+  if (feedback_it != feedback_map.end()) {
+    // Feedback found. Populate the `function_calls_` vector with child nodes.
+    const FunctionTypeFeedback& feedback = feedback_it->second;
+    base::Vector<CallSiteFeedback> type_feedback =
+        feedback.feedback_vector.as_vector();
+    if (!type_feedback.empty()) {
+      DCHECK_EQ(type_feedback.size(), feedback.call_targets.size());
+      feedback_found_ = true;
+      mode_ = Mode::kVector;
+      function_calls_ =
+          data_->zone->AllocateVector<CasesPerCallSite>(type_feedback.size());
+      has_non_inlineable_targets_ =
+          data_->zone->AllocateVector<bool>(type_feedback.size());
+      for (size_t i = 0; i < type_feedback.size(); i++) {
+        function_calls_[i] = data_->zone->AllocateVector<InliningTree*>(
+            type_feedback[i].num_cases());
+        has_non_inlineable_targets_[i] =
+            type_feedback[i].has_non_inlineable_targets();
+        for (int the_case = 0; the_case < type_feedback[i].num_cases();
+             the_case++) {
+          uint32_t callee_index = type_feedback[i].function_index(the_case);
+          double relative_call_count =
+              feedback.num_invocations != 0
+                  ? static_cast<double>(type_feedback[i].call_count(the_case)) /
+                        feedback.num_invocations
+                  : 0.0;
+          function_calls_[i][the_case] = data_->zone->New<InliningTree>(
+              data_, callee_index,
+              // Propagate relative call counts into the nested InliningTree.
+              relative_call_count * relative_call_count_,
+              data_->module->functions[callee_index].code.length(),
+              function_index_, static_cast<int>(i), the_case, depth_ + 1);
+        }
+      }
+      return;
+    }
+  }
+
+  // No feedback found. If the feature is enabled, populate
+  // `function_calls_map_` based on compilation hints.
+  if (v8_flags.experimental_wasm_compilation_hints) {
+    auto instruction_frequencies_it =
+        data_->module->instruction_frequencies.find(function_index_);
+    if (instruction_frequencies_it ==
+        data_->module->instruction_frequencies.end()) {
+      return;
+    }
+    const std::vector<std::pair<uint32_t, uint8_t>>& instruction_frequencies =
+        instruction_frequencies_it->second;
+    const std::vector<std::pair<uint32_t, CallTargetVector>>* call_targets =
+        nullptr;
+    auto call_targets_it = data_->module->call_targets.find(function_index_);
+    if (call_targets_it != data_->module->call_targets.end()) {
+      call_targets = &call_targets_it->second;
+    }
+    feedback_found_ = true;
+    mode_ = Mode::kMap;
+    base::Vector<const uint8_t> wire_bytes = data_->wire_bytes->GetCode(
+        data_->module->functions[function_index_].code);
+
+    Decoder decoder(wire_bytes);
+
+    size_t call_targets_index = 0;
+    int instruction_frequencies_index = -1;
+    for (auto [offset, frequency] : instruction_frequencies) {
+      instruction_frequencies_index++;
+      if (frequency == 0) continue;  // "Never optimize" hint.
+      CallTargetVector call_targets_for_call_site;
+
+      decoder.consume_bytes(offset - decoder.pc_offset());
+      switch (*decoder.pc()) {
+        case kExprCallFunction:
+        case kExprReturnCall: {
+          // For direct calls, find the call target in the wire bytes.
+          decoder.consume_bytes(1);
+          uint32_t function_index = decoder.consume_u32v("function index");
+          if (v8_flags.trace_wasm_compilation_hints) {
+            PrintF("(function %d: found direct call to %d at offset %d)\n",
+                   function_index_, function_index, offset);
+          }
+          call_targets_for_call_site.emplace_back(function_index, 100U);
+          break;
+        }
+        case kExprCallIndirect:
+        case kExprReturnCallIndirect:
+        case kExprCallRef:
+        case kExprReturnCallRef: {
+          if (call_targets == nullptr) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF(
+                  "(function %d: no call targets, skipping instruction "
+                  "frequencies)\n",
+                  function_index_);
+            }
+            break;  // No call targets, do not inline.
+          }
+          // Find the call targets vector that corresponds to this offset.
+          // Both call_targets and instruction_frequencies are ordered by
+          // offset.
+          while (call_targets_index < call_targets->size() &&
+                 (*call_targets)[call_targets_index].first < offset) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF(
+                  "(function %d: no instruction frequencies or direct call at "
+                  "offset %d, skipping call targets)\n",
+                  function_index_, offset);
+            }
+            call_targets_index++;
+          }
+          // Did not find call targets.
+          if (call_targets_index >= call_targets->size() ||
+              (*call_targets)[call_targets_index].first != offset) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF(
+                  "(function %d: no call targets at offset %d, skipping "
+                  "instruction frequencies)\n",
+                  function_index_, offset);
+            }
+            break;
+          }
+          if (v8_flags.trace_wasm_compilation_hints) {
+            PrintF("(function %d: found indirect call at offset %d)\n",
+                   function_index_, offset);
+          }
+          call_targets_for_call_site =
+              (*call_targets)[call_targets_index].second;
+          break;
+        }
+        default:
+          if (v8_flags.trace_wasm_compilation_hints) {
+            PrintF(
+                "(function %d: hint at offset %d does not map to a call "
+                "instruction, ignoring)\n",
+                function_index_, offset);
+          }
+          break;
+      }
+
+      if (call_targets_for_call_site.empty()) continue;
+
+      bool has_non_inlineable_targets = false;
+
+      CasesPerCallSite function_calls =
+          data_->zone->AllocateVector<InliningTree*>(
+              call_targets_for_call_site.size());
+      // A hint of 127 is interpreted as "always optimize" so we assign it to
+      // infinity.
+      // A hint of 0 has already been handled as "never optimize".
+      // For the range 1-64, the formula for the hint is
+      // f = log_2(n/N) + 32, where (n/N) is the relative call count for this
+      // function offset. Therefore (n/N) = 2^(f - 32).
+      double relative_call_count_for_offset =
+          frequency == 127 ? std::numeric_limits<double>::infinity()
+                           : std::pow(2, frequency - 32);
+      for (size_t i = 0; i < function_calls.size(); i++) {
+        double relative_call_count_for_call =
+            static_cast<double>(
+                call_targets_for_call_site[i].call_frequency_percent) /
+            100.0 * relative_call_count_for_offset;
+        uint32_t callee_index = call_targets_for_call_site[i].function_index;
+        if (callee_index < data_->module->num_imported_functions ||
+            callee_index >= data_->module->functions.size()) {
+          has_non_inlineable_targets = true;
+        }
+        uint32_t code_length =
+            callee_index < data_->module->functions.size()
+                ? data_->module->functions[callee_index].code.length()
+                : 0;
+        function_calls[i] = data_->zone->New<InliningTree>(
+            data_, callee_index,
+            // Propagate relative call counts into the nested InliningTree.
+            // TODO(manoskouk): This will propagate infinity to all the subcalls
+            // too, is this something we want?
+            relative_call_count_for_call * relative_call_count_, code_length,
+            function_index_, instruction_frequencies_index, static_cast<int>(i),
+            depth_ + 1);
+      }
+      function_calls_map_.emplace(offset, function_calls);
+      has_non_inlineable_targets_map_.emplace(offset,
+                                              has_non_inlineable_targets);
     }
   }
 }
@@ -284,6 +453,12 @@ void InliningTree::FullyExpand() {
     if (top->function_index_ < data_->module->num_imported_functions) {
       if (v8_flags.trace_wasm_inlining && top != this) {
         PrintF("imported function]\n");
+      }
+      continue;
+    }
+    if (top->function_index_ >= data_->module->functions.size()) {
+      if (v8_flags.trace_wasm_inlining && top != this) {
+        PrintF("(hinted) function index out of bounds]\n");
       }
       continue;
     }
@@ -334,12 +509,25 @@ void InliningTree::FullyExpand() {
       }
     } else if (top->depth_ < kMaxInliningNestingDepth) {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("queueing %zu callee(s)]\n", top->function_calls_.size());
+        PrintF("queueing %zu callee(s)]\n",
+               top->mode() == Mode::kVector ? top->function_calls_.size()
+                                            : top->function_calls_map_.size());
       }
-      for (CasesPerCallSite cases : top->function_calls_) {
-        for (InliningTree* call : cases) {
-          if (call != nullptr) {
-            queue.push(call);
+      if (top->mode() == Mode::kVector) {
+        for (CasesPerCallSite cases : top->function_calls_) {
+          for (InliningTree* call : cases) {
+            if (call != nullptr) {
+              queue.push(call);
+            }
+          }
+        }
+      } else {
+        DCHECK_EQ(top->mode(), Mode::kMap);
+        for (auto [offset, cases] : top->function_calls_map_) {
+          for (InliningTree* call : cases) {
+            if (call != nullptr) {
+              queue.push(call);
+            }
           }
         }
       }

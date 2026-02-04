@@ -1735,8 +1735,8 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
           frame->LookupCode()->SetMarkedForDeoptimization(
               isolate, LazyDeoptimizeReason::kDebugger);
         } else {
-          PointerAuthentication::ReplacePC(pc_addr, advance,
-                                           kSystemPointerSize);
+          PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize,
+                                           it.frame()->iteration_depth());
         }
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);

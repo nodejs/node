@@ -286,10 +286,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
-    case Runtime::kConstructConsString:
-    case Runtime::kConstructSlicedString:
-    case Runtime::kConstructInternalizedString:
-    case Runtime::kConstructThinString:
     // TODO(353971258): investigate whether this should be exposed to fuzzers.
     case Runtime::kSerializeDeserializeNow:
     // TODO(353928347): investigate whether this should be exposed to fuzzers.
@@ -300,6 +296,16 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
     case Runtime::kLeakHole:
       return v8_flags.hole_fuzzing;
+
+    case Runtime::kGetBytecode:
+    case Runtime::kInstallBytecode:
+      // These are designed for sandbox fuzzing, specifically of the bytecode
+      // verifier. They are not safe to be used during regular fuzzing as
+      // * %GetBytecode exposes the objects in the BytecodeArray's constant
+      //   pool (which may be internal objects such as ScopeInfo) to the caller
+      // * %InstallBytecode allows installing manipulated bytecode that has
+      //   only been checked for sandbox safety, not general correctness.
+      return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
 
     default:
       break;

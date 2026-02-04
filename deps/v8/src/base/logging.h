@@ -137,6 +137,16 @@ enum class OOMType {
   } while (false)
 #define CHECK(condition) CHECK_WITH_MSG(condition, #condition)
 
+// Special version of CHECK that makes it clear that the CHECK's failure has no
+// security impact.
+// USE WITH CARE! See also the comments above FatalNoSecurityImpact.
+#define CHECK_NO_SECURITY_IMPACT(condition)    \
+  do {                                         \
+    if (V8_UNLIKELY(!(condition))) {           \
+      base::FatalNoSecurityImpact(#condition); \
+    }                                          \
+  } while (false)
+
 #ifdef DEBUG
 
 #define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \

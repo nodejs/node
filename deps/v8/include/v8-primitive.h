@@ -199,7 +199,7 @@ class V8_EXPORT String : public Name {
    * the end of the buffer. If null termination is requested, the output buffer
    * will always be null terminated even if not all characters fit. In that
    * case, the capacity must be at least one. The required size of the output
-   * buffer can be determined using Utf8Length().
+   * buffer can be determined using Utf8LengthV2().
    *
    * \param buffer The buffer into which the string will be written.
    * \param capacity The number of bytes available in the output buffer.

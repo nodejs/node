@@ -6,8 +6,8 @@
 
 #include "src/common/code-memory-access-inl.h"
 #include "src/heap/base-space.h"
-#include "src/heap/large-page-metadata.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/large-page.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
 
@@ -40,7 +40,7 @@ constexpr MemoryChunk::MainThreadFlags MemoryChunk::kIsLargePageMask;
 constexpr MemoryChunk::MainThreadFlags
     MemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
-MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
+MemoryChunk::MemoryChunk(MainThreadFlags flags, BasePage* metadata)
     : untrusted_main_thread_flags_(flags)
 #ifndef V8_ENABLE_SANDBOX
       ,
@@ -49,7 +49,7 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
 {
 #ifdef V8_ENABLE_SANDBOX
   auto metadata_index = MetadataTableIndex(address());
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   DCHECK_IMPLIES(metadata_pointer_table[metadata_index].metadata() != nullptr,
                  metadata_pointer_table[metadata_index].metadata() == metadata);
@@ -61,11 +61,11 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
 
 #ifdef V8_ENABLE_SANDBOX
 // static
-void MemoryChunk::ClearMetadataPointer(MemoryChunkMetadata* metadata) {
+void MemoryChunk::ClearMetadataPointer(BasePage* metadata) {
   uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
-  IsolateGroup::MemoryChunkMetadataTableEntry& chunk_metadata =
+  IsolateGroup::BasePageTableEntry& chunk_metadata =
       metadata_pointer_table[metadata_index];
   if (chunk_metadata.metadata() == nullptr) {
     DCHECK_EQ(chunk_metadata.isolate(), nullptr);
@@ -107,18 +107,23 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
 }
 
 bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // With contiguous read-only space the fact that memory is read-only is based
+  // on its address and there's no way to corrupt that.
+  return InReadOnlySpace();
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // For the sandbox only flags from writable pages can be corrupted so we can
   // use the flag check as a fast path in this case.
   // It also helps making TSAN happy, since it doesn't like the way we
   // initialize the MemoryChunks.
-  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
+  // (See BasePage::SynchronizedHeapLoad).
   if (!InReadOnlySpace()) {
     return false;
   }
-  SBXCHECK_EQ(
-      static_cast<const ReadOnlyPageMetadata*>(Metadata())->ChunkAddress(),
-      address());
+  SBXCHECK_EQ(static_cast<const ReadOnlyPage*>(Metadata())->ChunkAddress(),
+              address());
   return true;
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -130,13 +135,13 @@ void MemoryChunk::InitializationMemoryFence() {
   // Since TSAN does not process memory fences, we use the following annotation
   // to tell TSAN that there is no data race when emitting a
   // InitializationMemoryFence. Note that the other thread still needs to
-  // perform MutablePageMetadata::synchronized_heap().
+  // perform MutablePage::synchronized_heap().
   Metadata()->SynchronizedHeapStore();
 #ifndef V8_ENABLE_SANDBOX
   base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),
                       reinterpret_cast<base::AtomicWord>(metadata_));
 #else
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   static_assert(sizeof(base::AtomicWord) ==
                 sizeof(metadata_pointer_table[0].metadata()));
@@ -156,11 +161,11 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::SynchronizedLoad() const {
 #ifndef V8_ENABLE_SANDBOX
-  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+  BasePage* metadata = reinterpret_cast<BasePage*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
           &(const_cast<MemoryChunk*>(this)->metadata_))));
 #else
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   static_assert(sizeof(base::AtomicWord) ==
                 sizeof(metadata_pointer_table[0].metadata()));
@@ -168,18 +173,11 @@ void MemoryChunk::SynchronizedLoad() const {
   uint32_t metadata_index =
       base::Acquire_Load(reinterpret_cast<base::Atomic32*>(
           &(const_cast<MemoryChunk*>(this)->metadata_index_)));
-  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+  BasePage* metadata = reinterpret_cast<BasePage*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
           metadata_pointer_table[metadata_index].metadata_slot())));
 #endif
   metadata->SynchronizedHeapLoad();
-}
-
-bool MemoryChunk::InReadOnlySpace() const {
-  // This is needed because TSAN does not process the memory fence
-  // emitted after page initialization.
-  SynchronizedLoad();
-  return IsFlagSet(READ_ONLY_HEAP);
 }
 
 #endif  // THREAD_SANITIZER

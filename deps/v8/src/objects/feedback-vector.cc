@@ -851,6 +851,46 @@ InlineCacheState FeedbackNexus::ic_state() const {
   return InlineCacheState::UNINITIALIZED;
 }
 
+Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
+                                  FeedbackSlotKind kind) {
+  if (kind != FeedbackSlotKind::kLoadProperty) return Builtin::kIllegal;
+
+  if (IsSmi(feedback_extra)) {
+    int handler = feedback_extra.ToSmi().value();
+    LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
+    // LoadField.
+    if (handler_kind == LoadHandler::Kind::kField) {
+      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+    }
+  } else {
+    Tagged<HeapObject> heap_object;
+    // LoadConstantFromPrototype.
+    if (feedback_extra.GetHeapObjectIfStrong(&heap_object) &&
+        IsDataHandler(heap_object)) {
+      Tagged<DataHandler> handler = Cast<DataHandler>(heap_object);
+      Tagged<UnionOf<Smi, Code>> smi_handler = handler->smi_handler();
+      if (IsSmi(smi_handler)) {
+        int value = smi_handler.ToSmi().value();
+        if (value == LoadHandler::KindBits::encode(
+                         LoadHandler::Kind::kConstantFromPrototype)) {
+          return Builtin::kLoadICConstantFromPrototypeBaseline;
+        }
+      }
+    }
+  }
+
+  // ICs that are not specialized for a specific handler are considered generic.
+  return Builtin::kLoadICGenericBaseline;
+}
+
+Builtin FeedbackNexus::ic_handler() const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind());
+}
+
 void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
   DCHECK(IsGlobalICKind(kind()));
   SetFeedback(MakeWeak(*cell), UPDATE_WRITE_BARRIER, UninitializedSentinel(),

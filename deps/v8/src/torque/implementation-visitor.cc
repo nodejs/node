@@ -3397,8 +3397,19 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
                                     Arguments{{source}, {}},
                                     {destination_type, *from}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
-    source.SetType(destination_type);
-    return scope.Yield(GenerateCopy(source));
+    if (!source.IsOnStack()) {
+      // static_cast constexpr values to the right type, for cases where the
+      // C++ conversion is not as implicit as the torque one (in particular,
+      // `enum class` to its underlying type).
+      return scope.Yield(
+          VisitResult(destination_type,
+                      "CastIfEnumClass<" +
+                          destination_type->GetConstexprGeneratedTypeName() +
+                          ">(" + source.constexpr_value() + ")"));
+    } else {
+      source.SetType(destination_type);
+      return scope.Yield(GenerateCopy(source));
+    }
   } else {
     std::stringstream s;
     if (const TopType* top_type = TopType::DynamicCast(source.type())) {
@@ -4459,13 +4470,7 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
     type_check << value << ".IsCleared()";
     at_start = false;
   }
-  std::vector<TypeChecker> type_checkers = type->GetTypeCheckers();
-  std::partition(type_checkers.begin(), type_checkers.end(),
-                 [](const TypeChecker& runtime_type) {
-                   return runtime_type.type == "Hole" ||
-                          runtime_type.type == "TheHole";
-                 });
-  for (const TypeChecker& runtime_type : type_checkers) {
+  for (const TypeChecker& runtime_type : type->GetTypeCheckers()) {
     if (!at_start) type_check << " || ";
     at_start = false;
     if (maybe_object) {

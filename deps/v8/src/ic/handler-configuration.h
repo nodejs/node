@@ -156,8 +156,14 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   static inline Handle<Smi> LoadGlobal(Isolate* isolate);
 
   // Creates a Smi-handler for loading a property from an object with an
+  // interceptor. Works only as a part of full handler (LoadFromPrototype(..)
+  // or LoadInterceptorHolderIsLookupStartupObject(..)).
+  static inline Tagged<Smi> LoadInterceptor();
+  // Creates handler for loading a property from a lookup start object with an
   // interceptor.
-  static inline Handle<Smi> LoadInterceptor(Isolate* isolate);
+  static Handle<LoadHandler> LoadInterceptorHolderIsLookupStartupObject(
+      Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
+      DirectHandle<InterceptorInfo> interceptor_info);
 
   // Creates a Smi-handler for loading a property from an object.
   static inline Handle<Smi> LoadSlow(Isolate* isolate);     // Runtime call.
@@ -195,17 +201,9 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   static inline DirectHandle<Smi> LoadWasmArrayElement(Isolate* isolate,
                                                        WasmValueType type);
 
-  // Creates a data handler that represents a load of a non-existent property.
-  // {holder} is the object from which the property is loaded. If no holder is
-  // needed (e.g., for "nonexistent"), null_value() may be passed in.
-  static Handle<Object> LoadFullChain(Isolate* isolate,
-                                      DirectHandle<Map> receiver_map,
-                                      const MaybeObjectDirectHandle& holder,
-                                      Handle<Smi> smi_handler);
-
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
-  static Handle<Object> LoadFromPrototype(
+  static Handle<LoadHandler> LoadFromPrototype(
       Isolate* isolate, DirectHandle<Map> receiver_map,
       DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
       MaybeObjectDirectHandle maybe_data1 = MaybeObjectDirectHandle(),
@@ -359,8 +357,15 @@ V8_OBJECT class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
 
-  // Creates a Smi-handler for storing a property to an interceptor.
-  static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
+  // Creates a Smi-handler for storing a property to an object with an
+  // interceptor. Works only as a part of full handler
+  // (StoreThroughPrototype(..) or StoreInterceptorHolderIsReceiver(..)).
+  static inline Tagged<Smi> StoreInterceptor();
+  // Creates handler for storing a property to receiver object with an
+  // interceptor.
+  static Handle<StoreHandler> StoreInterceptorHolderIsReceiver(
+      Isolate* isolate, DirectHandle<Map> holder_map,
+      DirectHandle<InterceptorInfo> interceptor_info);
 
   static inline Handle<Code> StoreSloppyArgumentsBuiltin(
       Isolate* isolate, KeyedAccessStoreMode mode);
@@ -371,6 +376,8 @@ V8_OBJECT class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property.
   // "Slow" calls the runtime, "Generic" uses the generic KeyedStore builtin.
+  static inline Tagged<Smi> StoreSlow(
+      KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds);
   static inline Handle<Smi> StoreSlow(
       Isolate* isolate,
       KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds);

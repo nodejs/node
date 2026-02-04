@@ -19,6 +19,9 @@
 
 namespace v8 {
 class Isolate;
+namespace internal {
+class ThreadLocalTop;
+}
 }
 
 namespace v8::internal::wasm {
@@ -122,7 +125,8 @@ class StackMemory {
       segment = segment->next_segment_;
     }
   }
-  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate);
+  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
+               ThreadLocalTop* thread);
 
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp, size_t min_size);
@@ -237,6 +241,9 @@ class StackMemory {
   StackSegment* active_segment_ = nullptr;
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  // When adding fields here, also check if it needs to be cleared in
+  // StackMemory::Reset() when the stack is moved to the stack pool after
+  // retiring.
 };
 
 constexpr int kStackSpOffset =

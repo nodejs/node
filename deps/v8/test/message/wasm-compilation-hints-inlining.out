@@ -1,0 +1,57 @@
+TestInliningDirectCall
+[function 1: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=4294967296.000000, size=7, score=613566756.571429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 1: inlining direct call #0 to function 0]
+[function 1: emitted {NUMBER} nodes]
+TestInliningIndirectCalls
+[function 2: expanding topmost caller... budget=min(60, 6000), size 12->12 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=256.000000, size=13, score=19.692308)... budget=min(60, 6000), size 12->25 decided to inline! queueing 1 callee(s)]
+[function 2: in function 1, considering call #0, case #0, to function 0 (relative_call_count=253.440000, size=7, score=36.205714)... budget=min(60, 6000), size 12->19 decided to inline! no feedback yet or no callees]
+[function 2: Speculatively inlining call_indirect #0, case #0, to function 1]
+[function 1 (inlined): Speculatively inlining call_ref #0, case #0, to function 0]
+[function 2: emitted {NUMBER} nodes]
+TestInliningDirectCallNoOptimizationHint
+[function 1: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 0 callee(s)]
+[function 1: emitted {NUMBER} nodes]
+TestInliningDirectCallAlwaysOptimizeHint
+[function 1: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=inf, size=7, score=inf)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 1: inlining direct call #0 to function 0]
+[function 1: emitted {NUMBER} nodes]
+TestInliningDirectCallWrongOffset
+[function 1: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 0 callee(s)]
+[function 1: emitted {NUMBER} nodes]
+TestInliningDirectWithLocals
+[function 1: expanding topmost caller... budget=min(85, 6000), size 17->17 queueing 1 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(85, 6000), size 17->24 decided to inline! no feedback yet or no callees]
+[function 1: inlining direct call #0 to function 0]
+[function 1: emitted {NUMBER} nodes]
+TestCallRefMultipleSitesSomeWithoutCallTargets
+[function 1: expanding topmost caller... budget=min(110, 6000), size 22->22 queueing 2 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(110, 6000), size 22->29 decided to inline! no feedback yet or no callees]
+[function 1: in function 1, considering call #2, case #0, to function 0 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(110, 6000), size 22->29 decided to inline! no feedback yet or no callees]
+[function 1: Speculatively inlining call_ref #0, case #0, to function 0]
+[function 1: Speculatively inlining call_ref #2, case #0, to function 0]
+[function 1: emitted {NUMBER} nodes]
+TestHintIndicesOutOfBounds
+[function 1: expanding topmost caller... budget=min(50, 6000), size 8->8 queueing 1 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=0.500000, size=0, score=0.000000)... imported function]
+[function 1: in function 1, considering call #0, case #1, to function 2 (relative_call_count=0.500000, size=0, score=0.000000)... (hinted) function index out of bounds]
+[function 1: emitted {NUMBER} nodes]
+TestCallRefHintWithWrongSignature
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: emitted {NUMBER} nodes]
+TestReturnCallRefHintWithWrongSignature
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: emitted {NUMBER} nodes]
+TestCallRefHintWithWrongAndRightSignatures
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #1, to function 0 (relative_call_count=0.500000, size=7, score=0.071429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=0.500000, size=7, score=0.071429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: Speculatively inlining call_ref #0, case #1, to function 0]
+[function 2: emitted {NUMBER} nodes]

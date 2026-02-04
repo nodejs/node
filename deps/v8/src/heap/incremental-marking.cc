@@ -32,7 +32,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/safepoint.h"
 #include "src/init/v8.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -55,6 +55,7 @@ static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
     v8::base::TimeDelta::FromMilliseconds(1);
 static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
     v8::base::TimeDelta::FromMilliseconds(5);
+static_assert(kMaxStepSizeOnAllocation <= kMaxSynchronuousGCOperation);
 
 #ifndef DEBUG
 static constexpr size_t kV8ActivationThreshold = 8 * MB;
@@ -110,7 +111,7 @@ void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
                                              int object_size) {
   CHECK(marking_state()->TryMark(obj));
   base::MutexGuard guard(&background_live_bytes_mutex_);
-  background_live_bytes_[MutablePageMetadata::FromHeapObject(isolate(), obj)] +=
+  background_live_bytes_[MutablePage::FromHeapObject(isolate(), obj)] +=
       static_cast<intptr_t>(object_size);
 }
 
@@ -192,37 +193,8 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                                  : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
   DCHECK(!current_trace_id_.has_value());
   current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
-                            heap_->tracer()->CurrentEpoch(scope_id));
+                            heap_->tracer()->CurrentEpoch());
 
-  std::string json_str;
-
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
-    ::heap::base::UnsafeJsonEmitter json;
-
-    json.object_start()
-        .p("epoch", heap_->tracer()->CurrentEpoch(scope_id))
-        .p("gc_reason", ToString(gc_reason))
-        .p("reason", reason)
-        .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
-        .p("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes())
-        .p("old_gen_allocation_limit_bytes",
-           heap_->OldGenerationAllocationLimitConsumedBytes())
-        .p("old_gen_space_available", heap_->OldGenerationSpaceAvailable())
-        .p("global_allocation_limit", heap_->global_allocation_limit())
-        .p("global_consumed_bytes", heap_->GlobalConsumedBytes())
-        .p("global_memory_available", heap_->GlobalMemoryAvailable())
-        .object_end();
-
-    json_str = json.ToString();
-    heap_->isolate()->PrintWithTimestamp("IncrementalMarkingStart: %s\n",
-                                         json_str.c_str());
-  }
-
-  TRACE_EVENT2("v8",
-               is_major ? "V8.GCIncrementalMarkingStart"
-                        : "V8.GCMinorIncrementalMarkingStart",
-               "epoch", heap_->tracer()->CurrentEpoch(scope_id), "value",
-               TRACE_STR_COPY(json_str.c_str()));
   TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
                            current_trace_id_.value(),
                            TRACE_EVENT_FLAG_FLOW_OUT);
@@ -565,7 +537,7 @@ bool IncrementalMarking::Stop() {
 
   // Merge live bytes counters of background threads
   for (const auto& pair : background_live_bytes_) {
-    MutablePageMetadata* memory_chunk = pair.first;
+    MutablePage* memory_chunk = pair.first;
     intptr_t live_bytes = pair.second;
     if (live_bytes) {
       memory_chunk->IncrementLiveBytesAtomically(live_bytes);
@@ -781,7 +753,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
-               heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
+               heap_->tracer()->CurrentEpoch());
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL, ThreadKind::kMain,
       current_trace_id_.value(),

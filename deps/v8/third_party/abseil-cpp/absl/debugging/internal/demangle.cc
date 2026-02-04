@@ -28,7 +28,7 @@
 #include "absl/base/config.h"
 #include "absl/debugging/internal/demangle_rust.h"
 
-#if ABSL_INTERNAL_HAS_CXA_DEMANGLE
+#ifdef ABSL_INTERNAL_HAS_CXA_DEMANGLE
 #include <cxxabi.h>
 #endif
 
@@ -2941,7 +2941,7 @@ std::string DemangleString(const char* mangled) {
   std::string out;
   int status = 0;
   char* demangled = nullptr;
-#if ABSL_INTERNAL_HAS_CXA_DEMANGLE
+#ifdef ABSL_INTERNAL_HAS_CXA_DEMANGLE
   demangled = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
 #endif
   if (status == 0 && demangled != nullptr) {

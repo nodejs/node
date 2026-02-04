@@ -145,9 +145,8 @@ class VirtualAddressSubspace;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - abort_mode: see src/base/abort-mode.h for details.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(AbortMode abort_mode, const char* const gc_fake_mmap);
+  static void Initialize(const char* const gc_fake_mmap);
 
 #if V8_OS_WIN
   // On Windows, ensure the newer memory API is loaded if available.  This
@@ -229,9 +228,9 @@ class V8_BASE_EXPORT OS {
   };
 
   // Helpers to create shared memory objects. Currently only used for testing.
-  static PlatformSharedMemoryHandle CreateSharedMemoryHandleForTesting(
+  static std::optional<SharedMemoryHandle> CreateSharedMemoryHandleForTesting(
       size_t size);
-  static void DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle);
+  static void DestroySharedMemoryHandle(SharedMemoryHandle handle);
 
   static bool HasLazyCommits();
 
@@ -384,7 +383,7 @@ class V8_BASE_EXPORT OS {
 
   V8_WARN_UNUSED_RESULT static void* Allocate(
       void* address, size_t size, size_t alignment, MemoryPermission access,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle);
+      std::optional<SharedMemoryHandle> handle = std::nullopt);
 
   V8_WARN_UNUSED_RESULT static void* AllocateShared(size_t size,
                                                     MemoryPermission access);
@@ -395,9 +394,10 @@ class V8_BASE_EXPORT OS {
 
   static void Free(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT static void* AllocateShared(
-      void* address, size_t size, OS::MemoryPermission access,
-      PlatformSharedMemoryHandle handle, uint64_t offset);
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(void* address, size_t size,
+                                                    OS::MemoryPermission access,
+                                                    SharedMemoryHandle handle,
+                                                    uint64_t offset);
 
   static void FreeShared(void* address, size_t size);
 
@@ -422,7 +422,7 @@ class V8_BASE_EXPORT OS {
   CreateAddressSpaceReservation(
       void* hint, size_t size, size_t alignment,
       MemoryPermission max_permission,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle);
+      std::optional<SharedMemoryHandle> handle = std::nullopt);
 
   static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 
@@ -477,7 +477,7 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 
   V8_WARN_UNUSED_RESULT bool AllocateShared(void* address, size_t size,
                                             OS::MemoryPermission access,
-                                            PlatformSharedMemoryHandle handle,
+                                            SharedMemoryHandle handle,
                                             uint64_t offset);
 
   V8_WARN_UNUSED_RESULT bool FreeShared(void* address, size_t size);

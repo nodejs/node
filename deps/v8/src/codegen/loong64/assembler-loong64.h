@@ -32,8 +32,8 @@ constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 class Operand {
  public:
   // Immediate.
-  V8_INLINE explicit Operand(int64_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
+  V8_INLINE Operand(int64_t immediate,
+                    RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -44,12 +44,13 @@ class Operand {
   V8_INLINE explicit Operand(Tagged<Smi> value)
       : Operand(static_cast<intptr_t>(value.ptr())) {}
 
-  explicit Operand(Handle<HeapObject> handle);
+  explicit Operand(Handle<HeapObject> handle,
+                   RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
   // Register.
-  V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
+  V8_INLINE Operand(Register rm) : rm_(rm) {}
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const;
@@ -1173,6 +1174,12 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     DoubleRegList list({reg1, reg2});
     ExcludeFp(list);
   }
+
+  RegList* Available() { return available_; }
+  void SetAvailable(const RegList& list) { *available_ = list; }
+
+  DoubleRegList* AvailableFP() { return availablefp_; }
+  void SetAvailableFP(const DoubleRegList& list) { *availablefp_ = list; }
 
  private:
   RegList* available_;

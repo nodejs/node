@@ -67,15 +67,10 @@ source_set("zlib_common_headers") {
   ]
 }
 
-use_arm_neon_optimizations = false
-if ((current_cpu == "arm" || current_cpu == "arm64") &&
-    !(is_win && !is_clang)) {
-  # TODO(ritownsend@google.com): Optimizations temporarily disabled for
-  # Windows on Arm MSVC builds, see http://crbug.com/v8/10012.
-  if (arm_use_neon) {
-    use_arm_neon_optimizations = true
-  }
-}
+# TODO(ritownsend@google.com): Optimizations temporarily disabled for
+# Windows on Arm MSVC builds, see http://crbug.com/v8/10012.
+use_arm_neon_optimizations =
+    (current_cpu == "arm" || current_cpu == "arm64") && !(is_win && !is_clang)
 
 use_x86_x64_optimizations =
     (current_cpu == "x86" || current_cpu == "x64") && !is_ios
@@ -367,7 +362,7 @@ component("zlib") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
-  if (zlib_symbols_visible) {
+  if (is_posix && zlib_symbols_visible) {
     configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
     configs += [ "//build/config/gcc:symbol_visibility_default" ]
   }
@@ -551,6 +546,7 @@ if (build_with_chromium) {
       "google:compression_utils",
       "google:zip",
       "//base/test:test_support",
+      "//crypto",
       "//testing/gtest",
     ]
 

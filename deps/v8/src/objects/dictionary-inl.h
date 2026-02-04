@@ -137,14 +137,14 @@ int BaseNameDictionary<Derived, Shape>::Hash() const {
 bool NumberDictionary::requires_slow_elements() {
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return false;
-  return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
+  return 0 != (Smi::ToUInt(max_index_object) & kRequiresSlowElementsMask);
 }
 
 uint32_t NumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return 0;
-  uint32_t value = static_cast<uint32_t>(Smi::ToInt(max_index_object));
+  uint32_t value = Smi::ToUInt(max_index_object);
   return value >> kRequiresSlowElementsTagSize;
 }
 
@@ -154,9 +154,11 @@ void NumberDictionary::set_requires_slow_elements() {
 
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(InternalIndex entry) {
+  DisallowGarbageCollection no_gc;
   Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Cast<Derived>(this)->SetEntry(entry, the_hole, the_hole, details);
+  Cast<Derived>(this)->SetEntry(entry, the_hole, the_hole, details,
+                                SKIP_WRITE_BARRIER, no_gc);
 }
 
 template <typename Derived, typename Shape>
@@ -164,14 +166,22 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
                                           Tagged<Object> key,
                                           Tagged<Object> value,
                                           PropertyDetails details) {
-  DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(IsAnyHole(key) || !IsName(key) || details.dictionary_index() > 0 ||
-         !Shape::kHasDetails);
-  int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
-  WriteBarrierModeScope mode = this->GetWriteBarrierMode(no_gc);
-  this->set(index + Derived::kEntryKeyIndex, key, *mode);
-  this->set(index + Derived::kEntryValueIndex, value, *mode);
+  WriteBarrierModeScope write_barrier_scope = this->GetWriteBarrierMode(no_gc);
+  Cast<Derived>(this)->SetEntry(entry, key, value, details,
+                                *write_barrier_scope, no_gc);
+}
+
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::SetEntry(
+    InternalIndex entry, Tagged<Object> key, Tagged<Object> value,
+    PropertyDetails details, WriteBarrierMode mode,
+    const DisallowGarbageCollection& no_gc) {
+  DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
+  DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
+  int index = DerivedHashTable::EntryToIndex(entry);
+  this->set(index + Derived::kEntryKeyIndex, key, mode);
+  this->set(index + Derived::kEntryValueIndex, value, mode);
   if (Shape::kHasDetails) DetailsAtPut(entry, details);
 }
 
@@ -267,8 +277,16 @@ Tagged<Object> GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
                                 Tagged<Object> value, PropertyDetails details) {
+  DisallowGarbageCollection no_gc;
+  SetEntry(entry, key, value, details, UPDATE_WRITE_BARRIER, no_gc);
+}
+
+void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
+                                Tagged<Object> value, PropertyDetails details,
+                                WriteBarrierMode mode,
+                                const DisallowGarbageCollection& no_gc) {
   DCHECK_EQ(key, Cast<PropertyCell>(value)->name());
-  set(EntryToIndex(entry) + kEntryKeyIndex, value);
+  set(EntryToIndex(entry) + kEntryKeyIndex, value, mode);
   DetailsAtPut(entry, details);
 }
 

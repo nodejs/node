@@ -89,7 +89,7 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
         reinterpret_cast<void*>(
-            MemoryChunkMetadata::FromHeapObject(heap_->isolate(), heap_object)
+            BasePage::FromHeapObject(heap_->isolate(), heap_object)
                 ->owner()
                 ->identity()));
   }
@@ -271,6 +271,8 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
     Tagged<HeapObject> host, CppHeapPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
+  // It's crucial to only load the handle here once and avoid a double-fetch to
+  // make sure that a handle (slot) has its corresponding object marked as well.
   const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   if (handle == kNullExternalPointerHandle) {
     return;
@@ -278,9 +280,11 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
   CppHeapPointerTable* table = cpp_heap_pointer_table_;
   CppHeapPointerTable::Space* space = heap_->cpp_heap_pointer_space();
   table->Mark(space, handle, slot.address());
-#endif  // V8_COMPRESS_POINTERS
-  if (auto cpp_heap_pointer =
-          slot.try_load(heap_->isolate(), kAnyCppHeapPointer)) {
+  Address cpp_heap_pointer = table->Get(handle, kAnyCppHeapPointer);
+#else   // !V8_COMPRESS_POINTERS
+  Address cpp_heap_pointer = slot.load();
+#endif  // !V8_COMPRESS_POINTERS
+  if (cpp_heap_pointer) {
     local_marking_worklists_->cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }
@@ -648,7 +652,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object,
     MaybeObjectSize maybe_object_size) {
   MarkingProgressTracker& progress_tracker =
-      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+      MutablePage::FromHeapObject(heap_->isolate(), object)
           ->marking_progress_tracker();
   return concrete_visitor()->CanUpdateValuesInHeap() &&
                  progress_tracker.IsEnabled()

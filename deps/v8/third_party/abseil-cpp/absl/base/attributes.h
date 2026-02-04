@@ -580,7 +580,11 @@
 // Instructs the compiler not to use natural alignment for a tagged data
 // structure, but instead to reduce its alignment to 1.
 //
-// Therefore, DO NOT APPLY THIS ATTRIBUTE TO STRUCTS CONTAINING ATOMICS. Doing
+// Use of this attribute is HIGHLY DISCOURAGED. Taking the address of or
+// binding a reference to any unaligned member is UB, and it is very easy to
+// do so unintentionally when passing such members as function arguments.
+//
+// DO NOT APPLY THIS ATTRIBUTE TO STRUCTS CONTAINING ATOMICS. Doing
 // so can cause atomic variables to be mis-aligned and silently violate
 // atomicity on x86.
 //

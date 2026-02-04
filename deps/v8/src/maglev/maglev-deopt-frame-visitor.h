@@ -60,8 +60,7 @@ class DeoptInfoVisitor {
       if (std::is_same_v<ValueNodeT, ValueNode*&>) {
         // We modify the deopt frame to bypass the Identity node, we update the
         // use_count for consistency.
-        while (node->properties().is_conversion() ||
-               node->template Is<Identity>() ||
+        while (node->is_conversion() || node->template Is<Identity>() ||
                node->template Is<ReturnedValue>()) {
           node->remove_use();
           node = node->input(0).node();

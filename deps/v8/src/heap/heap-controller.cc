@@ -135,7 +135,7 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
     Heap::HeapGrowingMode growing_mode) {
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
-  size_t limit = (PageMetadata::kPageSize > MB ? PageMetadata::kPageSize : MB);
+  size_t limit = (NormalPage::kPageSize > MB ? NormalPage::kPageSize : MB);
   return limit * (growing_mode == Heap::HeapGrowingMode::kConservative
                       ? kLowMemoryAllocationLimitGrowingStep
                       : kRegularAllocationLimitGrowingStep);

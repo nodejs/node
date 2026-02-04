@@ -466,7 +466,8 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
 
   const bool needs_case_folding =
-      NeedsUnicodeCaseEquivalents(compiler->flags()) && !is_case_folded();
+      NeedsUnicodeCaseEquivalents(compiler->flags()) &&
+      !no_case_folding_needed();
   if (needs_case_folding) {
     CharacterRange::AddUnicodeCaseEquivalents(ranges, zone);
   }
@@ -559,9 +560,10 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
     // (e.g. before building complements).
     // It is therefore the parsers responsibility to case fold (sub-) ranges
     // before creating ClassSetOperands.
-    alternatives->Add(zone->template New<RegExpClassRanges>(
-                          zone, ranges(), RegExpClassRanges::IS_CASE_FOLDED),
-                      zone);
+    alternatives->Add(
+        zone->template New<RegExpClassRanges>(
+            zone, ranges(), RegExpClassRanges::NO_CASE_FOLDING_NEEDED),
+        zone);
   }
   if (empty_string != nullptr) {
     alternatives->Add(empty_string, zone);
@@ -1287,9 +1289,9 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
   if (compiler->read_backward()) std::swap(start_reg, end_reg);
-  RegExpNode* store_end = ActionNode::ClearPosition(end_reg, on_success);
+  RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
-  return ActionNode::ClearPosition(start_reg, body_node);
+  return ActionNode::StorePosition(start_reg, body_node);
 }
 
 namespace {
@@ -2003,12 +2005,17 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   bool body_can_be_empty = (body->min_match() == 0);
   int body_start_reg = RegExpCompiler::kNoRegister;
   Interval capture_registers = body->CaptureRegisters();
-  bool needs_capture_clearing = !capture_registers.is_empty();
+  // At the start of the next iteration of a quantifier the captures must be
+  // cleared, so that /(?:x(.)?z){2}/ when applied to "xyzxz" captures ""
+  // (rather than "y" from the first repeat). However, if the max number of
+  // iterations is 1 then there is no 'next repeat' so we don't need to do this.
+  bool needs_capture_clearing = !capture_registers.is_empty() && max != 1;
   Zone* zone = compiler->zone();
 
+  bool want_unroll = compiler->optimize() && v8_flags.regexp_unroll;
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (compiler->optimize() && !needs_capture_clearing) {
+  } else if (want_unroll && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     {
@@ -2060,7 +2067,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   int reg_ctr = needs_counter ? compiler->AllocateRegister()
                               : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
-      body->min_match() == 0, compiler->read_backward(), min, zone);
+      body->min_match() == 0, compiler->read_backward(), zone);
   if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
   RegExpNode* loop_return =
       needs_counter ? static_cast<RegExpNode*>(
@@ -2099,11 +2106,16 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
     center->AddContinueAlternative(rest_alt);
     center->AddLoopAlternative(body_alt);
   }
-  if (needs_counter) {
-    return ActionNode::SetRegisterForLoop(reg_ctr, 0, center);
-  } else {
-    return center;
+  RegExpNode* result = center;
+  if (min > 0 && body->min_match() > 0 && !compiler->read_backward()) {
+    uint8_t eats = base::saturated_cast<uint8_t>(
+        std::min(256, min) * std::min(256, body->min_match()));
+    result = ActionNode::EatsAtLeast(eats, result);
   }
+  if (needs_counter) {
+    result = ActionNode::SetRegisterForLoop(reg_ctr, 0, result);
+  }
+  return result;
 }
 
 }  // namespace internal

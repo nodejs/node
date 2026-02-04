@@ -10,19 +10,20 @@ extern class ObjectBoilerplateDescription extends HeapObject {
   raw_entries[length]: Object;
 }
 
+@cppObjectLayoutDefinition
 extern class ArrayBoilerplateDescription extends Struct {
   flags: Smi;
   constant_elements: FixedArrayBase;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpBoilerplateDescription extends Struct {
   data: TrustedPointer<RegExpData>;
   source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ClassBoilerplate extends Struct {
   arguments_count: Smi;
   static_properties_template: Object;

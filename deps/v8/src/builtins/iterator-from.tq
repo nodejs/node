@@ -15,7 +15,7 @@ macro NewJSValidIteratorWrapper(
   };
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
+// https://tc39.es/ecma262/#sec-getiteratorflattenable
 transitioning macro GetIteratorFlattenable(
     implicit context: Context)(obj: JSReceiver|String): IteratorRecord {
   // 1. If obj is not an Object, then
@@ -46,7 +46,7 @@ transitioning macro GetIteratorFlattenable(
   return GetIteratorDirect(iteratorObj);
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-iterator.from
+// https://tc39.es/ecma262/#sec-iterator.from
 transitioning javascript builtin IteratorFrom(
     js-implicit context: NativeContext, receiver: JSAny)(
     objArg: JSAny): JSReceiver {
@@ -87,7 +87,7 @@ transitioning javascript builtin IteratorFrom(
   return NewJSValidIteratorWrapper(iteratorRecord);
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.next
+// https://tc39.es/ecma262/#sec-wrapforvaliditeratorprototype.next
 transitioning javascript builtin WrapForValidIteratorPrototypeNext(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   // 1. Let O be this value.
@@ -104,7 +104,7 @@ transitioning javascript builtin WrapForValidIteratorPrototypeNext(
   return Call(context, iteratorRecord.next, iteratorRecord.object);
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.return
+// https://tc39.es/ecma262/#sec-wrapforvaliditeratorprototype.return
 transitioning javascript builtin WrapForValidIteratorPrototypeReturn(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   try {

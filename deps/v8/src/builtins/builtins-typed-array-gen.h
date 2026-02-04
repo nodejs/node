@@ -46,13 +46,18 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
 
-  TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
-                                         TNode<Object> obj,
-                                         const char* method_name);
+  // Implements `ValidateTypedArray` except the
+  // `IsTypedArrayOutOfBounds(taRecord)` check. Useful if later code already
+  // does that validation. https://tc39.es/ecma262/#sec-validatetypedarray
+  TNode<JSTypedArray> PartiallyValidateTypedArrayMaybeOOB(
+      TNode<Context> context, TNode<Object> obj, const char* method_name,
+      TypedArrayAccessMode access_mode);
 
-  TNode<UintPtrT> ValidateTypedArrayAndGetLength(TNode<Context> context,
-                                                 TNode<Object> obj,
-                                                 const char* method_name);
+  // Implements `ValidateTypedArray` and also returns the length.
+  // https://tc39.es/ecma262/#sec-validatetypedarray
+  TNode<UintPtrT> ValidateTypedArrayAndGetLength(
+      TNode<Context> context, TNode<Object> obj, const char* method_name,
+      TypedArrayAccessMode access_mode);
 
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
@@ -94,9 +99,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
                                      TNode<RawPtrT> base,
                                      TNode<UintPtrT> offset);
+
   void StoreJSTypedArrayElementFromNumeric(TNode<Context> context,
                                            TNode<JSTypedArray> typed_array,
-                                           TNode<UintPtrT> index_node,
+                                           TNode<UintPtrT> index,
                                            TNode<Numeric> value,
                                            ElementsKind elements_kind);
   void StoreJSTypedArrayElementFromTagged(TNode<Context> context,

@@ -49,7 +49,7 @@ class InterpreterFrameState {
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     frame_[interpreter::Register::virtual_accumulator()] = value;
   }
   ValueNode* accumulator() const {
@@ -63,7 +63,7 @@ class InterpreterFrameState {
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
     // Conversions should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     frame_[reg] = value;
   }
   ValueNode* get(interpreter::Register reg) const {
@@ -303,9 +303,10 @@ class MergePointInterpreterFrameState {
       const compiler::BytecodeLivenessState* liveness);
 
   static MergePointInterpreterFrameState* NewForLoop(
-      const InterpreterFrameState& start_state, Graph* graph,
-      const MaglevCompilationUnit& info, int merge_offset,
-      int predecessor_count, const compiler::BytecodeLivenessState* liveness,
+      const InterpreterFrameState& start_state,
+      const MaglevGraphBuilder* builder, const MaglevCompilationUnit& info,
+      int merge_offset, int predecessor_count,
+      const compiler::BytecodeLivenessState* liveness,
       const compiler::LoopInfo* loop_info, bool has_been_peeled = false);
 
   static MergePointInterpreterFrameState* NewForCatchBlock(

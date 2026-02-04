@@ -38,6 +38,7 @@ class FutexWaitList;
 
 class Isolate;
 class JSArrayBuffer;
+class JSPromise;
 
 class FutexWaitListNode {
  public:
@@ -47,7 +48,7 @@ class FutexWaitListNode {
   // Create an async FutexWaitListNode.
   FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
                     void* wait_location,
-                    DirectHandle<JSObject> promise_capability,
+                    DirectHandle<JSPromise> promise_capability,
                     Isolate* isolate);
 
   // Disallow copying nodes.

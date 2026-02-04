@@ -87,6 +87,9 @@ struct WasmFunction {
   bool imported = false;
   bool exported = false;
   bool declared = false;
+  // TODO(jkummerow): Should we merge {sig_index} and {exact} into a
+  // {ValueType} field?
+  bool exact = false;  // Only meaningful for imported functions.
 };
 
 // Static representation of a wasm global variable.
@@ -539,13 +542,19 @@ class CallSiteFeedback {
   }
   int function_index(int i) const {
     DCHECK(!is_invalid() && !is_megamorphic());
-    if (is_monomorphic()) return index_or_count_;
+    if (is_monomorphic()) {
+      DCHECK_EQ(i, 0);
+      return index_or_count_;
+    }
     return polymorphic_storage()[i].function_index;
   }
   // The call count of the function at this particular call site.
   int call_count(int i) const {
     DCHECK(!is_invalid() && !is_megamorphic());
-    if (is_monomorphic()) return static_cast<int>(frequency_or_ool_);
+    if (is_monomorphic()) {
+      DCHECK_EQ(i, 0);
+      return static_cast<int>(frequency_or_ool_);
+    }
     return polymorphic_storage()[i].absolute_call_frequency;
   }
   bool has_non_inlineable_targets() const {
@@ -650,15 +659,11 @@ struct CompilationPriority {
   uint32_t compilation_priority;
   int optimization_priority;
 };
-using CompilationPriorities = std::unordered_map<uint32_t, CompilationPriority>;
-struct Uint32PairHash {
-  size_t operator()(const std::pair<uint32_t, uint32_t> pair) const {
-    return base::hash_value(pair);
-  }
-};
-// Maps from function index and byte offset in the function to frequency.
+using CompilationPriorities = std::map<uint32_t, CompilationPriority>;
+// Maps from function index to a vector of byte offset in the function and
+// frequency.
 using InstructionFrequencies =
-    std::unordered_map<std::pair<uint32_t, uint32_t>, uint8_t, Uint32PairHash>;
+    std::map<uint32_t, std::vector<std::pair<uint32_t, uint8_t>>>;
 struct CallTarget {
   uint32_t function_index;
   uint32_t call_frequency_percent;
@@ -669,9 +674,10 @@ struct CallTarget {
   }
 };
 using CallTargetVector = base::SmallVector<CallTarget, 4>;
-// Maps from function index and byte offset to a SmallVector of call targets.
-using CallTargets = std::unordered_map<std::pair<uint32_t, uint32_t>,
-                                       CallTargetVector, Uint32PairHash>;
+// Maps from function index to a vector of byte offset and a SmallVector of call
+// targets.
+using CallTargets =
+    std::map<uint32_t, std::vector<std::pair<uint32_t, CallTargetVector>>>;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
@@ -736,11 +742,21 @@ struct V8_EXPORT_PRIVATE WasmModule {
   CompilationPriorities compilation_priorities;
   InstructionFrequencies instruction_frequencies;
   CallTargets call_targets;
+  // When --wasm-generate-compilation-hints, we do not trigger tierup, so we
+  // need to know which functions would have been tiered up to mark them for
+  // optimization in the generated compilation hints.
+  mutable base::Mutex marked_for_tierup_mutex;
+  mutable std::unordered_set<uint32_t> marked_for_tierup;
+  // When --wasm-generate-compilation-hints, we need to map feedback slots to
+  // offsets in the wire bytes to generate compilation hints. The key in the map
+  // is the function index. The index into the vector is the feedback slot
+  // index.
+  mutable std::unordered_map<uint32_t, std::vector<uint32_t>>
+      feedback_slots_to_wire_byte_offsets;
+
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
 
-  // This is the only member of {WasmModule} where we store dynamic information
-  // that's not a decoded representation of the wire bytes.
   // TODO(jkummerow): Rename.
   mutable TypeFeedbackStorage type_feedback;
 
@@ -1113,7 +1129,7 @@ class TruncatedUserString {
  public:
   template <typename T>
   explicit TruncatedUserString(base::Vector<T> name)
-      : TruncatedUserString(name.begin(), name.length()) {}
+      : TruncatedUserString(name.begin(), name.size()) {}
 
   TruncatedUserString(const uint8_t* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}

@@ -84,13 +84,24 @@ class BaselineCompiler {
   // Immediate value operands.
   uint32_t Uint(int operand_index);
   int32_t Int(int operand_index);
-  uint32_t Index(int operand_index);
+  uint32_t ConstantPoolIndex(int operand_index);
+  uint32_t FeedbackSlot(int operand_index);
+  uint32_t ContextSlot(int operand_index);
+  uint32_t CoverageSlot(int operand_index);
   uint32_t Flag8(int operand_index);
   uint32_t Flag16(int operand_index);
+  uint32_t EmbeddedFeedback(int operand_index);
   uint32_t RegisterCount(int operand_index);
-  Tagged<TaggedIndex> IndexAsTagged(int operand_index);
+  Tagged<TaggedIndex> ConstantPoolIndexAsTagged(int operand_index);
+  Tagged<TaggedIndex> FeedbackSlotAsTagged(int operand_index);
+  Tagged<TaggedIndex> ContextSlotAsTagged(int operand_index);
+  Tagged<TaggedIndex> CoverageSlotAsTagged(int operand_index);
   Tagged<TaggedIndex> UintAsTagged(int operand_index);
-  Tagged<Smi> IndexAsSmi(int operand_index);
+  Tagged<Smi> ConstantPoolIndexAsSmi(int operand_index);
+  Tagged<Smi> FeedbackSlotAsSmi(int operand_index);
+  Tagged<Smi> ContextSlotAsSmi(int operand_index);
+  Tagged<Smi> CoverageSlotAsSmi(int operand_index);
+  Tagged<Smi> AbortReasonAsSmi(int operand_index);
   Tagged<Smi> IntAsSmi(int operand_index);
   Tagged<Smi> UintAsSmi(int operand_index);
   Tagged<Smi> Flag8AsSmi(int operand_index);
@@ -143,6 +154,10 @@ class BaselineCompiler {
 
 #ifdef V8_TRACE_UNOPTIMIZED
   void TraceBytecode(Runtime::FunctionId function_id);
+#endif
+
+#if defined(V8_TRACE_UNOPTIMIZED) || defined(V8_DUMPLING)
+  void EmitTraceBytecodeRuntimeCall(Runtime::FunctionId function_id);
 #endif
 
   // Single bytecode visitors.

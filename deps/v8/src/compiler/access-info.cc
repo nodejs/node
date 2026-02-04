@@ -719,22 +719,27 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 
   PropertyConstness constness =
       map.GetPropertyDetails(broker_, descriptor).constness();
-  switch (constness) {
-    case PropertyConstness::kMutable:
-      return PropertyAccessInfo::DataField(
-          broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
-          field_index, details_representation, field_type, field_owner_map,
-          field_map, holder, {});
-    case PropertyConstness::kConst:
-      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
-          map, field_owner_map, descriptor);
-      unrecorded_dependencies.push_back(constness_dep);
+
+  if (constness == PropertyConstness::kConst) {
+    if (auto constness_dep =
+            dependencies()->FieldConstnessDependencyOffTheRecord(
+                map, field_owner_map, descriptor)) {
+      unrecorded_dependencies.push_back(*constness_dep);
       return PropertyAccessInfo::FastDataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
           holder, {});
+    }
+
+    if (access_mode != AccessMode::kLoad && access_mode != AccessMode::kHas) {
+      return PropertyAccessInfo::Invalid(zone());
+    }
   }
-  UNREACHABLE();
+
+  return PropertyAccessInfo::DataField(
+      broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
+      field_index, details_representation, field_type, field_owner_map,
+      field_map, holder, {});
 }
 
 namespace {
@@ -1109,7 +1114,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (access_mode == AccessMode::kStoreInLiteral ||
         access_mode == AccessMode::kDefine) {
       PropertyAttributes attrs = NONE;
-      if (name.object()->IsPrivate()) {
+      if (name.object()->IsAnyPrivate()) {
         // When PrivateNames are added to an object, they are by definition
         // non-enumerable.
         attrs = DONT_ENUM;
@@ -1118,7 +1123,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Don't lookup private symbols on the prototype chain.
-    if (name.object()->IsPrivate()) {
+    if (name.object()->IsAnyPrivate()) {
       return Invalid();
     }
 
@@ -1373,14 +1378,17 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
           TryCast<JSFunction>(maybe_getter, &getter)) {
         if (getter->shared()->HasBuiltinId() &&
             getter->shared()->builtin_id() ==
-                Builtin::kTypedArrayPrototypeLength &&
-            broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
-          dependencies()->DependOnStablePrototypeChain(
-              receiver_map, kStartAtPrototype, holder);
-          // TODO(388844115): If we cannot depend on the detaching protector,
-          // add a different kind of TypedArrayLength operator which checks for
-          // detached before reading the byte_length.
-          return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+                Builtin::kTypedArrayPrototypeLength) {
+          if (v8_flags.turbolev ||
+              broker_->dependencies()
+                  ->DependOnArrayBufferDetachingProtector()) {
+            // Maglev and Turbolev will add the ArrayBufferDetachingProtector
+            // dependency themselves and handle the case where they cannot do
+            // so. Turbofan doesn't.
+            dependencies()->DependOnStablePrototypeChain(
+                receiver_map, kStartAtPrototype, holder);
+            return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+          }
         }
       }
     }
@@ -1477,19 +1485,22 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   PropertyConstness constness =
       transition_map.GetPropertyDetails(broker_, number).constness();
   switch (constness) {
+    case PropertyConstness::kConst:
+      if (auto constness_dep =
+              dependencies()->FieldConstnessDependencyOffTheRecord(
+                  transition_map, transition_map, number)) {
+        unrecorded_dependencies.push_back(*constness_dep);
+        return PropertyAccessInfo::FastDataConstant(
+            zone(), map, std::move(unrecorded_dependencies), field_index,
+            details_representation, field_type, transition_map, field_map,
+            holder, transition_map);
+      }
+      return PropertyAccessInfo::Invalid(zone());
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           broker(), zone(), map, std::move(unrecorded_dependencies),
           field_index, details_representation, field_type, transition_map,
           field_map, holder, transition_map);
-    case PropertyConstness::kConst:
-      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
-          transition_map, transition_map, number);
-      unrecorded_dependencies.push_back(constness_dep);
-      return PropertyAccessInfo::FastDataConstant(
-          zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, transition_map, field_map, holder,
-          transition_map);
   }
   UNREACHABLE();
 }

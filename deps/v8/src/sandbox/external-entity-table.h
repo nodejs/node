@@ -15,11 +15,18 @@
 #include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 #include "src/common/segmented-table.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
 class Isolate;
+
+#ifdef OBJECT_PRINT
+// Create a specialization of this printer for entry types to enable printing.
+template <typename EntryType>
+class TableEntryPrinter;
+#endif  // OBJECT_PRINT
 
 /**
  * A thread-safe table with a fixed maximum size for storing references to
@@ -261,6 +268,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
    private:
     ExternalEntityTable<Entry, size>* const table_;
   };
+
+#ifdef OBJECT_PRINT
+  template <typename EntryCallback>
+  void Print(Space* space, const char* space_name, uint32_t lower,
+             uint32_t upper, EntryCallback entry_callback) const;
+#endif
 
  protected:
   static constexpr uint32_t kInternalReadOnlySegmentsOffset = 0;

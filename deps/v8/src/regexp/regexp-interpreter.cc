@@ -6,12 +6,15 @@
 
 #include "src/regexp/regexp-interpreter.h"
 
+#include <limits>
+
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"  // For kMaximumStackSize.
@@ -74,7 +77,7 @@ bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
   return true;
 }
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
 void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
                            int stack_depth, int current_position,
                            uint32_t current_char, int bytecode_length,
@@ -95,33 +98,25 @@ void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
     RegExpBytecodeDisassembleSingle(code_base, pc);
   }
 }
-#endif  // DEBUG
+#endif  // ENABLE_DISASSEMBLER
 
-int32_t Load32Aligned(const uint8_t* pc) {
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
-  return *reinterpret_cast<const int32_t*>(pc);
+template <class Char>
+constexpr int BitsPerChar() {
+  return kBitsPerByte * sizeof(Char);
 }
 
-uint32_t Load16AlignedUnsigned(const uint8_t* pc) {
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
-  return *reinterpret_cast<const uint16_t*>(pc);
+template <class Char>
+uint32_t Load2Characters(const base::Vector<const Char>& string, int index) {
+  return string[index] | (string[index + 1] << BitsPerChar<Char>());
 }
 
-int32_t Load16AlignedSigned(const uint8_t* pc) {
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
-  return *reinterpret_cast<const int16_t*>(pc);
+uint32_t Load4Characters(const base::Vector<const uint8_t>& string, int index) {
+  return string[index] | (string[index + 1] << 8) | (string[index + 2] << 16) |
+         (string[index + 3] << 24);
 }
 
-// Helpers to access the packed argument. Takes the 32 bits containing the
-// current bytecode, where the 8 LSB contain the bytecode and the rest contains
-// a packed 24-bit argument.
-// TODO(jgruber): Specify signed-ness in bytecode signature declarations, and
-// police restrictions during bytecode generation.
-int32_t LoadPacked24Signed(int32_t bytecode_and_packed_arg) {
-  return bytecode_and_packed_arg >> BYTECODE_SHIFT;
-}
-uint32_t LoadPacked24Unsigned(int32_t bytecode_and_packed_arg) {
-  return static_cast<uint32_t>(bytecode_and_packed_arg) >> BYTECODE_SHIFT;
+uint32_t Load4Characters(const base::Vector<const base::uc16>&, int) {
+  UNREACHABLE();
 }
 
 // A simple abstraction over the backtracking stack used by the interpreter.
@@ -344,25 +339,24 @@ bool IndexIsInBounds(int index, int length) {
 // store the addresses in a dispatch table indexed by bytecode. To execute the
 // next handler we simply jump (goto) directly to its address.
 #if V8_USE_COMPUTED_GOTO
-#define BC_LABEL(name) BC_##name:
-#define DECODE()                                                   \
-  do {                                                             \
-    next_insn = Load32Aligned(next_pc);                            \
-    next_handler_addr = dispatch_table[next_insn & BYTECODE_MASK]; \
+#define BC_LABEL(name) BC_k##name:
+#define DECODE()                                                          \
+  do {                                                                    \
+    RegExpBytecode next_bc = RegExpBytecodes::FromPtr(next_pc);           \
+    next_handler_addr =                                                   \
+        dispatch_table[RegExpBytecodes::ToByte(next_bc) & kBytecodeMask]; \
   } while (false)
 #define DISPATCH()  \
   pc = next_pc;     \
-  insn = next_insn; \
   goto* next_handler_addr
 // Without computed goto support, we fall back to a simple switch-based
 // dispatch (A large switch statement inside a loop with a case for every
 // bytecode).
 #else  // V8_USE_COMPUTED_GOTO
-#define BC_LABEL(name) case BC_##name:
-#define DECODE() next_insn = Load32Aligned(next_pc)
+#define BC_LABEL(name) case RegExpBytecode::k##name:
+#define DECODE() ((void)0)
 #define DISPATCH()  \
   pc = next_pc;     \
-  insn = next_insn; \
   goto switch_dispatch_continuation
 #endif  // V8_USE_COMPUTED_GOTO
 
@@ -373,9 +367,10 @@ bool IndexIsInBounds(int index, int length) {
 // don't hit the cache and have to fetch the next handler address from physical
 // memory, instructions between ADVANCE/SET_PC_FROM_OFFSET and DISPATCH can
 // potentially be executed unconditionally, reducing memory stall.
-#define ADVANCE(name)                             \
-  next_pc = pc + RegExpBytecodeLength(BC_##name); \
+#define ADVANCE()                                   \
+  next_pc = pc + RegExpBytecodes::Size(current_bc); \
   DECODE()
+
 #define SET_PC_FROM_OFFSET(offset) \
   next_pc = code_base + offset;    \
   DECODE()
@@ -388,14 +383,123 @@ bool IndexIsInBounds(int index, int length) {
   } while (false)
 #define ADVANCE_CURRENT_POSITION(by) SET_CURRENT_POSITION(current + (by))
 
-#ifdef DEBUG
-#define BYTECODE(name)                                                \
-  BC_LABEL(name)                                                      \
-  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
-                        current_char, RegExpBytecodeLength(BC_##name), #name);
+// These weird looking macros are required for clang-format and cpplint to not
+// interfere/complain about our logic of opening/closing blocks in our macros.
+#define OPEN_BLOCK {
+#define CLOSE_BLOCK }
+#define BYTECODES_START() OPEN_BLOCK
+#define BYTECODES_END() CLOSE_BLOCK
+
+#ifdef ENABLE_DISASSEMBLER
+#define BYTECODE(Name, ...)                                              \
+  CLOSE_BLOCK                                                            \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);       \
+  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current,    \
+                        current_char, RegExpBytecodes::Size(current_bc), \
+                        #Name);
 #else
-#define BYTECODE(name) BC_LABEL(name)
-#endif  // DEBUG
+#define BYTECODE(Name, ...) \
+  CLOSE_BLOCK               \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
+#endif  // ENABLE_DISASSEMBLER
+
+#define INIT(Name, ...)                                                     \
+  constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;            \
+  using Operands = RegExpBytecodeOperands<current_bc>;                      \
+  __VA_OPT__(auto argument_tuple = std::apply(                              \
+                 [&](auto... ops) {                                         \
+                   return std::make_tuple(                                  \
+                       Operands::template Get<ops.value>(pc, no_gc)...);    \
+                 },                                                         \
+                 Operands::GetOperandsTuple());                             \
+             auto [__VA_ARGS__] = argument_tuple;)                          \
+  static_assert((IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCount == 0),      \
+                "Number of arguments to VISIT doesn't match the bytecodes " \
+                "operands count")
+
+namespace {
+
+template <typename Char>
+bool CheckSpecialClassRanges(uint32_t current_char,
+                             StandardCharacterSet character_set) {
+  constexpr bool is_one_byte = sizeof(Char) == 1;
+  switch (character_set) {
+    case StandardCharacterSet::kWhitespace:
+      DCHECK(is_one_byte);
+      if (current_char == ' ' || base::IsInRange(current_char, '\t', '\r') ||
+          current_char == 0xA0) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      UNREACHABLE();
+    case StandardCharacterSet::kWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return false;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] != 0;
+      return true;
+    }
+    case StandardCharacterSet::kNotWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return true;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] == 0;
+    }
+    case StandardCharacterSet::kDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return false;
+      }
+      return true;
+    case StandardCharacterSet::kLineTerminator: {
+      if (current_char == '\n' || current_char == '\r') {
+        return true;
+      }
+      if constexpr (!is_one_byte) {
+        if (current_char == 0x2028 || current_char == 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kNotLineTerminator: {
+      const bool is_one_byte_match =
+          current_char != '\n' && current_char != '\r';
+      if constexpr (is_one_byte) {
+        if (is_one_byte_match) {
+          return true;
+        }
+      } else {
+        if (is_one_byte_match && current_char != 0x2028 &&
+            current_char != 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kEverything:
+      return true;
+  }
+}
+
+}  // namespace
 
 template <typename Char>
 IrregexpInterpreter::Result RawMatch(
@@ -408,47 +512,49 @@ IrregexpInterpreter::Result RawMatch(
 
 #if V8_USE_COMPUTED_GOTO
 
-// We have to make sure that no OOB access to the dispatch table is possible and
-// all values are valid label addresses.
-// Otherwise jumps to arbitrary addresses could potentially happen.
-// This is ensured as follows:
-// Every index to the dispatch table gets masked using BYTECODE_MASK in
-// DECODE(). This way we can only get values between 0 (only the least
-// significant byte of an integer is used) and kRegExpPaddedBytecodeCount - 1
-// (BYTECODE_MASK is defined to be exactly this value).
-// All entries from kRegExpBytecodeCount to kRegExpPaddedBytecodeCount have to
-// be filled with BREAKs (invalid operation).
+  // Maximum number of bytecodes that will be used (next power of 2 of actually
+  // defined bytecodes).
+  // All slots between the last actually defined bytecode and maximum id will be
+  // filled with kBreaks, indicating an invalid operation. This way using
+  // kBytecodeMask guarantees no OOB access to the dispatch table.
+  constexpr int kPaddedBytecodeCount =
+      base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount);
+  constexpr int kBytecodeMask = kPaddedBytecodeCount - 1;
+  static_assert(std::numeric_limits<uint8_t>::max() >= kBytecodeMask);
 
-// Fill dispatch table from last defined bytecode up to the next power of two
-// with BREAK (invalid operation).
-// TODO(pthier): Find a way to fill up automatically (at compile time)
-// 61 real bytecodes -> 3 fillers
-#define BYTECODE_FILLER_ITERATOR(V) \
-  V(BREAK) /* 1 */                  \
-  V(BREAK) /* 2 */                  \
-  V(BREAK) /* 3 */
+  // We have to make sure that no OOB access to the dispatch table is possible
+  // and all values are valid label addresses. Otherwise jumps to arbitrary
+  // addresses could potentially happen. This is ensured as follows: Every index
+  // to the dispatch table gets masked using kBytecodeMask in DECODE(). This way
+  // we can only get values between 0 (only the least significant byte of an
+  // integer is used) and kPaddedBytecodeCount - 1 (kBytecodeMask is defined to
+  // be exactly this value). All entries from RegExpBytecodes::kCount to
+  // kRegExpPaddedBytecodeCount are automatically filled with kBreak (invalid
+  // operation).
 
-#define COUNT(...) +1
-  static constexpr int kRegExpBytecodeFillerCount =
-      BYTECODE_FILLER_ITERATOR(COUNT);
-#undef COUNT
-
-  // Make sure kRegExpPaddedBytecodeCount is actually the closest possible power
-  // of two.
-  DCHECK_EQ(kRegExpPaddedBytecodeCount,
-            base::bits::RoundUpToPowerOfTwo32(kRegExpBytecodeCount));
-
-  // Make sure every bytecode we get by using BYTECODE_MASK is well defined.
-  static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
-  static_assert(kRegExpBytecodeCount + kRegExpBytecodeFillerCount ==
-                kRegExpPaddedBytecodeCount);
-
-#define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_##name,
-  static const void* const dispatch_table[kRegExpPaddedBytecodeCount] = {
-      BYTECODE_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)
-          BYTECODE_FILLER_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)};
+#define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_k##name,
+  static const void* const unsafe_dispatch_table[RegExpBytecodes::kCount] = {
+      REGEXP_BYTECODE_LIST(DECLARE_DISPATCH_TABLE_ENTRY)};
 #undef DECLARE_DISPATCH_TABLE_ENTRY
 #undef BYTECODE_FILLER_ITERATOR
+
+  static const void* const filler_entry = &&BC_kBreak;
+  static const std::array<const void*, kPaddedBytecodeCount> dispatch_table =
+      [=]() {
+        std::array<const void*, kPaddedBytecodeCount> table;
+
+        size_t i = 0;
+        // Copy all valid Bytecodes to the dispatch table.
+        for (; i < RegExpBytecodes::kCount; ++i) {
+          table[i] = unsafe_dispatch_table[i];
+        }
+        // Fill dispatch table from last defined bytecode up to the next power
+        // of two with kBreak (invalid operation).
+        for (; i < kPaddedBytecodeCount; ++i) {
+          table[i] = filler_entry;
+        }
+        return table;
+      }();
 
 #endif  // V8_USE_COMPUTED_GOTO
 
@@ -461,7 +567,7 @@ IrregexpInterpreter::Result RawMatch(
 
   uint32_t backtrack_count = 0;
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (v8_flags.trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
   }
@@ -469,610 +575,549 @@ IrregexpInterpreter::Result RawMatch(
 
   while (true) {
     const uint8_t* next_pc = pc;
-    int32_t insn;
-    int32_t next_insn;
 #if V8_USE_COMPUTED_GOTO
     const void* next_handler_addr;
     DECODE();
     DISPATCH();
 #else
-    insn = Load32Aligned(pc);
-    switch (insn & BYTECODE_MASK) {
+    switch (RegExpBytecodes::FromPtr(pc)) {
 #endif  // V8_USE_COMPUTED_GOTO
-    BYTECODE(BREAK) { UNREACHABLE(); }
-    BYTECODE(PUSH_CP) {
-      ADVANCE(PUSH_CP);
+    BYTECODES_START()
+    BYTECODE(Break) { UNREACHABLE(); }
+    BYTECODE(PushCurrentPosition) {
+      ADVANCE();
       if (!backtrack_stack.push(current)) {
         return MaybeThrowStackOverflow(isolate, call_origin);
       }
       DISPATCH();
     }
-    BYTECODE(PUSH_BT) {
-      ADVANCE(PUSH_BT);
-      if (!backtrack_stack.push(Load32Aligned(pc + 4))) {
+    BYTECODE(PushBacktrack, label) {
+      ADVANCE();
+      if (!backtrack_stack.push(label)) {
         return MaybeThrowStackOverflow(isolate, call_origin);
       }
       DISPATCH();
     }
-    BYTECODE(PUSH_REGISTER) {
-      ADVANCE(PUSH_REGISTER);
-      if (!backtrack_stack.push(registers[LoadPacked24Unsigned(insn)])) {
+    BYTECODE(PushRegister, register_index, stack_check) {
+      ADVANCE();
+      USE(stack_check);  // Unused in interpreter.
+      if (!backtrack_stack.push(registers[register_index])) {
         return MaybeThrowStackOverflow(isolate, call_origin);
       }
       DISPATCH();
     }
-    BYTECODE(SET_REGISTER) {
-      ADVANCE(SET_REGISTER);
-      registers[LoadPacked24Unsigned(insn)] = Load32Aligned(pc + 4);
+    BYTECODE(SetRegister, register_index, value) {
+      ADVANCE();
+      registers[register_index] = value;
       DISPATCH();
     }
-    BYTECODE(CLEAR_REGISTERS) {
-      ADVANCE(CLEAR_REGISTERS);
-      uint16_t from_reg = Load16AlignedUnsigned(pc + 4);
-      uint16_t to_reg = Load16AlignedUnsigned(pc + 6);
-      SBXCHECK_LE(from_reg, to_reg);
-      for (uint16_t i = from_reg; i <= to_reg; ++i) {
+    BYTECODE(ClearRegisters, from_register, to_register) {
+      ADVANCE();
+      SBXCHECK_LE(from_register, to_register);
+      for (uint16_t i = from_register; i <= to_register; ++i) {
         registers[i] = InterpreterRegisters::kNoMatchValue;
       }
       DISPATCH();
     }
-    BYTECODE(ADVANCE_REGISTER) {
-      ADVANCE(ADVANCE_REGISTER);
-      registers[LoadPacked24Unsigned(insn)] += Load32Aligned(pc + 4);
+    BYTECODE(AdvanceRegister, register_index, by) {
+      ADVANCE();
+      registers[register_index] += by;
       DISPATCH();
     }
-    BYTECODE(SET_REGISTER_TO_CP) {
-      ADVANCE(SET_REGISTER_TO_CP);
-      registers[LoadPacked24Unsigned(insn)] = current + Load32Aligned(pc + 4);
+    BYTECODE(WriteCurrentPositionToRegister, register_index, cp_offset) {
+      ADVANCE();
+      registers[register_index] = current + cp_offset;
       DISPATCH();
     }
-    BYTECODE(SET_CP_TO_REGISTER) {
-      ADVANCE(SET_CP_TO_REGISTER);
-      SET_CURRENT_POSITION(registers[LoadPacked24Unsigned(insn)]);
+    BYTECODE(ReadCurrentPositionFromRegister, register_index) {
+      ADVANCE();
+      SET_CURRENT_POSITION(registers[register_index]);
       DISPATCH();
     }
-    BYTECODE(SET_REGISTER_TO_SP) {
-      ADVANCE(SET_REGISTER_TO_SP);
-      registers[LoadPacked24Unsigned(insn)] = backtrack_stack.sp();
+    BYTECODE(WriteStackPointerToRegister, register_index) {
+      ADVANCE();
+      registers[register_index] = backtrack_stack.sp();
       DISPATCH();
     }
-    BYTECODE(SET_SP_TO_REGISTER) {
-      ADVANCE(SET_SP_TO_REGISTER);
-      backtrack_stack.set_sp(registers[LoadPacked24Unsigned(insn)]);
+    BYTECODE(ReadStackPointerFromRegister, register_index) {
+      ADVANCE();
+      backtrack_stack.set_sp(registers[register_index]);
       DISPATCH();
     }
-    BYTECODE(POP_CP) {
-      ADVANCE(POP_CP);
+    BYTECODE(PopCurrentPosition) {
+      ADVANCE();
       SET_CURRENT_POSITION(backtrack_stack.pop());
       DISPATCH();
     }
-    BYTECODE(POP_BT) {
+    BYTECODE(Backtrack, return_code) {
       static_assert(JSRegExp::kNoBacktrackLimit == 0);
       if (++backtrack_count == backtrack_limit) {
-        int return_code = LoadPacked24Signed(insn);
         return static_cast<IrregexpInterpreter::Result>(return_code);
       }
 
-      IrregexpInterpreter::Result return_code =
+      IrregexpInterpreter::Result result =
           HandleInterrupts(isolate, call_origin, code_array, subject_string,
                            &code_base, &subject, &pc);
-      if (return_code != IrregexpInterpreter::SUCCESS) return return_code;
+      if (result != IrregexpInterpreter::SUCCESS) return result;
 
       SET_PC_FROM_OFFSET(backtrack_stack.pop());
       DISPATCH();
     }
-    BYTECODE(POP_REGISTER) {
-      ADVANCE(POP_REGISTER);
-      registers[LoadPacked24Unsigned(insn)] = backtrack_stack.pop();
+    BYTECODE(PopRegister, register_index) {
+      ADVANCE();
+      registers[register_index] = backtrack_stack.pop();
       DISPATCH();
     }
-    BYTECODE(FAIL) {
+    BYTECODE(Fail) {
       isolate->counters()->regexp_backtracks()->AddSample(
           static_cast<int>(backtrack_count));
       return IrregexpInterpreter::FAILURE;
     }
-    BYTECODE(SUCCEED) {
+    BYTECODE(Succeed) {
       isolate->counters()->regexp_backtracks()->AddSample(
           static_cast<int>(backtrack_count));
       registers.CopyToOutputRegisters();
       return IrregexpInterpreter::SUCCESS;
     }
-    BYTECODE(ADVANCE_CP) {
-      ADVANCE(ADVANCE_CP);
-      ADVANCE_CURRENT_POSITION(LoadPacked24Signed(insn));
+    BYTECODE(AdvanceCurrentPosition, by) {
+      ADVANCE();
+      ADVANCE_CURRENT_POSITION(by);
       DISPATCH();
     }
-    BYTECODE(GOTO) {
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(GoTo, label) {
+      SET_PC_FROM_OFFSET(label);
       DISPATCH();
     }
-    BYTECODE(ADVANCE_CP_AND_GOTO) {
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
-      ADVANCE_CURRENT_POSITION(LoadPacked24Signed(insn));
+    BYTECODE(AdvanceCpAndGoto, by, on_goto) {
+      SET_PC_FROM_OFFSET(on_goto);
+      ADVANCE_CURRENT_POSITION(by);
       DISPATCH();
     }
-    BYTECODE(CHECK_FIXED_LENGTH) {
+    BYTECODE(CheckFixedLengthLoop, on_tos_equals_current_position) {
       if (current == backtrack_stack.peek()) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_tos_equals_current_position);
         backtrack_stack.pop();
       } else {
-        ADVANCE(CHECK_FIXED_LENGTH);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(LOAD_CURRENT_CHAR) {
-      int pos = current + LoadPacked24Signed(insn);
+    BYTECODE(LoadCurrentCharacter, cp_offset, on_failure) {
+      int pos = current + cp_offset;
       if (pos >= subject.length() || pos < 0) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_failure);
       } else {
-        ADVANCE(LOAD_CURRENT_CHAR);
+        ADVANCE();
         current_char = subject[pos];
       }
       DISPATCH();
     }
-    BYTECODE(LOAD_CURRENT_CHAR_UNCHECKED) {
-      ADVANCE(LOAD_CURRENT_CHAR_UNCHECKED);
-      int pos = current + LoadPacked24Signed(insn);
+    BYTECODE(LoadCurrentCharacterUnchecked, cp_offset) {
+      ADVANCE();
+      int pos = current + cp_offset;
       current_char = subject[pos];
       DISPATCH();
     }
-    BYTECODE(LOAD_2_CURRENT_CHARS) {
-      int pos = current + LoadPacked24Signed(insn);
+    BYTECODE(Load2CurrentChars, cp_offset, on_failure) {
+      int pos = current + cp_offset;
       if (pos + 2 > subject.length() || pos < 0) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_failure);
       } else {
-        ADVANCE(LOAD_2_CURRENT_CHARS);
-        Char next = subject[pos + 1];
-        current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+        ADVANCE();
+        current_char = Load2Characters(subject, pos);
       }
       DISPATCH();
     }
-    BYTECODE(LOAD_2_CURRENT_CHARS_UNCHECKED) {
-      ADVANCE(LOAD_2_CURRENT_CHARS_UNCHECKED);
-      int pos = current + LoadPacked24Signed(insn);
-      Char next = subject[pos + 1];
-      current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+    BYTECODE(Load2CurrentCharsUnchecked, cp_offset) {
+      ADVANCE();
+      int pos = current + cp_offset;
+      current_char = Load2Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(LOAD_4_CURRENT_CHARS) {
+    BYTECODE(Load4CurrentChars, cp_offset, on_failure) {
       DCHECK_EQ(1, sizeof(Char));
-      int pos = current + LoadPacked24Signed(insn);
+      int pos = current + cp_offset;
       if (pos + 4 > subject.length() || pos < 0) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_failure);
       } else {
-        ADVANCE(LOAD_4_CURRENT_CHARS);
-        Char next1 = subject[pos + 1];
-        Char next2 = subject[pos + 2];
-        Char next3 = subject[pos + 3];
-        current_char =
-            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+        ADVANCE();
+        current_char = Load4Characters(subject, pos);
       }
       DISPATCH();
     }
-    BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
-      ADVANCE(LOAD_4_CURRENT_CHARS_UNCHECKED);
+    BYTECODE(Load4CurrentCharsUnchecked, cp_offset) {
+      ADVANCE();
       DCHECK_EQ(1, sizeof(Char));
-      int pos = current + LoadPacked24Signed(insn);
-      Char next1 = subject[pos + 1];
-      Char next2 = subject[pos + 2];
-      Char next3 = subject[pos + 3];
-      current_char =
-          (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+      int pos = current + cp_offset;
+      current_char = Load4Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(CHECK_4_CHARS) {
-      uint32_t c = Load32Aligned(pc + 4);
-      if (c == current_char) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(Check4Chars, characters, on_equal) {
+      if (characters == current_char) {
+        SET_PC_FROM_OFFSET(on_equal);
       } else {
-        ADVANCE(CHECK_4_CHARS);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_CHAR) {
-      uint32_t c = LoadPacked24Unsigned(insn);
-      if (c == current_char) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(CheckCharacter, character, on_equal) {
+      if (character == current_char) {
+        SET_PC_FROM_OFFSET(on_equal);
       } else {
-        ADVANCE(CHECK_CHAR);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_4_CHARS) {
-      uint32_t c = Load32Aligned(pc + 4);
-      if (c != current_char) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(CheckNot4Chars, characters, on_not_equal) {
+      if (characters != current_char) {
+        SET_PC_FROM_OFFSET(on_not_equal);
       } else {
-        ADVANCE(CHECK_NOT_4_CHARS);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_CHAR) {
-      uint32_t c = LoadPacked24Unsigned(insn);
-      if (c != current_char) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(CheckNotCharacter, character, on_not_equal) {
+      if (character != current_char) {
+        SET_PC_FROM_OFFSET(on_not_equal);
       } else {
-        ADVANCE(CHECK_NOT_CHAR);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(AND_CHECK_4_CHARS) {
-      uint32_t c = Load32Aligned(pc + 4);
-      if (c == (current_char & Load32Aligned(pc + 8))) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+    BYTECODE(AndCheck4Chars, characters, mask, on_equal) {
+      if (characters == (current_char & mask)) {
+        SET_PC_FROM_OFFSET(on_equal);
       } else {
-        ADVANCE(AND_CHECK_4_CHARS);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(AND_CHECK_CHAR) {
-      uint32_t c = LoadPacked24Unsigned(insn);
-      if (c == (current_char & Load32Aligned(pc + 4))) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(CheckCharacterAfterAnd, character, mask, on_equal) {
+      if (character == (current_char & mask)) {
+        SET_PC_FROM_OFFSET(on_equal);
       } else {
-        ADVANCE(AND_CHECK_CHAR);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(AND_CHECK_NOT_4_CHARS) {
-      uint32_t c = Load32Aligned(pc + 4);
-      if (c != (current_char & Load32Aligned(pc + 8))) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+    BYTECODE(AndCheckNot4Chars, characters, mask, on_not_equal) {
+      if (characters != (current_char & mask)) {
+        SET_PC_FROM_OFFSET(on_not_equal);
       } else {
-        ADVANCE(AND_CHECK_NOT_4_CHARS);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(AND_CHECK_NOT_CHAR) {
-      uint32_t c = LoadPacked24Unsigned(insn);
-      if (c != (current_char & Load32Aligned(pc + 4))) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(CheckNotCharacterAfterAnd, character, mask, on_not_equal) {
+      if (character != (current_char & mask)) {
+        SET_PC_FROM_OFFSET(on_not_equal);
       } else {
-        ADVANCE(AND_CHECK_NOT_CHAR);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(MINUS_AND_CHECK_NOT_CHAR) {
-      uint32_t c = LoadPacked24Unsigned(insn);
-      uint32_t minus = Load16AlignedUnsigned(pc + 4);
-      uint32_t mask = Load16AlignedUnsigned(pc + 6);
-      if (c != ((current_char - minus) & mask)) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(CheckNotCharacterAfterMinusAnd, character, minus, mask,
+             on_not_equal) {
+      if (character != ((current_char - minus) & mask)) {
+        SET_PC_FROM_OFFSET(on_not_equal);
       } else {
-        ADVANCE(MINUS_AND_CHECK_NOT_CHAR);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_CHAR_IN_RANGE) {
-      uint32_t from = Load16AlignedUnsigned(pc + 4);
-      uint32_t to = Load16AlignedUnsigned(pc + 6);
+    BYTECODE(CheckCharacterInRange, from, to, on_in_range) {
       if (from <= current_char && current_char <= to) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+        SET_PC_FROM_OFFSET(on_in_range);
       } else {
-        ADVANCE(CHECK_CHAR_IN_RANGE);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_CHAR_NOT_IN_RANGE) {
-      uint32_t from = Load16AlignedUnsigned(pc + 4);
-      uint32_t to = Load16AlignedUnsigned(pc + 6);
+    BYTECODE(CheckCharacterNotInRange, from, to, on_not_in_range) {
       if (from > current_char || current_char > to) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+        SET_PC_FROM_OFFSET(on_not_in_range);
       } else {
-        ADVANCE(CHECK_CHAR_NOT_IN_RANGE);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_BIT_IN_TABLE) {
-      if (CheckBitInTable(current_char, pc + 8)) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(CheckBitInTable, on_bit_set, table) {
+      if (CheckBitInTable(current_char, table)) {
+        SET_PC_FROM_OFFSET(on_bit_set);
       } else {
-        ADVANCE(CHECK_BIT_IN_TABLE);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_LT) {
-      uint32_t limit = LoadPacked24Unsigned(insn);
+    BYTECODE(CheckCharacterLT, limit, on_less) {
       if (current_char < limit) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_less);
       } else {
-        ADVANCE(CHECK_LT);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_GT) {
-      uint32_t limit = LoadPacked24Unsigned(insn);
+    BYTECODE(CheckCharacterGT, limit, on_greater) {
       if (current_char > limit) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_greater);
       } else {
-        ADVANCE(CHECK_GT);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_REGISTER_LT) {
-      if (registers[LoadPacked24Unsigned(insn)] < Load32Aligned(pc + 4)) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(IfRegisterLT, register_index, comparand, on_less_than) {
+      if (registers[register_index] < comparand) {
+        SET_PC_FROM_OFFSET(on_less_than);
       } else {
-        ADVANCE(CHECK_REGISTER_LT);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_REGISTER_GE) {
-      if (registers[LoadPacked24Unsigned(insn)] >= Load32Aligned(pc + 4)) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(IfRegisterGE, register_index, comparand, on_greater_or_equal) {
+      if (registers[register_index] >= comparand) {
+        SET_PC_FROM_OFFSET(on_greater_or_equal);
       } else {
-        ADVANCE(CHECK_REGISTER_GE);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_REGISTER_EQ_POS) {
-      if (registers[LoadPacked24Unsigned(insn)] == current) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(IfRegisterEqPos, register_index, on_eq) {
+      if (registers[register_index] == current) {
+        SET_PC_FROM_OFFSET(on_eq);
       } else {
-        ADVANCE(CHECK_REGISTER_EQ_POS);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_REGS_EQUAL) {
-      if (registers[LoadPacked24Unsigned(insn)] ==
-          registers[Load32Aligned(pc + 4)]) {
-        ADVANCE(CHECK_NOT_REGS_EQUAL);
-      } else {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
-      }
-      DISPATCH();
-    }
-    BYTECODE(CHECK_NOT_BACK_REF) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRef, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current + len > subject.length() ||
             !CompareCharsEqual(&subject[from], &subject[current], len)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         ADVANCE_CURRENT_POSITION(len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_BACK_REF_BACKWARD) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRefBackward, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current - len < 0 ||
             !CompareCharsEqual(&subject[from], &subject[current - len], len)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         SET_CURRENT_POSITION(current - len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF_BACKWARD);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current + len > subject.length() ||
             !BackRefMatchesNoCase(isolate, from, current, len, subject, true)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         ADVANCE_CURRENT_POSITION(len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRefNoCase, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current + len > subject.length() ||
             !BackRefMatchesNoCase(isolate, from, current, len, subject,
                                   false)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         ADVANCE_CURRENT_POSITION(len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current - len < 0 ||
             !BackRefMatchesNoCase(isolate, from, current - len, len, subject,
                                   true)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         SET_CURRENT_POSITION(current - len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
-      int from = registers[LoadPacked24Unsigned(insn)];
-      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+    BYTECODE(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal) {
+      int from = registers[start_reg];
+      int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
         if (current - len < 0 ||
             !BackRefMatchesNoCase(isolate, from, current - len, len, subject,
                                   false)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          SET_PC_FROM_OFFSET(on_not_equal);
           DISPATCH();
         }
         SET_CURRENT_POSITION(current - len);
       }
-      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD);
+      ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CHECK_AT_START) {
-      if (current + LoadPacked24Signed(insn) == 0) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+    BYTECODE(CheckAtStart, cp_offset, on_at_start) {
+      if (current + cp_offset == 0) {
+        SET_PC_FROM_OFFSET(on_at_start);
       } else {
-        ADVANCE(CHECK_AT_START);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_NOT_AT_START) {
-      if (current + LoadPacked24Signed(insn) == 0) {
-        ADVANCE(CHECK_NOT_AT_START);
+    BYTECODE(CheckNotAtStart, cp_offset, on_not_at_start) {
+      if (current + cp_offset == 0) {
+        ADVANCE();
       } else {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_not_at_start);
       }
       DISPATCH();
     }
-    BYTECODE(SET_CURRENT_POSITION_FROM_END) {
-      ADVANCE(SET_CURRENT_POSITION_FROM_END);
-      int by = LoadPacked24Unsigned(insn);
+    BYTECODE(SetCurrentPositionFromEnd, by) {
+      ADVANCE();
       if (subject.length() - current > by) {
         SET_CURRENT_POSITION(subject.length() - by);
         current_char = subject[current - 1];
       }
       DISPATCH();
     }
-    BYTECODE(CHECK_CURRENT_POSITION) {
-      int pos = current + LoadPacked24Signed(insn);
+    BYTECODE(CheckPosition, cp_offset, on_failure) {
+      int pos = current + cp_offset;
       if (pos >= subject.length() || pos < 0) {
-        SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+        SET_PC_FROM_OFFSET(on_failure);
       } else {
-        ADVANCE(CHECK_CURRENT_POSITION);
+        ADVANCE();
       }
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_CHAR) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load16AlignedSigned(pc + 4);
-      uint32_t c = Load16AlignedUnsigned(pc + 6);
-      while (IndexIsInBounds(current + load_offset, subject.length())) {
-        current_char = subject[current + load_offset];
-        if (c == current_char) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+    BYTECODE(CheckSpecialClassRanges, character_set, on_no_match) {
+      const bool match =
+          CheckSpecialClassRanges<Char>(current_char, character_set);
+      if (match) {
+        ADVANCE();
+      } else {
+        SET_PC_FROM_OFFSET(on_no_match);
+      }
+      DISPATCH();
+    }
+    BYTECODE(SkipUntilChar, cp_offset, advance_by, character, on_match,
+             on_no_match) {
+      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+        current_char = subject[current + cp_offset];
+        if (character == current_char) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_CHAR_AND) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t c = Load16AlignedUnsigned(pc + 6);
-      uint32_t mask = Load32Aligned(pc + 8);
-      int32_t maximum_offset = Load32Aligned(pc + 12);
-      while (IndexIsInBounds(current + maximum_offset, subject.length())) {
-        current_char = subject[current + load_offset];
-        if (c == (current_char & mask)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+    BYTECODE(SkipUntilCharAnd, cp_offset, advance_by, character, mask,
+             eats_at_least, on_match, on_no_match) {
+      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
+        current_char = subject[current + cp_offset];
+        if (character == (current_char & mask)) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 20));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_CHAR_POS_CHECKED) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t c = Load16AlignedUnsigned(pc + 6);
-      int32_t maximum_offset = Load32Aligned(pc + 8);
-      while (IndexIsInBounds(current + maximum_offset, subject.length())) {
-        current_char = subject[current + load_offset];
-        if (c == current_char) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+    BYTECODE(SkipUntilCharPosChecked, cp_offset, advance_by, character,
+             eats_at_least, on_match, on_no_match) {
+      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
+        current_char = subject[current + cp_offset];
+        if (character == current_char) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_BIT_IN_TABLE) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load32Aligned(pc + 4);
-      const uint8_t* table = pc + 8;
-      while (IndexIsInBounds(current + load_offset, subject.length())) {
-        current_char = subject[current + load_offset];
+    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table, on_match,
+             on_no_match) {
+      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+        current_char = subject[current + cp_offset];
         if (CheckBitInTable(current_char, table)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t limit = Load16AlignedUnsigned(pc + 6);
-      const uint8_t* table = pc + 8;
-      while (IndexIsInBounds(current + load_offset, subject.length())) {
-        current_char = subject[current + load_offset];
-        if (current_char > limit) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+    BYTECODE(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character,
+             table, on_match, on_no_match) {
+      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+        current_char = subject[current + cp_offset];
+        if (current_char > character) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
         if (!CheckBitInTable(current_char, table)) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_CHAR_OR_CHAR) {
-      int32_t load_offset = LoadPacked24Signed(insn);
-      int32_t advance = Load32Aligned(pc + 4);
-      uint16_t c = Load16AlignedUnsigned(pc + 8);
-      uint16_t c2 = Load16AlignedUnsigned(pc + 10);
-      while (IndexIsInBounds(current + load_offset, subject.length())) {
-        current_char = subject[current + load_offset];
+    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
+             on_no_match) {
+      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+        current_char = subject[current + cp_offset];
         // The two if-statements below are split up intentionally, as combining
         // them seems to result in register allocation behaving quite
         // differently and slowing down the resulting code.
-        if (c == current_char) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+        if (char1 == current_char) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        if (c2 == current_char) {
-          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+        if (char2 == current_char) {
+          SET_PC_FROM_OFFSET(on_match);
           DISPATCH();
         }
-        ADVANCE_CURRENT_POSITION(advance);
+        ADVANCE_CURRENT_POSITION(advance_by);
       }
-      SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+      SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SKIP_UNTIL_ONE_OF_MASKED) {
-      int32_t cp_offset = LoadPacked24Signed(insn);
-      int32_t advance_by = Load32Aligned(pc + 4);
-      uint32_t both_chars = Load32Aligned(pc + 8);
-      uint32_t both_mask = Load32Aligned(pc + 12);
-      int32_t max_offset = Load32Aligned(pc + 16);
-      uint32_t chars1 = Load32Aligned(pc + 20);
-      uint32_t mask1 = Load32Aligned(pc + 24);
-      uint32_t chars2 = Load32Aligned(pc + 28);
-      uint32_t mask2 = Load32Aligned(pc + 32);
-      uint32_t on_match1 = Load32Aligned(pc + 36);
-      uint32_t on_match2 = Load32Aligned(pc + 40);
-      uint32_t on_failure = Load32Aligned(pc + 44);
+    BYTECODE(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
+             max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
+             on_failure) {
       DCHECK_GE(cp_offset, 0);
       DCHECK_GE(max_offset, cp_offset);
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
       while (IndexIsInBounds(current + max_offset, subject.length())) {
         int pos = current + cp_offset;
-        Char next1 = subject[pos + 1];
-        Char next2 = subject[pos + 2];
-        Char next3 = subject[pos + 3];
-        current_char =
-            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+        current_char = Load4Characters(subject, pos);
         if (both_chars == (current_char & both_mask)) {
           if (chars1 == (current_char & mask1)) {
             SET_PC_FROM_OFFSET(on_match1);
@@ -1088,6 +1133,77 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_failure);
       DISPATCH();
     }
+    BYTECODE(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
+             bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters,
+             bc3_mask, bc4_by, bc5_cp_offset, bc6_characters, bc6_mask,
+             bc6_on_equal, bc7_characters, bc7_mask, bc7_on_equal,
+             bc8_characters, bc8_mask, fallthrough_jump_target) {
+      // We should only get here in 1-byte mode.
+      DCHECK_EQ(1, sizeof(Char));
+
+      while (true) {
+        // bcO: kSkipUntilBitInTable
+        // on_match and on_no_match are constrained to jump to bc1.
+        while (IndexIsInBounds(current + bc0_cp_offset, subject.length())) {
+          current_char = subject[current + bc0_cp_offset];
+          if (CheckBitInTable(current_char, bc0_table)) {
+            break;
+          }
+          ADVANCE_CURRENT_POSITION(bc0_advance_by);
+        }
+
+        // bc1: kCheckPosition
+        if (!IndexIsInBounds(current + bc1_cp_offset, subject.length())) {
+          SET_PC_FROM_OFFSET(bc1_on_failure);
+          DISPATCH();
+        }
+
+        // bc2: Load4CurrentCharsUnchecked
+        int pos = current + bc2_cp_offset;
+        current_char = Load4Characters(subject, pos);
+
+        // bc3: AndCheck4Chars
+        // on_equal is constrained to jump to bc5.
+        if (bc3_characters == (current_char & bc3_mask)) {
+          // bc5: Load4CurrentChars
+          // on_failure is constrained to jump to bc4.
+          DCHECK_GE(bc5_cp_offset, 0);
+          if (current + bc5_cp_offset + 4 > subject.length()) {
+            // bc4: AdvanceCpAndGoto
+            // on_goto is constrained to jump back to bc0.
+            ADVANCE_CURRENT_POSITION(bc4_by);
+            continue;
+          }
+          // TODO(jgruber): Usually we can reuse some of the bytes loaded above.
+          pos = current + bc5_cp_offset;
+          current_char = Load4Characters(subject, pos);
+
+          // bc6: AndCheck4Chars
+          if (bc6_characters == (current_char & bc6_mask)) {
+            SET_PC_FROM_OFFSET(bc6_on_equal);
+            DISPATCH();
+          }
+          // bc7: AndCheck4Chars
+          if (bc7_characters == (current_char & bc7_mask)) {
+            SET_PC_FROM_OFFSET(bc7_on_equal);
+            DISPATCH();
+          }
+          // bc8: AndCheckNot4Chars
+          // on_not_equal is constrained to jump to bc4.
+          if (bc8_characters == (current_char & bc8_mask)) {
+            SET_PC_FROM_OFFSET(fallthrough_jump_target);
+            DISPATCH();
+          }
+        }
+
+        // bc4: AdvanceCpAndGoto
+        // on_goto is constrained to jump back to bc0.
+        ADVANCE_CURRENT_POSITION(bc4_by);
+      }
+
+      UNREACHABLE();
+    }
+    BYTECODES_END()
 #if V8_USE_COMPUTED_GOTO
 // Lint gets confused a lot if we just use !V8_USE_COMPUTED_GOTO or ifndef
 // V8_USE_COMPUTED_GOTO here.
@@ -1102,6 +1218,10 @@ IrregexpInterpreter::Result RawMatch(
   }
 }
 
+#undef OPEN_BLOCK
+#undef CLOSE_BLOCK
+#undef BYTECODES_START
+#undef BYTECODES_END
 #undef BYTECODE
 #undef ADVANCE_CURRENT_POSITION
 #undef SET_CURRENT_POSITION

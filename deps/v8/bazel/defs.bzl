@@ -111,6 +111,7 @@ def _default_args():
             "@v8//bazel/config:is_posix": [
                 "-fPIC",
                 "-fno-strict-aliasing",
+                "-fconstexpr-steps=2000000",
                 "-Werror",
                 "-Wextra",
                 "-Wno-unneeded-internal-declaration",

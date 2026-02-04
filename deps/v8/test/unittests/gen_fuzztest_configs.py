@@ -18,7 +18,7 @@ import stat
 import subprocess
 import sys
 
-from pathlib import Path, PurePath
+from pathlib import Path
 
 # Set up path to be able to import action_helpers
 BASE_DIR = Path(__file__).absolute().parent.parent.parent
@@ -38,31 +38,37 @@ MIN_FUZZTESTS = 2
 MAX_FUZZTESTS = 100
 
 WRAPPER_HEADER = """
-#!/bin/sh
+#!/bin/bash
+
 BINARY_DIR="$(cd "${{0%/*}}"/..; pwd)"
 cd $BINARY_DIR
 """.strip()
 
 CENTIPEDE_WRAPPER = WRAPPER_HEADER + """
+echo -e "Executing:\\n$BINARY_DIR/centipede $@\\n"
 exec $BINARY_DIR/centipede $@
 """
 
 FUZZTEST_WRAPPER = WRAPPER_HEADER + """
 # Normal fuzzing.
 if [ "$#" -eq  "0" ]; then
+   echo -e "Starting fuzzing session:\\n$BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=\"\"\\n"
    exec $BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=""
-fi
 # Fuzztest replay.
-if [ "$#" -eq  "1" ]; then
+elif [ "$#" -eq  "1" ]; then
    unset CENTIPEDE_RUNNER_FLAGS
+   echo -e "Replaying test case:\\nFUZZTEST_REPLAY=$1 $BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=\"\"\\n"
    FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=""
+else
+  echo -e "Pass 0 arguments for a fuzzing session and 1 argument for replay (you passed $#)"
+  exit 1
 fi
 """
 
 FUZZER_NAME_RE = re.compile(r'^\w+\.\w+$')
 
 
-def list_fuzz_tests(executable : Path):
+def list_fuzz_tests(executable: Path):
   env = os.environ
   env['ASAN_OPTIONS'] = 'detect_odr_violation=0'
   env['CENTIPEDE_RUNNER_FLAGS'] = 'stack_limit_kb=0:'

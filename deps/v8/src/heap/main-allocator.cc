@@ -18,7 +18,7 @@
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
@@ -258,7 +258,7 @@ void MainAllocator::MarkLinearAllocationAreaBlack() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != kNullAddress && current_top != current_limit) {
-    PageMetadata::FromAllocationAreaAddress(current_top)
+    NormalPage::FromAllocationAreaAddress(current_top)
         ->CreateBlackArea(current_top, current_limit);
   }
 }
@@ -267,7 +267,7 @@ void MainAllocator::UnmarkLinearAllocationArea() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != kNullAddress && current_top != current_limit) {
-    PageMetadata::FromAllocationAreaAddress(current_top)
+    NormalPage::FromAllocationAreaAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
   }
 }
@@ -289,7 +289,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
   DCHECK_IMPLIES(!supports_extending_lab(), end == extended_end);
 
   if (IsLabValid()) {
-    MemoryChunkMetadata::UpdateHighWaterMark(top());
+    BasePage::UpdateHighWaterMark(top());
   }
 
   // This is going to overestimate a bit of the total allocated bytes, since the
@@ -336,7 +336,7 @@ void MainAllocator::FreeLinearAllocationArea() {
   Verify();
 #endif  // DEBUG
 
-  MemoryChunkMetadata::UpdateHighWaterMark(top());
+  BasePage::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
 
@@ -393,7 +393,7 @@ void MainAllocator::Verify() const {
   DCHECK_LE(allocation_info().start(), allocation_info().top());
 
   if (top()) {
-    PageMetadata* page = PageMetadata::FromAllocationAreaAddress(top());
+    NormalPage* page = NormalPage::FromAllocationAreaAddress(top());
     // Can't compare owner directly because of new space semi spaces.
     DCHECK_EQ(page->owner_identity(), identity());
   }
@@ -465,7 +465,7 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     }
 
     if (!space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
-            PageMetadata::kPageSize)) {
+            NormalPage::kPageSize)) {
       return false;
     }
     allocation_result =
@@ -557,7 +557,7 @@ bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
   }
 
   space_->paged_space()->last_lab_page_ =
-      PageMetadata::FromAllocationAreaAddress(allocator_->top());
+      NormalPage::FromAllocationAreaAddress(allocator_->top());
   DCHECK_NOT_NULL(space_->paged_space()->last_lab_page_);
   space_->paged_space()->last_lab_page_->IncreaseAllocatedLabSize(
       allocator_->limit() - allocator_->top());
@@ -581,7 +581,7 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
   if (!sweeper->AreMinorSweeperTasksRunning() &&
       !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
 #if DEBUG
-    for (PageMetadata* p : *space_) {
+    for (NormalPage* p : *space_) {
       DCHECK(p->SweepingDone());
       p->ForAllFreeListCategories(
           [space = space_->paged_space()](FreeListCategory* category) {
@@ -596,7 +596,7 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
   // When getting here we know that any unswept new space page is currently
   // being handled by a concurrent sweeping thread. Rather than try to cancel
   // tasks and restart them, we wait "per page". This should be faster.
-  for (PageMetadata* p : *space_) {
+  for (NormalPage* p : *space_) {
     if (!p->SweepingDone()) sweeper->WaitForPageToBeSwept(p);
   }
   space_->paged_space()->RefillFreeList();
@@ -610,7 +610,7 @@ bool IsPagedNewSpaceAtFullCapacity(const PagedNewSpace* space) {
   const auto* paged_space = space->paged_space();
   if ((paged_space->UsableCapacity() < paged_space->TotalCapacity()) &&
       (paged_space->TotalCapacity() - paged_space->UsableCapacity() >=
-       PageMetadata::kPageSize)) {
+       NormalPage::kPageSize)) {
     // Adding another page would exceed the target capacity of the space.
     return false;
   }
@@ -622,7 +622,7 @@ bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
   if (IsPagedNewSpaceAtFullCapacity(space_) &&
       !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
-          PageMetadata::kPageSize))
+          NormalPage::kPageSize))
     return false;
   if (!space_->paged_space()->AllocatePage()) return false;
   return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
@@ -631,7 +631,7 @@ bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
 
 void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   if (!allocator_->IsLabValid()) return;
-  PageMetadata::FromAllocationAreaAddress(allocator_->top())
+  NormalPage::FromAllocationAreaAddress(allocator_->top())
       ->DecreaseAllocatedLabSize(allocator_->limit() - allocator_->top());
   paged_space_allocator_policy_->FreeLinearAllocationAreaUnsynchronized();
 }
@@ -726,7 +726,7 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     DCHECK_NE(NEW_SPACE, allocator_->identity());
     PagedSpaceBase* main_space =
         space_heap()->paged_space(allocator_->identity());
-    PageMetadata* page = main_space->RemovePageSafe(size_in_bytes);
+    NormalPage* page = main_space->RemovePageSafe(size_in_bytes);
     if (page != nullptr) {
       // Make sure we don't evacuate into a black allocated page.
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
@@ -814,7 +814,7 @@ void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,
   allocator_->ResetLab(top, limit, end);
   if (v8_flags.black_allocated_pages) return;
   if (top != kNullAddress && top != limit) {
-    PageMetadata* page = PageMetadata::FromAllocationAreaAddress(top);
+    NormalPage* page = NormalPage::FromAllocationAreaAddress(top);
     if (allocator_->IsBlackAllocationEnabled()) {
       page->CreateBlackArea(top, limit);
     }
@@ -828,8 +828,8 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   DCHECK_LE(allocator_->top(), allocator_->limit());
 #ifdef DEBUG
   if (allocator_->top() != allocator_->limit()) {
-    DCHECK_EQ(PageMetadata::FromAddress(allocator_->top()),
-              PageMetadata::FromAddress(allocator_->limit() - 1));
+    DCHECK_EQ(NormalPage::FromAddress(allocator_->top()),
+              NormalPage::FromAddress(allocator_->limit() - 1));
   }
 #endif
   // Don't free list allocate if there is linear space available.
@@ -854,7 +854,7 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  PageMetadata* page = PageMetadata::FromHeapObject(new_node);
+  NormalPage* page = NormalPage::FromHeapObject(new_node);
   space_->IncreaseAllocatedBytes(new_node_size, page);
 
   DCHECK_EQ(allocator_->allocation_info().start(),
@@ -895,7 +895,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
   DCHECK(allocator_->is_main_thread());
   space_heap()->CreateFillerObjectAt(new_limit,
                                      static_cast<int>(max_limit - new_limit));
-  PageMetadata* page = PageMetadata::FromAddress(current_top);
+  NormalPage* page = NormalPage::FromAddress(current_top);
   // No need to create a black allocation area since new space doesn't use
   // black allocation.
   DCHECK_EQ(NEW_SPACE, allocator_->identity());
@@ -929,7 +929,7 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
   if (!v8_flags.black_allocated_pages) {
     if (current_top != current_limit &&
         allocator_->IsBlackAllocationEnabled()) {
-      PageMetadata::FromAddress(current_top)
+      NormalPage::FromAddress(current_top)
           ->DestroyBlackArea(current_top, current_limit);
     }
   }

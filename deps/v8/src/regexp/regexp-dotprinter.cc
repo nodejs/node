@@ -224,7 +224,7 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
     case ActionNode::INCREMENT_REGISTER:
       os_ << "label=\"$" << that->register_from() << "++\", shape=octagon";
       break;
-    case ActionNode::CLEAR_POSITION:
+    case ActionNode::STORE_POSITION:
       os_ << "label=\"$" << that->register_from()
           << ":=$pos c\", shape=octagon";
       break;
@@ -256,6 +256,11 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
     }
     case ActionNode::MODIFY_FLAGS: {
       os_ << "label=\"flags $" << that->flags() << "\", shape=septagon";
+      break;
+    }
+    case ActionNode::EATS_AT_LEAST: {
+      os_ << "label=\"eats at least $" << that->stored_eats_at_least()
+          << "\", shape=septagon";
       break;
     }
   }

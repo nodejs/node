@@ -14,7 +14,7 @@
 
 namespace v8::internal {
 
-class PageMetadata;
+class NormalPage;
 
 class MarkBit final {
  public:
@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // its markbit set. If no such address exists, it returns the page area start.
   // If the page is iterable, the returned address is guaranteed to be the start
   // of a valid object in the page.
-  static inline Address FindPreviousValidObject(const PageMetadata* page,
+  static inline Address FindPreviousValidObject(const NormalPage* page,
                                                 Address maybe_inner_ptr);
 
  private:

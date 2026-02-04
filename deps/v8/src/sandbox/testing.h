@@ -55,6 +55,14 @@ class SandboxTesting : public AllStatic {
   // Currently supported on Linux only.
   V8_EXPORT_PRIVATE static void Enable(Mode mode);
 
+  // Disable sandbox testing mode.
+  //
+  // This will uninstall the sandbox crash filter if it was previously enabled.
+  // This is mostly useful for manually reporting sandbox violations, in which
+  // case this method must be called prior to terminating the process via (for
+  // example) Abort().
+  V8_EXPORT_PRIVATE static void Disable();
+
   // Returns whether sandbox testing mode is enabled.
   static bool IsEnabled() { return mode_ != Mode::kDisabled; }
 

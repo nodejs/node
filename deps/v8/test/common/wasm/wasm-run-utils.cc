@@ -95,14 +95,16 @@ TestingModuleBuilder::TestingModuleBuilder(
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
-    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
+    const wasm::CanonicalValueType type = wasm::CanonicalValueType::Ref(
+        sig_index, wasm::kNotShared, wasm::RefTypeKind::kFunction);
+    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, type, sig,
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
         GetWasmImportWrapperCache()->GetCompiled(
-            isolate, kind, static_cast<int>(sig->parameter_count()), kNoSuspend,
-            sig);
+            isolate,
+            {kind, sig, static_cast<int>(sig->parameter_count()), kNoSuspend});
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
@@ -213,7 +215,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     base::Vector<const uint8_t> name_vec =
         base::Vector<const uint8_t>::cast(base::CStrVector(name));
     test_module_->lazily_generated_names.AddForTesting(
-        index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
+        index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.size())});
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!trusted_instance_data_.is_null()) {
@@ -354,7 +356,7 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const uint8_t> bytes) {
     // key in the native module cache.
     new_bytes[0] = 0;
   }
-  memcpy(new_bytes.begin() + bytes_offset, bytes.begin(), bytes.length());
+  memcpy(new_bytes.begin() + bytes_offset, bytes.begin(), bytes.size());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
 }
@@ -391,19 +393,19 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   Address old_data_address =
       reinterpret_cast<Address>(data_segment_data_.data());
   size_t old_data_size = data_segment_data_.size();
-  data_segment_data_.resize(old_data_size + bytes.length());
+  data_segment_data_.resize(old_data_size + bytes.size());
   Address new_data_address =
       reinterpret_cast<Address>(data_segment_data_.data());
 
   memcpy(data_segment_data_.data() + old_data_size, bytes.begin(),
-         bytes.length());
+         bytes.size());
 
   // The data_segment_data_ offset may have moved, so update all the starts.
   for (Address& start : data_segment_starts_) {
     start += new_data_address - old_data_address;
   }
   data_segment_starts_.push_back(new_data_address + old_data_size);
-  data_segment_sizes_.push_back(bytes.length());
+  data_segment_sizes_.push_back(static_cast<uint32_t>(bytes.size()));
 
   // The vector pointers may have moved, so update the instance object.
   uint32_t size = static_cast<uint32_t>(data_segment_sizes_.size());
@@ -503,7 +505,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
-         func_wire_bytes.length());
+         func_wire_bytes.size());
   constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
@@ -570,8 +572,8 @@ WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        base::Vector<MachineType> param_types) {
-  int return_count = return_type.IsNone() ? 0 : 1;
-  int param_count = param_types.length();
+  size_t return_count = return_type.IsNone() ? 0 : 1;
+  size_t param_count = param_types.size();
 
   Zone& zone = builder_.SignatureZone();
 

@@ -135,7 +135,7 @@ class TestModuleBuilder {
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                    uint32_t maximum_size,
                    AddressType address_type = AddressType::kI32) {
-    CHECK(type.is_object_reference());
+    CHECK(type.is_ref());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;
@@ -6075,6 +6075,61 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
        WASM_DROP, WASM_DROP});
 }
 
+#define WASM_GEN_EXNREF(ex)                                       \
+  kExprBlock, kExnRefCode, kExprTryTable, kExnRefCode, U32V_1(1), \
+      CatchKind::kCatchAllRef, 0, kExprThrow, ex, kExprEnd, kExprEnd
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  WASM_FEATURE_SCOPE(exnref);
+
+  ModuleTypeIndex cont1_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont2_index = builder.AddCont(sigs.i_v());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  // sig1: [] -> [i32, ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(),
+      {kWasmI32, ValueType::Ref(cont1_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [ref $ct] where $ct : cont [] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont2_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_REF_FUNC(func_index),
+                   WASM_CONT_NEW(ToByte(cont1_index)), WASM_GEN_EXNREF(tag_v_v),
+                   WASM_RESUME_THROW_REF(ToByte(cont1_index), 0), WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont1_index)),
+                    WASM_GEN_EXNREF(tag_v_v),
+                    WASM_RESUME_THROW_REF(ToByte(cont1_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(
+           sig2_index,
+           WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                        WASM_CONT_NEW(ToByte(cont1_index)),
+                        WASM_GEN_EXNREF(tag_v_v),
+                        WASM_RESUME_THROW_REF(ToByte(cont1_index), 2,
+                                              WASM_ON_TAG(tag_i_i, 0),
+                                              WASM_ON_TAG(tag_v_v, 1)),
+                        WASM_RETURN0),
+           WASM_DROP, WASM_DROP, WASM_RETURN0),
+       WASM_DROP});
+}
+
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
   WASM_FEATURE_SCOPE(wasmfx);
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
@@ -6143,6 +6198,41 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
                               WASM_RETURN0),
                  WASM_DROP},
                 kAppendEnd, "invalid branch depth: 2");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  WASM_FEATURE_SCOPE(exnref);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t vd_tag = builder.AddTag(sigs.v_v());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+  // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)), WASM_GEN_EXNREF(vd_tag),
+                    WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "handler generates 2 operands, target block returns 1");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(vd_tag),
+                    WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "expected type exnref, found cont.new");
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
@@ -6269,11 +6359,16 @@ TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
                 kAppendEnd,
                 "Invalid opcode 0xe3 (enable with --experimental-wasm-wasmfx)");
 
+  ExpectFailure(sigs.v_v(),
+                {WASM_RESUME_THROW_REF(ToByte(cont_index), 0), WASM_DROP},
+                kAppendEnd,
+                "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
+
   ExpectFailure(
       sigs.v_v(),
       {WASM_SWITCH(ToByte(cont_index), tag_i_i), WASM_DROP, WASM_DROP},
       kAppendEnd,
-      "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
+      "Invalid opcode 0xe6 (enable with --experimental-wasm-wasmfx)");
 }
 
 /*******************************************************************************
@@ -6289,7 +6384,7 @@ class FunctionBodyDecoderTestAtomicInvalid
 std::string PrintAtomicGetInvalidParams(
     ::testing::TestParamInfo<TestAtomicParamT> info) {
   const auto [element_type, mutability, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
@@ -6383,7 +6478,7 @@ class FunctionBodyDecoderTestAtomicInvalidPacked
 std::string PrintAtomicGetPackedInvalidParams(
     ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
   const auto [element_type, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');

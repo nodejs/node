@@ -18,9 +18,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
       std::unique_ptr<RegExpMacroAssembler>&& assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
-  int stack_limit_slack_slot_count() override {
-    return assembler_->stack_limit_slack_slot_count();
-  }
   void AdvanceCurrentPosition(int by) override;    // Signed cp change.
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;
@@ -78,8 +75,13 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                             unsigned mask1, unsigned chars2, unsigned mask2,
                             Label* on_match1, Label* on_match2,
                             Label* on_failure) override;
+  bool SkipUntilOneOfMasked3UseSimd(
+      const SkipUntilOneOfMasked3Args& args) override {
+    return assembler_->SkipUntilOneOfMasked3UseSimd(args);
+  }
+  void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<String> source,

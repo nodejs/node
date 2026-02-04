@@ -25,9 +25,6 @@
 #endif
 #if V8_OS_AIX
 #include <sys/systemcfg.h>  // _system_configuration
-#ifndef POWER_8
-#define POWER_8 0x10000
-#endif
 #ifndef POWER_9
 #define POWER_9 0x20000
 #endif
@@ -975,8 +972,6 @@ CPU::CPU()
       part_ = kPPCPower10;
     } else if (strcmp(auxv_cpu_type, "power9") == 0) {
       part_ = kPPCPower9;
-    } else if (strcmp(auxv_cpu_type, "power8") == 0) {
-      part_ = kPPCPower8;
     }
   }
 
@@ -987,9 +982,6 @@ CPU::CPU()
       break;
     case POWER_9:
       part_ = kPPCPower9;
-      break;
-    case POWER_8:
-      part_ = kPPCPower8;
       break;
   }
 #endif  // V8_OS_AIX

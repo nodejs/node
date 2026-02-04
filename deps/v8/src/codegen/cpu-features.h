@@ -75,7 +75,6 @@ enum CpuFeature {
   FPU,
 
 #elif V8_TARGET_ARCH_PPC64
-  PPC_8_PLUS,
   PPC_9_PLUS,
   PPC_10_PLUS,
   PPC_11_PLUS,

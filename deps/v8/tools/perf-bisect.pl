@@ -24,24 +24,49 @@ module. You can use these commands to do so:
 Options:
 
     --start <start_hash>    At which commit to start the bisect.
+
     --end <end_hash>        At which commit to end the bisect.
+
     --range <start>..<end>  Alternative to the above start/end.
-    --run <command>         The command line to run the benchmark. Use V8 as a placeholder in there:
-                            it will be replace by the path to the actual V8 being tested.
-    --run-dir <dir>         The directory from which benchmarks should be ran: this script will `cd`
-                            there to run the benchmarks.
-    --compile <dir>         Which directory to compile. The default is `out/x64.release`.
-    --perl-time             If specified, use Perl's timer to get the performance at each commit.
-    --score-regex <regex>   If specified, use <regex> to extract the performance from the benchmark's
-                            output. The regex is assumed to use a capture group to extract the result.
-                            Either --perl-time or --score-regex should always be passed.
-    --total-score           If specified, expect a JetStream style TotalScore: xxx output.
-    --average-score         If specified, expect a JetStream style AverageScore: xxx output.
-    --first-score           If specified, expect a JetStream style FirstScore: xxx output.
-    --nb-run <num>          How many repetition for each benchmark for each commit. Default is 30.
-    --retry <num>           How many times to retry benchmark at a given commit when bisect fails
-                            because it doesn't find a statistical difference between the begining and
-                            the end of the range.
+
+    --run <command>         The command line to run the benchmark. Use V8 as a
+                            placeholder in there: it will be replace by the path
+                            to the actual V8 being tested.
+
+    --run-dir <dir>         The directory from which benchmarks should be ran:
+                            this script will `cd` there to run the benchmarks.
+
+    --compile <dir>         Which directory to compile. The default is
+                            `out/x64.release`.
+
+    --perl-time             If specified, use Perl's timer to get the performance
+                            at each commit.
+
+    --score-regex <regex>   If specified, use <regex> to extract the performance
+                            from the benchmark's output. The regex is assumed to
+                            use a capture group to extract the result.
+                            The special keyword NUM will be expanded to a regex
+                            that matches decimal numbers.
+                            Either --perl-time or --score-regex should always be
+                            passed.
+
+    --total-score           If specified, expect a JetStream style
+                            "TotalScore: xxx" output.
+
+    --average-score         If specified, expect a JetStream style
+                            "AverageScore: xxx" output.
+
+    --first-score           If specified, expect a JetStream style
+                            "FirstScore: xxx" output.
+
+    --nb-run <num>          How many repetition for each benchmark for each
+                            commit. Default is 30.
+
+    --retry <num>           How many times to retry benchmark at a given commit
+                            when bisect fails because it doesn't find a
+                            statistical difference between the begining and the
+                            end of the range.
+
     --verbose/--noverbose   Enables or disables verbose output. Default is true.
 
 =head Example
@@ -49,7 +74,7 @@ Options:
 I bisected the regressions at https://chromeperf.appspot.com/group_report?rev=85409 with:
 (the offending CL was obvious, but this was just to showcase this script)
 
-    perl bisect.pl --start b71cdae --end 54d255a --run "V8 --future cli.js -- ML" --run-dir v8-perf/v8-perf/benchmarks/JetStream2 --score-regex "Average-Score: (\d+)"
+    perl bisect.pl --start b71cdae --end 54d255a --run "V8 --future cli.js -- ML" --run-dir v8-perf/v8-perf/benchmarks/JetStream/v3.0-custom --score-regex "Average-Score: (\d+)"
 
 
 And that regression https://chromeperf.appspot.com/group_report?bug_id=1409635&project_id=chromium with:
@@ -121,7 +146,7 @@ sub trace {
 }
 
 sub usage {
-  say "Usage:\n\t./$0 --start <start_commit> --end <end_commit> --run <run_cmd> [--perl-time|--score-regex <regex>]";
+  say "Usage:\n\t./$0 --start <start_commit> --end <end_commit> --run <run_cmd> [--perl-time|--score-regex <regex>|--first-score|--total-score|--average-score]";
   exit();
 }
 
@@ -140,7 +165,8 @@ trace("Checking parameters...\n");
 if (!$START || !$END || !$RUN_CMD) {
   my @missings = map { $_->[1] } grep { !$_->[0] }
     [$START, 'start'], [$END, 'end'], [$RUN_CMD, 'run'];
-  say "Missing mandatory argument: ", join (", ", map { "--$_" } @missings);
+  say "Missing mandatory argument: ",
+    join (", ", map { "--$_" } @missings);
   usage();
 }
 if (!-d $COMPILE_DIR) {
@@ -151,14 +177,20 @@ if ($RUN_CMD_DIR ne "" && !-d $RUN_CMD_DIR) {
   say "Run directory $RUN_CMD_DIR does not exist.";
   usage();
 }
+if (!!$TOTAL_SCORE_REGEX + !!$AVERAGE_SCORE_REGEX +
+    !!$FIRST_SCORE_REGEX + !!$SCORE_REGEX) {
+  say "Only one of --total-score, --average-score, " .
+    "--first-score, --score-regex can be used at the same time.";
+  usage();
+}
 if ($TOTAL_SCORE_REGEX && !$SCORE_REGEX) {
-  $SCORE_REGEX="Total-Score: (\\d+\\.?\\d*)"
+  $SCORE_REGEX="Total-Score: (NUM)"
 }
 if ($AVERAGE_SCORE_REGEX && !$SCORE_REGEX) {
-  $SCORE_REGEX="Average-Score: (\\d+\\.?\\d*)"
+  $SCORE_REGEX="Average-Score: (NUM)"
 }
 if ($FIRST_SCORE_REGEX && !$SCORE_REGEX) {
-  $SCORE_REGEX="First-Score: (\\d+\\.?\\d*)"
+  $SCORE_REGEX="First-Score: (NUM)"
 }
 if (!$PERL_TIME && !$SCORE_REGEX) {
   say "One of --perl-time and --score-regex must be specified.";
@@ -213,24 +245,25 @@ while (1) {
         my $time = time();
         my $cmd = $RUN_CMD =~ s/^V8/$bin/r;
         my $out = `$cmd`;
-	if ($? != 0) {
+        if ($? != 0) {
           say "\n==== Error:";
           say "`$cmd` exited with $?:";
           say "====";
-	  say "$out";
-	  exit 1;
-	}
+          say "$out";
+          exit 1;
+        }
         if ($PERL_TIME) {
           push @{$scores{$bin}}, time() - $time;
         } else {
-          my ($score) = $out =~ /$SCORE_REGEX/;
-	  if (!defined $score) {
+          my $real_re = $re =~ s/NUM/\\d+(?:\\.\\d+)?/r;
+          my ($score) = $out =~ /$real_re/;
+          if (!defined $score) {
             say "\n==== Error:";
             say "`$cmd` did not return output matching $SCORE_REGEX:";
             say "====";
-	    say "$out";
-	    exit 1;
-	  }
+            say "$out";
+            exit 1;
+          }
           push @{$scores{$bin}}, $score;
         }
       }

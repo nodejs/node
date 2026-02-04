@@ -5,7 +5,7 @@
 #include "src/heap/code-range.h"
 
 #include "src/base/bounded-page-allocator.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/utils/allocation.h"
 #include "test/unittests/test-utils.h"
 
@@ -13,7 +13,7 @@ namespace v8::internal {
 
 using RedZoneTest = TestWithIsolate;
 
-constexpr size_t kPageSize = PageMetadata::kPageSize;
+constexpr size_t kPageSize = NormalPage::kPageSize;
 constexpr size_t kNumPagesInReservation = 10;
 constexpr size_t kReservationSize = kNumPagesInReservation * kPageSize;
 

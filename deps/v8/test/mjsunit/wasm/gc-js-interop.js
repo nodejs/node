@@ -18,13 +18,10 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(
       () => Object.prototype.__proto__.call(wasm_obj), TypeError);
   testThrowsRepeated(() => wasm_obj.__proto__ = null, TypeError);
+  // Wasm objects have no properties.
+  repeated(() => { for (let p in wasm_obj) { assertUnreachable(); } });
   testThrowsRepeated(() => {
-    for (let p in wasm_obj) {
-    }
-  }, TypeError);
-  testThrowsRepeated(() => {
-    for (let p of wasm_obj) {
-    }
+    for (let p of wasm_obj) {}
   }, TypeError);
   testThrowsRepeated(() => wasm_obj.toString(), TypeError);
   testThrowsRepeated(() => wasm_obj.valueOf(), TypeError);

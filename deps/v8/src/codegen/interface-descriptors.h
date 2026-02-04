@@ -17,6 +17,14 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(TSA_MACRO(__VA_ARGS__))
+#else
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
+#endif
+
 #define TORQUE_BUILTIN_LIST_TFC(V)                                            \
   BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
                            IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -55,16 +63,18 @@ namespace internal {
   V(CallWithSpread)                                  \
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
-  V(CCall)                                           \
   V(CEntryDummy)                                     \
-  V(CEntry1ArgvOnStack)                              \
+  V(CEntryForCPPBuiltin)                             \
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
   V(Compare)                                         \
   V(CompareNoContext)                                \
   V(StringEqual)                                     \
   V(Compare_Baseline)                                \
+  IF_SPARKPLUG_PLUS(V, CompareAndTryPatchCode)       \
   V(Compare_WithFeedback)                            \
+  V(Compare_WithEmbeddedFeedback)                    \
+  V(Compare_WithEmbeddedFeedbackOffset)              \
   V(Construct_Baseline)                              \
   V(ConstructForwardVarargs)                         \
   V(ConstructForwardAllArgs)                         \
@@ -151,7 +161,9 @@ namespace internal {
   V(Void)                                            \
   IF_WASM(V, WasmAllocateShared)                     \
   IF_WASM(V, WasmFXResume)                           \
+  IF_WASM(V, WasmFXResumeThrow)                      \
   IF_WASM(V, WasmFXSuspend)                          \
+  IF_WASM(V, WasmFXReturn)                           \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -161,18 +173,27 @@ namespace internal {
   V(WasmHandleStackOverflow)                         \
   V(WriteBarrier)                                    \
   V(IndirectPointerWriteBarrier)                     \
+  IF_TSA(V, IGNORE_BUILTIN, ToString)                \
   IF_TSAN(V, TSANLoad)                               \
   IF_TSAN(V, TSANStore)                              \
   BUILTIN_LIST_TFS(V)                                \
   TORQUE_BUILTIN_LIST_TFC(V)
 
 enum class StackArgumentOrder {
-  kDefault,  // Arguments in the stack are pushed in the default/stub order (the
-             // first argument is pushed first).
-  kJS,  // Arguments in the stack are pushed in the same order as the one used
-        // by JS-to-JS function calls. This should be used if calling a
-        // JSFunction or if the builtin is expected to be called directly from a
-        // JSFunction. This order is reversed compared to kDefault.
+  // The first argument has the highest address on the stack.
+  kHighToLow,
+  // The first argument has the lowest address on the stack.
+  kLowToHigh,
+
+  // This is the historically default order of arguments for assembly builtins
+  // and runtime functions. Convenient for calling runtime functions from hand
+  // written assembly code.
+  kDefault = kHighToLow,
+
+  // The order of stack arguments used by JavaScript calling convention.
+  // This should be used if calling a JSFunction or if the builtin is
+  // expected to be called directly from a JSFunction.
+  kJS = kLowToHigh,
 };
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -831,17 +852,6 @@ class V8_EXPORT_PRIVATE JSEntryDescriptor
   static constexpr auto registers();
 };
 
-// Dummy descriptor that marks builtins with C calling convention.
-// TODO(jgruber): Define real descriptors for C calling conventions.
-class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
- public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kInvalidEntrypointTag)
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS()
-  DEFINE_PARAMETER_TYPES()
-  DECLARE_DESCRIPTOR(CCallDescriptor)
-};
-
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
 class CEntryDummyDescriptor
@@ -912,11 +922,33 @@ class WasmFXResumeDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kTargetStack)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr())
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kTargetStack, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),  // Return: result buffer.
+      MachineType::IntPtr(),  // Param 0: target stack.
+      MachineType::IntPtr())  // Param 1: arg buffer.
   DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
 
-  static constexpr int kMaxRegisterParams = 1;
+  static constexpr int kMaxRegisterParams = 2;
+  static constexpr inline auto registers();
+};
+
+class WasmFXResumeThrowDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXResumeThrowDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kTargetStack, kTag, kException,
+                                          kInstance)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),         // Return: result buffer.
+      MachineType::IntPtr(),         // Param 0: target stack.
+      MachineType::TaggedPointer(),  // Param 1: tag.
+      MachineType::TaggedPointer(),  // Param 2: array.
+      MachineType::TaggedPointer())  // Param 3: instance.
+  DECLARE_DESCRIPTOR(WasmFXResumeThrowDescriptor)
+
+  static constexpr int kMaxRegisterParams = 4;
   static constexpr inline auto registers();
 };
 
@@ -924,14 +956,31 @@ class WasmFXSuspendDescriptor final
     : public StaticCallInterfaceDescriptor<WasmFXSuspendDescriptor> {
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(0, kTag, kContinuation)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
-                                    MachineType::TaggedPointer())
+  DEFINE_RESULT_AND_PARAMETERS(1, kTag, kContinuation, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),         // Result: arg buffer
+      MachineType::TaggedPointer(),  // Param 0: tag.
+      MachineType::TaggedPointer(),  // Param 1: continuation.
+      MachineType::IntPtr())         // Param 2: arg buffer.
   DECLARE_DESCRIPTOR(WasmFXSuspendDescriptor)
 
-  static constexpr int kMaxRegisterParams = 2;
+  static constexpr int kMaxRegisterParams = 3;
   static constexpr inline auto registers();
 };
+
+class WasmFXReturnDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXReturnDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr())
+  DECLARE_DESCRIPTOR(WasmFXReturnDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+};
+
 #endif
 
 class NewHeapNumberDescriptor
@@ -1012,10 +1061,6 @@ class NoContextDescriptor
 
   static constexpr auto registers();
 };
-
-#if V8_ENABLE_WEBASSEMBLY
-using WasmFXReturnDescriptor = NoContextDescriptor;
-#endif
 
 // LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
@@ -2284,24 +2329,24 @@ class CreateFromSlowBoilerplateHelperDescriptor
   DECLARE_DESCRIPTOR(CreateFromSlowBoilerplateHelperDescriptor)
 };
 
-class CEntry1ArgvOnStackDescriptor
-    : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
+class CEntryForCPPBuiltinDescriptor
+    : public StaticCallInterfaceDescriptor<CEntryForCPPBuiltinDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kArity,          // register argument
-                    kCFunction,      // register argument
-                    kPadding,        // stack argument 1 (just padding)
-                    kArgcSmi,        // stack argument 2
-                    kTargetCopy,     // stack argument 3
-                    kNewTargetCopy)  // stack argument 4
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kJS;
+  DEFINE_PARAMETERS(kArity,                         // register argument
+                    kCFunction,                     // register argument
+                    kNewTargetCopy,                 // sp[0]
+                    kTargetCopy,                    // sp[1]
+                    kArgcSmi)                       // sp[2]
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
                          MachineType::Pointer(),    // kCFunction
-                         MachineType::AnyTagged(),  // kPadding
-                         MachineType::AnyTagged(),  // kArgcSmi
+                         MachineType::AnyTagged(),  // kNewTargetCopy
                          MachineType::AnyTagged(),  // kTargetCopy
-                         MachineType::AnyTagged())  // kNewTargetCopy
-  DECLARE_DESCRIPTOR(CEntry1ArgvOnStackDescriptor)
+                         MachineType::AnyTagged())  // kArgcSmi
+  DECLARE_DESCRIPTOR(CEntryForCPPBuiltinDescriptor)
 
   static constexpr auto registers();
 };
@@ -2354,14 +2399,18 @@ class ApiGetterDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kReceiver, kHolder, kCallback)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
+  DEFINE_PARAMETERS(kCallback,
+                    // stack arguments
+                    kHolder,    // sp[0]
+                    kReceiver)  // sp[1]
+
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCallback
                          MachineType::AnyTagged(),  // kHolder
-                         MachineType::AnyTagged())  // kCallback
+                         MachineType::AnyTagged())  // kReceiver
   DECLARE_DESCRIPTOR(ApiGetterDescriptor)
 
-  static constexpr inline Register ReceiverRegister();
-  static constexpr inline Register HolderRegister();
   static constexpr inline Register CallbackRegister();
 
   static constexpr auto registers();
@@ -2630,6 +2679,17 @@ class RunMicrotasksDescriptor final
   static constexpr inline Register MicrotaskQueueRegister();
 };
 
+class Float64ToStringDescriptor final
+    : public StaticCallInterfaceDescriptor<Float64ToStringDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kInput)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Float64())    // value
+  DECLARE_DESCRIPTOR(Float64ToStringDescriptor)
+};
+
 class WasmFloat32ToNumberDescriptor final
     : public StaticCallInterfaceDescriptor<WasmFloat32ToNumberDescriptor> {
  public:
@@ -2854,6 +2914,20 @@ class Compare_WithFeedbackDescriptor
   DECLARE_DESCRIPTOR(Compare_WithFeedbackDescriptor)
 };
 
+class Compare_WithEmbeddedFeedbackDescriptor
+    : public StaticCallInterfaceDescriptor<
+          Compare_WithEmbeddedFeedbackDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kLeft, kRight, kFeedbackOffset, kBytecodeArray)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::UintPtr(),    // kFeedbackOffset
+                         MachineType::AnyTagged())  // kBytecodeArray
+  DECLARE_DESCRIPTOR(Compare_WithEmbeddedFeedbackDescriptor)
+};
+
 class Compare_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<Compare_BaselineDescriptor> {
  public:
@@ -2864,6 +2938,38 @@ class Compare_BaselineDescriptor
                          MachineType::AnyTagged(),  // kRight
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(Compare_BaselineDescriptor)
+
+  static constexpr inline auto registers();
+};
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+class CompareAndTryPatchCodeDescriptor
+    : public StaticCallInterfaceDescriptor<CompareAndTryPatchCodeDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kCurrentFeedback, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::Int32(),      // kCurrentFeedback
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(CompareAndTryPatchCodeDescriptor)
+
+  static constexpr inline auto registers();
+};
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
+class Compare_WithEmbeddedFeedbackOffsetDescriptor
+    : public StaticCallInterfaceDescriptor<
+          Compare_WithEmbeddedFeedbackOffsetDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(Compare_WithEmbeddedFeedbackOffsetDescriptor)
 
   static constexpr inline auto registers();
 };
@@ -2940,6 +3046,19 @@ class CheckTurboshaftFloat64TypeDescriptor
                                     MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+class ToStringDescriptor
+    : public StaticCallInterfaceDescriptor<ToStringDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kO)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::AnyTagged())
+  DECLARE_DEFAULT_DESCRIPTOR(ToStringDescriptor)
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 #define DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Name, Type)                    \
   class DebugPrint##Name##Descriptor                                         \

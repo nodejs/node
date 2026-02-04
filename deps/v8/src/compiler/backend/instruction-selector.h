@@ -1314,6 +1314,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(StackSlot)
   DECLARE_GENERATOR_T(LoadRootRegister)
   DECLARE_GENERATOR_T(DebugBreak)
+  IF_HARDWARE_SANDBOX(DECLARE_GENERATOR_T, SwitchSandboxMode)
   DECLARE_GENERATOR_T(TryTruncateFloat32ToInt64)
   DECLARE_GENERATOR_T(TryTruncateFloat64ToInt64)
   DECLARE_GENERATOR_T(TryTruncateFloat32ToUint64)
@@ -1378,6 +1379,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
   IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
   IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, WasmFXArgBuffer)
 #undef DECLARE_GENERATOR_T
 
   // Visit the load node with a value and opcode to replace with.
@@ -1458,7 +1460,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
       static_assert(shuffle_size == kSimd128Size ||
-                    shuffle_size == kSimd128HalfSize);
+                    shuffle_size == kSimd128HalfSize ||
+                    shuffle_size == kSimd128QuarterSize);
       DCHECK(view.isSimd128());
       memcpy(shuffle, view.data(), shuffle_size);
     } else if constexpr (simd_size == kSimd256Size) {

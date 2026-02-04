@@ -1510,12 +1510,15 @@ void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 3);
   InstructionCode opcode = kRiscvI32x4DotI8x16I7x16AddS;
+
   // Any even allocatable register can be used as input.
-  auto input0 = g.UseFixed(op.input(0), v12);
-  auto input1 = g.UseFixed(op.input(1), v14);
-  opcode |= EncodeRegisterConstraint(RiscvRegisterConstraint::kEvenRegisters01);
-  Emit(opcode, g.DefineAsRegister(node), input0, input1,
-       g.UseRegister(op.input(2)));
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  auto input0 = g.UseRegister(op.input(0));
+  auto input1 = g.UseRegister(op.input(1));
+  auto input2 = g.UseUniqueRegister(op.input(2));
+  opcode |= EncodeRegisterConstraint(RiscvRegisterConstraint::kNoInput2Overlap);
+  Emit(opcode, g.DefineAsRegister(node), input0, input1, input2,
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {

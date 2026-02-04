@@ -64,6 +64,7 @@ std::optional<Tagged<JSFunction>> Map::GetConstructorFunction(
   return {};
 }
 
+// LINT.IfChange(get_visitor_id)
 VisitorId Map::GetVisitorId(Tagged<Map> map) {
   static_assert(kVisitorIdCount <= 256);
 
@@ -267,6 +268,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ITERATOR_TAKE_HELPER_TYPE:
     case JS_ITERATOR_DROP_HELPER_TYPE:
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
+    case JS_ITERATOR_CONCAT_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -413,6 +415,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case PROTOTYPE_INFO_TYPE:
       return kVisitPrototypeInfo;
 
+    case PROTOTYPE_SHARED_CLOSURE_INFO_TYPE:
+      return kVisitPrototypeSharedClosureInfo;
+
     case DEBUG_INFO_TYPE:
       return kVisitDebugInfo;
 
@@ -488,6 +493,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   FATAL("Instance type %s (code %d) not mapped to VisitorId.", name.c_str(),
         instance_type);
 }
+// LINT.ThenChange()
 
 // static
 MaybeObjectDirectHandle Map::WrapFieldType(DirectHandle<FieldType> type) {
@@ -1280,6 +1286,13 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
     }
     // Same as bit_field comment above.
     raw->set_bit_field3(new_bit_field3);
+    if (v8_flags.proto_assign_seq_lazy_func_opt) {
+      if (Tagged<PrototypeSharedClosureInfo> infos;
+          src_handle->TryGetPrototypeSharedClosureInfo(&infos)) {
+        raw->SetPrototypeSharedClosureInfo(infos);
+      }
+    }
+
     raw->clear_padding();
   }
   DirectHandle<JSPrototype> prototype(src_handle->prototype(), isolate);
@@ -2390,8 +2403,16 @@ DirectHandle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
       return direct_handle(prototype_info, isolate);
     }
   }
+
   DirectHandle<PrototypeInfo> proto_info =
       isolate->factory()->NewPrototypeInfo();
+
+  if (v8_flags.proto_assign_seq_lazy_func_opt) {
+    if (Tagged<PrototypeSharedClosureInfo> closure_infos;
+        prototype->map()->TryGetPrototypeSharedClosureInfo(&closure_infos)) {
+      proto_info->set_prototype_shared_closure_info(closure_infos);
+    }
+  }
   prototype->map()->set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }
@@ -2407,6 +2428,14 @@ DirectHandle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
   }
   DirectHandle<PrototypeInfo> proto_info =
       isolate->factory()->NewPrototypeInfo();
+
+  if (v8_flags.proto_assign_seq_lazy_func_opt) {
+    if (Tagged<PrototypeSharedClosureInfo> closure_infos;
+        prototype_map->TryGetPrototypeSharedClosureInfo(&closure_infos)) {
+      proto_info->set_prototype_shared_closure_info(closure_infos);
+    }
+  }
+
   prototype_map->set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }

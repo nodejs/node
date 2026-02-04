@@ -36,7 +36,9 @@ size_t ArrayBufferList::Append(ArrayBufferExtension* extension) {
       return extension->SetYoung().accounting_length();
     }
   }();
-  DCHECK_GE(bytes_ + accounting_length, bytes_);
+  // On 32-bit this addition can overflow. This is okay because it changes at
+  // most GC scheduling and the counter will be re-computed from scratch in the
+  // next GC cycle.
   bytes_ += accounting_length;
   extension->set_next(nullptr);
   return accounting_length;
@@ -266,7 +268,7 @@ void ArrayBufferSweeper::Finish() {
   state_->FinishSweeping();
 
   Finalize();
-  DCHECK_LE(heap_->backing_store_bytes(), SIZE_MAX);
+  DCHECK_LE(total_bytes_, SIZE_MAX);
   DCHECK(!sweeping_in_progress());
 }
 
@@ -292,7 +294,7 @@ void ArrayBufferSweeper::RequestSweep(
                 ? GCTracer::Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS
                 : GCTracer::Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS
           : GCTracer::Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS;
-  auto trace_id = GetTraceIdForFlowEvent(scope_id);
+  auto trace_id = GetTraceIdForFlowEvent();
   TRACE_GC_WITH_FLOW(heap_->tracer(), scope_id, trace_id,
                      TRACE_EVENT_FLAG_FLOW_OUT);
   Prepare(type, treat_all_young_as_promoted, trace_id);
@@ -421,16 +423,14 @@ void ArrayBufferSweeper::UpdateApproximateBytes(int64_t delta,
 
 void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->IncrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
+  total_bytes_ += bytes;
   external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
 
 void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
+  total_bytes_ -= bytes;
   external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
@@ -455,6 +455,7 @@ void ArrayBufferSweeper::SweepingState::SweepingJob::Sweep(
       break;
   }
   if (is_finished) {
+    TRACE_GC_NOTE("ArrayBufferSweeper Finished");
     state_.SetDone();
   } else {
     TRACE_GC_NOTE("ArrayBufferSweeper Preempted");
@@ -562,10 +563,14 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   return !current;
 }
 
-uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent(
-    GCTracer::Scope::ScopeId scope_id) const {
-  return reinterpret_cast<uint64_t>(this) ^
-         heap_->tracer()->CurrentEpoch(scope_id);
+uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent() const {
+  return reinterpret_cast<uint64_t>(this) ^ heap_->tracer()->CurrentEpoch();
+}
+
+uint64_t ArrayBufferSweeper::GetBytes() const { return total_bytes_; }
+
+size_t ArrayBufferSweeper::BytesForTesting() const {
+  return young().BytesSlow() + old().BytesSlow();
 }
 
 }  // namespace internal

@@ -165,15 +165,27 @@ class JSModuleNamespace
   TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
 };
 
-class ScriptOrModule
-    : public TorqueGeneratedScriptOrModule<ScriptOrModule, Struct> {
+V8_OBJECT class ScriptOrModule : public StructLayout {
  public:
+  inline Tagged<Object> resource_name() const;
+  inline void set_resource_name(Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> host_defined_options() const;
+  inline void set_host_defined_options(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(ScriptOrModule)
+  DECL_VERIFIER(ScriptOrModule)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(ScriptOrModule)
-};
+ private:
+  friend class TorqueGeneratedScriptOrModuleAsserts;
+
+  TaggedMember<Object> resource_name_;
+  TaggedMember<FixedArray> host_defined_options_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

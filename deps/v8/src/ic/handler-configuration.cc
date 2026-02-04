@@ -16,10 +16,10 @@ namespace internal {
 namespace {
 
 template <typename BitField>
-Tagged<Smi> SetBitFieldValue(Tagged<Smi> smi_handler,
-                             typename BitField::FieldType value) {
+inline Tagged<Smi> SetBitFieldValue(Tagged<Smi> smi_handler,
+                                    typename BitField::FieldType value) {
   int config = smi_handler.value();
-  config = BitField::update(config, true);
+  config = BitField::update(config, value);
   return Smi::FromInt(config);
 }
 
@@ -32,8 +32,8 @@ int InitPrototypeChecksImpl(Isolate* isolate, DirectHandle<ICHandler> handler,
                             MaybeObjectDirectHandle data1,
                             MaybeObjectDirectHandle maybe_data2) {
   int data_size = 1;
-  // Holder-is-receiver case itself does not add entries unless there is an
-  // optional data2 value provided.
+  // Holder-is-lookup-start-object case itself does not add entries unless
+  // there is an optional data2 value provided.
 
   DCHECK_IMPLIES(IsJSGlobalObjectMap(*lookup_start_object_map),
                  lookup_start_object_map->is_prototype_map());
@@ -116,7 +116,7 @@ void InitPrototypeChecks(
 }  // namespace
 
 // static
-Handle<Object> LoadHandler::LoadFromPrototype(
+Handle<LoadHandler> LoadHandler::LoadFromPrototype(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
     DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
     MaybeObjectDirectHandle maybe_data1, MaybeObjectDirectHandle maybe_data2) {
@@ -147,44 +147,6 @@ Handle<Object> LoadHandler::LoadFromPrototype(
   handler->set_validity_cell(*validity_cell);
   InitPrototypeChecks(isolate, direct_handle(handler), lookup_start_object_map,
                       data1, maybe_data2);
-  return handler;
-}
-
-// static
-Handle<Object> LoadHandler::LoadFullChain(
-    Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
-    const MaybeObjectDirectHandle& holder, Handle<Smi> smi_handler_handle) {
-  Tagged<Smi> smi_handler = *smi_handler_handle;
-  MaybeObjectDirectHandle data1 = holder;
-  int data_size = GetHandlerDataSize<LoadHandler>(
-      isolate, &smi_handler, lookup_start_object_map, data1);
-
-  DirectHandle<UnionOf<Smi, Cell>> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
-                                                 isolate);
-
-  // There must be a validity cell in case access check is needed.
-  // ICs support access checks only for JSGlobalProxy objects and they are
-  // guaranteed to have validity cell.
-  DCHECK_IMPLIES(
-      *validity_cell == Map::kNoValidityCellSentinel,
-      !DoAccessCheckOnLookupStartObjectBits::decode(smi_handler.value()));
-
-  if (*validity_cell == Map::kNoValidityCellSentinel) {
-    DCHECK_EQ(1, data_size);
-    // Lookup on lookup start object isn't supported in case of a simple smi
-    // handler.
-    if (!LookupOnLookupStartObjectBits::decode(smi_handler.value())) {
-      return smi_handler_handle;
-    }
-  }
-
-  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
-
-  handler->set_smi_handler(smi_handler);
-  handler->set_validity_cell(*validity_cell);
-  InitPrototypeChecks(isolate, direct_handle(handler), lookup_start_object_map,
-                      data1);
   return handler;
 }
 
@@ -268,6 +230,43 @@ Handle<Object> LoadHandler::LoadNonExistent(
 }
 
 // static
+Handle<LoadHandler> LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
+    Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
+    DirectHandle<InterceptorInfo> interceptor_info) {
+  Tagged<Smi> smi_handler = LoadInterceptor();
+
+  bool access_check_needed = lookup_start_object_map->is_access_check_needed();
+
+  // Enable access checks on the lookup start object if needed.
+  smi_handler = SetBitFieldValue<DoAccessCheckOnLookupStartObjectBits>(
+      smi_handler, access_check_needed);
+
+  // This handler doesn't set LookupOnLookupStartObjectBits because
+  // interceptor callbacks should be called before the own property lookup,
+  // while if this bit was set the IC dispatcher would perform the own lookup
+  // even before interpreting the IC kind value.
+
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell;
+  if (access_check_needed || interceptor_info->non_masking()) {
+    // Validity cell in required for access check (it caches the respective
+    // NativeContext) and it's required for the non-masking case to guard
+    // against modifications of the whole prototype chain.
+    validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
+        lookup_start_object_map, isolate);
+  }
+
+  int data_size = 2;  // null (holder) + interceptor_info.
+  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
+
+  handler->set_smi_handler(smi_handler);
+  handler->set_validity_cell(
+      validity_cell.is_null() ? Map::kNoValidityCellSentinel : *validity_cell);
+  handler->set_data1(MakeWeak(ReadOnlyRoots(isolate).null_value()));
+  handler->set_data2(*interceptor_info);
+  return handler;
+}
+
+// static
 KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(
     Tagged<MaybeObject> handler) {
   DisallowGarbageCollection no_gc;
@@ -333,7 +332,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
     DirectHandle<DescriptorArray> descriptors(
         transition_map->instance_descriptors(isolate), isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
-    if (descriptors->GetKey(descriptor)->IsPrivate()) {
+    if (descriptors->GetKey(descriptor)->IsAnyPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
     } else {
       DCHECK_EQ(NONE, details.attributes());
@@ -369,9 +368,9 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
     DirectHandle<DescriptorArray> descriptors(
         transition_map->instance_descriptors(isolate), isolate);
     // Private fields must be added via StoreOwnTransition handler.
-    DCHECK(!descriptors->GetKey(descriptor)->IsPrivateName());
+    DCHECK(!descriptors->GetKey(descriptor)->IsAnyPrivateName());
     PropertyDetails details = descriptors->GetDetails(descriptor);
-    if (descriptors->GetKey(descriptor)->IsPrivate()) {
+    if (descriptors->GetKey(descriptor)->IsAnyPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
     } else {
       DCHECK_EQ(NONE, details.attributes());
@@ -441,6 +440,43 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
   handler->set_validity_cell(*validity_cell);
   InitPrototypeChecks(isolate, direct_handle(handler), receiver_map, data1,
                       maybe_data2);
+  return handler;
+}
+
+// static
+Handle<StoreHandler> StoreHandler::StoreInterceptorHolderIsReceiver(
+    Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
+    DirectHandle<InterceptorInfo> interceptor_info) {
+  Tagged<Smi> smi_handler = StoreInterceptor();
+
+  bool access_check_needed = lookup_start_object_map->is_access_check_needed();
+
+  // Enable access checks on the lookup start object if needed.
+  smi_handler = SetBitFieldValue<DoAccessCheckOnLookupStartObjectBits>(
+      smi_handler, access_check_needed);
+
+  // This handler doesn't set LookupOnLookupStartObjectBits because
+  // interceptor callbacks should be called before the own property lookup,
+  // while if this bit was set the IC dispatcher would perform the own lookup
+  // even before interpreting the IC kind value.
+
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell;
+  if (access_check_needed || interceptor_info->non_masking()) {
+    // Validity cell in required for access check (it caches the respective
+    // NativeContext) and it's required for the non-masking case to guard
+    // against modifications of the whole prototype chain.
+    validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
+        lookup_start_object_map, isolate);
+  }
+
+  int data_size = 2;  // null (holder) + interceptor_info.
+  Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(data_size);
+
+  handler->set_smi_handler(smi_handler);
+  handler->set_validity_cell(
+      validity_cell.is_null() ? Map::kNoValidityCellSentinel : *validity_cell);
+  handler->set_data1(MakeWeak(ReadOnlyRoots(isolate).null_value()));
+  handler->set_data2(*interceptor_info);
   return handler;
 }
 

@@ -835,7 +835,7 @@ void JSFunction::SetPrototype(Isolate* isolate,
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (IsTheHole(*value) || !IsJSReceiver(*value)) {
+  if (!IsJSReceiver(*value)) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
