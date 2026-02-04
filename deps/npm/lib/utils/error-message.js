@@ -7,6 +7,7 @@ const errorMessage = (er, npm) => {
   const summary = []
   const detail = []
   const files = []
+  let json
 
   er.message &&= replaceInfo(er.message)
   er.stack &&= replaceInfo(er.stack)
@@ -84,6 +85,11 @@ const errorMessage = (er, npm) => {
       break
     }
 
+    case 'EALLOWGIT':
+      summary.push(['', er.message])
+      detail.push(['', `Refusing to fetch "${er.package}"`])
+      break
+
     case 'ENOGIT':
       summary.push(['', er.message])
       detail.push(['', [
@@ -118,12 +124,24 @@ const errorMessage = (er, npm) => {
     case 'E401':
       // E401 is for places where we accidentally neglect OTP stuff
       if (er.code === 'EOTP' || /one-time pass/.test(er.message)) {
-        summary.push(['', 'This operation requires a one-time password from your authenticator.'])
-        detail.push(['', [
-          'You can provide a one-time password by passing --otp=<code> to the command you ran.',
-          'If you already provided a one-time password then it is likely that you either typoed',
-          'it, or it timed out. Please try again.',
-        ].join('\n')])
+        const authUrl = er.body?.authUrl
+        const doneUrl = er.body?.doneUrl
+        if (authUrl && doneUrl) {
+          json = { authUrl, doneUrl }
+          summary.push(['', 'This operation requires a one-time password.'])
+          detail.push(['', `Open this URL in your browser to authenticate:`])
+          detail.push(['', `  ${authUrl}`])
+          detail.push(['', ''])
+          detail.push(['', `After authenticating, your token can be retrieved from:`])
+          detail.push(['', `  ${doneUrl}`])
+        } else {
+          summary.push(['', 'This operation requires a one-time password from your authenticator.'])
+          detail.push(['', [
+            'You can provide a one-time password by passing --otp=<code> to the command you ran.',
+            'If you already provided a one-time password then it is likely that you either typoed',
+            'it, or it timed out. Please try again.',
+          ].join('\n')])
+        }
       } else {
         // npm ERR! code E401
         // npm ERR! Unable to authenticate, need: Basic
@@ -364,6 +382,7 @@ const errorMessage = (er, npm) => {
     summary,
     detail,
     files,
+    json,
   }
 }
 
@@ -425,7 +444,7 @@ const getError = (err, { npm, command, pkg }) => {
   // so they have redacted information
   err.code ??= err.message.match(/^(?:Error: )?(E[A-Z]+)/)?.[1]
   // this mutates the error and redacts stack/message
-  const { summary, detail, files } = errorMessage(err, npm)
+  const { summary, detail, files, json } = errorMessage(err, npm)
 
   return {
     err,
@@ -435,6 +454,7 @@ const getError = (err, { npm, command, pkg }) => {
     summary,
     detail,
     files,
+    json,
     verbose: ['type', 'stack', 'statusCode', 'pkgid']
       .filter(k => err[k])
       .map(k => [k, replaceInfo(err[k])]),

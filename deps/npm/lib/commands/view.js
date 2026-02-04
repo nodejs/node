@@ -41,6 +41,7 @@ class View extends BaseCommand {
       ...npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
+      _isRoot: true,
     }
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
@@ -136,6 +137,7 @@ class View extends BaseCommand {
       ...this.npm.flatOptions,
       preferOnline: true,
       fullMetadata: true,
+      _isRoot: true,
     })
 
     // get the data about this package
