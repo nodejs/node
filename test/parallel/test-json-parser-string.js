@@ -174,4 +174,60 @@ describe('node:json', () => {
     const result = parse('{"text":"line1\\nline2"}');
     assert.strictEqual(result.text, 'line1\nline2');
   });
+
+  test('parses non-BMP characters in string values', () => {
+    const result = parse('{"emoji":"😀"}');
+    assert.strictEqual(result.emoji, '😀');
+  });
+
+  test('parses non-BMP characters in object keys', () => {
+    const result = parse('{"😀":1}');
+    assert.strictEqual(result['😀'], 1);
+  });
+
+  test('parses UTF-16 surrogate pairs expressed as \\u escapes', () => {
+    const result = parse('{"emoji":"\\uD83D\\uDE00"}');
+    assert.strictEqual(result.emoji, '😀');
+  });
+
+  test('parses another UTF-16 surrogate pair (musical symbol)', () => {
+    const result = parse('{"symbol":"\\uD834\\uDD1E"}');
+    assert.strictEqual(result.symbol, '𝄞');
+  });
+
+  test('throws SyntaxError on unpaired high surrogate \\u escape', () => {
+    assert.throws(
+      () => parse('{"s":"\\uD800"}'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
+
+  test('throws SyntaxError on unpaired low surrogate \\u escape', () => {
+    assert.throws(
+      () => parse('{"s":"\\uDC00"}'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
+
+  test('throws SyntaxError on invalid surrogate pair order', () => {
+    assert.throws(
+      () => parse('{"s":"\\uDC00\\uD800"}'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
+
+  test('throws SyntaxError when high surrogate is not followed by low surrogate', () => {
+    assert.throws(
+      () => parse('{"s":"\\uD83D\\u0041"}'),
+      {
+        name: 'SyntaxError',
+      }
+    );
+  });
 });
