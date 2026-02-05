@@ -434,6 +434,7 @@
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
+  V(sqlite_run_result_template, v8::DictionaryTemplate)                        \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
