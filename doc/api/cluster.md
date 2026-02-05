@@ -6,13 +6,35 @@
 
 <!-- source_link=lib/cluster.js -->
 
-Clusters of Node.js processes can be used to run multiple instances of Node.js
-that can distribute workloads among their application threads. When process
-isolation is not needed, use the [`worker_threads`][] module instead, which
-allows running multiple application threads within a single Node.js instance.
+## Introduction
 
-The cluster module allows easy creation of child processes that all share
-server ports.
+The Node.js Cluster module allows you to create child processes (workers) that run simultaneously and share the same server port. This enables you to take full advantage of multi-core systems, as Node.js runs on a single thread by default.
+
+### Key Benefits
+- **Improved Performance**: Distribute incoming connections across multiple CPU cores
+- **High Availability**: If one worker crashes, others can continue handling requests
+- **Zero Downtime Updates**: Restart workers without dropping connections
+- **Process Isolation**: Worker crashes don't affect other workers
+
+### When to Use Cluster Module
+- For network applications (HTTP/TCP servers)
+- When you need to maximize CPU utilization
+- For applications that need high availability
+- When running on multi-core systems
+
+### Cluster vs Worker Threads
+
+| Feature          | Cluster Module          | Worker Threads          |
+|-----------------|------------------------|-------------------------|
+| Process/Thread  | Separate processes      | Single process, multiple threads |
+| Memory          | Separate memory space   | Shared memory available |
+| Communication   | IPC or network         | SharedArrayBuffer/MessagePort |
+| Best for        | Network servers        | CPU-intensive tasks     |
+| Fault Isolation | High (process crash doesn't affect others) | Medium (thread crash can affect process) |
+
+## Basic Example
+
+Here's a simple example demonstrating how to use the cluster module to create a multi-process HTTP server:
 
 ```mjs
 import cluster from 'node:cluster';
@@ -21,27 +43,73 @@ import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
 const numCPUs = availableParallelism();
+const port = process.env.PORT || 8000;
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
+  console.log(`Forking for ${numCPUs} CPUs`);
 
-  // Fork workers.
+  // Fork workers equal to the number of CPU cores
   for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
+    const worker = cluster.fork();
+    console.log(`Worker ${worker.process.pid} started`);
   }
 
+  // Handle worker exit events
   cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
+    if (signal) {
+      console.log(`Worker ${worker.process.pid} was killed by signal: ${signal}`);
+    } else if (code !== 0) {
+      console.log(`Worker ${worker.process.pid} exited with error code ${code}`);
+      // Restart the worker if it crashes
+      console.log('Starting a new worker...');
+      cluster.fork();
+    } else {
+      console.log(`Worker ${worker.process.pid} exited successfully`);
+    }
   });
-} else {
-  // Workers can share any TCP connection
-  // In this case it is an HTTP server
-  http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('hello world\n');
-  }).listen(8000);
 
-  console.log(`Worker ${process.pid} started`);
+  // Handle uncaught exceptions in workers
+  cluster.on('uncaughtException', (worker, error, origin) => {
+    console.error(`Worker ${worker.process.pid} experienced an error:`, error);
+    // Restart the worker after an uncaught exception
+    if (!worker.exitedAfterDisconnect) {
+      console.log('Replacing crashed worker...');
+      const newWorker = cluster.fork();
+      console.log(`Started new worker ${newWorker.process.pid} to replace ${worker.process.pid}`);
+    }
+  });
+
+} else {
+  // Worker processes create an HTTP server
+  const server = http.createServer((req, res) => {
+    // Simulate some work
+    if (req.url === '/compute') {
+      // CPU-intensive task
+      let result = 0;
+      for (let i = 0; i < 1e7; i++) {
+        result += i;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ pid: process.pid, result }));
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(`Hello from worker ${process.pid}\n`);
+    }
+  });
+
+  server.listen(port, () => {
+    console.log(`Worker ${process.pid} listening on port ${port}`);
+  });
+
+  // Handle process termination gracefully
+  process.on('SIGTERM', () => {
+    console.log(`Worker ${process.pid} received SIGTERM. Shutting down gracefully...`);
+    server.close(() => {
+      console.log(`Worker ${process.pid} server closed`);
+      process.exit(0);
+    });
+  });
 }
 ```
 
@@ -87,22 +155,80 @@ Worker 5644 started
 
 On Windows, it is not yet possible to set up a named pipe server in a worker.
 
-## How it works
+## How it Works
 
-<!--type=misc-->
+### Process Management
 
-The worker processes are spawned using the [`child_process.fork()`][] method,
-so that they can communicate with the parent via IPC and pass server
-handles back and forth.
+The cluster module uses the [`child_process.fork()`][] method to create worker processes. Each worker runs in its own V8 instance with its own event loop and memory space. The primary process manages these workers and can communicate with them using inter-process communication (IPC).
 
-The cluster module supports two methods of distributing incoming
-connections.
+### Load Balancing Strategies
 
-The first one (and the default one on all platforms except Windows)
-is the round-robin approach, where the primary process listens on a
-port, accepts new connections and distributes them across the workers
-in a round-robin fashion, with some built-in smarts to avoid
-overloading a worker process.
+The cluster module supports two methods for distributing incoming connections:
+
+1. **Round-Robin (Default on non-Windows platforms)**
+   - The primary process acts as a load balancer
+   - New connections are distributed to workers in a round-robin fashion
+   - Built-in mechanism to prevent worker overload
+   - Most efficient for most use cases
+
+2. **Direct Handoff (Windows default)**
+   - The primary process creates the listening socket
+   - The socket is passed to available workers
+   - Workers accept connections directly
+   - Can be less balanced than round-robin
+
+### Connection Distribution Example
+
+```mjs
+// Example showing how to use the 'round-robin' scheduling policy
+import cluster from 'node:cluster';
+import http from 'node:http';
+
+if (cluster.isPrimary) {
+  // Set the scheduling policy (only works on non-Windows platforms)
+  cluster.schedulingPolicy = cluster.SCHED_RR; // Round-Robin
+  
+  // Fork workers
+  const numCPUs = 2; // For demonstration
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+  
+  console.log(`Primary ${process.pid} started with ${numCPUs} workers`);
+} else {
+  // Workers share the same port (8000)
+  http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end(`Hello from worker ${process.pid}\n`);
+  }).listen(8000);
+  
+  console.log(`Worker ${process.pid} started`);
+}
+```
+
+### Best Practices
+
+1. **Error Handling**
+   - Always handle worker crashes and restart them if needed
+   - Use process managers like PM2 or Forever in production
+   - Implement proper logging and monitoring
+
+2. **Graceful Shutdown**
+   - Handle SIGTERM/SIGINT signals
+   - Stop accepting new connections
+   - Complete ongoing requests
+   - Close all server instances
+   - Exit the process
+
+3. **State Management**
+   - Avoid storing state in memory (use databases or caches)
+   - Use sticky sessions if needed
+   - Consider using a shared session store
+
+4. **Performance Considerations**
+   - Don't create more workers than CPU cores (unless handling I/O bound work)
+   - Monitor memory usage (each worker has its own memory space)
+   - Consider using worker pools for CPU-intensive tasks
 
 The second approach is where the primary process creates the listen
 socket and sends it to interested workers. The workers then accept
@@ -154,9 +280,103 @@ added: v0.7.0
 
 * Extends: {EventEmitter}
 
-A `Worker` object contains all public information and method about a worker.
-In the primary it can be obtained using `cluster.workers`. In a worker
-it can be obtained using `cluster.worker`.
+A `Worker` object represents a child process and contains all public information and methods about a worker. In the primary process, you can access worker objects through `cluster.workers`. In a worker process, you can access its own worker object through `cluster.worker`.
+
+### Practical Example: Worker Communication
+
+Here's an example demonstrating worker-to-primary and primary-to-worker communication:
+
+```mjs
+import cluster from 'node:cluster';
+import http from 'node:http';
+import process from 'node:process';
+
+if (cluster.isPrimary) {
+  // Primary process
+  console.log(`Primary ${process.pid} is running`);
+  
+  // Fork workers
+  const worker1 = cluster.fork({ WORKER_TYPE: 'api' });
+  const worker2 = cluster.fork({ WORKER_TYPE: 'worker' });
+  
+  // Handle messages from workers
+  cluster.on('message', (worker, message) => {
+    console.log(`Primary received message from worker ${worker.process.pid}:`, message);
+    
+    // Send a response back to the worker
+    if (message.type === 'status') {
+      worker.send({ type: 'statusResponse', data: 'Primary is running' });
+    }
+  });
+  
+  // Send periodic updates to workers
+  setInterval(() => {
+    const timestamp = new Date().toISOString();
+    for (const id in cluster.workers) {
+      cluster.workers[id].send({ type: 'timeUpdate', time: timestamp });
+    }
+  }, 5000);
+  
+} else {
+  // Worker process
+  const workerType = process.env.WORKER_TYPE || 'default';
+  console.log(`${workerType} worker ${process.pid} started`);
+  
+  // Handle messages from primary
+  process.on('message', (message) => {
+    console.log(`Worker ${process.pid} received:`, message);
+    
+    if (message.type === 'timeUpdate') {
+      console.log(`[${workerType} ${process.pid}] Time update:`, message.time);
+    }
+  });
+  
+  // Send status to primary
+  if (workerType === 'api') {
+    // Create HTTP server in API worker
+    http.createServer((req, res) => {
+      process.send({ type: 'request', path: req.url });
+      res.end(`Hello from ${workerType} worker ${process.pid}\n`);
+    }).listen(8000);
+    
+    // Send status every 10 seconds
+    setInterval(() => {
+      process.send({ 
+        type: 'status', 
+        pid: process.pid,
+        memory: process.memoryUsage(),
+        uptime: process.uptime()
+      });
+    }, 10000);
+  }
+}
+```
+
+### Worker Lifecycle
+
+1. **Creation**: Worker is forked using `cluster.fork()`
+2. **Online**: Worker sends 'online' event when it's running
+3. **Listening**: Worker sends 'listening' event when it's ready to accept connections
+4. **Disconnect**: Worker is disconnected but may still be processing requests
+5. **Exit**: Worker process has exited
+
+### Common Patterns
+
+1. **Worker Specialization**
+   - Different workers can handle different types of tasks
+   - Example: API workers, background job workers, etc.
+
+2. **Zero-Downtime Restarts**
+   - Start new workers before stopping old ones
+   - Use `worker.disconnect()` to gracefully stop workers
+
+3. **Configuration Management**
+   - Pass configuration via environment variables
+   - Use a configuration management system
+
+4. **Health Checks**
+   - Implement health check endpoints
+   - Monitor worker health and restart if needed
 
 ### Event: `'disconnect'`
 
