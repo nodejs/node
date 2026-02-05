@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -267,4 +268,123 @@ const vfs = require('node:vfs');
     myVfs.promises.access('/nonexistent'),
     { code: 'ENOENT' }
   );
+})().then(common.mustCall());
+
+// Test promises.writeFile
+(async () => {
+  const myVfs = vfs.create();
+
+  await myVfs.promises.writeFile('/write-test.txt', 'async written');
+  assert.strictEqual(myVfs.readFileSync('/write-test.txt', 'utf8'), 'async written');
+
+  // Overwrite existing file
+  await myVfs.promises.writeFile('/write-test.txt', 'overwritten');
+  assert.strictEqual(myVfs.readFileSync('/write-test.txt', 'utf8'), 'overwritten');
+
+  // Write with Buffer
+  await myVfs.promises.writeFile('/buffer-write.txt', Buffer.from('buffer data'));
+  assert.strictEqual(myVfs.readFileSync('/buffer-write.txt', 'utf8'), 'buffer data');
+})().then(common.mustCall());
+
+// Test promises.appendFile
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/append-test.txt', 'start');
+
+  await myVfs.promises.appendFile('/append-test.txt', '-end');
+  assert.strictEqual(myVfs.readFileSync('/append-test.txt', 'utf8'), 'start-end');
+
+  // Append to non-existent file creates it
+  await myVfs.promises.appendFile('/new-append.txt', 'new content');
+  assert.strictEqual(myVfs.readFileSync('/new-append.txt', 'utf8'), 'new content');
+})().then(common.mustCall());
+
+// Test promises.mkdir
+(async () => {
+  const myVfs = vfs.create();
+
+  await myVfs.promises.mkdir('/async-dir');
+  const stat = myVfs.statSync('/async-dir');
+  assert.strictEqual(stat.isDirectory(), true);
+
+  // Recursive mkdir
+  await myVfs.promises.mkdir('/async-dir/nested/deep', { recursive: true });
+  assert.strictEqual(myVfs.statSync('/async-dir/nested/deep').isDirectory(), true);
+
+  // Mkdir on existing directory throws without recursive
+  await assert.rejects(
+    myVfs.promises.mkdir('/async-dir'),
+    { code: 'EEXIST' }
+  );
+})().then(common.mustCall());
+
+// Test promises.unlink
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/unlink-test.txt', 'to delete');
+
+  await myVfs.promises.unlink('/unlink-test.txt');
+  assert.strictEqual(myVfs.existsSync('/unlink-test.txt'), false);
+
+  await assert.rejects(
+    myVfs.promises.unlink('/nonexistent.txt'),
+    { code: 'ENOENT' }
+  );
+})().then(common.mustCall());
+
+// Test promises.rmdir
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/rmdir-test');
+
+  await myVfs.promises.rmdir('/rmdir-test');
+  assert.strictEqual(myVfs.existsSync('/rmdir-test'), false);
+
+  // Rmdir on non-empty directory throws
+  myVfs.mkdirSync('/nonempty');
+  myVfs.writeFileSync('/nonempty/file.txt', 'content');
+  await assert.rejects(
+    myVfs.promises.rmdir('/nonempty'),
+    { code: 'ENOTEMPTY' }
+  );
+})().then(common.mustCall());
+
+// Test promises.rename
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/rename-src.txt', 'rename me');
+
+  await myVfs.promises.rename('/rename-src.txt', '/rename-dest.txt');
+  assert.strictEqual(myVfs.existsSync('/rename-src.txt'), false);
+  assert.strictEqual(myVfs.readFileSync('/rename-dest.txt', 'utf8'), 'rename me');
+})().then(common.mustCall());
+
+// Test promises.copyFile
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/copy-src.txt', 'copy me');
+
+  await myVfs.promises.copyFile('/copy-src.txt', '/copy-dest.txt');
+  assert.strictEqual(myVfs.readFileSync('/copy-dest.txt', 'utf8'), 'copy me');
+  // Source still exists
+  assert.strictEqual(myVfs.existsSync('/copy-src.txt'), true);
+
+  await assert.rejects(
+    myVfs.promises.copyFile('/nonexistent.txt', '/fail.txt'),
+    { code: 'ENOENT' }
+  );
+})().then(common.mustCall());
+
+// Test async truncate (via file handle)
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/truncate-test.txt', 'async content');
+
+  const fd = myVfs.openSync('/truncate-test.txt', 'r+');
+  const { getVirtualFd } = require('internal/vfs/fd');
+  const handle = getVirtualFd(fd);
+
+  await handle.entry.truncate(5);
+  myVfs.closeSync(fd);
+  assert.strictEqual(myVfs.readFileSync('/truncate-test.txt', 'utf8'), 'async');
 })().then(common.mustCall());

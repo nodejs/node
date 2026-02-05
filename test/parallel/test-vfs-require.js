@@ -144,6 +144,30 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
+// Test requiring an ESM .mjs module from VFS
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/esm.mjs', 'export const msg = "hello from esm";');
+  myVfs.mount('/virtual11');
+
+  const mod = require('/virtual11/esm.mjs');
+  assert.strictEqual(mod.msg, 'hello from esm');
+
+  myVfs.unmount();
+}
+
+// Test requiring an ESM .mjs module with default export from VFS
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/esm-default.mjs', 'export default function() { return 42; }');
+  myVfs.mount('/virtual12');
+
+  const mod = require('/virtual12/esm-default.mjs');
+  assert.strictEqual(mod.default(), 42);
+
+  myVfs.unmount();
+}
+
 // Test that unmounting stops interception
 {
   const myVfs = vfs.create();

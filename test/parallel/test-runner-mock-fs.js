@@ -157,7 +157,7 @@ test('mock.fs() exposes vfs property', (t) => {
 });
 
 // Test mock.fs() with dynamic file content
-// TODO(vfs): Dynamic file content (functions) not yet supported in provider-based VFS
+// TODO(vfs): Dynamic file content (functions) not yet exposed through mock.fs() API
 test('mock.fs() supports dynamic file content', { skip: true }, (t) => {
   let counter = 0;
   const mockFs = t.mock.fs({ prefix: '/dynamic-test' });

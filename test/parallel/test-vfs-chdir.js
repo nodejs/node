@@ -168,9 +168,6 @@ const vfs = require('node:vfs');
 
   const originalCwd = process.cwd();
 
-  // Before chdir, process.cwd returns real cwd
-  assert.strictEqual(process.cwd(), originalCwd);
-
   // Set virtual cwd
   myVfs.chdir('/virtual/project');
   assert.strictEqual(process.cwd(), '/virtual/project');
@@ -208,9 +205,7 @@ const vfs = require('node:vfs');
 
   myVfs.unmount();
 
-  // After unmount, cwd should throw (not enabled)
-  // Actually, virtualCwdEnabled is still true, just unmounted
-  // Let's remount and check cwd is reset
+  // After remount, virtual cwd should be reset to null
   myVfs.mount('/virtual');
   assert.strictEqual(myVfs.cwd(), null);
 

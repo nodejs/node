@@ -2359,7 +2359,7 @@ added: REPLACEME
 * Returns: {MockFSContext} An object that can be used to manage the mock file
   system.
 
-This function creates a mock file system using the Virtual File System (VFS).
+This function creates a mock file system using the [Virtual File System (VFS)][].
 The mock file system is automatically cleaned up when the test completes.
 
 ## Class: `MockFSContext`
@@ -4229,3 +4229,4 @@ Can be used to abort test subtasks when the test has been aborted.
 [suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model
+[virtual file system (vfs)]: vfs.md

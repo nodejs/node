@@ -2,6 +2,10 @@ import '../common/index.mjs';
 import assert from 'assert';
 import vfs from 'node:vfs';
 
+// NOTE: Each test uses a different mount path (/virtual, /virtual2, etc.)
+// because ESM imports are cached by URL - using the same mount path would
+// return cached modules from previous tests instead of fresh imports.
+
 // Test importing a simple virtual ES module
 {
   const myVfs = vfs.create();
