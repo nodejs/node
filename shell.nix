@@ -6,19 +6,22 @@
   loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
   ninja ? pkgs.ninja,
   extraConfigFlags ? [
-    "--without-npm"
     "--debug-node"
   ],
 
   # Build options
   icu ? pkgs.icu,
   withAmaro ? true,
+  withLief ? true,
+  withQuic ? false,
   withSQLite ? true,
   withSSL ? true,
   withTemporal ? false,
   sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix {
     inherit
       pkgs
+      withLief
+      withQuic
       withSQLite
       withSSL
       withTemporal
@@ -81,19 +84,17 @@ pkgs.mkShell {
     ]
     ++ extraConfigFlags
     ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
+    ++ pkgs.lib.optional (!withLief) "--without-lief"
+    ++ pkgs.lib.optional withQuic "--experimental-quic"
     ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
     ++ pkgs.lib.optional (!withSSL) "--without-ssl"
     ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
     ++ pkgs.lib.optional (ninja != null) "--ninja"
     ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
     ++ pkgs.lib.concatMap (name: [
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}"
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}-libpath=${
-        pkgs.lib.getLib sharedLibDeps.${name}
-      }/lib"
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}-include=${
-        pkgs.lib.getInclude sharedLibDeps.${name}
-      }/include"
+      "--shared-${name}"
+      "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
+      "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
     ]) (builtins.attrNames sharedLibDeps)
   );
   NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";

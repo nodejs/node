@@ -16,8 +16,8 @@
 #include "des_local.h"
 
 void DES_pcbc_encrypt(const unsigned char *input, unsigned char *output,
-                      long length, DES_key_schedule *schedule,
-                      DES_cblock *ivec, int enc)
+    long length, DES_key_schedule *schedule,
+    DES_cblock *ivec, int enc)
 {
     register DES_LONG sin0, sin1, xor0, xor1, tout0, tout1;
     DES_LONG tin[2];

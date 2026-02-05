@@ -222,9 +222,9 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 21](https://github.com/nodejs/node/blob/v21.x/BUILDING.md)
+* [Node.js 24](https://github.com/nodejs/node/blob/v24.x/BUILDING.md)
+* [Node.js 22](https://github.com/nodejs/node/blob/v22.x/BUILDING.md)
 * [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
-* [Node.js 18](https://github.com/nodejs/node/blob/v18.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
@@ -741,7 +741,7 @@ Refs:
   [Visual Studio 2022 (17.13 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
-  with the default optional components. Starting with Node.js v24, ClangCL is required to compile
+  with the default optional components. As of Node.js 24.0.0, ClangCL is required to compile
   on Windows. To enable it, two additional components are needed:
   * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
   * MSBuild support for LLVM toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
@@ -790,14 +790,6 @@ To install Node.js prerequisites from PowerShell Terminal:
 ```powershell
 winget configure .\.configurations\configuration.dsc.yaml
 ```
-
-Alternatively, you can use [Dev Home](https://learn.microsoft.com/en-us/windows/dev-home/)
-to install the prerequisites:
-
-* Switch to `Machine Configuration` tab
-* Click on `Configuration File`
-* Choose the corresponding WinGet configuration file
-* Click on `Set up as admin`
 
 ##### Option 3: Automated install with Boxstarter
 

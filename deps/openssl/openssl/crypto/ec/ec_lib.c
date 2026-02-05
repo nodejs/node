@@ -28,7 +28,7 @@
 /* functions for EC_GROUP objects */
 
 EC_GROUP *ossl_ec_group_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
-                               const EC_METHOD *meth)
+    const EC_METHOD *meth)
 {
     EC_GROUP *ret;
 
@@ -66,7 +66,7 @@ EC_GROUP *ossl_ec_group_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
         goto err;
     return ret;
 
- err:
+err:
     BN_free(ret->order);
     BN_free(ret->cofactor);
     OPENSSL_free(ret->propq);
@@ -75,12 +75,12 @@ EC_GROUP *ossl_ec_group_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
-# ifndef FIPS_MODULE
+#ifndef FIPS_MODULE
 EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 {
     return ossl_ec_group_new_ex(NULL, NULL, meth);
 }
-# endif
+#endif
 #endif
 
 void EC_pre_comp_free(EC_GROUP *group)
@@ -281,12 +281,12 @@ EC_GROUP *EC_GROUP_dup(const EC_GROUP *a)
 
     ok = 1;
 
- err:
+err:
     if (!ok) {
         EC_GROUP_free(t);
         return NULL;
     }
-        return t;
+    return t;
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -316,7 +316,8 @@ static int ec_precompute_mont_data(EC_GROUP *);
  *
  * Otherwise, zero cofactor and return success.
  */
-static int ec_guess_cofactor(EC_GROUP *group) {
+static int ec_guess_cofactor(EC_GROUP *group)
+{
     int ret = 0;
     BN_CTX *ctx = NULL;
     BIGNUM *q = NULL;
@@ -358,14 +359,14 @@ static int ec_guess_cofactor(EC_GROUP *group) {
         || !BN_div(group->cofactor, NULL, group->cofactor, group->order, ctx))
         goto err;
     ret = 1;
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     return ret;
 }
 
 int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
-                           const BIGNUM *order, const BIGNUM *cofactor)
+    const BIGNUM *order, const BIGNUM *cofactor)
 {
     if (generator == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_PASSED_NULL_PARAMETER);
@@ -465,7 +466,7 @@ int EC_GROUP_order_bits(const EC_GROUP *group)
 }
 
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor,
-                          BN_CTX *ctx)
+    BN_CTX *ctx)
 {
 
     if (group->cofactor == NULL)
@@ -484,8 +485,7 @@ const BIGNUM *EC_GROUP_get0_cofactor(const EC_GROUP *group)
 void EC_GROUP_set_curve_name(EC_GROUP *group, int nid)
 {
     group->curve_name = nid;
-    group->asn1_flag =
-        (nid != NID_undef)
+    group->asn1_flag = (nid != NID_undef)
         ? OPENSSL_EC_NAMED_CURVE
         : OPENSSL_EC_EXPLICIT_CURVE;
 }
@@ -516,13 +516,13 @@ int EC_GROUP_get_asn1_flag(const EC_GROUP *group)
 }
 
 void EC_GROUP_set_point_conversion_form(EC_GROUP *group,
-                                        point_conversion_form_t form)
+    point_conversion_form_t form)
 {
     group->asn1_form = form;
 }
 
 point_conversion_form_t EC_GROUP_get_point_conversion_form(const EC_GROUP
-                                                           *group)
+        *group)
 {
     return group->asn1_form;
 }
@@ -555,7 +555,7 @@ size_t EC_GROUP_get_seed_len(const EC_GROUP *group)
 }
 
 int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
-                       const BIGNUM *b, BN_CTX *ctx)
+    const BIGNUM *b, BN_CTX *ctx)
 {
     if (group->meth->group_set_curve == 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -565,7 +565,7 @@ int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
 }
 
 int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
-                       BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (group->meth->group_get_curve == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -576,30 +576,30 @@ int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
-                           const BIGNUM *b, BN_CTX *ctx)
+    const BIGNUM *b, BN_CTX *ctx)
 {
     return EC_GROUP_set_curve(group, p, a, b, ctx);
 }
 
 int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p, BIGNUM *a,
-                           BIGNUM *b, BN_CTX *ctx)
+    BIGNUM *b, BN_CTX *ctx)
 {
     return EC_GROUP_get_curve(group, p, a, b, ctx);
 }
 
-# ifndef OPENSSL_NO_EC2M
+#ifndef OPENSSL_NO_EC2M
 int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
-                            const BIGNUM *b, BN_CTX *ctx)
+    const BIGNUM *b, BN_CTX *ctx)
 {
     return EC_GROUP_set_curve(group, p, a, b, ctx);
 }
 
 int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p, BIGNUM *a,
-                            BIGNUM *b, BN_CTX *ctx)
+    BIGNUM *b, BN_CTX *ctx)
 {
     return EC_GROUP_get_curve(group, p, a, b, ctx);
 }
-# endif
+#endif
 #endif
 
 int EC_GROUP_get_degree(const EC_GROUP *group)
@@ -632,8 +632,7 @@ int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ctx)
     if (EC_GROUP_get_field_type(a) != EC_GROUP_get_field_type(b))
         return 1;
     /* compare the curve name (if present in both) */
-    if (EC_GROUP_get_curve_name(a) && EC_GROUP_get_curve_name(b) &&
-        EC_GROUP_get_curve_name(a) != EC_GROUP_get_curve_name(b))
+    if (EC_GROUP_get_curve_name(a) && EC_GROUP_get_curve_name(b) && EC_GROUP_get_curve_name(a) != EC_GROUP_get_curve_name(b))
         return 1;
     if (a->meth->flags & EC_FLAGS_CUSTOM_CURVE)
         return 0;
@@ -664,8 +663,7 @@ int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ctx)
      * XXX This approach assumes that the external representation of curves
      * over the same field type is the same.
      */
-    if (!a->meth->group_get_curve(a, a1, a2, a3, ctx) ||
-        !b->meth->group_get_curve(b, b1, b2, b3, ctx))
+    if (!a->meth->group_get_curve(a, a1, a2, a3, ctx) || !b->meth->group_get_curve(b, b1, b2, b3, ctx))
         r = 1;
 
     /* return 1 if the curve parameters are different */
@@ -674,8 +672,7 @@ int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ctx)
 
     /* XXX EC_POINT_cmp() assumes that the methods are equal */
     /* return 1 if the generators are different */
-    if (r || EC_POINT_cmp(a, EC_GROUP_get0_generator(a),
-                          EC_GROUP_get0_generator(b), ctx) != 0)
+    if (r || EC_POINT_cmp(a, EC_GROUP_get0_generator(a), EC_GROUP_get0_generator(b), ctx) != 0)
         r = 1;
 
     if (!r) {
@@ -775,9 +772,9 @@ int EC_POINT_copy(EC_POINT *dest, const EC_POINT *src)
         return 0;
     }
     if (dest->meth != src->meth
-            || (dest->curve_name != src->curve_name
-                 && dest->curve_name != 0
-                 && src->curve_name != 0)) {
+        || (dest->curve_name != src->curve_name
+            && dest->curve_name != 0
+            && src->curve_name != 0)) {
         ERR_raise(ERR_LIB_EC, EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
@@ -827,9 +824,9 @@ int EC_POINT_set_to_infinity(const EC_GROUP *group, EC_POINT *point)
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int EC_POINT_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
-                                             EC_POINT *point, const BIGNUM *x,
-                                             const BIGNUM *y, const BIGNUM *z,
-                                             BN_CTX *ctx)
+    EC_POINT *point, const BIGNUM *x,
+    const BIGNUM *y, const BIGNUM *z,
+    BN_CTX *ctx)
 {
     if (group->meth->field_type != NID_X9_62_prime_field) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -840,13 +837,13 @@ int EC_POINT_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
         return 0;
     }
     return ossl_ec_GFp_simple_set_Jprojective_coordinates_GFp(group, point,
-                                                              x, y, z, ctx);
+        x, y, z, ctx);
 }
 
 int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group,
-                                             const EC_POINT *point, BIGNUM *x,
-                                             BIGNUM *y, BIGNUM *z,
-                                             BN_CTX *ctx)
+    const EC_POINT *point, BIGNUM *x,
+    BIGNUM *y, BIGNUM *z,
+    BN_CTX *ctx)
 {
     if (group->meth->field_type != NID_X9_62_prime_field) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -857,13 +854,13 @@ int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group,
         return 0;
     }
     return ossl_ec_GFp_simple_get_Jprojective_coordinates_GFp(group, point,
-                                                              x, y, z, ctx);
+        x, y, z, ctx);
 }
 #endif
 
 int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *point,
-                                    const BIGNUM *x, const BIGNUM *y,
-                                    BN_CTX *ctx)
+    const BIGNUM *x, const BIGNUM *y,
+    BN_CTX *ctx)
 {
     if (group->meth->point_set_affine_coordinates == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -885,25 +882,25 @@ int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *point,
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group,
-                                        EC_POINT *point, const BIGNUM *x,
-                                        const BIGNUM *y, BN_CTX *ctx)
+    EC_POINT *point, const BIGNUM *x,
+    const BIGNUM *y, BN_CTX *ctx)
 {
     return EC_POINT_set_affine_coordinates(group, point, x, y, ctx);
 }
 
-# ifndef OPENSSL_NO_EC2M
+#ifndef OPENSSL_NO_EC2M
 int EC_POINT_set_affine_coordinates_GF2m(const EC_GROUP *group,
-                                         EC_POINT *point, const BIGNUM *x,
-                                         const BIGNUM *y, BN_CTX *ctx)
+    EC_POINT *point, const BIGNUM *x,
+    const BIGNUM *y, BN_CTX *ctx)
 {
     return EC_POINT_set_affine_coordinates(group, point, x, y, ctx);
 }
-# endif
+#endif
 #endif
 
 int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
-                                    const EC_POINT *point, BIGNUM *x, BIGNUM *y,
-                                    BN_CTX *ctx)
+    const EC_POINT *point, BIGNUM *x, BIGNUM *y,
+    BN_CTX *ctx)
 {
     if (group->meth->point_get_affine_coordinates == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -922,24 +919,24 @@ int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
-                                        const EC_POINT *point, BIGNUM *x,
-                                        BIGNUM *y, BN_CTX *ctx)
+    const EC_POINT *point, BIGNUM *x,
+    BIGNUM *y, BN_CTX *ctx)
 {
     return EC_POINT_get_affine_coordinates(group, point, x, y, ctx);
 }
 
-# ifndef OPENSSL_NO_EC2M
+#ifndef OPENSSL_NO_EC2M
 int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *group,
-                                         const EC_POINT *point, BIGNUM *x,
-                                         BIGNUM *y, BN_CTX *ctx)
+    const EC_POINT *point, BIGNUM *x,
+    BIGNUM *y, BN_CTX *ctx)
 {
     return EC_POINT_get_affine_coordinates(group, point, x, y, ctx);
 }
-# endif
+#endif
 #endif
 
 int EC_POINT_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
-                 const EC_POINT *b, BN_CTX *ctx)
+    const EC_POINT *b, BN_CTX *ctx)
 {
     if (group->meth->add == 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -954,7 +951,7 @@ int EC_POINT_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 }
 
 int EC_POINT_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
-                 BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (group->meth->dbl == 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -1001,7 +998,7 @@ int EC_POINT_is_at_infinity(const EC_GROUP *group, const EC_POINT *point)
  * -1: An error occurred
  */
 int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point,
-                         BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (group->meth->is_on_curve == 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -1015,7 +1012,7 @@ int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point,
 }
 
 int EC_POINT_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT *b,
-                 BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (group->meth->point_cmp == 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -1043,7 +1040,7 @@ int EC_POINT_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
 }
 
 int EC_POINTs_make_affine(const EC_GROUP *group, size_t num,
-                          EC_POINT *points[], BN_CTX *ctx)
+    EC_POINT *points[], BN_CTX *ctx)
 {
     size_t i;
 
@@ -1069,8 +1066,8 @@ int EC_POINTs_make_affine(const EC_GROUP *group, size_t num,
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
-                  size_t num, const EC_POINT *points[],
-                  const BIGNUM *scalars[], BN_CTX *ctx)
+    size_t num, const EC_POINT *points[],
+    const BIGNUM *scalars[], BN_CTX *ctx)
 {
     int ret = 0;
     size_t i = 0;
@@ -1116,7 +1113,7 @@ int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 #endif
 
 int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
-                 const EC_POINT *point, const BIGNUM *p_scalar, BN_CTX *ctx)
+    const EC_POINT *point, const BIGNUM *p_scalar, BN_CTX *ctx)
 {
     int ret = 0;
     size_t num;
@@ -1165,7 +1162,7 @@ int EC_GROUP_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     if (group->meth->precompute_mult != 0)
         return group->meth->precompute_mult(group, ctx);
     else
-        return 1;               /* nothing to do, so report success */
+        return 1; /* nothing to do, so report success */
 }
 
 int EC_GROUP_have_precompute_mult(const EC_GROUP *group)
@@ -1177,8 +1174,8 @@ int EC_GROUP_have_precompute_mult(const EC_GROUP *group)
     if (group->meth->have_precompute_mult != 0)
         return group->meth->have_precompute_mult(group);
     else
-        return 0;               /* cannot tell whether precomputation has
-                                 * been performed */
+        return 0; /* cannot tell whether precomputation has
+                   * been performed */
 }
 #endif
 
@@ -1209,7 +1206,7 @@ static int ec_precompute_mont_data(EC_GROUP *group)
 
     ret = 1;
 
- err:
+err:
 
     BN_CTX_free(ctx);
     return ret;
@@ -1235,7 +1232,7 @@ int ossl_ec_group_simple_order_bits(const EC_GROUP *group)
 }
 
 static int ec_field_inverse_mod_ord(const EC_GROUP *group, BIGNUM *r,
-                                    const BIGNUM *x, BN_CTX *ctx)
+    const BIGNUM *x, BN_CTX *ctx)
 {
     BIGNUM *e = NULL;
     int ret = 0;
@@ -1274,7 +1271,7 @@ static int ec_field_inverse_mod_ord(const EC_GROUP *group, BIGNUM *r,
 
     ret = 1;
 
- err:
+err:
     BN_CTX_end(ctx);
 #ifndef FIPS_MODULE
     BN_CTX_free(new_ctx);
@@ -1296,7 +1293,7 @@ static int ec_field_inverse_mod_ord(const EC_GROUP *group, BIGNUM *r,
  * other functionality.
  */
 int ossl_ec_group_do_inverse_ord(const EC_GROUP *group, BIGNUM *res,
-                                 const BIGNUM *x, BN_CTX *ctx)
+    const BIGNUM *x, BN_CTX *ctx)
 {
     if (group->meth->field_inverse_mod_ord != NULL)
         return group->meth->field_inverse_mod_ord(group, res, x, ctx);
@@ -1315,7 +1312,7 @@ int ossl_ec_group_do_inverse_ord(const EC_GROUP *group, BIGNUM *res,
  * support coordinate blinding.
  */
 int ossl_ec_point_blind_coordinates(const EC_GROUP *group, EC_POINT *p,
-                                    BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (group->meth->blind_coordinates == NULL)
         return 1; /* ignore if not implemented */
@@ -1333,8 +1330,8 @@ int EC_GROUP_get_basis_type(const EC_GROUP *group)
 
     /* Find the last non-zero element of group->poly[] */
     for (i = 0;
-         i < (int)OSSL_NELEM(group->poly) && group->poly[i] != 0;
-         i++)
+        i < (int)OSSL_NELEM(group->poly) && group->poly[i] != 0;
+        i++)
         continue;
 
     if (i == 4)
@@ -1354,7 +1351,7 @@ int EC_GROUP_get_trinomial_basis(const EC_GROUP *group, unsigned int *k)
 
     if (EC_GROUP_get_field_type(group) != NID_X9_62_characteristic_two_field
         || !((group->poly[0] != 0) && (group->poly[1] != 0)
-             && (group->poly[2] == 0))) {
+            && (group->poly[2] == 0))) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
@@ -1366,15 +1363,15 @@ int EC_GROUP_get_trinomial_basis(const EC_GROUP *group, unsigned int *k)
 }
 
 int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
-                                   unsigned int *k2, unsigned int *k3)
+    unsigned int *k2, unsigned int *k3)
 {
     if (group == NULL)
         return 0;
 
     if (EC_GROUP_get_field_type(group) != NID_X9_62_characteristic_two_field
         || !((group->poly[0] != 0) && (group->poly[1] != 0)
-             && (group->poly[2] != 0) && (group->poly[3] != 0)
-             && (group->poly[4] == 0))) {
+            && (group->poly[2] != 0) && (group->poly[3] != 0)
+            && (group->poly[4] == 0))) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
@@ -1403,9 +1400,9 @@ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
  * mathematically wrong anyway and should not be used.
  */
 static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
-                                            OSSL_LIB_CTX *libctx,
-                                            const char *propq,
-                                            BN_CTX *ctx)
+    OSSL_LIB_CTX *libctx,
+    const char *propq,
+    BN_CTX *ctx)
 {
     EC_GROUP *ret_group = NULL, *dup = NULL;
     int curve_name_nid;
@@ -1415,8 +1412,8 @@ static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
     int no_seed = (EC_GROUP_get0_seed(group) == NULL);
 
     if ((dup = EC_GROUP_dup(group)) == NULL
-            || EC_GROUP_set_seed(dup, NULL, 0) != 1
-            || !EC_GROUP_set_generator(dup, point, order, NULL))
+        || EC_GROUP_set_seed(dup, NULL, 0) != 1
+        || !EC_GROUP_set_generator(dup, point, order, NULL))
         goto err;
     if ((curve_name_nid = ossl_ec_curve_nid_from_params(dup, ctx)) != NID_undef) {
         /*
@@ -1428,7 +1425,7 @@ static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
          * parameters with one created from a named group.
          */
 
-# ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
+#ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
         /*
          * NID_wap_wsg_idm_ecid_wtls12 and NID_secp224r1 are both aliases for
          * the same curve, we prefer the SECP nid when matching explicit
@@ -1436,7 +1433,7 @@ static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
          */
         if (curve_name_nid == NID_wap_wsg_idm_ecid_wtls12)
             curve_name_nid = NID_secp224r1;
-# endif /* !def(OPENSSL_NO_EC_NISTP_64_GCC_128) */
+#endif /* !def(OPENSSL_NO_EC_NISTP_64_GCC_128) */
 
         ret_group = EC_GROUP_new_by_curve_name_ex(libctx, propq, curve_name_nid);
         if (ret_group == NULL)
@@ -1474,7 +1471,7 @@ err:
 #endif /* FIPS_MODULE */
 
 static EC_GROUP *group_new_from_name(const OSSL_PARAM *p,
-                                     OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int ok = 0, nid;
     const char *curve_name = NULL;
@@ -1539,7 +1536,7 @@ int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[])
 }
 
 EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
-                                   OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     const OSSL_PARAM *ptmp;
     EC_GROUP *group = NULL;
@@ -1570,7 +1567,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         }
 
         ptmp = OSSL_PARAM_locate_const(params,
-                                       OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS);
+            OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS);
         if (ptmp != NULL && !OSSL_PARAM_get_int(ptmp, &decoded)) {
             ERR_raise(ERR_LIB_EC, EC_R_WRONG_CURVE_PARAMETERS);
             EC_GROUP_free(group);
@@ -1608,7 +1605,8 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     if (OPENSSL_strcasecmp(ptmp->data, SN_X9_62_prime_field) == 0) {
         is_prime_field = 1;
     } else if (OPENSSL_strcasecmp(ptmp->data,
-                                  SN_X9_62_characteristic_two_field) == 0) {
+                   SN_X9_62_characteristic_two_field)
+        == 0) {
         is_prime_field = 0;
     } else {
         /* Invalid field */
@@ -1648,10 +1646,10 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         /* create the EC_GROUP structure */
         group = EC_GROUP_new_curve_GFp(p, a, b, bnctx);
     } else {
-# ifdef OPENSSL_NO_EC2M
+#ifdef OPENSSL_NO_EC2M
         ERR_raise(ERR_LIB_EC, EC_R_GF2M_NOT_SUPPORTED);
         goto err;
-# else
+#else
         /* create the EC_GROUP structure */
         group = EC_GROUP_new_curve_GF2m(p, a, b, NULL);
         if (group != NULL) {
@@ -1661,7 +1659,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
                 goto err;
             }
         }
-# endif /* OPENSSL_NO_EC2M */
+#endif /* OPENSSL_NO_EC2M */
     }
 
     if (group == NULL) {
@@ -1691,7 +1689,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     if ((point = EC_POINT_new(group)) == NULL)
         goto err;
     EC_GROUP_set_point_conversion_form(group,
-                                       (point_conversion_form_t)buf[0] & ~0x01);
+        (point_conversion_form_t)buf[0] & ~0x01);
     if (!EC_POINT_oct2point(group, point, buf, ptmp->data_size, bnctx)) {
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_GENERATOR);
         goto err;
@@ -1750,7 +1748,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     /* We've imported the group from explicit parameters, set it so. */
     group->decoded_from_explicit_params = 1;
     ok = 1;
- err:
+err:
     if (!ok) {
         EC_GROUP_free(group);
         group = NULL;
@@ -1764,7 +1762,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
 }
 
 OSSL_PARAM *EC_GROUP_to_params(const EC_GROUP *group, OSSL_LIB_CTX *libctx,
-                               const char *propq, BN_CTX *bnctx)
+    const char *propq, BN_CTX *bnctx)
 {
     OSSL_PARAM_BLD *tmpl = NULL;
     BN_CTX *new_bnctx = NULL;
@@ -1790,7 +1788,7 @@ OSSL_PARAM *EC_GROUP_to_params(const EC_GROUP *group, OSSL_LIB_CTX *libctx,
 
     params = OSSL_PARAM_BLD_to_param(tmpl);
 
- err:
+err:
     OSSL_PARAM_BLD_free(tmpl);
     OPENSSL_free(gen_buf);
     BN_CTX_end(bnctx);

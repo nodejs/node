@@ -23,6 +23,7 @@ on:
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**
+      - deps/merve/**
       - deps/nbytes/**
       - deps/nghttp2/**
       - deps/ngtcp2/**
@@ -72,6 +73,7 @@ on:
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**
+      - deps/merve/**
       - deps/nbytes/**
       - deps/nghttp2/**
       - deps/ngtcp2/**
@@ -112,7 +114,7 @@ jobs:
     name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           persist-credentials: false
@@ -167,7 +169,7 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
-      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad  # v16
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1  # v16
         with:
           name: nodejs
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -198,7 +200,7 @@ jobs:
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
-            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
             --run '
                 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             '

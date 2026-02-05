@@ -1239,7 +1239,9 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/histogram
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
+	$(RM) -r $(TARNAME)/deps/LIEF
 	$(RM) -r $(TARNAME)/deps/llhttp
+	$(RM) -r $(TARNAME)/deps/merve
 	$(RM) -r $(TARNAME)/deps/nbytes
 	$(RM) -r $(TARNAME)/deps/nghttp2
 	$(RM) -r $(TARNAME)/deps/ngtcp2

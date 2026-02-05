@@ -340,6 +340,8 @@ class CustomAggregate {
 
     auto recv = Undefined(isolate);
     LocalVector<Value> js_argv(isolate);
+    js_argv.reserve(argc + 1);
+
     js_argv.emplace_back(Local<Value>::New(isolate, agg->value));
 
     for (int i = 0; i < argc; ++i) {
@@ -643,6 +645,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   auto recv = Undefined(isolate);
   auto fn = self->fn_.Get(isolate);
   LocalVector<Value> js_argv(isolate);
+  js_argv.reserve(argc);
 
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
@@ -2331,18 +2334,16 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   CHECK(cb->IsFunction());
 
   Local<Function> callback = cb.As<Function>();
-  LocalVector<Value> js_argv(isolate);
 
-  // Convert SQLite authorizer parameters to JavaScript values
-  js_argv.emplace_back(Integer::New(isolate, action_code));
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
+  LocalVector<Value> js_argv(
+      isolate,
+      {
+          Integer::New(isolate, action_code),
+          NullableSQLiteStringToValue(isolate, param1).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param2).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param3).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param4).ToLocalChecked(),
+      });
 
   MaybeLocal<Value> retval = callback->Call(
       context, Undefined(isolate), js_argv.size(), js_argv.data());
@@ -2673,7 +2674,7 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
-  Local<Object> result = Object::New(isolate);
+
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
   Local<Value> last_insert_rowid_val;
@@ -2687,13 +2688,18 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
     changes_val = Number::New(isolate, changes);
   }
 
-  if (result
-          ->Set(env->context(),
-                env->last_insert_rowid_string(),
-                last_insert_rowid_val)
-          .IsNothing() ||
-      result->Set(env->context(), env->changes_string(), changes_val)
-          .IsNothing()) {
+  auto run_result_template = env->sqlite_run_result_template();
+  if (run_result_template.IsEmpty()) {
+    static constexpr std::string_view run_result_keys[] = {"changes",
+                                                           "lastInsertRowid"};
+    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
+    env->set_sqlite_run_result_template(run_result_template);
+  }
+
+  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
+  Local<Object> result;
+  if (!NewDictionaryInstance(env->context(), run_result_template, values)
+           .ToLocal(&result)) {
     return MaybeLocal<Object>();
   }
 
@@ -3086,6 +3092,7 @@ BaseObjectPtr<SQLTagStore> SQLTagStore::Create(
            .ToLocal(&obj)) {
     return nullptr;
   }
+  obj->SetInternalField(kDatabaseObject, database->object());
   return MakeBaseObject<SQLTagStore>(env, obj, std::move(database), capacity);
 }
 
@@ -3096,9 +3103,8 @@ void SQLTagStore::CapacityGetter(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::DatabaseGetter(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
-  args.GetReturnValue().Set(store->database_->object());
+  args.GetReturnValue().Set(
+      args.This()->GetInternalField(kDatabaseObject).As<Value>());
 }
 
 void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {

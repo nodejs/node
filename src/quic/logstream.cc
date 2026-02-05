@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include "logstream.h"
@@ -137,4 +137,4 @@ void LogStream::ensure_space(size_t amt) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

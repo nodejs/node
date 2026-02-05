@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -559,13 +559,25 @@ _${prefix}_consts:
 .Lshuffles:
 	.quad 0x0B0A090807060504,0x030201000F0E0D0C
 .Lxts_magic:
+#ifndef __AARCH64EB__
 	.quad 0x0101010101010187,0x0101010101010101
+#else
+	.quad 0x0101010101010101,0x0101010101010187
+#endif
 .Lsbox_magic:
+#ifndef __AARCH64EB__
 	.quad 0x0b0e0104070a0d00,0x0306090c0f020508
 	.quad 0x62185a2042387a00,0x22581a6002783a40
 	.quad 0x15df62a89e54e923,0xc10bb67c4a803df7
 	.quad 0xb9aa6b78c1d21300,0x1407c6d56c7fbead
 	.quad 0x6404462679195b3b,0xe383c1a1fe9edcbc
+#else
+	.quad 0x0306090c0f020508,0x0b0e0104070a0d00
+	.quad 0x22581a6002783a40,0x62185a2042387a00
+	.quad 0xc10bb67c4a803df7,0x15df62a89e54e923
+	.quad 0x1407c6d56c7fbead,0xb9aa6b78c1d21300
+	.quad 0xe383c1a1fe9edcbc,0x6404462679195b3b
+#endif
 	.quad 0x0f0f0f0f0f0f0f0f,0x0f0f0f0f0f0f0f0f
 
 .size	_${prefix}_consts,.-_${prefix}_consts

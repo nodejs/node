@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/nodejs/gyp-next/compare/v0.21.0...v0.21.1) (2026-01-24)
+
+
+### Bug Fixes
+
+* replace weak hash functions with SHA-256 ([#329](https://github.com/nodejs/gyp-next/issues/329)) ([958029e](https://github.com/nodejs/gyp-next/commit/958029e6e4969a871d15e78cd083bb102bebb381))
+
 ## [0.21.0](https://github.com/nodejs/gyp-next/compare/v0.20.5...v0.21.0) (2025-11-04)
 
 

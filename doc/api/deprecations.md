@@ -273,7 +273,7 @@ in Node.js 6.0 because the method defaulted to using the non-recommended
 Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with
 `digest` set to `undefined` will throw a `TypeError`.
 
-Beginning in Node.js v11.0.0, calling these functions with `digest` set to
+Beginning in Node.js 11.0.0, calling these functions with `digest` set to
 `null` would print a deprecation warning to align with the behavior when `digest`
 is `undefined`.
 
@@ -509,7 +509,7 @@ changes:
 
 Type: End-of-Life
 
-The `Server.connections` property was deprecated in Node.js v0.9.7 and has
+The `Server.connections` property was deprecated in Node.js 0.9.7 and has
 been removed. Please use the [`Server.getConnections()`][] method instead.
 
 ### DEP0021: `Server.listenFD`
@@ -743,6 +743,12 @@ Type: End-of-Life
 
 The `SlowBuffer` class has been removed. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/slow-buffer-to-buffer-alloc-unsafe-slow)).
+
+```bash
+npx codemod@latest @nodejs/slow-buffer-to-buffer-alloc-unsafe-slow
+```
 
 ### DEP0031: `ecdh.setPublicKey()`
 
@@ -1568,6 +1574,12 @@ The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### DEP0061: `fs.SyncWriteStream`
 
 <!-- YAML
@@ -1714,6 +1726,12 @@ the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 The `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties were never documented as
 officially supported properties.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-outgoingmessage-headers)):
+
+```bash
+npx codemod@latest @nodejs/http-outgoingmessage-headers
+```
 
 ### DEP0067: `OutgoingMessage.prototype._renderHeaders`
 
@@ -2343,10 +2361,10 @@ Type: End-of-Life
 
 This was never a documented feature.
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-assert-to-node-assert)).
 
 ```bash
-npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+npx codemod@latest @nodejs/process-assert-to-node-assert
 ```
 
 ### DEP0101: `--with-lttng`
@@ -2812,12 +2830,15 @@ This property is a reference to the instance itself.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60657
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26245
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_stream_wrap` module is deprecated.
 
@@ -3933,6 +3954,12 @@ Type: End-of-Life
 The `dirent.path` property has been removed due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/dirent-path-to-parent-path)):
+
+```bash
+npx codemod@latest @nodejs/dirent-path-to-parent-path
+```
+
 ### DEP0179: `Hash` constructor
 
 <!-- YAML
@@ -4199,6 +4226,9 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60657
+    description: End-of-Life.
   - version:
       - v24.2.0
       - v22.17.0
@@ -4207,7 +4237,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, `node:_stream_transform`,
 `node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered

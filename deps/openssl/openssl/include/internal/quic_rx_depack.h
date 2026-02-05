@@ -8,14 +8,14 @@
  */
 
 #ifndef OSSL_QUIC_RX_DEPACK_H
-# define OSSL_QUIC_RX_DEPACK_H
+#define OSSL_QUIC_RX_DEPACK_H
 
-# include "internal/quic_channel.h"
+#include "internal/quic_channel.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 int ossl_quic_handle_frames(QUIC_CHANNEL *qc, OSSL_QRX_PKT *qpacket);
 
-# endif
+#endif
 
 #endif

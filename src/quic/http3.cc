@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include "http3.h"
@@ -996,4 +996,4 @@ std::unique_ptr<Session::Application> Http3Application::Create(
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

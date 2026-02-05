@@ -8,18 +8,18 @@
  */
 
 #ifndef OSSL_PROV_MD5_SHA1_H
-# define OSSL_PROV_MD5_SHA1_H
+#define OSSL_PROV_MD5_SHA1_H
 
-# include <openssl/opensslconf.h>
+#include <openssl/opensslconf.h>
 
-# ifndef OPENSSL_NO_MD5
-#  include <openssl/e_os2.h>
-#  include <stddef.h>
-#  include <openssl/md5.h>
-#  include <openssl/sha.h>
+#ifndef OPENSSL_NO_MD5
+#include <openssl/e_os2.h>
+#include <stddef.h>
+#include <openssl/md5.h>
+#include <openssl/sha.h>
 
-#  define MD5_SHA1_DIGEST_LENGTH (MD5_DIGEST_LENGTH + SHA_DIGEST_LENGTH)
-#  define MD5_SHA1_CBLOCK MD5_CBLOCK
+#define MD5_SHA1_DIGEST_LENGTH (MD5_DIGEST_LENGTH + SHA_DIGEST_LENGTH)
+#define MD5_SHA1_CBLOCK MD5_CBLOCK
 
 typedef struct md5_sha1_st {
     MD5_CTX md5;
@@ -31,6 +31,6 @@ int ossl_md5_sha1_update(MD5_SHA1_CTX *mctx, const void *data, size_t count);
 int ossl_md5_sha1_final(unsigned char *md, MD5_SHA1_CTX *mctx);
 int ossl_md5_sha1_ctrl(MD5_SHA1_CTX *mctx, int cmd, int mslen, void *ms);
 
-# endif /* OPENSSL_NO_MD5 */
+#endif /* OPENSSL_NO_MD5 */
 
 #endif /* OSSL_PROV_MD5_SHA1_H */

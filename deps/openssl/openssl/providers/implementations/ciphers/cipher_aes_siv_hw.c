@@ -21,7 +21,7 @@ static int aes_siv_initkey(void *vctx, const unsigned char *key, size_t keylen)
 {
     PROV_AES_SIV_CTX *ctx = (PROV_AES_SIV_CTX *)vctx;
     SIV128_CONTEXT *sctx = &ctx->siv;
-    size_t klen  = keylen / 2;
+    size_t klen = keylen / 2;
     OSSL_LIB_CTX *libctx = ctx->libctx;
     const char *propq = NULL;
 
@@ -53,7 +53,7 @@ static int aes_siv_initkey(void *vctx, const unsigned char *key, size_t keylen)
      * which should be twice as long
      */
     return ossl_siv128_init(sctx, key, klen, ctx->cbc, ctx->ctr, libctx,
-                              propq);
+        propq);
 }
 
 static int aes_siv_dupctx(void *in_vctx, void *out_vctx)
@@ -105,7 +105,7 @@ static void aes_siv_cleanup(void *vctx)
 }
 
 static int aes_siv_cipher(void *vctx, unsigned char *out,
-                          const unsigned char *in, size_t len)
+    const unsigned char *in, size_t len)
 {
     PROV_AES_SIV_CTX *ctx = (PROV_AES_SIV_CTX *)vctx;
     SIV128_CONTEXT *sctx = &ctx->siv;

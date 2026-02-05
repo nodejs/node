@@ -25,7 +25,7 @@ static void *sm4_gcm_newctx(void *provctx, size_t keybits)
     ctx = OPENSSL_zalloc(sizeof(*ctx));
     if (ctx != NULL)
         ossl_gcm_initctx(provctx, &ctx->base, keybits,
-                         ossl_prov_sm4_hw_gcm(keybits));
+            ossl_prov_sm4_hw_gcm(keybits));
     return ctx;
 }
 
@@ -48,7 +48,7 @@ static void sm4_gcm_freectx(void *vctx)
 {
     PROV_SM4_GCM_CTX *ctx = (PROV_SM4_GCM_CTX *)vctx;
 
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 /* ossl_sm4128gcm_functions */

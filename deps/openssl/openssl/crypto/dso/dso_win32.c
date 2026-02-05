@@ -12,8 +12,8 @@
 
 #if defined(DSO_WIN32)
 
-# ifdef _WIN32_WCE
-#  if _WIN32_WCE < 300
+#ifdef _WIN32_WCE
+#if _WIN32_WCE < 300
 static FARPROC GetProcAddressA(HMODULE hModule, LPCSTR lpProcName)
 {
     WCHAR lpProcNameW[64];
@@ -27,43 +27,43 @@ static FARPROC GetProcAddressA(HMODULE hModule, LPCSTR lpProcName)
 
     return GetProcAddressW(hModule, lpProcNameW);
 }
-#  endif
-#  undef GetProcAddress
-#  define GetProcAddress GetProcAddressA
+#endif
+#undef GetProcAddress
+#define GetProcAddress GetProcAddressA
 
 static HINSTANCE LoadLibraryA(LPCSTR lpLibFileName)
 {
     WCHAR *fnamw;
     size_t len_0 = strlen(lpLibFileName) + 1, i;
 
-#  ifdef _MSC_VER
+#ifdef _MSC_VER
     fnamw = (WCHAR *)_alloca(len_0 * sizeof(WCHAR));
-#  else
+#else
     fnamw = (WCHAR *)alloca(len_0 * sizeof(WCHAR));
-#  endif
+#endif
     if (fnamw == NULL) {
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         return NULL;
     }
-#  if defined(_WIN32_WCE) && _WIN32_WCE>=101
+#if defined(_WIN32_WCE) && _WIN32_WCE >= 101
     if (!MultiByteToWideChar(CP_ACP, 0, lpLibFileName, len_0, fnamw, len_0))
-#  endif
+#endif
         for (i = 0; i < len_0; i++)
             fnamw[i] = (WCHAR)lpLibFileName[i];
 
     return LoadLibraryW(fnamw);
 }
-# endif
+#endif
 
 /* Part of the hack in "win32_load" ... */
-# define DSO_MAX_TRANSLATED_SIZE 256
+#define DSO_MAX_TRANSLATED_SIZE 256
 
 static int win32_load(DSO *dso);
 static int win32_unload(DSO *dso);
 static DSO_FUNC_TYPE win32_bind_func(DSO *dso, const char *symname);
 static char *win32_name_converter(DSO *dso, const char *filename);
 static char *win32_merger(DSO *dso, const char *filespec1,
-                          const char *filespec2);
+    const char *filespec2);
 static int win32_pathbyaddr(void *addr, char *path, int sz);
 static void *win32_globallookup(const char *name);
 
@@ -74,12 +74,12 @@ static DSO_METHOD dso_meth_win32 = {
     win32_load,
     win32_unload,
     win32_bind_func,
-    NULL,                       /* ctrl */
+    NULL, /* ctrl */
     win32_name_converter,
     win32_merger,
-    NULL,                       /* init */
-    NULL,                       /* finish */
-    win32_pathbyaddr,           /* pathbyaddr */
+    NULL, /* init */
+    NULL, /* finish */
+    win32_pathbyaddr, /* pathbyaddr */
     win32_globallookup
 };
 
@@ -106,7 +106,7 @@ static int win32_load(DSO *dso)
     h = LoadLibraryA(filename);
     if (h == NULL) {
         ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
-                       "filename(%s)", filename);
+            "filename(%s)", filename);
         goto err;
     }
     p = OPENSSL_malloc(sizeof(*p));
@@ -120,7 +120,7 @@ static int win32_load(DSO *dso)
     /* Success */
     dso->loaded_filename = filename;
     return 1;
- err:
+err:
     /* Cleanup ! */
     OPENSSL_free(filename);
     OPENSSL_free(p);
@@ -199,10 +199,12 @@ struct file_st {
 };
 
 static struct file_st *win32_splitter(DSO *dso, const char *filename,
-                                      int assume_last_is_dir)
+    int assume_last_is_dir)
 {
     struct file_st *result = NULL;
-    enum { IN_NODE, IN_DEVICE, IN_FILE } position;
+    enum { IN_NODE,
+        IN_DEVICE,
+        IN_FILE } position;
     const char *start = filename;
     char last;
 
@@ -281,8 +283,7 @@ static struct file_st *win32_splitter(DSO *dso, const char *filename,
             filename++;
             break;
         }
-    }
-    while (last);
+    } while (last);
 
     if (!result->nodelen)
         result->node = NULL;
@@ -309,17 +310,17 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
     if (file_split->node) {
         len += 2 + file_split->nodelen; /* 2 for starting \\ */
         if (file_split->predir || file_split->dir || file_split->file)
-            len++;              /* 1 for ending \ */
+            len++; /* 1 for ending \ */
     } else if (file_split->device) {
         len += file_split->devicelen + 1; /* 1 for ending : */
     }
     len += file_split->predirlen;
     if (file_split->predir && (file_split->dir || file_split->file)) {
-        len++;                  /* 1 for ending \ */
+        len++; /* 1 for ending \ */
     }
     len += file_split->dirlen;
     if (file_split->dir && file_split->file) {
-        len++;                  /* 1 for ending \ */
+        len++; /* 1 for ending \ */
     }
     len += file_split->filelen;
 
@@ -350,8 +351,7 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
     start = file_split->predir;
     while (file_split->predirlen > (start - file_split->predir)) {
         const char *end = openssl_strnchr(start, '/',
-                                          file_split->predirlen - (start -
-                                                                   file_split->predir));
+            file_split->predirlen - (start - file_split->predir));
         if (!end)
             end = start
                 + file_split->predirlen - (start - file_split->predir);
@@ -364,8 +364,7 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
     start = file_split->dir;
     while (file_split->dirlen > (start - file_split->dir)) {
         const char *end = openssl_strnchr(start, '/',
-                                          file_split->dirlen - (start -
-                                                                file_split->dir));
+            file_split->dirlen - (start - file_split->dir));
         if (!end)
             end = start + file_split->dirlen - (start - file_split->dir);
         strncpy(&result[offset], start, end - start);
@@ -381,7 +380,7 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
 }
 
 static char *win32_merger(DSO *dso, const char *filespec1,
-                          const char *filespec2)
+    const char *filespec2)
 {
     char *merged = NULL;
     struct file_st *filespec1_split = NULL;
@@ -423,7 +422,7 @@ static char *win32_merger(DSO *dso, const char *filespec1,
             filespec1_split->dir = filespec2_split->dir;
             filespec1_split->dirlen = filespec2_split->dirlen;
         } else if (filespec1_split->dir[0] != '\\'
-                   && filespec1_split->dir[0] != '/') {
+            && filespec1_split->dir[0] != '/') {
             filespec1_split->predir = filespec2_split->dir;
             filespec1_split->predirlen = filespec2_split->dirlen;
         }
@@ -444,9 +443,7 @@ static char *win32_name_converter(DSO *dso, const char *filename)
     char *translated;
     int len, transform;
 
-    transform = ((strstr(filename, "/") == NULL) &&
-                 (strstr(filename, "\\") == NULL) &&
-                 (strstr(filename, ":") == NULL));
+    transform = ((strstr(filename, "/") == NULL) && (strstr(filename, "\\") == NULL) && (strstr(filename, ":") == NULL));
     /* If transform != 0, then we convert to %s.dll, else just dupe filename */
 
     len = strlen(filename) + 1;
@@ -472,19 +469,19 @@ static const char *openssl_strnchr(const char *string, int c, size_t len)
     return NULL;
 }
 
-# include <tlhelp32.h>
-# ifdef _WIN32_WCE
-#  define DLLNAME "TOOLHELP.DLL"
-# else
-#  ifdef MODULEENTRY32
-#   undef MODULEENTRY32         /* unmask the ASCII version! */
-#  endif
-#  define DLLNAME "KERNEL32.DLL"
-# endif
+#include <tlhelp32.h>
+#ifdef _WIN32_WCE
+#define DLLNAME "TOOLHELP.DLL"
+#else
+#ifdef MODULEENTRY32
+#undef MODULEENTRY32 /* unmask the ASCII version! */
+#endif
+#define DLLNAME "KERNEL32.DLL"
+#endif
 
-typedef HANDLE(WINAPI *CREATETOOLHELP32SNAPSHOT) (DWORD, DWORD);
-typedef BOOL(WINAPI *CLOSETOOLHELP32SNAPSHOT) (HANDLE);
-typedef BOOL(WINAPI *MODULE32) (HANDLE, MODULEENTRY32 *);
+typedef HANDLE(WINAPI *CREATETOOLHELP32SNAPSHOT)(DWORD, DWORD);
+typedef BOOL(WINAPI *CLOSETOOLHELP32SNAPSHOT)(HANDLE);
+typedef BOOL(WINAPI *MODULE32)(HANDLE, MODULEENTRY32 *);
 
 static int win32_pathbyaddr(void *addr, char *path, int sz)
 {
@@ -497,7 +494,7 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
 
     if (addr == NULL) {
         union {
-            int (*f) (void *, char *, int);
+            int (*f)(void *, char *, int);
             void *p;
         } t = {
             win32_pathbyaddr
@@ -519,20 +516,20 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
         return -1;
     }
     /* We take the rest for granted... */
-# ifdef _WIN32_WCE
+#ifdef _WIN32_WCE
     close_snap = (CLOSETOOLHELP32SNAPSHOT)
         GetProcAddress(dll, "CloseToolhelp32Snapshot");
-# else
-    close_snap = (CLOSETOOLHELP32SNAPSHOT) CloseHandle;
-# endif
-    module_first = (MODULE32) GetProcAddress(dll, "Module32First");
-    module_next = (MODULE32) GetProcAddress(dll, "Module32Next");
+#else
+    close_snap = (CLOSETOOLHELP32SNAPSHOT)CloseHandle;
+#endif
+    module_first = (MODULE32)GetProcAddress(dll, "Module32First");
+    module_next = (MODULE32)GetProcAddress(dll, "Module32Next");
 
     /*
      * Take a snapshot of current process which includes
      * list of all involved modules.
      */
-    hModuleSnap = (*create_snap) (TH32CS_SNAPMODULE, 0);
+    hModuleSnap = (*create_snap)(TH32CS_SNAPMODULE, 0);
     if (hModuleSnap == INVALID_HANDLE_VALUE) {
         FreeLibrary(dll);
         ERR_raise(ERR_LIB_DSO, DSO_R_UNSUPPORTED);
@@ -541,8 +538,8 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
 
     me32.dwSize = sizeof(me32);
 
-    if (!(*module_first) (hModuleSnap, &me32)) {
-        (*close_snap) (hModuleSnap);
+    if (!(*module_first)(hModuleSnap, &me32)) {
+        (*close_snap)(hModuleSnap);
         FreeLibrary(dll);
         ERR_raise(ERR_LIB_DSO, DSO_R_FAILURE);
         return -1;
@@ -550,15 +547,14 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
 
     /* Enumerate the modules to find one which includes me. */
     do {
-        if ((size_t) addr >= (size_t) me32.modBaseAddr &&
-            (size_t) addr < (size_t) (me32.modBaseAddr + me32.modBaseSize)) {
-            (*close_snap) (hModuleSnap);
+        if ((size_t)addr >= (size_t)me32.modBaseAddr && (size_t)addr < (size_t)(me32.modBaseAddr + me32.modBaseSize)) {
+            (*close_snap)(hModuleSnap);
             FreeLibrary(dll);
-# ifdef _WIN32_WCE
-#  if _WIN32_WCE >= 101
+#ifdef _WIN32_WCE
+#if _WIN32_WCE >= 101
             return WideCharToMultiByte(CP_ACP, 0, me32.szExePath, -1,
-                                       path, sz, NULL, NULL);
-#  else
+                path, sz, NULL, NULL);
+#else
             {
                 int i, len = (int)wcslen(me32.szExePath);
                 if (sz <= 0)
@@ -570,8 +566,8 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
                 path[len++] = '\0';
                 return len;
             }
-#  endif
-# else
+#endif
+#else
             {
                 int len = (int)strlen(me32.szExePath);
                 if (sz <= 0)
@@ -582,11 +578,11 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
                 path[len++] = '\0';
                 return len;
             }
-# endif
+#endif
         }
-    } while ((*module_next) (hModuleSnap, &me32));
+    } while ((*module_next)(hModuleSnap, &me32));
 
-    (*close_snap) (hModuleSnap);
+    (*close_snap)(hModuleSnap);
     FreeLibrary(dll);
     return 0;
 }
@@ -618,16 +614,16 @@ static void *win32_globallookup(const char *name)
         return NULL;
     }
     /* We take the rest for granted... */
-# ifdef _WIN32_WCE
+#ifdef _WIN32_WCE
     close_snap = (CLOSETOOLHELP32SNAPSHOT)
         GetProcAddress(dll, "CloseToolhelp32Snapshot");
-# else
-    close_snap = (CLOSETOOLHELP32SNAPSHOT) CloseHandle;
-# endif
-    module_first = (MODULE32) GetProcAddress(dll, "Module32First");
-    module_next = (MODULE32) GetProcAddress(dll, "Module32Next");
+#else
+    close_snap = (CLOSETOOLHELP32SNAPSHOT)CloseHandle;
+#endif
+    module_first = (MODULE32)GetProcAddress(dll, "Module32First");
+    module_next = (MODULE32)GetProcAddress(dll, "Module32Next");
 
-    hModuleSnap = (*create_snap) (TH32CS_SNAPMODULE, 0);
+    hModuleSnap = (*create_snap)(TH32CS_SNAPMODULE, 0);
     if (hModuleSnap == INVALID_HANDLE_VALUE) {
         FreeLibrary(dll);
         ERR_raise(ERR_LIB_DSO, DSO_R_UNSUPPORTED);
@@ -636,22 +632,22 @@ static void *win32_globallookup(const char *name)
 
     me32.dwSize = sizeof(me32);
 
-    if (!(*module_first) (hModuleSnap, &me32)) {
-        (*close_snap) (hModuleSnap);
+    if (!(*module_first)(hModuleSnap, &me32)) {
+        (*close_snap)(hModuleSnap);
         FreeLibrary(dll);
         return NULL;
     }
 
     do {
         if ((ret.f = GetProcAddress(me32.hModule, name))) {
-            (*close_snap) (hModuleSnap);
+            (*close_snap)(hModuleSnap);
             FreeLibrary(dll);
             return ret.p;
         }
-    } while ((*module_next) (hModuleSnap, &me32));
+    } while ((*module_next)(hModuleSnap, &me32));
 
-    (*close_snap) (hModuleSnap);
+    (*close_snap)(hModuleSnap);
     FreeLibrary(dll);
     return NULL;
 }
-#endif                          /* DSO_WIN32 */
+#endif /* DSO_WIN32 */

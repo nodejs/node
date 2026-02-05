@@ -15,25 +15,25 @@
 #ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA ESS_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_EMPTY_ESS_CERT_ID_LIST),
-    "empty ess cert id list"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_DIGEST_ERROR),
-    "ess cert digest error"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_ID_NOT_FOUND),
-    "ess cert id not found"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_ID_WRONG_ORDER),
-    "ess cert id wrong order"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_DIGEST_ALG_UNKNOWN),
-    "ess digest alg unknown"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERTIFICATE_ERROR),
-    "ess signing certificate error"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERT_ADD_ERROR),
-    "ess signing cert add error"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERT_V2_ADD_ERROR),
-    "ess signing cert v2 add error"},
-    {ERR_PACK(ERR_LIB_ESS, 0, ESS_R_MISSING_SIGNING_CERTIFICATE_ATTRIBUTE),
-    "missing signing certificate attribute"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_EMPTY_ESS_CERT_ID_LIST),
+        "empty ess cert id list" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_DIGEST_ERROR),
+        "ess cert digest error" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_ID_NOT_FOUND),
+        "ess cert id not found" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_CERT_ID_WRONG_ORDER),
+        "ess cert id wrong order" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_DIGEST_ALG_UNKNOWN),
+        "ess digest alg unknown" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERTIFICATE_ERROR),
+        "ess signing certificate error" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERT_ADD_ERROR),
+        "ess signing cert add error" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_ESS_SIGNING_CERT_V2_ADD_ERROR),
+        "ess signing cert v2 add error" },
+    { ERR_PACK(ERR_LIB_ESS, 0, ESS_R_MISSING_SIGNING_CERTIFICATE_ATTRIBUTE),
+        "missing signing certificate attribute" },
+    { 0, NULL }
 };
 
 #endif

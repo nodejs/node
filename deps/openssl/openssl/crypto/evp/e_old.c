@@ -19,7 +19,7 @@
  */
 
 #ifndef OPENSSL_NO_BF
-# undef EVP_bf_cfb
+#undef EVP_bf_cfb
 const EVP_CIPHER *EVP_bf_cfb(void);
 const EVP_CIPHER *EVP_bf_cfb(void)
 {
@@ -28,21 +28,21 @@ const EVP_CIPHER *EVP_bf_cfb(void)
 #endif
 
 #ifndef OPENSSL_NO_DES
-# undef EVP_des_cfb
+#undef EVP_des_cfb
 const EVP_CIPHER *EVP_des_cfb(void);
 const EVP_CIPHER *EVP_des_cfb(void)
 {
     return EVP_des_cfb64();
 }
 
-# undef EVP_des_ede3_cfb
+#undef EVP_des_ede3_cfb
 const EVP_CIPHER *EVP_des_ede3_cfb(void);
 const EVP_CIPHER *EVP_des_ede3_cfb(void)
 {
     return EVP_des_ede3_cfb64();
 }
 
-# undef EVP_des_ede_cfb
+#undef EVP_des_ede_cfb
 const EVP_CIPHER *EVP_des_ede_cfb(void);
 const EVP_CIPHER *EVP_des_ede_cfb(void)
 {
@@ -51,7 +51,7 @@ const EVP_CIPHER *EVP_des_ede_cfb(void)
 #endif
 
 #ifndef OPENSSL_NO_IDEA
-# undef EVP_idea_cfb
+#undef EVP_idea_cfb
 const EVP_CIPHER *EVP_idea_cfb(void);
 const EVP_CIPHER *EVP_idea_cfb(void)
 {
@@ -60,7 +60,7 @@ const EVP_CIPHER *EVP_idea_cfb(void)
 #endif
 
 #ifndef OPENSSL_NO_RC2
-# undef EVP_rc2_cfb
+#undef EVP_rc2_cfb
 const EVP_CIPHER *EVP_rc2_cfb(void);
 const EVP_CIPHER *EVP_rc2_cfb(void)
 {
@@ -69,7 +69,7 @@ const EVP_CIPHER *EVP_rc2_cfb(void)
 #endif
 
 #ifndef OPENSSL_NO_CAST
-# undef EVP_cast5_cfb
+#undef EVP_cast5_cfb
 const EVP_CIPHER *EVP_cast5_cfb(void);
 const EVP_CIPHER *EVP_cast5_cfb(void)
 {
@@ -78,7 +78,7 @@ const EVP_CIPHER *EVP_cast5_cfb(void)
 #endif
 
 #ifndef OPENSSL_NO_RC5
-# undef EVP_rc5_32_12_16_cfb
+#undef EVP_rc5_32_12_16_cfb
 const EVP_CIPHER *EVP_rc5_32_12_16_cfb(void);
 const EVP_CIPHER *EVP_rc5_32_12_16_cfb(void)
 {

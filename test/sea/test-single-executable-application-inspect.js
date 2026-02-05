@@ -5,47 +5,21 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { writeFileSync, existsSync } = require('fs');
 const { spawn } = require('child_process');
 const tmpdir = require('../common/tmpdir');
-const { spawnSyncAndExitWithoutError } = require('../common/child_process');
+const fixtures = require('../common/fixtures');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 common.skipIfInspectorDisabled();
-
-const configFile = tmpdir.resolve('sea-config.json');
-const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
-const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
 
-// Create a simple hello world script
-writeFileSync(tmpdir.resolve('hello.js'), `console.log('Hello, world!');`, 'utf-8');
-
-// Create SEA configuration
-writeFileSync(configFile, `
-{
-  "main": "hello.js",
-  "output": "sea-prep.blob"
-}
-`);
-
-// Generate the SEA prep blob
-spawnSyncAndExitWithoutError(
-  process.execPath,
-  ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path },
-);
-
-assert(existsSync(seaPrepBlob));
-
-// Generate the SEA executable
-generateSEA(outputFile, process.execPath, seaPrepBlob);
+const outputFile = buildSEA(fixtures.path('sea', 'inspect'));
 
 // Spawn the SEA with inspect option
 const seaProcess = spawn(outputFile, [], {

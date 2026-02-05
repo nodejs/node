@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
@@ -133,16 +133,10 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          Store store;
-          if (!Store::From(item.As<v8::ArrayBufferView>()).To(&store)) {
-            return false;
-          }
+          Store store = Store::CopyFrom(item.As<v8::ArrayBufferView>());
           (options->*member).push_back(std::move(store));
         } else if (item->IsArrayBuffer()) {
-          Store store;
-          if (!Store::From(item.As<ArrayBuffer>()).To(&store)) {
-            return false;
-          }
+          Store store = Store::CopyFrom(item.As<ArrayBuffer>());
           (options->*member).push_back(std::move(store));
         } else {
           Utf8Value namestr(env->isolate(), name);
@@ -168,16 +162,10 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        Store store;
-        if (!Store::From(value.As<v8::ArrayBufferView>()).To(&store)) {
-          return false;
-        }
+        Store store = Store::CopyFrom(value.As<v8::ArrayBufferView>());
         (options->*member).push_back(std::move(store));
       } else if (value->IsArrayBuffer()) {
-        Store store;
-        if (!Store::From(value.As<ArrayBuffer>()).To(&store)) {
-          return false;
-        }
+        Store store = Store::CopyFrom(value.As<ArrayBuffer>());
         (options->*member).push_back(std::move(store));
       } else {
         Utf8Value namestr(env->isolate(), name);
@@ -834,4 +822,4 @@ void TLSSession::MemoryInfo(MemoryTracker* tracker) const {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

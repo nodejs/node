@@ -45,4 +45,3 @@ OSSL_LIB_CTX *app_create_libctx(void)
         opt_printf_stderr("Failed to create library context\n");
     return app_libctx;
 }
-

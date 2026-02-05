@@ -11,4 +11,3 @@
 
 int print_param_types(const char *thing, const OSSL_PARAM *pdefs, int indent);
 void print_param_value(const OSSL_PARAM *p, int indent);
-

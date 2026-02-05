@@ -9,6 +9,7 @@
 #include "quic/guard.h"
 #include "simdutf.h"
 #include "util-inl.h"
+#include "v8-value.h"
 
 namespace node {
 namespace builtins {
@@ -46,18 +47,6 @@ using v8::Value;
 BuiltinLoader::BuiltinLoader()
     : config_(GetConfig()), code_cache_(std::make_shared<BuiltinCodeCache>()) {
   LoadJavaScriptSource();
-#ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
-  AddExternalizedBuiltin(
-      "internal/deps/cjs-module-lexer/lexer",
-      STRINGIFY(NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH));
-#endif  // NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
-
-#ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH
-  AddExternalizedBuiltin(
-      "internal/deps/cjs-module-lexer/dist/lexer",
-      STRINGIFY(NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH));
-#endif  // NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH
-
 #ifdef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
   AddExternalizedBuiltin("internal/deps/undici/undici",
                          STRINGIFY(NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH));
@@ -125,9 +114,6 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
     "internal/deps/",
     "internal/main/"
   };
-
-  builtin_categories.can_be_required.emplace(
-      "internal/deps/cjs-module-lexer/lexer");
 
   builtin_categories.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
@@ -441,7 +427,7 @@ void BuiltinLoader::SaveCodeCache(const std::string& id, Local<Data> data) {
     new_cached_data.reset(
         ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript()));
   } else {
-    Local<Function> fun = data.As<Function>();
+    Local<Function> fun = data.As<Value>().As<Function>();
     new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fun));
   }
   CHECK_NOT_NULL(new_cached_data);

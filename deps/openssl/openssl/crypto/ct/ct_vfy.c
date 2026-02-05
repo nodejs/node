@@ -98,9 +98,7 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
     EVP_MD_CTX *ctx = NULL;
     int ret = 0;
 
-    if (!SCT_is_complete(sct) || sctx->pkey == NULL ||
-        sct->entry_type == CT_LOG_ENTRY_TYPE_NOT_SET ||
-        (sct->entry_type == CT_LOG_ENTRY_TYPE_PRECERT && sctx->ihash == NULL)) {
+    if (!SCT_is_complete(sct) || sctx->pkey == NULL || sct->entry_type == CT_LOG_ENTRY_TYPE_NOT_SET || (sct->entry_type == CT_LOG_ENTRY_TYPE_PRECERT && sctx->ihash == NULL)) {
         ERR_raise(ERR_LIB_CT, CT_R_SCT_NOT_SET);
         return 0;
     }
@@ -108,8 +106,7 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
         ERR_raise(ERR_LIB_CT, CT_R_SCT_UNSUPPORTED_VERSION);
         return 0;
     }
-    if (sct->log_id_len != sctx->pkeyhashlen ||
-        memcmp(sct->log_id, sctx->pkeyhash, sctx->pkeyhashlen) != 0) {
+    if (sct->log_id_len != sctx->pkeyhashlen || memcmp(sct->log_id, sctx->pkeyhash, sctx->pkeyhashlen) != 0) {
         ERR_raise(ERR_LIB_CT, CT_R_SCT_LOG_ID_MISMATCH);
         return 0;
     }
@@ -123,7 +120,7 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
         goto end;
 
     if (!EVP_DigestVerifyInit_ex(ctx, NULL, "SHA2-256", sctx->libctx,
-                                 sctx->propq, sctx->pkey, NULL))
+            sctx->propq, sctx->pkey, NULL))
         goto end;
 
     if (!sct_ctx_update(ctx, sctx, sct))

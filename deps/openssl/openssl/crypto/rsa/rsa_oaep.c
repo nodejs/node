@@ -37,11 +37,11 @@
 #include "rsa_local.h"
 
 int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
-                               const unsigned char *from, int flen,
-                               const unsigned char *param, int plen)
+    const unsigned char *from, int flen,
+    const unsigned char *param, int plen)
 {
     return ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(NULL, to, tlen, from, flen,
-                                                   param, plen, NULL, NULL);
+        param, plen, NULL, NULL);
 }
 
 /*
@@ -52,11 +52,11 @@ int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
  * to avoid complicating an already difficult enough function.
  */
 int ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(OSSL_LIB_CTX *libctx,
-                                            unsigned char *to, int tlen,
-                                            const unsigned char *from, int flen,
-                                            const unsigned char *param,
-                                            int plen, const EVP_MD *md,
-                                            const EVP_MD *mgf1md)
+    unsigned char *to, int tlen,
+    const unsigned char *from, int flen,
+    const unsigned char *param,
+    int plen, const EVP_MD *md,
+    const EVP_MD *mgf1md)
 {
     int rv = 0;
     int i, emlen = tlen - 1;
@@ -142,34 +142,34 @@ int ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(OSSL_LIB_CTX *libctx,
         seed[i] ^= seedmask[i];
     rv = 1;
 
- err:
+err:
     OPENSSL_cleanse(seedmask, sizeof(seedmask));
     OPENSSL_clear_free(dbmask, dbmask_len);
     return rv;
 }
 
 int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
-                                    const unsigned char *from, int flen,
-                                    const unsigned char *param, int plen,
-                                    const EVP_MD *md, const EVP_MD *mgf1md)
+    const unsigned char *from, int flen,
+    const unsigned char *param, int plen,
+    const EVP_MD *md, const EVP_MD *mgf1md)
 {
     return ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(NULL, to, tlen, from, flen,
-                                                   param, plen, md, mgf1md);
+        param, plen, md, mgf1md);
 }
 
 int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
-                                 const unsigned char *from, int flen, int num,
-                                 const unsigned char *param, int plen)
+    const unsigned char *from, int flen, int num,
+    const unsigned char *param, int plen)
 {
     return RSA_padding_check_PKCS1_OAEP_mgf1(to, tlen, from, flen, num,
-                                             param, plen, NULL, NULL);
+        param, plen, NULL, NULL);
 }
 
 int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
-                                      const unsigned char *from, int flen,
-                                      int num, const unsigned char *param,
-                                      int plen, const EVP_MD *md,
-                                      const EVP_MD *mgf1md)
+    const unsigned char *from, int flen,
+    int num, const unsigned char *param,
+    int plen, const EVP_MD *md,
+    const EVP_MD *mgf1md)
 {
     int i, dblen = 0, mlen = -1, one_index = 0, msg_index;
     unsigned int good = 0, found_one_byte, mask;
@@ -179,7 +179,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
      * Y || maskedSeed || maskedDB
      */
     unsigned char *db = NULL, *em = NULL, seed[EVP_MAX_MD_SIZE],
-        phash[EVP_MAX_MD_SIZE];
+                  phash[EVP_MAX_MD_SIZE];
     int mdlen;
 
     if (md == NULL) {
@@ -278,7 +278,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
         unsigned int equals1 = constant_time_eq(db[i], 1);
         unsigned int equals0 = constant_time_is_zero(db[i]);
         one_index = constant_time_select_int(~found_one_byte & equals1,
-                                             i, one_index);
+            i, one_index);
         found_one_byte |= equals1;
         good &= (found_one_byte | equals0);
     }
@@ -309,7 +309,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
      * The loop below has overall complexity of O(N*log(N)).
      */
     tlen = constant_time_select_int(constant_time_lt(dblen - mdlen - 1, tlen),
-                                    dblen - mdlen - 1, tlen);
+        dblen - mdlen - 1, tlen);
     for (msg_index = 1; msg_index < dblen - mdlen - 1; msg_index <<= 1) {
         mask = ~constant_time_eq(msg_index & (dblen - mdlen - 1 - mlen), 0);
         for (i = mdlen + 1; i < dblen - msg_index; i++)
@@ -332,7 +332,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
     ERR_raise(ERR_LIB_RSA, RSA_R_OAEP_DECODING_ERROR);
     err_clear_last_constant_time(1 & good);
 #endif
- cleanup:
+cleanup:
     OPENSSL_cleanse(seed, sizeof(seed));
     OPENSSL_clear_free(db, dblen);
     OPENSSL_clear_free(em, num);
@@ -348,7 +348,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
  * The range checking steps inm the process are performed outside.
  */
 int PKCS1_MGF1(unsigned char *mask, long len,
-               const unsigned char *seed, long seedlen, const EVP_MD *dgst)
+    const unsigned char *seed, long seedlen, const EVP_MD *dgst)
 {
     long i, outlen = 0;
     unsigned char cnt[4];
@@ -386,7 +386,7 @@ int PKCS1_MGF1(unsigned char *mask, long len,
         }
     }
     rv = 0;
- err:
+err:
     OPENSSL_cleanse(md, sizeof(md));
     EVP_MD_CTX_free(c);
     return rv;

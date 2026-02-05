@@ -64,7 +64,7 @@ static ossl_inline int obj_sig_init(void)
 }
 
 static int ossl_obj_find_sigid_algs(int signid, int *pdig_nid, int *ppkey_nid,
-                                    int lock)
+    int lock)
 {
     nid_triple tmp;
     const nid_triple *rv;
@@ -191,7 +191,7 @@ int OBJ_add_sigid(int signid, int dig_id, int pkey_id)
     if (!sk_nid_triple_push(sig_app, ntr))
         goto err;
     if (!sk_nid_triple_push(sigx_app, ntr)) {
-        ntr = NULL;             /* This is referenced by sig_app still */
+        ntr = NULL; /* This is referenced by sig_app still */
         goto err;
     }
 
@@ -200,7 +200,7 @@ int OBJ_add_sigid(int signid, int dig_id, int pkey_id)
 
     ntr = NULL;
     ret = 1;
- err:
+err:
     OPENSSL_free(ntr);
     CRYPTO_THREAD_unlock(sig_lock);
     return ret;

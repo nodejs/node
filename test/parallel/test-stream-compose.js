@@ -490,7 +490,7 @@ const assert = require('assert');
 
     newStream.end();
 
-    assert.deepStrictEqual(await newStream.toArray(), [Buffer.from('Steve RogersOn your left')]);
+    assert.deepStrictEqual(await newStream.toArray(), [Buffer.from('Steve Rogers'), Buffer.from('On your left')]);
   })().then(common.mustCall());
 }
 

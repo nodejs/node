@@ -18,6 +18,8 @@
     'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_lief%': 'false',
+    'node_shared_merve%': 'false',
     'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
@@ -30,8 +32,10 @@
     'node_snapshot_main%': '',
     'node_use_amaro%': 'true',
     'node_use_bundled_v8%': 'true',
+    'node_use_lief%': 'false',
     'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
+    'node_use_quic%': 'false',
     'node_use_sqlite%': 'true',
     'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
@@ -111,6 +115,7 @@
       'src/node_config.cc',
       'src/node_config_file.cc',
       'src/node_constants.cc',
+      'src/node_cjs_lexer.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
       'src/node_debug.cc',
@@ -141,6 +146,7 @@
       'src/node_report_module.cc',
       'src/node_report_utils.cc',
       'src/node_sea.cc',
+      'src/node_sea_bin.cc',
       'src/node_serdes.cc',
       'src/node_shadow_realm.cc',
       'src/node_snapshotable.cc',
@@ -190,22 +196,6 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
-      'src/quic/bindingdata.cc',
-      'src/quic/cid.cc',
-      'src/quic/data.cc',
-      'src/quic/logstream.cc',
-      'src/quic/packet.cc',
-      'src/quic/preferredaddress.cc',
-      'src/quic/sessionticket.cc',
-      'src/quic/tokens.cc',
-      'src/quic/application.cc',
-      'src/quic/endpoint.cc',
-      'src/quic/http3.cc',
-      'src/quic/session.cc',
-      'src/quic/streams.cc',
-      'src/quic/tlscontext.cc',
-      'src/quic/transportparams.cc',
-      'src/quic/quic.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',
@@ -343,6 +333,24 @@
       'src/udp_wrap.h',
       'src/util.h',
       'src/util-inl.h',
+    ],
+    'node_quic_sources': [
+      'src/quic/bindingdata.cc',
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
+      'src/quic/logstream.cc',
+      'src/quic/packet.cc',
+      'src/quic/preferredaddress.cc',
+      'src/quic/sessionticket.cc',
+      'src/quic/tokens.cc',
+      'src/quic/application.cc',
+      'src/quic/endpoint.cc',
+      'src/quic/http3.cc',
+      'src/quic/session.cc',
+      'src/quic/streams.cc',
+      'src/quic/tlscontext.cc',
+      'src/quic/transportparams.cc',
+      'src/quic/quic.cc',
       'src/quic/bindingdata.h',
       'src/quic/cid.h',
       'src/quic/data.h',
@@ -425,6 +433,8 @@
       'test/cctest/test_crypto_clienthello.cc',
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
+    ],
+    'node_cctest_quic_sources': [
       'test/cctest/test_quic_cid.cc',
       'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_preferredaddress.cc',
@@ -993,9 +1003,21 @@
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
         }],
+        [ 'node_use_lief=="true" and node_shared_lief=="false"', {
+          'defines': [ 'HAVE_LIEF=1' ],
+          'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
+        }],
+        [ 'node_use_lief=="true" and node_shared_lief=="true"', {
+          'defines': [ 'HAVE_LIEF=1' ],
+        }],
         [ 'node_use_sqlite=="true"', {
           'sources': [
             '<@(node_sqlite_sources)',
+          ],
+        }],
+        [ 'node_use_quic=="true"', {
+          'sources': [
+            '<@(node_quic_sources)',
           ],
         }],
         [ 'OS in "linux freebsd mac solaris openharmony" and '
@@ -1292,6 +1314,13 @@
         }, {
           'sources!': [ '<@(node_cctest_openssl_sources)' ],
         }],
+        [ 'node_use_quic=="true"', {
+          'defines': [
+            'HAVE_QUIC=1',
+          ],
+        }, {
+          'sources!': [ '<@(node_cctest_quic_sources)' ],
+        }],
         ['v8_enable_inspector==1', {
           'defines': [
             'HAVE_INSPECTOR=1',
@@ -1399,6 +1428,61 @@
         }],
       ],
     }, # embedtest
+
+    {
+      'target_name': 'shared_embedtest',
+      'type': 'executable',
+
+      'dependencies': [
+        '<(node_lib_target_name)',
+      ],
+
+      # Don't depend on node.gypi - it otherwise links to
+      # the static libraries and resolve symbols at build time.
+      'include_dirs': [
+        'deps/v8/include',
+      ],
+
+      'sources': [
+        'test/embedding/shared_embedtest.cc',
+      ],
+      'conditions': [
+        [ 'node_shared=="true"', {
+          'defines': [
+            'USING_V8_SHARED',
+            'USING_V8_PLATFORM_SHARED',
+          ],
+          'defines!': [
+            'BUILDING_V8_PLATFORM_SHARED=1',
+            'BUILDING_V8_SHARED=1',
+          ],
+        }, {
+          # Only test shared embedding when Node is built as shared library.
+          'type': 'none',
+        }],
+        # Only test platforms known to work.
+        ['OS not in "mac win linux"', {
+          'type': 'none',
+        }],
+        ['OS=="win"', {
+          'libraries': [
+            'Dbghelp.lib',
+            'winmm.lib',
+            'Ws2_32.lib',
+          ],
+        }],
+        ['OS=="mac"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+          }
+        }],
+        ['OS=="linux"', {
+          'ldflags': [
+            '-Wl,-rpath,\\$$ORIGIN'
+          ],
+        }],
+      ],
+    }, # shared_embedtest
 
     {
       'target_name': 'overlapped-checker',

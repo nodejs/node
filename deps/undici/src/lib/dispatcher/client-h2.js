@@ -25,6 +25,8 @@ const {
   kOnError,
   kMaxConcurrentStreams,
   kHTTP2Session,
+  kHTTP2InitialWindowSize,
+  kHTTP2ConnectionWindowSize,
   kResume,
   kSize,
   kHTTPContext,
@@ -87,12 +89,16 @@ function parseH2Headers (headers) {
 function connectH2 (client, socket) {
   client[kSocket] = socket
 
+  const http2InitialWindowSize = client[kHTTP2InitialWindowSize]
+  const http2ConnectionWindowSize = client[kHTTP2ConnectionWindowSize]
+
   const session = http2.connect(client[kUrl], {
     createConnection: () => socket,
     peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
     settings: {
       // TODO(metcoder95): add support for PUSH
-      enablePush: false
+      enablePush: false,
+      ...(http2InitialWindowSize != null ? { initialWindowSize: http2InitialWindowSize } : null)
     }
   })
 
@@ -106,6 +112,11 @@ function connectH2 (client, socket) {
   session[kEnableConnectProtocol] = false
   // States whether or not we have received the remote settings from the server
   session[kRemoteSettings] = false
+
+  // Apply connection-level flow control once connected (if supported).
+  if (http2ConnectionWindowSize) {
+    util.addListener(session, 'connect', applyConnectionWindowSize.bind(session, http2ConnectionWindowSize))
+  }
 
   util.addListener(session, 'error', onHttp2SessionError)
   util.addListener(session, 'frameError', onHttp2FrameError)
@@ -208,6 +219,16 @@ function resumeH2 (client) {
       socket.ref()
       client[kHTTP2Session].ref()
     }
+  }
+}
+
+function applyConnectionWindowSize (connectionWindowSize) {
+  try {
+    if (typeof this.setLocalWindowSize === 'function') {
+      this.setLocalWindowSize(connectionWindowSize)
+    }
+  } catch {
+    // Best-effort only.
   }
 }
 
@@ -621,9 +642,13 @@ function writeH2 (client, request) {
   ++session[kOpenStreams]
   stream.setTimeout(requestTimeout)
 
+  // Track whether we received a response (headers)
+  let responseReceived = false
+
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
     request.onResponseStarted()
+    responseReceived = true
 
     // Due to the stream nature, it is possible we face a race condition
     // where the stream has been assigned, but the request has been aborted
@@ -646,14 +671,10 @@ function writeH2 (client, request) {
     }
   })
 
-  stream.once('end', (err) => {
+  stream.once('end', () => {
     stream.removeAllListeners('data')
-    // When state is null, it means we haven't consumed body and the stream still do not have
-    // a state.
-    // Present specially when using pipeline or stream
-    if (stream.state?.state == null || stream.state.state < 6) {
-      // Do not complete the request if it was aborted
-      // Not prone to happen for as safety net to avoid race conditions with 'trailers'
+    // If we received a response, this is a normal completion
+    if (responseReceived) {
       if (!request.aborted && !request.completed) {
         request.onComplete({})
       }
@@ -661,15 +682,9 @@ function writeH2 (client, request) {
       client[kQueue][client[kRunningIdx]++] = null
       client[kResume]()
     } else {
-      // Stream is closed or half-closed-remote (6), decrement counter and cleanup
-      // It does not have sense to continue working with the stream as we do not
-      // have yet RST_STREAM support on client-side
-      --session[kOpenStreams]
-      if (session[kOpenStreams] === 0) {
-        session.unref()
-      }
-
-      abort(err ?? new InformationalError('HTTP/2: stream half-closed (remote)'))
+      // Stream ended without receiving a response - this is an error
+      // (e.g., server destroyed the stream before sending headers)
+      abort(new InformationalError('HTTP/2: stream half-closed (remote)'))
       client[kQueue][client[kRunningIdx]++] = null
       client[kPendingIdx] = client[kRunningIdx]
       client[kResume]()

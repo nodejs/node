@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# Copyright 2014-2022 The OpenSSL Project Authors. All Rights Reserved.
-# Copyright 2021- IBM Inc. All rights reserved
+# Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2025- IBM Corp. All rights reserved
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,9 @@
 # https://www.openssl.org/source/license.html
 #
 #===================================================================================
-# Written by Danny Tsen <dtsen@us.ibm.com> for OpenSSL Project,
+# Accelerated AES-GCM stitched implementation for ppc64le.
+#
+# Written by Danny Tsen <dtsen@us.ibm.com>
 #
 # GHASH is based on the Karatsuba multiplication method.
 #
@@ -32,420 +34,521 @@
 # v31 - counter 1
 #
 # AES used,
-#     vs0 - vs14 for round keys
+#     vs0 - round key 0
 #     v15, v16, v17, v18, v19, v20, v21, v22 for 8 blocks (encrypted)
 #
 # This implementation uses stitched AES-GCM approach to improve overall performance.
 # AES is implemented with 8x blocks and GHASH is using 2 4x blocks.
 #
-# Current large block (16384 bytes) performance per second with 128 bit key --
-#
-#                        Encrypt  Decrypt
-# Power10[le] (3.5GHz)   5.32G    5.26G
-#
 # ===================================================================================
 #
+use strict;
+use warnings;
+
 # $output is the last argument if it looks like a file (it has an extension)
 # $flavour is the first argument if it doesn't look like a file
-$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
-$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
+my $output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+my $flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
-if ($flavour =~ /64/) {
-	$SIZE_T=8;
-	$LRSAVE=2*$SIZE_T;
-	$STU="stdu";
-	$POP="ld";
-	$PUSH="std";
-	$UCMP="cmpld";
-	$SHRI="srdi";
-} elsif ($flavour =~ /32/) {
-	$SIZE_T=4;
-	$LRSAVE=$SIZE_T;
-	$STU="stwu";
-	$POP="lwz";
-	$PUSH="stw";
-	$UCMP="cmplw";
-	$SHRI="srwi";
-} else { die "nonsense $flavour"; }
+$output and open STDOUT,">$output";
 
-$sp="r1";
-$FRAME=6*$SIZE_T+13*16;	# 13*16 is for v20-v31 offload
-
-$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
-( $xlate="${dir}../../perlasm/ppc-xlate.pl" and -f $xlate) or
-die "can't locate ppc-xlate.pl";
-
-open STDOUT,"| $^X $xlate $flavour \"$output\""
-    or die "can't call $xlate: $!";
-
-$code=<<___;
+my $code.=<<___;
 .machine        "any"
 .text
 
+.macro SAVE_REGS
+	mflr 0
+	std 0, 16(1)
+	stdu 1,-512(1)
+
+	std	14, 112(1)
+	std	15, 120(1)
+	std	16, 128(1)
+	std	17, 136(1)
+	std	18, 144(1)
+	std	19, 152(1)
+	std	20, 160(1)
+	std	21, 168(1)
+	std	22, 176(1)
+	std	23, 184(1)
+	std	24, 192(1)
+
+	stxv	32+20, 256(1)
+	stxv	32+21, 256+16(1)
+	stxv	32+22, 256+32(1)
+	stxv	32+23, 256+48(1)
+	stxv	32+24, 256+64(1)
+	stxv	32+25, 256+80(1)
+	stxv	32+26, 256+96(1)
+	stxv	32+27, 256+112(1)
+	stxv	32+28, 256+128(1)
+	stxv	32+29, 256+144(1)
+	stxv	32+30, 256+160(1)
+	stxv	32+31, 256+176(1)
+.endm # SAVE_REGS
+
+.macro RESTORE_REGS
+	lxv	32+20, 256(1)
+	lxv	32+21, 256+16(1)
+	lxv	32+22, 256+32(1)
+	lxv	32+23, 256+48(1)
+	lxv	32+24, 256+64(1)
+	lxv	32+25, 256+80(1)
+	lxv	32+26, 256+96(1)
+	lxv	32+27, 256+112(1)
+	lxv	32+28, 256+128(1)
+	lxv	32+29, 256+144(1)
+	lxv	32+30, 256+160(1)
+	lxv	32+31, 256+176(1)
+
+	ld	14, 112(1)
+	ld	15, 120(1)
+	ld	16, 128(1)
+	ld	17, 136(1)
+	ld	18, 144(1)
+	ld	19, 152(1)
+	ld	20, 160(1)
+	ld	21, 168(1)
+	ld	22, 176(1)
+	ld	23, 184(1)
+	ld	24, 192(1)
+
+	addi    1, 1, 512
+	ld 0, 16(1)
+	mtlr 0
+.endm # RESTORE_REGS
+
 # 4x loops
-# v15 - v18 - input states
-# vs1 - vs9 - round keys
-#
-.macro Loop_aes_middle4x
-	xxlor	19+32, 1, 1
-	xxlor	20+32, 2, 2
-	xxlor	21+32, 3, 3
-	xxlor	22+32, 4, 4
-
-	vcipher	15, 15, 19
-	vcipher	16, 16, 19
-	vcipher	17, 17, 19
-	vcipher	18, 18, 19
-
-	vcipher	15, 15, 20
-	vcipher	16, 16, 20
-	vcipher	17, 17, 20
-	vcipher	18, 18, 20
-
-	vcipher	15, 15, 21
-	vcipher	16, 16, 21
-	vcipher	17, 17, 21
-	vcipher	18, 18, 21
-
-	vcipher	15, 15, 22
-	vcipher	16, 16, 22
-	vcipher	17, 17, 22
-	vcipher	18, 18, 22
-
-	xxlor	19+32, 5, 5
-	xxlor	20+32, 6, 6
-	xxlor	21+32, 7, 7
-	xxlor	22+32, 8, 8
-
-	vcipher	15, 15, 19
-	vcipher	16, 16, 19
-	vcipher	17, 17, 19
-	vcipher	18, 18, 19
-
-	vcipher	15, 15, 20
-	vcipher	16, 16, 20
-	vcipher	17, 17, 20
-	vcipher	18, 18, 20
-
-	vcipher	15, 15, 21
-	vcipher	16, 16, 21
-	vcipher	17, 17, 21
-	vcipher	18, 18, 21
-
-	vcipher	15, 15, 22
-	vcipher	16, 16, 22
-	vcipher	17, 17, 22
-	vcipher	18, 18, 22
-
-	xxlor	23+32, 9, 9
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
+.macro AES_CIPHER_4x r
+	vcipher	15, 15, \\r
+	vcipher	16, 16, \\r
+	vcipher	17, 17, \\r
+	vcipher	18, 18, \\r
 .endm
 
 # 8x loops
-# v15 - v22 - input states
-# vs1 - vs9 - round keys
-#
-.macro Loop_aes_middle8x
-	xxlor	23+32, 1, 1
-	xxlor	24+32, 2, 2
-	xxlor	25+32, 3, 3
-	xxlor	26+32, 4, 4
+.macro AES_CIPHER_8x r
+	vcipher	15, 15, \\r
+	vcipher	16, 16, \\r
+	vcipher	17, 17, \\r
+	vcipher	18, 18, \\r
+	vcipher	19, 19, \\r
+	vcipher	20, 20, \\r
+	vcipher	21, 21, \\r
+	vcipher	22, 22, \\r
+.endm
 
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	vcipher	15, 15, 25
-	vcipher	16, 16, 25
-	vcipher	17, 17, 25
-	vcipher	18, 18, 25
-	vcipher	19, 19, 25
-	vcipher	20, 20, 25
-	vcipher	21, 21, 25
-	vcipher	22, 22, 25
-
-	vcipher	15, 15, 26
-	vcipher	16, 16, 26
-	vcipher	17, 17, 26
-	vcipher	18, 18, 26
-	vcipher	19, 19, 26
-	vcipher	20, 20, 26
-	vcipher	21, 21, 26
-	vcipher	22, 22, 26
-
-	xxlor	23+32, 5, 5
-	xxlor	24+32, 6, 6
-	xxlor	25+32, 7, 7
-	xxlor	26+32, 8, 8
-
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	vcipher	15, 15, 25
-	vcipher	16, 16, 25
-	vcipher	17, 17, 25
-	vcipher	18, 18, 25
-	vcipher	19, 19, 25
-	vcipher	20, 20, 25
-	vcipher	21, 21, 25
-	vcipher	22, 22, 25
-
-	vcipher	15, 15, 26
-	vcipher	16, 16, 26
-	vcipher	17, 17, 26
-	vcipher	18, 18, 26
-	vcipher	19, 19, 26
-	vcipher	20, 20, 26
-	vcipher	21, 21, 26
-	vcipher	22, 22, 26
-
-	xxlor	23+32, 9, 9
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
+.macro LOOP_8AES_STATE
+	AES_CIPHER_8x 23
+	AES_CIPHER_8x 24
+	AES_CIPHER_8x 25
+	AES_CIPHER_8x 26
+	AES_CIPHER_8x 27
+	AES_CIPHER_8x 28
+	AES_CIPHER_8x 29
+	AES_CIPHER_8x 1
 .endm
 
 #
-# Compute 4x hash values based on Karatsuba method.
+# PPC_GFMUL128_8x: Compute hash values of 8 blocks based on Karatsuba method.
 #
-ppc_aes_gcm_ghash:
-	vxor		15, 15, 0
+# S1 should xor with the previous digest
+#
+# Xi = v0
+# H Poly = v2
+# Hash keys = v3 - v14
+# vs10: vpermxor vector
+# Scratch: v23 - v29
+#
+.macro PPC_GFMUL128_8x
 
-	xxlxor		29, 29, 29
+	vpmsumd	23, 12, 15		# H4.L * X.L
+	vpmsumd	24, 9, 16
+	vpmsumd	25, 6, 17
+	vpmsumd	26, 3, 18
 
-	vpmsumd		23, 12, 15		# H4.L * X.L
-	vpmsumd		24, 9, 16
-	vpmsumd		25, 6, 17
-	vpmsumd		26, 3, 18
+	vxor	23, 23, 24
+	vxor	23, 23, 25
+	vxor	23, 23, 26		# L
 
-	vxor		23, 23, 24
-	vxor		23, 23, 25
-	vxor		23, 23, 26		# L
+	vpmsumd	27, 13, 15		# H4.L * X.H + H4.H * X.L
+	vpmsumd	28, 10, 16		# H3.L * X1.H + H3.H * X1.L
+	vpmsumd	25, 7, 17
+	vpmsumd	26, 4, 18
 
-	vpmsumd		24, 13, 15		# H4.L * X.H + H4.H * X.L
-	vpmsumd		25, 10, 16		# H3.L * X1.H + H3.H * X1.L
-	vpmsumd		26, 7, 17
-	vpmsumd		27, 4, 18
+	vxor	24, 27, 28
+	vxor	24, 24, 25
+	vxor	24, 24, 26		# M
 
-	vxor		24, 24, 25
-	vxor		24, 24, 26
-	vxor		24, 24, 27		# M
+	vpmsumd	26, 14, 15		# H4.H * X.H
+	vpmsumd	27, 11, 16
+	vpmsumd	28, 8, 17
+	vpmsumd	29, 5, 18
 
-	# sum hash and reduction with H Poly
-	vpmsumd		28, 23, 2		# reduction
-
-	xxlor		29+32, 29, 29
-	vsldoi		26, 24, 29, 8		# mL
-	vsldoi		29, 29, 24, 8		# mH
-	vxor		23, 23, 26		# mL + L
-
-	vsldoi		23, 23, 23, 8		# swap
-	vxor		23, 23, 28
-
-	vpmsumd		24, 14, 15		# H4.H * X.H
-	vpmsumd		25, 11, 16
-	vpmsumd		26, 8, 17
-	vpmsumd		27, 5, 18
-
-	vxor		24, 24, 25
-	vxor		24, 24, 26
-	vxor		24, 24, 27
-
-	vxor		24, 24, 29
+	vxor	26, 26, 27
+	vxor	26, 26, 28
+	vxor	26, 26, 29
 
 	# sum hash and reduction with H Poly
-	vsldoi		27, 23, 23, 8		# swap
-	vpmsumd		23, 23, 2
-	vxor		27, 27, 24
-	vxor		23, 23, 27
+	vpmsumd	28, 23, 2		# reduction
 
-	xxlor		32, 23+32, 23+32		# update hash
+	vxor	1, 1, 1
+	vsldoi	25, 24, 1, 8		# mL
+	vsldoi	1, 1, 24, 8		# mH
+	vxor	23, 23, 25		# mL + L
 
+	# This performs swap and xor like,
+	#   vsldoi	23, 23, 23, 8		# swap
+	#   vxor	23, 23, 28
+	xxlor	32+29, 10, 10
+	vpermxor 23, 23, 28, 29
+
+	vxor	24, 26, 1		# H
+
+	# sum hash and reduction with H Poly
+	#
+	#  vsldoi 25, 23, 23, 8		# swap
+	#  vpmsumd 23, 23, 2
+	#  vxor	27, 25, 24
+	#
+	vpermxor 27, 23, 24, 29
+	vpmsumd	23, 23, 2
+	vxor	0, 23, 27		# Digest of 4 blocks
+
+	vxor	19, 19, 0
+
+	# Compute digest for the next 4 blocks
+	vpmsumd	24, 9, 20
+	vpmsumd	25, 6, 21
+	vpmsumd	26, 3, 22
+	vpmsumd	23, 12, 19		# H4.L * X.L
+
+	vxor	23, 23, 24
+	vxor	23, 23, 25
+	vxor	23, 23, 26		# L
+
+	vpmsumd	27, 13, 19		# H4.L * X.H + H4.H * X.L
+	vpmsumd	28, 10, 20		# H3.L * X1.H + H3.H * X1.L
+	vpmsumd	25, 7, 21
+	vpmsumd	26, 4, 22
+
+	vxor	24, 27, 28
+	vxor	24, 24, 25
+	vxor	24, 24, 26		# M
+
+	vpmsumd	26, 14, 19		# H4.H * X.H
+	vpmsumd	27, 11, 20
+	vpmsumd	28, 8, 21
+	vpmsumd	29, 5, 22
+
+	vxor	26, 26, 27
+	vxor	26, 26, 28
+	vxor	26, 26, 29
+
+	# sum hash and reduction with H Poly
+	vpmsumd	28, 23, 2		# reduction
+
+	vxor	1, 1, 1
+	vsldoi	25, 24, 1, 8		# mL
+	vsldoi	1, 1, 24, 8		# mH
+	vxor	23, 23, 25		# mL + L
+
+	# This performs swap and xor like,
+	#   vsldoi	23, 23, 23, 8		# swap
+	#   vxor	23, 23, 28
+	xxlor	32+29, 10, 10
+	vpermxor 23, 23, 28, 29
+
+	vxor	24, 26, 1		# H
+
+	# sum hash and reduction with H Poly
+	#
+	#  vsldoi 25, 23, 23, 8		# swap
+	#  vpmsumd 23, 23, 2
+	#  vxor	27, 25, 24
+	#
+	vpermxor 27, 23, 24, 29
+	vpmsumd	23, 23, 2
+	vxor	0, 23, 27		# Digest of 8 blocks
+.endm
+
+#
+# Compute update single ghash
+# vs10: vpermxor vector
+# scratch: v1, v22..v27
+#
+.macro PPC_GHASH1x H S1
+
+	vxor	1, 1, 1
+
+	vpmsumd	22, 3, \\S1		# L
+	vpmsumd	23, 4, \\S1		# M
+	vpmsumd	24, 5, \\S1		# H
+
+	vpmsumd	27, 22, 2		# reduction
+
+	vsldoi	25, 23, 1, 8		# mL
+	vsldoi	26, 1, 23, 8		# mH
+	vxor	22, 22, 25		# LL + LL
+	vxor	24, 24, 26		# HH + HH
+
+	xxlor	32+25, 10, 10
+	vpermxor 22, 22, 27, 25
+
+	#  vsldoi 23, 22, 22, 8		# swap
+	#  vpmsumd 22, 22, 2		# reduction
+	#  vxor	23, 23, 24
+	vpermxor 23, 22, 24, 25
+	vpmsumd	22, 22, 2		# reduction
+
+	vxor	\\H, 22, 23
+.endm
+
+#
+# LOAD_HASH_TABLE
+# Xi = v0
+# H Poly = v2
+# Hash keys = v3 - v14
+#
+.macro LOAD_HASH_TABLE
+	# Load Xi
+	lxvb16x	32, 0, 8	# load Xi
+
+	vxor	1, 1, 1
+
+	li	10, 32
+	lxvd2x	2+32, 10, 8	# H Poli
+
+	# load Hash - h^4, h^3, h^2, h
+	li	10, 64
+	lxvd2x	4+32, 10, 8	# H
+	vsldoi	3, 1, 4, 8	# l
+	vsldoi	5, 4, 1, 8	# h
+	li	10, 112
+	lxvd2x	7+32, 10, 8	# H^2
+	vsldoi	6, 1, 7, 8	# l
+	vsldoi	8, 7, 1, 8	# h
+	li	10, 160
+	lxvd2x	10+32, 10, 8	# H^3
+	vsldoi	9, 1, 10, 8	# l
+	vsldoi	11, 10, 1, 8	# h
+	li	10, 208
+	lxvd2x	13+32, 10, 8	# H^4
+	vsldoi	12, 1, 13, 8	# l
+	vsldoi	14, 13, 1, 8	# h
+.endm
+
+.macro PROCESS_8X_AES_STATES
+	vcipherlast     15, 15, 1
+	vcipherlast     16, 16, 1
+	vcipherlast     17, 17, 1
+	vcipherlast     18, 18, 1
+	vcipherlast     19, 19, 1
+	vcipherlast     20, 20, 1
+	vcipherlast     21, 21, 1
+	vcipherlast     22, 22, 1
+
+	lxvb16x	32+23, 0, 14	# load block
+	lxvb16x	32+24, 15, 14	# load block
+	lxvb16x	32+25, 16, 14	# load block
+	lxvb16x	32+26, 17, 14	# load block
+	lxvb16x	32+27, 18, 14	# load block
+	lxvb16x	32+28, 19, 14	# load block
+	lxvb16x	32+29, 20, 14	# load block
+	lxvb16x	32+30, 21, 14	# load block
+	addi	14, 14, 128
+
+	vxor	15, 15, 23
+	vxor	16, 16, 24
+	vxor	17, 17, 25
+	vxor	18, 18, 26
+	vxor	19, 19, 27
+	vxor	20, 20, 28
+	vxor	21, 21, 29
+	vxor	22, 22, 30
+
+	stxvb16x 47, 0, 9	# store output
+	stxvb16x 48, 15, 9	# store output
+	stxvb16x 49, 16, 9	# store output
+	stxvb16x 50, 17, 9	# store output
+	stxvb16x 51, 18, 9	# store output
+	stxvb16x 52, 19, 9	# store output
+	stxvb16x 53, 20, 9	# store output
+	stxvb16x 54, 21, 9	# store output
+	addi	9, 9, 128
+.endm
+
+.macro COMPUTE_STATES
+	xxlor	32+15, 9, 9		# last state
+	vadduwm 15, 15, 31		# state + counter
+	vadduwm 16, 15, 31
+	vadduwm 17, 16, 31
+	vadduwm 18, 17, 31
+	vadduwm 19, 18, 31
+	vadduwm 20, 19, 31
+	vadduwm 21, 20, 31
+	vadduwm 22, 21, 31
+	xxlor	9, 32+22, 32+22		# save last state
+
+        xxlxor	32+15, 32+15, 0		# IV + round key - add round key 0
+	xxlxor	32+16, 32+16, 0
+	xxlxor	32+17, 32+17, 0
+	xxlxor	32+18, 32+18, 0
+	xxlxor	32+19, 32+19, 0
+	xxlxor	32+20, 32+20, 0
+	xxlxor	32+21, 32+21, 0
+	xxlxor	32+22, 32+22, 0
+.endm
+
+################################################################################
+# Compute AES and ghash one block at a time.
+# r23: AES rounds
+# v30: current IV
+# vs0: roundkey 0
+#
+################################################################################
+.align 4
+aes_gcm_crypt_1x:
+.localentry	aes_gcm_crypt_1x,0
+
+	cmpdi	5, 16
+	bge	__More_1x
+	blr
+__More_1x:
+	li      10, 16
+	divdu   12, 5, 10
+
+	xxlxor	32+15, 32+30, 0
+
+	# Pre-load 8 AES rounds to scratch vectors.
+	lxv	32+16, 16(6)		# round key 1
+	lxv	32+17, 32(6)		# round key 2
+	lxv	32+18, 48(6)		# round key 3
+	lxv	32+19, 64(6)		# round key 4
+	lxv	32+20, 80(6)		# round key 5
+	lxv	32+21, 96(6)		# round key 6
+	lxv	32+28, 112(6)		# round key 7
+	lxv	32+29, 128(6)		# round key 8
+
+	lwz	23, 240(6)	# n rounds
+	addi	22, 23, -9	# remaining AES rounds
+
+	cmpdi	12, 0
+	bgt	__Loop_1x
 	blr
 
+__Loop_1x:
+	mtctr	22
+	addi	10, 6, 144
+	vcipher	15, 15, 16
+	vcipher	15, 15, 17
+	vcipher	15, 15, 18
+	vcipher	15, 15, 19
+	vcipher	15, 15, 20
+	vcipher	15, 15, 21
+	vcipher	15, 15, 28
+	vcipher	15, 15, 29
+
+__Loop_aes_1state:
+	lxv	32+1, 0(10)
+	vcipher	15, 15, 1
+	addi	10, 10, 16
+	bdnz	__Loop_aes_1state
+	lxv	32+1, 0(10)		# last round key
+	lxvb16x 11, 0, 14		# load input block
+	vcipherlast 15, 15, 1
+
+	xxlxor	32+15, 32+15, 11
+	stxvb16x 32+15, 0, 9	# store output
+	addi	14, 14, 16
+	addi	9, 9, 16
+
+	cmpdi	24, 0	# decrypt?
+	bne	__Encrypt_1x
+	xxlor	15+32, 11, 11
+__Encrypt_1x:
+	vxor	15, 15, 0
+	PPC_GHASH1x 0, 15
+
+	addi	5, 5, -16
+	addi	11, 11, 16
+
+	vadduwm 30, 30, 31		# IV + counter
+	xxlxor	32+15, 32+30, 0
+	addi	12, 12, -1
+	cmpdi	12, 0
+	bgt	__Loop_1x
+
+	stxvb16x 32+0, 0, 8		# update Xi
+	blr
+.size   aes_gcm_crypt_1x,.-aes_gcm_crypt_1x
+
+################################################################################
+# Process a normal partial block when we come here.
+#  Compute partial mask, Load and store partial block to stack.
+#  Compute AES state.
+#   Compute ghash.
 #
-# Combine two 4x ghash
-# v15 - v22 - input blocks
-#
-.macro ppc_aes_gcm_ghash2_4x
-	# first 4x hash
-	vxor		15, 15, 0		# Xi + X
+################################################################################
+.align 4
+__Process_partial:
+.localentry	__Process_partial,0
 
-	xxlxor		29, 29, 29
+	# create partial mask
+	vspltisb 16, -1
+	li	12, 16
+	sub	12, 12, 5
+	sldi	12, 12, 3
+	mtvsrdd	32+17, 0, 12
+	vslo	16, 16, 17		# partial block mask
 
-	vpmsumd		23, 12, 15		# H4.L * X.L
-	vpmsumd		24, 9, 16
-	vpmsumd		25, 6, 17
-	vpmsumd		26, 3, 18
+	lxvb16x 11, 0, 14		# load partial block
+	xxland	11, 11, 32+16
 
-	vxor		23, 23, 24
-	vxor		23, 23, 25
-	vxor		23, 23, 26		# L
+	# AES crypt partial
+	xxlxor	32+15, 32+30, 0
+	lwz	23, 240(6)		# n rounds
+	addi	22, 23, -1		# loop - 1
+	mtctr	22
+	addi	10, 6, 16
 
-	vpmsumd		24, 13, 15		# H4.L * X.H + H4.H * X.L
-	vpmsumd		25, 10, 16		# H3.L * X1.H + H3.H * X1.L
-	vpmsumd		26, 7, 17
-	vpmsumd		27, 4, 18
+__Loop_aes_pstate:
+	lxv	32+1, 0(10)
+	vcipher	15, 15, 1
+	addi	10, 10, 16
+	bdnz	__Loop_aes_pstate
+	lxv	32+1, 0(10)		# last round key
+	vcipherlast 15, 15, 1
 
-	vxor		24, 24, 25
-	vxor		24, 24, 26
+	xxlxor	32+15, 32+15, 11
+	vand	15, 15, 16
 
-	# sum hash and reduction with H Poly
-	vpmsumd		28, 23, 2		# reduction
+	# AES crypt output v15
+	# Write partial
+	li	10, 224
+	stxvb16x 15+32, 10, 1		# write v15 to stack
+	addi	10, 1, 223
+	addi	12, 9, -1
+        mtctr	5			# partial block len
+__Write_partial:
+        lbzu	22, 1(10)
+	stbu	22, 1(12)
+        bdnz	__Write_partial
 
-	xxlor		29+32, 29, 29
+	cmpdi	24, 0			# decrypt?
+	bne	__Encrypt_partial
+	xxlor	32+15, 11, 11		# decrypt using the input block
+__Encrypt_partial:
+	vxor	15, 15, 0		# ^ previous hash
+	PPC_GHASH1x 0, 15
+	li	5, 0			# done last byte
+	stxvb16x 32+0, 0, 8		# Update X1
+	blr
+.size   __Process_partial,.-__Process_partial
 
-	vxor		24, 24, 27		# M
-	vsldoi		26, 24, 29, 8		# mL
-	vsldoi		29, 29, 24, 8		# mH
-	vxor		23, 23, 26		# mL + L
-
-	vsldoi		23, 23, 23, 8		# swap
-	vxor		23, 23, 28
-
-	vpmsumd		24, 14, 15		# H4.H * X.H
-	vpmsumd		25, 11, 16
-	vpmsumd		26, 8, 17
-	vpmsumd		27, 5, 18
-
-	vxor		24, 24, 25
-	vxor		24, 24, 26
-	vxor		24, 24, 27		# H
-
-	vxor		24, 24, 29		# H + mH
-
-	# sum hash and reduction with H Poly
-	vsldoi		27, 23, 23, 8		# swap
-	vpmsumd		23, 23, 2
-	vxor		27, 27, 24
-	vxor		27, 23, 27		# 1st Xi
-
-	# 2nd 4x hash
-	vpmsumd		24, 9, 20
-	vpmsumd		25, 6, 21
-	vpmsumd		26, 3, 22
-	vxor		19, 19, 27		# Xi + X
-	vpmsumd		23, 12, 19		# H4.L * X.L
-
-	vxor		23, 23, 24
-	vxor		23, 23, 25
-	vxor		23, 23, 26		# L
-
-	vpmsumd		24, 13, 19		# H4.L * X.H + H4.H * X.L
-	vpmsumd		25, 10, 20		# H3.L * X1.H + H3.H * X1.L
-	vpmsumd		26, 7, 21
-	vpmsumd		27, 4, 22
-
-	vxor		24, 24, 25
-	vxor		24, 24, 26
-
-	# sum hash and reduction with H Poly
-	vpmsumd		28, 23, 2		# reduction
-
-	xxlor		29+32, 29, 29
-
-	vxor		24, 24, 27		# M
-	vsldoi		26, 24, 29, 8		# mL
-	vsldoi		29, 29, 24, 8		# mH
-	vxor		23, 23, 26		# mL + L
-
-	vsldoi		23, 23, 23, 8		# swap
-	vxor		23, 23, 28
-
-	vpmsumd		24, 14, 19		# H4.H * X.H
-	vpmsumd		25, 11, 20
-	vpmsumd		26, 8, 21
-	vpmsumd		27, 5, 22
-
-	vxor		24, 24, 25
-	vxor		24, 24, 26
-	vxor		24, 24, 27		# H
-
-	vxor		24, 24, 29		# H + mH
-
-	# sum hash and reduction with H Poly
-	vsldoi		27, 23, 23, 8		# swap
-	vpmsumd		23, 23, 2
-	vxor		27, 27, 24
-	vxor		23, 23, 27
-
-	xxlor		32, 23+32, 23+32		# update hash
-
-.endm
-
-#
-# Compute update single hash
-#
-.macro ppc_update_hash_1x
-	vxor		28, 28, 0
-
-	vxor		19, 19, 19
-
-	vpmsumd		22, 3, 28		# L
-	vpmsumd		23, 4, 28		# M
-	vpmsumd		24, 5, 28		# H
-
-	vpmsumd		27, 22, 2		# reduction
-
-	vsldoi		25, 23, 19, 8		# mL
-	vsldoi		26, 19, 23, 8		# mH
-	vxor		22, 22, 25		# LL + LL
-	vxor		24, 24, 26		# HH + HH
-
-	vsldoi		22, 22, 22, 8		# swap
-	vxor		22, 22, 27
-
-	vsldoi		20, 22, 22, 8		# swap
-	vpmsumd		22, 22, 2		# reduction
-	vxor		20, 20, 24
-	vxor		22, 22, 20
-
-	vmr		0, 22			# update hash
-
-.endm
-
-#
+################################################################################
 # ppc_aes_gcm_encrypt (const void *inp, void *out, size_t len,
-#               const AES_KEY *key, unsigned char iv[16],
-#               void *Xip);
+#               const char *rk, unsigned char iv[16], void *Xip);
 #
 #    r3 - inp
 #    r4 - out
@@ -454,159 +557,85 @@ ppc_aes_gcm_ghash:
 #    r7 - iv
 #    r8 - Xi, HPoli, hash keys
 #
+#    rounds is at offset 240 in rk
+#    Xi is at 0 in gcm_table (Xip).
+#
+################################################################################
 .global ppc_aes_gcm_encrypt
 .align 5
 ppc_aes_gcm_encrypt:
-_ppc_aes_gcm_encrypt:
+.localentry     ppc_aes_gcm_encrypt,0
 
-	stdu 1,-512(1)
-	mflr 0
-
-	std	14,112(1)
-	std	15,120(1)
-	std	16,128(1)
-	std	17,136(1)
-	std	18,144(1)
-	std	19,152(1)
-	std	20,160(1)
-	std	21,168(1)
-	li	9, 256
-	stvx	20, 9, 1
-	addi	9, 9, 16
-	stvx	21, 9, 1
-	addi	9, 9, 16
-	stvx	22, 9, 1
-	addi	9, 9, 16
-	stvx	23, 9, 1
-	addi	9, 9, 16
-	stvx	24, 9, 1
-	addi	9, 9, 16
-	stvx	25, 9, 1
-	addi	9, 9, 16
-	stvx	26, 9, 1
-	addi	9, 9, 16
-	stvx	27, 9, 1
-	addi	9, 9, 16
-	stvx	28, 9, 1
-	addi	9, 9, 16
-	stvx	29, 9, 1
-	addi	9, 9, 16
-	stvx	30, 9, 1
-	addi	9, 9, 16
-	stvx	31, 9, 1
-	std	0, 528(1)
-
-	# Load Xi
-	lxvb16x	32, 0, 8	# load Xi
-
-	# load Hash - h^4, h^3, h^2, h
-	li	10, 32
-	lxvd2x	2+32, 10, 8	# H Poli
-	li	10, 48
-	lxvd2x	3+32, 10, 8	# Hl
-	li	10, 64
-	lxvd2x	4+32, 10, 8	# H
-	li	10, 80
-	lxvd2x	5+32, 10, 8	# Hh
-
-	li	10, 96
-	lxvd2x	6+32, 10, 8	# H^2l
-	li	10, 112
-	lxvd2x	7+32, 10, 8	# H^2
-	li	10, 128
-	lxvd2x	8+32, 10, 8	# H^2h
-
-	li	10, 144
-	lxvd2x	9+32, 10, 8	# H^3l
-	li	10, 160
-	lxvd2x	10+32, 10, 8	# H^3
-	li	10, 176
-	lxvd2x	11+32, 10, 8	# H^3h
-
-	li	10, 192
-	lxvd2x	12+32, 10, 8	# H^4l
-	li	10, 208
-	lxvd2x	13+32, 10, 8	# H^4
-	li	10, 224
-	lxvd2x	14+32, 10, 8	# H^4h
+	SAVE_REGS
+	LOAD_HASH_TABLE
 
 	# initialize ICB: GHASH( IV ), IV - r7
 	lxvb16x	30+32, 0, 7	# load IV  - v30
 
-	mr	12, 5		# length
-	li	11, 0		# block index
+	mr	14, 3
+	mr	9, 4
 
 	# counter 1
 	vxor	31, 31, 31
 	vspltisb 22, 1
 	vsldoi	31, 31, 22,1	# counter 1
 
-	# load round key to VSR
-	lxv	0, 0(6)
-	lxv	1, 0x10(6)
-	lxv	2, 0x20(6)
-	lxv	3, 0x30(6)
-	lxv	4, 0x40(6)
-	lxv	5, 0x50(6)
-	lxv	6, 0x60(6)
-	lxv	7, 0x70(6)
-	lxv	8, 0x80(6)
-	lxv	9, 0x90(6)
-	lxv	10, 0xa0(6)
+	addis	11, 2, permx\@toc\@ha
+	addi	11, 11, permx\@toc\@l
+	lxv	10, 0(11)	# vs10: vpermxor vector
+	li	11, 0
 
-	# load rounds - 10 (128), 12 (192), 14 (256)
-	lwz	9,240(6)
+	lxv	0, 0(6)			# round key 0
 
 	#
-	# vxor	state, state, w # addroundkey
-	xxlor	32+29, 0, 0
-	vxor	15, 30, 29	# IV + round key - add round key 0
+	# Process different blocks
+	#
+	cmpdi	5, 128
+	blt	__Process_more_enc
 
-	cmpdi	9, 10
-	beq	Loop_aes_gcm_8x
+	# load 9 round keys
+	lxv	32+23, 16(6)		# round key 1
+	lxv	32+24, 32(6)		# round key 2
+	lxv	32+25, 48(6)		# round key 3
+	lxv	32+26, 64(6)		# round key 4
+	lxv	32+27, 80(6)		# round key 5
+	lxv	32+28, 96(6)		# round key 6
+	lxv	32+29, 112(6)		# round key 7
+	lxv	32+1, 128(6)		# round key 8
 
-	# load 2 more round keys (v11, v12)
-	lxv	11, 0xb0(6)
-	lxv	12, 0xc0(6)
+	# load rounds - 10 (128), 12 (192), 14 (256)
+	lwz	23, 240(6)		# n rounds
 
-	cmpdi	9, 12
-	beq	Loop_aes_gcm_8x
-
-	# load 2 more round keys (v11, v12, v13, v14)
-	lxv	13, 0xd0(6)
-	lxv	14, 0xe0(6)
-	cmpdi	9, 14
-	beq	Loop_aes_gcm_8x
-
-	b	aes_gcm_out
-
-.align 5
-Loop_aes_gcm_8x:
-	mr	14, 3
-	mr	9, 4
-
-	# n blocks
+__Process_encrypt:
+#
+# Process 8x AES/GCM blocks
+#
+__Process_8x_enc:
+	# 8x blocks
 	li	10, 128
-	divdu	10, 5, 10	# n 128 bytes-blocks
-	cmpdi	10, 0
-	beq	Loop_last_block
+	divdu	12, 5, 10	# n 128 bytes-blocks
 
-	vaddudm	30, 30, 31	# IV + counter
-	vxor	16, 30, 29
-	vaddudm	30, 30, 31
-	vxor	17, 30, 29
-	vaddudm	30, 30, 31
-	vxor	18, 30, 29
-	vaddudm	30, 30, 31
-	vxor	19, 30, 29
-	vaddudm	30, 30, 31
-	vxor	20, 30, 29
-	vaddudm	30, 30, 31
-	vxor	21, 30, 29
-	vaddudm	30, 30, 31
-	vxor	22, 30, 29
+	addi	12, 12, -1	# loop - 1
 
-	mtctr	10
+	vmr	15, 30		# first state: IV
+	vadduwm	16, 15, 31	# state + counter
+	vadduwm	17, 16, 31
+	vadduwm	18, 17, 31
+	vadduwm	19, 18, 31
+	vadduwm	20, 19, 31
+	vadduwm	21, 20, 31
+	vadduwm	22, 21, 31
+	xxlor	9, 32+22, 32+22	# save last state
+
+	# vxor  state, state, w # addroundkey
+	xxlxor	32+15, 32+15, 0      # IV + round key - add round key 0
+	xxlxor	32+16, 32+16, 0
+	xxlxor	32+17, 32+17, 0
+	xxlxor	32+18, 32+18, 0
+	xxlxor	32+19, 32+19, 0
+	xxlxor	32+20, 32+20, 0
+	xxlxor	32+21, 32+21, 0
+	xxlxor	32+22, 32+22, 0
 
 	li	15, 16
 	li	16, 32
@@ -616,523 +645,185 @@ Loop_aes_gcm_8x:
 	li	20, 96
 	li	21, 112
 
-	lwz	10, 240(6)
-
-Loop_8x_block:
-
-	lxvb16x		15, 0, 14	# load block
-	lxvb16x		16, 15, 14	# load block
-	lxvb16x		17, 16, 14	# load block
-	lxvb16x		18, 17, 14	# load block
-	lxvb16x		19, 18, 14	# load block
-	lxvb16x		20, 19, 14	# load block
-	lxvb16x		21, 20, 14	# load block
-	lxvb16x		22, 21, 14	# load block
-	addi		14, 14, 128
-
-	Loop_aes_middle8x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_next_ghash
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_next_ghash
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_next_ghash
-	b	aes_gcm_out
-
-Do_next_ghash:
-
 	#
-	# last round
-	vcipherlast     15, 15, 23
-	vcipherlast     16, 16, 23
+	# Pre-compute first 8 AES state and leave 1/3/5 more rounds
+	# for the loop.
+	#
+	addi	22, 23, -9		# process 8 keys
+	mtctr	22			# AES key loop
+	addi	10, 6, 144
 
-	xxlxor		47, 47, 15
-	stxvb16x        47, 0, 9	# store output
-	xxlxor		48, 48, 16
-	stxvb16x        48, 15, 9	# store output
+	LOOP_8AES_STATE			# process 8 AES keys
 
-	vcipherlast     17, 17, 23
-	vcipherlast     18, 18, 23
+__PreLoop_aes_state:
+	lxv	32+1, 0(10)		# round key
+	AES_CIPHER_8x 1
+	addi	10, 10, 16
+	bdnz	__PreLoop_aes_state
+	lxv	32+1, 0(10)		# last round key (v1)
 
-	xxlxor		49, 49, 17
-	stxvb16x        49, 16, 9	# store output
-	xxlxor		50, 50, 18
-	stxvb16x        50, 17, 9	# store output
+	cmpdi	12, 0			# Only one loop (8 block)
+	beq	__Finish_ghash
 
-	vcipherlast     19, 19, 23
-	vcipherlast     20, 20, 23
+#
+# Loop 8x blocks and compute ghash
+#
+__Loop_8x_block_enc:
+	PROCESS_8X_AES_STATES
 
-	xxlxor		51, 51, 19
-	stxvb16x        51, 18, 9	# store output
-	xxlxor		52, 52, 20
-	stxvb16x        52, 19, 9	# store output
+	# Compute ghash here
+	vxor	15, 15, 0
+	PPC_GFMUL128_8x
 
-	vcipherlast     21, 21, 23
-	vcipherlast     22, 22, 23
+	COMPUTE_STATES
 
-	xxlxor		53, 53, 21
-	stxvb16x        53, 20, 9	# store output
-	xxlxor		54, 54, 22
-	stxvb16x        54, 21, 9	# store output
-
-	addi		9, 9, 128
-
-	# ghash here
-	ppc_aes_gcm_ghash2_4x
-
-	xxlor	27+32, 0, 0
-	vaddudm 30, 30, 31		# IV + counter
-	vmr	29, 30
-	vxor    15, 30, 27		# add round key
-	vaddudm 30, 30, 31
-	vxor    16, 30, 27
-	vaddudm 30, 30, 31
-	vxor    17, 30, 27
-	vaddudm 30, 30, 31
-	vxor    18, 30, 27
-	vaddudm 30, 30, 31
-	vxor    19, 30, 27
-	vaddudm 30, 30, 31
-	vxor    20, 30, 27
-	vaddudm 30, 30, 31
-	vxor    21, 30, 27
-	vaddudm 30, 30, 31
-	vxor    22, 30, 27
-
-	addi    12, 12, -128
+	addi    5, 5, -128
 	addi    11, 11, 128
 
-	bdnz	Loop_8x_block
+	lxv	32+23, 16(6)		# round key 1
+	lxv	32+24, 32(6)		# round key 2
+	lxv	32+25, 48(6)		# round key 3
+	lxv	32+26, 64(6)		# round key 4
+	lxv	32+27, 80(6)		# round key 5
+	lxv	32+28, 96(6)		# round key 6
+	lxv	32+29, 112(6)		# round key 7
+	lxv	32+1, 128(6)		# round key 8
 
-	vmr	30, 29
+	# Compute first 8 AES state and leave 1/3/5 more rounds
+	# for the loop.
+	LOOP_8AES_STATE			# process 8 AES keys
+	mtctr	22			# AES key loop
+	addi	10, 6, 144
 
-Loop_last_block:
-	cmpdi   12, 0
+__LastLoop_aes_state:
+	lxv	32+1, 0(10)		# round key
+	AES_CIPHER_8x 1
+	addi	10, 10, 16
+	bdnz	__LastLoop_aes_state
+
+	lxv	32+1, 0(10)		# last round key (v1)
+
+	addi	12, 12, -1
+	cmpdi	12, 0
+	bne	__Loop_8x_block_enc
+
+	#
+	# Remainng blocks
+	#
+__Finish_ghash:
+	PROCESS_8X_AES_STATES
+
+	# Compute ghash here
+	vxor	15, 15, 0
+	PPC_GFMUL128_8x
+
+	# Update IV and Xi
+	xxlor	30+32, 9, 9		# last ctr
+	vadduwm	30, 30, 31		# increase ctr
+	stxvb16x 32+0, 0, 8		# update Xi
+
+	addi    5, 5, -128
+	addi    11, 11, 128
+
+	#
+	# Done 8x blocks
+	#
+
+	cmpdi   5, 0
 	beq     aes_gcm_out
 
-	# loop last few blocks
-	li      10, 16
-	divdu   10, 12, 10
+__Process_more_enc:
+	li	24, 1			# encrypt
+	bl	aes_gcm_crypt_1x
+	cmpdi   5, 0
+	beq     aes_gcm_out
 
-	mtctr   10
+	bl	__Process_partial
+	b	aes_gcm_out
 
-	lwz	10, 240(6)
+.size   ppc_aes_gcm_encrypt,.-ppc_aes_gcm_encrypt
 
-	cmpdi   12, 16
-	blt     Final_block
-
-.macro Loop_aes_middle_1x
-	xxlor	19+32, 1, 1
-	xxlor	20+32, 2, 2
-	xxlor	21+32, 3, 3
-	xxlor	22+32, 4, 4
-
-	vcipher 15, 15, 19
-	vcipher 15, 15, 20
-	vcipher 15, 15, 21
-	vcipher 15, 15, 22
-
-	xxlor	19+32, 5, 5
-	xxlor	20+32, 6, 6
-	xxlor	21+32, 7, 7
-	xxlor	22+32, 8, 8
-
-	vcipher 15, 15, 19
-	vcipher 15, 15, 20
-	vcipher 15, 15, 21
-	vcipher 15, 15, 22
-
-	xxlor	19+32, 9, 9
-	vcipher 15, 15, 19
-.endm
-
-Next_rem_block:
-	lxvb16x 15, 0, 14		# load block
-
-	Loop_aes_middle_1x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_next_1x
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_next_1x
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_next_1x
-
-Do_next_1x:
-	vcipherlast     15, 15, 23
-
-	xxlxor		47, 47, 15
-	stxvb16x	47, 0, 9	# store output
-	addi		14, 14, 16
-	addi		9, 9, 16
-
-	vmr		28, 15
-	ppc_update_hash_1x
-
-	addi		12, 12, -16
-	addi		11, 11, 16
-	xxlor		19+32, 0, 0
-	vaddudm		30, 30, 31		# IV + counter
-	vxor		15, 30, 19		# add round key
-
-	bdnz	Next_rem_block
-
-	cmpdi	12, 0
-	beq	aes_gcm_out
-
-Final_block:
-	Loop_aes_middle_1x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_final_1x
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_final_1x
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_final_1x
-
-Do_final_1x:
-	vcipherlast     15, 15, 23
-
-	lxvb16x	15, 0, 14		# load last block
-	xxlxor	47, 47, 15
-
-	# create partial block mask
-	li	15, 16
-	sub	15, 15, 12		# index to the mask
-
-	vspltisb	16, -1		# first 16 bytes - 0xffff...ff
-	vspltisb	17, 0		# second 16 bytes - 0x0000...00
-	li	10, 192
-	stvx	16, 10, 1
-	addi	10, 10, 16
-	stvx	17, 10, 1
-
-	addi	10, 1, 192
-	lxvb16x	16, 15, 10		# load partial block mask
-	xxland	47, 47, 16
-
-	vmr	28, 15
-	ppc_update_hash_1x
-
-	# * should store only the remaining bytes.
-	bl	Write_partial_block
-
-	b aes_gcm_out
-
-#
-# Write partial block
-# r9 - output
-# r12 - remaining bytes
-# v15 - partial input data
-#
-Write_partial_block:
-	li		10, 192
-	stxvb16x	15+32, 10, 1		# last block
-
-	#add		10, 9, 11		# Output
-	addi		10, 9, -1
-	addi		16, 1, 191
-
-        mtctr		12			# remaining bytes
-	li		15, 0
-
-Write_last_byte:
-        lbzu		14, 1(16)
-	stbu		14, 1(10)
-        bdnz		Write_last_byte
-	blr
-
-aes_gcm_out:
-	# out = state
-	stxvb16x	32, 0, 8		# write out Xi
-	add	3, 11, 12		# return count
-
-	li	9, 256
-	lvx	20, 9, 1
-	addi	9, 9, 16
-	lvx	21, 9, 1
-	addi	9, 9, 16
-	lvx	22, 9, 1
-	addi	9, 9, 16
-	lvx	23, 9, 1
-	addi	9, 9, 16
-	lvx	24, 9, 1
-	addi	9, 9, 16
-	lvx	25, 9, 1
-	addi	9, 9, 16
-	lvx	26, 9, 1
-	addi	9, 9, 16
-	lvx	27, 9, 1
-	addi	9, 9, 16
-	lvx	28, 9, 1
-	addi	9, 9, 16
-	lvx	29, 9, 1
-	addi	9, 9, 16
-	lvx	30, 9, 1
-	addi	9, 9, 16
-	lvx	31, 9, 1
-
-	ld	0, 528(1)
-	ld      14,112(1)
-	ld      15,120(1)
-	ld      16,128(1)
-	ld      17,136(1)
-	ld      18,144(1)
-	ld      19,152(1)
-	ld      20,160(1)
-	ld	21,168(1)
-
-	mtlr	0
-	addi	1, 1, 512
-	blr
-
-#
+################################################################################
+# ppc_aes_gcm_decrypt (const void *inp, void *out, size_t len,
+#               const char *rk, unsigned char iv[16], void *Xip);
 # 8x Decrypt
 #
+################################################################################
 .global ppc_aes_gcm_decrypt
 .align 5
 ppc_aes_gcm_decrypt:
-_ppc_aes_gcm_decrypt:
+.localentry	ppc_aes_gcm_decrypt, 0
 
-	stdu 1,-512(1)
-	mflr 0
-
-	std	14,112(1)
-	std	15,120(1)
-	std	16,128(1)
-	std	17,136(1)
-	std	18,144(1)
-	std	19,152(1)
-	std	20,160(1)
-	std	21,168(1)
-	li	9, 256
-	stvx	20, 9, 1
-	addi	9, 9, 16
-	stvx	21, 9, 1
-	addi	9, 9, 16
-	stvx	22, 9, 1
-	addi	9, 9, 16
-	stvx	23, 9, 1
-	addi	9, 9, 16
-	stvx	24, 9, 1
-	addi	9, 9, 16
-	stvx	25, 9, 1
-	addi	9, 9, 16
-	stvx	26, 9, 1
-	addi	9, 9, 16
-	stvx	27, 9, 1
-	addi	9, 9, 16
-	stvx	28, 9, 1
-	addi	9, 9, 16
-	stvx	29, 9, 1
-	addi	9, 9, 16
-	stvx	30, 9, 1
-	addi	9, 9, 16
-	stvx	31, 9, 1
-	std	0, 528(1)
-
-	# Load Xi
-	lxvb16x	32, 0, 8	# load Xi
-
-	# load Hash - h^4, h^3, h^2, h
-	li	10, 32
-	lxvd2x	2+32, 10, 8	# H Poli
-	li	10, 48
-	lxvd2x	3+32, 10, 8	# Hl
-	li	10, 64
-	lxvd2x	4+32, 10, 8	# H
-	li	10, 80
-	lxvd2x	5+32, 10, 8	# Hh
-
-	li	10, 96
-	lxvd2x	6+32, 10, 8	# H^2l
-	li	10, 112
-	lxvd2x	7+32, 10, 8	# H^2
-	li	10, 128
-	lxvd2x	8+32, 10, 8	# H^2h
-
-	li	10, 144
-	lxvd2x	9+32, 10, 8	# H^3l
-	li	10, 160
-	lxvd2x	10+32, 10, 8	# H^3
-	li	10, 176
-	lxvd2x	11+32, 10, 8	# H^3h
-
-	li	10, 192
-	lxvd2x	12+32, 10, 8	# H^4l
-	li	10, 208
-	lxvd2x	13+32, 10, 8	# H^4
-	li	10, 224
-	lxvd2x	14+32, 10, 8	# H^4h
+	SAVE_REGS
+	LOAD_HASH_TABLE
 
 	# initialize ICB: GHASH( IV ), IV - r7
 	lxvb16x	30+32, 0, 7	# load IV  - v30
 
-	mr	12, 5		# length
-	li	11, 0		# block index
+	mr	14, 3
+	mr	9, 4
 
 	# counter 1
 	vxor	31, 31, 31
 	vspltisb 22, 1
 	vsldoi	31, 31, 22,1	# counter 1
 
-	# load round key to VSR
-	lxv	0, 0(6)
-	lxv	1, 0x10(6)
-	lxv	2, 0x20(6)
-	lxv	3, 0x30(6)
-	lxv	4, 0x40(6)
-	lxv	5, 0x50(6)
-	lxv	6, 0x60(6)
-	lxv	7, 0x70(6)
-	lxv	8, 0x80(6)
-	lxv	9, 0x90(6)
-	lxv	10, 0xa0(6)
+	addis	11, 2, permx\@toc\@ha
+	addi	11, 11, permx\@toc\@l
+	lxv	10, 0(11)	# vs10: vpermxor vector
+	li	11, 0
 
-	# load rounds - 10 (128), 12 (192), 14 (256)
-	lwz	9,240(6)
+	lxv	0, 0(6)			# round key 0
 
 	#
-	# vxor	state, state, w # addroundkey
-	xxlor	32+29, 0, 0
-	vxor	15, 30, 29	# IV + round key - add round key 0
+	# Process different blocks
+	#
+	cmpdi	5, 128
+	blt	__Process_more_dec
 
-	cmpdi	9, 10
-	beq	Loop_aes_gcm_8x_dec
+	# load 9 round keys
+	lxv	32+23, 16(6)		# round key 1
+	lxv	32+24, 32(6)		# round key 2
+	lxv	32+25, 48(6)		# round key 3
+	lxv	32+26, 64(6)		# round key 4
+	lxv	32+27, 80(6)		# round key 5
+	lxv	32+28, 96(6)		# round key 6
+	lxv	32+29, 112(6)		# round key 7
+	lxv	32+1, 128(6)		# round key 8
 
-	# load 2 more round keys (v11, v12)
-	lxv	11, 0xb0(6)
-	lxv	12, 0xc0(6)
+	# load rounds - 10 (128), 12 (192), 14 (256)
+	lwz	23, 240(6)		# n rounds
 
-	cmpdi	9, 12
-	beq	Loop_aes_gcm_8x_dec
-
-	# load 2 more round keys (v11, v12, v13, v14)
-	lxv	13, 0xd0(6)
-	lxv	14, 0xe0(6)
-	cmpdi	9, 14
-	beq	Loop_aes_gcm_8x_dec
-
-	b	aes_gcm_out
-
-.align 5
-Loop_aes_gcm_8x_dec:
-	mr	14, 3
-	mr	9, 4
-
-	# n blocks
+__Process_decrypt:
+#
+# Process 8x AES/GCM blocks
+#
+__Process_8x_dec:
+	# 8x blocks
 	li	10, 128
-	divdu	10, 5, 10	# n 128 bytes-blocks
-	cmpdi	10, 0
-	beq	Loop_last_block_dec
+	divdu	12, 5, 10	# n 128 bytes-blocks
 
-	vaddudm	30, 30, 31	# IV + counter
-	vxor	16, 30, 29
-	vaddudm	30, 30, 31
-	vxor	17, 30, 29
-	vaddudm	30, 30, 31
-	vxor	18, 30, 29
-	vaddudm	30, 30, 31
-	vxor	19, 30, 29
-	vaddudm	30, 30, 31
-	vxor	20, 30, 29
-	vaddudm	30, 30, 31
-	vxor	21, 30, 29
-	vaddudm	30, 30, 31
-	vxor	22, 30, 29
+	addi	12, 12, -1	# loop - 1
 
-	mtctr	10
+	vmr	15, 30		# first state: IV
+	vadduwm	16, 15, 31	# state + counter
+	vadduwm	17, 16, 31
+	vadduwm	18, 17, 31
+	vadduwm	19, 18, 31
+	vadduwm	20, 19, 31
+	vadduwm	21, 20, 31
+	vadduwm	22, 21, 31
+	xxlor	9, 32+22, 32+22	# save last state
+
+	# vxor  state, state, w # addroundkey
+	xxlxor	32+15, 32+15, 0      # IV + round key - add round key 0
+	xxlxor	32+16, 32+16, 0
+	xxlxor	32+17, 32+17, 0
+	xxlxor	32+18, 32+18, 0
+	xxlxor	32+19, 32+19, 0
+	xxlxor	32+20, 32+20, 0
+	xxlxor	32+21, 32+21, 0
+	xxlxor	32+22, 32+22, 0
 
 	li	15, 16
 	li	16, 32
@@ -1142,297 +833,219 @@ Loop_aes_gcm_8x_dec:
 	li	20, 96
 	li	21, 112
 
-	lwz	10, 240(6)
-
-Loop_8x_block_dec:
-
-	lxvb16x		15, 0, 14	# load block
-	lxvb16x		16, 15, 14	# load block
-	lxvb16x		17, 16, 14	# load block
-	lxvb16x		18, 17, 14	# load block
-	lxvb16x		19, 18, 14	# load block
-	lxvb16x		20, 19, 14	# load block
-	lxvb16x		21, 20, 14	# load block
-	lxvb16x		22, 21, 14	# load block
-	addi		14, 14, 128
-
-	Loop_aes_middle8x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_last_aes_dec
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_last_aes_dec
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	16, 16, 23
-	vcipher	17, 17, 23
-	vcipher	18, 18, 23
-	vcipher	19, 19, 23
-	vcipher	20, 20, 23
-	vcipher	21, 21, 23
-	vcipher	22, 22, 23
-
-	vcipher	15, 15, 24
-	vcipher	16, 16, 24
-	vcipher	17, 17, 24
-	vcipher	18, 18, 24
-	vcipher	19, 19, 24
-	vcipher	20, 20, 24
-	vcipher	21, 21, 24
-	vcipher	22, 22, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_last_aes_dec
-	b	aes_gcm_out
-
-Do_last_aes_dec:
-
 	#
-	# last round
-	vcipherlast     15, 15, 23
-	vcipherlast     16, 16, 23
+	# Pre-compute first 8 AES state and leave 1/3/5 more rounds
+	# for the loop.
+	#
+	addi	22, 23, -9		# process 8 keys
+	mtctr	22			# AES key loop
+	addi	10, 6, 144
 
-	xxlxor		47, 47, 15
-	stxvb16x        47, 0, 9	# store output
-	xxlxor		48, 48, 16
-	stxvb16x        48, 15, 9	# store output
+	LOOP_8AES_STATE			# process 8 AES keys
 
-	vcipherlast     17, 17, 23
-	vcipherlast     18, 18, 23
+__PreLoop_aes_state_dec:
+	lxv	32+1, 0(10)		# round key
+	AES_CIPHER_8x 1
+	addi	10, 10, 16
+	bdnz	__PreLoop_aes_state_dec
+	lxv	32+1, 0(10)		# last round key (v1)
 
-	xxlxor		49, 49, 17
-	stxvb16x        49, 16, 9	# store output
-	xxlxor		50, 50, 18
-	stxvb16x        50, 17, 9	# store output
+	cmpdi	12, 0			# Only one loop (8 block)
+	beq	__Finish_ghash_dec
 
-	vcipherlast     19, 19, 23
-	vcipherlast     20, 20, 23
+#
+# Loop 8x blocks and compute ghash
+#
+__Loop_8x_block_dec:
+	vcipherlast     15, 15, 1
+	vcipherlast     16, 16, 1
+	vcipherlast     17, 17, 1
+	vcipherlast     18, 18, 1
+	vcipherlast     19, 19, 1
+	vcipherlast     20, 20, 1
+	vcipherlast     21, 21, 1
+	vcipherlast     22, 22, 1
 
-	xxlxor		51, 51, 19
-	stxvb16x        51, 18, 9	# store output
-	xxlxor		52, 52, 20
-	stxvb16x        52, 19, 9	# store output
+	lxvb16x	32+23, 0, 14	# load block
+	lxvb16x	32+24, 15, 14	# load block
+	lxvb16x	32+25, 16, 14	# load block
+	lxvb16x	32+26, 17, 14	# load block
+	lxvb16x	32+27, 18, 14	# load block
+	lxvb16x	32+28, 19, 14	# load block
+	lxvb16x	32+29, 20, 14	# load block
+	lxvb16x	32+30, 21, 14	# load block
+	addi	14, 14, 128
 
-	vcipherlast     21, 21, 23
-	vcipherlast     22, 22, 23
+	vxor	15, 15, 23
+	vxor	16, 16, 24
+	vxor	17, 17, 25
+	vxor	18, 18, 26
+	vxor	19, 19, 27
+	vxor	20, 20, 28
+	vxor	21, 21, 29
+	vxor	22, 22, 30
 
-	xxlxor		53, 53, 21
-	stxvb16x        53, 20, 9	# store output
-	xxlxor		54, 54, 22
-	stxvb16x        54, 21, 9	# store output
+	stxvb16x 47, 0, 9	# store output
+	stxvb16x 48, 15, 9	# store output
+	stxvb16x 49, 16, 9	# store output
+	stxvb16x 50, 17, 9	# store output
+	stxvb16x 51, 18, 9	# store output
+	stxvb16x 52, 19, 9	# store output
+	stxvb16x 53, 20, 9	# store output
+	stxvb16x 54, 21, 9	# store output
 
-	addi		9, 9, 128
+	addi	9, 9, 128
 
-	xxlor		15+32, 15, 15
-	xxlor		16+32, 16, 16
-	xxlor		17+32, 17, 17
-	xxlor		18+32, 18, 18
-	xxlor		19+32, 19, 19
-	xxlor		20+32, 20, 20
-	xxlor		21+32, 21, 21
-	xxlor		22+32, 22, 22
+	vmr	15, 23
+	vmr	16, 24
+	vmr	17, 25
+	vmr	18, 26
+	vmr	19, 27
+	vmr	20, 28
+	vmr	21, 29
+	vmr	22, 30
 
 	# ghash here
-	ppc_aes_gcm_ghash2_4x
+	vxor	15, 15, 0
+	PPC_GFMUL128_8x
 
-	xxlor	27+32, 0, 0
-	vaddudm 30, 30, 31		# IV + counter
-	vmr	29, 30
-	vxor    15, 30, 27		# add round key
-	vaddudm 30, 30, 31
-	vxor    16, 30, 27
-	vaddudm 30, 30, 31
-	vxor    17, 30, 27
-	vaddudm 30, 30, 31
-	vxor    18, 30, 27
-	vaddudm 30, 30, 31
-	vxor    19, 30, 27
-	vaddudm 30, 30, 31
-	vxor    20, 30, 27
-	vaddudm 30, 30, 31
-	vxor    21, 30, 27
-	vaddudm 30, 30, 31
-	vxor    22, 30, 27
-	addi    12, 12, -128
+	xxlor	32+15, 9, 9		# last state
+	vadduwm 15, 15, 31		# state + counter
+	vadduwm 16, 15, 31
+	vadduwm 17, 16, 31
+	vadduwm 18, 17, 31
+	vadduwm 19, 18, 31
+	vadduwm 20, 19, 31
+	vadduwm 21, 20, 31
+	vadduwm 22, 21, 31
+	xxlor	9, 32+22, 32+22		# save last state
+
+	xxlor	32+27, 0, 0		# restore roundkey 0
+        vxor    15, 15, 27		# IV + round key - add round key 0
+	vxor	16, 16, 27
+	vxor	17, 17, 27
+	vxor	18, 18, 27
+	vxor	19, 19, 27
+	vxor	20, 20, 27
+	vxor	21, 21, 27
+	vxor	22, 22, 27
+
+	addi    5, 5, -128
 	addi    11, 11, 128
 
-	bdnz	Loop_8x_block_dec
+	lxv	32+23, 16(6)		# round key 1
+	lxv	32+24, 32(6)		# round key 2
+	lxv	32+25, 48(6)		# round key 3
+	lxv	32+26, 64(6)		# round key 4
+	lxv	32+27, 80(6)		# round key 5
+	lxv	32+28, 96(6)		# round key 6
+	lxv	32+29, 112(6)		# round key 7
+	lxv	32+1, 128(6)		# round key 8
 
-	vmr	30, 29
+	LOOP_8AES_STATE			# process 8 AES keys
+	mtctr	22			# AES key loop
+	addi	10, 6, 144
+__LastLoop_aes_state_dec:
+	lxv	32+1, 0(10)		# round key
+	AES_CIPHER_8x 1
+	addi	10, 10, 16
+	bdnz	__LastLoop_aes_state_dec
+	lxv	32+1, 0(10)		# last round key (v1)
 
-Loop_last_block_dec:
-	cmpdi   12, 0
+	addi	12, 12, -1
+	cmpdi	12, 0
+	bne	__Loop_8x_block_dec
+
+__Finish_ghash_dec:
+	vcipherlast     15, 15, 1
+	vcipherlast     16, 16, 1
+	vcipherlast     17, 17, 1
+	vcipherlast     18, 18, 1
+	vcipherlast     19, 19, 1
+	vcipherlast     20, 20, 1
+	vcipherlast     21, 21, 1
+	vcipherlast     22, 22, 1
+
+	lxvb16x	32+23, 0, 14	# load block
+	lxvb16x	32+24, 15, 14	# load block
+	lxvb16x	32+25, 16, 14	# load block
+	lxvb16x	32+26, 17, 14	# load block
+	lxvb16x	32+27, 18, 14	# load block
+	lxvb16x	32+28, 19, 14	# load block
+	lxvb16x	32+29, 20, 14	# load block
+	lxvb16x	32+30, 21, 14	# load block
+	addi	14, 14, 128
+
+	vxor	15, 15, 23
+	vxor	16, 16, 24
+	vxor	17, 17, 25
+	vxor	18, 18, 26
+	vxor	19, 19, 27
+	vxor	20, 20, 28
+	vxor	21, 21, 29
+	vxor	22, 22, 30
+
+	stxvb16x 47, 0, 9	# store output
+	stxvb16x 48, 15, 9	# store output
+	stxvb16x 49, 16, 9	# store output
+	stxvb16x 50, 17, 9	# store output
+	stxvb16x 51, 18, 9	# store output
+	stxvb16x 52, 19, 9	# store output
+	stxvb16x 53, 20, 9	# store output
+	stxvb16x 54, 21, 9	# store output
+	addi	9, 9, 128
+
+	vxor	15, 23, 0
+	vmr	16, 24
+	vmr	17, 25
+	vmr	18, 26
+	vmr	19, 27
+	vmr	20, 28
+	vmr	21, 29
+	vmr	22, 30
+
+	#vxor	15, 15, 0
+	PPC_GFMUL128_8x
+
+	xxlor	30+32, 9, 9		# last ctr
+	vadduwm	30, 30, 31		# increase ctr
+	stxvb16x 32+0, 0, 8		# update Xi
+
+	addi    5, 5, -128
+	addi    11, 11, 128
+
+	#
+	# Done 8x blocks
+	#
+
+	cmpdi   5, 0
 	beq     aes_gcm_out
 
-	# loop last few blocks
-	li      10, 16
-	divdu   10, 12, 10
+__Process_more_dec:
+	li	24, 0			# decrypt
+	bl	aes_gcm_crypt_1x
+	cmpdi   5, 0
+	beq     aes_gcm_out
 
-	mtctr   10
+	bl	__Process_partial
+	b	aes_gcm_out
+.size   ppc_aes_gcm_decrypt,.-ppc_aes_gcm_decrypt
 
-	lwz	10,240(6)
+aes_gcm_out:
+.localentry	aes_gcm_out,0
 
-	cmpdi   12, 16
-	blt     Final_block_dec
+	mr	3, 11			# return count
 
-Next_rem_block_dec:
-	lxvb16x 15, 0, 14		# load block
+	RESTORE_REGS
+	blr
+.size	aes_gcm_out,.-aes_gcm_out
 
-	Loop_aes_middle_1x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_next_1x_dec
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_next_1x_dec
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_next_1x_dec
-
-Do_next_1x_dec:
-	vcipherlast     15, 15, 23
-
-	xxlxor  47, 47, 15
-	stxvb16x        47, 0, 9	# store output
-	addi	14, 14, 16
-	addi	9, 9, 16
-
-	xxlor	28+32, 15, 15
-	ppc_update_hash_1x
-
-	addi    12, 12, -16
-	addi    11, 11, 16
-	xxlor	19+32, 0, 0
-	vaddudm 30, 30, 31		# IV + counter
-	vxor	15, 30, 19		# add round key
-
-	bdnz	Next_rem_block_dec
-
-	cmpdi	12, 0
-	beq	aes_gcm_out
-
-Final_block_dec:
-	Loop_aes_middle_1x
-
-	xxlor	23+32, 10, 10
-
-	cmpdi	10, 10
-	beq	Do_final_1x_dec
-
-	# 192 bits
-	xxlor	24+32, 11, 11
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 12, 12
-
-	cmpdi	10, 12
-	beq	Do_final_1x_dec
-
-	# 256 bits
-	xxlor	24+32, 13, 13
-
-	vcipher	15, 15, 23
-	vcipher	15, 15, 24
-
-	xxlor	23+32, 14, 14
-
-	cmpdi	10, 14
-	beq	Do_final_1x_dec
-
-Do_final_1x_dec:
-	vcipherlast     15, 15, 23
-
-	lxvb16x	15, 0, 14		# load block
-	xxlxor	47, 47, 15
-
-	# create partial block mask
-	li	15, 16
-	sub	15, 15, 12		# index to the mask
-
-	vspltisb	16, -1		# first 16 bytes - 0xffff...ff
-	vspltisb	17, 0		# second 16 bytes - 0x0000...00
-	li	10, 192
-	stvx	16, 10, 1
-	addi	10, 10, 16
-	stvx	17, 10, 1
-
-	addi	10, 1, 192
-	lxvb16x	16, 15, 10		# load block mask
-	xxland	47, 47, 16
-
-	xxlor	28+32, 15, 15
-	ppc_update_hash_1x
-
-	# * should store only the remaining bytes.
-	bl	Write_partial_block
-
-	b aes_gcm_out
-
-
+.rodata
+.align 4
+# for vector permute and xor
+permx:
+.long 0x4c5d6e7f, 0x08192a3b, 0xc4d5e6f7, 0x8091a2b3
 ___
 
-foreach (split("\n",$code)) {
-	s/\`([^\`]*)\`/eval $1/geo;
-
-	if ($flavour =~ /le$/o) {	# little-endian
-	    s/le\?//o		or
-	    s/be\?/#be#/o;
-	} else {
-	    s/le\?/#le#/o	or
-	    s/be\?//o;
-	}
-	print $_,"\n";
-}
-
-close STDOUT or die "error closing STDOUT: $!"; # enforce flush
+print $code;
+close STDOUT or die "error closing STDOUT: $!";

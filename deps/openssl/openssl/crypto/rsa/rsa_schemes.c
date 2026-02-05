@@ -15,8 +15,8 @@
 #include "crypto/rsa.h"
 
 static int meth2nid(const void *meth,
-                    int (*meth_is_a)(const void *meth, const char *name),
-                    const OSSL_ITEM *items, size_t items_n)
+    int (*meth_is_a)(const void *meth, const char *name),
+    const OSSL_ITEM *items, size_t items_n)
 {
     size_t i;
 
@@ -53,13 +53,13 @@ static const char *nid2name(int meth, const OSSL_ITEM *items, size_t items_n)
  * }
  */
 static const OSSL_ITEM oaeppss_name_nid_map[] = {
-    { NID_sha1,         OSSL_DIGEST_NAME_SHA1         },
-    { NID_sha224,       OSSL_DIGEST_NAME_SHA2_224     },
-    { NID_sha256,       OSSL_DIGEST_NAME_SHA2_256     },
-    { NID_sha384,       OSSL_DIGEST_NAME_SHA2_384     },
-    { NID_sha512,       OSSL_DIGEST_NAME_SHA2_512     },
-    { NID_sha512_224,   OSSL_DIGEST_NAME_SHA2_512_224 },
-    { NID_sha512_256,   OSSL_DIGEST_NAME_SHA2_512_256 },
+    { NID_sha1, OSSL_DIGEST_NAME_SHA1 },
+    { NID_sha224, OSSL_DIGEST_NAME_SHA2_224 },
+    { NID_sha256, OSSL_DIGEST_NAME_SHA2_256 },
+    { NID_sha384, OSSL_DIGEST_NAME_SHA2_384 },
+    { NID_sha512, OSSL_DIGEST_NAME_SHA2_512 },
+    { NID_sha512_224, OSSL_DIGEST_NAME_SHA2_512_224 },
+    { NID_sha512_256, OSSL_DIGEST_NAME_SHA2_512_256 },
 };
 
 static int md_is_a(const void *md, const char *name)
@@ -70,7 +70,7 @@ static int md_is_a(const void *md, const char *name)
 int ossl_rsa_oaeppss_md2nid(const EVP_MD *md)
 {
     return meth2nid(md, md_is_a,
-                    oaeppss_name_nid_map, OSSL_NELEM(oaeppss_name_nid_map));
+        oaeppss_name_nid_map, OSSL_NELEM(oaeppss_name_nid_map));
 }
 
 const char *ossl_rsa_oaeppss_nid2name(int md)

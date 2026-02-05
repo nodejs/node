@@ -12,16 +12,16 @@
 #include "prov/der_sm2.h"
 
 /* Aliases so we can have a uniform MD_CASE */
-#define ossl_der_oid_id_sm2_with_sm3   ossl_der_oid_sm2_with_SM3
+#define ossl_der_oid_id_sm2_with_sm3 ossl_der_oid_sm2_with_SM3
 
-#define MD_CASE(name)                                                   \
-    case NID_##name:                                                    \
-        precompiled = ossl_der_oid_id_sm2_with_##name;                  \
-        precompiled_sz = sizeof(ossl_der_oid_id_sm2_with_##name);       \
+#define MD_CASE(name)                                             \
+    case NID_##name:                                              \
+        precompiled = ossl_der_oid_id_sm2_with_##name;            \
+        precompiled_sz = sizeof(ossl_der_oid_id_sm2_with_##name); \
         break;
 
 int ossl_DER_w_algorithmIdentifier_SM2_with_MD(WPACKET *pkt, int cont,
-                                               EC_KEY *ec, int mdnid)
+    EC_KEY *ec, int mdnid)
 {
     const unsigned char *precompiled = NULL;
     size_t precompiled_sz = 0;

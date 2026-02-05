@@ -37,8 +37,8 @@ X509 *X509_REQ_to_X509(X509_REQ *r, int days, EVP_PKEY *pkey)
             goto err;
         if (!ASN1_INTEGER_set(xi->version, 2))
             goto err;
-/*-     xi->extensions=ri->attributes; <- bad, should not ever be done
-        ri->attributes=NULL; */
+        /*-     xi->extensions=ri->attributes; <- bad, should not ever be done
+                ri->attributes=NULL; */
     }
 
     xn = X509_REQ_get_subject_name(r);
@@ -49,8 +49,7 @@ X509 *X509_REQ_to_X509(X509_REQ *r, int days, EVP_PKEY *pkey)
 
     if (X509_gmtime_adj(xi->validity.notBefore, 0) == NULL)
         goto err;
-    if (X509_gmtime_adj(xi->validity.notAfter, (long)60 * 60 * 24 * days) ==
-        NULL)
+    if (X509_gmtime_adj(xi->validity.notAfter, (long)60 * 60 * 24 * days) == NULL)
         goto err;
 
     pubkey = X509_REQ_get0_pubkey(r);
@@ -61,7 +60,7 @@ X509 *X509_REQ_to_X509(X509_REQ *r, int days, EVP_PKEY *pkey)
         goto err;
     return ret;
 
- err:
+err:
     X509_free(ret);
     return NULL;
 }

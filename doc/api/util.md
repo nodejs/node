@@ -582,7 +582,7 @@ changes:
 
 > Stability: 1.1 - Active development
 
-* `frameCount` {number} Optional number of frames to capture as call site objects.
+* `frameCount` {integer} Optional number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
 * `options` {Object} Optional
   * `sourceMap` {boolean} Reconstruct the original location in the stacktrace from the source-map.
@@ -3456,7 +3456,7 @@ deprecated: v24.2.0
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
 
-**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
 If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
@@ -3806,6 +3806,12 @@ Node.js modules. The community found and used it anyway.
 
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`][].
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
 
 ### `util.isArray(object)`
 
