@@ -8,6 +8,21 @@
 namespace node {
 namespace json_parser {
 
+class JsonParser {
+ public:
+  JsonParser();
+  ~JsonParser();
+
+  JsonParser(const JsonParser&) = delete;
+  JsonParser& operator=(const JsonParser&) = delete;
+
+  void* GetParser();
+
+ private:
+  class Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
 void Initialize(v8::Local<v8::Object> target,
                 v8::Local<v8::Value> unused,
                 v8::Local<v8::Context> context,

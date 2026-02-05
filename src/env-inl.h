@@ -30,6 +30,7 @@
 #include "node.h"
 #include "node_context_data.h"
 #include "node_internals.h"
+#include "node_json_parser.h"
 #include "node_perf_common.h"
 #include "node_realm-inl.h"
 #include "util-inl.h"
@@ -416,6 +417,13 @@ inline std::vector<double>* Environment::destroy_async_id_list() {
 
 inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
+}
+
+inline json_parser::JsonParser* Environment::json_parser() {
+  if (!json_parser_) {
+    json_parser_ = std::make_unique<json_parser::JsonParser>();
+  }
+  return json_parser_.get();
 }
 
 inline const EmbedderPreloadCallback& Environment::embedder_preload() const {

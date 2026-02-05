@@ -109,6 +109,10 @@ namespace loader {
 class ModuleWrap;
 }  // namespace loader
 
+namespace json_parser {
+class JsonParser;
+}  // namespace json_parser
+
 class Environment;
 class Realm;
 
@@ -765,6 +769,7 @@ class Environment final : public MemoryRetainer {
   inline std::vector<double>* destroy_async_id_list();
 
   builtins::BuiltinLoader* builtin_loader();
+  json_parser::JsonParser* json_parser();
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
 
@@ -1246,6 +1251,7 @@ class Environment final : public MemoryRetainer {
   std::unique_ptr<PrincipalRealm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
+  std::unique_ptr<json_parser::JsonParser> json_parser_;
   EmbedderPreloadCallback embedder_preload_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep

@@ -16,6 +16,19 @@
 namespace node {
 namespace json_parser {
 
+class JsonParser::Impl {
+ public:
+  simdjson::dom::parser parser;
+};
+
+JsonParser::JsonParser() : impl_(std::make_unique<Impl>()) {}
+
+JsonParser::~JsonParser() = default;
+
+void* JsonParser::GetParser() {
+  return &impl_->parser;
+}
+
 using std::string;
 
 using v8::Array;
@@ -150,15 +163,18 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
   }
 }
 
-MaybeLocal<Value> ParseInternal(Isolate* isolate,
+MaybeLocal<Value> ParseInternal(Environment* env,
                                const char* data,
                                size_t length) {
+  Isolate* isolate = env->isolate();
   simdjson::padded_string padded_string(data, length);
 
-  simdjson::dom::parser parser;
+  // Get the cached parser from the Environment
+  simdjson::dom::parser* parser = static_cast<simdjson::dom::parser*>(
+      env->json_parser()->GetParser());
   simdjson::dom::element doc;
 
-  simdjson::error_code error = parser.parse(padded_string).get(doc);
+  simdjson::error_code error = parser->parse(padded_string).get(doc);
 
   if (error) {
     // TODO(araujogui): create a ERR_INVALID_JSON macro
@@ -171,25 +187,27 @@ MaybeLocal<Value> ParseInternal(Isolate* isolate,
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   if (args.Length() < 1 || !args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(args.GetIsolate(),
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
                                "The \"text\" argument must be a string.");
     return;
   }
 
   Local<String> json_str = args[0].As<String>();
 
-  string str = ObjectToString(args.GetIsolate(), json_str);
+  string str = ObjectToString(env->isolate(), json_str);
 
   Local<Value> result;
-  if (!ParseInternal(args.GetIsolate(), str.data(), str.size()).ToLocal(&result))
+  if (!ParseInternal(env, str.data(), str.size()).ToLocal(&result))
     return;
 
   args.GetReturnValue().Set(result);
 }
 
 void ParseFromBuffer(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   if (args.Length() < 1) {
     THROW_ERR_INVALID_ARG_TYPE(
@@ -216,7 +234,7 @@ void ParseFromBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
-  if (!ParseInternal(isolate, data, length).ToLocal(&result)) return;
+  if (!ParseInternal(env, data, length).ToLocal(&result)) return;
 
   args.GetReturnValue().Set(result);
 }
