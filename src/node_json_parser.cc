@@ -19,6 +19,8 @@ namespace json_parser {
 using std::string;
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -148,18 +150,10 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
   }
 }
 
-void Parse(const FunctionCallbackInfo<Value>& args) {
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(args.GetIsolate(),
-                               "The \"text\" argument must be a string.");
-    return;
-  }
-
-  Local<String> json_str = args[0].As<String>();
-
-  // TODO(araujogui): Remove memory copy
-  string key = ObjectToString(args.GetIsolate(), json_str);
-  simdjson::padded_string padded_string(key);
+MaybeLocal<Value> ParseInternal(Isolate* isolate,
+                               const char* data,
+                               size_t length) {
+  simdjson::padded_string padded_string(data, length);
 
   simdjson::dom::parser parser;
   simdjson::dom::element doc;
@@ -169,19 +163,67 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   if (error) {
     // TODO(araujogui): create a ERR_INVALID_JSON macro
     THROW_ERR_SOURCE_PHASE_NOT_DEFINED(
-        args.GetIsolate(), "The \"json\" argument must be a string.");
+        isolate, "The \"json\" argument must be valid JSON.");
+    return MaybeLocal<Value>();
+  }
+
+  return ConvertSimdjsonElement(isolate, doc);
+}
+
+void Parse(const FunctionCallbackInfo<Value>& args) {
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(args.GetIsolate(),
+                               "The \"text\" argument must be a string.");
+    return;
+  }
+
+  Local<String> json_str = args[0].As<String>();
+
+  string str = ObjectToString(args.GetIsolate(), json_str);
+
+  Local<Value> result;
+  if (!ParseInternal(args.GetIsolate(), str.data(), str.size()).ToLocal(&result))
+    return;
+
+  args.GetReturnValue().Set(result);
+}
+
+void ParseFromBuffer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate, "The \"buffer\" argument must be an ArrayBuffer or a view.");
+    return;
+  }
+
+  const char* data;
+  size_t length;
+
+  if (args[0]->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+    Local<ArrayBuffer> buffer = view->Buffer();
+    data = static_cast<const char*>(buffer->Data()) + view->ByteOffset();
+    length = view->ByteLength();
+  } else if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> buffer = args[0].As<ArrayBuffer>();
+    data = static_cast<const char*>(buffer->Data());
+    length = buffer->ByteLength();
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate, "The \"buffer\" argument must be an ArrayBuffer or a view.");
     return;
   }
 
   Local<Value> result;
-
-  if (!ConvertSimdjsonElement(args.GetIsolate(), doc).ToLocal(&result)) return;
+  if (!ParseInternal(isolate, data, length).ToLocal(&result)) return;
 
   args.GetReturnValue().Set(result);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parse);
+  registry->Register(ParseFromBuffer);
 }
 
 void Initialize(Local<Object> target,
@@ -189,6 +231,7 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   SetMethodNoSideEffect(context, target, "parse", Parse);
+  SetMethodNoSideEffect(context, target, "parseFromBuffer", ParseFromBuffer);
 }
 
 }  // namespace json_parser
