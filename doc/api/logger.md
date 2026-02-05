@@ -278,8 +278,7 @@ added: REPLACEME
 Each log method (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) has an
 `enabled` property that indicates whether that level is enabled for this logger.
 
-This is the recommended way to check if a level is enabled before performing
-expensive computations:
+Use this to check if a level is enabled before performing expensive computations:
 
 ```js
 if (logger.debug.enabled) {
@@ -291,28 +290,12 @@ if (logger.debug.enabled) {
 // logger.debg.enabled → TypeError: Cannot read properties of undefined
 ```
 
-### `logger.enabled(level)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `level` {string} The log level to check.
-* Returns: {boolean} `true` if the level is enabled, `false` otherwise.
-
-Checks if a specific log level is enabled for this logger. For most use cases,
-prefer using [`logger.<level>.enabled`][] instead, as it catches typos at
-runtime.
+For dynamic level checks, use property access:
 
 ```js
-// Prefer this:
-if (logger.debug.enabled) {
-  logger.debug('message');
-}
-
-// Over this (typos won't throw):
-if (logger.enabled('debug')) {
-  logger.debug('message');
+const level = config.logLevel; // 'info', 'debug', etc.
+if (logger[level]?.enabled) {
+  logger[level]('Dynamic log message');
 }
 ```
 
@@ -351,32 +334,29 @@ consumer.attach();
 // Consumer now receives all log records at 'info' level and above
 ```
 
-### `consumer.enabled(level)`
+### `consumer.<level>.enabled`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `level` {string} The log level to check (e.g., `'debug'`, `'info'`, `'warn'`,
-  `'error'`, `'fatal'`).
-* Returns: {boolean} `true` if the level is enabled, `false` otherwise.
+* {boolean} `true` if the level is enabled, `false` otherwise.
 
-Checks if a specific log level is enabled for this consumer.
-
-This method returns `false` for unknown log levels without throwing an error.
-Log levels are case-sensitive and must be one of the predefined levels:
-`'trace'`, `'debug'`, `'info'`, `'warn'`, `'error'`, `'fatal'`.
+Each log level (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) has an
+`enabled` property that indicates whether that level is enabled for this
+consumer.
 
 ```js
 const { LogConsumer } = require('node:logger');
 
 const consumer = new LogConsumer({ level: 'info' });
 
-console.log(consumer.enabled('debug')); // false (below threshold)
-console.log(consumer.enabled('info'));  // true
-console.log(consumer.enabled('error')); // true
-console.log(consumer.enabled('DEBUG')); // false (unknown level - case sensitive)
-console.log(consumer.enabled('unknown')); // false (unknown level)
+console.log(consumer.debug.enabled); // false (below threshold)
+console.log(consumer.info.enabled);  // true
+console.log(consumer.error.enabled); // true
+
+// Typos will throw a TypeError (safer than silent failure)
+// consumer.debg.enabled → TypeError: Cannot read properties of undefined
 ```
 
 ### `consumer.handle(record)`

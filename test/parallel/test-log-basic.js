@@ -73,12 +73,12 @@ describe('Logger', () => {
   describe('level filtering', () => {
     it('should filter logs based on configured level', () => {
       const logger = new Logger({ level: 'warn' });
-      assert.strictEqual(logger.enabled('trace'), false);
-      assert.strictEqual(logger.enabled('debug'), false);
-      assert.strictEqual(logger.enabled('info'), false);
-      assert.strictEqual(logger.enabled('warn'), true);
-      assert.strictEqual(logger.enabled('error'), true);
-      assert.strictEqual(logger.enabled('fatal'), true);
+      assert.strictEqual(logger.trace.enabled, false);
+      assert.strictEqual(logger.debug.enabled, false);
+      assert.strictEqual(logger.info.enabled, false);
+      assert.strictEqual(logger.warn.enabled, true);
+      assert.strictEqual(logger.error.enabled, true);
+      assert.strictEqual(logger.fatal.enabled, true);
     });
   });
 
@@ -138,8 +138,8 @@ describe('child logger', () => {
 
       assert(childLogger instanceof Logger);
       assert.notStrictEqual(childLogger, logger);
-      assert.strictEqual(childLogger.enabled('info'), true);
-      assert.strictEqual(childLogger.enabled('debug'), false);
+      assert.strictEqual(childLogger.info.enabled, true);
+      assert.strictEqual(childLogger.debug.enabled, false);
     });
 
     it('should support nested child loggers', () => {
@@ -157,8 +157,8 @@ describe('child logger', () => {
       const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: 'abc' }, { level: 'debug' });
 
-      assert.strictEqual(logger.enabled('debug'), false);
-      assert.strictEqual(childLogger.enabled('debug'), true);
+      assert.strictEqual(logger.debug.enabled, false);
+      assert.strictEqual(childLogger.debug.enabled, true);
     });
   });
 
