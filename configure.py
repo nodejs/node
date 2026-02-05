@@ -1280,10 +1280,16 @@ def try_check_compiler(cc, lang):
                      b'__clang_major__ __clang_minor__ __clang_patchlevel__ '
                      b'__APPLE__')
 
+    cc_out = proc.communicate()
+    cc_stdout = to_utf8(cc_out[0])
     if sys.platform == 'zos':
-      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:8]
+      values = (cc_stdout.split('\n')[-2].split() + ['0'] * 7)[0:8]
     else:
-      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:8]
+      values = (cc_stdout.split() + ['0'] * 7)[0:8]
+
+  if len(values) < 8:
+    cc_stderr = to_utf8(cc_out[1]) if cc_out[1] else ''
+    raise Exception(f'Could not determine compiler version info. \nstdout:\n{cc_stdout}\nstderr:\n{cc_stderr}')
 
   is_clang = values[0] == '1'
   gcc_version = tuple(map(int, values[1:1+3]))
