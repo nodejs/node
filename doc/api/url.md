@@ -1739,9 +1739,8 @@ changes:
                  times.
 -->
 
-* `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
-  constructed otherwise). If a string, it is converted to an object by passing
-  it to `url.parse()`.
+* `urlObject` {Object} A URL object (as returned by `url.parse()` or
+  constructed otherwise).
 
 The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
@@ -1820,6 +1819,48 @@ An automated migration is available ([source](https://github.com/nodejs/userland
 
 ```bash
 npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
+
+### `url.format(urlString)`
+
+<!-- YAML
+added: v0.1.25
+changes:
+  - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: Application deprecation.
+-->
+
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+
+* `urlString` {string} A string that will be passed to `url.parse()` and then
+  formatted.
+
+`url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
+
+Because it invokes the deprecated [`url.parse()`][], passing a string argument
+to `url.format()` is itself deprecated.
+
+Canonicalizing a URL string can be performed using the WHATWG URL API, by
+constructing a new URL object and calling [`url.toString()`][].
+
+```mjs
+import { URL } from 'node:url';
+
+const unformatted = 'http://[fe80:0:0:0:0:0:0:1]:/a/b?a=b#abc';
+const formatted = new URL(unformatted).toString();
+
+console.log(formatted); // Prints: http://[fe80::1]/a/b?a=b#abc
+```
+
+```cjs
+const { URL } = require('node:url');
+
+const unformatted = 'http://[fe80:0:0:0:0:0:0:1]:/a/b?a=b#abc';
+const formatted = new URL(unformatted).toString();
+
+console.log(formatted); // Prints: http://[fe80::1]/a/b?a=b#abc
 ```
 
 ### `url.parse(urlString[, parseQueryString[, slashesDenoteHost]])`
