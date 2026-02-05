@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const configs = {
   n: [1024],
   parser: ['native', 'node'],
-  input: ['simple-array', 'simple-object', 'nested-ascii', 'nested-unicode', 'twitter'],
+  input: ['simple-string', 'simple-array', 'simple-object', 'nested-ascii', 'nested-unicode', 'twitter'],
 };
 
 const bench = common.createBenchmark(main, configs);
