@@ -32,6 +32,10 @@
       hash = "sha256-8cbu4ftn5ke7vd4cniwxuyKl6FRxwdToBj77oyYmsfk=";
     }
   }/pkgs/by-name/nb/nbytes/package.nix" { };
+  merve = pkgs.callPackage (builtins.fetchurl {
+    url = "https://github.com/NixOS/nixpkgs/raw/469b8e35e54d2880d73337c5ef2f1416b9b1dd43/pkgs/by-name/me/merve/package.nix";
+    sha256 = "0r2fmip48hcy4za6xfaml627x9m4218g6vlk5fiajmypfvxybzfy";
+  }) { };
 }
 // (pkgs.lib.optionalAttrs withLief {
   lief = pkgs.callPackage (builtins.fetchurl {
