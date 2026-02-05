@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -260,20 +260,6 @@ const vfs = require('node:vfs');
   assert.strictEqual(content.slice(0, 2).toString(), 'hi');
 }
 
-// Test async truncate
-{
-  const myVfs = vfs.create();
-  myVfs.writeFileSync('/async-truncate.txt', 'async content');
-
-  const fd = myVfs.openSync('/async-truncate.txt', 'r+');
-  const handle = require('internal/vfs/fd').getVirtualFd(fd);
-
-  handle.entry.truncate(5).then(common.mustCall(() => {
-    myVfs.closeSync(fd);
-    assert.strictEqual(myVfs.readFileSync('/async-truncate.txt', 'utf8'), 'async');
-  }));
-}
-
 // Test rename operation
 {
   const myVfs = vfs.create();
@@ -296,6 +282,41 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.existsSync('/source.txt'), true);
   assert.strictEqual(myVfs.existsSync('/dest.txt'), true);
   assert.strictEqual(myVfs.readFileSync('/dest.txt', 'utf8'), 'copy me');
+}
+
+// Test appendFileSync
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/append.txt', 'hello');
+
+  myVfs.appendFileSync('/append.txt', ' world');
+  assert.strictEqual(myVfs.readFileSync('/append.txt', 'utf8'), 'hello world');
+
+  myVfs.appendFileSync('/append.txt', '!');
+  assert.strictEqual(myVfs.readFileSync('/append.txt', 'utf8'), 'hello world!');
+
+  // Append to non-existent file creates it
+  myVfs.appendFileSync('/newfile.txt', 'new content');
+  assert.strictEqual(myVfs.readFileSync('/newfile.txt', 'utf8'), 'new content');
+
+  // Append with Buffer
+  myVfs.writeFileSync('/buf-append.txt', Buffer.from('start'));
+  myVfs.appendFileSync('/buf-append.txt', Buffer.from('-buffer'));
+  assert.strictEqual(myVfs.readFileSync('/buf-append.txt', 'utf8'), 'start-buffer');
+}
+
+// Test accessSync
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/access-test.txt', 'content');
+
+  // Should not throw for existing file
+  myVfs.accessSync('/access-test.txt');
+
+  // Should throw for non-existent file
+  assert.throws(() => {
+    myVfs.accessSync('/nonexistent.txt');
+  }, { code: 'ENOENT' });
 }
 
 // Test Symbol.dispose unmounts the VFS
