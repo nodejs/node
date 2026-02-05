@@ -815,5 +815,4 @@ consumer.attach();
 ```
 
 [RFC 5424]: https://www.rfc-editor.org/rfc/rfc5424.html
-[`logger.<level>.enabled`]: #loggerlevelenabled
 [`util.inspect.custom`]: util.md#utilinspectcustom
