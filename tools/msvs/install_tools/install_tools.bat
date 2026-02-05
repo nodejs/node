@@ -39,7 +39,7 @@ echo license terms or not. Read and understand the license terms of the packages
 echo being installed and their dependencies prior to installation:
 echo - https://chocolatey.org/packages/chocolatey
 echo - https://chocolatey.org/packages/python
-echo - https://chocolatey.org/packages/visualstudio2022-workload-vctools
+echo - https://chocolatey.org/packages/visualstudio2026-workload-vctools
 echo.
 echo This script is provided AS-IS without any warranties of any kind
 echo ----------------------------------------------------------------
@@ -61,6 +61,6 @@ cls
     -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
     iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); ^
-    choco upgrade -y python visualstudio2022-workload-vctools; ^
+    choco upgrade -y python visualstudio2026-workload-vctools; ^
     Read-Host ''Type ENTER to exit'' ' ^
     -Verb RunAs
