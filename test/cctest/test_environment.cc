@@ -879,7 +879,8 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleDynamicImport) {
   // Finish the await.
   context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
 
-  EXPECT_EQ(result.As<v8::Promise>()->State(), v8::Promise::kFulfilled);
+  EXPECT_EQ(imported_promise.As<v8::Promise>()->State(),
+            v8::Promise::kFulfilled);
   v8::Local<v8::Value> imported_value =
       imported_promise.As<v8::Promise>()->Result();
   EXPECT_TRUE(imported_value->IsObject());
