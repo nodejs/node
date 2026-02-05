@@ -737,14 +737,20 @@ Refs:
 
 * The current [version of Python][Python downloads] by following the instructions in
   [Using Python on Windows][].
-* The "Desktop development with C++" workload from
-  [Visual Studio 2022 (17.13 or newer)](https://visualstudio.microsoft.com/downloads/)
-  or the "C++ build tools" workload from the
-  [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
-  with the default optional components. As of Node.js 24.0.0, ClangCL is required to compile
-  on Windows. To enable it, two additional components are needed:
+* Select and download the Visual Studio Community Edition 2026 from
+  [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/) or alternatively download
+  [Build Tools for Visual Studio 2026](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026),
+  and then install.
+  The Build Tools Edition has the lowest disk space requirements of all editions.
+  Professional or Enterprise Editions can also be alternatively selected.
+* During installation of Visual Studio, select the "Desktop development with C++" workload.
+  As of Node.js 24.0.0, ClangCL is required to compile on Windows.
+  To install it, select the following two optional components:
   * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
-  * MSBuild support for LLVM toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
+  * MSBuild support for LLVM (clang-cl) toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
+* As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.4 from the
+  [Evergreen bootstrappers](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#evergreen-bootstrappers)
+  table and install using the same workload and optional component selection as described above.
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
@@ -753,24 +759,23 @@ Refs:
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
-Optional requirements to build the MSI installer package:
+After you have installed any Visual Studio Edition you can add optional components using the
+Modify / Individual Components tab of Visual Studio Installer.
 
-* The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
-  * This component can be installed via the Visual Studio Installer Application
+Optional component required to build the MSI installer package:
 
-Optional requirements for compiling for Windows on ARM (ARM64):
+* The .NET SDK individual component (Microsoft.NetCore.Component.SDK)
 
-* Visual Studio 17.13.0 or newer
-* Visual Studio optional components
-  * Visual C++ compilers and libraries for ARM64
-  * Visual C++ ATL for ARM64
-* Windows 10 SDK 10.0.17763.0 or newer
+Optional components required to compile for Windows on ARM64:
+
+* MSVC Build Tools for ARM64/ARM64EC (Microsoft.VisualStudio.Component.VC.Tools.ARM64)
+* C++ ATL for ARM64 (Microsoft.VisualStudio.Component.VC.ATL.ARM64)
 
 NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 
-When building with ClangCL, if the output from `vcbuild.bat` shows that the components are not installed
+When building with ClangCL, if the output from `vcbuild.bat` shows that the components are not installed,
 even when the Visual Studio Installer shows that they are installed, try removing the components
-first and then reinstalling them again.
+first and then reinstalling them.
 
 ##### Option 2: Automated install with WinGet
 
