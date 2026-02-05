@@ -879,6 +879,7 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleDynamicImport) {
   // Finish the await.
   context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
 
+  EXPECT_EQ(result.As<v8::Promise>()->State(), v8::Promise::kFulfilled);
   v8::Local<v8::Value> imported_value =
       imported_promise.As<v8::Promise>()->Result();
   EXPECT_TRUE(imported_value->IsObject());
@@ -974,6 +975,7 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithCommonJSDynamicImport) {
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
   // Finish the await.
   context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  EXPECT_EQ(result.As<v8::Promise>()->State(), v8::Promise::kFulfilled);
   v8::Local<v8::Value> imported_value = result.As<v8::Promise>()->Result();
   EXPECT_TRUE(imported_value->IsObject());
   v8::Local<v8::Value> dynamic_process =
