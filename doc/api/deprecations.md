@@ -744,6 +744,12 @@ Type: End-of-Life
 The `SlowBuffer` class has been removed. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/slow-buffer-to-buffer-alloc-unsafe-slow)).
+
+```bash
+npx codemod@latest @nodejs/slow-buffer-to-buffer-alloc-unsafe-slow
+```
+
 ### DEP0031: `ecdh.setPublicKey()`
 
 <!-- YAML
@@ -1568,6 +1574,12 @@ The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### DEP0061: `fs.SyncWriteStream`
 
 <!-- YAML
@@ -1711,6 +1723,12 @@ the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 The `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties were never documented as
 officially supported properties.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-outgoingmessage-headers)):
+
+```bash
+npx codemod@latest @nodejs/http-outgoingmessage-headers
+```
 
 ### DEP0067: `OutgoingMessage.prototype._renderHeaders`
 
@@ -2340,10 +2358,10 @@ Type: End-of-Life
 
 This was never a documented feature.
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-assert-to-node-assert)).
 
 ```bash
-npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+npx codemod@latest @nodejs/process-assert-to-node-assert
 ```
 
 ### DEP0101: `--with-lttng`
@@ -3929,6 +3947,12 @@ Type: End-of-Life
 
 The `dirent.path` property has been removed due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/dirent-path-to-parent-path)):
+
+```bash
+npx codemod@latest @nodejs/dirent-path-to-parent-path
+```
 
 ### DEP0179: `Hash` constructor
 
