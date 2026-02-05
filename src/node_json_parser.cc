@@ -44,9 +44,11 @@ using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::Primitive;
+using v8::Array;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
+using v8::LocalVector;
 
 template <typename T>
 inline MaybeLocal<Value> ToV8Number(Isolate* isolate,
@@ -107,22 +109,20 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
 
       THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
-      Local<Array> v8_array =
-          v8::Array::New(isolate, array.size());
+      size_t size = array.size();
+      LocalVector<Value> elements(isolate);
+      elements.reserve(size);
 
-      Local<Context> context = isolate->GetCurrentContext();
-
-      uint32_t index = 0;
       for (simdjson::dom::element child : array) {
         Local<Value> converted;
 
         if (!ConvertSimdjsonElement(isolate, child).ToLocal(&converted))
           return MaybeLocal<Value>();
 
-        if (v8_array->Set(context, index, converted).IsNothing())
-          return MaybeLocal<Value>();
-        index++;
+        elements.push_back(converted);
       }
+
+      Local<Array> v8_array = Array::New(isolate, elements.data(), size);
 
       return MaybeLocal<Value>(v8_array);
     }
