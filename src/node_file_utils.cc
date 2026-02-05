@@ -45,11 +45,9 @@ int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
 
   while (idx < iovs.size()) {
     // Skip empty buffers.
-    while (idx < iovs.size() && iovs[idx].len == 0) {
+    if (iovs[idx].len == 0) {
       idx++;
-    }
-    if (idx >= iovs.size()) {  // No non-empty buffers left.
-      break;
+      continue;
     }
 
     uv_fs_write(nullptr,
@@ -59,18 +57,13 @@ int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
                 iovs.size() - idx,
                 kCurrentFileOffset,
                 nullptr);
-    if (req.result < 0) {  // Error during write.
-      int err = req.result;
+    if (req.result <= 0) {  // Error during write.
+      // UV_EIO should not happen unless the file system is full.
+      int err = req.result < 0 ? req.result : UV_EIO;
       uv_fs_req_cleanup(&req);
       uv_fs_close(nullptr, &req, fd, nullptr);
       uv_fs_req_cleanup(&req);
       return err;
-    }
-    if (req.result == 0) {  // Should not happen unless the file system is full.
-      uv_fs_req_cleanup(&req);
-      uv_fs_close(nullptr, &req, fd, nullptr);
-      uv_fs_req_cleanup(&req);
-      return UV_EIO;
     }
     size_t written = req.result;
     uv_fs_req_cleanup(&req);
