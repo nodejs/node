@@ -233,7 +233,7 @@ describe('Logger serializers', () => {
       assert.strictEqual(log.user.password, undefined);
     });
 
-    it('should prefer serialize symbol over field serializer', () => {
+    it('should apply both serialize symbol and field serializer (stacked)', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
@@ -252,8 +252,8 @@ describe('Logger serializers', () => {
       const logger = new Logger({
         level: 'info',
         serializers: {
-          // This should be ignored when object has serialize symbol
-          conn: (c) => ({ host: c.host, fromSerializer: true }),
+          // This runs AFTER serialize symbol, receives the serialized result
+          conn: (c) => ({ ...c, fromSerializer: true }),
         },
       });
 
@@ -263,8 +263,8 @@ describe('Logger serializers', () => {
 
       const log = stream.logs[0];
       assert.strictEqual(log.conn.host, 'localhost');
-      assert.strictEqual(log.conn.type, 'db');
-      assert.strictEqual(log.conn.fromSerializer, undefined);
+      assert.strictEqual(log.conn.type, 'db'); // From [serialize]()
+      assert.strictEqual(log.conn.fromSerializer, true); // From field serializer
       assert.strictEqual(log.conn.password, undefined);
     });
 
