@@ -1771,7 +1771,8 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   // but the session hasn't been properly notified. Instead of crashing, we
   // silently handle the inconsistent state. (Ref: https://github.com/nodejs/node/issues/61304)
   if (!is_write_in_progress()) {
-    Debug(this, "write callback invoked but write not in progress, possible zombie session");
+    Debug(this, "write callback invoked but write not in progress, "
+                "possible zombie session");
     return;
   }
   set_write_in_progress(false);
