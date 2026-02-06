@@ -6,8 +6,16 @@
 // growth in util.inspect output, which previously led to OOM during error
 // message generation.
 
-require('../common');
+const common = require('../common');
+const os = require('os');
 const assert = require('assert');
+
+// This test creates objects with exponential inspect output that requires
+// significant memory. Skip on systems with less than 1GB total memory.
+const totalMemMB = os.totalmem() / 1024 / 1024;
+if (totalMemMB < 1024) {
+  common.skip(`insufficient system memory (${Math.round(totalMemMB)}MB, need 1024MB)`);
+}
 
 // Test: should throw AssertionError, not OOM
 {
