@@ -375,6 +375,32 @@ const vfs = require('node:vfs');
   );
 })().then(common.mustCall());
 
+// Test promises.symlink and promises.readlink
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/symlink-target.txt', 'symlink content');
+
+  await myVfs.promises.symlink('/symlink-target.txt', '/symlink-link.txt');
+
+  // Verify symlink was created
+  const lstat = myVfs.lstatSync('/symlink-link.txt');
+  assert.strictEqual(lstat.isSymbolicLink(), true);
+
+  // Read through symlink
+  const content = await myVfs.promises.readFile('/symlink-link.txt', 'utf8');
+  assert.strictEqual(content, 'symlink content');
+
+  // Readlink should return target
+  const target = await myVfs.promises.readlink('/symlink-link.txt');
+  assert.strictEqual(target, '/symlink-target.txt');
+
+  // Readlink on non-symlink should error
+  await assert.rejects(
+    myVfs.promises.readlink('/symlink-target.txt'),
+    { code: 'EINVAL' }
+  );
+})().then(common.mustCall());
+
 // Test async truncate (via file handle)
 (async () => {
   const myVfs = vfs.create();
