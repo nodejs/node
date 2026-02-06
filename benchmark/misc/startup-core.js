@@ -7,9 +7,11 @@ let Worker;  // Lazy loaded in main
 
 const bench = common.createBenchmark(main, {
   script: [
-    'benchmark/fixtures/require-builtins',
-    'test/fixtures/semicolon',
-    'test/fixtures/snapshot/typescript',
+    'benchmark/fixtures/empty.mjs',
+    'benchmark/fixtures/import-builtins.mjs',
+    'benchmark/fixtures/require-builtins.js',
+    'test/fixtures/semicolon.js',
+    'test/fixtures/snapshot/typescript.js',
   ],
   mode: ['process', 'worker'],
   n: [30],
@@ -58,7 +60,7 @@ function spawnWorker(script, bench, state) {
 }
 
 function main({ n, script, mode }) {
-  script = path.resolve(__dirname, '../../', `${script}.js`);
+  script = path.resolve(__dirname, '../../', `${script}`);
   const warmup = 3;
   const state = { n, finished: -warmup };
   if (mode === 'worker') {
