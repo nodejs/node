@@ -206,8 +206,8 @@ $ npm audit --audit-level=moderate
 * Default: null
 * Type: null, "info", "low", "moderate", "high", "critical", or "none"
 
-The minimum level of vulnerability for `npm audit` to exit with a
-non-zero exit code.
+The minimum level of vulnerability for `npm audit` to exit with a non-zero
+exit code.
 
 
 
@@ -216,14 +216,13 @@ non-zero exit code.
 * Default: false
 * Type: Boolean
 
-Indicates that you don't want npm to make any changes and that it
-should only report what it would have done. This can be passed into
-any of the commands that modify your local installation, eg,
-`install`, `update`, `dedupe`, `uninstall`, as well as `pack` and
-`publish`.
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, `install`, `update`,
+`dedupe`, `uninstall`, as well as `pack` and `publish`.
 
-Note: This is NOT honored by other network related commands, eg
-`dist-tags`, `owner`, etc.
+Note: This is NOT honored by other network related commands, eg `dist-tags`,
+`owner`, etc.
 
 
 
@@ -238,16 +237,14 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow clobbering non-npm files in global installs.
 * Allow the `npm version` command to work on an unclean git repository.
 * Allow deleting the cache folder with `npm cache clean`.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of npm.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of `node`, even if `--engine-strict` is
-  enabled.
-* Allow `npm audit fix` to install modules outside your stated
-  dependency range (including SemVer-major changes).
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of npm.
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of `node`, even if `--engine-strict` is enabled.
+* Allow `npm audit fix` to install modules outside your stated dependency
+  range (including SemVer-major changes).
 * Allow unpublishing all versions of a published package.
-* Allow conflicting peerDependencies to be installed in the root
-  project.
+* Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
 * Allow clobbering existing values in `npm pkg`
 * Allow unpublishing of entire packages (not just a single version).
@@ -264,8 +261,8 @@ recommended that you do not use this option!
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -276,15 +273,14 @@ Not supported by all npm commands.
 * Default: false
 * Type: Boolean
 
-If set to true, the current operation will only use the
-`package-lock.json`, ignoring `node_modules`.
+If set to true, the current operation will only use the `package-lock.json`,
+ignoring `node_modules`.
 
 For `update` this means only the `package-lock.json` will be updated,
 instead of checking `node_modules` and downloading dependencies.
 
-For `list` this means the output will be based on the tree described
-by the `package-lock.json`, rather than the contents of
-`node_modules`.
+For `list` this means the output will be based on the tree described by the
+`package-lock.json`, rather than the contents of `node_modules`.
 
 
 
@@ -293,9 +289,8 @@ by the `package-lock.json`, rather than the contents of
 * Default: true
 * Type: Boolean
 
-If set to false, then ignore `package-lock.json` files when
-installing. This will also prevent _writing_ `package-lock.json` if
-`save` is true.
+If set to false, then ignore `package-lock.json` files when installing. This
+will also prevent _writing_ `package-lock.json` if `save` is true.
 
 
 
@@ -311,45 +306,40 @@ Note that these dependencies _are_ still resolved and added to the
 `package-lock.json` or `npm-shrinkwrap.json` file. They are just not
 physically installed on disk.
 
-If a package type appears in both the `--include` and `--omit` lists,
-then it will be included.
+If a package type appears in both the `--include` and `--omit` lists, then
+it will be included.
 
-If the resulting omit list includes `'dev'`, then the `NODE_ENV`
-environment variable will be set to `'production'` for all lifecycle
-scripts.
+If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
+variable will be set to `'production'` for all lifecycle scripts.
 
 
 
 #### `include`
 
 * Default:
-* Type: "prod", "dev", "optional", or "peer" (can be set multiple
-  times)
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
 
-Option that allows for defining which types of dependencies to
-install.
+Option that allows for defining which types of dependencies to install.
 
 This is the inverse of `--omit=<type>`.
 
-Dependency types specified in `--include` will not be omitted,
-regardless of the order in which omit/include are specified on the
-command-line.
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
 
 
 
 #### `foreground-scripts`
 
-* Default: `false` unless when using `npm pack` or `npm publish` where
-  it defaults to `true`
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
-Run all build scripts (ie, `preinstall`, `install`, and
-`postinstall`) scripts for installed packages in the foreground
-process, sharing standard input, output, and error with the main npm
-process.
+Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.
 
-Note that this will generally make installs run slower, and be much
-noisier, but can be useful for debugging.
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.
 
 
 
@@ -360,10 +350,10 @@ noisier, but can be useful for debugging.
 
 If true, npm does not run scripts specified in package.json files.
 
-Note that commands explicitly intended to run a particular script,
-such as `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm
-run` will still run their intended script if `ignore-scripts` is set,
-but they will *not* run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
@@ -372,9 +362,9 @@ but they will *not* run any pre- or post-scripts.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -383,9 +373,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -397,14 +387,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -415,10 +404,9 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 
@@ -427,9 +415,9 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies will be packed and installed as
-regular dependencies instead of creating a symlink. This option has
-no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
 
 
 

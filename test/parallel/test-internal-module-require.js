@@ -76,7 +76,7 @@ const expectedPublicModules = new Set([
 
 if (process.argv[2] === 'child') {
   assert(!process.execArgv.includes('--expose-internals'));
-  process.once('message', ({ allBuiltins }) => {
+  process.once('message', common.mustCall(({ allBuiltins }) => {
     const publicModules = new Set();
     for (const id of allBuiltins) {
       if (id.startsWith('internal/')) {
@@ -102,7 +102,7 @@ if (process.argv[2] === 'child') {
       new Set(require('module').builtinModules)
     );
     assert.deepStrictEqual(publicModules, expectedPublicModules);
-  });
+  }));
 } else {
   assert(process.execArgv.includes('--expose-internals'));
   const child = fork(__filename, ['child'], {

@@ -35,12 +35,12 @@
  */
 static void rcidm_update(QUIC_RCIDM *rcidm);
 static void rcidm_set_preferred_rcid(QUIC_RCIDM *rcidm,
-                                     const QUIC_CONN_ID *rcid);
+    const QUIC_CONN_ID *rcid);
 
-#define PACKETS_PER_RCID        10000
+#define PACKETS_PER_RCID 10000
 
-#define INITIAL_SEQ_NUM         0
-#define PREF_ADDR_SEQ_NUM       1
+#define INITIAL_SEQ_NUM 0
+#define PREF_ADDR_SEQ_NUM 1
 
 /*
  * RCID
@@ -114,9 +114,9 @@ enum {
 };
 
 enum {
-    RCID_TYPE_INITIAL,      /* CID is from an peer INITIAL packet     (seq 0) */
-    RCID_TYPE_PREF_ADDR,    /* CID is from a preferred_address TPARAM (seq 1) */
-    RCID_TYPE_NCID          /* CID is from a NCID frame */
+    RCID_TYPE_INITIAL, /* CID is from an peer INITIAL packet     (seq 0) */
+    RCID_TYPE_PREF_ADDR, /* CID is from a preferred_address TPARAM (seq 1) */
+    RCID_TYPE_NCID /* CID is from a NCID frame */
     /*
      * INITIAL_ODCID and RETRY_ODCID also conceptually exist but are tracked
      * separately.
@@ -126,11 +126,11 @@ enum {
 typedef struct rcid_st {
     OSSL_LIST_MEMBER(retiring, struct rcid_st); /* valid iff RETIRING */
 
-    QUIC_CONN_ID    cid;        /* The actual CID string for this RCID */
-    uint64_t        seq_num;
-    size_t          pq_idx;     /* Index of entry into priority queue */
-    unsigned int    state  : 2; /* RCID_STATE_* */
-    unsigned int    type   : 2; /* RCID_TYPE_* */
+    QUIC_CONN_ID cid; /* The actual CID string for this RCID */
+    uint64_t seq_num;
+    size_t pq_idx; /* Index of entry into priority queue */
+    unsigned int state : 2; /* RCID_STATE_* */
+    unsigned int type : 2; /* RCID_TYPE_* */
 } RCID;
 
 DEFINE_PRIORITY_QUEUE_OF(RCID);
@@ -168,30 +168,30 @@ struct quic_rcidm_st {
      * otherwise it is set to one of the unnumbered RCIDs (the Initial ODCID or
      * Retry ODCID) if available (and cur_rcid == NULL).
      */
-    QUIC_CONN_ID                preferred_rcid;
+    QUIC_CONN_ID preferred_rcid;
 
     /*
      * These are initialized if the corresponding added_ flags are set.
      */
-    QUIC_CONN_ID                initial_odcid, retry_odcid;
+    QUIC_CONN_ID initial_odcid, retry_odcid;
 
     /*
      * Total number of packets sent since we last made a packet count-based RCID
      * update decision.
      */
-    uint64_t                    packets_sent;
+    uint64_t packets_sent;
 
     /* Number of post-handshake RCID changes we have performed. */
-    uint64_t                    num_changes;
+    uint64_t num_changes;
 
     /*
      * The Retire Prior To watermark value; max(retire_prior_to) of all received
      * NCID frames.
      */
-    uint64_t                    retire_prior_to;
+    uint64_t retire_prior_to;
 
     /* (SORT BY seq_num ASC) -> (RCID *) */
-    PRIORITY_QUEUE_OF(RCID)     *rcids;
+    PRIORITY_QUEUE_OF(RCID) * rcids;
 
     /*
      * Current RCID object we are using. This may differ from the first item in
@@ -200,7 +200,7 @@ struct quic_rcidm_st {
      * keep using seq 5 until we decide to roll again rather than immediately
      * switch to seq 4. Never points to an object on the retiring_list.
      */
-    RCID                        *cur_rcid;
+    RCID *cur_rcid;
 
     /*
      * When a RCID becomes pending-retirement, it is moved to the retiring_list,
@@ -210,28 +210,29 @@ struct quic_rcidm_st {
      * maintain the guarantee that the head (if present) only changes when a
      * caller calls pop().
      */
-    OSSL_LIST(retiring)         retiring_list;
+    OSSL_LIST(retiring)
+    retiring_list;
 
     /* Number of entries on the retiring_list. */
-    size_t                      num_retiring;
+    size_t num_retiring;
 
     /* preferred_rcid has been changed? */
-    unsigned int    preferred_rcid_changed          : 1;
+    unsigned int preferred_rcid_changed : 1;
 
     /* Do we have any RCID we can use currently? */
-    unsigned int    have_preferred_rcid             : 1;
+    unsigned int have_preferred_rcid : 1;
 
     /* QUIC handshake has been completed? */
-    unsigned int    handshake_complete              : 1;
+    unsigned int handshake_complete : 1;
 
     /* odcid was set (not necessarily still valid as a RCID)? */
-    unsigned int    added_initial_odcid             : 1;
+    unsigned int added_initial_odcid : 1;
     /* retry_odcid was set (not necessarily still valid as a RCID?) */
-    unsigned int    added_retry_odcid               : 1;
+    unsigned int added_retry_odcid : 1;
     /* An initial RCID was added as an RCID structure? */
-    unsigned int    added_initial_rcid              : 1;
+    unsigned int added_initial_rcid : 1;
     /* Has a RCID roll been manually requested? */
-    unsigned int    roll_requested                  : 1;
+    unsigned int roll_requested : 1;
 };
 
 /*
@@ -240,31 +241,31 @@ struct quic_rcidm_st {
  * Limit the total number of numbered RCIDs to an implausibly large but safe
  * value.
  */
-#define MAX_NUMBERED_RCIDS      (SIZE_MAX / 2)
+#define MAX_NUMBERED_RCIDS (SIZE_MAX / 2)
 
 static void rcidm_transition_rcid(QUIC_RCIDM *rcidm, RCID *rcid,
-                                  unsigned int state);
+    unsigned int state);
 
 /* Check invariants of an RCID */
 static void rcidm_check_rcid(QUIC_RCIDM *rcidm, RCID *rcid)
 {
     assert(rcid->state == RCID_STATE_PENDING
-           || rcid->state == RCID_STATE_CUR
-           || rcid->state == RCID_STATE_RETIRING);
+        || rcid->state == RCID_STATE_CUR
+        || rcid->state == RCID_STATE_RETIRING);
     assert((rcid->state == RCID_STATE_PENDING)
-           == (rcid->pq_idx != SIZE_MAX));
+        == (rcid->pq_idx != SIZE_MAX));
     assert((rcid->state == RCID_STATE_CUR)
-           == (rcidm->cur_rcid == rcid));
+        == (rcidm->cur_rcid == rcid));
     assert((ossl_list_retiring_next(rcid) != NULL
-            || ossl_list_retiring_prev(rcid) != NULL
-            || ossl_list_retiring_head(&rcidm->retiring_list) == rcid)
-           == (rcid->state == RCID_STATE_RETIRING));
+               || ossl_list_retiring_prev(rcid) != NULL
+               || ossl_list_retiring_head(&rcidm->retiring_list) == rcid)
+        == (rcid->state == RCID_STATE_RETIRING));
     assert(rcid->type != RCID_TYPE_INITIAL || rcid->seq_num == 0);
     assert(rcid->type != RCID_TYPE_PREF_ADDR || rcid->seq_num == 1);
     assert(rcid->seq_num <= OSSL_QUIC_VLINT_MAX);
     assert(rcid->cid.id_len > 0 && rcid->cid.id_len <= QUIC_MAX_CONN_ID_LEN);
     assert(rcid->seq_num >= rcidm->retire_prior_to
-            || rcid->state == RCID_STATE_RETIRING);
+        || rcid->state == RCID_STATE_RETIRING);
     assert(rcidm->num_changes == 0 || rcidm->handshake_complete);
     assert(rcid->state != RCID_STATE_RETIRING || rcidm->num_retiring > 0);
 }
@@ -291,8 +292,8 @@ QUIC_RCIDM *ossl_quic_rcidm_new(const QUIC_CONN_ID *initial_odcid)
     }
 
     if (initial_odcid != NULL) {
-        rcidm->initial_odcid        = *initial_odcid;
-        rcidm->added_initial_odcid  = 1;
+        rcidm->initial_odcid = *initial_odcid;
+        rcidm->added_initial_odcid = 1;
     }
 
     rcidm_update(rcidm);
@@ -311,27 +312,27 @@ void ossl_quic_rcidm_free(QUIC_RCIDM *rcidm)
         OPENSSL_free(rcid);
 
     OSSL_LIST_FOREACH_DELSAFE(rcid, rnext, retiring, &rcidm->retiring_list)
-        OPENSSL_free(rcid);
+    OPENSSL_free(rcid);
 
     ossl_pqueue_RCID_free(rcidm->rcids);
     OPENSSL_free(rcidm);
 }
 
 static void rcidm_set_preferred_rcid(QUIC_RCIDM *rcidm,
-                                     const QUIC_CONN_ID *rcid)
+    const QUIC_CONN_ID *rcid)
 {
     if (rcid == NULL) {
-        rcidm->preferred_rcid_changed   = 1;
-        rcidm->have_preferred_rcid      = 0;
+        rcidm->preferred_rcid_changed = 1;
+        rcidm->have_preferred_rcid = 0;
         return;
     }
 
     if (ossl_quic_conn_id_eq(&rcidm->preferred_rcid, rcid))
         return;
 
-    rcidm->preferred_rcid           = *rcid;
-    rcidm->preferred_rcid_changed   = 1;
-    rcidm->have_preferred_rcid      = 1;
+    rcidm->preferred_rcid = *rcid;
+    rcidm->preferred_rcid_changed = 1;
+    rcidm->have_preferred_rcid = 1;
 }
 
 /*
@@ -339,8 +340,8 @@ static void rcidm_set_preferred_rcid(QUIC_RCIDM *rcidm,
  * =========================
  */
 static RCID *rcidm_create_rcid(QUIC_RCIDM *rcidm, uint64_t seq_num,
-                               const QUIC_CONN_ID *cid,
-                               unsigned int type)
+    const QUIC_CONN_ID *cid,
+    unsigned int type)
 {
     RCID *rcid;
 
@@ -353,9 +354,9 @@ static RCID *rcidm_create_rcid(QUIC_RCIDM *rcidm, uint64_t seq_num,
     if ((rcid = OPENSSL_zalloc(sizeof(*rcid))) == NULL)
         return NULL;
 
-    rcid->seq_num           = seq_num;
-    rcid->cid               = *cid;
-    rcid->type              = type;
+    rcid->seq_num = seq_num;
+    rcid->cid = *cid;
+    rcid->type = type;
 
     if (rcid->seq_num >= rcidm->retire_prior_to) {
         rcid->state = RCID_STATE_PENDING;
@@ -366,8 +367,8 @@ static RCID *rcidm_create_rcid(QUIC_RCIDM *rcidm, uint64_t seq_num,
         }
     } else {
         /* RCID is immediately retired upon creation. */
-        rcid->state     = RCID_STATE_RETIRING;
-        rcid->pq_idx    = SIZE_MAX;
+        rcid->state = RCID_STATE_RETIRING;
+        rcid->pq_idx = SIZE_MAX;
         ossl_list_retiring_insert_tail(&rcidm->retiring_list, rcid);
         ++rcidm->num_retiring;
     }
@@ -377,7 +378,7 @@ static RCID *rcidm_create_rcid(QUIC_RCIDM *rcidm, uint64_t seq_num,
 }
 
 static void rcidm_transition_rcid(QUIC_RCIDM *rcidm, RCID *rcid,
-                                  unsigned int state)
+    unsigned int state)
 {
     unsigned int old_state = rcid->state;
 
@@ -438,7 +439,7 @@ static void rcidm_free_rcid(QUIC_RCIDM *rcidm, RCID *rcid)
 }
 
 static void rcidm_handle_retire_prior_to(QUIC_RCIDM *rcidm,
-                                         uint64_t retire_prior_to)
+    uint64_t retire_prior_to)
 {
     RCID *rcid;
 
@@ -457,7 +458,7 @@ static void rcidm_handle_retire_prior_to(QUIC_RCIDM *rcidm,
      * threshold.
      */
     while ((rcid = ossl_pqueue_RCID_peek(rcidm->rcids)) != NULL
-           && rcid->seq_num < retire_prior_to)
+        && rcid->seq_num < retire_prior_to)
         rcidm_transition_rcid(rcidm, rcid, RCID_STATE_RETIRING);
 
     rcidm->retire_prior_to = retire_prior_to;
@@ -578,7 +579,7 @@ void ossl_quic_rcidm_request_roll(QUIC_RCIDM *rcidm)
  * ===================
  */
 int ossl_quic_rcidm_add_from_initial(QUIC_RCIDM *rcidm,
-                                     const QUIC_CONN_ID *rcid)
+    const QUIC_CONN_ID *rcid)
 {
     RCID *rcid_obj;
 
@@ -586,7 +587,7 @@ int ossl_quic_rcidm_add_from_initial(QUIC_RCIDM *rcidm,
         return 0;
 
     rcid_obj = rcidm_create_rcid(rcidm, INITIAL_SEQ_NUM,
-                                 rcid, RCID_TYPE_INITIAL);
+        rcid, RCID_TYPE_INITIAL);
     if (rcid_obj == NULL)
         return 0;
 
@@ -596,19 +597,19 @@ int ossl_quic_rcidm_add_from_initial(QUIC_RCIDM *rcidm,
 }
 
 int ossl_quic_rcidm_add_from_server_retry(QUIC_RCIDM *rcidm,
-                                          const QUIC_CONN_ID *retry_odcid)
+    const QUIC_CONN_ID *retry_odcid)
 {
     if (rcidm->added_retry_odcid || rcidm->handshake_complete)
         return 0;
 
-    rcidm->retry_odcid          = *retry_odcid;
-    rcidm->added_retry_odcid    = 1;
+    rcidm->retry_odcid = *retry_odcid;
+    rcidm->added_retry_odcid = 1;
     rcidm_tick(rcidm);
     return 1;
 }
 
 int ossl_quic_rcidm_add_from_ncid(QUIC_RCIDM *rcidm,
-                                  const OSSL_QUIC_FRAME_NEW_CONN_ID *ncid)
+    const OSSL_QUIC_FRAME_NEW_CONN_ID *ncid)
 {
     RCID *rcid;
 
@@ -643,19 +644,19 @@ static int rcidm_get_retire(QUIC_RCIDM *rcidm, uint64_t *seq_num, int peek)
 }
 
 int ossl_quic_rcidm_pop_retire_seq_num(QUIC_RCIDM *rcidm,
-                                       uint64_t *seq_num)
+    uint64_t *seq_num)
 {
     return rcidm_get_retire(rcidm, seq_num, /*peek=*/0);
 }
 
 int ossl_quic_rcidm_peek_retire_seq_num(QUIC_RCIDM *rcidm,
-                                        uint64_t *seq_num)
+    uint64_t *seq_num)
 {
     return rcidm_get_retire(rcidm, seq_num, /*peek=*/1);
 }
 
 int ossl_quic_rcidm_get_preferred_tx_dcid(QUIC_RCIDM *rcidm,
-                                          QUIC_CONN_ID *tx_dcid)
+    QUIC_CONN_ID *tx_dcid)
 {
     if (!rcidm->have_preferred_rcid)
         return 0;
@@ -665,7 +666,7 @@ int ossl_quic_rcidm_get_preferred_tx_dcid(QUIC_RCIDM *rcidm,
 }
 
 int ossl_quic_rcidm_get_preferred_tx_dcid_changed(QUIC_RCIDM *rcidm,
-                                                  int clear)
+    int clear)
 {
     int r = rcidm->preferred_rcid_changed;
 

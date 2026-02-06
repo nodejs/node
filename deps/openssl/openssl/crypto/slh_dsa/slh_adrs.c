@@ -11,28 +11,28 @@
 #include "slh_adrs.h"
 
 /* See FIPS 205 - Section 4.3 Table 1  Uncompressed Addresses */
-#define SLH_ADRS_OFF_LAYER_ADR      0
-#define SLH_ADRS_OFF_TREE_ADR       4
-#define SLH_ADRS_OFF_TYPE           16
-#define SLH_ADRS_OFF_KEYPAIR_ADDR   20
-#define SLH_ADRS_OFF_CHAIN_ADDR     24
-#define SLH_ADRS_OFF_HASH_ADDR      28
-#define SLH_ADRS_OFF_TREE_INDEX     SLH_ADRS_OFF_HASH_ADDR
-#define SLH_ADRS_SIZE_TYPE          4
+#define SLH_ADRS_OFF_LAYER_ADR 0
+#define SLH_ADRS_OFF_TREE_ADR 4
+#define SLH_ADRS_OFF_TYPE 16
+#define SLH_ADRS_OFF_KEYPAIR_ADDR 20
+#define SLH_ADRS_OFF_CHAIN_ADDR 24
+#define SLH_ADRS_OFF_HASH_ADDR 28
+#define SLH_ADRS_OFF_TREE_INDEX SLH_ADRS_OFF_HASH_ADDR
+#define SLH_ADRS_SIZE_TYPE 4
 /* Number of bytes after type to clear */
-#define SLH_ADRS_SIZE_TYPECLEAR     SLH_ADRS_SIZE - (SLH_ADRS_OFF_TYPE + SLH_ADRS_SIZE_TYPE)
-#define SLH_ADRS_SIZE_KEYPAIR_ADDR  4
+#define SLH_ADRS_SIZE_TYPECLEAR SLH_ADRS_SIZE - (SLH_ADRS_OFF_TYPE + SLH_ADRS_SIZE_TYPE)
+#define SLH_ADRS_SIZE_KEYPAIR_ADDR 4
 
 /* See FIPS 205 - Section 11.2 Table 3 Compressed Addresses */
-#define SLH_ADRSC_OFF_LAYER_ADR     0
-#define SLH_ADRSC_OFF_TREE_ADR      1
-#define SLH_ADRSC_OFF_TYPE          9
-#define SLH_ADRSC_OFF_KEYPAIR_ADDR  10
-#define SLH_ADRSC_OFF_CHAIN_ADDR    14
-#define SLH_ADRSC_OFF_HASH_ADDR     18
-#define SLH_ADRSC_OFF_TREE_INDEX    SLH_ADRSC_OFF_HASH_ADDR
-#define SLH_ADRSC_SIZE_TYPE         1
-#define SLH_ADRSC_SIZE_TYPECLEAR    SLH_ADRS_SIZE_TYPECLEAR
+#define SLH_ADRSC_OFF_LAYER_ADR 0
+#define SLH_ADRSC_OFF_TREE_ADR 1
+#define SLH_ADRSC_OFF_TYPE 9
+#define SLH_ADRSC_OFF_KEYPAIR_ADDR 10
+#define SLH_ADRSC_OFF_CHAIN_ADDR 14
+#define SLH_ADRSC_OFF_HASH_ADDR 18
+#define SLH_ADRSC_OFF_TREE_INDEX SLH_ADRSC_OFF_HASH_ADDR
+#define SLH_ADRSC_SIZE_TYPE 1
+#define SLH_ADRSC_SIZE_TYPECLEAR SLH_ADRS_SIZE_TYPECLEAR
 #define SLH_ADRSC_SIZE_KEYPAIR_ADDR SLH_ADRS_SIZE_KEYPAIR_ADDR
 
 #define slh_adrs_set_tree_height slh_adrs_set_chain_address
@@ -91,7 +91,7 @@ static void slh_adrs_set_keypair_address(uint8_t *adrs, uint32_t in)
 static void slh_adrs_copy_keypair_address(uint8_t *dst, const uint8_t *src)
 {
     memcpy(dst + SLH_ADRS_OFF_KEYPAIR_ADDR, src + SLH_ADRS_OFF_KEYPAIR_ADDR,
-           SLH_ADRS_SIZE_KEYPAIR_ADDR);
+        SLH_ADRS_SIZE_KEYPAIR_ADDR);
 }
 static void slh_adrs_set_chain_address(uint8_t *adrs, uint32_t in)
 {
@@ -131,7 +131,7 @@ static void slh_adrsc_set_keypair_address(uint8_t *adrsc, uint32_t in)
 static void slh_adrsc_copy_keypair_address(uint8_t *dst, const uint8_t *src)
 {
     memcpy(dst + SLH_ADRSC_OFF_KEYPAIR_ADDR, src + SLH_ADRSC_OFF_KEYPAIR_ADDR,
-           SLH_ADRSC_SIZE_KEYPAIR_ADDR);
+        SLH_ADRSC_SIZE_KEYPAIR_ADDR);
 }
 static void slh_adrsc_set_chain_address(uint8_t *adrsc, uint32_t in)
 {

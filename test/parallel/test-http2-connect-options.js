@@ -12,7 +12,7 @@ if (!hasMultiLocalhost()) {
 const http2 = require('http2');
 const assert = require('assert');
 
-const server = http2.createServer((req, res) => {
+const server = http2.createServer(common.mustCallAtLeast((req, res) => {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
   assert.strictEqual(req.connection.remoteAddress, '127.0.0.2');
 
@@ -21,7 +21,7 @@ const server = http2.createServer((req, res) => {
     res.end(`You are from: ${req.connection.remoteAddress}`);
   }));
   req.resume();
-});
+}));
 
 server.listen(0, '127.0.0.1', common.mustCall(() => {
   const options = { localAddress: '127.0.0.2', family: 4 };

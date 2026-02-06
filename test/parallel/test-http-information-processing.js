@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const debug = require('util').debuglog('test');
@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
   res.end(testResBody);
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     path: '/world'
@@ -33,18 +33,18 @@ server.listen(0, function() {
 
   req.on('information', () => { infoCount++; });
 
-  req.on('response', function(res) {
+  req.on('response', common.mustCall((res) => {
     // Check that all 102 Processing received before full response received.
     assert.strictEqual(infoCount, kMessageCount);
     assert.strictEqual(res.statusCode, 200,
                        `Final status code was ${res.statusCode}, not 200.`);
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       debug('Got full response.');
       assert.strictEqual(body, testResBody);
       assert.ok('abcd' in res.headers);
       server.close();
-    });
-  });
-});
+    }));
+  }));
+}));

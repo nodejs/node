@@ -9,7 +9,9 @@ exports[`test/lib/commands/ls.js TAP ignore missing optional deps --json > ls --
 Array [
   "invalid: optional-wrong@3.2.1 {CWD}/prefix/node_modules/optional-wrong",
   "missing: peer-missing@1, required by test-npm-ls-ignore-missing-optional@1.2.3",
+  "extraneous: peer-optional-ok@1.2.3 {CWD}/prefix/node_modules/peer-optional-ok",
   "invalid: peer-optional-wrong@3.2.1 {CWD}/prefix/node_modules/peer-optional-wrong",
+  "extraneous: peer-optional-wrong@3.2.1 {CWD}/prefix/node_modules/peer-optional-wrong",
   "invalid: peer-wrong@3.2.1 {CWD}/prefix/node_modules/peer-wrong",
   "missing: prod-missing@1, required by test-npm-ls-ignore-missing-optional@1.2.3",
   "invalid: prod-wrong@3.2.1 {CWD}/prefix/node_modules/prod-wrong",
@@ -36,8 +38,8 @@ test-npm-ls-ignore-missing-optional@1.2.3 {CWD}/prefix
 +-- UNMET DEPENDENCY peer-missing@1
 +-- peer-ok@1.2.3
 +-- UNMET OPTIONAL DEPENDENCY peer-optional-missing@1
-+-- peer-optional-ok@1.2.3
-+-- peer-optional-wrong@3.2.1 invalid: "1" from the root project
++-- peer-optional-ok@1.2.3 extraneous
++-- peer-optional-wrong@3.2.1 invalid: "1" from the root project extraneous
 +-- peer-wrong@3.2.1 invalid: "1" from the root project
 +-- UNMET DEPENDENCY prod-missing@1
 +-- prod-ok@1.2.3

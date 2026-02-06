@@ -21,6 +21,8 @@ function run_test(algorithmNames, slowTest) {
         {name: "AES-CTR",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
         {name: "AES-CBC",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
         {name: "AES-GCM",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
+        {name: "AES-OCB",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
+        {name: "ChaCha20-Poly1305",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
         {name: "AES-KW",   resultType: CryptoKey, usages: ["wrapKey", "unwrapKey"], mandatoryUsages: []},
         {name: "HMAC",     resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
         {name: "RSASSA-PKCS1-v1_5", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
@@ -30,8 +32,16 @@ function run_test(algorithmNames, slowTest) {
         {name: "ECDH",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
         {name: "Ed25519",  resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
         {name: "Ed448",    resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
+        {name: "ML-DSA-44", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
+        {name: "ML-DSA-65", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
+        {name: "ML-DSA-87", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
+        {name: "ML-KEM-512", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
+        {name: "ML-KEM-768", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
+        {name: "ML-KEM-1024", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
         {name: "X25519",   resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
         {name: "X448",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
+        {name: "KMAC128",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
+        {name: "KMAC256",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
     ];
 
     var testVectors = [];
@@ -74,16 +84,47 @@ function run_test(algorithmNames, slowTest) {
                 assert_unreached("generateKey threw an unexpected error: " + err.toString());
             })
             .then(async function (result) {
-                if (resultType === "CryptoKeyPair") {
-                    const [jwkPub,,, jwkPriv] = await Promise.all([
-                        subtle.exportKey('jwk', result.publicKey),
+                // TODO: remove this block to enable ML-KEM JWK when its definition is done in IETF JOSE WG
+                if (result.publicKey?.algorithm.name.startsWith('ML-KEM')) {
+                    const promises = [
                         subtle.exportKey('spki', result.publicKey),
-                        result.publicKey.algorithm.name.startsWith('RSA') ? undefined : subtle.exportKey('raw', result.publicKey),
-                        ...(extractable ? [
-                            subtle.exportKey('jwk', result.privateKey),
-                            subtle.exportKey('pkcs8', result.privateKey),
-                        ] : [])
-                    ]);
+                        extractable ? subtle.exportKey('pkcs8', result.privateKey) : undefined,
+                        subtle.exportKey('raw-public', result.publicKey),
+                    ];
+                    if (extractable)
+                        promises.push(subtle.exportKey('raw-seed', result.privateKey));
+                } else if (resultType === "CryptoKeyPair") {
+                    const promises = [
+                        subtle.exportKey('jwk', result.publicKey),
+                        extractable ? subtle.exportKey('jwk', result.privateKey) : undefined,
+                        subtle.exportKey('spki', result.publicKey),
+                        extractable ? subtle.exportKey('pkcs8', result.privateKey) : undefined,
+                    ];
+
+                    switch (result.publicKey.algorithm.name.substring(0, 2)) {
+                        case 'ML':
+                            promises.push(subtle.exportKey('raw-public', result.publicKey));
+                            if (extractable)
+                                promises.push(subtle.exportKey('raw-seed', result.privateKey));
+                            break;
+                        case 'SL':
+                            promises.push(subtle.exportKey('raw-public', result.publicKey));
+                            if (extractable)
+                                promises.push(subtle.exportKey('raw-private', result.privateKey));
+                            break;
+                        case 'EC':
+                        case 'Ed':
+                        case 'X2':
+                        case 'X4':
+                            promises.push(subtle.exportKey('raw', result.publicKey));
+                            break;
+                        case 'RS':
+                            break;
+                        default:
+                            throw new Error('not implemented');
+                    }
+
+                    const [jwkPub, jwkPriv] = await Promise.all(promises);
 
                     if (extractable) {
                         // Test that the JWK public key is a superset of the JWK private key.
@@ -96,7 +137,7 @@ function run_test(algorithmNames, slowTest) {
                 } else {
                     if (extractable) {
                         await Promise.all([
-                            subtle.exportKey('raw', result),
+                            subtle.exportKey(/cha|ocb|kmac/i.test(result.algorithm.name) ? 'raw-secret' : 'raw', result),
                             subtle.exportKey('jwk', result),
                         ]);
                     }

@@ -17,6 +17,8 @@ npx --package=foo -c '<cmd> [args...]'
 
 This command allows you to run an arbitrary command from an npm package (either one installed locally, or fetched remotely), in a similar context as running it via `npm run`.
 
+Run this command to execute a package's binary. Any options and arguments after the package name are passed directly to the executed command, not to npx itself. For example, `npx create-react-app my-app --template typescript` will pass `my-app` and `--template typescript` to the `create-react-app` command. To see what options a specific package accepts, consult that package's documentation (e.g., at npmjs.com or in its repository).
+
 Whatever packages are specified by the `--package` option will be provided in the `PATH` of the executed command, along with any locally installed package executables.
 The `--package` option may be specified multiple times, to execute the supplied command in an environment where all specified packages are available.
 

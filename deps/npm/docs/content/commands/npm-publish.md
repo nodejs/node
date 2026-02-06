@@ -14,6 +14,32 @@ npm publish <package-spec>
 
 Publishes a package to the registry so that it can be installed by name.
 
+### Examples
+
+Publish the package in the current directory:
+
+```bash
+npm publish
+```
+
+Publish a specific workspace:
+
+```bash
+npm publish --workspace=<workspace-name>
+```
+
+Publish multiple workspaces:
+
+```bash
+npm publish --workspace=workspace-a --workspace=workspace-b
+```
+
+Publish all workspaces:
+
+```bash
+npm publish --workspaces
+```
+
 By default npm will publish to the public registry.
 This can be overridden by specifying a different default registry or using a [`scope`](/using-npm/scope) in the name, combined with a scope-configured registry (see [`package.json`](/configuring-npm/package-json)).
 
@@ -71,24 +97,24 @@ See [`package.json`](/configuring-npm/package-json) for more info on what can an
 * Default: "latest"
 * Type: String
 
-If you ask npm to install a package and don't tell it a specific
-version, then it will install the specified tag.
+If you ask npm to install a package and don't tell it a specific version,
+then it will install the specified tag.
 
-It is the tag added to the package@version specified in the `npm
-dist-tag add` command, if no explicit tag is given.
+It is the tag added to the package@version specified in the `npm dist-tag
+add` command, if no explicit tag is given.
 
-When used by the `npm diff` command, this is the tag used to fetch
-the tarball that will be compared with the local files by default.
+When used by the `npm diff` command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.
 
-If used in the `npm publish` command, this is the tag that will be
-added to the package submitted to the registry.
+If used in the `npm publish` command, this is the tag that will be added to
+the package submitted to the registry.
 
 
 
 #### `access`
 
-* Default: 'public' for new packages, existing packages it will not
-  change the current level
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
 * Type: null, "restricted", or "public"
 
 If you do not want your scoped package to be publicly viewable (and
@@ -96,10 +122,10 @@ installable) set `--access=restricted`.
 
 Unscoped packages cannot be set to `restricted`.
 
-Note: This defaults to not changing the current access level for
-existing packages. Specifying a value of `restricted` or `public`
-during publish will change the access for an existing package the
-same way that `npm access set status` would.
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of `restricted` or `public` during publish will
+change the access for an existing package the same way that `npm access set
+status` would.
 
 
 
@@ -108,14 +134,13 @@ same way that `npm access set status` would.
 * Default: false
 * Type: Boolean
 
-Indicates that you don't want npm to make any changes and that it
-should only report what it would have done. This can be passed into
-any of the commands that modify your local installation, eg,
-`install`, `update`, `dedupe`, `uninstall`, as well as `pack` and
-`publish`.
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, `install`, `update`,
+`dedupe`, `uninstall`, as well as `pack` and `publish`.
 
-Note: This is NOT honored by other network related commands, eg
-`dist-tags`, `owner`, etc.
+Note: This is NOT honored by other network related commands, eg `dist-tags`,
+`owner`, etc.
 
 
 
@@ -124,12 +149,11 @@ Note: This is NOT honored by other network related commands, eg
 * Default: null
 * Type: null or String
 
-This is a one-time password from a two-factor authenticator. It's
-needed when publishing or changing package permissions with `npm
-access`.
+This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with `npm access`.
 
-If not set, and a registry response fails with a challenge for a
-one-time password, npm will prompt on the command line for one.
+If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.
 
 
 
@@ -138,9 +162,9 @@ one-time password, npm will prompt on the command line for one.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -149,9 +173,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -163,14 +187,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -181,10 +204,9 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 
@@ -193,8 +215,8 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When publishing from a supported cloud CI/CD system, the package will
-be publicly linked to where it was built and published from.
+When publishing from a supported cloud CI/CD system, the package will be
+publicly linked to where it was built and published from.
 
 This config cannot be used with: `provenance-file`
 
@@ -203,8 +225,7 @@ This config cannot be used with: `provenance-file`
 * Default: null
 * Type: Path
 
-When publishing, the provenance bundle at the given path will be
-used.
+When publishing, the provenance bundle at the given path will be used.
 
 This config cannot be used with: `provenance`
 

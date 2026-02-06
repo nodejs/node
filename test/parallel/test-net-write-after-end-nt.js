@@ -10,8 +10,8 @@ const { expectsError, mustCall } = common;
 // after sockets ending will be emitted in the next tick.
 const server = net.createServer(mustCall((socket) => {
   socket.end();
-})).listen(() => {
-  const client = net.connect(server.address().port, () => {
+})).listen(mustCall(() => {
+  const client = net.connect(server.address().port, mustCall(() => {
     let hasError = false;
     client.on('error', mustCall((err) => {
       hasError = true;
@@ -28,5 +28,5 @@ const server = net.createServer(mustCall((socket) => {
       assert(!hasError, 'The error should be emitted in the next tick.');
     }));
     client.end();
-  });
-});
+  }));
+}));

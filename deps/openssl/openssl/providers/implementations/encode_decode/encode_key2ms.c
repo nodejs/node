@@ -18,7 +18,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/err.h>
-#include <openssl/pem.h>         /* Functions for writing MSBLOB and PVK */
+#include <openssl/pem.h> /* Functions for writing MSBLOB and PVK */
 #include <openssl/dsa.h>
 #include "internal/passphrase.h"
 #include "crypto/rsa.h"
@@ -36,7 +36,7 @@ struct key2ms_ctx_st {
 };
 
 static int write_msblob(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
-                        EVP_PKEY *pkey, int ispub)
+    EVP_PKEY *pkey, int ispub)
 {
     BIO *out = ossl_bio_new_from_core_bio(ctx->provctx, cout);
     int ret;
@@ -50,7 +50,7 @@ static int write_msblob(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
 }
 
 static int write_pvk(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
-                     EVP_PKEY *pkey)
+    EVP_PKEY *pkey)
 {
     BIO *out = NULL;
     int ret;
@@ -60,7 +60,7 @@ static int write_pvk(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
     if (out == NULL)
         return 0;
     ret = i2b_PVK_bio_ex(out, pkey, ctx->pvk_encr_level,
-                         ossl_pw_pvk_password, &ctx->pwdata, libctx, NULL);
+        ossl_pw_pvk_password, &ctx->pwdata, libctx, NULL);
     BIO_free(out);
     return ret;
 }
@@ -126,8 +126,8 @@ static int key2ms_does_selection(void *vctx, int selection)
 typedef int evp_pkey_set1_fn(EVP_PKEY *, const void *key);
 
 static int key2msblob_encode(void *vctx, const void *key, int selection,
-                             OSSL_CORE_BIO *cout, evp_pkey_set1_fn *set1_key,
-                             OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CORE_BIO *cout, evp_pkey_set1_fn *set1_key,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct key2ms_ctx_st *ctx = vctx;
     int ispub = -1;
@@ -139,7 +139,7 @@ static int key2msblob_encode(void *vctx, const void *key, int selection,
     else if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
         ispub = 1;
     else
-        return 0;                /* Error */
+        return 0; /* Error */
 
     if ((pkey = EVP_PKEY_new()) != NULL && set1_key(pkey, key))
         ok = write_msblob(ctx, cout, pkey, ispub);
@@ -148,15 +148,15 @@ static int key2msblob_encode(void *vctx, const void *key, int selection,
 }
 
 static int key2pvk_encode(void *vctx, const void *key, int selection,
-                          OSSL_CORE_BIO *cout, evp_pkey_set1_fn *set1_key,
-                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CORE_BIO *cout, evp_pkey_set1_fn *set1_key,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct key2ms_ctx_st *ctx = vctx;
     EVP_PKEY *pkey = NULL;
     int ok = 0;
 
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0)
-        return 0;                /* Error */
+        return 0; /* Error */
 
     if ((pkey = EVP_PKEY_new()) != NULL && set1_key(pkey, key)
         && (pw_cb == NULL
@@ -166,39 +166,39 @@ static int key2pvk_encode(void *vctx, const void *key, int selection,
     return ok;
 }
 
-#define dsa_set1        (evp_pkey_set1_fn *)EVP_PKEY_set1_DSA
-#define rsa_set1        (evp_pkey_set1_fn *)EVP_PKEY_set1_RSA
+#define dsa_set1 (evp_pkey_set1_fn *)EVP_PKEY_set1_DSA
+#define rsa_set1 (evp_pkey_set1_fn *)EVP_PKEY_set1_RSA
 
 #define msblob_set_params
-#define pvk_set_params                                                        \
-        { OSSL_FUNC_ENCODER_SETTABLE_CTX_PARAMS,                              \
-          (void (*)(void))key2pvk_settable_ctx_params },                      \
-        { OSSL_FUNC_ENCODER_SET_CTX_PARAMS,                                   \
-          (void (*)(void))key2pvk_set_ctx_params },
+#define pvk_set_params                                 \
+    { OSSL_FUNC_ENCODER_SETTABLE_CTX_PARAMS,           \
+        (void (*)(void))key2pvk_settable_ctx_params }, \
+        { OSSL_FUNC_ENCODER_SET_CTX_PARAMS,            \
+            (void (*)(void))key2pvk_set_ctx_params },
 
 #define MAKE_MS_ENCODER(impl, output, type)                                   \
     static OSSL_FUNC_encoder_import_object_fn                                 \
-    impl##2##output##_import_object;                                          \
+        impl##2##output##_import_object;                                      \
     static OSSL_FUNC_encoder_free_object_fn impl##2##output##_free_object;    \
     static OSSL_FUNC_encoder_encode_fn impl##2##output##_encode;              \
                                                                               \
     static void *                                                             \
-    impl##2##output##_import_object(void *ctx, int selection,                 \
-                                    const OSSL_PARAM params[])                \
+        impl##2##output##_import_object(void *ctx, int selection,             \
+            const OSSL_PARAM params[])                                        \
     {                                                                         \
         return ossl_prov_import_key(ossl_##impl##_keymgmt_functions,          \
-                                    ctx, selection, params);                  \
+            ctx, selection, params);                                          \
     }                                                                         \
     static void impl##2##output##_free_object(void *key)                      \
     {                                                                         \
         ossl_prov_free_key(ossl_##impl##_keymgmt_functions, key);             \
     }                                                                         \
     static int impl##2##output##_encode(void *vctx, OSSL_CORE_BIO *cout,      \
-                                        const void *key,                      \
-                                        const OSSL_PARAM key_abstract[],      \
-                                        int selection,                        \
-                                        OSSL_PASSPHRASE_CALLBACK *cb,         \
-                                        void *cbarg)                          \
+        const void *key,                                                      \
+        const OSSL_PARAM key_abstract[],                                      \
+        int selection,                                                        \
+        OSSL_PASSPHRASE_CALLBACK *cb,                                         \
+        void *cbarg)                                                          \
     {                                                                         \
         /* We don't deal with abstract objects */                             \
         if (key_abstract != NULL) {                                           \
@@ -206,22 +206,21 @@ static int key2pvk_encode(void *vctx, const void *key, int selection,
             return 0;                                                         \
         }                                                                     \
         return key2##output##_encode(vctx, key, selection, cout, type##_set1, \
-                                     cb, cbarg);                              \
+            cb, cbarg);                                                       \
     }                                                                         \
     const OSSL_DISPATCH ossl_##impl##_to_##output##_encoder_functions[] = {   \
         { OSSL_FUNC_ENCODER_NEWCTX,                                           \
-          (void (*)(void))key2ms_newctx },                                    \
+            (void (*)(void))key2ms_newctx },                                  \
         { OSSL_FUNC_ENCODER_FREECTX,                                          \
-          (void (*)(void))key2ms_freectx },                                   \
-        output##_set_params                                                   \
-        { OSSL_FUNC_ENCODER_DOES_SELECTION,                                   \
-          (void (*)(void))key2ms_does_selection },                            \
+            (void (*)(void))key2ms_freectx },                                 \
+        output##_set_params { OSSL_FUNC_ENCODER_DOES_SELECTION,               \
+            (void (*)(void))key2ms_does_selection },                          \
         { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                                    \
-          (void (*)(void))impl##2##output##_import_object },                  \
+            (void (*)(void))impl##2##output##_import_object },                \
         { OSSL_FUNC_ENCODER_FREE_OBJECT,                                      \
-          (void (*)(void))impl##2##output##_free_object },                    \
+            (void (*)(void))impl##2##output##_free_object },                  \
         { OSSL_FUNC_ENCODER_ENCODE,                                           \
-          (void (*)(void))impl##2##output##_encode },                         \
+            (void (*)(void))impl##2##output##_encode },                       \
         OSSL_DISPATCH_END                                                     \
     }
 

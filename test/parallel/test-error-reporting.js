@@ -28,7 +28,7 @@ const fixtures = require('../common/fixtures');
 function errExec(script, option, callback) {
   callback = typeof option === 'function' ? option : callback;
   option = typeof option === 'string' ? option : '';
-  return exec(...common.escapePOSIXShell`"${process.execPath}" ${option} "${fixtures.path(script)}"`, (err, stdout, stderr) => {
+  return exec(...common.escapePOSIXShell`"${process.execPath}" ${option} "${fixtures.path(script)}"`, common.mustCall((err, stdout, stderr) => {
     // There was some error
     assert.ok(err);
 
@@ -37,7 +37,7 @@ function errExec(script, option, callback) {
 
     // Proxy the args for more tests.
     callback(err, stdout, stderr);
-  });
+  }));
 }
 
 const syntaxErrorMessage = /\bSyntaxError\b/;

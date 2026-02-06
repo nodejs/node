@@ -33,7 +33,7 @@ tmpdir.refresh();
   const watcher = fs.watch(filePath, { recursive: true });
   let watcherClosed = false;
   let interval;
-  watcher.on('change', function(event, filename) {
+  watcher.on('change', common.mustCall((event, filename) => {
     assert.strictEqual(event, 'change');
 
     if (filename === path.basename(filePath)) {
@@ -42,7 +42,7 @@ tmpdir.refresh();
       watcher.close();
       watcherClosed = true;
     }
-  });
+  }));
 
   interval = setInterval(() => {
     fs.writeFileSync(filePath, 'world');

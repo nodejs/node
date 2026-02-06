@@ -23,8 +23,8 @@
  */
 
 void RC2_cfb64_encrypt(const unsigned char *in, unsigned char *out,
-                       long length, RC2_KEY *schedule, unsigned char *ivec,
-                       int *num, int encrypt)
+    long length, RC2_KEY *schedule, unsigned char *ivec,
+    int *num, int encrypt)
 {
     register unsigned long v0, v1, t;
     register int n = *num;

@@ -1,6 +1,6 @@
 {
   "name": "libnpmpublish",
-  "version": "11.1.2",
+  "version": "11.1.3",
   "description": "Programmatic API for the bits behind npm publish and unpublish",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -42,10 +42,10 @@
     "ci-info": "^4.0.0",
     "npm-package-arg": "^13.0.0",
     "npm-registry-fetch": "^19.0.0",
-    "proc-log": "^5.0.0",
+    "proc-log": "^6.0.0",
     "semver": "^7.3.7",
     "sigstore": "^4.0.0",
-    "ssri": "^12.0.0"
+    "ssri": "^13.0.0"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"

@@ -232,10 +232,10 @@ if (isMainThread && (common.isLinux || common.isMacOS)) {
       syscall: 'mkdir',
     }
   );
-  fs.mkdir('X', common.mustNotMutateObjectDeep({ recursive: true }), (err) => {
+  fs.mkdir('X', common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'mkdir');
-  });
+  }));
 }
 
 // mkdirSync and mkdir require options.recursive to be a boolean.

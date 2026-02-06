@@ -39,7 +39,7 @@ server.listen(0, common.mustCall(function() {
     host: 'localhost',
     port: this.address().port,
     ALPNProtocols: ['h2']
-  }, () => {
+  }, common.mustCall(() => {
     const proxy = new JSSocket(socket);
     const client = h2.connect(`https://localhost:${this.address().port}`, {
       createConnection: () => proxy
@@ -54,5 +54,5 @@ server.listen(0, common.mustCall(function() {
       client.close();
       server.close();
     }));
-  });
+  }));
 }));

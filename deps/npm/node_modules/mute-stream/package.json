@@ -1,10 +1,10 @@
 {
   "name": "mute-stream",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "main": "lib/index.js",
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.0",
-    "@npmcli/template-oss": "4.23.3",
+    "@npmcli/template-oss": "4.27.1",
     "tap": "^16.3.0"
   },
   "scripts": {
@@ -44,11 +44,11 @@
     ]
   },
   "engines": {
-    "node": "^18.17.0 || >=20.5.0"
+    "node": "^20.17.0 || >=22.9.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.23.3",
+    "version": "4.27.1",
     "publish": true
   }
 }

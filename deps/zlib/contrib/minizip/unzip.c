@@ -64,6 +64,7 @@
 */
 
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -837,6 +838,7 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
     uLong uMagic;
     long lSeek=0;
     uLong uL;
+    uLong uFileNameCrc;
 
     if (file==NULL)
         return UNZ_PARAMERROR;
@@ -908,21 +910,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
     file_info_internal.offset_curfile = uL;
 
     lSeek+=file_info.size_filename;
-    if ((err==UNZ_OK) && (szFileName!=NULL))
+    if (err==UNZ_OK)
     {
-        uLong uSizeRead ;
-        if (file_info.size_filename<fileNameBufferSize)
-        {
-            *(szFileName+file_info.size_filename)='\0';
-            uSizeRead = file_info.size_filename;
-        }
-        else
-            uSizeRead = fileNameBufferSize;
+        char szCurrentFileName[UINT16_MAX] = {0};
 
-        if ((file_info.size_filename>0) && (fileNameBufferSize>0))
-            if (ZREAD64(s->z_filefunc, s->filestream,szFileName,uSizeRead)!=uSizeRead)
+        if (file_info.size_filename > 0)
+        {
+            if (ZREAD64(s->z_filefunc, s->filestream, szCurrentFileName, file_info.size_filename) != file_info.size_filename)
+            {
                 err=UNZ_ERRNO;
-        lSeek -= uSizeRead;
+            }
+        }
+
+        uFileNameCrc = crc32(0, (unsigned char*)szCurrentFileName, file_info.size_filename);
+
+        if (szFileName != NULL)
+        {
+            if (fileNameBufferSize <= file_info.size_filename)
+            {
+                memcpy(szFileName, szCurrentFileName, fileNameBufferSize);
+            }
+            else
+            {
+                memcpy(szFileName, szCurrentFileName, file_info.size_filename);
+                szFileName[file_info.size_filename] = '\0';
+            }
+        }
+
+        lSeek -= file_info.size_filename;
     }
 
     // Read extrafield
@@ -1012,7 +1027,15 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
             {
                 int version = 0;
 
-                if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
+                if (dataSize < 1 + 4)
+                {
+                    /* dataSize includes version (1 byte), uCrc (4 bytes), and
+                     * the filename data. If it's too small, fileNameSize below
+                     * would overflow. */
+                    err = UNZ_ERRNO;
+                    break;
+                }
+                else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
                 {
                     err = UNZ_ERRNO;
                 }
@@ -1025,16 +1048,16 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                 }
                 else
                 {
-                    uLong uCrc, uHeaderCrc, fileNameSize;
+                    uLong uCrc, fileNameSize;
 
                     if (unz64local_getLong(&s->z_filefunc, s->filestream, &uCrc) != UNZ_OK)
                     {
                         err = UNZ_ERRNO;
                     }
-                    uHeaderCrc = crc32(0, (const unsigned char *)szFileName, file_info.size_filename);
-                    fileNameSize = dataSize - (2 * sizeof (short) + 1);
+                    fileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
+
                     /* Check CRC against file name in the header. */
-                    if (uHeaderCrc != uCrc)
+                    if (uCrc != uFileNameCrc)
                     {
                         if (ZSEEK64(s->z_filefunc, s->filestream, fileNameSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
                         {
@@ -1043,24 +1066,28 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                     }
                     else
                     {
-                        uLong uSizeRead;
-
                         file_info.size_filename = fileNameSize;
 
-                        if (fileNameSize < fileNameBufferSize)
+                        char szCurrentFileName[UINT16_MAX] = {0};
+
+                        if (file_info.size_filename > 0)
                         {
-                             *(szFileName + fileNameSize) = '\0';
-                            uSizeRead = fileNameSize;
-                        }
-                        else
-                        {
-                            uSizeRead = fileNameBufferSize;
-                        }
-                        if ((fileNameSize > 0) && (fileNameBufferSize > 0))
-                        {
-                            if (ZREAD64(s->z_filefunc, s->filestream, szFileName, uSizeRead) != uSizeRead)
+                            if (ZREAD64(s->z_filefunc, s->filestream, szCurrentFileName, file_info.size_filename) != file_info.size_filename)
                             {
                                 err = UNZ_ERRNO;
+                            }
+                        }
+
+                        if (szFileName != NULL)
+                        {
+                            if (fileNameBufferSize <= file_info.size_filename)
+                            {
+                                memcpy(szFileName, szCurrentFileName, fileNameBufferSize);
+                            }
+                            else
+                            {
+                                memcpy(szFileName, szCurrentFileName, file_info.size_filename);
+                                szFileName[file_info.size_filename] = '\0';
                             }
                         }
                     }

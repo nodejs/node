@@ -8708,14 +8708,14 @@
     "output": null
   },
   {
-    "comment": "V7; A4_2 (ignored)",
+    "comment": "A4_2 (ignored)",
     "input": "\ud88a\udd3120.\u97f3.\ua8661.",
-    "output": null
+    "output": "xn--20-9802c.xn--0w5a.xn--1-eg4e."
   },
   {
-    "comment": "V7; A4_2 (ignored)",
+    "comment": "A4_2 (ignored)",
     "input": "xn--20-9802c.xn--0w5a.xn--1-eg4e.",
-    "output": null
+    "output": "xn--20-9802c.xn--0w5a.xn--1-eg4e."
   },
   {
     "comment": "V7",
@@ -9095,57 +9095,64 @@
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a\uff19\ua369\u17d3\uff0e\u200d\u00df",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a9\ua369\u17d3.\u200d\u00df",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a9\ua369\u17d3.\u200dSS",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a9\ua369\u17d3.\u200dss",
     "output": null
   },
   {
-    "comment": "V7",
     "input": "xn--9-i0j5967eg3qz.ss",
-    "output": null
+    "output": "xn--9-i0j5967eg3qz.ss"
   },
   {
-    "comment": "C2; V7",
+    "input": "\ud88a\udf9a9\ua369\u17d3.ss",
+    "output": "xn--9-i0j5967eg3qz.ss"
+  },
+  {
+    "input": "\ud88a\udf9a9\ua369\u17d3.SS",
+    "output": "xn--9-i0j5967eg3qz.ss"
+  },
+  {
+    "comment": "C2",
     "input": "xn--9-i0j5967eg3qz.xn--ss-l1t",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "xn--9-i0j5967eg3qz.xn--zca770n",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a\uff19\ua369\u17d3\uff0e\u200dSS",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a\uff19\ua369\u17d3\uff0e\u200dss",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a9\ua369\u17d3.\u200dSs",
     "output": null
   },
   {
-    "comment": "C2; V7",
+    "comment": "C2",
     "input": "\ud88a\udf9a\uff19\ua369\u17d3\uff0e\u200dSs",
     "output": null
   },

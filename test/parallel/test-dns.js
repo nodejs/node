@@ -193,16 +193,15 @@ assert.deepStrictEqual(dns.getServers(), []);
 
 // dns.lookup should accept falsey values
 {
-  const checkCallback = (err, address, family) => {
-    assert.ifError(err);
+  const checkCallback = common.mustSucceed((address, family) => {
     assert.strictEqual(address, null);
     assert.strictEqual(family, 4);
-  };
+  }, 5);
 
   ['', null, undefined, 0, NaN].forEach(async (value) => {
     const res = await dnsPromises.lookup(value);
     assert.deepStrictEqual(res, { address: null, family: 4 });
-    dns.lookup(value, common.mustCall(checkCallback));
+    dns.lookup(value, checkCallback);
   });
 }
 
@@ -325,7 +324,7 @@ dns.lookup('', {
   }, err);
 }
 
-const portErr = (port) => {
+[null, undefined, 65538, 'test', NaN, Infinity, Symbol(), 0n, true, false, '', () => {}, {}].forEach((port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
     name: 'RangeError'
@@ -338,8 +337,7 @@ const portErr = (port) => {
   assert.throws(() => {
     dns.lookupService('0.0.0.0', port, common.mustNotCall());
   }, err);
-};
-[null, undefined, 65538, 'test', NaN, Infinity, Symbol(), 0n, true, false, '', () => {}, {}].forEach(portErr);
+});
 
 assert.throws(() => {
   dns.lookupService('0.0.0.0', 80, null);
@@ -349,12 +347,12 @@ assert.throws(() => {
 });
 
 {
-  dns.resolveMx('foo.onion', function(err) {
+  dns.resolveMx('foo.onion', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ENOTFOUND');
     assert.strictEqual(err.syscall, 'queryMx');
     assert.strictEqual(err.hostname, 'foo.onion');
     assert.strictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
-  });
+  }));
 }
 
 {

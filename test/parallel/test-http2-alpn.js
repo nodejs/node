@@ -34,7 +34,7 @@ const tls = require('tls');
     })
   );
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
       rejectUnauthorized: false,
@@ -43,5 +43,5 @@ const tls = require('tls');
       assert.strictEqual(client.alpnProtocol, 'a');
       client.end();
     }));
-  });
+  }));
 }

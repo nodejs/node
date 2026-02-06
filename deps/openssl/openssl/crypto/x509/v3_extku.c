@@ -15,11 +15,11 @@
 #include "ext_dat.h"
 
 static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx,
-                                    STACK_OF(CONF_VALUE) *nval);
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *nval);
 static STACK_OF(CONF_VALUE) *i2v_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD
-                                                    *method, void *eku, STACK_OF(CONF_VALUE)
-                                                    *extlist);
+                                                        *method,
+    void *eku, STACK_OF(CONF_VALUE) *extlist);
 
 const X509V3_EXT_METHOD ossl_v3_ext_ku = {
     NID_ext_key_usage, 0,
@@ -68,15 +68,14 @@ const X509V3_EXT_METHOD ossl_v3_acc_priv_policies = {
     NULL
 };
 
-ASN1_ITEM_TEMPLATE(EXTENDED_KEY_USAGE) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, EXTENDED_KEY_USAGE, ASN1_OBJECT)
+ASN1_ITEM_TEMPLATE(EXTENDED_KEY_USAGE) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, EXTENDED_KEY_USAGE, ASN1_OBJECT)
 ASN1_ITEM_TEMPLATE_END(EXTENDED_KEY_USAGE)
 
 IMPLEMENT_ASN1_FUNCTIONS(EXTENDED_KEY_USAGE)
 
 static STACK_OF(CONF_VALUE) *i2v_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD
-                                                    *method, void *a, STACK_OF(CONF_VALUE)
-                                                    *ext_list)
+                                                        *method,
+    void *a, STACK_OF(CONF_VALUE) *ext_list)
 {
     EXTENDED_KEY_USAGE *eku = a;
     int i;
@@ -91,8 +90,8 @@ static STACK_OF(CONF_VALUE) *i2v_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD
 }
 
 static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx,
-                                    STACK_OF(CONF_VALUE) *nval)
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *nval)
 {
     EXTENDED_KEY_USAGE *extku;
     char *extval;
@@ -117,10 +116,10 @@ static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
         if ((objtmp = OBJ_txt2obj(extval, 0)) == NULL) {
             sk_ASN1_OBJECT_pop_free(extku, ASN1_OBJECT_free);
             ERR_raise_data(ERR_LIB_X509V3, X509V3_R_INVALID_OBJECT_IDENTIFIER,
-                           "%s", extval);
+                "%s", extval);
             return NULL;
         }
-        sk_ASN1_OBJECT_push(extku, objtmp);  /* no failure as it was reserved */
+        sk_ASN1_OBJECT_push(extku, objtmp); /* no failure as it was reserved */
     }
     return extku;
 }

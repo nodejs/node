@@ -66,8 +66,6 @@ function isFileSpec (spec) {
   if (isWindows) {
     return isWindowsFile.test(spec)
   }
-  // We never hit this in windows tests, obviously
-  /* istanbul ignore next */
   return isPosixFile.test(spec)
 }
 

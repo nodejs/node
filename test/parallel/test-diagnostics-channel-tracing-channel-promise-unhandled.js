@@ -32,7 +32,7 @@ const handlers = {
 channel.subscribe(handlers);
 
 // Set no then/catch handler to verify unhandledRejection happens
-channel.tracePromise(function(value) {
+channel.tracePromise(common.mustCall(function(value) {
   assert.deepStrictEqual(this, thisArg);
   return Promise.reject(value);
-}, input, thisArg, expectedError);
+}), input, thisArg, expectedError);

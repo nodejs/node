@@ -63,16 +63,16 @@ static CRYPTO_ONCE version_strings_once = CRYPTO_ONCE_STATIC_INIT;
 DEFINE_RUN_ONCE_STATIC(version_strings_setup)
 {
     BIO_snprintf(openssldir, sizeof(openssldir), "OPENSSLDIR: \"%s\"",
-                 ossl_get_openssldir());
+        ossl_get_openssldir());
     BIO_snprintf(enginesdir, sizeof(enginesdir), "ENGINESDIR: \"%s\"",
-                 ossl_get_enginesdir());
+        ossl_get_enginesdir());
     BIO_snprintf(modulesdir, sizeof(modulesdir), "MODULESDIR: \"%s\"",
-                 ossl_get_modulesdir());
+        ossl_get_modulesdir());
     return 1;
 }
 
-# define TOSTR(x) #x
-# define OSSL_WINCTX_STRING "OSSL_WINCTX: \"" TOSTR(OSSL_WINCTX) "\""
+#define TOSTR(x) #x
+#define OSSL_WINCTX_STRING "OSSL_WINCTX: \"" TOSTR(OSSL_WINCTX) "\""
 
 #endif
 
@@ -105,23 +105,23 @@ const char *OpenSSL_version(int t)
         return modulesdir;
 #else
     case OPENSSL_DIR:
-# ifdef OPENSSLDIR
+#ifdef OPENSSLDIR
         return "OPENSSLDIR: \"" OPENSSLDIR "\"";
-# else
+#else
         return "OPENSSLDIR: N/A";
-# endif
+#endif
     case OPENSSL_ENGINES_DIR:
-# ifdef ENGINESDIR
+#ifdef ENGINESDIR
         return "ENGINESDIR: \"" ENGINESDIR "\"";
-# else
+#else
         return "ENGINESDIR: N/A";
-# endif
+#endif
     case OPENSSL_MODULES_DIR:
-# ifdef MODULESDIR
+#ifdef MODULESDIR
         return "MODULESDIR: \"" MODULESDIR "\"";
-# else
+#else
         return "MODULESDIR: N/A";
-# endif
+#endif
 #endif
     case OPENSSL_CPU_INFO:
         if (OPENSSL_info(OPENSSL_INFO_CPU_SETTINGS) != NULL)

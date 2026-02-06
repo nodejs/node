@@ -19,8 +19,8 @@ alias: verison
 * Default: false
 * Type: Boolean
 
-Prevents throwing an error when `npm version` is used to set the new
-version to the same value as the current version.
+Prevents throwing an error when `npm version` is used to set the new version
+to the same value as the current version.
 
 
 
@@ -38,8 +38,8 @@ Run git commit hooks when using the `npm version` command.
 * Default: true
 * Type: Boolean
 
-Tag the commit when using the `npm version` command. Setting this to
-false results in no commit being made at all.
+Tag the commit when using the `npm version` command. Setting this to false
+results in no commit being made at all.
 
 
 
@@ -50,8 +50,8 @@ false results in no commit being made at all.
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -62,8 +62,8 @@ Not supported by all npm commands.
 * Default: ""
 * Type: String
 
-The "prerelease identifier" to use as a prefix for the "prerelease"
-part of a semver. Like the `rc` in `1.2.0-rc.8`.
+The "prerelease identifier" to use as a prefix for the "prerelease" part of
+a semver. Like the `rc` in `1.2.0-rc.8`.
 
 
 
@@ -72,11 +72,25 @@ part of a semver. Like the `rc` in `1.2.0-rc.8`.
 * Default: false
 * Type: Boolean
 
-If set to true, then the `npm version` command will tag the version
-using `-s` to add a signature.
+If set to true, then the `npm version` command will tag the version using
+`-s` to add a signature.
 
-Note that git requires you to have set up GPG keys in your git
-configs for this to work properly.
+Note that git requires you to have set up GPG keys in your git configs for
+this to work properly.
+
+
+
+#### `save`
+
+* Default: `true` unless when using `npm update` where it defaults to `false`
+* Type: Boolean
+
+Save installed packages to a `package.json` file as dependencies.
+
+When used with the `npm rm` command, removes the dependency from
+`package.json`.
+
+Will also prevent writing to `package-lock.json` if set to `false`.
 
 
 
@@ -85,9 +99,9 @@ configs for this to work properly.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -96,9 +110,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -110,14 +124,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -126,9 +139,8 @@ This value is not exported to the environment for child processes.
 * Default: true
 * Type: Boolean
 
-If set to true, the npm cli will run an update after operations that
-may possibly change the workspaces installed to the `node_modules`
-folder.
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the `node_modules` folder.
 
 
 
@@ -139,12 +151,25 @@ folder.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
+
+#### `ignore-scripts`
+
+* Default: false
+* Type: Boolean
+
+If true, npm does not run scripts specified in package.json files.
+
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
+
+
 
 ### Description
 
@@ -155,9 +180,13 @@ The `newversion` argument should be a valid semver string, a valid second argume
 In the second case, the existing version will be incremented by 1 in the specified field.
 `from-git` will try to read the latest git tag, and use that as the new npm version.
 
+**Note:** If the current version is a prerelease version, `patch` will simply remove the prerelease suffix without incrementing the patch version number. For example, `1.2.0-5` becomes `1.2.0` with `npm version patch`, not `1.2.1`.
+
 If run in a git repo, it will also create a version commit and tag.
 This behavior is controlled by `git-tag-version` (see below), and can be disabled on the command line by running `npm --no-git-tag-version version`.
 It will fail if the working directory is not clean, unless the `-f` or `--force` flag is set.
+
+**Note:** Git integration requires a reasonably recent version of git (2.0.0 or later is recommended). If you encounter issues with git commands, ensure your git installation is up to date.
 
 If supplied with `-m` or [`--message` config](/using-npm/config#message) option, npm will use it as a commit message when creating a version commit.
 If the `message` config contains `%s` then that will be replaced with the resulting version number.

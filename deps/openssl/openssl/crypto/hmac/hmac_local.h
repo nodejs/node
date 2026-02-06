@@ -8,14 +8,14 @@
  */
 
 #ifndef OSSL_CRYPTO_HMAC_LOCAL_H
-# define OSSL_CRYPTO_HMAC_LOCAL_H
+#define OSSL_CRYPTO_HMAC_LOCAL_H
 
-# include "internal/common.h"
-# include "internal/numbers.h"
-# include "openssl/sha.h"
+#include "internal/common.h"
+#include "internal/numbers.h"
+#include "openssl/sha.h"
 
 /* The current largest case is for SHA3-224 */
-#define HMAC_MAX_MD_CBLOCK_SIZE     144
+#define HMAC_MAX_MD_CBLOCK_SIZE 144
 
 struct hmac_ctx_st {
     const EVP_MD *md;
@@ -26,7 +26,7 @@ struct hmac_ctx_st {
     /* Platform specific data */
     union {
         int dummy;
-# ifdef OPENSSL_HMAC_S390X
+#ifdef OPENSSL_HMAC_S390X
         struct {
             unsigned int fc; /* 0 if not supported by kmac instruction */
             int blk_size;
@@ -49,18 +49,18 @@ struct hmac_ctx_st {
                 } hmac_384_512;
             } param;
         } s390x;
-# endif /* OPENSSL_HMAC_S390X */
+#endif /* OPENSSL_HMAC_S390X */
     } plat;
 };
 
-# ifdef OPENSSL_HMAC_S390X
-#  define HMAC_S390X_BUF_NUM_BLOCKS 64
+#ifdef OPENSSL_HMAC_S390X
+#define HMAC_S390X_BUF_NUM_BLOCKS 64
 
 int s390x_HMAC_init(HMAC_CTX *ctx, const void *key, int key_len, ENGINE *impl);
 int s390x_HMAC_update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
 int s390x_HMAC_final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
 int s390x_HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx);
 int s390x_HMAC_CTX_cleanup(HMAC_CTX *ctx);
-# endif /* OPENSSL_HMAC_S390X */
+#endif /* OPENSSL_HMAC_S390X */
 
 #endif

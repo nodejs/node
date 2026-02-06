@@ -899,6 +899,7 @@ changes:
   * `rejectUnauthorized`: See [`tls.createServer()`][]
   * `ALPNProtocols`: See [`tls.createServer()`][]
   * `SNICallback`: See [`tls.createServer()`][]
+  * `ALPNCallback`: See [`tls.createServer()`][]
   * `session` {Buffer} A `Buffer` instance containing a TLS session.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
@@ -950,6 +951,18 @@ The listener callback is passed a single argument when called:
 
 Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
+
+### Event: `'secure'`
+
+<!-- YAML
+added: v0.11.4
+-->
+
+The `'secure'` event is emitted after the TLS handshake has successfully
+completed and a secure connection has been established.
+
+This event is emitted on both client and server {tls.TLSSocket} instances,
+including sockets created using the `new tls.TLSSocket()` constructor.
 
 ### Event: `'secureConnect'`
 
@@ -1529,7 +1542,7 @@ changes:
   * `requestCert`
 
 * `callback` {Function} If `renegotiate()` returned `true`, callback is
-  attached once to the `'secure'` event. If `renegotiate()` returned `false`,
+  attached once to the [`'secure'`][] event. If `renegotiate()` returned `false`,
   `callback` will be called in the next tick with an error, unless the
   `tlsSocket` has been destroyed, in which case `callback` will not be called
   at all.
@@ -1705,11 +1718,9 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
-  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
-    TypedArray|DataView}
-    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
-    single `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
-    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+  * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
+    or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
+    ALPN protocols. Buffers should have the format `[len][name][len][name]...`
     e.g. `'\x08http/1.1\x08http/1.0'`, where the `len` byte is the length of the
     next protocol name. Passing an array is usually much simpler, e.g.
     `['http/1.1', 'http/1.0']`. Protocols earlier in the list have higher
@@ -1726,12 +1737,18 @@ changes:
     verification fails. The method should return `undefined` if the `servername`
     and `cert` are verified.
   * `session` {Buffer} A `Buffer` instance, containing TLS session.
+  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
+    extension will be added to the client hello and an `'OCSPResponse'` event
+    will be emitted on the socket before establishing a secure communication.
   * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
+  * `timeout`: {number} If set and if a socket is created internally, will call
+    [`socket.setTimeout(timeout)`][] after the socket is created, but before it
+    starts the connection.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
@@ -2120,11 +2137,9 @@ changes:
 -->
 
 * `options` {Object}
-  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
-    TypedArray|DataView}
-    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a single
-    `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
-    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+  * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
+    or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
+    ALPN protocols. Buffers should have the format `[len][name][len][name]...`
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
@@ -2458,6 +2473,7 @@ added: v0.11.3
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [`'newSession'`]: #event-newsession
 [`'resumeSession'`]: #event-resumesession
+[`'secure'`]: #event-secure
 [`'secureConnect'`]: #event-secureconnect
 [`'secureConnection'`]: #event-secureconnection
 [`'session'`]: #event-session
@@ -2481,6 +2497,7 @@ added: v0.11.3
 [`server.listen()`]: net.md#serverlisten
 [`server.setTicketKeys()`]: #serversetticketkeyskeys
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`socket.setTimeout(timeout)`]: net.md#socketsettimeouttimeout-callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tlsdefault_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version

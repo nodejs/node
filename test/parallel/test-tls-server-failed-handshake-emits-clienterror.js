@@ -20,10 +20,10 @@ const server = tls.createServer({})
   }).on('tlsClientError', common.mustCall(function(e) {
     assert.ok(e instanceof Error,
               'Instance of Error should be passed to error handler');
-    assert.ok(
-      /SSL routines:[^:]*:wrong version number/.test(
-        e.message),
-      'Expecting SSL unknown protocol');
+    assert.match(
+      e.message,
+      /SSL routines:[^:]*:wrong version number/,
+    );
 
     server.close();
   }));

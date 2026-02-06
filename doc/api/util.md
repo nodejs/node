@@ -135,14 +135,14 @@ The `section` supports wildcard also:
 
 ```mjs
 import { debuglog } from 'node:util';
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
 ```cjs
 const { debuglog } = require('node:util');
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
@@ -564,6 +564,9 @@ changes:
 Returns an array of call site objects containing the stack of
 the caller function.
 
+Unlike accessing an `error.stack`, the result returned from this API is not
+interfered with `Error.prepareStackTrace`.
+
 ```mjs
 import { getCallSites } from 'node:util';
 
@@ -576,7 +579,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -613,7 +616,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -3388,7 +3391,7 @@ deprecated: v24.2.0
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
 
-**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
 If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
@@ -3766,6 +3769,12 @@ util.isArray({});
 // Returns: false
 ```
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 [Common System Errors]: errors.md#common-system-errors
 [Custom inspection functions on objects]: #custom-inspection-functions-on-objects
 [Custom promisified functions]: #custom-promisified-functions
@@ -3788,7 +3797,7 @@ util.isArray({});
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
-[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
+[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.diff()`]: #utildiffactual-expected
 [`util.format()`]: #utilformatformat-args
@@ -3799,7 +3808,7 @@ util.isArray({});
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
-[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#Parameters
+[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#parameters
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for

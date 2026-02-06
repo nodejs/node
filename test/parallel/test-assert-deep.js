@@ -634,6 +634,21 @@ test('Handle sparse arrays', () => {
   assertNotDeepOrStrict(a, b, AssertionError, { partial: 'pass' });
 });
 
+test('Handle sets and maps with mixed keys', () => {
+  // https://github.com/nodejs/node/issues/61386
+  const aSet = new Set([0, new Set([1, 2, 3]), new Set([4, 5, 6])]);
+  const bSet = new Set([
+    0,
+    new Set([1, new Set([2, 3]), new Set([20, 30])]),
+    new Set([4, new Set([5, 6]), new Set([50, 60])]),
+  ]);
+  assertNotDeepOrStrict(aSet, bSet);
+
+  const aMap = new Map([[0, 'zero'], [1, 'one'], [new Set([1, 2, 3]), 'A']]);
+  const bMap = new Map([[0, 'zero'], [new Set([1, 2, 3]), 'A'], [new Set([9]), 'B']]);
+  assertNotDeepOrStrict(aMap, bMap);
+});
+
 test('Handle different error messages', () => {
   const err1 = new Error('foo1');
   assertNotDeepOrStrict(err1, new Error('foo2'), assert.AssertionError);

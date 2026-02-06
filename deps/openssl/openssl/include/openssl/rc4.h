@@ -8,40 +8,40 @@
  */
 
 #ifndef OPENSSL_RC4_H
-# define OPENSSL_RC4_H
-# pragma once
+#define OPENSSL_RC4_H
+#pragma once
 
-# include <openssl/macros.h>
-# ifndef OPENSSL_NO_DEPRECATED_3_0
-#  define HEADER_RC4_H
-# endif
+#include <openssl/macros.h>
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+#define HEADER_RC4_H
+#endif
 
-# include <openssl/opensslconf.h>
+#include <openssl/opensslconf.h>
 
-# ifndef OPENSSL_NO_RC4
-#  include <stddef.h>
-#  ifdef  __cplusplus
+#ifndef OPENSSL_NO_RC4
+#include <stddef.h>
+#ifdef __cplusplus
 extern "C" {
-#  endif
+#endif
 
-#  ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 typedef struct rc4_key_st {
     RC4_INT x, y;
     RC4_INT data[256];
 } RC4_KEY;
-#  endif
-#  ifndef OPENSSL_NO_DEPRECATED_3_0
+#endif
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0 const char *RC4_options(void);
 OSSL_DEPRECATEDIN_3_0 void RC4_set_key(RC4_KEY *key, int len,
-                                       const unsigned char *data);
+    const unsigned char *data);
 OSSL_DEPRECATEDIN_3_0 void RC4(RC4_KEY *key, size_t len,
-                               const unsigned char *indata,
-                               unsigned char *outdata);
-#  endif
+    const unsigned char *indata,
+    unsigned char *outdata);
+#endif
 
-#  ifdef  __cplusplus
+#ifdef __cplusplus
 }
-#  endif
-# endif
+#endif
+#endif
 
 #endif

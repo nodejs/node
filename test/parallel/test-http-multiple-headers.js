@@ -34,7 +34,7 @@ const server = createServer(
       'transfer-encoding': ['chunked']
     });
 
-    req.on('end', function() {
+    req.on('end', common.mustCall(() => {
       assert.deepStrictEqual(req.rawTrailers, [
         'x-req-x', 'xxx',
         'x-req-x', 'yyy',
@@ -93,7 +93,7 @@ const server = createServer(
         'x-res-d': [ 'JJJ', 'KKK', 'LLL' ]
       });
       assert.deepStrictEqual(res.getHeaders(), headers);
-    });
+    }));
 
     req.resume();
   }
@@ -141,7 +141,7 @@ server.listen(0, common.mustCall(() => {
       'transfer-encoding': [ 'chunked' ]
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.deepStrictEqual(res.rawTrailers, [
         'x-res-x', 'XXX',
         'x-res-x', 'YYY',
@@ -156,7 +156,7 @@ server.listen(0, common.mustCall(() => {
         { 'x-res-x': ['XXX', 'YYY'], 'x-res-y': ['ZZZ; WWW'] }
       );
       server.close();
-    });
+    }));
     res.resume();
   }));
 

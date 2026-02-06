@@ -25,8 +25,8 @@
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 
 int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
-              ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
-              const EVP_MD *type)
+    ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
+    const EVP_MD *type)
 {
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char *p, *buf_in = NULL, *buf_out = NULL;
@@ -52,8 +52,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
              */
             ASN1_TYPE_free(a->parameter);
             a->parameter = NULL;
-        } else if ((a->parameter == NULL) ||
-                   (a->parameter->type != V_ASN1_NULL)) {
+        } else if ((a->parameter == NULL) || (a->parameter->type != V_ASN1_NULL)) {
             ASN1_TYPE_free(a->parameter);
             if ((a->parameter = ASN1_TYPE_new()) == NULL)
                 goto err;
@@ -67,7 +66,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
         }
         if (a->algorithm->length == 0) {
             ERR_raise(ERR_LIB_ASN1,
-                      ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
+                ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
             goto err;
         }
     }
@@ -90,7 +89,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
     if (!EVP_SignInit_ex(ctx, type, NULL)
         || !EVP_SignUpdate(ctx, (unsigned char *)buf_in, inl)
         || !EVP_SignFinal(ctx, (unsigned char *)buf_out,
-                          (unsigned int *)&outl, pkey)) {
+            (unsigned int *)&outl, pkey)) {
         outl = 0;
         ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
@@ -102,7 +101,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
      * has a 'not-used bits' value of 0
      */
     ossl_asn1_string_set_bits_left(signature, 0);
- err:
+err:
     EVP_MD_CTX_free(ctx);
     OPENSSL_clear_free((char *)buf_in, inll);
     OPENSSL_clear_free((char *)buf_out, outll);
@@ -112,18 +111,18 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
 #endif
 
 int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
-                   ASN1_BIT_STRING *signature, const void *data,
-                   EVP_PKEY *pkey, const EVP_MD *md)
+    ASN1_BIT_STRING *signature, const void *data,
+    EVP_PKEY *pkey, const EVP_MD *md)
 {
     return ASN1_item_sign_ex(it, algor1, algor2, signature, data, NULL, pkey,
-                             md, NULL, NULL);
+        md, NULL, NULL);
 }
 
 int ASN1_item_sign_ex(const ASN1_ITEM *it, X509_ALGOR *algor1,
-                      X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
-                      const void *data, const ASN1_OCTET_STRING *id,
-                      EVP_PKEY *pkey, const EVP_MD *md, OSSL_LIB_CTX *libctx,
-                      const char *propq)
+    X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
+    const void *data, const ASN1_OCTET_STRING *id,
+    EVP_PKEY *pkey, const EVP_MD *md, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     int rv = 0;
     EVP_MD_CTX *ctx = evp_md_ctx_new_ex(pkey, id, libctx, propq);
@@ -138,15 +137,15 @@ int ASN1_item_sign_ex(const ASN1_ITEM *it, X509_ALGOR *algor1,
 
     rv = ASN1_item_sign_ctx(it, algor1, algor2, signature, data, ctx);
 
- err:
+err:
     EVP_PKEY_CTX_free(EVP_MD_CTX_get_pkey_ctx(ctx));
     EVP_MD_CTX_free(ctx);
     return rv;
 }
 
 int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
-                       X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
-                       const void *data, EVP_MD_CTX *ctx)
+    X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
+    const void *data, EVP_MD_CTX *ctx)
 {
     const EVP_MD *md;
     EVP_PKEY *pkey;
@@ -175,9 +174,8 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
             goto err;
         }
 
-        params[0] =
-            OSSL_PARAM_construct_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID,
-                                              aid, sizeof(aid));
+        params[0] = OSSL_PARAM_construct_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID,
+            aid, sizeof(aid));
         params[1] = OSSL_PARAM_construct_end();
 
         if (EVP_PKEY_CTX_get_params(pctx, params) <= 0)
@@ -236,15 +234,14 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
 #ifndef OPENSSL_NO_SM2
             EVP_PKEY_get_id(pkey) == NID_sm2 ? NID_sm2 :
 #endif
-            pkey->ameth->pkey_id;
+                                             pkey->ameth->pkey_id;
 
         if (!OBJ_find_sigid_by_algs(&signid, EVP_MD_nid(md), pkey_id)) {
             ERR_raise(ERR_LIB_ASN1, ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
             goto err;
         }
 
-        paramtype = pkey->ameth->pkey_flags & ASN1_PKEY_SIGPARAM_NULL ?
-            V_ASN1_NULL : V_ASN1_UNDEF;
+        paramtype = pkey->ameth->pkey_flags & ASN1_PKEY_SIGPARAM_NULL ? V_ASN1_NULL : V_ASN1_UNDEF;
         if (algor1 != NULL
             && !X509_ALGOR_set0(algor1, OBJ_nid2obj(signid), paramtype, NULL))
             goto err;
@@ -284,7 +281,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
      * has a 'not-used bits' value of 0
      */
     ossl_asn1_string_set_bits_left(signature, 0);
- err:
+err:
     OPENSSL_clear_free((char *)buf_in, inl);
     OPENSSL_clear_free((char *)buf_out, outll);
     return outl;

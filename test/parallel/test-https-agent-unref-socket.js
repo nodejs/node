@@ -17,13 +17,13 @@ if (process.argv[2] === 'localhost') {
   const net = require('net');
   const server = net.createServer();
   server.listen(0);
-  server.on('listening', () => {
+  server.on('listening', common.mustCall(() => {
     const port = server.address().port;
     const { fork } = require('child_process');
     const child = fork(__filename, ['localhost', port], {});
-    child.on('close', (exit_code) => {
+    child.on('close', common.mustCall((exit_code) => {
       server.close();
       assert.strictEqual(exit_code, 0);
-    });
-  });
+    }));
+  }));
 }

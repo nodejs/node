@@ -34,11 +34,11 @@ tmpdir.refresh();
   const stream = fs.WriteStream(file);
   const _fs_close = fs.close;
 
-  fs.close = function(fd) {
+  fs.close = common.mustCall(function(fd) {
     assert.ok(fd, 'fs.close must not be called without an undefined fd.');
     fs.close = _fs_close;
     fs.closeSync(fd);
-  };
+  });
   stream.destroy();
 }
 

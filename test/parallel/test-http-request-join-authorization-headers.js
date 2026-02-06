@@ -19,14 +19,14 @@ const http = require('http');
       port: server.address().port,
       headers: ['authorization', '1', 'authorization', '2', 'cookie', 'foo', 'cookie', 'bar'],
       joinDuplicateHeaders: true
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers.authorization, '3, 4');
       assert.strictEqual(res.headers.cookie, 'foo; bar');
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 
@@ -46,13 +46,13 @@ const http = require('http');
       port: server.address().port,
       headers: ['authorization', '1', 'authorization', '2'],
       joinDuplicateHeaders: true
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers.authorization, '3, 4');
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 
@@ -72,12 +72,12 @@ const http = require('http');
       port: server.address().port,
       headers: ['authorization', '1', 'authorization', '2'],
       joinDuplicateHeaders: false
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers.authorization, '3'); // non joined value
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }

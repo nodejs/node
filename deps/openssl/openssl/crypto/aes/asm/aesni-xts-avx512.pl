@@ -35,13 +35,15 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-        =~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-    $avx512vaes = ($1>=2.30);
+        =~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+    my $ver = $1 + $2/100.0; # 3.1->3.01, 3.10->3.10
+    $avx512vaes = ($ver >= 2.30);
 }
 
 if (!$avx512vaes && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-       `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-    $avx512vaes = ($1==2.11 && $2>=8) + ($1>=2.12);
+       `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)(?:\.([0-9]+))?/) {
+    my $ver = $1 + $2/100.0 + $3/10000.0; # 3.1.0->3.01, 3.10.1->3.1001
+    $avx512vaes = ($ver >= 2.1108);
 }
 
 if (!$avx512vaes && `$ENV{CC} -v 2>&1`
@@ -2194,7 +2196,7 @@ ___
     vpxorq 	 %zmm6,%zmm5,%zmm5{%k2}
     vpxord 	 %zmm5,%zmm7,%zmm10
 
-    # Make next 8 tweek values by all x 2^8
+    # Make next 8 tweak values by all x 2^8
     vpsrldq 	 \$0xf,%zmm9,%zmm13
     vpclmulqdq 	 \$0x0,%zmm25,%zmm13,%zmm14
     vpslldq 	 \$0x1,%zmm9,%zmm11
@@ -2234,7 +2236,7 @@ ___
     jmp 	 .L_do_n_blocks_${rndsuffix}
 
     .L_start_by8_${rndsuffix}:
-    # Make first 7 tweek values
+    # Make first 7 tweak values
     vbroadcasti32x4 	 ($TW),%zmm0
     vbroadcasti32x4 shufb_15_7(%rip),%zmm8
     mov 	 \$0xaa,$tmp1

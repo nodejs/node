@@ -1,11 +1,11 @@
 /*
-* Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
-*
-* Licensed under the Apache License 2.0 (the "License").  You may not use
-* this file except in compliance with the License.  You can obtain a copy
-* in the file LICENSE in the source distribution or at
-* https://www.openssl.org/source/license.html
-*/
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
 #include <openssl/err.h>
 #include "internal/common.h"
 #include "internal/time.h"
@@ -22,7 +22,7 @@ struct quic_rstream_st {
 };
 
 QUIC_RSTREAM *ossl_quic_rstream_new(QUIC_RXFC *rxfc,
-                                    OSSL_STATM *statm, size_t rbuf_size)
+    OSSL_STATM *statm, size_t rbuf_size)
 {
     QUIC_RSTREAM *ret = OPENSSL_zalloc(sizeof(*ret));
 
@@ -55,9 +55,9 @@ void ossl_quic_rstream_free(QUIC_RSTREAM *qrs)
 }
 
 int ossl_quic_rstream_queue_data(QUIC_RSTREAM *qrs, OSSL_QRX_PKT *pkt,
-                                 uint64_t offset,
-                                 const unsigned char *data, uint64_t data_len,
-                                 int fin)
+    uint64_t offset,
+    const unsigned char *data, uint64_t data_len,
+    int fin)
 {
     UINT_RANGE range;
 
@@ -74,7 +74,7 @@ int ossl_quic_rstream_queue_data(QUIC_RSTREAM *qrs, OSSL_QRX_PKT *pkt,
 }
 
 static int read_internal(QUIC_RSTREAM *qrs, unsigned char *buf, size_t size,
-                         size_t *readbytes, int *fin, int drop)
+    size_t *readbytes, int *fin, int drop)
 {
     void *iter = NULL;
     UINT_RANGE range;
@@ -107,7 +107,7 @@ static int read_internal(QUIC_RSTREAM *qrs, unsigned char *buf, size_t size,
                 readbytes_ += max_len;
                 l -= max_len;
                 data = ring_buf_get_ptr(&qrs->rbuf, range.start + max_len,
-                                        &max_len);
+                    &max_len);
                 if (!ossl_assert(data != NULL) || !ossl_assert(max_len > l))
                     return 0;
             }
@@ -150,7 +150,7 @@ static OSSL_TIME get_rtt(QUIC_RSTREAM *qrs)
 }
 
 int ossl_quic_rstream_read(QUIC_RSTREAM *qrs, unsigned char *buf, size_t size,
-                           size_t *readbytes, int *fin)
+    size_t *readbytes, int *fin)
 {
     OSSL_TIME rtt = get_rtt(qrs);
 
@@ -165,7 +165,7 @@ int ossl_quic_rstream_read(QUIC_RSTREAM *qrs, unsigned char *buf, size_t size,
 }
 
 int ossl_quic_rstream_peek(QUIC_RSTREAM *qrs, unsigned char *buf, size_t size,
-                           size_t *readbytes, int *fin)
+    size_t *readbytes, int *fin)
 {
     return read_internal(qrs, buf, size, readbytes, fin, 0);
 }
@@ -189,8 +189,8 @@ int ossl_quic_rstream_available(QUIC_RSTREAM *qrs, size_t *avail, int *fin)
 }
 
 int ossl_quic_rstream_get_record(QUIC_RSTREAM *qrs,
-                                 const unsigned char **record, size_t *rec_len,
-                                 int *fin)
+    const unsigned char **record, size_t *rec_len,
+    int *fin)
 {
     const unsigned char *record_ = NULL;
     size_t rec_len_, max_len;
@@ -214,7 +214,7 @@ int ossl_quic_rstream_get_record(QUIC_RSTREAM *qrs,
 
     if (record_ == NULL && rec_len_ != 0) {
         record_ = ring_buf_get_ptr(&qrs->rbuf, qrs->head_range.start,
-                                   &max_len);
+            &max_len);
         if (!ossl_assert(record_ != NULL))
             return 0;
         if (max_len < rec_len_) {
@@ -227,7 +227,6 @@ int ossl_quic_rstream_get_record(QUIC_RSTREAM *qrs,
     *record = record_;
     return 1;
 }
-
 
 int ossl_quic_rstream_release_record(QUIC_RSTREAM *qrs, size_t read_len)
 {
@@ -261,9 +260,9 @@ int ossl_quic_rstream_release_record(QUIC_RSTREAM *qrs, size_t read_len)
 }
 
 static int write_at_ring_buf_cb(uint64_t logical_offset,
-                                const unsigned char *buf,
-                                size_t buf_len,
-                                void *cb_arg)
+    const unsigned char *buf,
+    size_t buf_len,
+    void *cb_arg)
 {
     struct ring_buf *rbuf = cb_arg;
 
@@ -275,7 +274,7 @@ int ossl_quic_rstream_move_to_rbuf(QUIC_RSTREAM *qrs)
     if (ring_buf_avail(&qrs->rbuf) == 0)
         return 0;
     return ossl_sframe_list_move_data(&qrs->fl,
-                                      write_at_ring_buf_cb, &qrs->rbuf);
+        write_at_ring_buf_cb, &qrs->rbuf);
 }
 
 int ossl_quic_rstream_resize_rbuf(QUIC_RSTREAM *qrs, size_t rbuf_size)

@@ -14,9 +14,9 @@
 #include "internal/cryptlib.h"
 #include "internal/comp.h"
 
-#define SSL_COMP_NULL_IDX       0
-#define SSL_COMP_ZLIB_IDX       1
-#define SSL_COMP_NUM_IDX        2
+#define SSL_COMP_NULL_IDX 0
+#define SSL_COMP_ZLIB_IDX 1
+#define SSL_COMP_NUM_IDX 2
 
 #ifndef OPENSSL_NO_COMP
 static int sk_comp_cmp(const SSL_COMP *const *a, const SSL_COMP *const *b)

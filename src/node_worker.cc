@@ -268,7 +268,6 @@ class WorkerThreadData {
   uv_loop_t loop_;
   bool loop_init_failed_ = true;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
-  const SnapshotData* snapshot_data_ = nullptr;
   friend class Worker;
 };
 

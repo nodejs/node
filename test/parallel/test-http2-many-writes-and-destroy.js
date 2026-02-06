@@ -10,7 +10,7 @@ const http2 = require('http2');
     req.pipe(res);
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const url = `http://localhost:${server.address().port}`;
     const client = http2.connect(url);
     const req = client.request({ ':method': 'POST' });
@@ -26,5 +26,5 @@ const http2 = require('http2');
     }));
 
     req.once('data', common.mustCall(() => req.destroy()));
-  });
+  }));
 }

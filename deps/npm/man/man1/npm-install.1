@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "October 2025" "NPM@11.6.2" ""
+.TH "NPM-INSTALL" "1" "January 2026" "NPM@11.8.0" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -24,6 +24,20 @@ This command installs a package and any packages that it depends on. If the pack
 
 .P
 See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR and npm help shrinkwrap.
+.SS "How \fBnpm install\fR uses \fBpackage-lock.json\fR"
+.P
+When you run \fBnpm install\fR without arguments, npm compares \fBpackage.json\fR and \fBpackage-lock.json\fR:
+.RS 0
+.IP \(bu 4
+\fBIf the lockfile's resolved versions satisfy the \fBpackage.json\fB ranges:\fR npm uses the exact versions from \fBpackage-lock.json\fR to ensure reproducible builds across environments.
+.IP \(bu 4
+\fBIf the ranges don't match:\fR npm resolves new versions that satisfy the \fBpackage.json\fR ranges and updates \fBpackage-lock.json\fR accordingly. This happens when you modify version ranges in \fBpackage.json\fR (e.g., changing \fB^7.0.0\fR to \fB^8.0.0\fR). Note that changing a range within the same major version (e.g., \fB^7.0.0\fR to \fB^7.1.0\fR) will only update the metadata in the lockfile if the currently installed version still satisfies the new range.
+.RE 0
+
+.P
+In essence, \fBpackage-lock.json\fR locks your dependencies to specific versions, but \fBpackage.json\fR is the source of truth for acceptable version ranges. When the lockfile's versions satisfy the \fBpackage.json\fR ranges, the lockfile wins. When they conflict, \fBpackage.json\fR wins and the lockfile is updated.
+.P
+If you want to install packages while ensuring that \fBpackage.json\fR is not modified and that both files are strictly in sync, use npm help ci instead.
 .P
 A \fBpackage\fR is:
 .RS 0
@@ -120,6 +134,8 @@ npm install https://github.com/indexzero/forever/tarball/v0.5.6
 Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config. (See \fB\[rs]fBconfig\[rs]fR\fR \fI\(la/using-npm/config#tag\(ra\fR. The config's default value is \fBlatest\fR.)
 .P
 In most cases, this will install the version of the modules tagged as \fBlatest\fR on the npm registry.
+.P
+\fBNote:\fR When installing by name without specifying a version or tag, npm prioritizes versions that match the current Node.js version based on the package's \fBengines\fR field. If the \fBlatest\fR tag points to a version incompatible with your current Node.js version, npm will install the newest compatible version instead. To install a specific version regardless of \fBengines\fR compatibility, explicitly specify the version or tag: \fBnpm install <name>@latest\fR.
 .P
 Example:
 .P
@@ -226,6 +242,17 @@ Example:
 .nf
 npm install sax@">=0.1.0 <0.2.0"
 npm install @myorg/privatepackage@"16 - 17"
+.fi
+.RE
+.P
+\fBPrerelease versions:\fR By default, version ranges only match stable versions. To include prerelease versions, they must be explicitly specified in the range. Prerelease versions are tied to a specific version triple (major.minor.patch). For example, \fB^1.2.3-beta.1\fR will only match prereleases for \fB1.2.x\fR, not \fB1.3.x\fR. To match all prereleases for a major version, use a range like \fB^1.0.0-0\fR, which will include all \fB1.x.x\fR prereleases.
+.P
+Example:
+.P
+.RS 2
+.nf
+npm install package@^1.2.3-beta.1  # Matches 1.2.3-beta.1, 1.2.3-beta.2, 1.2.4-beta.1, etc.
+npm install package@^1.0.0-0       # Matches all 1.x.x prereleases and stable versions
 .fi
 .RE
 .IP \(bu 4
@@ -358,6 +385,8 @@ npm install sax@">=0.1.0 <0.2.0" bench supervisor
 .RE
 .P
 The \fB--tag\fR argument will apply to all of the specified install targets. If a tag with the given name exists, the tagged version is preferred over newer versions.
+.P
+\fBNote:\fR The \fB--tag\fR option only affects packages specified on the command line. It does not override version ranges specified in \fBpackage.json\fR. For example, if \fBpackage.json\fR specifies \fB"foo": "^1.0.0"\fR and you run \fBnpm install --tag beta\fR, npm will still install a version matching \fB^1.0.0\fR even if the \fBbeta\fR tag points to a different version. To install a tagged version, specify the package explicitly: \fBnpm install foo@beta\fR.
 .P
 The \fB--dry-run\fR argument will report in the usual way what the install would have done without actually installing anything.
 .P
@@ -553,8 +582,7 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm
-run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4

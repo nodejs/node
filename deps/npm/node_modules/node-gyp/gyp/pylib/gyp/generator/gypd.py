@@ -73,7 +73,7 @@ for v in _generator_identity_variables:
 def GenerateOutput(target_list, target_dicts, data, params):
     output_files = {}
     for qualified_target in target_list:
-        [input_file, target] = gyp.common.ParseQualifiedTarget(qualified_target)[0:2]
+        [input_file, _target] = gyp.common.ParseQualifiedTarget(qualified_target)[0:2]
 
         if input_file[-4:] != ".gyp":
             continue

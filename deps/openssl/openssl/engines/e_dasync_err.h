@@ -9,19 +9,17 @@
  */
 
 #ifndef OSSL_E_DASYNC_ERR_H
-# define OSSL_E_DASYNC_ERR_H
-# pragma once
+#define OSSL_E_DASYNC_ERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-
-# define DASYNCerr(f, r) ERR_DASYNC_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
-
+#define DASYNCerr(f, r) ERR_DASYNC_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
 
 /*
  * DASYNC reason codes.
  */
-# define DASYNC_R_INIT_FAILED                             100
+#define DASYNC_R_INIT_FAILED 100
 
 #endif

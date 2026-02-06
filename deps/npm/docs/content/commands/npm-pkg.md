@@ -166,16 +166,14 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow clobbering non-npm files in global installs.
 * Allow the `npm version` command to work on an unclean git repository.
 * Allow deleting the cache folder with `npm cache clean`.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of npm.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of `node`, even if `--engine-strict` is
-  enabled.
-* Allow `npm audit fix` to install modules outside your stated
-  dependency range (including SemVer-major changes).
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of npm.
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of `node`, even if `--engine-strict` is enabled.
+* Allow `npm audit fix` to install modules outside your stated dependency
+  range (including SemVer-major changes).
 * Allow unpublishing all versions of a published package.
-* Allow conflicting peerDependencies to be installed in the root
-  project.
+* Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
 * Allow clobbering existing values in `npm pkg`
 * Allow unpublishing of entire packages (not just a single version).
@@ -192,8 +190,8 @@ recommended that you do not use this option!
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -204,9 +202,9 @@ Not supported by all npm commands.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -215,9 +213,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -229,14 +227,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 ## See Also

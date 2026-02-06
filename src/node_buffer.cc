@@ -98,7 +98,7 @@ class CallbackInfo : public Cleanable {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
-  void Clean();
+  void Clean() override;
   inline void OnBackingStoreFree();
   inline void CallAndResetCallback();
   inline CallbackInfo(Environment* env,
@@ -541,16 +541,16 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  ArrayBufferViewContents<char> buffer(args.This());
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  ArrayBufferViewContents<char> buffer(args[0]);
 
   if (buffer.length() == 0)
     return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[0], 0, &start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], buffer.length(), &end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer.length(), &end));
   if (end < start) end = start;
   THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
   size_t length = end - start;
@@ -703,27 +703,27 @@ template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_BUFFER_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "argument");
 
   Local<String> str;
-  if (!args[0]->ToString(env->context()).ToLocal(&str)) {
+  if (!args[1]->ToString(env->context()).ToLocal(&str)) {
     return;
   }
 
   size_t offset = 0;
   size_t max_length = 0;
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &offset));
   if (offset > ts_obj_length) {
     return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
         env, "\"offset\" is outside of buffer bounds");
   }
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], ts_obj_length - offset,
-                                          &max_length));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
 
   max_length = std::min(ts_obj_length - offset, max_length);
 

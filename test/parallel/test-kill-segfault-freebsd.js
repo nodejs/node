@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // This test ensures Node.js doesn't crash on hitting Ctrl+C in order to
 // terminate the currently running process (especially on FreeBSD).
@@ -14,6 +14,6 @@ const cp = child_process.spawn(process.execPath, [
   'process.kill(process.pid, "SIGINT")',
 ]);
 
-cp.on('exit', function(code) {
+cp.on('exit', common.mustCall((code) => {
   assert.notStrictEqual(code, 0);
-});
+}));

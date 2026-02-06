@@ -53,12 +53,12 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_object(napi_env env,
 #ifdef NAPI_EXPERIMENTAL
 #define NODE_API_EXPERIMENTAL_HAS_CREATE_OBJECT_WITH_PROPERTIES
 NAPI_EXTERN napi_status NAPI_CDECL
-napi_create_object_with_properties(napi_env env,
-                                   napi_value prototype_or_null,
-                                   napi_value* property_names,
-                                   napi_value* property_values,
-                                   size_t property_count,
-                                   napi_value* result);
+node_api_create_object_with_properties(napi_env env,
+                                       napi_value prototype_or_null,
+                                       napi_value* property_names,
+                                       napi_value* property_values,
+                                       size_t property_count,
+                                       napi_value* result);
 #endif  // NAPI_EXPERIMENTAL
 
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_array(napi_env env,
@@ -197,6 +197,12 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_coerce_to_string(napi_env env,
                                                          napi_value* result);
 
 // Methods to work with Objects
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_SET_PROTOTYPE
+NAPI_EXTERN napi_status NAPI_CDECL node_api_set_prototype(napi_env env,
+                                                          napi_value object,
+                                                          napi_value value);
+#endif
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_prototype(napi_env env,
                                                       napi_value object,
                                                       napi_value* result);

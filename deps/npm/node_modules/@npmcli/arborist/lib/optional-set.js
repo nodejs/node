@@ -10,10 +10,6 @@
 
 const gatherDepSet = require('./gather-dep-set.js')
 const optionalSet = node => {
-  if (!node.optional) {
-    return new Set()
-  }
-
   // start with the node, then walk up the dependency graph until we
   // get to the boundaries that define the optional set.  since the
   // node is optional, we know that all paths INTO this area of the

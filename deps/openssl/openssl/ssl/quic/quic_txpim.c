@@ -13,20 +13,20 @@
 typedef struct quic_txpim_pkt_ex_st QUIC_TXPIM_PKT_EX;
 
 struct quic_txpim_pkt_ex_st {
-    QUIC_TXPIM_PKT              public;
-    QUIC_TXPIM_PKT_EX          *prev, *next;
-    QUIC_TXPIM_CHUNK           *chunks;
-    size_t                      num_chunks, alloc_chunks;
-    unsigned int                chunks_need_sort : 1;
+    QUIC_TXPIM_PKT public;
+    QUIC_TXPIM_PKT_EX *prev, *next;
+    QUIC_TXPIM_CHUNK *chunks;
+    size_t num_chunks, alloc_chunks;
+    unsigned int chunks_need_sort : 1;
 };
 
 typedef struct quic_txpim_pkt_ex_list {
-    QUIC_TXPIM_PKT_EX          *head, *tail;
+    QUIC_TXPIM_PKT_EX *head, *tail;
 } QUIC_TXPIM_PKT_EX_LIST;
 
 struct quic_txpim_st {
-    QUIC_TXPIM_PKT_EX_LIST  free_list;
-    size_t                  in_use;
+    QUIC_TXPIM_PKT_EX_LIST free_list;
+    size_t in_use;
 };
 
 #define MAX_ALLOC_CHUNKS 512
@@ -108,14 +108,14 @@ static void txpim_clear(QUIC_TXPIM_PKT_EX *ex)
 {
     memset(&ex->public.ackm_pkt, 0, sizeof(ex->public.ackm_pkt));
     ossl_quic_txpim_pkt_clear_chunks(&ex->public);
-    ex->public.retx_head                   = NULL;
-    ex->public.fifd                        = NULL;
-    ex->public.had_handshake_done_frame    = 0;
-    ex->public.had_max_data_frame          = 0;
-    ex->public.had_max_streams_bidi_frame  = 0;
-    ex->public.had_max_streams_uni_frame   = 0;
-    ex->public.had_ack_frame               = 0;
-    ex->public.had_conn_close              = 0;
+    ex->public.retx_head = NULL;
+    ex->public.fifd = NULL;
+    ex->public.had_handshake_done_frame = 0;
+    ex->public.had_max_data_frame = 0;
+    ex->public.had_max_streams_bidi_frame = 0;
+    ex->public.had_max_streams_uni_frame = 0;
+    ex->public.had_ack_frame = 0;
+    ex->public.had_conn_close = 0;
 }
 
 QUIC_TXPIM_PKT *ossl_quic_txpim_pkt_alloc(QUIC_TXPIM *txpim)
@@ -141,7 +141,7 @@ void ossl_quic_txpim_pkt_release(QUIC_TXPIM *txpim, QUIC_TXPIM_PKT *fpkt)
 }
 
 void ossl_quic_txpim_pkt_add_cfq_item(QUIC_TXPIM_PKT *fpkt,
-                                      QUIC_CFQ_ITEM *item)
+    QUIC_CFQ_ITEM *item)
 {
     item->pkt_next = fpkt->retx_head;
     item->pkt_prev = NULL;
@@ -156,7 +156,7 @@ void ossl_quic_txpim_pkt_clear_chunks(QUIC_TXPIM_PKT *fpkt)
 }
 
 int ossl_quic_txpim_pkt_append_chunk(QUIC_TXPIM_PKT *fpkt,
-                                     const QUIC_TXPIM_CHUNK *chunk)
+    const QUIC_TXPIM_CHUNK *chunk)
 {
     QUIC_TXPIM_PKT_EX *ex = (QUIC_TXPIM_PKT_EX *)fpkt;
     QUIC_TXPIM_CHUNK *new_chunk;
@@ -170,16 +170,16 @@ int ossl_quic_txpim_pkt_append_chunk(QUIC_TXPIM_PKT *fpkt,
             return 0;
 
         new_chunk = OPENSSL_realloc(ex->chunks,
-                                    new_alloc_chunks * sizeof(QUIC_TXPIM_CHUNK));
+            new_alloc_chunks * sizeof(QUIC_TXPIM_CHUNK));
         if (new_chunk == NULL)
             return 0;
 
-        ex->chunks          = new_chunk;
-        ex->alloc_chunks    = new_alloc_chunks;
+        ex->chunks = new_chunk;
+        ex->alloc_chunks = new_alloc_chunks;
     }
 
-    ex->chunks[ex->num_chunks++]    = *chunk;
-    ex->chunks_need_sort            = 1;
+    ex->chunks[ex->num_chunks++] = *chunk;
+    ex->chunks_need_sort = 1;
     return 1;
 }
 

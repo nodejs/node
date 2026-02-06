@@ -18,7 +18,7 @@
    BrotliEncoderVersion methods. */
 
 #define BROTLI_VERSION_MAJOR 1
-#define BROTLI_VERSION_MINOR 1
+#define BROTLI_VERSION_MINOR 2
 #define BROTLI_VERSION_PATCH 0
 
 #define BROTLI_VERSION BROTLI_MAKE_HEX_VERSION(                     \
@@ -32,9 +32,9 @@
     - interfaces not changed                          -> current:revision+1:age
  */
 
-#define BROTLI_ABI_CURRENT  2
+#define BROTLI_ABI_CURRENT  3
 #define BROTLI_ABI_REVISION 0
-#define BROTLI_ABI_AGE      1
+#define BROTLI_ABI_AGE      2
 
 #if BROTLI_VERSION_MAJOR != (BROTLI_ABI_CURRENT - BROTLI_ABI_AGE)
 #error ABI/API version inconsistency

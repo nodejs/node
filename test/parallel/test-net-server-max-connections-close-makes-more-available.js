@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -28,10 +28,10 @@ function createConnection(index) {
       sent.push(msg);
     });
 
-    connection.on('error', function(err) {
+    connection.on('error', common.mustCallAtLeast((err) => {
       assert.strictEqual(err.code, 'ECONNRESET');
       resolve();
-    });
+    }, 0));
 
     connection.on('data', function(e) {
       console.error(`connection ${index} received response`);

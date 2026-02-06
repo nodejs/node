@@ -22,28 +22,27 @@ const stat = fs.statSync(fname);
 const fd = fs.openSync(fname, 'r');
 
 const server = http2.createServer();
-server.on('stream', (stream) => {
+server.on('stream', common.mustCall((stream) => {
   stream.respond({});
   stream.end();
 
   stream.pushStream({
     ':path': '/file.txt',
     ':method': 'GET'
-  }, (err, stream) => {
-    assert.ifError(err);
+  }, common.mustSucceed((stream) => {
     stream.respondWithFD(fd, {
       [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
       [HTTP2_HEADER_CONTENT_LENGTH]: stat.size,
       [HTTP2_HEADER_LAST_MODIFIED]: stat.mtime.toUTCString()
     });
-  });
+  }));
 
   stream.end();
-});
+}));
 
 server.on('close', common.mustCall(() => fs.closeSync(fd)));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
@@ -82,4 +81,4 @@ server.listen(0, () => {
   req.on('end', maybeClose);
 
   req.end();
-});
+}));

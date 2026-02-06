@@ -11,12 +11,12 @@ function listen(server) {
   server.listen(0, common.mustCall(() => {
     http.get({
       port: server.address().port,
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 

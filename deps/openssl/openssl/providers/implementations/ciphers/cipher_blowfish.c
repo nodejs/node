@@ -29,7 +29,7 @@ static void blowfish_freectx(void *vctx)
     PROV_BLOWFISH_CTX *ctx = (PROV_BLOWFISH_CTX *)vctx;
 
     ossl_cipher_generic_reset_ctx((PROV_CIPHER_CTX *)vctx);
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 static void *blowfish_dupctx(void *ctx)
@@ -55,4 +55,4 @@ IMPLEMENT_var_keylen_cipher(blowfish, BLOWFISH, cbc, CBC, BF_FLAGS, 128, 64, 64,
 /* bf_ofb_functions */
 IMPLEMENT_var_keylen_cipher(blowfish, BLOWFISH, ofb64, OFB, BF_FLAGS, 128, 8, 64, stream)
 /* bf_cfb_functions */
-IMPLEMENT_var_keylen_cipher(blowfish, BLOWFISH, cfb64,  CFB, BF_FLAGS, 128, 8, 64, stream)
+IMPLEMENT_var_keylen_cipher(blowfish, BLOWFISH, cfb64, CFB, BF_FLAGS, 128, 8, 64, stream)

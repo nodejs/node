@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -33,7 +31,8 @@ static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
 
 /* A lookup table for small values of log2(int) to be used in entropy
    computation. */
-BROTLI_INTERNAL extern const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE];
 
 /* Visual Studio 2012 and Android API levels < 18 do not have the log2()
  * function defined, so we use log() and a multiplication instead. */

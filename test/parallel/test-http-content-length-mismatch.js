@@ -18,7 +18,7 @@ function shouldThrowOnMoreBytes() {
     res.end();
   }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const req = http.get({
       port: server.address().port,
     }, common.mustCall((res) => {
@@ -27,7 +27,7 @@ function shouldThrowOnMoreBytes() {
       server.close();
     }));
     req.end();
-  });
+  }));
 }
 
 function shouldNotThrow() {
@@ -38,7 +38,7 @@ function shouldNotThrow() {
     res.end('ending');
   }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     http.get({
       port: server.address().port,
     }, common.mustCall((res) => {
@@ -46,7 +46,7 @@ function shouldNotThrow() {
       assert.strictEqual(res.statusCode, 200);
       server.close();
     }));
-  });
+  }));
 }
 
 
@@ -64,7 +64,7 @@ function shouldThrowOnFewerBytes() {
     res.end('aaaa');
   }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     http.get({
       port: server.address().port,
     }, common.mustCall((res) => {
@@ -72,7 +72,7 @@ function shouldThrowOnFewerBytes() {
       assert.strictEqual(res.statusCode, 200);
       server.close();
     }));
-  });
+  }));
 }
 
 shouldThrowOnMoreBytes();

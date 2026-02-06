@@ -13,7 +13,7 @@
 #include "../ssl_local.h"
 
 static int crypto_send_cb(const unsigned char *buf, size_t buf_len,
-                          size_t *consumed, void *arg)
+    size_t *consumed, void *arg)
 {
     SSL *s = (SSL *)arg;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -24,7 +24,7 @@ static int crypto_send_cb(const unsigned char *buf, size_t buf_len,
 }
 
 static int crypto_recv_rcd_cb(const unsigned char **buf, size_t *bytes_read,
-                              void *arg)
+    void *arg)
 {
     SSL *s = (SSL *)arg;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -44,9 +44,9 @@ static int crypto_release_rcd_cb(size_t bytes_read, void *arg)
     return sc->qtcb.crypto_release_rcd_cb(s, bytes_read, sc->qtarg);
 }
 static int yield_secret_cb(uint32_t prot_level, int direction,
-                           uint32_t suite_id, EVP_MD *md,
-                           const unsigned char *secret, size_t secret_len,
-                           void *arg)
+    uint32_t suite_id, EVP_MD *md,
+    const unsigned char *secret, size_t secret_len,
+    void *arg)
 {
     SSL *s = (SSL *)arg;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -54,12 +54,12 @@ static int yield_secret_cb(uint32_t prot_level, int direction,
     if (sc == NULL)
         return 0;
     return sc->qtcb.yield_secret_cb(s, prot_level, direction,
-                                    secret, secret_len, sc->qtarg);
+        secret, secret_len, sc->qtarg);
 }
 
 static int got_transport_params_cb(const unsigned char *params,
-                                   size_t params_len,
-                                   void *arg)
+    size_t params_len,
+    void *arg)
 {
     SSL *s = (SSL *)arg;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -80,7 +80,7 @@ static int alert_cb(void *arg, unsigned char alert_code)
 }
 
 static int tls_callbacks_from_dispatch(OSSL_QUIC_TLS_CALLBACKS *qtcb,
-                                       const OSSL_DISPATCH *qtdis)
+    const OSSL_DISPATCH *qtdis)
 {
     for (; qtdis->function_id != 0; qtdis++) {
         switch (qtdis->function_id) {
@@ -90,38 +90,33 @@ static int tls_callbacks_from_dispatch(OSSL_QUIC_TLS_CALLBACKS *qtcb,
             break;
         case OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RECV_RCD:
             if (qtcb->crypto_recv_rcd_cb == NULL)
-                qtcb->crypto_recv_rcd_cb =
-                    OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd(qtdis);
+                qtcb->crypto_recv_rcd_cb = OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd(qtdis);
             break;
         case OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RELEASE_RCD:
             if (qtcb->crypto_release_rcd_cb == NULL)
-                qtcb->crypto_release_rcd_cb =
-                    OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd(qtdis);
+                qtcb->crypto_release_rcd_cb = OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd(qtdis);
             break;
         case OSSL_FUNC_SSL_QUIC_TLS_YIELD_SECRET:
             if (qtcb->yield_secret_cb == NULL)
-                qtcb->yield_secret_cb =
-                    OSSL_FUNC_SSL_QUIC_TLS_yield_secret(qtdis);
+                qtcb->yield_secret_cb = OSSL_FUNC_SSL_QUIC_TLS_yield_secret(qtdis);
             break;
         case OSSL_FUNC_SSL_QUIC_TLS_GOT_TRANSPORT_PARAMS:
             if (qtcb->got_transport_params_cb == NULL)
-                qtcb->got_transport_params_cb =
-                    OSSL_FUNC_SSL_QUIC_TLS_got_transport_params(qtdis);
+                qtcb->got_transport_params_cb = OSSL_FUNC_SSL_QUIC_TLS_got_transport_params(qtdis);
             break;
         case OSSL_FUNC_SSL_QUIC_TLS_ALERT:
             if (qtcb->alert_cb == NULL)
-                qtcb->alert_cb =
-                    OSSL_FUNC_SSL_QUIC_TLS_alert(qtdis);
+                qtcb->alert_cb = OSSL_FUNC_SSL_QUIC_TLS_alert(qtdis);
             break;
         }
     }
 
     if (qtcb->crypto_send_cb == NULL
-            || qtcb->crypto_recv_rcd_cb == NULL
-            || qtcb->crypto_release_rcd_cb == NULL
-            || qtcb->yield_secret_cb == NULL
-            || qtcb->got_transport_params_cb == NULL
-            || qtcb->alert_cb == NULL) {
+        || qtcb->crypto_recv_rcd_cb == NULL
+        || qtcb->crypto_release_rcd_cb == NULL
+        || qtcb->yield_secret_cb == NULL
+        || qtcb->got_transport_params_cb == NULL
+        || qtcb->alert_cb == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_MISSING_QUIC_TLS_FUNCTIONS);
         return 0;
     }
@@ -174,8 +169,8 @@ int SSL_set_quic_tls_cbs(SSL *s, const OSSL_DISPATCH *qtdis, void *arg)
 }
 
 int SSL_set_quic_tls_transport_params(SSL *s,
-                                      const unsigned char *params,
-                                      size_t params_len)
+    const unsigned char *params,
+    size_t params_len)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 

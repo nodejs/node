@@ -39,7 +39,7 @@ server.on('stream', (stream, headers) => {
   });
 });
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const secureContext = tls.createSecureContext({ ca });
   const client = http2.connect(`https://localhost:${server.address().port}`,
@@ -76,4 +76,4 @@ server.listen(0, () => {
   req2.on('data', common.mustNotCall());
   req2.on('end', common.mustCall(() => maybeClose()));
 
-});
+}));

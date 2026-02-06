@@ -9,7 +9,7 @@ const DEFAULT_ALGORITHMS = ['sha512']
 // TODO: this should really be a hardcoded list of algorithms we support,
 // rather than [a-z0-9].
 const BASE64_REGEX = /^[a-z0-9+/]+(?:=?=?)$/i
-const SRI_REGEX = /^([a-z0-9]+)-([^?]+)([?\S*]*)$/
+const SRI_REGEX = /^([a-z0-9]+)-([^?]+)(\?[?\S*]*)?$/
 const STRICT_SRI_REGEX = /^([a-z0-9]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)?$/
 const VCHAR_REGEX = /^[\x21-\x7E]+$/
 

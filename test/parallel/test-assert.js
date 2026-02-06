@@ -21,7 +21,7 @@
 
 'use strict';
 
-const { invalidArgTypeHelper } = require('../common');
+const { invalidArgTypeHelper, mustCall } = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
 const { test } = require('node:test');
@@ -605,7 +605,7 @@ test('Test strict assert', () => {
     }
   );
   strict.throws(
-    () => assert(),
+    mustCall(() => assert()),
     {
       message: 'No value argument passed to `assert.ok()`',
       name: 'AssertionError'

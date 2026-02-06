@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -18,6 +19,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -27,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
   CC: sccache clang
   CXX: sccache clang++
@@ -50,19 +52,19 @@ jobs:
           persist-credentials: false
           path: node
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Set up sccache
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
-          version: v0.10.0
+          version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Build
         run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make -C node run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
       - name: Re-run test in a folder whose name contains unusual chars
         run: |
           mv node "$DIR"

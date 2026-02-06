@@ -5,6 +5,7 @@
 
 #include "node_context_data.h"
 #include "node_realm.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -44,6 +45,10 @@ inline Environment* Realm::env() const {
 
 inline v8::Isolate* Realm::isolate() const {
   return isolate_;
+}
+
+inline v8::Local<v8::Context> Realm::context() const {
+  return PersistentToLocal::Strong(context_);
 }
 
 inline Realm::Kind Realm::kind() const {

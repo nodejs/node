@@ -19,15 +19,15 @@
 #include "prov/implementations.h"
 
 /* AES wrap with padding has IV length of 4, without padding 8 */
-#define AES_WRAP_PAD_IVLEN   4
+#define AES_WRAP_PAD_IVLEN 4
 #define AES_WRAP_NOPAD_IVLEN 8
 
 #define WRAP_FLAGS (PROV_CIPHER_FLAG_CUSTOM_IV)
 #define WRAP_FLAGS_INV (WRAP_FLAGS | PROV_CIPHER_FLAG_INVERSE_CIPHER)
 
 typedef size_t (*aeswrap_fn)(void *key, const unsigned char *iv,
-                             unsigned char *out, const unsigned char *in,
-                             size_t inlen, block128_f block);
+    unsigned char *out, const unsigned char *in,
+    size_t inlen, block128_f block);
 
 static OSSL_FUNC_cipher_encrypt_init_fn aes_wrap_einit;
 static OSSL_FUNC_cipher_decrypt_init_fn aes_wrap_dinit;
@@ -46,9 +46,8 @@ typedef struct prov_aes_wrap_ctx_st {
 
 } PROV_AES_WRAP_CTX;
 
-
 static void *aes_wrap_newctx(size_t kbits, size_t blkbits,
-                             size_t ivbits, unsigned int mode, uint64_t flags)
+    size_t ivbits, unsigned int mode, uint64_t flags)
 {
     PROV_AES_WRAP_CTX *wctx;
     PROV_CIPHER_CTX *ctx;
@@ -60,7 +59,7 @@ static void *aes_wrap_newctx(size_t kbits, size_t blkbits,
     ctx = (PROV_CIPHER_CTX *)wctx;
     if (ctx != NULL) {
         ossl_cipher_generic_initkey(ctx, kbits, blkbits, ivbits, mode, flags,
-                                    NULL, NULL);
+            NULL, NULL);
         ctx->pad = (ctx->ivlen == AES_WRAP_PAD_IVLEN);
     }
     return wctx;
@@ -80,7 +79,7 @@ static void *aes_wrap_dupctx(void *wctx)
 
     if (dctx != NULL && dctx->base.tlsmac != NULL && dctx->base.alloced) {
         dctx->base.tlsmac = OPENSSL_memdup(dctx->base.tlsmac,
-                                           dctx->base.tlsmacsize);
+            dctx->base.tlsmacsize);
         if (dctx->base.tlsmac == NULL) {
             OPENSSL_free(dctx);
             dctx = NULL;
@@ -94,12 +93,12 @@ static void aes_wrap_freectx(void *vctx)
     PROV_AES_WRAP_CTX *wctx = (PROV_AES_WRAP_CTX *)vctx;
 
     ossl_cipher_generic_reset_ctx((PROV_CIPHER_CTX *)vctx);
-    OPENSSL_clear_free(wctx,  sizeof(*wctx));
+    OPENSSL_clear_free(wctx, sizeof(*wctx));
 }
 
 static int aes_wrap_init(void *vctx, const unsigned char *key,
-                         size_t keylen, const unsigned char *iv,
-                         size_t ivlen, const OSSL_PARAM params[], int enc)
+    size_t keylen, const unsigned char *iv,
+    size_t ivlen, const OSSL_PARAM params[], int enc)
 {
     PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
     PROV_AES_WRAP_CTX *wctx = (PROV_AES_WRAP_CTX *)vctx;
@@ -121,8 +120,8 @@ static int aes_wrap_init(void *vctx, const unsigned char *key,
         int use_forward_transform;
 
         if (keylen != ctx->keylen) {
-           ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
-           return 0;
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+            return 0;
         }
         /*
          * See SP800-38F : Section 5.1
@@ -149,21 +148,21 @@ static int aes_wrap_init(void *vctx, const unsigned char *key,
 }
 
 static int aes_wrap_einit(void *ctx, const unsigned char *key, size_t keylen,
-                          const unsigned char *iv, size_t ivlen,
-                          const OSSL_PARAM params[])
+    const unsigned char *iv, size_t ivlen,
+    const OSSL_PARAM params[])
 {
     return aes_wrap_init(ctx, key, keylen, iv, ivlen, params, 1);
 }
 
 static int aes_wrap_dinit(void *ctx, const unsigned char *key, size_t keylen,
-                          const unsigned char *iv, size_t ivlen,
-                          const OSSL_PARAM params[])
+    const unsigned char *iv, size_t ivlen,
+    const OSSL_PARAM params[])
 {
     return aes_wrap_init(ctx, key, keylen, iv, ivlen, params, 0);
 }
 
 static int aes_wrap_cipher_internal(void *vctx, unsigned char *out,
-                                    const unsigned char *in, size_t inlen)
+    const unsigned char *in, size_t inlen)
 {
     PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
     PROV_AES_WRAP_CTX *wctx = (PROV_AES_WRAP_CTX *)vctx;
@@ -210,7 +209,7 @@ static int aes_wrap_cipher_internal(void *vctx, unsigned char *out,
     }
 
     rv = wctx->wrapfn(&wctx->ks.ks, ctx->iv_set ? ctx->iv : NULL, out, in,
-                      inlen, ctx->block);
+        inlen, ctx->block);
     if (!rv) {
         ERR_raise(ERR_LIB_PROV, PROV_R_CIPHER_OPERATION_FAILED);
         return -1;
@@ -223,7 +222,7 @@ static int aes_wrap_cipher_internal(void *vctx, unsigned char *out,
 }
 
 static int aes_wrap_final(void *vctx, unsigned char *out, size_t *outl,
-                          size_t outsize)
+    size_t outsize)
 {
     if (!ossl_prov_is_running())
         return 0;
@@ -233,8 +232,8 @@ static int aes_wrap_final(void *vctx, unsigned char *out, size_t *outl,
 }
 
 static int aes_wrap_cipher(void *vctx,
-                           unsigned char *out, size_t *outl, size_t outsize,
-                           const unsigned char *in, size_t inl)
+    unsigned char *out, size_t *outl, size_t outsize,
+    const unsigned char *in, size_t inl)
 {
     PROV_AES_WRAP_CTX *ctx = (PROV_AES_WRAP_CTX *)vctx;
     size_t len;
@@ -283,41 +282,41 @@ static int aes_wrap_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return 1;
 }
 
-#define IMPLEMENT_cipher(mode, fname, UCMODE, flags, kbits, blkbits, ivbits)   \
-    static OSSL_FUNC_cipher_get_params_fn aes_##kbits##_##fname##_get_params;  \
-    static int aes_##kbits##_##fname##_get_params(OSSL_PARAM params[])         \
-    {                                                                          \
-        return ossl_cipher_generic_get_params(params, EVP_CIPH_##UCMODE##_MODE,\
-                                              flags, kbits, blkbits, ivbits);  \
-    }                                                                          \
-    static OSSL_FUNC_cipher_newctx_fn aes_##kbits##fname##_newctx;             \
-    static void *aes_##kbits##fname##_newctx(void *provctx)                    \
-    {                                                                          \
-        return aes_##mode##_newctx(kbits, blkbits, ivbits,                     \
-                                   EVP_CIPH_##UCMODE##_MODE, flags);           \
-    }                                                                          \
-    const OSSL_DISPATCH ossl_##aes##kbits##fname##_functions[] = {             \
-        { OSSL_FUNC_CIPHER_NEWCTX,                                             \
-            (void (*)(void))aes_##kbits##fname##_newctx },                     \
-        { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void (*)(void))aes_##mode##_einit }, \
-        { OSSL_FUNC_CIPHER_DECRYPT_INIT, (void (*)(void))aes_##mode##_dinit }, \
-        { OSSL_FUNC_CIPHER_UPDATE, (void (*)(void))aes_##mode##_cipher },      \
-        { OSSL_FUNC_CIPHER_FINAL, (void (*)(void))aes_##mode##_final },        \
-        { OSSL_FUNC_CIPHER_FREECTX, (void (*)(void))aes_##mode##_freectx },    \
-        { OSSL_FUNC_CIPHER_DUPCTX, (void (*)(void))aes_##mode##_dupctx },      \
-        { OSSL_FUNC_CIPHER_GET_PARAMS,                                         \
-            (void (*)(void))aes_##kbits##_##fname##_get_params },              \
-        { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                    \
-            (void (*)(void))ossl_cipher_generic_gettable_params },             \
-        { OSSL_FUNC_CIPHER_GET_CTX_PARAMS,                                     \
-            (void (*)(void))ossl_cipher_generic_get_ctx_params },              \
-        { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                     \
-            (void (*)(void))aes_wrap_set_ctx_params },                         \
-        { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                \
-            (void (*)(void))ossl_cipher_generic_gettable_ctx_params },         \
-        { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                \
-            (void (*)(void))ossl_cipher_generic_settable_ctx_params },         \
-        OSSL_DISPATCH_END                                                      \
+#define IMPLEMENT_cipher(mode, fname, UCMODE, flags, kbits, blkbits, ivbits)    \
+    static OSSL_FUNC_cipher_get_params_fn aes_##kbits##_##fname##_get_params;   \
+    static int aes_##kbits##_##fname##_get_params(OSSL_PARAM params[])          \
+    {                                                                           \
+        return ossl_cipher_generic_get_params(params, EVP_CIPH_##UCMODE##_MODE, \
+            flags, kbits, blkbits, ivbits);                                     \
+    }                                                                           \
+    static OSSL_FUNC_cipher_newctx_fn aes_##kbits##fname##_newctx;              \
+    static void *aes_##kbits##fname##_newctx(void *provctx)                     \
+    {                                                                           \
+        return aes_##mode##_newctx(kbits, blkbits, ivbits,                      \
+            EVP_CIPH_##UCMODE##_MODE, flags);                                   \
+    }                                                                           \
+    const OSSL_DISPATCH ossl_##aes##kbits##fname##_functions[] = {              \
+        { OSSL_FUNC_CIPHER_NEWCTX,                                              \
+            (void (*)(void))aes_##kbits##fname##_newctx },                      \
+        { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void (*)(void))aes_##mode##_einit },  \
+        { OSSL_FUNC_CIPHER_DECRYPT_INIT, (void (*)(void))aes_##mode##_dinit },  \
+        { OSSL_FUNC_CIPHER_UPDATE, (void (*)(void))aes_##mode##_cipher },       \
+        { OSSL_FUNC_CIPHER_FINAL, (void (*)(void))aes_##mode##_final },         \
+        { OSSL_FUNC_CIPHER_FREECTX, (void (*)(void))aes_##mode##_freectx },     \
+        { OSSL_FUNC_CIPHER_DUPCTX, (void (*)(void))aes_##mode##_dupctx },       \
+        { OSSL_FUNC_CIPHER_GET_PARAMS,                                          \
+            (void (*)(void))aes_##kbits##_##fname##_get_params },               \
+        { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                     \
+            (void (*)(void))ossl_cipher_generic_gettable_params },              \
+        { OSSL_FUNC_CIPHER_GET_CTX_PARAMS,                                      \
+            (void (*)(void))ossl_cipher_generic_get_ctx_params },               \
+        { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                      \
+            (void (*)(void))aes_wrap_set_ctx_params },                          \
+        { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                 \
+            (void (*)(void))ossl_cipher_generic_gettable_ctx_params },          \
+        { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                 \
+            (void (*)(void))ossl_cipher_generic_settable_ctx_params },          \
+        OSSL_DISPATCH_END                                                       \
     }
 
 IMPLEMENT_cipher(wrap, wrap, WRAP, WRAP_FLAGS, 256, 64, AES_WRAP_NOPAD_IVLEN * 8);

@@ -182,6 +182,7 @@ DeleteCriticalSection
 ReleaseSemaphore
 WaitForSingleObject
 WSASocketA
+WSAIoctl
 GetCurrentThreadId
 SetUnhandledExceptionFilter
 GetExitCodeThread

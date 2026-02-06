@@ -14,15 +14,13 @@
 
 #include "compress_fragment.h"
 
-#include <string.h>  /* memcmp, memcpy, memset */
-
-#include <brotli/types.h>
-
+#include "../common/constants.h"
 #include "../common/platform.h"
 #include "brotli_bit_stream.h"
 #include "entropy_encode.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash_base.h"
 #include "write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -30,14 +28,6 @@ extern "C" {
 #endif
 
 #define MAX_DISTANCE (long)BROTLI_MAX_BACKWARD_LIMIT(18)
-
-/* kHashMul32 multiplier has these properties:
-   * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of ones or zeros.
-   * There is no effort to ensure that it is a prime, the oddity is enough
-     for this use.
-   * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1E35A7BD;
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t* p, size_t shift) {
   const uint64_t h = (BROTLI_UNALIGNED_LOAD64LE(p) << 24) * kHashMul32;
@@ -417,7 +407,7 @@ static void EmitUncompressedMetaBlock(const uint8_t* begin, const uint8_t* end,
   storage[*storage_ix >> 3] = 0;
 }
 
-static uint32_t kCmdHistoSeed[128] = {
+static BROTLI_MODEL("small") uint32_t kCmdHistoSeed[128] = {
   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,

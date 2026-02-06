@@ -41,16 +41,16 @@ const server = http.createServer(function(req, res) {
   req.socket.destroy();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client = net.connect({ port: this.address().port,
                                allowHalfOpen: true });
 
-  client.on('error', function(err) {
+  client.on('error', common.mustCallAtLeast((err) => {
     // The socket might be destroyed by the other peer while data is still
     // being written. The `'EPIPE'` and `'ECONNABORTED'` codes might also be
     // valid but they have not been seen yet.
     assert.strictEqual(err.code, 'ECONNRESET');
-  });
+  }, 0));
 
   for (let i = 0; i < numRequests; i++) {
     client.write('GET / HTTP/1.1\r\n' +
@@ -59,6 +59,6 @@ server.listen(0, function() {
   }
   client.end();
   client.pipe(process.stdout);
-});
+}));
 
 process.on('warning', common.mustNotCall());

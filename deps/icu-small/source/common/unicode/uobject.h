@@ -157,7 +157,6 @@ public:
      */
     static void U_EXPORT2 operator delete[](void *p) noexcept;
 
-#if U_HAVE_PLACEMENT_NEW
     /**
      * Override for ICU4C C++ memory management for STL.
      * See new().
@@ -171,7 +170,7 @@ public:
      * @stable ICU 2.6
      */
     static inline void U_EXPORT2 operator delete(void *, void *) noexcept {}
-#endif /* U_HAVE_PLACEMENT_NEW */
+
 #if U_HAVE_DEBUG_LOCATION_NEW
     /**
       * This method overrides the MFC debug version of the operator new

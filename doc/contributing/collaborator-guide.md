@@ -267,12 +267,14 @@ If there are GitHub Actions CI failures unrelated to the change in the pull
 request, try the "🔄 Re-run all jobs" button, on the right-hand side of the
 "Checks" tab.
 
-If there are Jenkins CI failures unrelated to the change in the pull request,
-try "Resume Build". It is in the left navigation of the relevant
-`node-test-pull-request` job. It will preserve all the green results from the
-current job but re-run everything else. Start a fresh CI by pressing "Retry"
-if more than seven days have elapsed since the original failing CI as the
-compiled binaries for the Windows and ARM platforms are only kept for seven days.
+If there are Jenkins CI failures unrelated to the change in the pull
+request, try "Resume Build".  It is in the left navigation of the relevant
+`node-test-pull-request` job. (Do not be tempted to do this on the lower
+level `node-test-commit` job as it will not report the updated result back
+to the PR.)  It will preserve all the green results from the current job but
+re-run everything else.  Start a fresh CI by pressing "Retry" if more than
+seven days have elapsed since the original failing CI as the compiled
+binaries for the Windows and ARM platforms are only kept for seven days.
 
 If new commits are pushed to the pull request branch after the latest Jenkins
 CI run, a fresh CI run is required. It can be started by adding the `request-ci`

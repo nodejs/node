@@ -20,7 +20,7 @@
 DEFINE_SPECIAL_STACK_OF_CONST(BIGNUM_const, BIGNUM)
 
 int ossl_param_build_set_int(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                             const char *key, int num)
+    const char *key, int num)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_int(bld, key, num);
@@ -31,7 +31,7 @@ int ossl_param_build_set_int(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_long(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                              const char *key, long num)
+    const char *key, long num)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_long(bld, key, num);
@@ -42,7 +42,7 @@ int ossl_param_build_set_long(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_utf8_string(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                                     const char *key, const char *buf)
+    const char *key, const char *buf)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_utf8_string(bld, key, buf, 0);
@@ -53,9 +53,9 @@ int ossl_param_build_set_utf8_string(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_octet_string(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                                      const char *key,
-                                      const unsigned char *data,
-                                      size_t data_len)
+    const char *key,
+    const unsigned char *data,
+    size_t data_len)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_octet_string(bld, key, data, data_len);
@@ -67,7 +67,7 @@ int ossl_param_build_set_octet_string(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_bn_pad(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                                const char *key, const BIGNUM *bn,  size_t sz)
+    const char *key, const BIGNUM *bn, size_t sz)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_BN_pad(bld, key, bn, sz);
@@ -84,7 +84,7 @@ int ossl_param_build_set_bn_pad(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_bn(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
-                            const char *key, const BIGNUM *bn)
+    const char *key, const BIGNUM *bn)
 {
     if (bld != NULL)
         return OSSL_PARAM_BLD_push_BN(bld, key, bn);
@@ -96,8 +96,8 @@ int ossl_param_build_set_bn(OSSL_PARAM_BLD *bld, OSSL_PARAM *p,
 }
 
 int ossl_param_build_set_multi_key_bn(OSSL_PARAM_BLD *bld, OSSL_PARAM *params,
-                                      const char *names[],
-                                      STACK_OF(BIGNUM_const) *stk)
+    const char *names[],
+    STACK_OF(BIGNUM_const) *stk)
 {
     int i, sz = sk_BIGNUM_const_num(stk);
     OSSL_PARAM *p;

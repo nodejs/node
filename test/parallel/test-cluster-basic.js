@@ -160,36 +160,36 @@ if (cluster.isWorker) {
   }));
 
   // Check all values
-  process.once('exit', () => {
+  process.on('exit', () => {
     // Check cluster events
-    forEach(checks.cluster.events, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.cluster.events)) {
       assert(check,
              `The cluster event "${name}" on the cluster object did not fire`);
-    });
+    }
 
     // Check cluster event arguments
-    forEach(checks.cluster.equal, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.cluster.equal)) {
       assert(check,
              `The cluster event "${name}" did not emit with correct argument`);
-    });
+    }
 
     // Check worker states
-    forEach(checks.worker.states, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.states)) {
       assert(check,
              `The worker state "${name}" was not set to true`);
-    });
+    }
 
     // Check worker events
-    forEach(checks.worker.events, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.events)) {
       assert(check,
              `The worker event "${name}" on the worker object did not fire`);
-    });
+    }
 
     // Check worker event arguments
-    forEach(checks.worker.equal, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.equal)) {
       assert(check,
              `The worker event "${name}" did not emit with correct argument`);
-    });
+    }
   });
 
 }

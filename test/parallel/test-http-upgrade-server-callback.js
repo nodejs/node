@@ -16,7 +16,7 @@ function testUpgradeCallbackTrue() {
     })
   });
 
-  server.on('upgrade', function(req, socket, upgradeHead) {
+  server.on('upgrade', common.mustCall((req, socket, upgradeHead) => {
     assert.strictEqual(req.url, '/websocket');
     assert.strictEqual(req.headers.upgrade, 'websocket');
     assert.ok(socket instanceof net.Socket);
@@ -26,7 +26,7 @@ function testUpgradeCallbackTrue() {
       'Upgrade: WebSocket\r\n' +
       'Connection: Upgrade\r\n' +
       '\r\n\r\n');
-  });
+  }));
 
   server.on('request', common.mustNotCall());
 

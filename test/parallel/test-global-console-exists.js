@@ -17,6 +17,7 @@ process.on('warning', () => {
   // process warning writes to the console, which will
   // invoke the monkeypatched process.stderr.write
   // below.
+  // eslint-disable-next-line node-core/must-call-assert
   assert.strictEqual(writeTimes, 1);
   EventEmitter.defaultMaxListeners = oldDefault;
   warningTimes++;
@@ -28,6 +29,7 @@ process.on('exit', () => {
 
 process.stderr.write = (data) => {
   if (writeTimes === 0)
+    // eslint-disable-next-line node-core/must-call-assert
     assert.match(data, leakWarning);
   else
     assert.fail('stderr.write should be called only once');

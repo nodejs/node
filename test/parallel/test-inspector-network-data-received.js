@@ -118,11 +118,11 @@ test('should stream Network.dataReceived with data chunks', async () => {
       totalDataLength += data.byteLength;
       chunks.push(data);
     });
-  session.on('Network.dataReceived', ({ params }) => {
+  session.on('Network.dataReceived', common.mustCallAtLeast(({ params }) => {
     assert.strictEqual(params.requestId, requestId);
     totalDataLength += params.dataLength;
     chunks.push(Buffer.from(params.data, 'base64'));
-  });
+  }));
 
   await triggerNetworkEvents(requestId);
   await responseReceivedFuture;

@@ -15,7 +15,7 @@ server.on('clientError', common.mustCall((err) => {
   assert.strictEqual(err.code, 'HPE_INVALID_TRANSFER_ENCODING');
   server.close();
 }));
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const client = net.connect({ port: server.address().port }, () => {
     client.write(reqstr);
     client.end();
@@ -26,4 +26,4 @@ server.listen(0, () => {
     assert.fail('no data should be returned by the server');
   });
   client.on('end', common.mustCall());
-});
+}));

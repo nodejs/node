@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -36,7 +36,7 @@ const server = http.createServer(function(req, res) {
 let connectCount = 0;
 
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const agent = new http.Agent({ maxSockets: 1 });
   const name = agent.getName({ port: this.address().port });
   let request = http.request({
@@ -45,10 +45,10 @@ server.listen(0, function() {
     headers: headers,
     port: this.address().port,
     agent: agent
-  }, function(res) {
+  }, common.mustCall((res) => {
     assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
-  });
+  }));
   request.on('socket', function(s) {
     s.on('connect', function() {
       connectCount++;
@@ -62,10 +62,10 @@ server.listen(0, function() {
     headers: headers,
     port: this.address().port,
     agent: agent
-  }, function(res) {
+  }, common.mustCall((res) => {
     assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
-  });
+  }));
   request.on('socket', function(s) {
     s.on('connect', function() {
       connectCount++;
@@ -78,20 +78,20 @@ server.listen(0, function() {
     headers: headers,
     port: this.address().port,
     agent: agent
-  }, function(response) {
-    response.on('end', function() {
+  }, common.mustCall((response) => {
+    response.on('end', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name].length, 1);
       server.close();
-    });
+    }));
     response.resume();
-  });
+  }));
   request.on('socket', function(s) {
     s.on('connect', function() {
       connectCount++;
     });
   });
   request.end();
-});
+}));
 
 process.on('exit', function() {
   assert.strictEqual(connectCount, 3);

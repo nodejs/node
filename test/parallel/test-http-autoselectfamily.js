@@ -11,7 +11,7 @@ const { request, createServer } = require('http');
 // Test that happy eyeballs algorithm is properly implemented when using HTTP.
 
 function _lookup(resolver, hostname, options, cb) {
-  resolver.resolve(hostname, 'ANY', (err, replies) => {
+  resolver.resolve(hostname, 'ANY', common.mustCall((err, replies) => {
     assert.notStrictEqual(options.family, 4);
 
     if (err) {
@@ -27,7 +27,7 @@ function _lookup(resolver, hostname, options, cb) {
     }
 
     return cb(null, hosts[0].address, hosts[0].family);
-  });
+  }));
 }
 
 function createDnsServer(ipv6Addr, ipv4Addr, cb) {
@@ -72,7 +72,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
           lookup,
           autoSelectFamily: true,
         },
-        (res) => {
+        common.mustCall((res) => {
           assert.strictEqual(res.statusCode, 200);
           res.setEncoding('utf-8');
 
@@ -87,7 +87,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
             ipv4Server.close();
             dnsServer.close();
           }));
-        }
+        })
       ).end();
     }));
   }));
@@ -116,7 +116,7 @@ if (common.hasIPv6) {
             lookup,
             autoSelectFamily: true,
           },
-          (res) => {
+          common.mustCall((res) => {
             assert.strictEqual(res.statusCode, 200);
             res.setEncoding('utf-8');
 
@@ -132,7 +132,7 @@ if (common.hasIPv6) {
               ipv6Server.close();
               dnsServer.close();
             }));
-          }
+          })
         ).end();
       }));
     }));

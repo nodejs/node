@@ -26,16 +26,16 @@ int ossl_namemap_add_name(OSSL_NAMEMAP *namemap, int number, const char *name);
  */
 int ossl_namemap_name2num(const OSSL_NAMEMAP *namemap, const char *name);
 int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
-                            const char *name, size_t name_len);
+    const char *name, size_t name_len);
 const char *ossl_namemap_num2name(const OSSL_NAMEMAP *namemap, int number,
-                                  size_t idx);
+    size_t idx);
 int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
-                             void (*fn)(const char *name, void *data),
-                             void *data);
+    void (*fn)(const char *name, void *data),
+    void *data);
 
 /*
  * A utility that handles several names in a string, divided by a given
  * separator.
  */
 int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
-                           const char *names, const char separator);
+    const char *names, const char separator);

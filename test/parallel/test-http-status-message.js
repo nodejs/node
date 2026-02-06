@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -47,12 +47,12 @@ function test() {
   client.on('data', function(chunk) {
     bufs.push(chunk);
   });
-  client.on('end', function() {
+  client.on('end', common.mustCall(() => {
     const head = Buffer.concat(bufs)
       .toString('latin1')
       .split('\r\n')[0];
     assert.strictEqual(head, 'HTTP/1.1 200 Custom Message');
     console.log('ok');
     s.close();
-  });
+  }));
 }

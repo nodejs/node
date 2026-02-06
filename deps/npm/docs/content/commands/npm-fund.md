@@ -63,8 +63,8 @@ test-workspaces-fund@1.0.0
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -86,13 +86,12 @@ Set to `true` to use default system URL opener.
 
 #### `unicode`
 
-* Default: false on windows, true on mac/unix systems with a unicode
-  locale, as defined by the `LC_ALL`, `LC_CTYPE`, or `LANG` environment
-  variables.
+* Default: false on windows, true on mac/unix systems with a unicode locale,
+  as defined by the `LC_ALL`, `LC_CTYPE`, or `LANG` environment variables.
 * Type: Boolean
 
-When set to true, npm uses unicode characters in the tree output.
-When false, it uses ascii characters instead of unicode glyphs.
+When set to true, npm uses unicode characters in the tree output. When
+false, it uses ascii characters instead of unicode glyphs.
 
 
 
@@ -101,9 +100,9 @@ When false, it uses ascii characters instead of unicode glyphs.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -112,9 +111,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -123,8 +122,7 @@ This value is not exported to the environment for child processes.
 * Default: null
 * Type: null or Number
 
-If there are multiple funding sources, which 1-indexed source URL to
-open.
+If there are multiple funding sources, which 1-indexed source URL to open.
 
 
 

@@ -13,14 +13,14 @@
 #define TDES_FLAGS 0
 
 typedef struct prov_des_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         DES_key_schedule ks;
     } dks;
     union {
-        void (*cbc) (const void *, void *, size_t,
-                     const DES_key_schedule *, unsigned char *);
+        void (*cbc)(const void *, void *, size_t,
+            const DES_key_schedule *, unsigned char *);
     } dstream;
 
 } PROV_DES_CTX;

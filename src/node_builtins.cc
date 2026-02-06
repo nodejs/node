@@ -132,9 +132,10 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 
 #if !HAVE_OPENSSL
         "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string",
-        "internal/tls/secure-context", "internal/http2/core",
-        "internal/http2/compat", "internal/streams/lazy_transform",
+        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "internal/tls/wrap", "internal/tls/secure-context",
+        "internal/http2/core", "internal/http2/compat",
+        "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
 #if !NODE_OPENSSL_HAS_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
@@ -158,7 +159,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
       if (prefix.length() > id.length()) {
         continue;
       }
-      if (id.find(prefix) == 0 &&
+      if (id.starts_with(prefix) &&
           builtin_categories.can_be_required.count(id) == 0) {
         builtin_categories.cannot_be_required.emplace(id);
       }

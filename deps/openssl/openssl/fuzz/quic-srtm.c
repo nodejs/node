@@ -74,11 +74,11 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             if (!PACKET_get_net_8(&pkt, &arg_opaque)
                 || !PACKET_get_net_8(&pkt, &arg_seq_num)
                 || !PACKET_copy_bytes(&pkt, arg_token.token,
-                                      sizeof(arg_token.token)))
+                    sizeof(arg_token.token)))
                 continue; /* just stop */
 
             ossl_quic_srtm_add(srtm, (void *)(uintptr_t)arg_opaque,
-                               arg_seq_num, &arg_token);
+                arg_seq_num, &arg_token);
             ossl_quic_srtm_check(srtm);
             break;
 
@@ -88,7 +88,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
                 continue; /* just stop */
 
             ossl_quic_srtm_remove(srtm, (void *)(uintptr_t)arg_opaque,
-                                  arg_seq_num);
+                arg_seq_num);
             ossl_quic_srtm_check(srtm);
             break;
 
@@ -102,12 +102,12 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
         case CMD_LOOKUP:
             if (!PACKET_copy_bytes(&pkt, arg_token.token,
-                                   sizeof(arg_token.token))
+                    sizeof(arg_token.token))
                 || !PACKET_get_net_8(&pkt, &arg_idx))
                 continue; /* just stop */
 
             ossl_quic_srtm_lookup(srtm, &arg_token, (size_t)arg_idx,
-                                  NULL, NULL);
+                NULL, NULL);
             ossl_quic_srtm_check(srtm);
             break;
 

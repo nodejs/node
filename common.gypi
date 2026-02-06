@@ -38,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.37',
+    'v8_embedder_string': '-node.40',
 
     ##### V8 defaults for Node.js #####
 
@@ -610,7 +610,7 @@
             ],
           }, {                                             # else it's `AIX`
             'variables': {
-              'gcc_major': '<!(<(python) -c "import os; import subprocess; CXX=os.environ.get(\'CXX\', \'g++\'); subprocess.run([CXX, \'-dumpversion\'])")'
+              'gcc_major': '<!(sh -c "${CXX:-g++} -dumpversion")'
             },
             # Disable the following compiler warning:
             #

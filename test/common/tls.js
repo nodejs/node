@@ -194,6 +194,7 @@ function extractMetadata(cert) {
     subject: x509.subject,
   };
 }
+exports.extractMetadata = extractMetadata;
 
 // To compare two certificates, we can just compare serialNumber, issuer,
 // and subject like X509_comp(). We can't just compare two strings because
@@ -219,3 +220,12 @@ exports.includesCert = function includesCert(certs, cert) {
 };
 
 exports.TestTLSSocket = TestTLSSocket;
+
+// Dumps certs into a file to pass safely into test/fixtures/list-certs.js
+exports.writeCerts = function writeCerts(certs, filename) {
+  const fs = require('fs');
+  for (const cert of certs) {
+    const x509 = new crypto.X509Certificate(cert);
+    fs.appendFileSync(filename, x509.toString());
+  }
+};

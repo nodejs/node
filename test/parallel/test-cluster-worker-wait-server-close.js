@@ -23,11 +23,11 @@ if (cluster.isWorker) {
   const keepOpen = setInterval(() => {}, 9999);
 
   // Check worker events and properties
-  process.once('disconnect', function() {
+  process.once('disconnect', common.mustCall(() => {
     // Disconnect should occur after socket close
     assert(serverClosed);
     clearInterval(keepOpen);
-  });
+  }));
 } else if (cluster.isPrimary) {
   // start worker
   const worker = cluster.fork();

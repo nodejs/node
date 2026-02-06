@@ -115,8 +115,9 @@ void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
     WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
   if (COMPRESS_POINTERS_BOOL) {
-    Assembler::set_uint32_constant_at(pc, constant_pool, target, jit_allocation,
-                                      icache_flush_mode);
+    Assembler::set_uint32_constant_at(pc, constant_pool,
+                                      static_cast<uint32_t>(target),
+                                      jit_allocation, icache_flush_mode);
   } else {
     UNREACHABLE();
   }

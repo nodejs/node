@@ -164,7 +164,7 @@ class Completion extends BaseCommand {
         return this.wrap(opts, comps)
       }
     } catch {
-      // it wasnt a valid command, so do nothing
+      // it wasn't a valid command, so do nothing
     }
   }
 

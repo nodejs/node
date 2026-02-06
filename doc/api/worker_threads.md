@@ -47,8 +47,8 @@ export default function parseJSAsync(script) {
       workerData: script,
     });
     worker.on('message', resolve);
-    worker.on('error', reject);
-    worker.on('exit', (code) => {
+    worker.once('error', reject);
+    worker.once('exit', (code) => {
       if (code !== 0)
         reject(new Error(`Worker stopped with exit code ${code}`));
     });
@@ -73,8 +73,8 @@ if (isMainThread) {
         workerData: script,
       });
       worker.on('message', resolve);
-      worker.on('error', reject);
-      worker.on('exit', (code) => {
+      worker.once('error', reject);
+      worker.once('exit', (code) => {
         if (code !== 0)
           reject(new Error(`Worker stopped with exit code ${code}`));
       });
@@ -670,7 +670,7 @@ share read and write access to the same set of environment variables.
 import process from 'node:process';
 import { Worker, SHARE_ENV } from 'node:worker_threads';
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
-  .on('exit', () => {
+  .once('exit', () => {
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
@@ -680,7 +680,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 
 const { Worker, SHARE_ENV } = require('node:worker_threads');
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
-  .on('exit', () => {
+  .once('exit', () => {
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
@@ -1108,7 +1108,7 @@ const { port1, port2 } = new MessageChannel();
 //   foobar
 //   closed!
 port2.on('message', (message) => console.log(message));
-port2.on('close', () => console.log('closed!'));
+port2.once('close', () => console.log('closed!'));
 
 port1.postMessage('foobar');
 port1.close();
@@ -1124,7 +1124,7 @@ const { port1, port2 } = new MessageChannel();
 //   foobar
 //   closed!
 port2.on('message', (message) => console.log(message));
-port2.on('close', () => console.log('closed!'));
+port2.once('close', () => console.log('closed!'));
 
 port1.postMessage('foobar');
 port1.close();
@@ -2219,17 +2219,17 @@ thread spawned will spawn another until the application crashes.
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport
-[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
+[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module
 [`Worker constructor options`]: #new-workerfilename-options
 [`Worker`]: #class-worker
-[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`fs.close()`]: fs.md#fsclosefd-callback
 [`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`markAsUntransferable()`]: #worker_threadsmarkasuntransferableobject
 [`node:cluster` module]: cluster.md
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hookseventlooputilizationutilization1-utilization2
 [`port.on('message')`]: #event-message
-[`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
+[`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/message_event
 [`port.postMessage()`]: #portpostmessagevalue-transferlist
 [`process.abort()`]: process.md#processabort
 [`process.chdir()`]: process.md#processchdirdirectory

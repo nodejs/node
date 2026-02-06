@@ -87,8 +87,8 @@ static int eckey_check(const EC_KEY *ec, int requires_privatekey)
         rem = BN_new();
 
         if (order != NULL && rem != NULL && bnctx != NULL) {
-             rv = BN_mod(rem, priv, order, bnctx)
-                  && !BN_is_zero(rem);
+            rv = BN_mod(rem, priv, order, bnctx)
+                && !BN_is_zero(rem);
         }
     }
     BN_free(rem);
@@ -156,7 +156,7 @@ static int sender_authkey_set(PROV_EC_CTX *ctx, EC_KEY *ec)
  * Returns: The created public EC key, or NULL if there is an error.
  */
 static EC_KEY *eckey_frompub(EC_KEY *in,
-                             const unsigned char *pubbuf, size_t pubbuflen)
+    const unsigned char *pubbuf, size_t pubbuflen)
 {
     EC_KEY *key;
 
@@ -178,7 +178,7 @@ err:
  * Returns: 1 if successful or 0 otherwise.
  */
 static int ecpubkey_todata(const EC_KEY *ec, unsigned char *out, size_t *outlen,
-                           size_t maxoutlen)
+    size_t maxoutlen)
 {
     const EC_POINT *pub;
     const EC_GROUP *group;
@@ -186,13 +186,13 @@ static int ecpubkey_todata(const EC_KEY *ec, unsigned char *out, size_t *outlen,
     group = EC_KEY_get0_group(ec);
     pub = EC_KEY_get0_public_key(ec);
     *outlen = EC_POINT_point2oct(group, pub, POINT_CONVERSION_UNCOMPRESSED,
-                                 out, maxoutlen, NULL);
+        out, maxoutlen, NULL);
     return *outlen != 0;
 }
 
 static void *eckem_newctx(void *provctx)
 {
-    PROV_EC_CTX *ctx =  OPENSSL_zalloc(sizeof(PROV_EC_CTX));
+    PROV_EC_CTX *ctx = OPENSSL_zalloc(sizeof(PROV_EC_CTX));
 
     if (ctx == NULL)
         return NULL;
@@ -224,8 +224,8 @@ static int ossl_ec_match_params(const EC_KEY *key1, const EC_KEY *key2)
         return 0;
 
     ret = group1 != NULL
-          && group2 != NULL
-          && EC_GROUP_cmp(group1, group2, ctx) == 0;
+        && group2 != NULL
+        && EC_GROUP_cmp(group1, group2, ctx) == 0;
     if (!ret)
         ERR_raise(ERR_LIB_PROV, PROV_R_MISMATCHING_DOMAIN_PARAMETERS);
     BN_CTX_free(ctx);
@@ -233,7 +233,7 @@ static int ossl_ec_match_params(const EC_KEY *key1, const EC_KEY *key2)
 }
 
 static int eckem_init(void *vctx, int operation, void *vec, void *vauth,
-                      const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     int rv;
     PROV_EC_CTX *ctx = (PROV_EC_CTX *)vctx;
@@ -253,7 +253,7 @@ static int eckem_init(void *vctx, int operation, void *vec, void *vauth,
         if (!ossl_ec_match_params(ec, auth)
             || !eckey_check(auth, operation == EVP_PKEY_OP_ENCAPSULATE)
             || !sender_authkey_set(ctx, auth))
-        return 0;
+            return 0;
     }
 
     ctx->op = operation;
@@ -261,25 +261,25 @@ static int eckem_init(void *vctx, int operation, void *vec, void *vauth,
 }
 
 static int eckem_encapsulate_init(void *vctx, void *vec,
-                                   const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return eckem_init(vctx, EVP_PKEY_OP_ENCAPSULATE, vec, NULL, params);
 }
 
 static int eckem_decapsulate_init(void *vctx, void *vec,
-                                   const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return eckem_init(vctx, EVP_PKEY_OP_DECAPSULATE, vec, NULL, params);
 }
 
 static int eckem_auth_encapsulate_init(void *vctx, void *vecx, void *vauthpriv,
-                                       const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return eckem_init(vctx, EVP_PKEY_OP_ENCAPSULATE, vecx, vauthpriv, params);
 }
 
 static int eckem_auth_decapsulate_init(void *vctx, void *vecx, void *vauthpub,
-                                       const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return eckem_init(vctx, EVP_PKEY_OP_DECAPSULATE, vecx, vauthpub, params);
 }
@@ -327,7 +327,7 @@ static const OSSL_PARAM known_settable_eckem_ctx_params[] = {
 };
 
 static const OSSL_PARAM *eckem_settable_ctx_params(ossl_unused void *vctx,
-                                                   ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_settable_eckem_ctx_params;
 }
@@ -336,11 +336,11 @@ static const OSSL_PARAM *eckem_settable_ctx_params(ossl_unused void *vctx,
  * See Section 4.1 DH-Based KEM (DHKEM) ExtractAndExpand
  */
 static int dhkem_extract_and_expand(EVP_KDF_CTX *kctx,
-                                    unsigned char *okm, size_t okmlen,
-                                    uint16_t kemid,
-                                    const unsigned char *dhkm, size_t dhkmlen,
-                                    const unsigned char *kemctx,
-                                    size_t kemctxlen)
+    unsigned char *okm, size_t okmlen,
+    uint16_t kemid,
+    const unsigned char *dhkm, size_t dhkmlen,
+    const unsigned char *kemctx,
+    size_t kemctxlen)
 {
     uint8_t suiteid[2];
     uint8_t prk[EVP_MAX_MD_SIZE];
@@ -354,12 +354,12 @@ static int dhkem_extract_and_expand(EVP_KDF_CTX *kctx,
     suiteid[1] = kemid & 0xff;
 
     ret = ossl_hpke_labeled_extract(kctx, prk, prklen,
-                                    NULL, 0, LABEL_KEM, suiteid, sizeof(suiteid),
-                                    OSSL_DHKEM_LABEL_EAE_PRK, dhkm, dhkmlen)
-          && ossl_hpke_labeled_expand(kctx, okm, okmlen, prk, prklen,
-                                      LABEL_KEM, suiteid, sizeof(suiteid),
-                                      OSSL_DHKEM_LABEL_SHARED_SECRET,
-                                      kemctx, kemctxlen);
+              NULL, 0, LABEL_KEM, suiteid, sizeof(suiteid),
+              OSSL_DHKEM_LABEL_EAE_PRK, dhkm, dhkmlen)
+        && ossl_hpke_labeled_expand(kctx, okm, okmlen, prk, prklen,
+            LABEL_KEM, suiteid, sizeof(suiteid),
+            OSSL_DHKEM_LABEL_SHARED_SECRET,
+            kemctx, kemctxlen);
     OPENSSL_cleanse(prk, prklen);
     return ret;
 }
@@ -380,7 +380,7 @@ static int dhkem_extract_and_expand(EVP_KDF_CTX *kctx,
  *     1 if successful or 0 otherwise.
  */
 int ossl_ec_dhkem_derive_private(EC_KEY *ec, BIGNUM *priv,
-                                 const unsigned char *ikm, size_t ikmlen)
+    const unsigned char *ikm, size_t ikmlen)
 {
     int ret = 0;
     EVP_KDF_CTX *kdfctx = NULL;
@@ -400,16 +400,16 @@ int ossl_ec_dhkem_derive_private(EC_KEY *ec, BIGNUM *priv,
         return -2;
 
     kdfctx = ossl_kdf_ctx_create("HKDF", info->mdname,
-                                 ossl_ec_key_get_libctx(ec),
-                                 ossl_ec_key_get0_propq(ec));
+        ossl_ec_key_get_libctx(ec),
+        ossl_ec_key_get0_propq(ec));
     if (kdfctx == NULL)
         return 0;
 
     /* ikmlen should have a length of at least Nsk */
     if (ikmlen < info->Nsk) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_INPUT_LENGTH,
-                       "ikm length is :%zu, should be at least %zu",
-                       ikmlen, info->Nsk);
+            "ikm length is :%zu, should be at least %zu",
+            ikmlen, info->Nsk);
         goto err;
     }
 
@@ -417,17 +417,17 @@ int ossl_ec_dhkem_derive_private(EC_KEY *ec, BIGNUM *priv,
     suiteid[1] = info->kem_id % 256;
 
     if (!ossl_hpke_labeled_extract(kdfctx, prk, info->Nsecret,
-                                   NULL, 0, LABEL_KEM, suiteid, sizeof(suiteid),
-                                   OSSL_DHKEM_LABEL_DKP_PRK, ikm, ikmlen))
+            NULL, 0, LABEL_KEM, suiteid, sizeof(suiteid),
+            OSSL_DHKEM_LABEL_DKP_PRK, ikm, ikmlen))
         goto err;
 
     order = EC_GROUP_get0_order(EC_KEY_get0_group(ec));
     do {
         if (!ossl_hpke_labeled_expand(kdfctx, privbuf, info->Nsk,
-                                      prk, info->Nsecret,
-                                      LABEL_KEM, suiteid, sizeof(suiteid),
-                                      OSSL_DHKEM_LABEL_CANDIDATE,
-                                      &counter, 1))
+                prk, info->Nsecret,
+                LABEL_KEM, suiteid, sizeof(suiteid),
+                OSSL_DHKEM_LABEL_CANDIDATE,
+                &counter, 1))
             goto err;
         privbuf[0] &= info->bitmask;
         if (BN_bin2bn(privbuf, info->Nsk, priv) == NULL)
@@ -455,7 +455,7 @@ err:
  *     The generated EC key, or NULL on failure.
  */
 static EC_KEY *derivekey(PROV_EC_CTX *ctx,
-                         const unsigned char *ikm, size_t ikmlen)
+    const unsigned char *ikm, size_t ikmlen)
 {
     int ret = 0;
     EC_KEY *key;
@@ -519,21 +519,22 @@ static int check_publickey(const EC_KEY *pub)
  * Returns the size of the secret if successful, or 0 otherwise,
  */
 static int generate_ecdhkm(const EC_KEY *sender, const EC_KEY *peer,
-                           unsigned char *out, size_t maxout,
-                           unsigned int secretsz)
+    unsigned char *out, size_t maxout,
+    unsigned int secretsz)
 {
     const EC_GROUP *group = EC_KEY_get0_group(sender);
     size_t secretlen = (EC_GROUP_get_degree(group) + 7) / 8;
 
     if (secretlen != secretsz || secretlen > maxout) {
-        ERR_raise_data(ERR_LIB_PROV,  PROV_R_BAD_LENGTH, "secretsz invalid");
+        ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_LENGTH, "secretsz invalid");
         return 0;
     }
 
     if (!check_publickey(peer))
         return 0;
     return ECDH_compute_key(out, secretlen, EC_KEY_get0_public_key(peer),
-                            sender, NULL) > 0;
+               sender, NULL)
+        > 0;
 }
 
 /*
@@ -559,10 +560,10 @@ static int generate_ecdhkm(const EC_KEY *sender, const EC_KEY *peer,
  *     and peerkey2 are non NULL (i.e. ctx->sender_authkey is not NULL).
  */
 static int derive_secret(PROV_EC_CTX *ctx, unsigned char *secret,
-                         const EC_KEY *privkey1, const EC_KEY *peerkey1,
-                         const EC_KEY *privkey2, const EC_KEY *peerkey2,
-                         const unsigned char *sender_pub,
-                         const unsigned char *recipient_pub)
+    const EC_KEY *privkey1, const EC_KEY *peerkey1,
+    const EC_KEY *privkey2, const EC_KEY *peerkey2,
+    const unsigned char *sender_pub,
+    const unsigned char *recipient_pub)
 {
     int ret = 0;
     EVP_KDF_CTX *kdfctx = NULL;
@@ -585,16 +586,16 @@ static int derive_secret(PROV_EC_CTX *ctx, unsigned char *secret,
     if (auth) {
         /* Get the public key of the auth sender in encoded form */
         if (!ecpubkey_todata(ctx->sender_authkey, sender_authpub,
-                             &sender_authpublen, sizeof(sender_authpub)))
+                &sender_authpublen, sizeof(sender_authpub)))
             goto err;
         if (sender_authpublen != encodedpublen) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY,
-                           "Invalid sender auth public key");
+                "Invalid sender auth public key");
             goto err;
         }
         if (!generate_ecdhkm(privkey2, peerkey2,
-                             dhkm + dhkmlen, sizeof(dhkm) - dhkmlen,
-                             encodedprivlen))
+                dhkm + dhkmlen, sizeof(dhkm) - dhkmlen,
+                encodedprivlen))
             goto err;
         dhkmlen += encodedprivlen;
         kemctxlen += encodedpublen;
@@ -608,12 +609,12 @@ static int derive_secret(PROV_EC_CTX *ctx, unsigned char *secret,
     if (auth)
         memcpy(kemctx + 2 * encodedpublen, sender_authpub, encodedpublen);
     kdfctx = ossl_kdf_ctx_create(ctx->kdfname, info->mdname,
-                                 ctx->libctx, ctx->propq);
+        ctx->libctx, ctx->propq);
     if (kdfctx == NULL)
         goto err;
     if (!dhkem_extract_and_expand(kdfctx, secret, info->Nsecret,
-                                  info->kem_id, dhkm, dhkmlen,
-                                  kemctx, kemctxlen))
+            info->kem_id, dhkm, dhkmlen,
+            kemctx, kemctxlen))
         goto err;
     ret = 1;
 err:
@@ -641,8 +642,8 @@ err:
  * Returns: 1 on success or 0 otherwise.
  */
 static int dhkem_encap(PROV_EC_CTX *ctx,
-                       unsigned char *enc, size_t *enclen,
-                       unsigned char *secret, size_t *secretlen)
+    unsigned char *enc, size_t *enclen,
+    unsigned char *secret, size_t *secretlen)
 {
     int ret = 0;
     EC_KEY *sender_ephemkey = NULL;
@@ -658,7 +659,7 @@ static int dhkem_encap(PROV_EC_CTX *ctx,
             *enclen = info->Nenc;
         if (secretlen != NULL)
             *secretlen = info->Nsecret;
-       return 1;
+        return 1;
     }
 
     if (*secretlen < info->Nsecret) {
@@ -675,21 +676,21 @@ static int dhkem_encap(PROV_EC_CTX *ctx,
     if (sender_ephemkey == NULL)
         goto err;
     if (!ecpubkey_todata(sender_ephemkey, sender_pub, &sender_publen,
-                         sizeof(sender_pub))
-            || !ecpubkey_todata(ctx->recipient_key, recipient_pub,
-                                &recipient_publen, sizeof(recipient_pub)))
+            sizeof(sender_pub))
+        || !ecpubkey_todata(ctx->recipient_key, recipient_pub,
+            &recipient_publen, sizeof(recipient_pub)))
         goto err;
 
     if (sender_publen != info->Npk
-            || recipient_publen != sender_publen) {
+        || recipient_publen != sender_publen) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY, "Invalid public key");
         goto err;
     }
 
     if (!derive_secret(ctx, secret,
-                       sender_ephemkey, ctx->recipient_key,
-                       ctx->sender_authkey, ctx->recipient_key,
-                       sender_pub, recipient_pub))
+            sender_ephemkey, ctx->recipient_key,
+            ctx->sender_authkey, ctx->recipient_key,
+            sender_pub, recipient_pub))
         goto err;
 
     /* Return the senders ephemeral public key in encoded form */
@@ -719,8 +720,8 @@ err:
  * Returns: 1 If the shared secret is returned or 0 on error.
  */
 static int dhkem_decap(PROV_EC_CTX *ctx,
-                       unsigned char *secret, size_t *secretlen,
-                       const unsigned char *enc, size_t enclen)
+    unsigned char *secret, size_t *secretlen,
+    const unsigned char *enc, size_t enclen)
 {
     int ret = 0;
     EC_KEY *sender_ephempubkey = NULL;
@@ -747,7 +748,7 @@ static int dhkem_decap(PROV_EC_CTX *ctx,
     if (sender_ephempubkey == NULL)
         goto err;
     if (!ecpubkey_todata(ctx->recipient_key, recipient_pub, &recipient_publen,
-                         sizeof(recipient_pub)))
+            sizeof(recipient_pub)))
         goto err;
     if (recipient_publen != encodedpublen) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY, "Invalid recipient public key");
@@ -755,9 +756,9 @@ static int dhkem_decap(PROV_EC_CTX *ctx,
     }
 
     if (!derive_secret(ctx, secret,
-                       ctx->recipient_key, sender_ephempubkey,
-                       ctx->recipient_key, ctx->sender_authkey,
-                       enc, recipient_pub))
+            ctx->recipient_key, sender_ephempubkey,
+            ctx->recipient_key, ctx->sender_authkey,
+            enc, recipient_pub))
         goto err;
     *secretlen = info->Nsecret;
     ret = 1;
@@ -767,49 +768,49 @@ err:
 }
 
 static int eckem_encapsulate(void *vctx, unsigned char *out, size_t *outlen,
-                             unsigned char *secret, size_t *secretlen)
+    unsigned char *secret, size_t *secretlen)
 {
     PROV_EC_CTX *ctx = (PROV_EC_CTX *)vctx;
 
     switch (ctx->mode) {
-        case KEM_MODE_DHKEM:
-            return dhkem_encap(ctx, out, outlen, secret, secretlen);
-        default:
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
-            return -2;
+    case KEM_MODE_DHKEM:
+        return dhkem_encap(ctx, out, outlen, secret, secretlen);
+    default:
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
+        return -2;
     }
 }
 
 static int eckem_decapsulate(void *vctx, unsigned char *out, size_t *outlen,
-                             const unsigned char *in, size_t inlen)
+    const unsigned char *in, size_t inlen)
 {
     PROV_EC_CTX *ctx = (PROV_EC_CTX *)vctx;
 
     switch (ctx->mode) {
-        case KEM_MODE_DHKEM:
-            return dhkem_decap(ctx, out, outlen, in, inlen);
-        default:
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
-            return -2;
+    case KEM_MODE_DHKEM:
+        return dhkem_decap(ctx, out, outlen, in, inlen);
+    default:
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
+        return -2;
     }
 }
 
 const OSSL_DISPATCH ossl_ec_asym_kem_functions[] = {
     { OSSL_FUNC_KEM_NEWCTX, (void (*)(void))eckem_newctx },
     { OSSL_FUNC_KEM_ENCAPSULATE_INIT,
-      (void (*)(void))eckem_encapsulate_init },
+        (void (*)(void))eckem_encapsulate_init },
     { OSSL_FUNC_KEM_ENCAPSULATE, (void (*)(void))eckem_encapsulate },
     { OSSL_FUNC_KEM_DECAPSULATE_INIT,
-      (void (*)(void))eckem_decapsulate_init },
+        (void (*)(void))eckem_decapsulate_init },
     { OSSL_FUNC_KEM_DECAPSULATE, (void (*)(void))eckem_decapsulate },
     { OSSL_FUNC_KEM_FREECTX, (void (*)(void))eckem_freectx },
     { OSSL_FUNC_KEM_SET_CTX_PARAMS,
-      (void (*)(void))eckem_set_ctx_params },
+        (void (*)(void))eckem_set_ctx_params },
     { OSSL_FUNC_KEM_SETTABLE_CTX_PARAMS,
-      (void (*)(void))eckem_settable_ctx_params },
+        (void (*)(void))eckem_settable_ctx_params },
     { OSSL_FUNC_KEM_AUTH_ENCAPSULATE_INIT,
-      (void (*)(void))eckem_auth_encapsulate_init },
+        (void (*)(void))eckem_auth_encapsulate_init },
     { OSSL_FUNC_KEM_AUTH_DECAPSULATE_INIT,
-      (void (*)(void))eckem_auth_decapsulate_init },
+        (void (*)(void))eckem_auth_decapsulate_init },
     OSSL_DISPATCH_END
 };

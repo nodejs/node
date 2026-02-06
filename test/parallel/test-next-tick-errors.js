@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const order = [];
@@ -57,7 +57,7 @@ testNextTickWith('str');
 testNextTickWith({});
 testNextTickWith([]);
 
-process.on('uncaughtException', function(err, errorOrigin) {
+process.on('uncaughtException', common.mustCall((err, errorOrigin) => {
   assert.strictEqual(errorOrigin, 'uncaughtException');
 
   if (!exceptionHandled) {
@@ -67,7 +67,7 @@ process.on('uncaughtException', function(err, errorOrigin) {
     // If we get here then the first process.nextTick got called twice
     order.push('OOPS!');
   }
-});
+}));
 
 process.on('exit', function() {
   assert.deepStrictEqual(order, ['A', 'B', 'C']);

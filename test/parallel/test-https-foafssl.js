@@ -63,7 +63,7 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('sent response');
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const args = ['s_client',
                 '-quiet',
                 '-connect', `127.0.0.1:${this.address().port}`,
@@ -72,21 +72,20 @@ server.listen(0, function() {
 
   const client = spawn(opensslCli, args);
 
-  client.stdout.on('data', function(data) {
+  client.stdout.on('data', common.mustCallAtLeast((data) => {
     console.log('response received');
     const message = data.toString();
     const contents = message.split('\r\n\r\n').pop();
     assert.strictEqual(body, contents);
-    server.close((e) => {
-      assert.ifError(e);
+    server.close(common.mustSucceed(() => {
       console.log('server closed');
-    });
+    }));
     console.log('server.close() called');
-  });
+  }));
 
   client.stdin.write('GET /\r\n\r\n');
 
   client.on('error', function(error) {
     throw error;
   });
-});
+}));

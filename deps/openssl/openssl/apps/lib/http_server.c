@@ -14,7 +14,7 @@
  * On VMS, you need to define this to get the declaration of fileno().  The
  * value 2 is to make sure no function defined in POSIX-2 is left undefined.
  */
-# define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 2
 #endif
 
 #include <ctype.h>
@@ -30,9 +30,9 @@
 
 #define HTTP_PREFIX "HTTP/"
 #define HTTP_VERSION_PATT "1." /* allow 1.x */
-#define HTTP_PREFIX_VERSION HTTP_PREFIX""HTTP_VERSION_PATT
-#define HTTP_1_0 HTTP_PREFIX_VERSION"0" /* "HTTP/1.0" */
-#define HTTP_VERSION_STR " "HTTP_PREFIX_VERSION
+#define HTTP_PREFIX_VERSION HTTP_PREFIX "" HTTP_VERSION_PATT
+#define HTTP_1_0 HTTP_PREFIX_VERSION "0" /* "HTTP/1.0" */
+#define HTTP_VERSION_STR " " HTTP_PREFIX_VERSION
 
 #define log_HTTP(prog, level, text) \
     trace_log_message(OSSL_TRACE_CATEGORY_HTTP, prog, level, "%s", text)
@@ -40,7 +40,7 @@
     trace_log_message(OSSL_TRACE_CATEGORY_HTTP, prog, level, fmt, arg)
 #define log_HTTP2(prog, level, fmt, arg1, arg2) \
     trace_log_message(OSSL_TRACE_CATEGORY_HTTP, prog, level, fmt, arg1, arg2)
-#define log_HTTP3(prog, level, fmt, a1, a2, a3)                        \
+#define log_HTTP3(prog, level, fmt, a1, a2, a3) \
     trace_log_message(OSSL_TRACE_CATEGORY_HTTP, prog, level, fmt, a1, a2, a3)
 
 #ifdef HTTP_DAEMON
@@ -88,8 +88,8 @@ void spawn_loop(const char *prog)
 
     if (setpgid(0, 0)) {
         log_HTTP1(prog, LOG_CRIT,
-                  "error detaching from parent process group: %s",
-                  strerror(errno));
+            "error detaching from parent process group: %s",
+            strerror(errno));
         exit(1);
     }
     kidpids = app_malloc(n_responders * sizeof(*kidpids), "child PID array");
@@ -117,32 +117,32 @@ void spawn_loop(const char *prog)
                 }
                 if (i >= n_responders) {
                     log_HTTP1(prog, LOG_CRIT,
-                              "internal error: no matching child slot for pid: %ld",
-                              (long)fpid);
+                        "internal error: no matching child slot for pid: %ld",
+                        (long)fpid);
                     killall(1, kidpids);
                 }
                 if (status != 0) {
                     if (WIFEXITED(status)) {
                         log_HTTP2(prog, LOG_WARNING,
-                                  "child process: %ld, exit status: %d",
-                                  (long)fpid, WEXITSTATUS(status));
+                            "child process: %ld, exit status: %d",
+                            (long)fpid, WEXITSTATUS(status));
                     } else if (WIFSIGNALED(status)) {
                         char *dumped = "";
 
-# ifdef WCOREDUMP
+#ifdef WCOREDUMP
                         if (WCOREDUMP(status))
                             dumped = " (core dumped)";
-# endif
+#endif
                         log_HTTP3(prog, LOG_WARNING,
-                                  "child process: %ld, term signal %d%s",
-                                  (long)fpid, WTERMSIG(status), dumped);
+                            "child process: %ld, term signal %d%s",
+                            (long)fpid, WTERMSIG(status), dumped);
                     }
                     OSSL_sleep(1000);
                 }
                 break;
             } else if (errno != EINTR) {
                 log_HTTP1(prog, LOG_CRIT,
-                          "waitpid() failed: %s", strerror(errno));
+                    "waitpid() failed: %s", strerror(errno));
                 killall(1, kidpids);
             }
         }
@@ -165,7 +165,7 @@ void spawn_loop(const char *prog)
                 _exit(1);
             }
             return;
-        default:            /* parent */
+        default: /* parent */
             for (i = 0; i < n_responders; ++i) {
                 if (kidpids[i] == 0) {
                     kidpids[i] = fpid;
@@ -175,7 +175,7 @@ void spawn_loop(const char *prog)
             }
             if (i >= n_responders) {
                 log_HTTP(prog, LOG_CRIT,
-                         "internal error: no free child slots");
+                    "internal error: no free child slots");
                 killall(1, kidpids);
             }
             break;
@@ -228,7 +228,7 @@ BIO *http_server_init(const char *prog, const char *port, int verb)
 
     return acbio;
 
- err:
+err:
     ERR_print_errors(bio_err);
     BIO_free_all(acbio);
     BIO_free(bufbio);
@@ -262,9 +262,9 @@ static int urldecode(char *p)
 /* if *pcbio != NULL, continue given connected session, else accept new */
 /* if found_keep_alive != NULL, return this way connection persistence state */
 int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
-                             char **ppath, BIO **pcbio, BIO *acbio,
-                             int *found_keep_alive,
-                             const char *prog, int accept_get, int timeout)
+    char **ppath, BIO **pcbio, BIO *acbio,
+    int *found_keep_alive,
+    const char *prog, int accept_get, int timeout)
 {
     BIO *cbio = *pcbio, *getbio = NULL, *b64 = NULL;
     int len;
@@ -286,7 +286,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             goto fatal;
         }
         log_HTTP1(prog, LOG_DEBUG,
-                  "awaiting new connection on port %s ...", port);
+            "awaiting new connection on port %s ...", port);
         OPENSSL_free(port);
 
         if (BIO_do_accept(acbio) <= 0)
@@ -303,12 +303,12 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         goto out;
     }
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     if (timeout > 0) {
         (void)BIO_get_fd(cbio, &acfd);
         alarm(timeout);
     }
-# endif
+#endif
 
     /* Read the request line. */
     len = BIO_gets(cbio, reqbuf, sizeof(reqbuf));
@@ -322,23 +322,23 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
     }
 
     if (((end = strchr(reqbuf, '\r')) != NULL && end[1] == '\n')
-            || (end = strchr(reqbuf, '\n')) != NULL)
+        || (end = strchr(reqbuf, '\n')) != NULL)
         *end = '\0';
     if (log_get_verbosity() < LOG_TRACE)
         trace_log_message(-1, prog, LOG_INFO,
-                          "received request, 1st line: %s", reqbuf);
+            "received request, 1st line: %s", reqbuf);
     log_HTTP(prog, LOG_TRACE, "received request header:");
     log_HTTP1(prog, LOG_TRACE, "%s", reqbuf);
     if (end == NULL) {
         log_HTTP(prog, LOG_WARNING,
-                 "cannot parse HTTP header: missing end of line");
+            "cannot parse HTTP header: missing end of line");
         (void)http_server_send_status(prog, cbio, 400, "Bad Request");
         goto out;
     }
 
     url = meth = reqbuf;
     if ((accept_get && CHECK_AND_SKIP_PREFIX(url, "GET "))
-            || CHECK_AND_SKIP_PREFIX(url, "POST ")) {
+        || CHECK_AND_SKIP_PREFIX(url, "POST ")) {
 
         /* Expecting (GET|POST) {sp} /URL {sp} HTTP/1.x */
         url[-1] = '\0';
@@ -346,8 +346,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             url++;
         if (*url != '/') {
             log_HTTP2(prog, LOG_WARNING,
-                      "invalid %s -- URL does not begin with '/': %s",
-                      meth, url);
+                "invalid %s -- URL does not begin with '/': %s",
+                meth, url);
             (void)http_server_send_status(prog, cbio, 400, "Bad Request");
             goto out;
         }
@@ -359,8 +359,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
                 break;
         if (!HAS_PREFIX(end, HTTP_VERSION_STR)) {
             log_HTTP2(prog, LOG_WARNING,
-                      "invalid %s -- bad HTTP/version string: %s",
-                      meth, end + 1);
+                "invalid %s -- bad HTTP/version string: %s",
+                meth, end + 1);
             (void)http_server_send_status(prog, cbio, 400, "Bad Request");
             goto out;
         }
@@ -382,7 +382,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         len = urldecode(url);
         if (len < 0) {
             log_HTTP2(prog, LOG_WARNING,
-                      "invalid %s request -- bad URL encoding: %s", meth, url);
+                "invalid %s request -- bad URL encoding: %s", meth, url);
             (void)http_server_send_status(prog, cbio, 400, "Bad Request");
             goto out;
         }
@@ -390,7 +390,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             if ((getbio = BIO_new_mem_buf(url, len)) == NULL
                 || (b64 = BIO_new(BIO_f_base64())) == NULL) {
                 log_HTTP1(prog, LOG_ERR,
-                          "could not allocate base64 bio with size = %d", len);
+                    "could not allocate base64 bio with size = %d", len);
                 goto fatal;
             }
             BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -398,8 +398,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         }
     } else {
         log_HTTP2(prog, LOG_WARNING,
-                  "HTTP request does not begin with %sPOST: %s",
-                  accept_get ? "GET or " : "", reqbuf);
+            "HTTP request does not begin with %sPOST: %s",
+            accept_get ? "GET or " : "", reqbuf);
         (void)http_server_send_status(prog, cbio, 400, "Bad Request");
         goto out;
     }
@@ -425,11 +425,10 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         if (((end = strchr(inbuf, '\r')) != NULL && end[1] == '\n')
             || (end = strchr(inbuf, '\n')) != NULL)
             *end = '\0';
-        log_HTTP1(prog, LOG_TRACE, "%s", *inbuf == '\0' ?
-                  " " /* workaround for "" getting ignored */ : inbuf);
+        log_HTTP1(prog, LOG_TRACE, "%s", *inbuf == '\0' ? " " /* workaround for "" getting ignored */ : inbuf);
         if (end == NULL) {
             log_HTTP(prog, LOG_WARNING,
-                     "error parsing HTTP header: missing end of line");
+                "error parsing HTTP header: missing end of line");
             (void)http_server_send_status(prog, cbio, 400, "Bad Request");
             goto out;
         }
@@ -441,7 +440,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         value = strchr(key, ':');
         if (value == NULL) {
             log_HTTP(prog, LOG_WARNING,
-                     "error parsing HTTP header: missing ':'");
+                "error parsing HTTP header: missing ':'");
             (void)http_server_send_status(prog, cbio, 400, "Bad Request");
             goto out;
         }
@@ -458,37 +457,37 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         }
     }
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     /* Clear alarm before we close the client socket */
     alarm(0);
     timeout = 0;
-# endif
+#endif
 
     /* Try to read and parse request */
     req = ASN1_item_d2i_bio(it, getbio != NULL ? getbio : cbio, NULL);
     if (req == NULL) {
         log_HTTP(prog, LOG_WARNING,
-                 "error parsing DER-encoded request content");
+            "error parsing DER-encoded request content");
         (void)http_server_send_status(prog, cbio, 400, "Bad Request");
     } else if (ppath != NULL && (*ppath = OPENSSL_strdup(url)) == NULL) {
         log_HTTP1(prog, LOG_ERR,
-                  "out of memory allocating %zu bytes", strlen(url) + 1);
+            "out of memory allocating %zu bytes", strlen(url) + 1);
         ASN1_item_free(req, it);
         goto fatal;
     }
 
     *preq = req;
 
- out:
+out:
     BIO_free_all(getbio);
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     if (timeout > 0)
         alarm(0);
     acfd = (int)INVALID_SOCKET;
-# endif
+#endif
     return ret;
 
- fatal:
+fatal:
     (void)http_server_send_status(prog, cbio, 500, "Internal Server Error");
     if (ppath != NULL) {
         OPENSSL_free(*ppath);
@@ -502,23 +501,23 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
 
 /* assumes that cbio does not do an encoding that changes the output length */
 int http_server_send_asn1_resp(const char *prog, BIO *cbio, int keep_alive,
-                               const char *content_type,
-                               const ASN1_ITEM *it, const ASN1_VALUE *resp)
+    const char *content_type,
+    const ASN1_ITEM *it, const ASN1_VALUE *resp)
 {
     char buf[200], *p;
-    int ret = BIO_snprintf(buf, sizeof(buf), HTTP_1_0" 200 OK\r\n%s"
-                           "Content-type: %s\r\n"
-                           "Content-Length: %d\r\n",
-                           keep_alive ? "Connection: keep-alive\r\n" : "",
-                           content_type,
-                           ASN1_item_i2d(resp, NULL, it));
+    int ret = BIO_snprintf(buf, sizeof(buf), HTTP_1_0 " 200 OK\r\n%s"
+                                                      "Content-type: %s\r\n"
+                                                      "Content-Length: %d\r\n",
+        keep_alive ? "Connection: keep-alive\r\n" : "",
+        content_type,
+        ASN1_item_i2d(resp, NULL, it));
 
     if (ret < 0 || (size_t)ret >= sizeof(buf))
         return 0;
     if (log_get_verbosity() < LOG_TRACE && (p = strchr(buf, '\r')) != NULL)
         trace_log_message(-1, prog, LOG_INFO,
-                          "sending response, 1st line: %.*s", (int)(p - buf),
-                          buf);
+            "sending response, 1st line: %.*s", (int)(p - buf),
+            buf);
     log_HTTP1(prog, LOG_TRACE, "sending response header:\n%s", buf);
 
     ret = BIO_printf(cbio, "%s\r\n", buf) > 0
@@ -529,12 +528,12 @@ int http_server_send_asn1_resp(const char *prog, BIO *cbio, int keep_alive,
 }
 
 int http_server_send_status(const char *prog, BIO *cbio,
-                            int status, const char *reason)
+    int status, const char *reason)
 {
     char buf[200];
-    int ret = BIO_snprintf(buf, sizeof(buf), HTTP_1_0" %d %s\r\n\r\n",
-                           /* This implicitly cancels keep-alive */
-                           status, reason);
+    int ret = BIO_snprintf(buf, sizeof(buf), HTTP_1_0 " %d %s\r\n\r\n",
+        /* This implicitly cancels keep-alive */
+        status, reason);
 
     if (ret < 0 || (size_t)ret >= sizeof(buf))
         return 0;

@@ -23,7 +23,7 @@ server.on('stream', common.mustCall(function(stream) {
   stream.on('error', () => {});
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`,
                                { rejectUnauthorized: false }
   );
@@ -34,4 +34,4 @@ server.listen(0, function() {
   }));
   client_stream.resume();
   client_stream.write(Buffer.alloc(1024 * 1024));
-});
+}));

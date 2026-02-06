@@ -35,7 +35,8 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     { name: 'source-map/output/source_map_throw_set_immediate.js' },
   ];
   for (const { name, transform } of tests) {
-    it(name, async () => {
+    const skip = name.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    it(name, { skip }, async () => {
       await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
     });
   }

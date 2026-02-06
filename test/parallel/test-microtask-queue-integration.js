@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const implementations = [
@@ -40,16 +40,16 @@ function test(scheduleMicrotask) {
   let nextTickCalled = false;
   expected++;
 
-  scheduleMicrotask(function() {
+  scheduleMicrotask(common.mustCall(() => {
     process.nextTick(function() {
       nextTickCalled = true;
     });
 
-    setTimeout(function() {
+    setTimeout(common.mustCall(() => {
       assert(nextTickCalled);
       done++;
-    }, 0);
-  });
+    }), 0);
+  }));
 }
 
 // first tick case

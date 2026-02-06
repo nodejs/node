@@ -38,7 +38,7 @@ matrix_mult_vector(const MATRIX *a, const VECTOR *s, VECTOR *t)
 
 static ossl_inline ossl_unused int
 matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md, const uint8_t *rho,
-                MATRIX *out)
+    MATRIX *out)
 {
     return ossl_ml_dsa_matrix_expand_A(g_ctx, md, rho, out);
 }

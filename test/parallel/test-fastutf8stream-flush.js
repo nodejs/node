@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   readFile,
@@ -34,17 +31,17 @@ function runTests(sync) {
     writeFileSync(dest, 'hello world\n');
     const stream = new Utf8Stream({ dest, append: false, sync });
 
-    stream.on('ready', () => {
-      ok(stream.write('something else\n'));
+    stream.on('ready', common.mustCall(() => {
+      assert.ok(stream.write('something else\n'));
       stream.flush();
 
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'something else\n');
+          assert.strictEqual(data, 'something else\n');
           stream.end();
         }));
       }));
-    });
+    }));
   }
 
   {
@@ -52,12 +49,12 @@ function runTests(sync) {
     const stream = new Utf8Stream({ dest, mkdir: true, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
+      assert.ok(stream.write('hello world\n'));
       stream.flush();
 
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\n');
+          assert.strictEqual(data, 'hello world\n');
           stream.end();
         }));
       }));
@@ -70,13 +67,13 @@ function runTests(sync) {
     const stream = new Utf8Stream({ fd, minLength: 4096, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
       stream.flush();
 
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(data, 'hello world\nsomething else\n');
           stream.end();
         }));
       }));
@@ -102,8 +99,8 @@ function runTests(sync) {
     const stream = new Utf8Stream({ fd, minLength: 4096, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.flush(common.mustSucceed(() => {
         stream.end();
@@ -137,6 +134,6 @@ function runTests(sync) {
     const fd = openSync(dest, 'w');
     const stream = new Utf8Stream({ fd, minLength: 4096, sync });
     stream.destroy();
-    stream.flush(common.mustCall(ok));
+    stream.flush(common.mustCall(assert.ok));
   }
 }

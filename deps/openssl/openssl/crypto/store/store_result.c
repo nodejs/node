@@ -32,7 +32,7 @@
  * numbers, negative ones should be fine.  They must never slip out from
  * this translation unit anyway.
  */
-# define OSSL_OBJECT_PKCS12 -1
+#define OSSL_OBJECT_PKCS12 -1
 #endif
 
 /*
@@ -75,22 +75,21 @@ struct extracted_param_data_st {
 
 static int try_name(struct extracted_param_data_st *, OSSL_STORE_INFO **);
 static int try_key(struct extracted_param_data_st *, OSSL_STORE_INFO **,
-                   OSSL_STORE_CTX *, const OSSL_PROVIDER *,
-                   OSSL_LIB_CTX *, const char *);
+    OSSL_STORE_CTX *, const OSSL_PROVIDER *,
+    OSSL_LIB_CTX *, const char *);
 static int try_cert(struct extracted_param_data_st *, OSSL_STORE_INFO **,
-                    OSSL_LIB_CTX *, const char *);
+    OSSL_LIB_CTX *, const char *);
 static int try_crl(struct extracted_param_data_st *, OSSL_STORE_INFO **,
-                   OSSL_LIB_CTX *, const char *);
+    OSSL_LIB_CTX *, const char *);
 static int try_pkcs12(struct extracted_param_data_st *, OSSL_STORE_INFO **,
-                      OSSL_STORE_CTX *, OSSL_LIB_CTX *, const char *);
+    OSSL_STORE_CTX *, OSSL_LIB_CTX *, const char *);
 
 int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
 {
     struct ossl_load_result_data_st *cbdata = arg;
     OSSL_STORE_INFO **v = &cbdata->v;
     OSSL_STORE_CTX *ctx = cbdata->ctx;
-    const OSSL_PROVIDER *provider =
-        OSSL_STORE_LOADER_get0_provider(ctx->fetched_loader);
+    const OSSL_PROVIDER *provider = OSSL_STORE_LOADER_get0_provider(ctx->fetched_loader);
     OSSL_LIB_CTX *libctx = ossl_provider_libctx(provider);
     const char *propq = ctx->properties;
     const OSSL_PARAM *p;
@@ -109,7 +108,7 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
     p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_DATA);
     if (p != NULL
         && !OSSL_PARAM_get_octet_string_ptr(p, &helper_data.octet_data,
-                                            &helper_data.octet_data_size)
+            &helper_data.octet_data_size)
         && !OSSL_PARAM_get_utf8_string_ptr(p, &helper_data.utf8_data))
         return 0;
     p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_DATA_STRUCTURE);
@@ -121,8 +120,7 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
         && !OSSL_PARAM_get_utf8_string_ptr(p, &helper_data.input_type))
         return 0;
     p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_REFERENCE);
-    if (p != NULL && !OSSL_PARAM_get_octet_string_ptr(p, &helper_data.ref,
-                                                      &helper_data.ref_size))
+    if (p != NULL && !OSSL_PARAM_get_octet_string_ptr(p, &helper_data.ref, &helper_data.ref_size))
         return 0;
     p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_DESC);
     if (p != NULL && !OSSL_PARAM_get_utf8_string_ptr(p, &helper_data.desc))
@@ -160,7 +158,7 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
             hint = ":maybe need to load the default provider?";
         if (provider != NULL)
             ERR_raise_data(ERR_LIB_OSSL_STORE, ERR_R_UNSUPPORTED, "provider=%s%s",
-                           OSSL_PROVIDER_get0_name(provider), hint);
+                OSSL_PROVIDER_get0_name(provider), hint);
         else if (hint[0] != '\0')
             ERR_raise_data(ERR_LIB_OSSL_STORE, ERR_R_UNSUPPORTED, "%s", hint);
         else
@@ -168,7 +166,7 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
     }
 
     return (*v != NULL);
- err:
+err:
     ERR_clear_last_mark();
     return 0;
 }
@@ -201,9 +199,9 @@ static int try_name(struct extracted_param_data_st *data, OSSL_STORE_INFO **v)
  */
 
 static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
-                             OSSL_STORE_CTX *ctx,
-                             const OSSL_PROVIDER *provider,
-                             OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_STORE_CTX *ctx,
+    const OSSL_PROVIDER *provider,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY *pk = NULL;
     EVP_KEYMGMT *keymgmt = NULL;
@@ -231,8 +229,7 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
             keydata = evp_keymgmt_load(keymgmt, data->ref, data->ref_size);
         } else {
             struct evp_keymgmt_util_try_import_data_st import_data;
-            OSSL_FUNC_store_export_object_fn *export_object =
-                ctx->fetched_loader->p_export_object;
+            OSSL_FUNC_store_export_object_fn *export_object = ctx->fetched_loader->p_export_object;
 
             import_data.keymgmt = keymgmt;
             import_data.keydata = NULL;
@@ -244,9 +241,9 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
                  * |import_data.keydata| is as much an indicator.
                  */
                 (void)export_object(ctx->loader_ctx,
-                                    data->ref, data->ref_size,
-                                    &evp_keymgmt_util_try_import,
-                                    &import_data);
+                    data->ref, data->ref_size,
+                    &evp_keymgmt_util_try_import,
+                    &import_data);
             }
 
             keydata = import_data.keydata;
@@ -255,7 +252,7 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
         if (keydata == NULL && try_fallback > 0) {
             EVP_KEYMGMT_free(keymgmt);
             keymgmt = evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)provider,
-                                                  data->data_type, propq);
+                data->data_type, propq);
             if (keymgmt != NULL) {
                 ERR_pop_to_mark();
                 ERR_set_mark();
@@ -274,10 +271,10 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
 }
 
 static EVP_PKEY *try_key_value(struct extracted_param_data_st *data,
-                               OSSL_STORE_CTX *ctx,
-                               OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg,
-                               OSSL_LIB_CTX *libctx, const char *propq,
-                               int *harderr)
+    OSSL_STORE_CTX *ctx,
+    OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg,
+    OSSL_LIB_CTX *libctx, const char *propq,
+    int *harderr)
 {
     EVP_PKEY *pk = NULL;
     OSSL_DECODER_CTX *decoderctx = NULL;
@@ -292,8 +289,7 @@ static EVP_PKEY *try_key_value(struct extracted_param_data_st *data,
         selection = OSSL_KEYMGMT_SELECT_ALL_PARAMETERS;
         break;
     case OSSL_STORE_INFO_PUBKEY:
-        selection =
-            OSSL_KEYMGMT_SELECT_PUBLIC_KEY
+        selection = OSSL_KEYMGMT_SELECT_PUBLIC_KEY
             | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS;
         break;
     case OSSL_STORE_INFO_PKEY:
@@ -303,10 +299,9 @@ static EVP_PKEY *try_key_value(struct extracted_param_data_st *data,
         return NULL;
     }
 
-    decoderctx =
-        OSSL_DECODER_CTX_new_for_pkey(&pk, data->input_type, data->data_structure,
-                                      data->data_type, selection, libctx,
-                                      propq);
+    decoderctx = OSSL_DECODER_CTX_new_for_pkey(&pk, data->input_type, data->data_structure,
+        data->data_type, selection, libctx,
+        propq);
     (void)OSSL_DECODER_CTX_set_passphrase_cb(decoderctx, cb, cbarg);
 
     /* No error if this couldn't be decoded */
@@ -322,10 +317,10 @@ static EVP_PKEY *try_key_value(struct extracted_param_data_st *data,
 typedef OSSL_STORE_INFO *store_info_new_fn(EVP_PKEY *);
 
 static EVP_PKEY *try_key_value_legacy(struct extracted_param_data_st *data,
-                                      store_info_new_fn **store_info_new,
-                                      OSSL_STORE_CTX *ctx,
-                                      OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg,
-                                      OSSL_LIB_CTX *libctx, const char *propq)
+    store_info_new_fn **store_info_new,
+    OSSL_STORE_CTX *ctx,
+    OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY *pk = NULL;
     const unsigned char *der = data->octet_data, *derp;
@@ -371,8 +366,8 @@ static EVP_PKEY *try_key_value_legacy(struct extracted_param_data_st *data,
                  * will be NULL on error anyway.
                  */
                 PKCS12_pbe_crypt(alg, pbuf, plen,
-                                 oct->data, oct->length,
-                                 &new_der, &len, 0);
+                    oct->data, oct->length,
+                    &new_der, &len, 0);
                 der_len = len;
                 der = new_der;
             }
@@ -404,8 +399,8 @@ static EVP_PKEY *try_key_value_legacy(struct extracted_param_data_st *data,
 }
 
 static int try_key(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
-                   OSSL_STORE_CTX *ctx, const OSSL_PROVIDER *provider,
-                   OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_STORE_CTX *ctx, const OSSL_PROVIDER *provider,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     store_info_new_fn *store_info_new = NULL;
     int harderr = 0;
@@ -441,7 +436,7 @@ static int try_key(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
              */
             if (pk == NULL && harderr == 0)
                 pk = try_key_value_legacy(data, &store_info_new, ctx,
-                                          cb, cbarg, libctx, propq);
+                    cb, cbarg, libctx, propq);
         }
 
         if (pk != NULL) {
@@ -459,7 +454,7 @@ static int try_key(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 if (evp_keymgmt_util_has(pk, OSSL_KEYMGMT_SELECT_PRIVATE_KEY))
                     store_info_new = OSSL_STORE_INFO_new_PKEY;
                 else if (evp_keymgmt_util_has(pk,
-                                              OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
+                             OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
                     store_info_new = OSSL_STORE_INFO_new_PUBKEY;
                 else
                     store_info_new = OSSL_STORE_INFO_new_PARAMS;
@@ -475,7 +470,7 @@ static int try_key(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 }
 
 static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
-                    OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     if (data->object_type == OSSL_OBJECT_UNKNOWN
         || data->object_type == OSSL_OBJECT_CERT) {
@@ -500,10 +495,12 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
             ignore_trusted = 0;
 
         if (d2i_X509_AUX(&cert, (const unsigned char **)&data->octet_data,
-                         data->octet_data_size) == NULL
+                data->octet_data_size)
+                == NULL
             && (!ignore_trusted
                 || d2i_X509(&cert, (const unsigned char **)&data->octet_data,
-                            data->octet_data_size) == NULL)) {
+                       data->octet_data_size)
+                    == NULL)) {
             X509_free(cert);
             cert = NULL;
         }
@@ -521,14 +518,14 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 }
 
 static int try_crl(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
-                   OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     if (data->object_type == OSSL_OBJECT_UNKNOWN
         || data->object_type == OSSL_OBJECT_CRL) {
         X509_CRL *crl;
 
         crl = d2i_X509_CRL(NULL, (const unsigned char **)&data->octet_data,
-                           data->octet_data_size);
+            data->octet_data_size);
 
         if (crl != NULL)
             /* We determined the object type */
@@ -549,8 +546,8 @@ static int try_crl(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 }
 
 static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
-                      OSSL_STORE_CTX *ctx,
-                      OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_STORE_CTX *ctx,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int ok = 1;
 
@@ -560,7 +557,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
         PKCS12 *p12;
 
         p12 = d2i_PKCS12(NULL, (const unsigned char **)&data->octet_data,
-                         data->octet_data_size);
+            data->octet_data_size);
 
         if (p12 != NULL) {
             char *pass = NULL;
@@ -572,7 +569,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 
             data->object_type = OSSL_OBJECT_PKCS12;
 
-            ok = 0;              /* Assume decryption or parse error */
+            ok = 0; /* Assume decryption or parse error */
 
             if (!PKCS12_mac_present(p12)
                 || PKCS12_verify_mac(p12, NULL, 0)) {
@@ -583,16 +580,16 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 static char prompt_info[] = "PKCS12 import pass phrase";
                 OSSL_PARAM pw_params[] = {
                     OSSL_PARAM_utf8_string(OSSL_PASSPHRASE_PARAM_INFO,
-                                           prompt_info,
-                                           sizeof(prompt_info) - 1),
+                        prompt_info,
+                        sizeof(prompt_info) - 1),
                     OSSL_PARAM_END
                 };
 
                 if (!ossl_pw_get_passphrase(tpass, sizeof(tpass) - 1,
-                                            &tpass_len,
-                                            pw_params, 0, &ctx->pwdata)) {
+                        &tpass_len,
+                        pw_params, 0, &ctx->pwdata)) {
                     ERR_raise(ERR_LIB_OSSL_STORE,
-                              OSSL_STORE_R_PASSPHRASE_CALLBACK_ERROR);
+                        OSSL_STORE_R_PASSPHRASE_CALLBACK_ERROR);
                     goto p12_end;
                 }
                 pass = tpass;
@@ -603,9 +600,8 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 pass[tpass_len] = '\0';
                 if (!PKCS12_verify_mac(p12, pass, tpass_len)) {
                     ERR_raise_data(ERR_LIB_OSSL_STORE,
-                                   OSSL_STORE_R_ERROR_VERIFYING_PKCS12_MAC,
-                                   tpass_len == 0 ? "empty password" :
-                                   "maybe wrong password");
+                        OSSL_STORE_R_ERROR_VERIFYING_PKCS12_MAC,
+                        tpass_len == 0 ? "empty password" : "maybe wrong password");
                     goto p12_end;
                 }
             }
@@ -616,7 +612,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 OSSL_STORE_INFO *osi_cert = NULL;
                 OSSL_STORE_INFO *osi_ca = NULL;
 
-                ok = 1;          /* Parsing went through correctly! */
+                ok = 1; /* Parsing went through correctly! */
 
                 if ((infos = sk_OSSL_STORE_INFO_new_null()) != NULL) {
                     if (pkey != NULL) {
@@ -660,7 +656,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 }
                 ctx->cached_info = infos;
             }
-         p12_end:
+        p12_end:
             OPENSSL_cleanse(tpass, sizeof(tpass));
             PKCS12_free(p12);
         }

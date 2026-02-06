@@ -54,7 +54,7 @@ meant to be a guide on how to write documentation for Node.js.
   it as a reference for the structure of the documentation.
 * The
   [Stability Index](https://nodejs.org/dist/latest/docs/api/documentation.html#stability-index)
-  is used to community the Stability of a given Node.js module. The Stability
+  is used to describe the Stability of a given Node.js module. The Stability
   levels include:
   * Stability 0: Deprecated. (This module is Deprecated)
   * Stability 1: Experimental. (This module is Experimental)

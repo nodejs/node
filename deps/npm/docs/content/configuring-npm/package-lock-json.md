@@ -119,6 +119,12 @@ Package descriptors have the following fields:
 
 * bin, license, engines, dependencies, optionalDependencies: fields from `package.json`
 
+* os: An array of operating systems this package is compatible with, as specified in `package.json`. This field is included when the package specifies OS restrictions.
+
+* cpu: An array of CPU architectures this package is compatible with, as specified in `package.json`. This field is included when the package specifies CPU restrictions.
+
+* funding: Funding information for the package, as specified in `package.json`. This field contains details about how to support the package maintainers.
+
 #### dependencies
 
 Legacy data for supporting versions of npm that use `lockfileVersion: 1`.
@@ -130,6 +136,7 @@ npm v7 ignores this section entirely if a `packages` section is present, but doe
 Dependency objects have the following fields:
 
 * version: a specifier that varies depending on the nature of the package, and is usable in fetching a new copy of it.
+  Note that for peer dependencies that are not installed, or optional dependencies that are not installed, this field may be omitted.
 
     * bundled dependencies: Regardless of source, this is a version number that is purely for informational purposes.
     * registry sources: This is a version number.
@@ -142,6 +149,8 @@ Dependency objects have the following fields:
       (eg `file:///opt/storage/example-1.3.0.tgz`)
     * local link sources: This is the file URL of the link.
       (eg `file:libs/our-module`)
+
+    **Note:** The `version` field may be omitted for certain types of dependencies, such as optional peer dependencies that are not installed. In these cases, only metadata fields like `dev`, `optional`, and `peer` will be present.
 
 * integrity: A `sha512` or `sha1` [Standard Subresource Integrity](https://w3c.github.io/webappsec/specs/subresourceintegrity/) string for the artifact that was unpacked in this location.
   For git dependencies, this is the commit sha.

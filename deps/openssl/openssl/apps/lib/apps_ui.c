@@ -32,17 +32,14 @@ static int ui_read(UI *ui, UI_STRING *uis)
         && UI_get0_user_data(ui)) {
         switch (UI_get_string_type(uis)) {
         case UIT_PROMPT:
-        case UIT_VERIFY:
-            {
-                const char *password =
-                    ((PW_CB_DATA *)UI_get0_user_data(ui))->password;
+        case UIT_VERIFY: {
+            const char *password = ((PW_CB_DATA *)UI_get0_user_data(ui))->password;
 
-                if (password != NULL) {
-                    UI_set_result(ui, uis, password);
-                    return 1;
-                }
+            if (password != NULL) {
+                UI_set_result(ui, uis, password);
+                return 1;
             }
-            break;
+        } break;
         case UIT_NONE:
         case UIT_BOOLEAN:
         case UIT_INFO:
@@ -67,15 +64,12 @@ static int ui_write(UI *ui, UI_STRING *uis)
         && UI_get0_user_data(ui)) {
         switch (UI_get_string_type(uis)) {
         case UIT_PROMPT:
-        case UIT_VERIFY:
-            {
-                const char *password =
-                    ((PW_CB_DATA *)UI_get0_user_data(ui))->password;
+        case UIT_VERIFY: {
+            const char *password = ((PW_CB_DATA *)UI_get0_user_data(ui))->password;
 
-                if (password != NULL)
-                    return 1;
-            }
-            break;
+            if (password != NULL)
+                return 1;
+        } break;
         case UIT_NONE:
         case UIT_BOOLEAN:
         case UIT_INFO:
@@ -101,7 +95,7 @@ static int ui_close(UI *ui)
 
 /* object_name defaults to prompt_info from ui user data if present */
 static char *ui_prompt_construct(UI *ui, const char *phrase_desc,
-                                 const char *object_name)
+    const char *object_name)
 {
     PW_CB_DATA *cb_data = (PW_CB_DATA *)UI_get0_user_data(ui);
 
@@ -132,8 +126,7 @@ int setup_ui_method(void)
         && 0 == UI_method_set_reader(ui_method, ui_read)
         && 0 == UI_method_set_writer(ui_method, ui_write)
         && 0 == UI_method_set_closer(ui_method, ui_close)
-        && 0 == UI_method_set_prompt_constructor(ui_method,
-                                                 ui_prompt_construct);
+        && 0 == UI_method_set_prompt_constructor(ui_method, ui_prompt_construct);
 }
 
 void destroy_ui_method(void)
@@ -190,12 +183,12 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_data)
     (void)UI_add_user_data(ui, cb_data);
 
     ok = UI_add_input_string(ui, prompt, ui_flags, buf,
-                             PW_MIN_LENGTH, bufsiz - 1);
+        PW_MIN_LENGTH, bufsiz - 1);
 
     if (ok >= 0 && verify) {
         buff = ui_malloc(bufsiz, "password buffer");
         ok = UI_add_verify_string(ui, prompt, ui_flags, buff,
-                                  PW_MIN_LENGTH, bufsiz - 1, buf);
+            PW_MIN_LENGTH, bufsiz - 1, buf);
     }
     if (ok >= 0)
         do {

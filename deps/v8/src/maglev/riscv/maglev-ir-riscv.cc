@@ -224,6 +224,40 @@ void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
                             Operand(std::numeric_limits<int32_t>::min()));
 }
 
+void CheckFloat64SameValue::SetValueLocationConstraints() {
+  UseRegister(target_input());
+  // We need two because LoadFPRImmediate needs to acquire one as well in the
+  // case where value() is not 0.0 or -0.0.
+  set_temporaries_needed((value().get_scalar() == 0) ? 1 : 2);
+  set_double_temporaries_needed(
+      value().is_nan() || (value().get_scalar() == 0) ? 0 : 1);
+}
+
+void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister target = ToDoubleRegister(target_input());
+  if (value().is_nan()) {
+    __ JumpIfNotNan(target, fail);
+  } else {
+    DoubleRegister double_scratch = temps.AcquireScratchDouble();
+    Register scratch = temps.AcquireScratch();
+    __ Move(double_scratch, value().get_scalar());
+    __ CompareF64(scratch, EQ, double_scratch, target);
+    __ BranchFalseF(scratch, fail);
+    if (value().get_scalar() == 0) {  // +0.0 or -0.0.
+      __ MacroAssembler::Move(scratch, target);
+      __ And(scratch, scratch, Operand(1ULL << 63));
+      if (value().get_bits() == 0) {
+        __ BranchTrueF(scratch, fail);
+      } else {
+        __ BranchFalseF(scratch, fail);
+      }
+    }
+  }
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

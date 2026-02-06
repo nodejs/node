@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function testNoServerNoCrash() {
@@ -9,14 +9,14 @@ async function testNoServerNoCrash() {
   const instance = new NodeInstance([],
                                     `process._debugEnd();
                                      process.exit(42);`);
-  strictEqual((await instance.expectShutdown()).exitCode, 42);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 42);
 }
 
 async function testNoSessionNoCrash() {
   console.log('Test there\'s no crash stopping server without connecting');
   const instance = new NodeInstance('--inspect=0',
                                     'process._debugEnd();process.exit(42);');
-  strictEqual((await instance.expectShutdown()).exitCode, 42);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 42);
 }
 
 async function testSessionNoCrash() {
@@ -34,7 +34,7 @@ async function testSessionNoCrash() {
   await session.waitForNotification('NodeRuntime.waitingForDebugger');
   await session.send({ 'method': 'Runtime.runIfWaitingForDebugger' });
   await session.waitForServerDisconnect();
-  strictEqual((await instance.expectShutdown()).exitCode, 42);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 42);
 }
 
 async function runTest() {
