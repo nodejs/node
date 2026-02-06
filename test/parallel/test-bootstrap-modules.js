@@ -118,6 +118,7 @@ expected.beforePreExec = new Set([
 ]);
 
 expected.atRunTime = new Set([
+  'NativeModule internal/modules/esm/get_format',
   'NativeModule internal/process/pre_execution',
 ]);
 
