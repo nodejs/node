@@ -9,6 +9,7 @@ skipIfBuildSEAIsNotSupported();
 
 const { resolve } = require('path');
 const fixtures = require('../common/fixtures');
+const { rmSync } = require('fs');
 
 const { spawnSyncAndAssert } = require('../common/child_process');
 const fixturesDir = fixtures.path('sea', 'basic');
@@ -21,3 +22,5 @@ spawnSyncAndAssert(
   }, {
     stdout: /Generated single executable/,
   });
+
+rmSync(resolve(fixturesDir, 'sea'));
