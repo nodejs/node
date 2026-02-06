@@ -1,0 +1,55 @@
+✔ test 1 passes (*ms)
+✔ test 2 passes (*ms)
+✖ failing test 1 (*ms)
+Bailing out! no new test files will be started!
+✖ failing test 2 (*ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+*
+✖ failing test 1 (*ms)
+  AssertionError [ERR_ASSERTION]: This test should fail
+  
+  1 !== 2
+  
+      *
+      *
+      *
+      *
+      * {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+*
+✖ failing test 2 (*ms)
+  AssertionError [ERR_ASSERTION]: This test fails as well
+  
+  3 !== 4
+  
+      *
+      *
+      *
+      *
+      *
+      *
+      * {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
