@@ -132,28 +132,34 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
 
       THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
-      Local<Object> v8_object = Object::New(isolate);
-      Local<Context> context = isolate->GetCurrentContext();
+      size_t size = object.size();
 
-      for (const simdjson::dom::key_value_pair& kv : object) {
-        const std::string_view key = kv.key;
+      LocalVector<v8::Name> names(isolate);
+      LocalVector<Value> values(isolate);
+      names.reserve(size);
+      values.reserve(size);
 
+      for (auto [key, value] : object) {
         Local<String> v8_key;
+
         if (!String::NewFromUtf8(isolate,
                                  key.data(),
                                  v8::NewStringType::kNormal,
-                                 static_cast<int>(key.size()))
+                                 key.size())
                  .ToLocal(&v8_key)) {
           return MaybeLocal<Value>();
         }
 
         Local<Value> converted;
-        if (!ConvertSimdjsonElement(isolate, kv.value).ToLocal(&converted))
+        if (!ConvertSimdjsonElement(isolate, value).ToLocal(&converted))
           return MaybeLocal<Value>();
 
-        if (v8_object->Set(context, v8_key, converted).IsNothing())
-          return MaybeLocal<Value>();
+        names.push_back(v8_key);
+        values.push_back(converted);
       }
+
+      Local<Object> v8_object = Object::New(
+          isolate, Null(isolate), names.data(), values.data(), size);
 
       return MaybeLocal<Value>(v8_object);
     }
