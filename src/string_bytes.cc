@@ -266,8 +266,17 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case BUFFER:
     case UTF8:
-      nbytes = str->WriteUtf8V2(
-          isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+      if (input_view.is_one_byte()) {
+        // Use simdutf for one-byte strings instead of V8's WriteUtf8V2.
+        nbytes = simdutf::convert_latin1_to_utf8_safe(
+            reinterpret_cast<const char*>(input_view.data8()),
+            input_view.length(),
+            buf,
+            buflen);
+      } else {
+        nbytes = str->WriteUtf8V2(
+            isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+      }
       break;
 
     case UCS2: {
