@@ -165,6 +165,22 @@ path.dirname('/foo/bar/baz/asdf/quux');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
+## `path.escapeGlob(pattern)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pattern` {string}
+* Returns: {string}
+
+The `path.escapeGlob()` method escapes glob characters in a `pattern`.
+
+```js
+path.escapeGlob('foo*bar');
+// Returns: 'foo[*]bar'
+```
+
 ## `path.extname(path)`
 
 <!-- YAML
@@ -283,35 +299,6 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
-## `path.matchesGlob(path, pattern)`
-
-<!-- YAML
-added:
-  - v22.5.0
-  - v20.17.0
-changes:
-  - version:
-    - v24.8.0
-    - v22.20.0
-    pr-url: https://github.com/nodejs/node/pull/59572
-    description: Marking the API stable.
--->
-
-* `path` {string} The path to glob-match against.
-* `pattern` {string} The glob to check the path against.
-* Returns: {boolean} Whether or not the `path` matched the `pattern`.
-
-The `path.matchesGlob()` method determines if `path` matches the `pattern`.
-
-For example:
-
-```js
-path.matchesGlob('/foo/bar', '/foo/*'); // true
-path.matchesGlob('/foo/bar*', 'foo/bird'); // false
-```
-
-A [`TypeError`][] is thrown if `path` or `pattern` are not strings.
-
 ## `path.isAbsolute(path)`
 
 <!-- YAML
@@ -375,6 +362,35 @@ path.join('foo', {}, 'bar');
 ```
 
 A [`TypeError`][] is thrown if any of the path segments is not a string.
+
+## `path.matchesGlob(path, pattern)`
+
+<!-- YAML
+added:
+  - v22.5.0
+  - v20.17.0
+changes:
+  - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59572
+    description: Marking the API stable.
+-->
+
+* `path` {string} The path to glob-match against.
+* `pattern` {string} The glob to check the path against.
+* Returns: {boolean} Whether or not the `path` matched the `pattern`.
+
+The `path.matchesGlob()` method determines if `path` matches the `pattern`.
+
+For example:
+
+```js
+path.matchesGlob('/foo/bar', '/foo/*'); // true
+path.matchesGlob('/foo/bar*', 'foo/bird'); // false
+```
+
+A [`TypeError`][] is thrown if `path` or `pattern` are not strings.
 
 ## `path.normalize(path)`
 
@@ -639,6 +655,22 @@ modifications.
 
 This method is meaningful only on Windows systems. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
+
+## `path.unescapeGlob(pattern)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pattern` {string}
+* Returns: {string}
+
+The `path.unescapeGlob()` method unescapes the given glob pattern.
+
+```js
+path.unescapeGlob('foo[*]bar');
+// Returns: 'foo*bar'
+```
 
 ## `path.win32`
 
