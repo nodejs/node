@@ -26,7 +26,7 @@ jobs:
     permissions:
       pull-requests: read
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
     steps:
@@ -57,7 +57,7 @@ jobs:
   commitQueue:
     needs: get_mergeable_prs
     if: needs.get_mergeable_prs.outputs.numbers != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
