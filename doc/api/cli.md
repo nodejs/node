@@ -425,6 +425,7 @@ added: v18.8.0
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -493,6 +494,7 @@ added:
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -1515,6 +1517,7 @@ added:
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60956
     description: The flag is no longer experimental.
 -->

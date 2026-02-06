@@ -225,6 +225,7 @@ added:
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
 -->
@@ -608,6 +609,7 @@ added: v8.8.0
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
   - version:
