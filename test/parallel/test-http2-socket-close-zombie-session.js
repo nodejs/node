@@ -32,13 +32,14 @@ server.listen(0, common.mustCall(() => {
     rejectUnauthorized: false
   });
 
-  let firstRequestDone = false;
+  // Verify session eventually closes
+  client.on('close', common.mustCall(() => {
+    server.close();
+  }));
 
   // First request to establish connection
   const req1 = client.request({ ':path': '/' });
-  req1.on('response', common.mustCall(() => {
-    firstRequestDone = true;
-  }));
+  req1.on('response', common.mustCall());
   req1.on('data', () => {});
   req1.on('end', common.mustCall(() => {
     // Connection is established, now simulate network black hole
@@ -71,15 +72,9 @@ server.listen(0, common.mustCall(() => {
           'Should not receive response from zombie session'
         ));
         req2.end();
-      } catch (err) {
+      } catch {
         // Also acceptable: synchronous error on request creation
-        assert(err);
       }
-
-      // Verify session eventually closes
-      client.on('close', common.mustCall(() => {
-        server.close();
-      }));
 
       // Force cleanup if session doesn't close naturally
       setTimeout(() => {
