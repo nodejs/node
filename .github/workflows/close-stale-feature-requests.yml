@@ -39,7 +39,7 @@ jobs:
       issues: write  # for actions/stale to close stale issues
       pull-requests: write  # for actions/stale to close stale PRs
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
         with:

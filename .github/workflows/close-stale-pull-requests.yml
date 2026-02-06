@@ -33,7 +33,7 @@ jobs:
     permissions:
       pull-requests: write  # for actions/stale to close stale PRs
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Set default end date which is 1 year ago
         run: echo "END_DATE=$(date --date='525600 minutes ago' --rfc-2822)"  >> "$GITHUB_ENV"
