@@ -115,10 +115,10 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/run_main',
   'NativeModule internal/net',
   'NativeModule internal/dns/utils',
+  'NativeModule internal/modules/esm/get_format',
 ]);
 
 expected.atRunTime = new Set([
-  'NativeModule internal/modules/esm/get_format',
   'NativeModule internal/process/pre_execution',
 ]);
 
@@ -126,6 +126,12 @@ const { isMainThread } = require('worker_threads');
 
 if (isMainThread) {
   [
+    'Internal Binding cjs_lexer',
+    'NativeModule internal/modules/esm/assert',
+    'NativeModule internal/modules/esm/loader',
+    'NativeModule internal/modules/esm/load',
+    'NativeModule internal/modules/esm/resolve',
+    'NativeModule internal/modules/esm/translators',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.
