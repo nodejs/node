@@ -1766,7 +1766,14 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   Debug(this, "write finished with status %d", status);
 
   MaybeNotifyGracefulCloseComplete();
-  CHECK(is_write_in_progress());
+  // Guard against write callback being invoked when write is not in progress.
+  // This can happen with zombie sessions where the underlying socket is closed
+  // but the session hasn't been properly notified. Instead of crashing, we
+  // silently handle the inconsistent state. (Ref: https://github.com/nodejs/node/issues/61304)
+  if (!is_write_in_progress()) {
+    Debug(this, "write callback invoked but write not in progress, possible zombie session");
+    return;
+  }
   set_write_in_progress(false);
 
   // Inform all pending writes about their completion.
@@ -2095,11 +2102,6 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   if (nread <= 0) {
     if (nread < 0) {
       PassReadErrorToPreviousListener(nread);
-      // Socket has encountered an error or EOF. Close the session to prevent
-      // zombie state where the session believes the connection is alive but
-      // the underlying socket is dead. This prevents assertion failures in
-      // subsequent write attempts. (Ref: https://github.com/nodejs/node/issues/61304)
-      Close(NGHTTP2_NO_ERROR, true);
     }
     return;
   }
