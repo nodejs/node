@@ -190,6 +190,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> optional_env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
+  bool test_runner_bail = false;
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
