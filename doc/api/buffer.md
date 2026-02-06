@@ -2074,7 +2074,7 @@ console.log(buf.fill('zz', 'hex'));
 <!-- YAML
 added: v5.3.0
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
 -->
@@ -2964,7 +2964,7 @@ console.log(buf.readInt32LE(1));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
   - version: v10.0.0
@@ -3015,7 +3015,7 @@ console.log(buf.readIntBE(1, 0).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
   - version: v10.0.0
@@ -3296,7 +3296,7 @@ console.log(buf.readUInt32LE(1).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
   - version:
@@ -3349,7 +3349,7 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
   - version:
@@ -3805,7 +3805,7 @@ console.log(copy);
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
 -->
@@ -3947,7 +3947,7 @@ for (const value of buf) {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/56578
     description: supports Uint8Array as `this` value.
 -->

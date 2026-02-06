@@ -2288,7 +2288,7 @@ object such that no properties can be set on it, and no prototype.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/58879
     description: Added `napi_float16_array` for Float16Array support.
 -->
@@ -2815,7 +2815,7 @@ exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
 added: v8.3.0
 napiVersion: 1
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60473
     description: Added support for `SharedArrayBuffer`.
 -->
@@ -5054,7 +5054,7 @@ of the ECMA-262 specification.
 #### `node_api_set_prototype`
 
 <!-- YAML
-added: REPLACEME
+added: v24.13.1
 -->
 
 > Stability: 1 - Experimental

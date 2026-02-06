@@ -4540,7 +4540,7 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60994
     description: This API is no longer experimental.
   - version: v24.4.0

@@ -369,7 +369,7 @@ Error: Access to this API has been restricted
 added: v18.8.0
 changes:
   - version:
-    - REPLACEME
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -437,7 +437,7 @@ added:
   - v20.12.0
 changes:
   - version:
-    - REPLACEME
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -1431,7 +1431,7 @@ added:
   - v14.18.0
 changes:
   - version:
-    - REPLACEME
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60956
     description: The flag is no longer experimental.
 -->
