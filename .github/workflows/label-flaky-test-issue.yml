@@ -10,7 +10,7 @@ permissions:
 jobs:
   label:
     if: github.event.label.name == 'flaky-test'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:
