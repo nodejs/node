@@ -19,12 +19,12 @@ const tempDir = tmpdir.path;
 
 copyFileSync(
   resolve(fixturesDir, 'sea-config.json'),
-  resolve(tempDir, 'sea-config.json')
+  resolve(tempDir, 'sea-config.json'),
 );
 
 copyFileSync(
   resolve(fixturesDir, 'sea.js'),
-  resolve(tempDir, 'sea.js')
+  resolve(tempDir, 'sea.js'),
 );
 
 spawnSyncAndAssert(
