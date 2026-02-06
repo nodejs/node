@@ -92,9 +92,15 @@ jobs:
             "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate \
           | node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA" \
           | while IFS= read -r PR_URL; do
-            LABEL="dont-land-on-v${MAJOR}.x" gh pr view \
+            DONT_LAND_LABEL="dont-land-on-v${MAJOR}.x" LTS_WATCH_LABEL="lts-watch-v${MAJOR}.x" gh pr view \
               --json labels,url \
-              --jq 'if (.labels|map(.name==env.LABEL)|any) then error("\(.url) has the \(env.LABEL) label, forbidding it to be in this release proposal") end' \
+              --jq '
+                if (.labels|any(.name==env.DONT_LAND_LABEL)) then
+                  error("\(.url) has the \(env.DONT_LAND_LABEL) label, forbidding it to be in this release proposal")
+                elif (.labels|any(.name==env.LTS_WATCH_LABEL)) then
+                  error("\(.url) has the \(env.LTS_WATCH_LABEL) label, please remove the label now that the PR is included in a release proposal")
+                end
+                ' \
               "$PR_URL" > /dev/null
           done
         shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
