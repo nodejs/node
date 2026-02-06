@@ -5,7 +5,7 @@ const { parse } = require('node:json');
 const path = require('node:path');
 
 const configs = {
-  n: [1024],
+  n: [10],
   parser: ['native', 'node'],
   input: ['simple-array', 'simple-object', 'nested-ascii', 'nested-unicode', 'twitter'],
 };

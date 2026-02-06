@@ -6,9 +6,17 @@ const path = require('node:path');
 const assert = require('node:assert');
 
 const configs = {
-  n: [1024],
+  n: [10],
   parser: ['native', 'node'],
-  input: ['simple-string', 'simple-array', 'simple-object', 'nested-ascii', 'nested-unicode', 'twitter'],
+  input: [
+    'simple-string',
+    'simple-number-array',
+    'simple-string-array',
+    'simple-object',
+    'nested-ascii',
+    'nested-unicode',
+    'twitter',
+  ],
 };
 
 const bench = common.createBenchmark(main, configs);
