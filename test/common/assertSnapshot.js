@@ -64,12 +64,18 @@ function transformProjectRoot(replacement = '<project-root>') {
   const winPath = replaceWindowsPaths(projectRoot);
   // Handles URL encoded project root in file URL strings as well.
   const urlEncoded = pathToFileURL(projectRoot).pathname;
+  // On Windows, paths are case-insensitive, so we need to use case-insensitive
+  // regex replacement to handle cases where the drive letter case differs.
+  const flags = common.isWindows ? 'gi' : 'g';
+  const urlEncodedRegex = new RegExp(RegExp.escape(urlEncoded), flags);
+  const projectRootRegex = new RegExp(RegExp.escape(projectRoot), flags);
+  const winPathRegex = new RegExp(RegExp.escape(winPath), flags);
   return (str) => {
     return str.replaceAll('\\\'', "'")
       // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
-      .replaceAll(urlEncoded, replacement)
-      .replaceAll(projectRoot, replacement)
-      .replaceAll(winPath, replacement);
+      .replaceAll(urlEncodedRegex, replacement)
+      .replaceAll(projectRootRegex, replacement)
+      .replaceAll(winPathRegex, replacement);
   };
 }
 
