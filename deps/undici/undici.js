@@ -530,6 +530,7 @@ var require_symbols = __commonJS({
       kEnableConnectProtocol: Symbol("http2session connect protocol"),
       kRemoteSettings: Symbol("http2session remote settings"),
       kHTTP2Stream: Symbol("http2session client stream"),
+      kPingInterval: Symbol("ping interval"),
       kNoProxyAgent: Symbol("no proxy agent"),
       kHttpProxyAgent: Symbol("http proxy agent"),
       kHttpsProxyAgent: Symbol("https proxy agent")
@@ -2405,9 +2406,12 @@ var require_pool_base = __commonJS({
           this.emit("drain", origin, [this, ...targets]);
         }
         if (this[kClosedResolve] && queue.isEmpty()) {
-          const closeAll = new Array(this[kClients].length);
+          const closeAll = [];
           for (let i = 0; i < this[kClients].length; i++) {
-            closeAll[i] = this[kClients][i].close();
+            const client2 = this[kClients][i];
+            if (!client2.destroyed) {
+              closeAll.push(client2.close());
+            }
           }
           return Promise.all(closeAll).then(this[kClosedResolve]);
         }
@@ -2464,9 +2468,12 @@ var require_pool_base = __commonJS({
       }
       [kClose]() {
         if (this[kQueue].isEmpty()) {
-          const closeAll = new Array(this[kClients].length);
+          const closeAll = [];
           for (let i = 0; i < this[kClients].length; i++) {
-            closeAll[i] = this[kClients][i].close();
+            const client = this[kClients][i];
+            if (!client.destroyed) {
+              closeAll.push(client.close());
+            }
           }
           return Promise.all(closeAll);
         } else {
@@ -4691,6 +4698,7 @@ var require_runtime_features = __commonJS({
 var require_webidl = __commonJS({
   "lib/web/webidl/index.js"(exports2, module2) {
     "use strict";
+    var assert = require("node:assert");
     var { types, inspect } = require("node:util");
     var { runtimeFeatures } = require_runtime_features();
     var UNDEFINED = 1;
@@ -5034,6 +5042,27 @@ var require_webidl = __commonJS({
     webidl.is.MessagePort = webidl.util.MakeTypeAssertion(MessagePort);
     webidl.is.BufferSource = function(V) {
       return types.isArrayBuffer(V) || ArrayBuffer.isView(V) && types.isArrayBuffer(V.buffer);
+    };
+    webidl.util.getCopyOfBytesHeldByBufferSource = function(bufferSource) {
+      const jsBufferSource = bufferSource;
+      let jsArrayBuffer = jsBufferSource;
+      let offset = 0;
+      let length = 0;
+      if (types.isTypedArray(jsBufferSource) || types.isDataView(jsBufferSource)) {
+        jsArrayBuffer = jsBufferSource.buffer;
+        offset = jsBufferSource.byteOffset;
+        length = jsBufferSource.byteLength;
+      } else {
+        assert(types.isAnyArrayBuffer(jsBufferSource));
+        length = jsBufferSource.byteLength;
+      }
+      if (jsArrayBuffer.detached) {
+        return new Uint8Array(0);
+      }
+      const bytes = new Uint8Array(length);
+      const view = new Uint8Array(jsArrayBuffer, offset, length);
+      bytes.set(view);
+      return bytes;
     };
     webidl.converters.DOMString = function(V, prefix, argument, flags) {
       if (V === null && webidl.util.HasFlag(flags, webidl.attributes.LegacyNullToEmptyString)) {
@@ -6631,7 +6660,7 @@ var require_body = __commonJS({
     var { webidl } = require_webidl();
     var assert = require("node:assert");
     var { isErrored, isDisturbed } = require("node:stream");
-    var { isArrayBuffer } = require("node:util/types");
+    var { isUint8Array } = require("node:util/types");
     var { serializeAMimeType } = require_data_url();
     var { multipartFormDataParser } = require_formdata_parser();
     var { createDeferredPromise } = require_promise();
@@ -6651,20 +6680,19 @@ var require_body = __commonJS({
     });
     function extractBody(object, keepalive = false) {
       let stream = null;
+      let controller = null;
       if (webidl.is.ReadableStream(object)) {
         stream = object;
       } else if (webidl.is.Blob(object)) {
         stream = object.stream();
       } else {
         stream = new ReadableStream({
-          pull(controller) {
-            const buffer = typeof source === "string" ? textEncoder.encode(source) : source;
-            if (buffer.byteLength) {
-              controller.enqueue(buffer);
-            }
-            queueMicrotask(() => readableStreamClose(controller));
+          pull() {
           },
-          start() {
+          start(c) {
+            controller = c;
+          },
+          cancel() {
           },
           type: "bytes"
         });
@@ -6681,7 +6709,7 @@ var require_body = __commonJS({
         source = object.toString();
         type = "application/x-www-form-urlencoded;charset=UTF-8";
       } else if (webidl.is.BufferSource(object)) {
-        source = isArrayBuffer(object) ? new Uint8Array(object.slice()) : new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength));
+        source = webidl.util.getCopyOfBytesHeldByBufferSource(object);
       } else if (webidl.is.FormData(object)) {
         const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, "0")}`;
         const prefix = `--${boundary}\r
@@ -6748,38 +6776,29 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         }
         stream = webidl.is.ReadableStream(object) ? object : ReadableStreamFrom(object);
       }
-      if (typeof source === "string" || util.isBuffer(source)) {
-        length = Buffer.byteLength(source);
+      if (typeof source === "string" || isUint8Array(source)) {
+        action = /* @__PURE__ */ __name(() => {
+          length = typeof source === "string" ? Buffer.byteLength(source) : source.length;
+          return source;
+        }, "action");
       }
       if (action != null) {
-        let iterator;
-        stream = new ReadableStream({
-          start() {
-            iterator = action(object)[Symbol.asyncIterator]();
-          },
-          pull(controller) {
-            return iterator.next().then(({ value, done }) => {
-              if (done) {
-                queueMicrotask(() => {
-                  controller.close();
-                  controller.byobRequest?.respond(0);
-                });
-              } else {
-                if (!isErrored(stream)) {
-                  const buffer = new Uint8Array(value);
-                  if (buffer.byteLength) {
-                    controller.enqueue(buffer);
-                  }
-                }
+        ;
+        (async () => {
+          const result = action();
+          const iterator = result?.[Symbol.asyncIterator]?.();
+          if (iterator) {
+            for await (const bytes of iterator) {
+              if (isErrored(stream)) break;
+              if (bytes.length) {
+                controller.enqueue(new Uint8Array(bytes));
               }
-              return controller.desiredSize > 0;
-            });
-          },
-          cancel(reason) {
-            return iterator.return();
-          },
-          type: "bytes"
-        });
+            }
+          } else if (result?.length && !isErrored(stream)) {
+            controller.enqueue(typeof result === "string" ? textEncoder.encode(result) : new Uint8Array(result));
+          }
+          queueMicrotask(() => readableStreamClose(controller));
+        })();
       }
       const body = { stream, source, length };
       return [body, type];
@@ -6872,12 +6891,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       } catch (e) {
         return Promise.reject(e);
       }
-      const state = getInternalState(object);
-      if (bodyUnusable(state)) {
+      object = getInternalState(object);
+      if (bodyUnusable(object)) {
         return Promise.reject(new TypeError("Body is unusable: Body has already been read"));
-      }
-      if (state.aborted) {
-        return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
       }
       const promise = createDeferredPromise();
       const errorSteps = promise.reject;
@@ -6888,11 +6904,11 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           errorSteps(e);
         }
       }, "successSteps");
-      if (state.body == null) {
+      if (object.body == null) {
         successSteps(Buffer.allocUnsafe(0));
         return promise.promise;
       }
-      fullyReadBody(state.body, successSteps, errorSteps);
+      fullyReadBody(object.body, successSteps, errorSteps);
       return promise.promise;
     }
     __name(consumeBody, "consumeBody");
@@ -7501,8 +7517,12 @@ var require_client_h1 = __commonJS({
         return 0;
       }
     };
-    function onParserTimeout(parser) {
-      const { socket, timeoutType, client, paused } = parser.deref();
+    function onParserTimeout(parserWeakRef) {
+      const parser = parserWeakRef.deref();
+      if (!parser) {
+        return;
+      }
+      const { socket, timeoutType, client, paused } = parser;
       if (timeoutType === TIMEOUT_HEADERS) {
         if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
           assert(!paused, "cannot be paused while waiting for headers");
@@ -8130,6 +8150,7 @@ var require_client_h2 = __commonJS({
       kStrictContentLength,
       kOnError,
       kMaxConcurrentStreams,
+      kPingInterval,
       kHTTP2Session,
       kHTTP2InitialWindowSize,
       kHTTP2ConnectionWindowSize,
@@ -8140,7 +8161,8 @@ var require_client_h2 = __commonJS({
       kBodyTimeout,
       kEnableConnectProtocol,
       kRemoteSettings,
-      kHTTP2Stream
+      kHTTP2Stream,
+      kHTTP2SessionState
     } = require_symbols();
     var { channels } = require_diagnostics();
     var kOpenStreams = Symbol("open streams");
@@ -8192,10 +8214,15 @@ var require_client_h2 = __commonJS({
           ...http2InitialWindowSize != null ? { initialWindowSize: http2InitialWindowSize } : null
         }
       });
+      client[kSocket] = socket;
       session[kOpenStreams] = 0;
       session[kClient] = client;
       session[kSocket] = socket;
-      session[kHTTP2Session] = null;
+      session[kHTTP2SessionState] = {
+        ping: {
+          interval: client[kPingInterval] === 0 ? null : setInterval(onHttp2SendPing, client[kPingInterval], session).unref()
+        }
+      };
       session[kEnableConnectProtocol] = false;
       session[kRemoteSettings] = false;
       if (http2ConnectionWindowSize) {
@@ -8302,6 +8329,28 @@ var require_client_h2 = __commonJS({
       this[kClient][kResume]();
     }
     __name(onHttp2RemoteSettings, "onHttp2RemoteSettings");
+    function onHttp2SendPing(session) {
+      const state = session[kHTTP2SessionState];
+      if ((session.closed || session.destroyed) && state.ping.interval != null) {
+        clearInterval(state.ping.interval);
+        state.ping.interval = null;
+        return;
+      }
+      session.ping(onPing.bind(session));
+      function onPing(err, duration) {
+        const client = this[kClient];
+        const socket = this[kClient];
+        if (err != null) {
+          const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`);
+          socket[kError] = error;
+          client[kOnError](error);
+        } else {
+          client.emit("ping", duration);
+        }
+      }
+      __name(onPing, "onPing");
+    }
+    __name(onHttp2SendPing, "onHttp2SendPing");
     function onHttp2SessionError(err) {
       assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
       this[kSocket][kError] = err;
@@ -8343,11 +8392,15 @@ var require_client_h2 = __commonJS({
     }
     __name(onHttp2SessionGoAway, "onHttp2SessionGoAway");
     function onHttp2SessionClose() {
-      const { [kClient]: client } = this;
+      const { [kClient]: client, [kHTTP2SessionState]: state } = this;
       const { [kSocket]: socket } = client;
       const err = this[kSocket][kError] || this[kError] || new SocketError("closed", util.getSocketInfo(socket));
       client[kSocket] = null;
       client[kHTTPContext] = null;
+      if (state.ping.interval != null) {
+        clearInterval(state.ping.interval);
+        state.ping.interval = null;
+      }
       if (client.destroyed) {
         assert(client[kPending] === 0);
         const requests = client[kQueue].splice(client[kRunningIdx]);
@@ -8875,7 +8928,8 @@ var require_client = __commonJS({
       kMaxConcurrentStreams,
       kHTTP2InitialWindowSize,
       kHTTP2ConnectionWindowSize,
-      kResume
+      kResume,
+      kPingInterval
     } = require_symbols();
     var connectH1 = require_client_h1();
     var connectH2 = require_client_h2();
@@ -8927,7 +8981,8 @@ var require_client = __commonJS({
         allowH2,
         useH2c,
         initialWindowSize,
-        connectionWindowSize
+        connectionWindowSize,
+        pingInterval
       } = {}) {
         if (keepAlive !== void 0) {
           throw new InvalidArgumentError("unsupported keepAlive, use pipelining=0 instead");
@@ -9002,6 +9057,9 @@ var require_client = __commonJS({
         if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
           throw new InvalidArgumentError("connectionWindowSize must be a positive integer, greater than 0");
         }
+        if (pingInterval != null && (typeof pingInterval !== "number" || !Number.isInteger(pingInterval) || pingInterval < 0)) {
+          throw new InvalidArgumentError("pingInterval must be a positive integer, greater or equal to 0");
+        }
         super();
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
@@ -9035,10 +9093,11 @@ var require_client = __commonJS({
         this[kMaxRequests] = maxRequestsPerClient;
         this[kClosedResolve] = null;
         this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1;
+        this[kHTTPContext] = null;
         this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100;
         this[kHTTP2InitialWindowSize] = initialWindowSize != null ? initialWindowSize : 262144;
         this[kHTTP2ConnectionWindowSize] = connectionWindowSize != null ? connectionWindowSize : 524288;
-        this[kHTTPContext] = null;
+        this[kPingInterval] = pingInterval != null ? pingInterval : 6e4;
         this[kQueue] = [];
         this[kRunningIdx] = 0;
         this[kPendingIdx] = 0;
@@ -9520,7 +9579,9 @@ var require_agent = __commonJS({
               if (connected) result2.count -= 1;
               if (result2.count <= 0) {
                 this[kClients].delete(key);
-                result2.dispatcher.close();
+                if (!result2.dispatcher.destroyed) {
+                  result2.dispatcher.close();
+                }
               }
               this[kOrigins].delete(key);
             }
@@ -10620,7 +10681,7 @@ var require_response = __commonJS({
           });
         }
         const clonedResponse = cloneResponse(this.#state);
-        if (this.#state.body?.stream) {
+        if (this.#state.urlList.length !== 0 && this.#state.body?.stream) {
           streamRegistry.register(this, new WeakRef(this.#state.body.stream));
         }
         return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers));
@@ -11931,7 +11992,7 @@ var require_fetch = __commonJS({
       }
       const request = getRequestState(requestObject);
       if (requestObject.signal.aborted) {
-        abortFetch(p, request, null, requestObject.signal.reason);
+        abortFetch(p, request, null, requestObject.signal.reason, null);
         return p.promise;
       }
       const globalObject = request.client.globalObject;
@@ -11948,7 +12009,7 @@ var require_fetch = __commonJS({
           assert(controller != null);
           controller.abort(requestObject.signal.reason);
           const realResponse = responseObject?.deref();
-          abortFetch(p, request, realResponse, requestObject.signal.reason);
+          abortFetch(p, request, realResponse, requestObject.signal.reason, controller.controller);
         }
       );
       const processResponse = /* @__PURE__ */ __name((response) => {
@@ -11956,7 +12017,7 @@ var require_fetch = __commonJS({
           return;
         }
         if (response.aborted) {
-          abortFetch(p, request, responseObject, controller.serializedAbortReason);
+          abortFetch(p, request, responseObject, controller.serializedAbortReason, controller.controller);
           return;
         }
         if (response.type === "error") {
@@ -12014,7 +12075,7 @@ var require_fetch = __commonJS({
     }
     __name(finalizeAndReportTiming, "finalizeAndReportTiming");
     var markResourceTiming = performance.markResourceTiming;
-    function abortFetch(p, request, responseObject, error) {
+    function abortFetch(p, request, responseObject, error, controller) {
       if (p) {
         p.reject(error);
       }
@@ -12031,12 +12092,7 @@ var require_fetch = __commonJS({
       }
       const response = getResponseState(responseObject);
       if (response.body?.stream != null && isReadable(response.body.stream)) {
-        response.body.stream.cancel(error).catch((err) => {
-          if (err.code === "ERR_INVALID_STATE") {
-            return;
-          }
-          throw err;
-        });
+        controller.error(error);
       }
     }
     __name(abortFetch, "abortFetch");
@@ -15758,6 +15814,7 @@ var require_api_request = __commonJS({
           try {
             this.runInAsyncScope(callback, null, null, {
               statusCode,
+              statusText: statusMessage,
               headers,
               trailers: this.trailers,
               opaque,
@@ -16474,10 +16531,32 @@ var require_api = __commonJS({
 var { getGlobalDispatcher, setGlobalDispatcher } = require_global2();
 var EnvHttpProxyAgent = require_env_http_proxy_agent();
 var fetchImpl = require_fetch().fetch;
+var currentFilename = typeof __filename !== "undefined" ? __filename : void 0;
+function appendFetchStackTrace(err, filename) {
+  if (!err || typeof err !== "object") {
+    return;
+  }
+  const stack = typeof err.stack === "string" ? err.stack : "";
+  const normalizedFilename = filename.replace(/\\/g, "/");
+  if (stack && (stack.includes(filename) || stack.includes(normalizedFilename))) {
+    return;
+  }
+  const capture = {};
+  Error.captureStackTrace(capture, appendFetchStackTrace);
+  if (!capture.stack) {
+    return;
+  }
+  const captureLines = capture.stack.split("\n").slice(1).join("\n");
+  err.stack = stack ? `${stack}
+${captureLines}` : capture.stack;
+}
+__name(appendFetchStackTrace, "appendFetchStackTrace");
 module.exports.fetch = /* @__PURE__ */ __name(function fetch(init, options = void 0) {
   return fetchImpl(init, options).catch((err) => {
-    if (err && typeof err === "object") {
-      Error.captureStackTrace(err);
+    if (currentFilename) {
+      appendFetchStackTrace(err, currentFilename);
+    } else if (err && typeof err === "object") {
+      Error.captureStackTrace(err, module.exports.fetch);
     }
     throw err;
   });
