@@ -2095,6 +2095,11 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   if (nread <= 0) {
     if (nread < 0) {
       PassReadErrorToPreviousListener(nread);
+      // Socket has encountered an error or EOF. Close the session to prevent
+      // zombie state where the session believes the connection is alive but
+      // the underlying socket is dead. This prevents assertion failures in
+      // subsequent write attempts. (Ref: https://github.com/nodejs/node/issues/61304)
+      Close(NGHTTP2_NO_ERROR, true);
     }
     return;
   }
