@@ -157,7 +157,7 @@ function fetch (input, init = undefined) {
   if (requestObject.signal.aborted) {
     // 1. Abort the fetch() call with p, request, null, and
     //    requestObject’s signal’s abort reason.
-    abortFetch(p, request, null, requestObject.signal.reason)
+    abortFetch(p, request, null, requestObject.signal.reason, null)
 
     // 2. Return p.
     return p.promise
@@ -200,7 +200,7 @@ function fetch (input, init = undefined) {
 
       // 4. Abort the fetch() call with p, request, responseObject,
       //    and requestObject’s signal’s abort reason.
-      abortFetch(p, request, realResponse, requestObject.signal.reason)
+      abortFetch(p, request, realResponse, requestObject.signal.reason, controller.controller)
     }
   )
 
@@ -227,7 +227,7 @@ function fetch (input, init = undefined) {
       // 2. Abort the fetch() call with p, request, responseObject, and
       //    deserializedError.
 
-      abortFetch(p, request, responseObject, controller.serializedAbortReason)
+      abortFetch(p, request, responseObject, controller.serializedAbortReason, controller.controller)
       return
     }
 
@@ -327,7 +327,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 const markResourceTiming = performance.markResourceTiming
 
 // https://fetch.spec.whatwg.org/#abort-fetch
-function abortFetch (p, request, responseObject, error) {
+function abortFetch (p, request, responseObject, error, controller /* undici-specific */) {
   // 1. Reject promise with error.
   if (p) {
     // We might have already resolved the promise at this stage
@@ -357,13 +357,7 @@ function abortFetch (p, request, responseObject, error) {
   // 5. If response’s body is not null and is readable, then error response’s
   // body with error.
   if (response.body?.stream != null && isReadable(response.body.stream)) {
-    response.body.stream.cancel(error).catch((err) => {
-      if (err.code === 'ERR_INVALID_STATE') {
-        // Node bug?
-        return
-      }
-      throw err
-    })
+    controller.error(error)
   }
 }
 
@@ -1321,8 +1315,8 @@ function httpRedirectFetch (fetchParams, response) {
     request.headersList.delete('host', true)
   }
 
-  // 14. If request’s body is non-null, then set request’s body to the first return
-  // value of safely extracting request’s body’s source.
+  // 14. If request's body is non-null, then set request's body to the first return
+  // value of safely extracting request's body's source.
   if (request.body != null) {
     assert(request.body.source != null)
     request.body = safelyExtractBody(request.body.source)[0]

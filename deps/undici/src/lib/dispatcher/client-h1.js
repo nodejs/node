@@ -735,8 +735,13 @@ class Parser {
   }
 }
 
-function onParserTimeout (parser) {
-  const { socket, timeoutType, client, paused } = parser.deref()
+function onParserTimeout (parserWeakRef) {
+  const parser = parserWeakRef.deref()
+  if (!parser) {
+    return
+  }
+
+  const { socket, timeoutType, client, paused } = parser
 
   if (timeoutType === TIMEOUT_HEADERS) {
     if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
