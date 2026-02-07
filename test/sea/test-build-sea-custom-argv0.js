@@ -15,12 +15,12 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 tmpdir.refresh();
 
 copyFileSync(
-  fixtures.path('sea', 'basic', sea-config.json'),
+  fixtures.path('sea', 'basic', 'sea-config.json'),
   tmpdir.resolve('sea-config.json'),
 );
 
 copyFileSync(
-  fixtures.path('sea', 'basic', sea.js'),
+  fixtures.path('sea', 'basic', 'sea.js'),
   tmpdir.resolve('sea.js'),
 );
 
