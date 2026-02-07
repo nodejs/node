@@ -510,6 +510,9 @@ This module can export any of the following:
 * A `globalSetup` function which runs once before all tests start
 * A `globalTeardown` function which runs once after all tests complete
 
+If `globalSetup` returns a value, that value is passed as the first argument to
+`globalTeardown`.
+
 The module is specified using the `--test-global-setup` flag when running tests from the command line.
 
 ```cjs
@@ -520,9 +523,10 @@ async function globalSetup() {
   // Run servers, create files, prepare databases, etc.
 }
 
-async function globalTeardown() {
+async function globalTeardown(context) {
   // Clean up resources, state, or environment
   console.log('Global teardown executed');
+  console.log(context);
   // Close servers, remove files, disconnect from databases, etc.
 }
 
@@ -537,9 +541,10 @@ export async function globalSetup() {
   // Run servers, create files, prepare databases, etc.
 }
 
-export async function globalTeardown() {
+export async function globalTeardown(context) {
   // Clean up resources, state, or environment
   console.log('Global teardown executed');
+  console.log(context);
   // Close servers, remove files, disconnect from databases, etc.
 }
 ```
