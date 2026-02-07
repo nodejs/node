@@ -187,9 +187,11 @@ class ZlibContext final : public MemoryRetainer {
   CompressionError ResetStream();
 
   // Zlib-specific:
-  void Init(int level, int window_bits, int mem_level, int strategy,
+  void Init(int level,
+            int window_bits,
+            int mem_level,
+            int strategy,
             std::vector<unsigned char>&& dictionary);
-  void SetAllocationFunctions(alloc_func alloc, free_func free, void* opaque);
   CompressionError SetParams(int level, int strategy);
 
   SET_MEMORY_INFO_NAME(ZlibContext)
@@ -243,11 +245,6 @@ class BrotliContext : public MemoryRetainer {
   size_t avail_in_ = 0;
   size_t avail_out_ = 0;
   BrotliEncoderOperation flush_ = BROTLI_OPERATION_PROCESS;
-  // TODO(addaleax): These should not need to be stored here.
-  // This is currently only done this way to make implementing ResetStream()
-  // easier.
-  brotli_alloc_func alloc_ = nullptr;
-  brotli_free_func free_ = nullptr;
   void* alloc_opaque_ = nullptr;
 };
 
@@ -255,9 +252,7 @@ class BrotliEncoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init(brotli_alloc_func alloc,
-                        brotli_free_func free,
-                        void* opaque);
+  CompressionError Init();
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -275,9 +270,7 @@ class BrotliDecoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init(brotli_alloc_func alloc,
-                        brotli_free_func free,
-                        void* opaque);
+  CompressionError Init();
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -783,8 +776,6 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    wrap->context()->SetAllocationFunctions(
-        AllocForZlib, FreeForZlib, wrap->as_allocator_opaque_value());
     wrap->context()->Init(level, window_bits, mem_level, strategy,
                           std::move(dictionary));
   }
@@ -846,10 +837,7 @@ class BrotliCompressionStream final :
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    CompressionError err = wrap->context()->Init(
-        CompressionStream<CompressionContext>::AllocForBrotli,
-        CompressionStream<CompressionContext>::FreeForZlib,
-        wrap->as_allocator_opaque_value());
+    CompressionError err = wrap->context()->Init();
     if (err.IsError()) {
       wrap->EmitError(err);
       // TODO(addaleax): Sometimes we generate better error codes in C++ land,
@@ -1208,19 +1196,15 @@ CompressionError ZlibContext::ResetStream() {
   return SetDictionary();
 }
 
-
-void ZlibContext::SetAllocationFunctions(alloc_func alloc,
-                                         free_func free,
-                                         void* opaque) {
-  strm_.zalloc = alloc;
-  strm_.zfree = free;
-  strm_.opaque = opaque;
-}
-
-
 void ZlibContext::Init(
     int level, int window_bits, int mem_level, int strategy,
     std::vector<unsigned char>&& dictionary) {
+  // Set allocation functions
+  strm_.zalloc = CompressionStreamMemoryOwner::AllocForZlib;
+  strm_.zfree = CompressionStreamMemoryOwner::FreeForZlib;
+  strm_.opaque =
+      CompressionStream<ZlibContext>::AllocatorOpaquePointerForContext(this);
+
   if (!((window_bits == 0) &&
         (mode_ == INFLATE ||
          mode_ == GUNZIP ||
@@ -1402,12 +1386,12 @@ void BrotliEncoderContext::Close() {
   mode_ = NONE;
 }
 
-CompressionError BrotliEncoderContext::Init(brotli_alloc_func alloc,
-                                            brotli_free_func free,
-                                            void* opaque) {
-  alloc_ = alloc;
-  free_ = free;
-  alloc_opaque_ = opaque;
+CompressionError BrotliEncoderContext::Init() {
+  brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
+  brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
+  void* opaque =
+      CompressionStream<BrotliEncoderContext>::AllocatorOpaquePointerForContext(
+          this);
   state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
   if (!state_) {
     return CompressionError("Could not initialize Brotli instance",
@@ -1419,7 +1403,7 @@ CompressionError BrotliEncoderContext::Init(brotli_alloc_func alloc,
 }
 
 CompressionError BrotliEncoderContext::ResetStream() {
-  return Init(alloc_, free_, alloc_opaque_);
+  return Init();
 }
 
 CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
@@ -1467,12 +1451,12 @@ void BrotliDecoderContext::DoThreadPoolWork() {
   }
 }
 
-CompressionError BrotliDecoderContext::Init(brotli_alloc_func alloc,
-                                            brotli_free_func free,
-                                            void* opaque) {
-  alloc_ = alloc;
-  free_ = free;
-  alloc_opaque_ = opaque;
+CompressionError BrotliDecoderContext::Init() {
+  brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
+  brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
+  void* opaque =
+      CompressionStream<BrotliDecoderContext>::AllocatorOpaquePointerForContext(
+          this);
   state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
   if (!state_) {
     return CompressionError("Could not initialize Brotli instance",
@@ -1484,7 +1468,7 @@ CompressionError BrotliDecoderContext::Init(brotli_alloc_func alloc,
 }
 
 CompressionError BrotliDecoderContext::ResetStream() {
-  return Init(alloc_, free_, alloc_opaque_);
+  return Init();
 }
 
 CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
