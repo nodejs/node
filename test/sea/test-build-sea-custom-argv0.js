@@ -8,7 +8,6 @@ const { skipIfBuildSEAIsNotSupported } = require('../common/sea');
 skipIfBuildSEAIsNotSupported();
 
 const tmpdir = require('../common/tmpdir');
-const { resolve } = require('path');
 const fixtures = require('../common/fixtures');
 const { copyFileSync } = require('fs');
 
