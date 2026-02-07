@@ -335,6 +335,18 @@ the community they pose.
   proper security boundaries between trusted application logic and untrusted
   user input.
 
+#### Unhandled 'error' Events on EventEmitters (CWE-248)
+
+* EventEmitters that can emit `'error'` events require the application to
+  attach an `'error'` event handler. This includes HTTP streams and other
+  Node.js core streams. If the application fails to attach an `'error'`
+  handler, the EventEmitter will throw an uncaught exception, which may
+  crash the process.
+* Crashes resulting from missing `'error'` handlers are not considered
+  denial-of-service vulnerabilities in Node.js. It is the application's
+  responsibility to properly handle errors by attaching appropriate
+  `'error'` event listeners to EventEmitters that may emit errors.
+
 ## Assessing experimental features reports
 
 Experimental features are eligible for security reports just like any other
