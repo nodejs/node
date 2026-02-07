@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 
