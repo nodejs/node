@@ -20,6 +20,8 @@ for (const isolation of ['none', 'process']) {
     signal: null,
     stderr: '',
     stdout(output) {
+      // Spec reporter output varies between inspect forms; accept both while
+      // still requiring the restored constructor name.
       assert.match(output, /actual:\s+(?:\[ExtendedArray\]|ExtendedArray\(1\)\s+\[\s*'hello'\s*\])/);
       assert.doesNotMatch(output, /actual:\s+\[Array\]/);
     },
