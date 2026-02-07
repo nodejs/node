@@ -29,7 +29,6 @@ void* JsonParser::GetParser() {
   return &impl_->parser;
 }
 
-using std::string;
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -61,11 +60,11 @@ inline MaybeLocal<Value> ToV8Number(Isolate* isolate,
   return MaybeLocal<Value>(Number::New(isolate, static_cast<T>(value)));
 }
 
-string ObjectToString(Isolate* isolate, Local<Value> value) {
+std::string ObjectToString(Isolate* isolate, Local<Value> value) {
   // TODO(araujogui): investigate if V8 WriteUtf8V2 is faster than
   // convert_utf16_to_utf8
   Utf8Value utf8_value(isolate, value);
-  return string(*utf8_value);
+  return std::string(*utf8_value);
 }
 
 MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
@@ -96,12 +95,12 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
       return MaybeLocal<Value>(null);
     }
     case simdjson::dom::element_type::STRING: {
-      string value;
+      std::string_view value;
       simdjson::error_code error = element.get_string().get(value);
 
       THROW_AND_RETURN_EMPTY_IF_SIMDJSON_ERROR(isolate, error);
 
-      return String::NewFromUtf8(isolate, value.c_str());
+      return String::NewFromUtf8(isolate, value.data());
     }
     case simdjson::dom::element_type::ARRAY: {
       simdjson::dom::array array;
@@ -144,7 +143,7 @@ MaybeLocal<Value> ConvertSimdjsonElement(Isolate* isolate,
 
         if (!String::NewFromUtf8(isolate,
                                  key.data(),
-                                 v8::NewStringType::kNormal,
+                                 v8::NewStringType::kInternalized,
                                  key.size())
                  .ToLocal(&v8_key)) {
           return MaybeLocal<Value>();
@@ -202,7 +201,7 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> json_str = args[0].As<String>();
 
-  string str = ObjectToString(env->isolate(), json_str);
+  std::string str = ObjectToString(env->isolate(), json_str);
 
   Local<Value> result;
   if (!ParseInternal(env, str.data(), str.size()).ToLocal(&result))
