@@ -370,8 +370,68 @@ class ZstdDecompressContext final : public ZstdContext {
   DeleteFnPtr<ZSTD_DCtx, ZstdDecompressContext::FreeZstd> dctx_;
 };
 
+class CompressionStreamMemoryOwner {
+ public:
+  // Allocation functions provided to zlib itself. We store the real size of
+  // the allocated memory chunk just before the "payload" memory we return
+  // to zlib.
+  // Because we use zlib off the thread pool, we can not report memory directly
+  // to V8; rather, we first store it as "unreported" memory in a separate
+  // field and later report it back from the main thread.
+  static void* AllocForZlib(void* data, uInt items, uInt size) {
+    size_t real_size = MultiplyWithOverflowCheck(static_cast<size_t>(items),
+                                                 static_cast<size_t>(size));
+    return AllocForBrotli(data, real_size);
+  }
+
+  static constexpr size_t reserveSizeAndAlign =
+      std::max(sizeof(size_t), alignof(max_align_t));
+
+  static void* AllocForBrotli(void* data, size_t size) {
+    size += reserveSizeAndAlign;
+    CompressionStreamMemoryOwner* ctx =
+        static_cast<CompressionStreamMemoryOwner*>(data);
+    char* memory = UncheckedMalloc(size);
+    if (memory == nullptr) [[unlikely]] {
+      return nullptr;
+    }
+    *reinterpret_cast<size_t*>(memory) = size;
+    ctx->unreported_allocations_.fetch_add(size, std::memory_order_relaxed);
+    return memory + reserveSizeAndAlign;
+  }
+
+  static void FreeForZlib(void* data, void* pointer) {
+    if (pointer == nullptr) [[unlikely]] {
+      return;
+    }
+    CompressionStreamMemoryOwner* ctx =
+        static_cast<CompressionStreamMemoryOwner*>(data);
+    char* real_pointer = static_cast<char*>(pointer) - reserveSizeAndAlign;
+    size_t real_size = *reinterpret_cast<size_t*>(real_pointer);
+    ctx->unreported_allocations_.fetch_sub(real_size,
+                                           std::memory_order_relaxed);
+    free(real_pointer);
+  }
+
+  void* as_allocator_opaque_value() { return static_cast<void*>(this); }
+
+ protected:
+  ssize_t ComputeAdjustmentToExternalAllocatedMemory() {
+    ssize_t report =
+        unreported_allocations_.exchange(0, std::memory_order_relaxed);
+    CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
+    zlib_memory_ += report;
+    return report;
+  }
+
+  std::atomic<ssize_t> unreported_allocations_{0};
+  size_t zlib_memory_ = 0;
+};
+
 template <typename CompressionContext>
-class CompressionStream : public AsyncWrap, public ThreadPoolWork {
+class CompressionStream : public AsyncWrap,
+                          public ThreadPoolWork,
+                          protected CompressionStreamMemoryOwner {
  public:
   enum InternalFields {
     kCompressionStreamBaseField = AsyncWrap::kInternalFieldCount,
@@ -591,6 +651,19 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
                                 zlib_memory_ + unreported_allocations_);
   }
 
+  static void* AllocatorOpaquePointerForContext(CompressionContext* ctx) {
+    CompressionStream* self = ContainerOf(&CompressionStream::ctx_, ctx);
+    // There is nothing at the type level stopping someone from using this
+    // method with `ctx` being an argument that is not part of a
+    // CompressionStream. This check catches that potential discrepancy in debug
+    // builds. std::launder is necessary to keep the compiler from optimizing
+    // away the check in the (common) case that `CompressionContext` is a final
+    // class.
+    DCHECK_EQ(std::launder<MemoryRetainer>(&self->ctx_)->MemoryInfoName(),
+              CompressionContext{}.MemoryInfoName());
+    return self->as_allocator_opaque_value();
+  }
+
  protected:
   CompressionContext* context() { return &ctx_; }
 
@@ -600,55 +673,11 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     init_done_ = true;
   }
 
-  // Allocation functions provided to zlib itself. We store the real size of
-  // the allocated memory chunk just before the "payload" memory we return
-  // to zlib.
-  // Because we use zlib off the thread pool, we can not report memory directly
-  // to V8; rather, we first store it as "unreported" memory in a separate
-  // field and later report it back from the main thread.
-  static void* AllocForZlib(void* data, uInt items, uInt size) {
-    size_t real_size =
-        MultiplyWithOverflowCheck(static_cast<size_t>(items),
-                                  static_cast<size_t>(size));
-    return AllocForBrotli(data, real_size);
-  }
-
-  static constexpr size_t reserveSizeAndAlign =
-      std::max(sizeof(size_t), alignof(max_align_t));
-
-  static void* AllocForBrotli(void* data, size_t size) {
-    size += reserveSizeAndAlign;
-    CompressionStream* ctx = static_cast<CompressionStream*>(data);
-    char* memory = UncheckedMalloc(size);
-    if (memory == nullptr) [[unlikely]] {
-      return nullptr;
-    }
-    *reinterpret_cast<size_t*>(memory) = size;
-    ctx->unreported_allocations_.fetch_add(size,
-                                           std::memory_order_relaxed);
-    return memory + reserveSizeAndAlign;
-  }
-
-  static void FreeForZlib(void* data, void* pointer) {
-    if (pointer == nullptr) [[unlikely]] {
-      return;
-    }
-    CompressionStream* ctx = static_cast<CompressionStream*>(data);
-    char* real_pointer = static_cast<char*>(pointer) - reserveSizeAndAlign;
-    size_t real_size = *reinterpret_cast<size_t*>(real_pointer);
-    ctx->unreported_allocations_.fetch_sub(real_size,
-                                           std::memory_order_relaxed);
-    free(real_pointer);
-  }
-
   // This is called on the main thread after zlib may have allocated something
   // in order to report it back to V8.
   void AdjustAmountOfExternalAllocatedMemory() {
-    ssize_t report =
-        unreported_allocations_.exchange(0, std::memory_order_relaxed);
+    ssize_t report = ComputeAdjustmentToExternalAllocatedMemory();
     if (report == 0) return;
-    CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
-    zlib_memory_ += report;
     AsyncWrap::env()->external_memory_accounter()->Update(
         AsyncWrap::env()->isolate(), report);
   }
@@ -679,8 +708,6 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
   bool closed_ = false;
   unsigned int refs_ = 0;
   uint32_t* write_result_ = nullptr;
-  std::atomic<ssize_t> unreported_allocations_{0};
-  size_t zlib_memory_ = 0;
 
   CompressionContext ctx_;
 };
@@ -757,7 +784,7 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
 
     AllocScope alloc_scope(wrap);
     wrap->context()->SetAllocationFunctions(
-        AllocForZlib, FreeForZlib, static_cast<CompressionStream*>(wrap));
+        AllocForZlib, FreeForZlib, wrap->as_allocator_opaque_value());
     wrap->context()->Init(level, window_bits, mem_level, strategy,
                           std::move(dictionary));
   }
@@ -819,11 +846,10 @@ class BrotliCompressionStream final :
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    CompressionError err =
-        wrap->context()->Init(
-          CompressionStream<CompressionContext>::AllocForBrotli,
-          CompressionStream<CompressionContext>::FreeForZlib,
-          static_cast<CompressionStream<CompressionContext>*>(wrap));
+    CompressionError err = wrap->context()->Init(
+        CompressionStream<CompressionContext>::AllocForBrotli,
+        CompressionStream<CompressionContext>::FreeForZlib,
+        wrap->as_allocator_opaque_value());
     if (err.IsError()) {
       wrap->EmitError(err);
       // TODO(addaleax): Sometimes we generate better error codes in C++ land,
