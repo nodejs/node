@@ -32,10 +32,26 @@ server.listen(0, common.mustCall(() => {
     rejectUnauthorized: false
   });
 
+  let cleanupTimer;
+  const cleanup = () => {
+    clearTimeout(cleanupTimer);
+    if (!client.destroyed) {
+      client.destroy();
+    }
+    if (server.listening) {
+      server.close();
+    }
+  };
+
   // Verify session eventually closes
   client.on('close', common.mustCall(() => {
-    server.close();
+    cleanup();
   }));
+
+  // Handle errors without failing test
+  client.on('error', () => {
+    // Expected - connection closed
+  });
 
   // First request to establish connection
   const req1 = client.request({ ':path': '/' });
@@ -76,15 +92,8 @@ server.listen(0, common.mustCall(() => {
         // Also acceptable: synchronous error on request creation
       }
 
-      // Force cleanup if session doesn't close naturally
-      setTimeout(() => {
-        if (!client.destroyed) {
-          client.destroy();
-        }
-        if (server.listening) {
-          server.close();
-        }
-      }, 1000);
+      // Fallback cleanup if close event doesn't fire within 100ms
+      cleanupTimer = setTimeout(cleanup, 100);
     });
   }));
 

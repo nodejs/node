@@ -1769,10 +1769,16 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   // Guard against write callback being invoked when write is not in progress.
   // This can happen with zombie sessions where the underlying socket is closed
   // but the session hasn't been properly notified. Instead of crashing, we
-  // silently handle the inconsistent state. (Ref: https://github.com/nodejs/node/issues/61304)
+  // terminate the session to prevent resource leaks and further inconsistent
+  // callbacks. (Ref: https://github.com/nodejs/node/issues/61304)
   if (!is_write_in_progress()) {
     Debug(this, "write callback invoked but write not in progress, "
                 "possible zombie session");
+    // Force session termination to clean up resources
+    // Don't attempt to send GOAWAY (socket likely already closed)
+    if (!is_destroyed()) {
+      Close(NGHTTP2_INTERNAL_ERROR, true);
+    }
     return;
   }
   set_write_in_progress(false);
