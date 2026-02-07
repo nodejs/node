@@ -19,6 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifdef NODE_BUNDLED_ZSTD
+#define ZSTD_STATIC_LINKING_ONLY
+#endif
+
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
@@ -1549,7 +1553,16 @@ void ZstdCompressContext::Close() {
 CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary) {
   pledged_src_size_ = pledged_src_size;
+#ifdef NODE_BUNDLED_ZSTD
+  ZSTD_customMem custom_mem = {
+      CompressionStreamMemoryOwner::AllocForBrotli,
+      CompressionStreamMemoryOwner::FreeForZlib,
+      CompressionStream<ZstdCompressContext>::AllocatorOpaquePointerForContext(
+          this)};
+  cctx_.reset(ZSTD_createCCtx_advanced(custom_mem));
+#else
   cctx_.reset(ZSTD_createCCtx());
+#endif
   if (!cctx_) {
     return CompressionError("Could not initialize zstd instance",
                             "ERR_ZLIB_INITIALIZATION_FAILED",
@@ -1604,7 +1617,16 @@ void ZstdDecompressContext::Close() {
 
 CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,
                                              std::string_view dictionary) {
+#ifdef NODE_BUNDLED_ZSTD
+  ZSTD_customMem custom_mem = {
+      CompressionStreamMemoryOwner::AllocForBrotli,
+      CompressionStreamMemoryOwner::FreeForZlib,
+      CompressionStream<
+          ZstdDecompressContext>::AllocatorOpaquePointerForContext(this)};
+  dctx_.reset(ZSTD_createDCtx_advanced(custom_mem));
+#else
   dctx_.reset(ZSTD_createDCtx());
+#endif
   if (!dctx_) {
     return CompressionError("Could not initialize zstd instance",
                             "ERR_ZLIB_INITIALIZATION_FAILED",
