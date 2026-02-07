@@ -13,10 +13,8 @@ const fixtures = require('../common/fixtures');
 const { copyFileSync } = require('fs');
 
 const { spawnSyncAndAssert } = require('../common/child_process');
-
-const fixturesDir = fixtures.path('sea', 'basic');
-const tempDir = tmpdir.path;
 tmpdir.refresh();
+
 copyFileSync(
   fixtures.path('sea-config.json'),
   tmpdir.resolve('sea-config.json'),
@@ -30,7 +28,7 @@ copyFileSync(
 spawnSyncAndAssert(
   process.execPath,
   ['--build-sea', tmpdir.resolve('sea-config.json')], {
-    cwd: tempDir,
+    cwd: tmpdir.path,
     argv0: 'argv0',
   }, {
     stdout: /Generated single executable/,
