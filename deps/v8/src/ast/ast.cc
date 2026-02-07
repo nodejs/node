@@ -170,11 +170,13 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
   raw_name_ = copy_from->raw_name_;
 }
 
-void VariableProxy::BindTo(Variable* var) {
+void VariableProxy::BindTo(Variable* var, BindingMode mode) {
   DCHECK_EQ(raw_name(), var->raw_name());
   set_var(var);
   set_is_resolved();
-  var->set_is_used();
+  if (mode == BindingMode::kMarkUse) {
+    var->set_is_used();
+  }
   if (is_assigned()) var->SetMaybeAssigned();
 }
 

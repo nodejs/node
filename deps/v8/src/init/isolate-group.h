@@ -21,9 +21,7 @@
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 #include "src/sandbox/js-dispatch-table.h"
-#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
@@ -304,15 +302,17 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   SandboxedArrayBufferAllocatorBase* GetSandboxedArrayBufferAllocator();
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
-#endif  // V8_ENABLE_LEAPTIERING
 
   void SetupReadOnlyHeap(Isolate* isolate,
                          SnapshotData* read_only_snapshot_data,
                          bool can_rehash);
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
+
+  size_t GetIsolateCount();
+
+  Isolate* main_isolate() { return main_isolate_; }
 
   MemoryPool* memory_pool() const { return memory_pool_.get(); }
 
@@ -322,7 +322,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     // down in the mean time.
     base::MutexGuard group_guard(mutex_);
     Isolate* target_isolate = nullptr;
-    DCHECK_NOT_NULL(main_isolate_);
+    // main_isolate_ can be set nullptr when the IsolateGroup is being
+    // destructed.
+    if (!main_isolate_) {
+      return false;
+    }
 
     if (main_isolate_ != isolate) {
       target_isolate = main_isolate_;
@@ -427,9 +431,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   TrustedRange trusted_range_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable js_dispatch_table_;
-#endif  // V8_ENABLE_LEAPTIERING
 };
 
 }  // namespace internal

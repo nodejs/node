@@ -1551,8 +1551,13 @@ class VariableProxy final : public Expression {
 
   bool IsPrivateName() const { return raw_name()->IsPrivateName(); }
 
+  enum class BindingMode {
+    kMarkUse,
+    kNoMarkUse,
+  };
+
   // Bind this proxy to the variable var.
-  void BindTo(Variable* var);
+  void BindTo(Variable* var, BindingMode mode = BindingMode::kMarkUse);
 
   V8_INLINE VariableProxy* next_unresolved() { return next_unresolved_; }
   V8_INLINE bool is_removed_from_unresolved() const {

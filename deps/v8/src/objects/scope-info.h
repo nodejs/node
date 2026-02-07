@@ -77,7 +77,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ContextHeaderLength() const;
 
   // Returns true if the respective contexts have a context extension slot.
-  bool HasContextExtensionSlot() const;
+  V8_EXPORT_PRIVATE bool HasContextExtensionSlot() const;
 
   // Returns true if there is a context with created context extension
   // (meaningful only for contexts that call sloppy eval, see
@@ -322,6 +322,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
   int DependentCodeIndex() const;
+  int UnusedParameterBitsIndex() const;
 
   // Raw access by slot index. These functions rely on the fact that everything
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is

@@ -164,14 +164,14 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
     if (stack_check.HasOverflowed()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->StackOverflow();
       return false;
     }
     if (isolate_->stack_guard()->HasTerminationRequest()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->TerminateExecution();
       return false;
     }
@@ -184,7 +184,7 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
                           v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
     SealHandleScope shs(isolate_);
     current_frame_.current_function_ = nullptr;
-    SetTrap(TrapReason::kTrapUnreachable, code);
+    SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
     return false;
   }
 

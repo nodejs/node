@@ -48,13 +48,18 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
-    for (DirectHandle<AccessorInfo> info : accessor_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), *info);
+    if (USE_SIMULATOR_BOOL) {
+      for (DirectHandle<AccessorInfo> info : accessor_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
+      for (DirectHandle<InterceptorInfo> info : interceptor_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
+      for (DirectHandle<FunctionTemplateInfo> info :
+           function_template_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
     }
-    for (DirectHandle<FunctionTemplateInfo> info : function_template_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), *info);
-    }
-
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
     FlushICache();

@@ -366,17 +366,21 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
     case FreeMode::kImmediately:
       PerformFreeMemory(page_metadata);
       break;
+    case FreeMode::kDelayThenPool:
+      if (memory_pool()) {
+        if (page_metadata->is_large()) {
+          delayed_then_pooled_large_pages_.push_back(
+              static_cast<LargePageMetadata*>(page_metadata));
+        } else {
+          delayed_then_pooled_pages_.push_back(
+              static_cast<PageMetadata*>(page_metadata));
+        }
+        break;
+      }
+      // Otherwise, add the page to delayed_then_released_pages_.
+      [[fallthrough]];
     case FreeMode::kDelayThenRelease:
       delayed_then_released_pages_.push_back(page_metadata);
-      break;
-    case FreeMode::kDelayThenPool:
-      if (page_metadata->is_large()) {
-        delayed_then_pooled_large_pages_.push_back(
-            static_cast<LargePageMetadata*>(page_metadata));
-      } else {
-        delayed_then_pooled_pages_.push_back(
-            static_cast<PageMetadata*>(page_metadata));
-      }
       break;
     case FreeMode::kPool:
 #ifdef DEBUG
@@ -399,27 +403,26 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
 }
 
 void MemoryAllocator::ReleaseDelayedPages() {
+  for (auto* delayed_page : delayed_then_released_pages_) {
+    PerformFreeMemory(delayed_page);
+  }
+  delayed_then_released_pages_.clear();
+  if (!memory_pool()) {
+    DCHECK(delayed_then_pooled_pages_.empty());
+    DCHECK(delayed_then_pooled_large_pages_.empty());
+    return;
+  }
   for (auto* delayed_page : delayed_then_pooled_pages_) {
-    if (auto* pool = memory_pool()) {
-      pool->Add(isolate_, delayed_page);
-    } else {
-      PerformFreeMemory(delayed_page);
-    }
+    memory_pool()->Add(isolate_, delayed_page);
   }
   delayed_then_pooled_pages_.clear();
-  if (auto* pool = memory_pool()) {
-    pool->AddLarge(isolate_, delayed_then_pooled_large_pages_);
-  }
+  memory_pool()->AddLarge(isolate_, delayed_then_pooled_large_pages_);
   // AddLarge() leaves pages that couldn't be pooled in the vector to be
   // released afterwards.
   for (auto* delayed_page : delayed_then_pooled_large_pages_) {
     PerformFreeMemory(delayed_page);
   }
   delayed_then_pooled_large_pages_.clear();
-  for (auto* delayed_page : delayed_then_released_pages_) {
-    PerformFreeMemory(delayed_page);
-  }
-  delayed_then_released_pages_.clear();
 }
 
 PageMetadata* MemoryAllocator::AllocatePage(
@@ -591,9 +594,10 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
   {
     base::MutexGuard guard(chunks_mutex_);
     if (!delayed_then_pooled_pages_.empty()) {
+      DCHECK(memory_pool());
       PageMetadata* metadata = delayed_then_pooled_pages_.back();
       delayed_then_pooled_pages_.pop_back();
-      maybe_result = PooledPage::Create(metadata).ToResult();
+      maybe_result = memory_pool()->CreatePooledPage(metadata).ToResult();
     }
   }
   if (!maybe_result.has_value() && memory_pool()) {

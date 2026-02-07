@@ -251,6 +251,7 @@ using kFloat64Constant = ConstantMask::For<ConstantOp::Kind::kFloat64>;
 using kExternalConstant = ConstantMask::For<ConstantOp::Kind::kExternal>;
 using kHeapConstant = ConstantMask::For<ConstantOp::Kind::kHeapObject>;
 using kSmiConstant = ConstantMask::For<ConstantOp::Kind::kSmi>;
+using kTaggedIndexConstant = ConstantMask::For<ConstantOp::Kind::kTaggedIndex>;
 using kWasmStubCallConstant =
     ConstantMask::For<ConstantOp::Kind::kRelocatableWasmStubCall>;
 

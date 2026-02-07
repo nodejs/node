@@ -2214,7 +2214,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       young_object->set(0, **shared_string_);
 
       heap::EmptyNewSpaceUsingGC(heap);
-      heap->CompleteSweepingFull();
+      heap->CompleteSweepingFull(CompleteSweepingReason::kTesting);
 
       // Object should get promoted using page promotion, so address should
       // remain the same.

@@ -912,6 +912,10 @@ class InstructionGetters : public T {
 
   // Say if the instruction is a break.
   bool IsTrap() const;
+  // Say if the instruction is a load opcode.
+  bool IsLoad() const;
+  // Say if the instruction is a store opcode.
+  bool IsStore() const;
 };
 
 class Instruction : public InstructionGetters<InstructionBase> {
@@ -1296,6 +1300,119 @@ bool InstructionGetters<P>::IsTrap() const {
   return false;
 }
 
+template <class P>
+bool InstructionGetters<P>::IsLoad() const {
+  switch (this->Bits(31, 24) << 24) {
+    case LL_W:
+    case LL_D:
+    case LDPTR_W:
+    case LDPTR_D:
+      return true;
+    default:
+      break;
+  }
+  switch (this->Bits(31, 22) << 22) {
+    case LD_B:
+    case LD_H:
+    case LD_W:
+    case LD_D:
+    case LD_BU:
+    case LD_HU:
+    case LD_WU:
+    case FLD_S:
+    case FLD_D:
+      return true;
+    default:
+      break;
+  }
+  switch (this->Bits(31, 15) << 15) {
+    case LDX_B:
+    case LDX_H:
+    case LDX_W:
+    case LDX_D:
+    case LDX_BU:
+    case LDX_HU:
+    case LDX_WU:
+    case FLDX_S:
+    case FLDX_D:
+    case AMSWAP_W:
+    case AMSWAP_D:
+    case AMADD_W:
+    case AMADD_D:
+    case AMAND_W:
+    case AMAND_D:
+    case AMOR_W:
+    case AMOR_D:
+    case AMXOR_W:
+    case AMXOR_D:
+    case AMMAX_W:
+    case AMMAX_D:
+    case AMMIN_W:
+    case AMMIN_D:
+    case AMMAX_WU:
+    case AMMAX_DU:
+    case AMMIN_WU:
+    case AMMIN_DU:
+    case AMSWAP_DB_W:
+    case AMSWAP_DB_D:
+    case AMADD_DB_W:
+    case AMADD_DB_D:
+    case AMAND_DB_W:
+    case AMAND_DB_D:
+    case AMOR_DB_W:
+    case AMOR_DB_D:
+    case AMXOR_DB_W:
+    case AMXOR_DB_D:
+    case AMMAX_DB_W:
+    case AMMAX_DB_D:
+    case AMMIN_DB_W:
+    case AMMIN_DB_D:
+    case AMMAX_DB_WU:
+    case AMMAX_DB_DU:
+    case AMMIN_DB_WU:
+    case AMMIN_DB_DU:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+template <class P>
+bool InstructionGetters<P>::IsStore() const {
+  switch (this->Bits(31, 24) << 24) {
+    case SC_W:
+    case SC_D:
+    case STPTR_W:
+    case STPTR_D:
+      return true;
+    default:
+      break;
+  }
+  switch (this->Bits(31, 22) << 22) {
+    case ST_B:
+    case ST_H:
+    case ST_W:
+    case ST_D:
+    case FST_S:
+    case FST_D:
+      return true;
+    default:
+      break;
+  }
+  switch (this->Bits(31, 15) << 15) {
+    case STX_B:
+    case STX_H:
+    case STX_W:
+    case STX_D:
+    case FSTX_S:
+    case FSTX_D:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
 // The maximum size of the stack restore after a fast API call that pops the
 // stack parameters of the call off the stack.
 constexpr int kMaxSizeOfMoveAfterFastCall = 4;

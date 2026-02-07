@@ -74,7 +74,7 @@ class MaglevCompilationInfo final {
     return std::unique_ptr<MaglevCompilationInfo>(
         new MaglevCompilationInfo(isolate, function, osr_offset));
   }
-  ~MaglevCompilationInfo();
+  V8_EXPORT_PRIVATE ~MaglevCompilationInfo();
 
   Zone* zone() { return &zone_; }
   compiler::JSHeapBroker* broker() const { return broker_; }
@@ -142,7 +142,7 @@ class MaglevCompilationInfo final {
   }
 
  private:
-  MaglevCompilationInfo(
+  V8_EXPORT_PRIVATE MaglevCompilationInfo(
       Isolate* isolate, IndirectHandle<JSFunction> function,
       BytecodeOffset osr_offset,
       std::optional<compiler::JSHeapBroker*> broker = std::nullopt,

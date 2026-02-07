@@ -25,7 +25,7 @@ void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
 
   int position = 0;
   for (size_t i = 0; i < properties_.size(); i++) {
-    auto pair = properties_.at(i);
+    PrototypeAssignment pair = properties_.at(i);
     const AstRawString* key_str = pair.first;
 
     DirectHandle<Object> key = Cast<Object>(key_str->string());

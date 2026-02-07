@@ -36,6 +36,33 @@ package(
 licenses(["notice"])
 
 cc_library(
+    name = "borrowed_fixup_buffer",
+    srcs = ["internal/borrowed_fixup_buffer.cc"],
+    hdrs = ["internal/borrowed_fixup_buffer.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:malloc_internal",
+        "//absl/hash",
+    ],
+)
+
+cc_test(
+    name = "borrowed_fixup_buffer_test",
+    srcs = ["internal/borrowed_fixup_buffer_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":borrowed_fixup_buffer",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "stacktrace",
     srcs = [
         "internal/stacktrace_aarch64-inl.inc",
@@ -54,6 +81,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":borrowed_fixup_buffer",
         ":debugging_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -69,6 +97,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":borrowed_fixup_buffer",
         ":stacktrace",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -448,6 +477,7 @@ cc_binary(
         ":stacktrace",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/cleanup",
         "@google_benchmark//:benchmark_main",
     ],
 )

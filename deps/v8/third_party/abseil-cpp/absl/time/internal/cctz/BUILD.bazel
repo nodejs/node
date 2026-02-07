@@ -59,7 +59,13 @@ cc_library(
         "src/time_zone_posix.h",
         "src/tzfile.h",
         "src/zone_info_source.cc",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "src/time_zone_name_win.cc",
+            "src/time_zone_name_win.h",
+        ],
+        "//conditions:default": [],
+    }),
     hdrs = [
         "include/cctz/time_zone.h",
         "include/cctz/zone_info_source.h",

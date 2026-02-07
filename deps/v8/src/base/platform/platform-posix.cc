@@ -280,15 +280,13 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void PosixInitializeCommon(AbortMode abort_mode,
-                           const char* const gc_fake_mmap) {
-  g_abort_mode = abort_mode;
+void PosixInitializeCommon(const char* const gc_fake_mmap) {
   g_gc_fake_mmap = gc_fake_mmap;
 }
 
 #if !V8_OS_FUCHSIA
-void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
-  PosixInitializeCommon(abort_mode, gc_fake_mmap);
+void OS::Initialize(const char* const gc_fake_mmap) {
+  PosixInitializeCommon(gc_fake_mmap);
 }
 #endif  // !V8_OS_FUCHSIA
 

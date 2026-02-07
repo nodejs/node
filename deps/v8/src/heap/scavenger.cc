@@ -749,7 +749,7 @@ ScavengerJobTask::ScavengerJobTask(
       copied_list_(copied_list),
       promoted_list_(promoted_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       estimate_concurrency_(estimate_concurrency) {}
 
 void ScavengerJobTask::Run(JobDelegate* delegate) {
@@ -1277,7 +1277,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
     Heap* heap, const PinnedObjects&& pinned_objects)
     : heap_(heap),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       should_zap_(heap::ShouldZapGarbage()),
       pinned_objects_(std::move(pinned_objects)) {
   DCHECK(!pinned_objects.empty());
@@ -1771,15 +1771,9 @@ void ScavengerCollector::CollectGarbage() {
                                    std::move(surviving_new_large_objects));
   }
 
-  {
-    // Update references into new space
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
-    heap_->UpdateYoungReferencesInExternalStringTable(
-        &Heap::UpdateYoungReferenceInExternalStringTableEntry);
-
-    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
-    }
+  // Update references into new space
+  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
+    isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
   }
 
   ScavengerEphemeronProcessor::Process(heap_, &ephemeron_table_list);
@@ -2511,7 +2505,7 @@ void Scavenger::Process(JobDelegate* delegate) {
       copied_object_visitor.Visit(entry.map, entry.heap_object, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
-        if (!local_copied_list_.IsLocalEmpty()) {
+        if (!local_copied_list_.IsGlobalEmpty()) {
           delegate->NotifyConcurrencyIncrease();
         }
       }

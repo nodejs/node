@@ -309,10 +309,10 @@ Cast<JSAny>(o: Object): JSAny labels CastError {
 
 Cast<JSAny|TheHole>(o: Object): JSAny|TheHole labels CastError {
   typeswitch (o) {
-    case (o: TheHole): {
+    case (o: JSAny): {
       return o;
     }
-    case (o: JSAny): {
+    case (o: TheHole): {
       return o;
     }
     case (Object): {
@@ -323,10 +323,10 @@ Cast<JSAny|TheHole>(o: Object): JSAny|TheHole labels CastError {
 
 Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   typeswitch (o) {
-    case (o: TheHole): {
+    case (o: Number): {
       return o;
     }
-    case (o: Number): {
+    case (o: TheHole): {
       return o;
     }
     case (Object): {
@@ -339,13 +339,13 @@ Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   Cast<Number|Undefined|TheHole>(o: Object): Number|Undefined|
       TheHole labels CastError {
     typeswitch (o) {
-      case (o: TheHole): {
-        return o;
-      }
       case (o: Number): {
         return o;
       }
       case (o: Undefined): {
+        return o;
+      }
+      case (o: TheHole): {
         return o;
       }
       case (Object): {
@@ -829,6 +829,20 @@ Cast<JSReceiver|Symbol>(implicit context: Context)(o: Object): JSReceiver|
       return o;
     }
     case (o: Symbol): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+Cast<Undefined|JSPromise>(o: Object): Undefined|JSPromise labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: JSPromise): {
       return o;
     }
     case (Object): {

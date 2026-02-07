@@ -299,6 +299,185 @@ TEST_F(ReducerTest, BinaryExtLowUnaryShuffle) {
   }
 }
 
+TEST_F(ReducerTest, TwoUnaryConvert) {
+  // Tests for when a shuffle is used by two unary convert ops.
+  using UnaryOpTuple =
+      std::tuple<Simd128UnaryOp::Kind, Simd128UnaryOp::Kind, uint8_t>;
+  std::array test_list = std::to_array<UnaryOpTuple>({
+      {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+       Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low, 8},
+      {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+       Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low, 8},
+      {Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+       Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low, 8},
+      {Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low,
+       Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low, 8},
+      {Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low,
+       Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low, 8},
+      {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
+       Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low, 0},
+      {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+       Simd128UnaryOp::Kind::kI32x4SConvertI16x8High, 0},
+      {Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
+       Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low, 0},
+      {Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low,
+       Simd128UnaryOp::Kind::kI64x2SConvertI32x4High, 0},
+      {Simd128UnaryOp::Kind::kI32x4SConvertI16x8High,
+       Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low, 0},
+  });
+  for (auto const& [first_unop_kind, second_unop_kind, expected_count] :
+       test_list) {
+    OpIndex shuffle;
+    SCOPED_TRACE(first_unop_kind);
+    SCOPED_TRACE(second_unop_kind);
+    auto test = CreateFromGraph(1, [&first_unop_kind, &second_unop_kind,
+                                    &shuffle](auto& Asm) {
+      auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+      OpIndex zero =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      OpIndex one =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      constexpr uint8_t shuffle_bytes[kSimd128Size] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                       0, 0, 0, 0, 0, 0, 0, 0};
+      shuffle = __ Simd128Shuffle(zero, one, ShuffleKind, shuffle_bytes);
+      __ Return(__ Simd128Binop(__ Simd128Unary(shuffle, first_unop_kind),
+                                __ Simd128Unary(shuffle, second_unop_kind),
+                                Simd128BinopOp::Kind::kI32x4Add));
+    });
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    if (expected_count == 0) {
+      EXPECT_FALSE(analyzer.ShouldReduce());
+    } else {
+      EXPECT_TRUE(analyzer.ShouldReduce());
+      std::bitset<16> expected_byte_lane_mask =
+          expected_count == 8 ? 0xFF : 0xF;
+      EXPECT_EQ(analyzer.DemandedByteLanes(&test.graph().Get(shuffle)),
+                expected_byte_lane_mask);
+      test.Run<WasmShuffleReducer>();
+    }
+  }
+}
+
+TEST_F(ReducerTest, TwoBinaryExt) {
+  using BinaryOpTuple =
+      std::tuple<Simd128BinopOp::Kind, Simd128BinopOp::Kind, uint8_t>;
+  std::array test_list = std::to_array<BinaryOpTuple>({
+      {Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S,
+       Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U, 8},
+      {Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S,
+       Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U, 8},
+      {Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U,
+       Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U, 8},
+      {Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S,
+       Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U, 0},
+      {Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S,
+       Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U, 0},
+      {Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S,
+       Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U, 0},
+      {Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U,
+       Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U, 0},
+  });
+  for (auto const& [first_binop_kind, second_binop_kind, expected_count] :
+       test_list) {
+    OpIndex left_shuffle;
+    OpIndex right_shuffle;
+    SCOPED_TRACE(first_binop_kind);
+    SCOPED_TRACE(second_binop_kind);
+    auto test = CreateFromGraph(1, [&first_binop_kind, second_binop_kind,
+                                    &left_shuffle, &right_shuffle](auto& Asm) {
+      auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+      auto zero =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      auto one =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      auto two =
+          __ Simd128Splat(__ Word32Constant(2), Simd128SplatOp::Kind::kI32x4);
+      auto three =
+          __ Simd128Splat(__ Word32Constant(3), Simd128SplatOp::Kind::kI32x4);
+      constexpr uint8_t shuffle_bytes[kSimd128Size] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                       0, 0, 0, 0, 0, 0, 0, 0};
+      left_shuffle = __ Simd128Shuffle(zero, one, ShuffleKind, shuffle_bytes);
+      right_shuffle = __ Simd128Shuffle(two, three, ShuffleKind, shuffle_bytes);
+      __ Return(__ Simd128Binop(
+          __ Simd128Binop(left_shuffle, right_shuffle, first_binop_kind),
+          __ Simd128Binop(left_shuffle, right_shuffle, second_binop_kind),
+          Simd128BinopOp::Kind::kI32x4Sub));
+    });
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    if (expected_count == 0) {
+      EXPECT_FALSE(analyzer.ShouldReduce());
+    } else {
+      EXPECT_TRUE(analyzer.ShouldReduce());
+      std::bitset<16> expected_byte_lane_mask =
+          expected_count == 8 ? 0xFF : 0xF;
+      EXPECT_EQ(analyzer.DemandedByteLanes(&test.graph().Get(left_shuffle)),
+                expected_byte_lane_mask);
+      EXPECT_EQ(analyzer.DemandedByteLanes(&test.graph().Get(right_shuffle)),
+                expected_byte_lane_mask);
+      test.Run<WasmShuffleReducer>();
+    }
+  }
+}
+
+TEST_F(ReducerTest, MultipleChained) {
+  OpIndex shuffle0 = OpIndex::Invalid();
+  OpIndex shuffle1 = OpIndex::Invalid();
+  OpIndex shuffle2 = OpIndex::Invalid();
+  OpIndex shuffle3 = OpIndex::Invalid();
+
+  // The shuffles are used by unary converts, which have multiple extend low
+  // users. Test that all the demanded lanes have been propagated from the
+  // ExtMul ops so that we know only four bytes are required.
+  auto test = CreateFromGraph(
+      1, [&shuffle0, &shuffle1, &shuffle2, &shuffle3](auto& Asm) {
+        constexpr uint8_t shuffle_bytes_0[kSimd128Size] = {
+            0x0, 0x4, 0x8, 0xc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        constexpr uint8_t shuffle_bytes_1[kSimd128Size] = {
+            0x1, 0x5, 0x9, 0xd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        constexpr uint8_t shuffle_bytes_2[kSimd128Size] = {
+            0x2, 0x6, 0xa, 0xe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        constexpr uint8_t shuffle_bytes_3[kSimd128Size] = {
+            0x3, 0x7, 0xb, 0xf, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        const auto kShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+        const auto kUnopKind = Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low;
+        const auto kBinopKind = Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S;
+        const auto kAccKind = Simd128BinopOp::Kind::kI32x4Add;
+
+        OpIndex zero =
+            __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+        OpIndex one =
+            __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+        shuffle0 = __ Simd128Shuffle(zero, zero, kShuffleKind, shuffle_bytes_3);
+        OpIndex unop0 = __ Simd128Unary(shuffle0, kUnopKind);
+        shuffle1 = __ Simd128Shuffle(one, zero, kShuffleKind, shuffle_bytes_2);
+        OpIndex unop1 = __ Simd128Unary(shuffle1, kUnopKind);
+        OpIndex binop0 = __ Simd128Binop(unop0, unop1, kBinopKind);
+        shuffle2 = __ Simd128Shuffle(one, zero, kShuffleKind, shuffle_bytes_1);
+        OpIndex unop2 = __ Simd128Unary(shuffle2, kUnopKind);
+        OpIndex binop1 = __ Simd128Binop(unop0, unop2, kBinopKind);
+        shuffle3 = __ Simd128Shuffle(one, zero, kShuffleKind, shuffle_bytes_0);
+        OpIndex unop3 = __ Simd128Unary(shuffle3, kUnopKind);
+        OpIndex binop2 = __ Simd128Binop(unop0, unop3, kBinopKind);
+        OpIndex acc0 = __ Simd128Binop(binop0, binop1, kAccKind);
+        __ Return(__ Simd128Binop(acc0, binop2, kAccKind));
+      });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+  constexpr std::bitset<16> expected_byte_lane_mask = 0xF;
+  OpIndex shuffles_to_test[] = {shuffle0, shuffle1, shuffle2, shuffle3};
+
+  for (auto shuffle : shuffles_to_test) {
+    EXPECT_EQ(analyzer.DemandedByteLanes(&test.graph().Get(shuffle)),
+              expected_byte_lane_mask);
+  }
+  test.Run<WasmShuffleReducer>();
+}
+
 #if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 namespace {

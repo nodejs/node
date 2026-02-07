@@ -596,7 +596,8 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
           static_cast<int>(InstructionOffset(branch)));
     }
 
-    if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
+    if (prev_link->IsUnresolvedInternalReference() ||
+        prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(zone(), options(), next_link);
     } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
@@ -626,7 +627,8 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
                                  1;
           unresolved_branches_.erase(max_reachable_pc);
         } else {
-          // Other branch types are not handled by veneers.
+          // Other branch types and internal references are not handled by
+          // veneers.
         }
         link = next_link;
       }
@@ -3911,30 +3913,13 @@ void Assembler::dcptr(Label* label) {
     internal_reference_positions_.push_back(pc_offset());
     dc64(reinterpret_cast<uintptr_t>(buffer_start_ + label->pos()));
   } else {
-    int32_t offset;
-    if (label->is_linked()) {
-      // The label is linked, so the internal reference should be added
-      // onto the end of the label's link chain.
-      //
-      // In this case, label->pos() returns the offset of the last linked
-      // instruction from the start of the buffer.
-      offset = label->pos() - pc_offset();
-      DCHECK_NE(offset, kStartOfLabelLinkChain);
-    } else {
-      // The label is unused, so it now becomes linked and the internal
-      // reference is at the start of the new link chain.
-      offset = kStartOfLabelLinkChain;
-    }
-    // The instruction at pc is now the last link in the label's chain.
-    label->link_to(pc_offset());
+    int offset = LinkAndGetBranchInstructionOffsetTo(label);
 
     // Traditionally the offset to the previous instruction in the chain is
     // encoded in the instruction payload (e.g. branch range) but internal
     // references are not instructions so while unbound they are encoded as
     // two consecutive brk instructions. The two 16-bit immediates are used
     // to encode the offset.
-    offset >>= kInstrSizeLog2;
-    DCHECK(is_int32(offset));
     uint32_t high16 = unsigned_bitextract_32(31, 16, offset);
     uint32_t low16 = unsigned_bitextract_32(15, 0, offset);
 

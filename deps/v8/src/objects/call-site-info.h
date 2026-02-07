@@ -7,7 +7,9 @@
 
 #include <optional>
 
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
+#include "src/objects/trusted-pointer.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,7 +23,7 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/call-site-info-tq.inc"
 
-class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
+V8_OBJECT class CallSiteInfo : public StructLayout {
  public:
   DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
 
@@ -49,10 +51,31 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsNative() const;
 
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(Tagged<HeapObject> code, WriteBarrierMode mode);
+  inline void set_code_object(Tagged<HeapObject> code,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> receiver_or_instance() const;
+  inline void set_receiver_or_instance(
+      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Union<JSFunction, Smi>> function() const;
+  inline void set_function(Tagged<Union<JSFunction, Smi>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int code_offset_or_source_position() const;
+  inline void set_code_offset_or_source_position(
+      int value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
+
+  inline Tagged<FixedArray> parameters() const;
+  inline void set_parameters(Tagged<FixedArray> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
+  DECL_PRINTER(CallSiteInfo)
 
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
@@ -102,15 +125,32 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   static bool ComputeLocation(DirectHandle<CallSiteInfo> info,
                               MessageLocation* location);
 
-  class BodyDescriptor;
-
  private:
   static int ComputeSourcePosition(DirectHandle<CallSiteInfo> info, int offset);
 
   std::optional<Tagged<Script>> GetScript() const;
   Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
-  TQ_OBJECT_CONSTRUCTORS(CallSiteInfo)
+  friend class Factory;
+  friend class TorqueGeneratedCallSiteInfoAsserts;
+  friend struct ObjectTraits<CallSiteInfo>;
+
+  TrustedPointerMember<Union<Code, BytecodeArray>, kUnknownIndirectPointerTag>
+      code_object_;
+  TaggedMember<JSAny> receiver_or_instance_;
+  TaggedMember<Union<JSFunction, Smi>> function_;
+  TaggedMember<Smi> code_offset_or_source_position_;
+  TaggedMember<Smi> flags_;
+  TaggedMember<FixedArray> parameters_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<CallSiteInfo> {
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptor<offsetof(CallSiteInfo, receiver_or_instance_),
+                          sizeof(CallSiteInfo), sizeof(CallSiteInfo)>,
+      WithStrongTrustedPointer<offsetof(CallSiteInfo, code_object_),
+                               kUnknownIndirectPointerTag>>;
 };
 
 class IncrementalStringBuilder;

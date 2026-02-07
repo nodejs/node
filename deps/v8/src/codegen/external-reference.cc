@@ -42,6 +42,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-result-vector.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/sandbox/testing.h"
 #include "src/strings/string-search.h"
 #include "src/strings/unicode-inl.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -368,15 +369,11 @@ ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 ExternalReference ExternalReference::js_dispatch_table_address() {
   // TODO(saelo): maybe rename to js_dispatch_table_base_address?
   return ExternalReference(
       IsolateGroup::current()->js_dispatch_table()->base_address());
 }
-
-#endif  // V8_ENABLE_LEAPTIERING
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -868,6 +865,9 @@ ExternalReference ExternalReference::address_of_pending_message(
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
 
+FUNCTION_REFERENCE(abort_with_sandbox_violation,
+                   i::abort_with_sandbox_violation)
+
 ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
@@ -1134,8 +1134,7 @@ FUNCTION_REFERENCE(re_is_character_in_range_array,
                    RegExpMacroAssembler::IsCharacterInRangeArray)
 
 ExternalReference ExternalReference::re_word_character_map() {
-  return ExternalReference(
-      NativeRegExpMacroAssembler::word_character_map_address());
+  return ExternalReference(RegExpMacroAssembler::word_character_map_address());
 }
 
 ExternalReference
@@ -1233,13 +1232,15 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
-  return memcpy(dest, src, n);
+  base::MemCopy(dest, src, n);
+  return dest;
 }
 
 FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
 
 void* libc_memmove(void* dest, const void* src, size_t n) {
-  return memmove(dest, src, n);
+  base::MemMove(dest, src, n);
+  return dest;
 }
 
 FUNCTION_REFERENCE(libc_memmove_function, libc_memmove)
@@ -1967,6 +1968,22 @@ void abort_with_reason(int reason) {
   } else {
     base::OS::PrintError("abort: <unknown reason: %d>\n", reason);
   }
+  base::OS::Abort();
+  UNREACHABLE();
+}
+
+void abort_with_sandbox_violation() {
+  base::OS::PrintError("\n## V8 sandbox violation detected!\n\n");
+#ifdef V8_ENABLE_SANDBOX
+  // We're reporting a sandbox violation so we must disable the sandbox crash
+  // filter here (if it is enabled). Otherwise it will treat this crash as a
+  // controlled/harmless crash and filter it.
+  SandboxTesting::Disable();
+#endif  // V8_ENABLE_SANDBOX
+  // We must also update the abort mode so that OS::Abort() crashes. Otherwise
+  // it would do a normal exit if sandbox testing/fuzzing mode is enabled.
+  base::g_abort_mode = base::AbortMode::kDefault;
+
   base::OS::Abort();
   UNREACHABLE();
 }
