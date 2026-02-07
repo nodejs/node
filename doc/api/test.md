@@ -1561,6 +1561,7 @@ changes:
   * `env` {Object} Specify environment variables to be passed along to the test process.
     This options is not compatible with `isolation='none'`. These variables will override
     those from the main process, and are not merged with `process.env`.
+    **Default:** `process.env`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
