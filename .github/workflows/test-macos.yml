@@ -68,6 +68,7 @@ env:
   PYTHON_VERSION: '3.14'
   XCODE_VERSION: '16.4'
   FLAKY_TESTS: keep_retrying
+  RUSTC_VERSION: '1.82'
 
 permissions:
   contents: read
@@ -95,6 +96,10 @@ jobs:
           allow-prereleases: true
       - name: Set up Xcode ${{ env.XCODE_VERSION }}
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
       - name: Set up sccache
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
@@ -124,7 +129,7 @@ jobs:
           df -h
           echo "::endgroup::"
       - name: Build
-        run: make -C node build-ci -j$(getconf _NPROCESSORS_ONLN) V=1 CONFIG_FLAGS="--error-on-warn"
+        run: make -C node build-ci -j$(getconf _NPROCESSORS_ONLN) V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
       - name: Free Space After Build
         run: df -h
       - name: Test
