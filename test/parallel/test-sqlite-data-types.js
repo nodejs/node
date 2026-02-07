@@ -82,6 +82,41 @@ suite('data binding and mapping', () => {
     });
   });
 
+  test('large strings are bound correctly', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, text TEXT) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    t.assert.deepStrictEqual(
+      db.prepare('INSERT INTO data (key, text) VALUES (?, ?)').run(1, ''),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+
+    const update = db.prepare('UPDATE data SET text = ? WHERE key = 1');
+
+    // > 1024 bytes so `Utf8Value` uses heap storage internally.
+    const largeAscii = 'a'.repeat(8 * 1024);
+    // Force a non-one-byte string path through UTF-8 conversion.
+    const largeUnicode = '\u2603'.repeat(2048);
+
+    const res = update.run(largeAscii);
+    t.assert.strictEqual(res.changes, 1);
+
+    t.assert.strictEqual(
+      db.prepare('SELECT text FROM data WHERE key = 1').get().text,
+      largeAscii,
+    );
+
+    t.assert.strictEqual(update.run(largeUnicode).changes, 1);
+    t.assert.strictEqual(
+      db.prepare('SELECT text FROM data WHERE key = 1').get().text,
+      largeUnicode,
+    );
+  });
+
   test('unsupported data types', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
