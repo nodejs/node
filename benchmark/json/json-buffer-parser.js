@@ -6,7 +6,7 @@ const path = require('node:path');
 const assert = require('node:assert');
 
 const configs = {
-  n: [10],
+  n: [10, 1024],
   parser: ['native', 'node'],
   input: [
     'simple-string',
