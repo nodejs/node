@@ -87,28 +87,19 @@ inline void UseFixed(Input input, DoubleRegister reg) {
 
 CallKnownJSFunction::CallKnownJSFunction(
     uint64_t bitfield,
-#ifdef V8_ENABLE_LEAPTIERING
     JSDispatchHandle dispatch_handle,
-#endif
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
     ValueNode* context, ValueNode* receiver, ValueNode* new_target,
     const compiler::FeedbackSource& feedback_source)
     : Base(bitfield),
-#ifdef V8_ENABLE_LEAPTIERING
       dispatch_handle_(dispatch_handle),
-#endif
       shared_function_info_(shared_function_info),
       expected_parameter_count_(
-#ifdef V8_ENABLE_LEAPTIERING
           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
               dispatch_handle)
-#else
-          shared_function_info
-              .internal_formal_parameter_count_with_receiver_deprecated()
-#endif
               ),
       feedback_source_(feedback_source) {
-  set_input(kClosureIndex, closure);
+  set_input(kTargetIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);
   set_input(kNewTargetIndex, new_target);

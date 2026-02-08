@@ -127,6 +127,16 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset, promise);
 
+  // Initialize closure fields to undefined. They will be lazily allocated
+  // on first await. This saves memory for async functions that never suspend
+  // (e.g., conditional awaits, early returns).
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+                       RootIndex::kUndefinedValue);
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+                       RootIndex::kUndefinedValue);
+
   Return(async_function_object);
 }
 
@@ -204,9 +214,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
 
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-  Await(context, async_function_object, value, outer_promise,
-        RootIndex::kAsyncFunctionAwaitResolveClosureSharedFun,
-        RootIndex::kAsyncFunctionAwaitRejectClosureSharedFun);
+
+  AwaitWithReusableClosures(context, async_function_object, value,
+                            outer_promise);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.

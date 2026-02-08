@@ -51,9 +51,10 @@ BUILTIN(DataViewConstructor) {
   // 4. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   if (array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  kMethodName)));
+        isolate,
+        NewTypeError(
+            MessageTemplate::kTypedArrayDetachedErrorOperation,
+            isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
 
   // 5. Let bufferByteLength be ArrayBufferByteLength(buffer, SeqCst).
@@ -145,9 +146,10 @@ BUILTIN(DataViewConstructor) {
   // 13. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   if (array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  kMethodName)));
+        isolate,
+        NewTypeError(
+            MessageTemplate::kTypedArrayDetachedErrorOperation,
+            isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
 
   // 14. Let getBufferByteLength be

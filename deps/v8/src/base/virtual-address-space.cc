@@ -126,9 +126,10 @@ bool VirtualAddressSpace::CanAllocateSubspaces() {
   return OS::CanReserveAddressSpace();
 }
 
-Address VirtualAddressSpace::AllocateSharedPages(
-    Address hint, size_t size, PagePermissions permissions,
-    PlatformSharedMemoryHandle handle, uint64_t offset) {
+Address VirtualAddressSpace::AllocateSharedPages(Address hint, size_t size,
+                                                 PagePermissions permissions,
+                                                 SharedMemoryHandle handle,
+                                                 uint64_t offset) {
   DCHECK(IsAligned(hint, allocation_granularity()));
   DCHECK(IsAligned(size, allocation_granularity()));
   DCHECK(IsAligned(offset, allocation_granularity()));
@@ -149,7 +150,7 @@ std::unique_ptr<v8::VirtualAddressSpace> VirtualAddressSpace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
     PagePermissions max_page_permissions,
     std::optional<MemoryProtectionKeyId> key,
-    PlatformSharedMemoryHandle handle) {
+    std::optional<SharedMemoryHandle> handle) {
   DCHECK(IsAligned(alignment, allocation_granularity()));
   DCHECK(IsAligned(hint, alignment));
   DCHECK(IsAligned(size, allocation_granularity()));
@@ -339,9 +340,10 @@ void VirtualAddressSubspace::FreeGuardRegion(Address address, size_t size) {
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
 }
 
-Address VirtualAddressSubspace::AllocateSharedPages(
-    Address hint, size_t size, PagePermissions permissions,
-    PlatformSharedMemoryHandle handle, uint64_t offset) {
+Address VirtualAddressSubspace::AllocateSharedPages(Address hint, size_t size,
+                                                    PagePermissions permissions,
+                                                    SharedMemoryHandle handle,
+                                                    uint64_t offset) {
   DCHECK(IsAligned(hint, allocation_granularity()));
   DCHECK(IsAligned(size, allocation_granularity()));
   DCHECK(IsAligned(offset, allocation_granularity()));
@@ -379,9 +381,9 @@ VirtualAddressSubspace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
     PagePermissions max_page_permissions,
     std::optional<MemoryProtectionKeyId> key,
-    PlatformSharedMemoryHandle handle) {
+    std::optional<SharedMemoryHandle> handle) {
   // File backed mapping isn't supported for subspaces.
-  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
+  DCHECK(!handle.has_value());
 #if V8_HAS_PKU_SUPPORT
   // We don't allow subspaces with different keys as that could be unexpected.
   // If we ever want to support this, we should probably require specifying

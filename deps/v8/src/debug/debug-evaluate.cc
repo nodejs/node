@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-evaluate.h"
 
+#include "src/base/iterator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
@@ -249,9 +250,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       IsNativeContext(*evaluation_context_)
           ? DirectHandle<ScopeInfo>::null()
           : direct_handle(evaluation_context_->scope_info(), isolate);
-  for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
-       rit++) {
-    ContextChainElement element = *rit;
+  bool first = true;
+  for (ContextChainElement element : base::Reversed(context_chain_)) {
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
 
@@ -259,7 +259,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     // itself, we don't need (and don't have) a blocklist.
     const bool paused_scope_is_script_scope =
         scope_iterator_.Done() || scope_iterator_.InInnerScope();
-    if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
+    if (first && !paused_scope_is_script_scope) {
       // The DebugEvaluateContext we create for the closure scope is the only
       // DebugEvaluateContext with a block list. This means we'll retrieve
       // the existing block list from the paused function scope
@@ -273,6 +273,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
                                         Cast<StringSet>(block_list));
     }
+    first = false;
 
     evaluation_context_ = factory->NewDebugEvaluateContext(
         evaluation_context_, scope_info, element.materialized_object,
@@ -937,10 +938,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocaleConstructor:
     case Builtin::kLocalePrototypeBaseName:
     case Builtin::kLocalePrototypeCalendar:
-    case Builtin::kLocalePrototypeCalendars:
     case Builtin::kLocalePrototypeCaseFirst:
     case Builtin::kLocalePrototypeCollation:
-    case Builtin::kLocalePrototypeCollations:
     case Builtin::kLocalePrototypeFirstDayOfWeek:
     case Builtin::kLocalePrototypeGetCalendars:
     case Builtin::kLocalePrototypeGetCollations:
@@ -950,20 +949,15 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocalePrototypeGetTimeZones:
     case Builtin::kLocalePrototypeGetWeekInfo:
     case Builtin::kLocalePrototypeHourCycle:
-    case Builtin::kLocalePrototypeHourCycles:
     case Builtin::kLocalePrototypeLanguage:
     case Builtin::kLocalePrototypeMaximize:
     case Builtin::kLocalePrototypeMinimize:
     case Builtin::kLocalePrototypeNumeric:
     case Builtin::kLocalePrototypeNumberingSystem:
-    case Builtin::kLocalePrototypeNumberingSystems:
     case Builtin::kLocalePrototypeRegion:
     case Builtin::kLocalePrototypeScript:
-    case Builtin::kLocalePrototypeTextInfo:
-    case Builtin::kLocalePrototypeTimeZones:
     case Builtin::kLocalePrototypeToString:
     case Builtin::kLocalePrototypeVariants:
-    case Builtin::kLocalePrototypeWeekInfo:
     // Intl.NumberFormat builtins.
     case Builtin::kNumberFormatConstructor:
     case Builtin::kNumberFormatInternalFormatNumber:
@@ -1061,6 +1055,244 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDebugPrintFloat64:
     case Builtin::kDebugPrintObject:
       return DebugInfo::kHasNoSideEffect;
+
+#ifdef V8_TEMPORAL_SUPPORT
+    // Temporal Builtins
+    case Builtin::kTemporalNowInstant:
+    case Builtin::kTemporalNowTimeZoneId:
+    case Builtin::kTemporalNowPlainDateTimeISO:
+    case Builtin::kTemporalNowZonedDateTimeISO:
+    case Builtin::kTemporalNowPlainDateISO:
+    case Builtin::kTemporalNowPlainTimeISO:
+    case Builtin::kTemporalPlainDateConstructor:
+    case Builtin::kTemporalPlainDateFrom:
+    case Builtin::kTemporalPlainDateCompare:
+    case Builtin::kTemporalPlainDatePrototypeCalendarId:
+    case Builtin::kTemporalPlainDatePrototypeEra:
+    case Builtin::kTemporalPlainDatePrototypeEraYear:
+    case Builtin::kTemporalPlainDatePrototypeYear:
+    case Builtin::kTemporalPlainDatePrototypeMonth:
+    case Builtin::kTemporalPlainDatePrototypeMonthCode:
+    case Builtin::kTemporalPlainDatePrototypeDay:
+    case Builtin::kTemporalPlainDatePrototypeDayOfWeek:
+    case Builtin::kTemporalPlainDatePrototypeDayOfYear:
+    case Builtin::kTemporalPlainDatePrototypeWeekOfYear:
+    case Builtin::kTemporalPlainDatePrototypeYearOfWeek:
+    case Builtin::kTemporalPlainDatePrototypeDaysInWeek:
+    case Builtin::kTemporalPlainDatePrototypeDaysInMonth:
+    case Builtin::kTemporalPlainDatePrototypeDaysInYear:
+    case Builtin::kTemporalPlainDatePrototypeMonthsInYear:
+    case Builtin::kTemporalPlainDatePrototypeInLeapYear:
+    case Builtin::kTemporalPlainDatePrototypeToPlainYearMonth:
+    case Builtin::kTemporalPlainDatePrototypeToPlainMonthDay:
+    case Builtin::kTemporalPlainDatePrototypeAdd:
+    case Builtin::kTemporalPlainDatePrototypeSubtract:
+    case Builtin::kTemporalPlainDatePrototypeWith:
+    case Builtin::kTemporalPlainDatePrototypeWithCalendar:
+    case Builtin::kTemporalPlainDatePrototypeUntil:
+    case Builtin::kTemporalPlainDatePrototypeSince:
+    case Builtin::kTemporalPlainDatePrototypeEquals:
+    case Builtin::kTemporalPlainDatePrototypeToPlainDateTime:
+    case Builtin::kTemporalPlainDatePrototypeToZonedDateTime:
+    case Builtin::kTemporalPlainDatePrototypeToString:
+    case Builtin::kTemporalPlainDatePrototypeToLocaleString:
+    case Builtin::kTemporalPlainDatePrototypeToJSON:
+    case Builtin::kTemporalPlainDatePrototypeValueOf:
+    case Builtin::kTemporalPlainTimeConstructor:
+    case Builtin::kTemporalPlainTimeFrom:
+    case Builtin::kTemporalPlainTimeCompare:
+    case Builtin::kTemporalPlainTimePrototypeHour:
+    case Builtin::kTemporalPlainTimePrototypeMinute:
+    case Builtin::kTemporalPlainTimePrototypeSecond:
+    case Builtin::kTemporalPlainTimePrototypeMillisecond:
+    case Builtin::kTemporalPlainTimePrototypeMicrosecond:
+    case Builtin::kTemporalPlainTimePrototypeNanosecond:
+    case Builtin::kTemporalPlainTimePrototypeAdd:
+    case Builtin::kTemporalPlainTimePrototypeSubtract:
+    case Builtin::kTemporalPlainTimePrototypeWith:
+    case Builtin::kTemporalPlainTimePrototypeUntil:
+    case Builtin::kTemporalPlainTimePrototypeSince:
+    case Builtin::kTemporalPlainTimePrototypeRound:
+    case Builtin::kTemporalPlainTimePrototypeEquals:
+    case Builtin::kTemporalPlainTimePrototypeToString:
+    case Builtin::kTemporalPlainTimePrototypeToLocaleString:
+    case Builtin::kTemporalPlainTimePrototypeToJSON:
+    case Builtin::kTemporalPlainTimePrototypeValueOf:
+    case Builtin::kTemporalPlainDateTimeConstructor:
+    case Builtin::kTemporalPlainDateTimeFrom:
+    case Builtin::kTemporalPlainDateTimeCompare:
+    case Builtin::kTemporalPlainDateTimePrototypeCalendarId:
+    case Builtin::kTemporalPlainDateTimePrototypeEra:
+    case Builtin::kTemporalPlainDateTimePrototypeEraYear:
+    case Builtin::kTemporalPlainDateTimePrototypeYear:
+    case Builtin::kTemporalPlainDateTimePrototypeMonth:
+    case Builtin::kTemporalPlainDateTimePrototypeMonthCode:
+    case Builtin::kTemporalPlainDateTimePrototypeDay:
+    case Builtin::kTemporalPlainDateTimePrototypeHour:
+    case Builtin::kTemporalPlainDateTimePrototypeMinute:
+    case Builtin::kTemporalPlainDateTimePrototypeSecond:
+    case Builtin::kTemporalPlainDateTimePrototypeMillisecond:
+    case Builtin::kTemporalPlainDateTimePrototypeMicrosecond:
+    case Builtin::kTemporalPlainDateTimePrototypeNanosecond:
+    case Builtin::kTemporalPlainDateTimePrototypeDayOfWeek:
+    case Builtin::kTemporalPlainDateTimePrototypeDayOfYear:
+    case Builtin::kTemporalPlainDateTimePrototypeWeekOfYear:
+    case Builtin::kTemporalPlainDateTimePrototypeYearOfWeek:
+    case Builtin::kTemporalPlainDateTimePrototypeDaysInWeek:
+    case Builtin::kTemporalPlainDateTimePrototypeDaysInMonth:
+    case Builtin::kTemporalPlainDateTimePrototypeDaysInYear:
+    case Builtin::kTemporalPlainDateTimePrototypeMonthsInYear:
+    case Builtin::kTemporalPlainDateTimePrototypeInLeapYear:
+    case Builtin::kTemporalPlainDateTimePrototypeWith:
+    case Builtin::kTemporalPlainDateTimePrototypeWithPlainTime:
+    case Builtin::kTemporalPlainDateTimePrototypeWithCalendar:
+    case Builtin::kTemporalPlainDateTimePrototypeAdd:
+    case Builtin::kTemporalPlainDateTimePrototypeSubtract:
+    case Builtin::kTemporalPlainDateTimePrototypeUntil:
+    case Builtin::kTemporalPlainDateTimePrototypeSince:
+    case Builtin::kTemporalPlainDateTimePrototypeRound:
+    case Builtin::kTemporalPlainDateTimePrototypeEquals:
+    case Builtin::kTemporalPlainDateTimePrototypeToString:
+    case Builtin::kTemporalPlainDateTimePrototypeToJSON:
+    case Builtin::kTemporalPlainDateTimePrototypeToLocaleString:
+    case Builtin::kTemporalPlainDateTimePrototypeValueOf:
+    case Builtin::kTemporalPlainDateTimePrototypeToZonedDateTime:
+    case Builtin::kTemporalPlainDateTimePrototypeToPlainDate:
+    case Builtin::kTemporalPlainDateTimePrototypeToPlainTime:
+    case Builtin::kTemporalZonedDateTimeConstructor:
+    case Builtin::kTemporalZonedDateTimeFrom:
+    case Builtin::kTemporalZonedDateTimeCompare:
+    case Builtin::kTemporalZonedDateTimePrototypeTimeZoneId:
+    case Builtin::kTemporalZonedDateTimePrototypeCalendarId:
+    case Builtin::kTemporalZonedDateTimePrototypeEra:
+    case Builtin::kTemporalZonedDateTimePrototypeEraYear:
+    case Builtin::kTemporalZonedDateTimePrototypeYear:
+    case Builtin::kTemporalZonedDateTimePrototypeMonth:
+    case Builtin::kTemporalZonedDateTimePrototypeMonthCode:
+    case Builtin::kTemporalZonedDateTimePrototypeDay:
+    case Builtin::kTemporalZonedDateTimePrototypeHour:
+    case Builtin::kTemporalZonedDateTimePrototypeMinute:
+    case Builtin::kTemporalZonedDateTimePrototypeSecond:
+    case Builtin::kTemporalZonedDateTimePrototypeMillisecond:
+    case Builtin::kTemporalZonedDateTimePrototypeMicrosecond:
+    case Builtin::kTemporalZonedDateTimePrototypeNanosecond:
+    case Builtin::kTemporalZonedDateTimePrototypeEpochMilliseconds:
+    case Builtin::kTemporalZonedDateTimePrototypeEpochNanoseconds:
+    case Builtin::kTemporalZonedDateTimePrototypeDayOfWeek:
+    case Builtin::kTemporalZonedDateTimePrototypeDayOfYear:
+    case Builtin::kTemporalZonedDateTimePrototypeWeekOfYear:
+    case Builtin::kTemporalZonedDateTimePrototypeYearOfWeek:
+    case Builtin::kTemporalZonedDateTimePrototypeHoursInDay:
+    case Builtin::kTemporalZonedDateTimePrototypeDaysInWeek:
+    case Builtin::kTemporalZonedDateTimePrototypeDaysInMonth:
+    case Builtin::kTemporalZonedDateTimePrototypeDaysInYear:
+    case Builtin::kTemporalZonedDateTimePrototypeMonthsInYear:
+    case Builtin::kTemporalZonedDateTimePrototypeInLeapYear:
+    case Builtin::kTemporalZonedDateTimePrototypeOffsetNanoseconds:
+    case Builtin::kTemporalZonedDateTimePrototypeOffset:
+    case Builtin::kTemporalZonedDateTimePrototypeWith:
+    case Builtin::kTemporalZonedDateTimePrototypeWithPlainTime:
+    case Builtin::kTemporalZonedDateTimePrototypeWithTimeZone:
+    case Builtin::kTemporalZonedDateTimePrototypeWithCalendar:
+    case Builtin::kTemporalZonedDateTimePrototypeAdd:
+    case Builtin::kTemporalZonedDateTimePrototypeSubtract:
+    case Builtin::kTemporalZonedDateTimePrototypeUntil:
+    case Builtin::kTemporalZonedDateTimePrototypeSince:
+    case Builtin::kTemporalZonedDateTimePrototypeRound:
+    case Builtin::kTemporalZonedDateTimePrototypeEquals:
+    case Builtin::kTemporalZonedDateTimePrototypeToString:
+    case Builtin::kTemporalZonedDateTimePrototypeToJSON:
+    case Builtin::kTemporalZonedDateTimePrototypeToLocaleString:
+    case Builtin::kTemporalZonedDateTimePrototypeValueOf:
+    case Builtin::kTemporalZonedDateTimePrototypeStartOfDay:
+    case Builtin::kTemporalZonedDateTimePrototypeGetTimeZoneTransition:
+    case Builtin::kTemporalZonedDateTimePrototypeToInstant:
+    case Builtin::kTemporalZonedDateTimePrototypeToPlainDate:
+    case Builtin::kTemporalZonedDateTimePrototypeToPlainTime:
+    case Builtin::kTemporalZonedDateTimePrototypeToPlainDateTime:
+    case Builtin::kTemporalDurationConstructor:
+    case Builtin::kTemporalDurationFrom:
+    case Builtin::kTemporalDurationCompare:
+    case Builtin::kTemporalDurationPrototypeYears:
+    case Builtin::kTemporalDurationPrototypeMonths:
+    case Builtin::kTemporalDurationPrototypeWeeks:
+    case Builtin::kTemporalDurationPrototypeDays:
+    case Builtin::kTemporalDurationPrototypeHours:
+    case Builtin::kTemporalDurationPrototypeMinutes:
+    case Builtin::kTemporalDurationPrototypeSeconds:
+    case Builtin::kTemporalDurationPrototypeMilliseconds:
+    case Builtin::kTemporalDurationPrototypeMicroseconds:
+    case Builtin::kTemporalDurationPrototypeNanoseconds:
+    case Builtin::kTemporalDurationPrototypeSign:
+    case Builtin::kTemporalDurationPrototypeBlank:
+    case Builtin::kTemporalDurationPrototypeWith:
+    case Builtin::kTemporalDurationPrototypeNegated:
+    case Builtin::kTemporalDurationPrototypeAbs:
+    case Builtin::kTemporalDurationPrototypeAdd:
+    case Builtin::kTemporalDurationPrototypeSubtract:
+    case Builtin::kTemporalDurationPrototypeRound:
+    case Builtin::kTemporalDurationPrototypeTotal:
+    case Builtin::kTemporalDurationPrototypeToString:
+    case Builtin::kTemporalDurationPrototypeToJSON:
+    case Builtin::kTemporalDurationPrototypeToLocaleString:
+    case Builtin::kTemporalDurationPrototypeValueOf:
+    case Builtin::kTemporalInstantConstructor:
+    case Builtin::kTemporalInstantFrom:
+    case Builtin::kTemporalInstantFromEpochMilliseconds:
+    case Builtin::kTemporalInstantFromEpochNanoseconds:
+    case Builtin::kTemporalInstantCompare:
+    case Builtin::kTemporalInstantPrototypeEpochMilliseconds:
+    case Builtin::kTemporalInstantPrototypeEpochNanoseconds:
+    case Builtin::kTemporalInstantPrototypeAdd:
+    case Builtin::kTemporalInstantPrototypeSubtract:
+    case Builtin::kTemporalInstantPrototypeUntil:
+    case Builtin::kTemporalInstantPrototypeSince:
+    case Builtin::kTemporalInstantPrototypeRound:
+    case Builtin::kTemporalInstantPrototypeEquals:
+    case Builtin::kTemporalInstantPrototypeToString:
+    case Builtin::kTemporalInstantPrototypeToJSON:
+    case Builtin::kTemporalInstantPrototypeToLocaleString:
+    case Builtin::kTemporalInstantPrototypeValueOf:
+    case Builtin::kTemporalInstantPrototypeToZonedDateTimeISO:
+    case Builtin::kTemporalPlainYearMonthConstructor:
+    case Builtin::kTemporalPlainYearMonthFrom:
+    case Builtin::kTemporalPlainYearMonthCompare:
+    case Builtin::kTemporalPlainYearMonthPrototypeCalendarId:
+    case Builtin::kTemporalPlainYearMonthPrototypeEra:
+    case Builtin::kTemporalPlainYearMonthPrototypeEraYear:
+    case Builtin::kTemporalPlainYearMonthPrototypeYear:
+    case Builtin::kTemporalPlainYearMonthPrototypeMonth:
+    case Builtin::kTemporalPlainYearMonthPrototypeMonthCode:
+    case Builtin::kTemporalPlainYearMonthPrototypeDaysInYear:
+    case Builtin::kTemporalPlainYearMonthPrototypeDaysInMonth:
+    case Builtin::kTemporalPlainYearMonthPrototypeMonthsInYear:
+    case Builtin::kTemporalPlainYearMonthPrototypeInLeapYear:
+    case Builtin::kTemporalPlainYearMonthPrototypeWith:
+    case Builtin::kTemporalPlainYearMonthPrototypeAdd:
+    case Builtin::kTemporalPlainYearMonthPrototypeSubtract:
+    case Builtin::kTemporalPlainYearMonthPrototypeUntil:
+    case Builtin::kTemporalPlainYearMonthPrototypeSince:
+    case Builtin::kTemporalPlainYearMonthPrototypeEquals:
+    case Builtin::kTemporalPlainYearMonthPrototypeToString:
+    case Builtin::kTemporalPlainYearMonthPrototypeToJSON:
+    case Builtin::kTemporalPlainYearMonthPrototypeToLocaleString:
+    case Builtin::kTemporalPlainYearMonthPrototypeValueOf:
+    case Builtin::kTemporalPlainYearMonthPrototypeToPlainDate:
+    case Builtin::kTemporalPlainMonthDayConstructor:
+    case Builtin::kTemporalPlainMonthDayFrom:
+    case Builtin::kTemporalPlainMonthDayPrototypeCalendarId:
+    case Builtin::kTemporalPlainMonthDayPrototypeMonthCode:
+    case Builtin::kTemporalPlainMonthDayPrototypeDay:
+    case Builtin::kTemporalPlainMonthDayPrototypeWith:
+    case Builtin::kTemporalPlainMonthDayPrototypeEquals:
+    case Builtin::kTemporalPlainMonthDayPrototypeToString:
+    case Builtin::kTemporalPlainMonthDayPrototypeToJSON:
+    case Builtin::kTemporalPlainMonthDayPrototypeToLocaleString:
+    case Builtin::kTemporalPlainMonthDayPrototypeValueOf:
+    case Builtin::kTemporalPlainMonthDayPrototypeToPlainDate:
+    case Builtin::kDatePrototypeToTemporalInstant:
+      return DebugInfo::kHasNoSideEffect;
+#endif  // V8_TEMPORAL_SUPPORT
 
     default:
       if (v8_flags.trace_side_effect_free_debug_evaluate) {

@@ -41,7 +41,7 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
            TrustedHeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
-  // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
+  // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

@@ -51,7 +51,7 @@ namespace internal {
   V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
   V(f8)  V(f9)  V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) \
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
-  V(f24) V(f25) V(f26) V(f27) V(f28)
+  V(f24) V(f25) V(f26)
 
 #define C_CALL_CALLEE_SAVE_REGISTERS fp, s0, s1, s2, s3, s4, s5, s6, s7, s8
 
@@ -245,6 +245,8 @@ constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
 
 constexpr DoubleRegister kFPReturnRegister0 = f0;
+
+constexpr Register kMaglevFlagsRegister = t5;
 
 }  // namespace internal
 }  // namespace v8

@@ -35,13 +35,14 @@ class ModuleGenerationTest
 
   // The different fuzztest targets.
   void TestMVP(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
-  void TestSimd(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
+  void TestSimd(int tier_mask, int debug_mask, const std::vector<uint8_t>&,
+                bool allow_avx);
   void TestGC(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
   void TestAll(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
 
  private:
   void Test(WasmModuleGenerationOptions options, int tier_mask, int debug_mask,
-            const std::vector<uint8_t>&);
+            const std::vector<uint8_t>&, bool allow_avx);
 
   AccountingAllocator allocator_;
   Zone zone_;
@@ -49,27 +50,36 @@ class ModuleGenerationTest
 
 void ModuleGenerationTest::TestMVP(int tier_mask, int debug_mask,
                                    const std::vector<uint8_t>& input) {
-  Test(WasmModuleGenerationOptions::MVP(), tier_mask, debug_mask, input);
+  Test(WasmModuleGenerationOptions::MVP(), tier_mask, debug_mask, input, true);
 }
 
 void ModuleGenerationTest::TestSimd(int tier_mask, int debug_mask,
-                                    const std::vector<uint8_t>& input) {
-  Test(WasmModuleGenerationOptions::Simd(), tier_mask, debug_mask, input);
+                                    const std::vector<uint8_t>& input,
+                                    bool allow_avx) {
+  Test(WasmModuleGenerationOptions::Simd(), tier_mask, debug_mask, input,
+       allow_avx);
 }
 
 void ModuleGenerationTest::TestGC(int tier_mask, int debug_mask,
                                   const std::vector<uint8_t>& input) {
-  Test(WasmModuleGenerationOptions::WasmGC(), tier_mask, debug_mask, input);
+  Test(WasmModuleGenerationOptions::WasmGC(), tier_mask, debug_mask, input,
+       true);
 }
 
 void ModuleGenerationTest::TestAll(int tier_mask, int debug_mask,
                                    const std::vector<uint8_t>& input) {
-  Test(WasmModuleGenerationOptions::All(), tier_mask, debug_mask, input);
+  Test(WasmModuleGenerationOptions::All(), tier_mask, debug_mask, input, true);
 }
 
 void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
                                 int tier_mask, int debug_mask,
-                                const std::vector<uint8_t>& input) {
+                                const std::vector<uint8_t>& input,
+                                bool allow_avx) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  bool disable_avx = !allow_avx && CpuFeatures::IsSupported(AVX);
+  if (disable_avx) CpuFeatures::SetUnsupported(AVX);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
   // Set the tier mask to deterministically test a combination of Liftoff and
   // Turbofan.
   FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
@@ -88,6 +98,10 @@ void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
       GenerateRandomWasmModule(&zone_, options, base::VectorOf(input));
   constexpr bool kRequireValid = true;
   SyncCompileAndExecuteAgainstReference(isolate(), wire_bytes, kRequireValid);
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  if (disable_avx) CpuFeatures::SetSupported(AVX);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 }
 
 inline auto tier_mask_domain() { return fuzztest::Arbitrary<int>(); }
@@ -98,11 +112,27 @@ inline auto wire_bytes_domain() {
       .WithMaxSize(512);
 }
 
+std::vector<std::tuple<int, int, std::vector<uint8_t>, bool>> SimdSeeds() {
+  auto VectorFromCstr = []<size_t N>(const char (&str)[N]) {
+    return std::vector<uint8_t>{std::begin(str), std::end(str) - 1};
+  };
+  // Regression test for https://crbug.com/469286969.
+  std::tuple<int, int, std::vector<uint8_t>, bool> regress_469286969{
+      1, 0,
+      VectorFromCstr("F\250\250\250\250\250\250\250\350\250\341\250\037\037\037"
+                     "\347\203\347\347\347\347\347\347\347\347\347\347\347\347"
+                     "\250N\037\037u\037\037\250\250\276\276\276\276\250"),
+      false};
+  return {regress_469286969};
+}
+
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestAll)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
 
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestSimd)
-    .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
+    .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain(),
+                 fuzztest::Arbitrary<bool>())
+    .WithSeeds(SimdSeeds());
 
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestGC)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());

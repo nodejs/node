@@ -352,6 +352,8 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<JSAny> object,
       DirectHandle<JSAny> callable);
 
+  static MaybeHandle<Object> InstantiateIfLazyClosure(
+      LookupIterator* it, DirectHandle<Object> value);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   GetProperty(LookupIterator* it, bool is_global_reference = false);
 
@@ -387,7 +389,7 @@ class Object : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, DirectHandle<JSAny> receiver, DirectHandle<Object> name,
-      DirectHandle<Object> value, Maybe<ShouldThrow> should_throw);
+      Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw);
@@ -712,10 +714,6 @@ IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
 
-// Predicate for IsAnyHole which can be used on any object type -- the standard
-// IsAnyHole check cannot be used for Code space objects.
-V8_INLINE bool SafeIsAnyHole(Tagged<Object> obj);
-
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
@@ -915,6 +913,8 @@ class Relocatable {
   static void Iterate(Isolate* isolate, RootVisitor* v);
   static void Iterate(RootVisitor* v, Relocatable* top);
   static char* Iterate(RootVisitor* v, char* t);
+
+  Isolate* isolate() const { return isolate_; }
 
  private:
   Isolate* isolate_;

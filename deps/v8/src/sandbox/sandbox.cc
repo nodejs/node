@@ -264,7 +264,9 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   // mitigates Smi<->HeapObject confusion bugs in which we end up treating a
   // Smi value as a pointer.
   if (!first_four_gb_of_address_space_are_reserved_) {
-    Address end = 4UL * GB;
+    // Make the guard region extend a little past the first 4GB to also catch
+    // accesses with an offset into a negative Smi (e.g. [0xfffffffe + offset]).
+    Address end = 4UL * GB + 1 * MB;
     size_t step = address_space_->allocation_granularity();
     for (Address start = 0; start <= 1 * MB; start += step) {
       if (vas->AllocateGuardRegion(start, end - start)) {

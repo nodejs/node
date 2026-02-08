@@ -12,7 +12,6 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-entity-table.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -352,6 +351,5 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_LEAPTIERING
 
 #endif  // V8_SANDBOX_JS_DISPATCH_TABLE_H_

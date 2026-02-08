@@ -335,7 +335,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   for (int i = 0; i < keys->length(); ++i) {
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
-    CHECK(key->is_private_name());
+    CHECK(key->is_any_private_name());
     i::DirectHandle<i::Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, value, i::Object::GetProperty(isolate, receiver, key), false);
@@ -1171,7 +1171,7 @@ void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
 ConsoleCallArguments::ConsoleCallArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info)
     : isolate_(info.GetIsolate()),
-      values_(info.values_),
+      values_(info.address_of_first_argument()),
       length_(info.Length()) {}
 
 ConsoleCallArguments::ConsoleCallArguments(
@@ -1462,7 +1462,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::DirectHandle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
-  if (IsAnyHole(*maybeMessage)) return MaybeLocal<Message>();
   if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(i::Cast<i::JSMessageObject>(maybeMessage));
 }

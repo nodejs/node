@@ -215,7 +215,7 @@ class V8_NODISCARD V8_ALLOW_UNUSED ExitSandboxScope {
 // These scopes can be arbitrarily nested and can be allocated both on the
 // stack and on the heap. Sandbox access will be disallowed as long as at least
 // one scope remains active.
-class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
+class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
   DisallowSandboxAccess();
@@ -238,7 +238,7 @@ class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
 // nested and should only be used sparingly and for short durations. It is also
 // currently not possible to have have another DisallowSandboxAccess inside an
 // AllowSandboxAccess scope, although that could be implemented if needed.
-class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
+class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
   AllowSandboxAccess();

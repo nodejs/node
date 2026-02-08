@@ -42,6 +42,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-result-vector.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/sandbox/testing.h"
 #include "src/strings/string-search.h"
 #include "src/strings/unicode-inl.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -214,10 +215,6 @@ constexpr struct alignas(16) {
 
 // Implementation of ExternalReference
 
-bool ExternalReference::IsIsolateFieldId() const {
-  return (raw_ > 0 && raw_ <= static_cast<Address>(kNumIsolateFieldIds));
-}
-
 Address ExternalReference::address() const {
   // If this CHECK triggers, then an ExternalReference gets created with an
   // IsolateFieldId where the root register is not available, and therefore
@@ -229,8 +226,7 @@ Address ExternalReference::address() const {
 
 int32_t ExternalReference::offset_from_root_register() const {
   CHECK(IsIsolateFieldId());
-  return static_cast<int32_t>(
-      IsolateData::GetOffset(static_cast<IsolateFieldId>(raw_)));
+  return IsolateData::GetOffset(GetIsolateFieldId());
 }
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -281,10 +277,6 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 
 ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
-}
-
-ExternalReference ExternalReference::jslimit_address() {
-  return ExternalReference(IsolateFieldId::kJsLimitAddress);
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
@@ -368,15 +360,11 @@ ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 ExternalReference ExternalReference::js_dispatch_table_address() {
   // TODO(saelo): maybe rename to js_dispatch_table_base_address?
   return ExternalReference(
       IsolateGroup::current()->js_dispatch_table()->base_address());
 }
-
-#endif  // V8_ENABLE_LEAPTIERING
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -409,9 +397,9 @@ ExternalReference ExternalReference::Create(StatsCounter* counter) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateAddressId id,
+ExternalReference ExternalReference::Create(IsolateFieldId id,
                                             Isolate* isolate) {
-  return ExternalReference(isolate->get_address_from_id(id));
+  return ExternalReference(isolate->isolate_data()->GetAddress(id));
 }
 
 // static
@@ -868,6 +856,9 @@ ExternalReference ExternalReference::address_of_pending_message(
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
 
+FUNCTION_REFERENCE(abort_with_sandbox_violation,
+                   i::abort_with_sandbox_violation)
+
 ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
@@ -1134,8 +1125,7 @@ FUNCTION_REFERENCE(re_is_character_in_range_array,
                    RegExpMacroAssembler::IsCharacterInRangeArray)
 
 ExternalReference ExternalReference::re_word_character_map() {
-  return ExternalReference(
-      NativeRegExpMacroAssembler::word_character_map_address());
+  return ExternalReference(RegExpMacroAssembler::word_character_map_address());
 }
 
 ExternalReference
@@ -1601,13 +1591,6 @@ ExternalReference::search_string_raw<const base::uc16, const uint8_t>();
 template ExternalReference
 ExternalReference::search_string_raw<const base::uc16, const base::uc16>();
 
-ExternalReference ExternalReference::FromRawAddress(Address address) {
-  if (address <= static_cast<Address>(kNumIsolateFieldIds)) {
-    return ExternalReference(static_cast<IsolateFieldId>(address));
-  }
-  return ExternalReference(address);
-}
-
 ExternalReference ExternalReference::cpu_features() {
   DCHECK(CpuFeatures::initialized_);
   return ExternalReference(&CpuFeatures::supported_);
@@ -1930,15 +1913,15 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(CamelName, name)        \
-  case IsolateFieldId::k##CamelName: \
-    return #name;
-    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
-#undef CASE
-#define CASE(camel, size, name)  \
-  case IsolateFieldId::k##camel: \
-    return #name;
+#define CASE(CamelName, Size, hacker_name) \
+  case IsolateFieldId::k##CamelName:       \
+    return #hacker_name;
     ISOLATE_DATA_FIELDS(CASE)
+#undef CASE
+#define CASE(CamelName, hacker_name, ...) \
+  case IsolateFieldId::k##CamelName:      \
+    return #hacker_name;
+    ISOLATE_DATA_SUBFIELDS(CASE)
 #undef CASE
     default:
       return "unknown";
@@ -1949,9 +1932,7 @@ static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   os << reinterpret_cast<const void*>(reference.raw());
   if (reference.IsIsolateFieldId()) {
-    os << " <"
-       << GetNameOfIsolateFieldId(static_cast<IsolateFieldId>(reference.raw()))
-       << ">";
+    os << " <" << GetNameOfIsolateFieldId(reference.GetIsolateFieldId()) << ">";
   } else {
     const Runtime::Function* fn =
         Runtime::FunctionForEntry(reference.address());
@@ -1967,6 +1948,22 @@ void abort_with_reason(int reason) {
   } else {
     base::OS::PrintError("abort: <unknown reason: %d>\n", reason);
   }
+  base::OS::Abort();
+  UNREACHABLE();
+}
+
+void abort_with_sandbox_violation() {
+  base::OS::PrintError("\n## V8 sandbox violation detected!\n\n");
+#ifdef V8_ENABLE_SANDBOX
+  // We're reporting a sandbox violation so we must disable the sandbox crash
+  // filter here (if it is enabled). Otherwise it will treat this crash as a
+  // controlled/harmless crash and filter it.
+  SandboxTesting::Disable();
+#endif  // V8_ENABLE_SANDBOX
+  // We must also update the abort mode so that OS::Abort() crashes. Otherwise
+  // it would do a normal exit if sandbox testing/fuzzing mode is enabled.
+  base::g_abort_mode = base::AbortMode::kDefault;
+
   base::OS::Abort();
   UNREACHABLE();
 }

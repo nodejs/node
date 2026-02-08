@@ -422,7 +422,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
          << ")";
       break;
     case JS_DISPATCH_HANDLE: {
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle handle = js_dispatch_handle();
       if (handle != kNullJSDispatchHandle) {
         Tagged<Code> target_code =
@@ -435,9 +434,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
       }
 
     break;
-#else
-    UNREACHABLE();
-#endif
     }
     default:
       if (IsCodeTargetMode(rmode_)) {
@@ -500,7 +496,6 @@ void RelocInfo::Verify(Isolate* isolate) {
       break;
     }
     case JS_DISPATCH_HANDLE: {
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchTable::Space* space =
           isolate->heap()->js_dispatch_table_space();
       JSDispatchTable::Space* ro_space =
@@ -508,9 +503,6 @@ void RelocInfo::Verify(Isolate* isolate) {
       IsolateGroup::current()->js_dispatch_table()->VerifyEntry(
           js_dispatch_handle(), space, ro_space);
       break;
-#else
-      UNREACHABLE();
-#endif
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();

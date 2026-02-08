@@ -13,6 +13,7 @@
 #include "src/base/iterator.h"
 #include "src/common/assert-scope.h"
 #include "src/common/segmented-table-inl.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -419,6 +420,27 @@ void ExternalEntityTable<Entry, size>::IterateEntriesIn(Space* space,
     }
   }
 }
+
+#ifdef OBJECT_PRINT
+
+template <typename Entry, size_t size>
+template <typename EntryCallback>
+void ExternalEntityTable<Entry, size>::Print(
+    Space* space, const char* space_name, uint32_t lower, uint32_t upper,
+    EntryCallback entry_callback) const {
+  TableEntryPrinter<Entry>::PrintHeader(space_name);
+  for (auto& segment : space->segments_) {
+    for (uint32_t i = segment.first_entry(); i <= segment.last_entry(); i++) {
+      if ((i < lower) || (i >= upper)) {
+        continue;
+      }
+      TableEntryPrinter<Entry>::PrintIfInUse(i, this->at(i), entry_callback);
+    }
+  }
+  TableEntryPrinter<Entry>::PrintFooter();
+}
+
+#endif
 
 }  // namespace internal
 }  // namespace v8

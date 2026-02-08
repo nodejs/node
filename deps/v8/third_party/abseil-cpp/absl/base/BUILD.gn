@@ -38,9 +38,7 @@ absl_source_set("no_destructor") {
 
 absl_source_set("nullability") {
   public = [ "nullability.h" ]
-  deps = [
-    ":config",
-  ]
+  deps = [ ":config" ]
 }
 
 absl_source_set("nullability_traits_internal") {
@@ -327,6 +325,7 @@ absl_test("poison_test") {
 
 absl_source_set("iterator_traits_internal") {
   public = [ "internal/iterator_traits.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
     "//third_party/abseil-cpp/absl/meta:type_traits",
@@ -397,9 +396,7 @@ absl_test("no_destructor_test") {
 
 absl_test("nullability_test") {
   sources = [ "nullability_test.cc" ]
-  deps = [
-    ":nullability",
-  ]
+  deps = [ ":nullability" ]
 }
 
 absl_test("nullability_default_nonnull_test") {

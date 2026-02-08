@@ -2173,7 +2173,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
     // SHRD (double-precision shift)
     AppendToBuffer("%s ", mnemonic);
     current += PrintRightOperand(current);
-    if (opcode == 0xAB) {
+    if (opcode == 0xAB || opcode == 0xA3) {
+      // bt and bts don't use the cl register.
       AppendToBuffer(",%s", NameOfCPURegister(regop));
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));

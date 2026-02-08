@@ -182,6 +182,15 @@ Print the current JavaScript stack trace
 Usage: jst
 end
 
+# Print JavaScript stack trace in concise format
+define jstc
+call (void) _v8_internal_Print_StackTraceConcise()
+end
+document jstc
+Print the current JavaScript stack trace in concise format
+Usage: jstc
+end
+
 # Print TurboFan graph node.
 define pn
 call _v8_internal_Node_Print((void*)($arg0))

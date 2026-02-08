@@ -11,7 +11,7 @@ specific_include_rules = {
     "+src/regexp/regexp-macro-assembler-arch.h",
   ],
   "turboshaft-builtins-assembler-inl.h": [
-    "+src/compiler/turboshaft",
+    "+src/compiler",
   ]
 }
 

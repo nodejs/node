@@ -16,14 +16,17 @@
 #include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
+#ifdef V8_DUMPLING
+#include "src/dumpling/dumpling-manager.h"
+#endif
 #include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
 
-#ifdef V8_TRACE_UNOPTIMIZED
-
 namespace {
+
+#if defined(V8_TRACE_UNOPTIMIZED) || defined(V8_DUMPLING)
 
 void AdvanceToOffsetForTracing(
     interpreter::BytecodeArrayIterator& bytecode_iterator, int offset) {
@@ -37,6 +40,10 @@ void AdvanceToOffsetForTracing(
           bytecode_iterator.current_operand_scale() >
               interpreter::OperandScale::kSingle));
 }
+
+#endif  // V8_TRACE_UNOPTIMIZED || V8_DUMPLING
+
+#ifdef V8_TRACE_UNOPTIMIZED
 
 void PrintRegisterRange(UnoptimizedJSFrame* frame, std::ostream& os,
                         interpreter::BytecodeArrayIterator& bytecode_iterator,
@@ -103,7 +110,11 @@ void PrintRegisters(UnoptimizedJSFrame* frame, std::ostream& os, bool is_input,
   }
 }
 
+#endif  // V8_TRACE_UNOPTIMIZED
+
 }  // namespace
+
+#ifdef V8_TRACE_UNOPTIMIZED
 
 RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   if (!v8_flags.trace_ignition && !v8_flags.trace_baseline_exec) {
@@ -134,9 +145,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     StdoutStream os;
 
     // Print bytecode.
-    const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
-        bytecode_array->GetFirstBytecodeAddress());
-    const uint8_t* bytecode_address = base_address + offset;
+    const uint8_t* bytecode_address = bytecode_iterator.current_address();
 
     if (frame->is_baseline()) {
       os << "B-> ";
@@ -145,7 +154,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     }
     os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
        << offset << " : ";
-    interpreter::BytecodeDecoder::Decode(os, bytecode_address);
+    bytecode_iterator.PrintCurrentBytecodeTo(os);
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(frame, os, true, bytecode_iterator, accumulator);
@@ -195,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-#endif
+#endif  // V8_TRACE_UNOPTIMIZED
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 
@@ -216,7 +225,56 @@ RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-#endif
+#endif  // V8_TRACE_FEEDBACK_UPDATES
+
+#ifdef V8_DUMPLING
+
+RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
+  if (!isolate->dumpling_manager()->IsDumpingEnabled()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  DCHECK_EQ(3, args.length());
+
+  SealHandleScope shs(isolate);
+
+  DisallowGarbageCollection no_gc;
+
+  JavaScriptStackFrameIterator frame_iterator(isolate);
+  UnoptimizedJSFrame* frame =
+      reinterpret_cast<UnoptimizedJSFrame*>(frame_iterator.frame());
+
+  Tagged<JSFunction> function = frame->function();
+  bool is_sparkplug = frame->is_baseline();
+  bool is_interpreter = !is_sparkplug;
+
+  if ((is_sparkplug && !v8_flags.sparkplug_dumping) ||
+      (is_interpreter && !v8_flags.interpreter_dumping)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
+  int bytecode_offset = args.smi_value_at(1);
+
+  Handle<Object> accumulator = args.at(2);
+
+  int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
+  interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
+  AdvanceToOffsetForTracing(bytecode_iterator, offset);
+
+  if (offset == bytecode_iterator.current_offset()) {
+    int function_local_bytecode_offset = bytecode_iterator.current_offset();
+    DCHECK_GE(function_local_bytecode_offset, 0);
+    DumpFrameType frame_dump_type =
+        is_sparkplug ? kSparkplugFrame : kInterpreterFrame;
+    isolate->dumpling_manager()->DoPrint(
+        frame, function, function_local_bytecode_offset, frame_dump_type,
+        bytecode_array, accumulator);
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+#endif  //  V8_DUMPLING
 
 }  // namespace internal
 }  // namespace v8

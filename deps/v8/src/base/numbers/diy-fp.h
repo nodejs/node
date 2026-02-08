@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "absl/numeric/int128.h"
 #include "src/base/logging.h"
 
 namespace v8 {
@@ -44,22 +45,16 @@ class DiyFp {
   }
 
   // this = this * other.
-  V8_BASE_EXPORT void Multiply(const DiyFp& other);
+  V8_BASE_EXPORT void Multiply(const DiyFp& other) {
+    *this = Times(*this, other);
+  }
 
   // returns a * b;
   static DiyFp Times(const DiyFp& a, const DiyFp& b) {
-#ifdef __SIZEOF_INT128__
-    // If we have compiler-assisted 64x64 -> 128 muls (e.g. x86-64 and
-    // aarch64), we can use that for a faster, inlined implementation.
-    // This rounds the same way as Multiply().
-    uint64_t hi = (a.f_ * static_cast<unsigned __int128>(b.f_)) >> 64;
-    uint64_t lo = (a.f_ * static_cast<unsigned __int128>(b.f_));
+    absl::uint128 mul = a.f_ * absl::uint128(b.f_);
+    uint64_t hi = absl::Uint128High64(mul);
+    uint64_t lo = absl::Uint128Low64(mul);
     return {hi + (lo >> 63), a.e_ + b.e_ + 64};
-#else
-    DiyFp result = a;
-    result.Multiply(b);
-    return result;
-#endif
   }
 
   void Normalize() {

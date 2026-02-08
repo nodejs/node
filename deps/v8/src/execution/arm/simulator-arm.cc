@@ -161,8 +161,7 @@ namespace {
 void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
                                    Heap* heap) {
   CodePageMemoryModificationScopeForDebugging scope(
-      MemoryChunkMetadata::FromAddress(heap->isolate(),
-                                       reinterpret_cast<Address>(instr)));
+      BasePage::FromAddress(heap->isolate(), reinterpret_cast<Address>(instr)));
   instr->SetInstructionBits(value);
 }
 }  // namespace

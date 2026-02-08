@@ -460,7 +460,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 };
 #define EXIT_FRAME_PUSHED_VALUE_OFFSET(x) \
   FRAME_PUSHED_VALUE_OFFSET(ExitFrameConstants, x)
-#define DEFINE_EXIT_FRAME_SIZES(x) DEFINE_FRAME_SIZES(ExitFrameConstants, x);
+#define DEFINE_EXIT_FRAME_SIZES(x) DEFINE_FRAME_SIZES(ExitFrameConstants, x)
 
 // Behaves like an exit frame but with extra arguments (target, new target and
 // JS arguments count), followed by JS arguments passed to the JS function
@@ -508,9 +508,15 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kNewTargetIndex = 0;
   static constexpr int kTargetIndex = 1;
   static constexpr int kArgcIndex = 2;
-  // TODO(ishell): this padding is required only on Arm64.
-  static constexpr int kPaddingIndex = 3;
+
+  // This padding is required only on arm64 to keep the SP 16-byte aligned.
+  static constexpr int kOptionalPaddingIndex = 3;
+#if V8_TARGET_ARCH_ARM64
   static constexpr int kNumExtraArgs = 4;
+#else
+  static constexpr int kNumExtraArgs = 3;
+#endif  // V8_TARGET_ARCH_ARM64
+
   static constexpr int kNumExtraArgsWithReceiver = kNumExtraArgs + 1;
 
   // BuiltinArguments' arguments_ array.
@@ -547,8 +553,8 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
 //  -k   |   FCI slot k-1  |                            ^
 //       |- - - - - - - - -|                            |
 //  -k+1 |   FCI slot k-2  |                 v8::FunctionCallbackInfo's
-//  ...  |       ...       |                   FCI::implicit_args[k]
-//  -2   |   FCI slot 1    |                   k := FCI::kArgsLength
+//  ...  |       ...       |                    Api arguments block
+//  -2   |   FCI slot 1    |                  k := FCI::kApiArgsLength
 //       |- - - - - - - - -|                            |
 //  -1   |   FCI slot 0    |                            v
 //  -----+-----------------+--------------------------------
@@ -562,63 +568,105 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
 //       |- - - - - - - - -|   |    is used, cp = 1,    |
 // 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
 //       |-----------------+----                        |
-// 4+cp  | FCI::argc_      |   ^                      Callee
+// 4+cp  | FCI::kArgcIndex |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
-// 5+cp  | FCI::values_    |   |                   (slot >= 0)
-//       |- - - - - - - - -|   |                        |
-// 6+cp  | FCI::imp._args_ | Frame slots                |
-//       |- - - - - - - - -|   |                        |
-//  ...  | C function args |   |                        |
+//  ...  | C function args | Frame slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
 //       |                 |   v                        |
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class ApiCallbackExitFrameConstants : public ExitFrameConstants {
  public:
-  // The following constants must be in sync with v8::FunctionCallbackInfo's
-  // layout. This is guaraneed by static_asserts elsewhere.
-  static constexpr int kFunctionCallbackInfoContextIndex = 2;
-  static constexpr int kFunctionCallbackInfoReturnValueIndex = 3;
-  static constexpr int kFunctionCallbackInfoTargetIndex = 4;
-  static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
-  static constexpr int kFunctionCallbackInfoArgsLength = 6;
-
   // FP-relative.
-  // v8::FunctionCallbackInfo struct (implicit_args_, args_, argc_) is pushed
-  // on top of the ExitFrame.
-  static constexpr int kFCIArgcOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kFCIValuesOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kFCIImplicitArgsOffset =
-      EXIT_FRAME_PUSHED_VALUE_OFFSET(2);
 
-  DEFINE_EXIT_FRAME_SIZES(3)
+  // Offset of v8::FunctionCallbackInfo<T>::kArgcIndex slot.
+  static constexpr int kFCIArgcOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  DEFINE_EXIT_FRAME_SIZES(1);
+
+  // Make sure there's no gap between ExitFrame and kArgcIndex slot.
   static_assert(kSPOffset - kSystemPointerSize == kFCIArgcOffset);
 
-  // v8::FunctionCallbackInfo's struct allocated right below the exit frame.
-  static constexpr int kFunctionCallbackInfoOffset = kFCIImplicitArgsOffset;
+  // v8::FunctionCallbackInfo object starts at argc slot which must be
+  // right below the ExitFrame.
+  static constexpr int kFunctionCallbackInfoOffset = kFCIArgcOffset;
 
-  // v8::FunctionCallbackInfo's implicit_args array.
-  static constexpr int kImplicitArgsArrayOffset = kFixedFrameSizeAboveFp;
-  static constexpr int kTargetOffset =
-      kImplicitArgsArrayOffset +
-      kFunctionCallbackInfoTargetIndex * kSystemPointerSize;
-  static constexpr int kNewTargetOffset =
-      kImplicitArgsArrayOffset +
-      kFunctionCallbackInfoNewTargetIndex * kSystemPointerSize;
-  static constexpr int kContextOffset =
-      kImplicitArgsArrayOffset +
-      kFunctionCallbackInfoContextIndex * kSystemPointerSize;
+  // v8::FunctionCallbackInfo's Api arguments.
+  static constexpr int kApiArgsArrayOffset = kFixedFrameSizeAboveFp;
+  static constexpr int kFunctionCallbackInfoApiArgsLength = 4;
+
+  // The following constants must be in sync with v8::FunctionCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
   static constexpr int kReturnValueOffset =
-      kImplicitArgsArrayOffset +
-      kFunctionCallbackInfoReturnValueIndex * kSystemPointerSize;
+      kApiArgsArrayOffset + 1 * kSystemPointerSize;
+  static constexpr int kContextOffset =
+      kApiArgsArrayOffset + 2 * kSystemPointerSize;
+  static constexpr int kTargetOffset =
+      kApiArgsArrayOffset + 3 * kSystemPointerSize;
 
   // JS arguments.
   static constexpr int kReceiverOffset =
-      kImplicitArgsArrayOffset +
-      kFunctionCallbackInfoArgsLength * kSystemPointerSize;
+      kApiArgsArrayOffset + 4 * kSystemPointerSize;
 
-  static constexpr int kFirstArgumentOffset =
+  static constexpr int kFirstJSArgumentOffset =
       kReceiverOffset + kSystemPointerSize;
+};
+
+// This frame has almost the same layout as ApiCallbackExitFrameConstants with
+// the only difference that this frame also has a "new.target" slot located
+// in the frame.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+// -n-1-k|   parameter n   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n-k |  parameter n-1  |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2-k |   parameter 1   |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1-k |    receiver     |                            v
+//  -----+-----------------+--------------------------------
+//  -k   |   FCI slot ...  |                            ^
+//       |- - - - - - - - -|                            |
+//  -k+1 |   FCI slot ...  |                 v8::FunctionCallbackInfo's
+//  ...  |       ...       |                    Api arguments block
+//  -2   |   FCI slot ...  |                  k := FCI::kApiArgsLength
+//       |- - - - - - - - -|                            |
+//  -1   |   FCI slot ...  |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | ExitFrame                  |
+//       |- - - - - - - - -| Header     <-- frame ptr   |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
+//       |-----------------+----                        |
+// 4+cp  | FCI::kArgcIndex |   ^                        |
+//       |- - - - - - - - -|   |        <-- FCI object  |
+// 5+cp  | FCI::kNewTarget |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 6+cp  | padding (arm64) | Frame slots              Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  | C function args |   |                   (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class ApiConstructExitFrameConstants : public ApiCallbackExitFrameConstants {
+ public:
+  // FP-relative.
+  // Offset of v8::FunctionCallbackInfo<T>::kNewTargetIndex slot.
+  static constexpr int kFCINewTargetOffset =
+      FRAME_PUSHED_VALUE_OFFSET(ApiCallbackExitFrameConstants, 0);
+
+  DEFINE_FRAME_SIZES(ApiCallbackExitFrameConstants, 1);
+
+  // Make sure there's no gap between ApiCallbackExitFrame and kNewTargetIndex
+  // slot.
+  static_assert(kFCIArgcOffset - kSystemPointerSize == kFCINewTargetOffset);
 };
 
 // Behaves like an exit frame but with v8::PropertyCallbackInfo's (PCI)
@@ -635,14 +683,14 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
 //       |- - - - - - - - -|                            |
 //  -1-k |   parameter 0   |                            v
 //  -----+-----------------+--------------------------------
-//  -k   |   PCI slot k-1  |                            ^
+//  -k   |   PCI slot ...  |                            ^
 //       |- - - - - - - - -|                            |
-//  -k+1 |   PCI slot k-2  |                 v8::PropertyCallbackInfo's
+//  -k+1 |   PCI slot ...  |                 v8::PropertyCallbackInfo's
 //  ...  |       ...       |                       PCI::args[k]
-//  -2   |   PCI slot 1    |                   k := PCI::kArgsLength
+//  -2   |   PCI slot ...  |                  k := PCI::kApiArgsLength
 //       |- - - - - - - - -|                            |
-//  -1   |   PCI slot 0    |                            v
-//  -----+-----------------+--------------------------------   <-- PCI object
+//  -1   |   PCI slot ...  |                            v
+//  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |
 //   1   | saved frame ptr | ExitFrame                  |
@@ -653,10 +701,11 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
 //       |- - - - - - - - -|   |    is used, cp = 1,    |
 // 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
 //       |-----------------+----                        |
-// 4+cp  |                 |   ^                      Callee
+// 4+cp  | PCI::kPKeyIndex |   ^                        |
+//       |- - - - - - - - -|   |        <-- PCI object  |
+//  ...  | C function args | Frame slots              Callee
 //       |- - - - - - - - -|   |                   frame slots
-//  ...  | C function args | Frame slots           (slot >= 0)
-//       |- - - - - - - - -|   |                        |
+//       |                 |   |                   (slot >= 0)
 //       |                 |   v                        |
 //  -----+-----------------+----- <-- stack ptr -------------
 //
@@ -664,19 +713,38 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
  public:
   // The following constants must be in sync with v8::PropertyCallbackInfo's
   // layout. This is guaraneed by static_asserts elsewhere.
-  static constexpr int kPropertyCallbackInfoPropertyKeyIndex = 0;
-  static constexpr int kPropertyCallbackInfoHolderIndex = 2;
-  static constexpr int kPropertyCallbackInfoReturnValueIndex = 5;
-  static constexpr int kPropertyCallbackInfoReceiverIndex = 7;
-  static constexpr int kPropertyCallbackInfoArgsLength = 8;
+  static constexpr int kPropertyCallbackInfoReturnValueIndex = 1;
+#if V8_TARGET_ARCH_ARM64
+  // This padding is required only on arm64 to keep the SP 16-byte aligned.
+  static constexpr int kPaddingSize = 1;
+#else
+  static constexpr int kPaddingSize = 0;
+#endif  // V8_TARGET_ARCH_ARM64
+  static constexpr int kPropertyCallbackInfoHolderIndex = 3 + kPaddingSize;
+  static constexpr int kPropertyCallbackInfoReceiverIndex = 4 + kPaddingSize;
 
+  // The number of Api arguments pushed on top of PC for getter/setter
+  // callbacks.
+  static constexpr int kPropertyCallbackInfoGetterApiArgsLength =
+      5 + kPaddingSize;
+  static constexpr int kPropertyCallbackInfoSetterApiArgsLength =
+      7 + kPaddingSize;
   // FP-relative.
 
-  // v8::PropertyCallbackInfo's args array.
+  // Offset of v8::PropertyCallbackInfo<T>::kPropertyKeyIndex slot.
+  static constexpr int kPropertyKeyOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  DEFINE_EXIT_FRAME_SIZES(1);
+
+  // Make sure there's no gap between ExitFrame and kPropertyKeyOffset slot.
+  static_assert(kSPOffset - kSystemPointerSize == kPropertyKeyOffset);
+
+  // v8::PropertyCallbackInfo object starts at property key slot which must be
+  // right below the ExitFrame.
+  static constexpr int kPropertyCallbackInfoOffset = kPropertyKeyOffset;
+
+  // v8::PropertyCallbackInfo's Api arguments (mandatory + optional).
   static constexpr int kArgsArrayOffset = kFixedFrameSizeAboveFp;
-  static constexpr int kPropertyNameOffset =
-      kArgsArrayOffset +
-      kPropertyCallbackInfoPropertyKeyIndex * kSystemPointerSize;
   static constexpr int kReturnValueOffset =
       kArgsArrayOffset +
       kPropertyCallbackInfoReturnValueIndex * kSystemPointerSize;
@@ -685,9 +753,6 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
       kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
   static constexpr int kHolderOffset =
       kArgsArrayOffset + kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
-
-  // v8::PropertyCallbackInfo's address is equal to address of the args_ array.
-  static constexpr int kPropertyCallbackInfoOffset = kArgsArrayOffset;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

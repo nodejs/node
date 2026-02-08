@@ -52,8 +52,13 @@ struct TrustedPointerTableEntry {
   // Returns true if this entry contains a pointer with the given tag.
   inline bool HasPointer(IndirectPointerTag tag) const;
 
-  // Overwrites the existing type tag. Be careful.
-  inline void OverwriteTag(IndirectPointerTag tag);
+  // Unpublish this entry by setting its tag to kUnpublishedIndirectPointerTag.
+  // This way, the entry (and the object referenced by it) will not be
+  // accessible from within the sandbox.
+  inline void Unpublish();
+
+  // Publish a currently unpublished entry by setting its tag to the given one.
+  inline void Publish(IndirectPointerTag tag);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -78,6 +83,9 @@ struct TrustedPointerTableEntry {
  private:
   friend class TrustedPointerTable;
 
+  // Read the pointer without checking the tag. Use with care!
+  inline Address GetPointerUnchecked() const;
+
   // TrustedPointerTable entries consist of a single pointer-sized word
   // containing a tag and marking bit together with the actual pointer.
   struct TrustedPointerTaggingScheme {
@@ -89,7 +97,7 @@ struct TrustedPointerTableEntry {
     static constexpr bool kSupportsZapping = false;
   };
 
-  struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {
+  struct Payload : TaggedPayloadDeprecated<TrustedPointerTaggingScheme> {
     static Payload ForTrustedPointerEntry(Address pointer,
                                           IndirectPointerTag tag) {
       // We expect to only store references to (trusted) HeapObjects in the
@@ -110,7 +118,7 @@ struct TrustedPointerTableEntry {
 
    private:
     Payload(Address pointer, IndirectPointerTag tag)
-        : TaggedPayload(pointer, tag) {}
+        : TaggedPayloadDeprecated(pointer, tag) {}
   };
 
   std::atomic<Payload> payload_;
@@ -186,6 +194,13 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // Accessing a zapped entry will return an invalid pointer.
   inline void Zap(TrustedPointerHandle handle);
+
+  // Publish the entry referenced by the given handle.
+  //
+  // The specified entry must currently be unpublished, and is therefore
+  // inaccessible from within the sandbox. Calling this method will make the
+  // entry accessible.
+  inline void Publish(TrustedPointerHandle handle, IndirectPointerTag tag);
 
   // Checks whether the given entry currently has the "unpublished" tag.
   inline bool IsUnpublished(TrustedPointerHandle handle) const;

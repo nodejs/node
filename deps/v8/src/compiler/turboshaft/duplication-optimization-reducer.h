@@ -237,8 +237,7 @@ class DuplicationOptimizationReducer : public Next {
       // We don't check the use count of {shifted}, because it might have uses
       // in the future that haven't been emitted yet.
       DisableValueNumbering disable_gvn(this);
-      return __ Shift(shifted, __ Word32Constant(shifted_by), shift_kind,
-                      shift_rep);
+      return __ Shift(shifted, shifted_by, shift_kind, shift_rep);
     }
     return index;
   }

@@ -3076,6 +3076,13 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
     Advance();
     RegExpClassRanges::ClassRangesFlags character_class_flags;
     if (is_negated) character_class_flags = RegExpClassRanges::NEGATED;
+    if (!ignore_case()) {
+      character_class_flags |= RegExpClassRanges::NO_CASE_FOLDING_NEEDED;
+    }
+    if (sizeof(CharT) == 1) {
+      // No surrogate pairs.
+      character_class_flags |= RegExpClassRanges::IS_CERTAINLY_ONE_CODE_POINT;
+    }
     return zone()->template New<RegExpClassRanges>(zone(), ranges,
                                                    character_class_flags);
   } else {

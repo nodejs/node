@@ -312,42 +312,27 @@ uint32_t ExternalPointerSlot::GetContentAsIndexAfterDeserialization(
 }
 
 #ifdef V8_COMPRESS_POINTERS
+
 CppHeapPointerHandle CppHeapPointerSlot::Relaxed_LoadHandle() const {
   return base::AsAtomic32::Relaxed_Load(location());
-}
-
-void CppHeapPointerSlot::Relaxed_StoreHandle(
-    CppHeapPointerHandle handle) const {
-  return base::AsAtomic32::Relaxed_Store(location(), handle);
 }
 
 void CppHeapPointerSlot::Release_StoreHandle(
     CppHeapPointerHandle handle) const {
   return base::AsAtomic32::Release_Store(location(), handle);
 }
-#endif  // V8_COMPRESS_POINTERS
 
-Address CppHeapPointerSlot::try_load(IsolateForPointerCompression isolate,
-                                     CppHeapPointerTagRange tag_range) const {
-#ifdef V8_COMPRESS_POINTERS
-  const CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
-  CppHeapPointerHandle handle = Relaxed_LoadHandle();
-  return table.Get(handle, tag_range);
-#else   // !V8_COMPRESS_POINTERS
-  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
-#endif  // !V8_COMPRESS_POINTERS
-}
+#else
 
-void CppHeapPointerSlot::store(IsolateForPointerCompression isolate,
-                               Address value, CppHeapPointerTag tag) const {
-#ifdef V8_COMPRESS_POINTERS
-  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
-  CppHeapPointerHandle handle = Relaxed_LoadHandle();
-  table.Set(handle, value, tag);
-#else   // !V8_COMPRESS_POINTERS
+void CppHeapPointerSlot::store(Address value) const {
   base::AsAtomicPointer::Relaxed_Store(location(), value);
-#endif  // !V8_COMPRESS_POINTERS
 }
+
+Address CppHeapPointerSlot::load() const {
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+#endif  // V8_COMPRESS_POINTERS
 
 void CppHeapPointerSlot::init() const {
 #ifdef V8_COMPRESS_POINTERS

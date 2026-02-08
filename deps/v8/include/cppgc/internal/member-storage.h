@@ -154,6 +154,14 @@ class V8_TRIVIAL_ABI CompressedPointer final {
     // the cage alignment.
     CPPGC_DCHECK((!compressed || compressed == kCompressedSentinel) ||
                  (compressed & (1 << 31)));
+
+    // Tell the compiler that decompressing this compressed pointer
+    // is a no-op. Note that Clang is unable to inline Decompress()
+    // into an assume, so we need to write it out fully.
+    [[assume(((static_cast<uint64_t>(static_cast<int32_t>(compressed))
+               << api_constants::kPointerCompressionShift) &
+              base) == uptr)]];
+
     return compressed;
   }
 

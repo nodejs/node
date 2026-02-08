@@ -85,10 +85,27 @@
 }],  # 'arch == s390x'
 
 ##############################################################################
-# TODO(v8:7777): Change this once wasm is supported in jitless mode.
-['not has_webassembly or variant == jitless', {
+['not has_webassembly', {
   '*': [SKIP],
-}],  # not has_webassembly or variant == jitless
+}],  # not has_webassembly
+
+##############################################################################
+['not has_wasm_interpreter and variant == jitless', {
+  '*': [SKIP],
+}],  # not has_wasm_interpreter and variant == jitless
+
+##############################################################################
+['has_wasm_interpreter and variant == jitless', {
+  'memory64/*': [SKIP],
+  'multi-memory/*': [SKIP],
+  'instance': [SKIP],
+  'proposals/*': [SKIP],
+  'ref_null': [SKIP],
+  'exceptions/throw': [SKIP],
+  'exceptions/throw_ref': [SKIP],
+  'exceptions/try_table': [SKIP],
+  'simd/simd_memory-multi': [SKIP],
+ }],  # has_wasm_interpreter and variant == jitless
 
 ##############################################################################
 ['variant == stress_snapshot', {

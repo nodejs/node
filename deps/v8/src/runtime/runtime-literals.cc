@@ -121,7 +121,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->map(isolate), details.field_index(),
             details.representation());
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
-        if (IsUninitializedHole(raw)) continue;
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -139,7 +138,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -152,7 +150,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                           isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(isolate, i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -183,13 +180,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
-          DCHECK(IsTheHole(elements->get(i)) || !IsJSObject(elements->get(i)));
+          DCHECK(!IsJSObject(elements->get(i)));
         }
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Tagged<Object> raw = elements->get(i);
-          if (IsTheHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -204,7 +200,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           copy->element_dictionary(isolate), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
-        if (IsTheHole(raw)) continue;
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -417,7 +412,7 @@ Handle<JSObject> CreateObjectLiteral(
                              isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
-    if (IsHeapObject(*value) && !IsUninitializedHole(*value, isolate)) {
+    if (IsHeapObject(*value)) {
       if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
         auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
@@ -433,9 +428,6 @@ Handle<JSObject> CreateObjectLiteral(
     uint32_t element_index = 0;
     if (Object::ToArrayIndex(*key, &element_index)) {
       // Array index (uint32).
-      if (IsUninitializedHole(*value, isolate)) {
-        value = handle(Smi::zero(), isolate);
-      }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
                                               NONE)
           .Check();
@@ -457,7 +449,7 @@ Handle<JSObject> CreateArrayLiteral(
       array_boilerplate_description->elements_kind();
 
   Handle<FixedArrayBase> constant_elements_values(
-      array_boilerplate_description->constant_elements(isolate), isolate);
+      array_boilerplate_description->constant_elements(), isolate);
 
   // Create the JSArray.
   Handle<FixedArrayBase> copied_elements_values;
@@ -473,8 +465,7 @@ Handle<JSObject> CreateArrayLiteral(
       if (DEBUG_BOOL) {
         auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
-          DCHECK_IMPLIES(!IsAnyHole(fixed_array_values->get(i)),
-                         !IsFixedArray(fixed_array_values->get(i)));
+          DCHECK(!IsFixedArray(fixed_array_values->get(i)));
         }
       }
     } else {
@@ -579,6 +570,59 @@ MaybeDirectHandle<JSObject> CreateLiteral(Isolate* isolate,
   return copy;
 }
 
+DirectHandle<Object> InstantiateIfSharedFunctionInfo(
+    DirectHandle<Context> context, Isolate* isolate,
+    DirectHandle<JSObject> js_proto, DirectHandle<Object> value,
+    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array, int start_slot,
+    int& current_slot) {
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!TryCast<SharedFunctionInfo>(value, &shared)) {
+    return value;
+  }
+
+  if (!v8_flags.proto_assign_seq_lazy_func_opt ||
+      !base::IsInRange(current_slot, 0, kMaxUInt16)) {
+    DirectHandle<FeedbackCell> feedback_cell(
+        feedback_cell_array->get(current_slot), isolate);
+    value = Factory::JSFunctionBuilder{isolate, shared, context}
+                .set_feedback_cell(feedback_cell)
+                .set_allocation_type(AllocationType::kYoung)
+                .Build();
+    ++current_slot;
+    return value;
+  }
+
+  Tagged<Map> proto_map = js_proto->map();
+  if (Tagged<PrototypeSharedClosureInfo> closure_info;
+      proto_map->TryGetPrototypeSharedClosureInfo(&closure_info)) {
+    // We already have closure infos on this prototype, this means we
+    // already called SetPrototypeProperties on it and some closures were
+    // set up. We can only take the lazy closure path if the context
+    // is the same.
+    if (closure_info->context() == *context) {
+      // fast path
+      shared->set_feedback_slot(current_slot);
+    } else {
+      // not lazy allocation
+      DirectHandle<FeedbackCell> feedback_cell(
+          feedback_cell_array->get(current_slot), isolate);
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_feedback_cell(feedback_cell)
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+  } else {
+    // We do not have closure_info
+    auto val = *isolate->factory()->NewPrototypeSharedClosureInfo(
+        context, feedback_cell_array);
+
+    proto_map->SetPrototypeSharedClosureInfo(val);
+    shared->set_feedback_slot(current_slot);
+  }
+  ++current_slot;
+  return value;
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
@@ -592,24 +636,6 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, maybe_vector, literals_index, description, flags));
-}
-
-static DirectHandle<Object> InstantiateIfSharedFunctionInfo(
-    DirectHandle<Context> context, Isolate* isolate, DirectHandle<Object> value,
-    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array,
-    int& current_slot) {
-  if (DirectHandle<SharedFunctionInfo> shared;
-      TryCast<SharedFunctionInfo>(value, &shared)) {
-    DirectHandle<FeedbackCell> feedback_cell(
-        feedback_cell_array->get(current_slot), isolate);
-    value = Factory::JSFunctionBuilder{isolate, shared, context}
-                .set_feedback_cell(feedback_cell)
-                .set_allocation_type(AllocationType::kYoung)
-                .Build();
-    ++current_slot;
-  }
-
-  return value;
 }
 
 static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
@@ -632,8 +658,15 @@ static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
     DirectHandle<Object> value(object_boilerplate_description->value(index),
                                isolate);
 
-    value = InstantiateIfSharedFunctionInfo(context, isolate, value,
-                                            feedback_cell_array, current_slot);
+    if (DirectHandle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      DirectHandle<FeedbackCell> feedback_cell(
+          feedback_cell_array->get(current_slot++), isolate);
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_feedback_cell(feedback_cell)
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
 
     RETURN_ON_EXCEPTION(
         isolate, Runtime::SetObjectProperty(isolate, Cast<JSAny>(proto), key,
@@ -690,6 +723,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
   DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =
       args.at<ClosureFeedbackCellArray>(2);
   int current_slot = args.smi_value_at(3);
+  int start_slot = current_slot;
 
   // Proxy and any non-function not welcome
   if (!IsJSFunction(*obj)) {
@@ -730,6 +764,20 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                                             feedback_cell_array, current_slot));
   }
 
+  if (IsSpecialReceiverMap(js_proto->map())) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description,
+                                            feedback_cell_array, current_slot));
+  }
+
+  if (!JSObject::IsExtensible(isolate, js_proto)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description,
+                                            feedback_cell_array, current_slot));
+  }
+
   bool is_default_func_prototype =
       IsDefaultFunctionPrototype(js_proto, isolate);
 
@@ -743,8 +791,9 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
       DirectHandle<Object> value(object_boilerplate_description->value(index),
                                  isolate);
 
-      value = InstantiateIfSharedFunctionInfo(
-          context, isolate, value, feedback_cell_array, current_slot);
+      value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto, value,
+                                              feedback_cell_array, start_slot,
+                                              current_slot);
 
       DirectHandle<String> name = Cast<String>(key);
       DCHECK(!name->IsArrayIndex());
@@ -765,6 +814,8 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                                isolate);
       DirectHandle<Object> value(object_boilerplate_description->value(index),
                                  isolate);
+
+      CHECK(IsName(*key));
       PropertyKey lookup_key(isolate, key);
 
       LookupIterator it(isolate, js_proto, lookup_key,
@@ -772,19 +823,38 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
 
       LookupIterator::State it_state = it.state();
       if (it_state != LookupIterator::NOT_FOUND &&
-          (it.state() != LookupIterator::DATA || it.IsReadOnly())) {
+          (it_state != LookupIterator::DATA || it.IsReadOnly())) {
         RETURN_RESULT_OR_FAILURE(
             isolate, SetPrototypePropertiesSlow(
                          isolate, context, obj, object_boilerplate_description,
                          feedback_cell_array, current_slot, index));
       }
       DCHECK(!IsTheHole(*value));
-      value = InstantiateIfSharedFunctionInfo(
-          context, isolate, value, feedback_cell_array, current_slot);
-      DirectHandle<String> name = Cast<String>(key);
-      JSObject::SetOwnPropertyIgnoreAttributes(js_proto, name, value, NONE)
-          .Check();
 
+      if (it_state == LookupIterator::DATA &&
+          it.HolderIsReceiverOrHiddenPrototype()) {
+        DirectHandle<SharedFunctionInfo> shared;
+        if (TryCast<SharedFunctionInfo>(value, &shared)) {
+          // If we were to set an existing property to a SharedFunctionInfo,
+          // there would be the risk of it being returned from IC without being
+          // instantiated.
+          DirectHandle<FeedbackCell> feedback_cell(
+              feedback_cell_array->get(current_slot), isolate);
+          value = Factory::JSFunctionBuilder{isolate, shared, context}
+                      .set_feedback_cell(feedback_cell)
+                      .set_allocation_type(AllocationType::kYoung)
+                      .Build();
+          current_slot++;
+        }
+        Object::SetDataProperty(&it, value).Check();
+      } else {
+        value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto,
+                                                value, feedback_cell_array,
+                                                start_slot, current_slot);
+        Object::TransitionAndWriteDataProperty(
+            &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
+            .Check();
+      }
       result = value;
     }
   }

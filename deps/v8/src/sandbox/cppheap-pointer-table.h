@@ -17,8 +17,7 @@
 
 #ifdef V8_COMPRESS_POINTERS
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Isolate;
 class Counters;
@@ -89,99 +88,22 @@ struct CppHeapPointerTableEntry {
 
  private:
   friend class CppHeapPointerTable;
+  friend class CppHeapPointerTableEntryPrinter;
 
-  struct Payload {
-    Payload(Address pointer, CppHeapPointerTag tag)
-        : encoded_word_(Tag(pointer, tag)) {}
-
-    Address Untag(CppHeapPointerTagRange tag_range) const {
-      Address content = encoded_word_;
-      if (V8_LIKELY(tag_range.CheckTagOf(content))) {
-        content >>= kCppHeapPointerPayloadShift;
-      } else {
-        // If the type check failed, we simply return nullptr here. That way:
-        //  1. The null handle always results in nullptr being returned here,
-        //     which is a desired property. Otherwise, we may need an explicit
-        //     check for the null handle in the caller, and therefore an
-        //     additional branch. This works because the 0th entry of the table
-        //     always contains nullptr tagged with the null tag (i.e. an
-        //     all-zeros entry). As such, regardless of whether the type check
-        //     succeeds, the result will always be nullptr.
-        //  2. The returned pointer is guaranteed to crash even on platforms
-        //     with top byte ignore (TBI), such as Arm64. The alternative would
-        //     be to simply return the original entry with the left-shifted
-        //     payload. However, due to TBI, an access to that may not always
-        //     result in a crash (specifically, if the second most significant
-        //     byte happens to be zero). In addition, there shouldn't be a
-        //     difference on Arm64 between returning nullptr or the original
-        //     entry, since it will simply compile to a `csel x0, x8, xzr, lo`
-        //     instead of a `csel x0, x10, x8, lo` instruction.
-        content = 0;
-      }
-      return content;
-    }
-
-    Address Untag(CppHeapPointerTag tag) const {
-      return Untag(CppHeapPointerTagRange(tag, tag));
-    }
-
-    static Address Tag(Address pointer, CppHeapPointerTag tag) {
-      return (pointer << kCppHeapPointerPayloadShift) |
-             (static_cast<uint16_t>(tag) << kCppHeapPointerTagShift);
-    }
-
-    bool IsTaggedWithTagIn(CppHeapPointerTagRange tag_range) const {
-      return tag_range.CheckTagOf(encoded_word_);
-    }
-
-    bool IsTaggedWith(CppHeapPointerTag tag) const {
-      return IsTaggedWithTagIn(CppHeapPointerTagRange(tag, tag));
-    }
-
-    void SetMarkBit() { encoded_word_ |= kCppHeapPointerMarkBit; }
-
-    void ClearMarkBit() { encoded_word_ &= ~kCppHeapPointerMarkBit; }
-
-    bool HasMarkBitSet() const {
-      return encoded_word_ & kCppHeapPointerMarkBit;
-    }
-
-    uint32_t ExtractFreelistLink() const {
-      return static_cast<uint32_t>(encoded_word_ >>
-                                   kCppHeapPointerPayloadShift);
-    }
-
-    CppHeapPointerTag ExtractTag() const { UNREACHABLE(); }
-
-    bool ContainsFreelistLink() const {
-      return IsTaggedWith(CppHeapPointerTag::kFreeEntryTag);
-    }
-
-    bool ContainsEvacuationEntry() const {
-      return IsTaggedWith(CppHeapPointerTag::kEvacuationEntryTag);
-    }
-
-    Address ExtractEvacuationEntryHandleLocation() const {
-      return Untag(CppHeapPointerTag::kEvacuationEntryTag);
-    }
-
-    bool ContainsPointer() const {
-      return !ContainsFreelistLink() && !ContainsEvacuationEntry();
-    }
-
-    bool operator==(Payload other) const {
-      return encoded_word_ == other.encoded_word_;
-    }
-
-    bool operator!=(Payload other) const {
-      return encoded_word_ != other.encoded_word_;
-    }
-
-   private:
-    Address encoded_word_;
+  struct CppHeapPointerTablePayloadTaggingScheme {
+    using TagType = CppHeapPointerTag;
+    static constexpr uint64_t kMarkBit = kCppHeapPointerMarkBit;
+    static constexpr uint64_t kTagShift = kCppHeapPointerTagShift;
+    static constexpr uint64_t kTagMask = 0xfffe;
+    static constexpr uint64_t kPayloadShift = kCppHeapPointerPayloadShift;
+    static constexpr uint64_t kPayloadMask = ~0ULL;
+    static constexpr TagType kFreeEntryTag = CppHeapPointerTag::kFreeEntryTag;
+    static constexpr TagType kEvacuationEntryTag =
+        CppHeapPointerTag::kEvacuationEntryTag;
   };
+  using Payload = TaggedPayload<CppHeapPointerTablePayloadTaggingScheme>;
 
-  inline Payload GetRawPayload() {
+  inline Payload GetRawPayload() const {
     return payload_.load(std::memory_order_relaxed);
   }
   inline void SetRawPayload(Payload new_payload) {
@@ -271,8 +193,24 @@ class V8_EXPORT_PRIVATE CppHeapPointerTable
       uint32_t start_of_evacuation_area);
 };
 
-}  // namespace internal
-}  // namespace v8
+#ifdef OBJECT_PRINT
+
+class CppHeapPointerTableEntryPrinter {
+ public:
+  static void PrintHeader(const char* space_name);
+  static void PrintIfInUse(
+      CppHeapPointerHandle handle, const CppHeapPointerTableEntry& entry,
+      std::function<bool(CppHeapPointerTag)> entry_callback);
+  static void PrintFooter();
+};
+
+template <>
+class TableEntryPrinter<CppHeapPointerTableEntry>
+    : public CppHeapPointerTableEntryPrinter {};
+
+#endif  // OBJECT_PRINT
+
+}  // namespace v8::internal
 
 #endif  // V8_COMPRESS_POINTERS
 

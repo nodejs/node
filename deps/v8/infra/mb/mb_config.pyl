@@ -164,7 +164,7 @@
       'V8 Clusterfuzz Linux ASAN no inline - release builder':
           'release_x86_asan_symbolized_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_undefined_double',
-      'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan_undefined_double',
+      'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan',
       'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
           'debug_simulate_arm64_asan_undefined_double',
@@ -233,8 +233,6 @@
       'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
-      'V8 Linux - riscv32 - sim - debug builder': 'debug_simulate_riscv32',
-      'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
       'V8 Linux - riscv64 - sim - debug builder': 'debug_simulate_riscv64',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       'V8 Linux - riscv64 - sim - pointer compression - builder': 'release_simulate_riscv64_pointer_compression',
@@ -279,6 +277,7 @@
       'v8_linux64_disable_runtime_call_stats_compile_rel': 'release_x64_disable_runtime_call_stats',
       'v8_linux64_css_compile_dbg': 'debug_x64_conservative_stack_scanning',
       'v8_linux64_full_compile_dbg': 'full_debug_x64',
+      'v8_linux64_fuzzilli_imports_compile_rel': 'release_x64',
       'v8_linux64_gc_stress_custom_snapshot_compile_dbg': 'debug_x64_trybot_custom',
       'v8_linux64_gc_stress_compile_dbg': 'debug_x64_trybot',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
@@ -311,8 +310,6 @@
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
       'v8_linux64_lower_limits_compile_rel': 'release_x64_lower_limits',
       'v8_linux64_msan_compile_rel': 'release_simulate_arm64_msan_minimal_symbols',
-      'v8_linux_riscv32_compile_dbg': 'debug_simulate_riscv32',
-      'v8_linux_riscv32_compile_rel': 'release_simulate_riscv32',
       'v8_linux64_riscv64_compile_dbg': 'debug_simulate_riscv64',
       'v8_linux64_riscv64_compile_rel': 'release_simulate_riscv64',
       'v8_linux64_riscv64_pointer_compression_compile_rel': 'release_simulate_riscv64_pointer_compression',
@@ -465,8 +462,6 @@
     'debug_simulate_arm64_asan_undefined_double': [
       'debug_bot', 'simulate_arm64', 'asan', 'lsan',
       'v8_enable_undefined_double'],
-    'debug_simulate_riscv32': [
-      'debug_bot', 'simulate_riscv32'],
     'debug_simulate_riscv64': [
       'debug_bot', 'simulate_riscv64'],
 
@@ -503,8 +498,6 @@
       'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
-    'release_simulate_riscv32': [
-      'release_bot', 'simulate_riscv32'],
     'release_simulate_riscv64': [
       'release_bot', 'simulate_riscv64'],
     'release_simulate_riscv64_pointer_compression': [
@@ -597,8 +590,8 @@
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_sandbox_testing_undefined_double': [
-      'release_bot', 'x64', 'symbolized', 'backtrace', 'v8_enable_memory_corruption_api',
-      'v8_enable_undefined_double'],
+      'release_bot', 'x64', 'symbolized', 'backtrace', 'trace_pc_guard',
+      'v8_enable_memory_corruption_api', 'v8_enable_undefined_double'],
     'release_x64_asan_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'asan', 'symbolized',
       'v8_enable_memory_corruption_api', 'v8_enable_undefined_double'],
@@ -689,6 +682,8 @@
     # Debug configs for x64.
     'debug_x64': [
       'debug_bot', 'x64'],
+    'debug_x64_asan': [
+      'debug_bot', 'x64', 'asan', 'lsan'],
     'debug_x64_asan_undefined_double': [
       'debug_bot', 'x64', 'asan', 'lsan', 'v8_enable_undefined_double'],
     'debug_x64_asan_centipede': [
@@ -1031,10 +1026,6 @@
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
     },
 
-    'simulate_riscv32': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="riscv32"',
-    },
-
     'simulate_riscv64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="riscv64"',
     },
@@ -1050,6 +1041,11 @@
     # TODO(machenbach): Remove the symbolized config after the bots are gone.
     'symbolized': {
       'gn_args': 'v8_no_inline=true',
+    },
+
+    'trace_pc_guard': {
+      'gn_args': 'sanitizer_coverage_flags="trace-pc-guard" '
+                 'v8_enable_partition_alloc=false',
     },
 
     'tsan': {

@@ -55,7 +55,7 @@ inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(
     uint32_t index) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =
@@ -67,7 +67,7 @@ inline void WasmInterpreterRuntime::SetGlobalRef(
     uint32_t index, DirectHandle<Object> ref) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =
@@ -164,14 +164,14 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
     if (stack_check.HasOverflowed()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->StackOverflow();
       return false;
     }
     if (isolate_->stack_guard()->HasTerminationRequest()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->TerminateExecution();
       return false;
     }
@@ -184,7 +184,7 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
                           v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
     SealHandleScope shs(isolate_);
     current_frame_.current_function_ = nullptr;
-    SetTrap(TrapReason::kTrapUnreachable, code);
+    SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
     return false;
   }
 

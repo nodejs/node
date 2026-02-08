@@ -9,11 +9,9 @@
 
 namespace swiss_table {
 
-const kGroupWidth:
-    constexpr int32 generates 'swiss_table::Group::kWidth';
+const kGroupWidth: constexpr int32 generates 'swiss_table::Group::kWidth';
 
-const kUseSIMD:
-    constexpr bool generates 'swiss_table::Group::kWidth == 16';
+const kUseSIMD: constexpr bool generates 'swiss_table::Group::kWidth == 16';
 
 namespace ctrl {
 const kEmpty: constexpr uint8

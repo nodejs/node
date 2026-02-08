@@ -133,6 +133,31 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   Assembler& asm_;
 };
 
+using WasmFXArgBufferCallback =
+    base::FunctionRef<void(size_t value_index, int offset)>;
+
+template <typename T>
+int IterateWasmFXArgBuffer(base::Vector<const T> types,
+                           WasmFXArgBufferCallback callback) {
+  int offset = 0;
+  for (size_t i = 0; i < types.size(); i++) {
+    int param_size = types[i].value_kind_full_size();
+    offset = RoundUp(offset, param_size);
+    callback(i, offset);
+    offset += param_size;
+  }
+  return offset;
+}
+
+template <typename T>
+std::pair<int, int> GetBufferSizeAndAlignmentFor(base::Vector<const T> types) {
+  int alignment = kSystemPointerSize;
+  int size = IterateWasmFXArgBuffer(types, [&](size_t index, int offset) {
+    alignment = std::max(alignment, types[index].value_kind_full_size());
+  });
+  return {size, alignment};
+}
+
 }  // namespace wasm
 }  // namespace v8::internal
 

@@ -4,3 +4,57 @@ Inlining JS-to-Wasm wrapper for Wasm function [0] squareI64 of module {ADDRESS}
 Considering wasm function [0] squareI64 of module {ADDRESS} for inlining
 - not inlining: unsupported operation: i64.mul
 Test input of unconvertible type
+
+testJsWasmWrapperInliningWithI32Args
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+Test different callee
+[bailout (kind: deopt-eager, reason: wrong call target): begin. deoptimizing {ADDRESS} <JSFunction callSquare (sfi = {ADDRESS})>, {ADDRESS} <Code TURBOFAN_JS>, opt id {NUMBER},* bytecode offset {NUMBER}, deopt exit {NUMBER}, FP to SP delta {NUMBER}, caller SP {ADDRESS}, pc {ADDRESS}]
+Test optimizing again does not trigger another deoptimization
+
+testJsWasmWrapperInliningWithDifferentModules
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test callee from different instance
+[marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
+Test optimizing again does not trigger another deoptimization
+
+testJsWasmWrapperInliningOfSameExportedImportedFunction
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test replacing callee with same function imported and exported by different modules
+Test replacing callee with different function from same module
+[marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
+Test optimizing again does not trigger another deoptimization
+
+testJsWasmWrapperInliningWithF32Args
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareF32 of module {ADDRESS}
+Considering wasm function [0] squareF32 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+
+testJsWasmWrapperInliningWithF64Args
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareF64 of module {ADDRESS}
+Considering wasm function [0] squareF64 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+
+testJsWasmWrapperInliningWithExternRefArgs
+Test input of externref type
+Inlining JS-to-Wasm wrapper for Wasm function [0] refTest of module {ADDRESS}
+Considering wasm function [0] refTest of module {ADDRESS} for inlining
+- inlining
+
+testNoJsWasmWrapperInliningWithRefArgs
+
+testJsWasmWrapperInliningRetrievesWasmInstance
+Inlining JS-to-Wasm wrapper for Wasm function [0] globalTest of module {ADDRESS}
+Considering wasm function [0] globalTest of module {ADDRESS} for inlining
+- inlining

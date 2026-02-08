@@ -30,7 +30,7 @@ namespace internal {
 class Heap;
 class LocalHandles;
 class MarkingBarrier;
-class MutablePageMetadata;
+class MutablePage;
 class Safepoint;
 
 // Do not use this variable directly, use LocalHeap::Current() instead.

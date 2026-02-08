@@ -364,6 +364,7 @@ void PerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
   Tagged<Object> last_script = Smi::zero();
   size_t last_script_name_size = 0;
   std::vector<base::Vector<const char>> script_names;
+  std::vector<std::unique_ptr<char[]>> name_storages;
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(isolate_, code, shared,
@@ -371,7 +372,8 @@ void PerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
     Tagged<Object> current_script = *info.script;
     if (current_script != last_script) {
       std::unique_ptr<char[]> name_storage;
-      auto name = GetScriptName(raw_shared->script(), &name_storage, no_gc);
+      auto name = GetScriptName(current_script, &name_storage, no_gc);
+      if (name_storage) name_storages.push_back(std::move(name_storage));
       script_names.push_back(name);
       // Add the size of the name after each entry.
       last_script_name_size = name.size() + sizeof(kStringTerminator);

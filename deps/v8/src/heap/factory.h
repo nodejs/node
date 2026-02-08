@@ -18,6 +18,7 @@
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/name.h"
 #include "src/objects/property-cell.h"
 // TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
@@ -93,7 +94,7 @@ class ArrayType;
 class StructType;
 class ContType;
 struct WasmElemSegment;
-class WasmImportWrapperHandle;
+class WasmWrapperHandle;
 class WasmValue;
 enum class OnResume : int;
 enum Suspend : int;
@@ -153,7 +154,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // NewFixedArray as a fallback.
   V8_WARN_UNUSED_RESULT
   MaybeHandle<FixedArray> TryNewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
@@ -188,6 +189,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create a new PrototypeInfo struct.
   DirectHandle<PrototypeInfo> NewPrototypeInfo();
+  DirectHandle<PrototypeSharedClosureInfo> NewPrototypeSharedClosureInfo(
+      DirectHandle<Context> context,
+      DirectHandle<ClosureFeedbackCellArray> feedback_array);
 
   // Create a new EnumCache struct.
   DirectHandle<EnumCache> NewEnumCache(
@@ -404,6 +408,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Symbol> NewPrivateSymbol(
       AllocationType allocation = AllocationType::kOld);
   DirectHandle<Symbol> NewPrivateNameSymbol(DirectHandle<String> name);
+  DirectHandle<Symbol> NewPrivateBrandSymbol(DirectHandle<String> name);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<NativeContext> NewNativeContext();
@@ -689,7 +694,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
-      ElementsKind elements_kind, int length, int capacity,
+      ElementsKind elements_kind, uint32_t length, uint32_t capacity,
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
       AllocationType allocation = AllocationType::kYoung);
@@ -784,7 +789,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
   DirectHandle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();
@@ -797,9 +802,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // The resulting struct will be uninitialized, which means GC might fail for
   // reference structs until initialization. Follow this up with a
   // {DisallowGarbageCollection} scope until initialization.
-  Handle<WasmStruct> NewWasmStructUninitialized(
-      const wasm::StructType* type, DirectHandle<Map> map,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<WasmStruct> NewWasmStructUninitialized(const wasm::StructType* type,
+                                                DirectHandle<Map> map,
+                                                AllocationType allocation);
 
   DirectHandle<WasmArray> NewWasmArray(wasm::ValueType element_type,
                                        uint32_t length,
@@ -1340,7 +1345,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       size_t byte_length);
 
   Tagged<Symbol> NewSymbolInternal(
-      AllocationType allocation = AllocationType::kOld);
+      PrivateSymbolKind kind, AllocationType allocation = AllocationType::kOld);
 
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header

@@ -19,7 +19,7 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
@@ -440,7 +440,7 @@ void MarkingBarrier::PublishIfNeeded() {
   if (is_activated_) {
     current_worklists_->Publish();
     for (auto& it : typed_slots_map_) {
-      MutablePageMetadata* memory_chunk = it.first;
+      MutablePage* memory_chunk = it.first;
       // Access to TypeSlots need to be protected, since LocalHeaps might
       // publish code in the background thread.
       base::MutexGuard guard(memory_chunk->mutex());

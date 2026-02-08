@@ -851,10 +851,8 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
   {
 // A stack overflow was detected in RegExp code.
 #ifdef DEBUG
-    TNode<ExternalReference> exception_address =
-        ExternalConstant(ExternalReference::Create(
-            IsolateAddressId::kExceptionAddress, isolate()));
-    TNode<Object> exception = LoadFullTagged(exception_address);
+    TNode<Object> exception =
+        LoadFullTagged(IsolateField(IsolateFieldId::kException));
     CSA_DCHECK(this, IsTheHole(exception));
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);

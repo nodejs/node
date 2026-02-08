@@ -2429,10 +2429,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
   vl_ = 0;
   vlenb_ = 0;
 #endif
+
+  global_monitor_ = GlobalMonitor::Get();
+  global_monitor_->PrependLinkedAddress(&global_monitor_thread_);
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 Simulator::~Simulator() {
-  GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
+  global_monitor_->RemoveLinkedAddress(&global_monitor_thread_);
   delete[] reinterpret_cast<uint8_t*>(stack_);
 }
 
@@ -4224,6 +4229,39 @@ static inline bool is_invalid_fsqrt(T src1) {
   return (src1 < 0);
 }
 
+template <typename T, typename OP>
+void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
+                                   Instruction* instr) {
+  unsigned element_size = sizeof(T);
+  uintptr_t address = rs1;
+  DCHECK_EQ(address % element_size, 0);
+
+  // First, check whether the memory is accessible (for wasm trap handling).
+  if (!ProbeMemory(address, element_size)) return;
+
+  local_monitor_.NotifyLoad();
+
+  T data = ReadMem<T>(address, instr);
+
+  if (instr->AqValue()) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  T result = f(data, value);
+
+  if (instr->RlValue()) {
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
+    local_monitor_.NotifyStore();
+    global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
+    // Approximate store-release by issuing a full barrier before the store.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  WriteMem<T>(address, result, instr);
+  set_rd(T(data));
+}
+
 void Simulator::DecodeRVRAType() {
   // TODO(riscv): Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
@@ -4234,7 +4272,7 @@ void Simulator::DecodeRVRAType() {
       sreg_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int32_t))) return;
       {
-        base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+        GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
         if ((addr & 0x3) != 0) {
           DieOrDebug();
         }
@@ -4242,8 +4280,7 @@ void Simulator::DecodeRVRAType() {
         set_rd(sext32(val), false);
         TraceMemRd(addr, val, get_register(rd_reg()));
         local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
-        GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
-                                                      &global_monitor_thread_);
+        global_monitor_->NotifyLoadLinked_Locked(addr, &global_monitor_thread_);
       }
       break;
     }
@@ -4253,12 +4290,12 @@ void Simulator::DecodeRVRAType() {
       if ((addr & 0x3) != 0) {
         DieOrDebug();
       }
-      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
       if (local_monitor_.NotifyStoreConditional(addr, TransactionSize::Word) &&
-          GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+          global_monitor_->NotifyStoreConditional_Locked(
               addr, &global_monitor_thread_)) {
         local_monitor_.NotifyStore();
-        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
         set_rd(0, false);
       } else {
@@ -4270,81 +4307,89 @@ void Simulator::DecodeRVRAType() {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); }, instr_.instr(),
-          WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr());
       break;
     }
     case RO_AMOADD_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)(rs2()),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOXOR_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOAND_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOOR_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOMIN_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<int32_t>(
-          rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<int32_t>(
+          rs1(), (int32_t)rs2(),
+          [&](int32_t lhs, int32_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAX_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<int32_t>(
-          rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<int32_t>(
+          rs1(), (int32_t)rs2(),
+          [&](int32_t lhs, int32_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMINU_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAXU_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -4352,25 +4397,24 @@ void Simulator::DecodeRVRAType() {
       int64_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int64_t))) return;
       {
-        base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+        GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
         auto val = ReadMem<int64_t>(addr, instr_.instr());
         set_rd(val, false);
         TraceMemRd(addr, val, get_register(rd_reg()));
         local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
-        GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
-                                                      &global_monitor_thread_);
+        global_monitor_->NotifyLoadLinked_Locked(addr, &global_monitor_thread_);
         break;
       }
     }
     case RO_SC_D: {
       int64_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int64_t))) return;
-      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
       if (local_monitor_.NotifyStoreConditional(addr,
                                                 TransactionSize::DoubleWord) &&
-          (GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+          (global_monitor_->NotifyStoreConditional_Locked(
               addr, &global_monitor_thread_))) {
-        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
         set_rd(0, false);
       } else {
@@ -4379,56 +4423,61 @@ void Simulator::DecodeRVRAType() {
       break;
     }
     case RO_AMOSWAP_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOADD_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs + rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOXOR_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs ^ rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOAND_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs & rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOOR_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs | rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOMIN_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(),
+          [&](int64_t lhs, int64_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAX_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(),
+          [&](int64_t lhs, int64_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMINU_D: {
-      set_rd(amo<uint64_t>(
-          rs1(), [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<uint64_t>(
+          rs1(), rs2(),
+          [&](uint64_t lhs, uint64_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAXU_D: {
-      set_rd(amo<uint64_t>(
-          rs1(), [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<uint64_t>(
+          rs1(), rs2(),
+          [&](uint64_t lhs, uint64_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
 #endif /*V8_TARGET_ARCH_RISCV64*/
@@ -5824,6 +5873,7 @@ void Simulator::DecodeCIType() {
       break;
     case RO_C_FLDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(uint64_t))) return;
       uint64_t val = ReadMem<uint64_t>(addr, instr_.instr());
       set_rvc_drd(Float64::FromBits(val), false);
       TraceMemRdDouble(addr, Float64::FromBits(val),
@@ -5886,6 +5936,7 @@ void Simulator::DecodeCSSType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_FSDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(Float64))) return;
       WriteMem<Float64>(addr, get_fpu_register_Float64(rvc_rs2_reg()),
                         instr_.instr());
       break;
@@ -5893,6 +5944,7 @@ void Simulator::DecodeCSSType() {
 #if V8_TARGET_ARCH_RISCV32
     case RO_C_FSWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(Float32))) return;
       WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg(), false),
                         instr_.instr());
       break;
@@ -5900,12 +5952,14 @@ void Simulator::DecodeCSSType() {
 #endif
     case RO_C_SWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_swsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2(), instr_.instr());
       break;
     }
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_SDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2(), instr_.instr());
       break;
     }
@@ -8429,7 +8483,13 @@ void Simulator::PushShadowStack(uintptr_t value) {
   }
   csr_ssp_ = csr_ssp_ - 1;
   shadow_stack_[csr_ssp_] = value;
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  if (v8_flags.trace_shadowstack) {
+    PrintF("PushShadowStack  %016" REGIx_FORMAT "    (%" PRId64
+           ")    ssp:%zu\n",
+           value, icount_, csr_ssp_);
+  }
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+           value, icount_, csr_ssp_);
   return;
 }
 
@@ -8439,15 +8499,34 @@ uintptr_t Simulator::PopShadowStack(uintptr_t value) {
   auto temp = shadow_stack_[csr_ssp_];
   if (temp != value) {
     if (v8_flags.sim_abort_on_shadowstack_mismatch) {
+      PrintF("PopShadowStack %016" REGIx_FORMAT "    (%" PRId64
+             ")    ssp:%zu\n",
+             temp, icount_, csr_ssp_);
       FATAL("RISC-V ShadowStack mismatch");
     } else {
       ss_mismatch_count_ += 1;
+      csr_ssp_ += 1;
     }
   } else {
     csr_ssp_ += 1;
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  if (v8_flags.trace_shadowstack) {
+    PrintF("PopShadowStack  %016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu\n",
+           temp, icount_, csr_ssp_ - 1);
+  }
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu", temp,
+           icount_, csr_ssp_ - 1);
   return temp;
+}
+
+uintptr_t Simulator::SwapShadowStack(uintptr_t value, int nest) {
+  CHECK_GE(nest, 0);
+  auto pop_value = shadow_stack_[csr_ssp_ + nest];
+  shadow_stack_[csr_ssp_ + nest] = value;
+  if (v8_flags.trace_shadowstack) {
+    PrintF("SwapShadowStack: old=%016lx, new=%016lx\n", pop_value, value);
+  }
+  return pop_value;
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -8680,7 +8759,6 @@ bool Simulator::GlobalMonitor::LinkedAddress::NotifyStoreConditional_Locked(
 void Simulator::GlobalMonitor::NotifyLoadLinked_Locked(
     uintptr_t addr, LinkedAddress* linked_address) {
   linked_address->NotifyLoadLinked_Locked(addr);
-  PrependProcessor_Locked(linked_address);
 }
 
 void Simulator::GlobalMonitor::NotifyStore_Locked(
@@ -8693,7 +8771,6 @@ void Simulator::GlobalMonitor::NotifyStore_Locked(
 
 bool Simulator::GlobalMonitor::NotifyStoreConditional_Locked(
     uintptr_t addr, LinkedAddress* linked_address) {
-  DCHECK(IsProcessorInLinkedList_Locked(linked_address));
   if (linked_address->NotifyStoreConditional_Locked(addr, true)) {
     // Notify the other processors that this StoreConditional succeeded.
     for (LinkedAddress* iter = head_; iter; iter = iter->next_) {
@@ -8707,32 +8784,21 @@ bool Simulator::GlobalMonitor::NotifyStoreConditional_Locked(
   }
 }
 
-bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
-    LinkedAddress* linked_address) const {
-  return head_ == linked_address || linked_address->next_ ||
-         linked_address->prev_;
-}
-
-void Simulator::GlobalMonitor::PrependProcessor_Locked(
+void Simulator::GlobalMonitor::PrependLinkedAddress(
     LinkedAddress* linked_address) {
-  if (IsProcessorInLinkedList_Locked(linked_address)) {
-    return;
-  }
-
+  base::MutexGuard lock_guard(&mutex_);
   if (head_) {
     head_->prev_ = linked_address;
   }
   linked_address->prev_ = nullptr;
   linked_address->next_ = head_;
   head_ = linked_address;
+  num_linked_address_++;
 }
 
 void Simulator::GlobalMonitor::RemoveLinkedAddress(
     LinkedAddress* linked_address) {
-  base::MutexGuard lock_guard(&mutex);
-  if (!IsProcessorInLinkedList_Locked(linked_address)) {
-    return;
-  }
+  base::MutexGuard lock_guard(&mutex_);
 
   if (linked_address->prev_) {
     linked_address->prev_->next_ = linked_address->next_;
@@ -8744,6 +8810,7 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
   }
   linked_address->prev_ = nullptr;
   linked_address->next_ = nullptr;
+  num_linked_address_--;
 }
 
 #undef SScanF

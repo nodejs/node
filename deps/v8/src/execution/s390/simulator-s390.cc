@@ -141,8 +141,7 @@ namespace {
 void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
                                    Heap* heap) {
   CodePageMemoryModificationScopeForDebugging scope(
-      MemoryChunkMetadata::FromAddress(heap->isolate(),
-                                       reinterpret_cast<Address>(instr)));
+      BasePage::FromAddress(heap->isolate(), reinterpret_cast<Address>(instr)));
   instr->SetInstructionBits(value);
 }
 }  // namespace
@@ -3451,14 +3450,17 @@ EVALUATE(VSUMG) {
 }
 #undef CASE
 
-#define VECTOR_MERGE(type, is_low_side)                                      \
-  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;          \
-  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;       \
-       i < index_limit; i++, source_index++) {                               \
-    set_simd_register_by_lane<type>(                                         \
-        r1, 2 * i, get_simd_register_by_lane<type>(r2, source_index));       \
-    set_simd_register_by_lane<type>(                                         \
-        r1, (2 * i) + 1, get_simd_register_by_lane<type>(r3, source_index)); \
+#define VECTOR_MERGE(type, is_low_side)                                     \
+  constexpr size_t kItemCount = kSimd128Size / sizeof(type);                \
+  type temps[kItemCount] = {0};                                             \
+  constexpr size_t index_limit = kItemCount / 2;                            \
+  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;      \
+       i < index_limit; i++, source_index++) {                              \
+    temps[2 * i] = get_simd_register_by_lane<type>(r2, source_index);       \
+    temps[(2 * i) + 1] = get_simd_register_by_lane<type>(r3, source_index); \
+  }                                                                         \
+  for (size_t i = 0; i < kItemCount; i++) {                                 \
+    set_simd_register_by_lane<type>(r1, i, temps[i]);                       \
   }
 #define CASE(i, type, is_low_side)  \
   case i: {                         \

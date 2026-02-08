@@ -5,6 +5,7 @@
 
 #include "src/strings/string-hasher.h"
 
+#include "hwy/highway.h"
 #include "src/strings/string-hasher-inl.h"
 
 namespace v8::internal {
@@ -72,6 +73,33 @@ uint64_t HashConvertingTo8Bit(const uint16_t* chars, uint32_t length,
                               uint64_t seed, const uint64_t secret[3]) {
   return rapidhash<ConvertTo8BitHashReader>(
       reinterpret_cast<const uint8_t*>(chars), length, seed, secret);
+}
+
+bool IsOnly8BitSIMD(const uint16_t* chars, unsigned len) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  hw::FixedTag<uint16_t, 8> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto high_byte_mask = hw::Set(tag, static_cast<uint16_t>(0xFF00));
+  const auto zero = hw::Zero(tag);
+
+  const uint16_t* end = chars + len;
+  while (chars + stride <= end) {
+    const auto data = hw::LoadU(tag, chars);
+    const auto high_bytes = hw::And(data, high_byte_mask);
+    const auto cmp = hw::Eq(high_bytes, zero);
+    if (!hw::AllTrue(tag, cmp)) {
+      return false;
+    }
+    chars += stride;
+  }
+  // Handle remaining characters.
+  while (chars < end) {
+    if (*chars > 0xFF) {
+      return false;
+    }
+    chars++;
+  }
+  return true;
 }
 }  // namespace detail
 

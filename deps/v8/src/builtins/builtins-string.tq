@@ -10,6 +10,7 @@ namespace runtime {
 extern transitioning runtime ToString(Context, JSAny): String;
 }
 
+// LINT.IfChange
 @export
 transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   let result: JSAny = o;
@@ -38,10 +39,16 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   }
   unreachable;
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
+// LINT.IfChange
+@ifnot(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS)
 transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
+@if(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS)
+extern transitioning builtin ToString(Context, JSAny): String;
+// LINT.ThenChange(/src/builtins/builtins-string-tsa.cc)
 
 transitioning builtin ToStringConvertSymbol(context: Context, o: JSAny):
     String {

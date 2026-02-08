@@ -21,14 +21,16 @@
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 #include "src/sandbox/js-dispatch-table.h"
-#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
 #include "src/heap/trusted-range.h"
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+#include "src/sandbox/external-strings-cage.h"
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace v8 {
 
@@ -42,7 +44,7 @@ namespace internal {
 class MemoryPool;
 
 #ifdef V8_ENABLE_SANDBOX
-class MemoryChunkMetadata;
+class BasePage;
 class Sandbox;
 
 class SandboxedArrayBufferAllocatorBase {
@@ -153,7 +155,7 @@ class SnapshotData;
 class V8_EXPORT_PRIVATE IsolateGroup final {
  public:
 #ifdef V8_ENABLE_SANDBOX
-  class MemoryChunkMetadataTableEntry {
+  class BasePageTableEntry {
    public:
     void CheckIfMetadataAccessibleFromIsolate(const Isolate* isolate) const {
       if (isolate_ ==
@@ -167,23 +169,22 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
       CHECK_EQ(isolate_, isolate);
     }
 
-    void SetMetadata(MemoryChunkMetadata* metadata, Isolate* isolate);
+    void SetMetadata(BasePage* metadata, Isolate* isolate);
 
     const Isolate* isolate() const { return isolate_; }
-    MemoryChunkMetadata* metadata() const { return metadata_; }
+    BasePage* metadata() const { return metadata_; }
 
-    MemoryChunkMetadata** metadata_slot() { return &metadata_; }
+    BasePage** metadata_slot() { return &metadata_; }
 
    private:
     // This indicates that the metadata entry can be read from any isolates
     // (in essence, for the read-only or shared pages).
     static constexpr uintptr_t kReadOnlyOrSharedEntryIsolateSentinel = -1;
 
-    MemoryChunkMetadata* metadata_ = nullptr;
+    BasePage* metadata_ = nullptr;
     Isolate* isolate_ = nullptr;
   };
-  static_assert(sizeof(MemoryChunkMetadataTableEntry) ==
-                2 * kSystemPointerSize);
+  static_assert(sizeof(BasePageTableEntry) == 2 * kSystemPointerSize);
 #endif  // V8_ENABLE_SANDBOX
 
   // InitializeOncePerProcess should be called early on to initialize the
@@ -297,22 +298,30 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
 
-  MemoryChunkMetadataTableEntry* metadata_pointer_table() {
+  BasePageTableEntry* metadata_pointer_table() {
     return metadata_pointer_table_;
   }
 
   SandboxedArrayBufferAllocatorBase* GetSandboxedArrayBufferAllocator();
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  ExternalStringsCage* external_strings_cage() {
+    return &external_strings_cage_;
+  }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
-#endif  // V8_ENABLE_LEAPTIERING
 
   void SetupReadOnlyHeap(Isolate* isolate,
                          SnapshotData* read_only_snapshot_data,
                          bool can_rehash);
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
+
+  size_t GetIsolateCount();
+
+  Isolate* main_isolate() { return main_isolate_; }
 
   MemoryPool* memory_pool() const { return memory_pool_.get(); }
 
@@ -322,7 +331,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     // down in the mean time.
     base::MutexGuard group_guard(mutex_);
     Isolate* target_isolate = nullptr;
-    DCHECK_NOT_NULL(main_isolate_);
+    // main_isolate_ can be set nullptr when the IsolateGroup is being
+    // destructed.
+    if (!main_isolate_) {
+      return false;
+    }
 
     if (main_isolate_ != isolate) {
       target_isolate = main_isolate_;
@@ -417,8 +430,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;
   CodePointerTable code_pointer_table_;
-  MemoryChunkMetadataTableEntry metadata_pointer_table_
+  BasePageTableEntry metadata_pointer_table_
       [MemoryChunkConstants::kMetadataPointerTableSize]{};
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  ExternalStringsCage external_strings_cage_;
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 #ifdef V8_ENABLE_PARTITION_ALLOC
   PABackedSandboxedArrayBufferAllocator backend_allocator_;
 #else
@@ -427,9 +443,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   TrustedRange trusted_range_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable js_dispatch_table_;
-#endif  // V8_ENABLE_LEAPTIERING
 };
 
 }  // namespace internal

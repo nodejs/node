@@ -8,6 +8,7 @@
 #include <numeric>
 
 #include "src/ast/ast.h"
+#include "src/base/bit-field.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
 #include "src/base/pointer-with-payload.h"
@@ -131,11 +132,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     ~Snapshot() {
       // Restore eval flags from before the scope was active.
       if (sloppy_eval_can_extend_vars_) {
-        declaration_scope_->is_dynamic_scope_ = true;
-        declaration_scope_->sloppy_eval_can_extend_vars_ = true;
+        declaration_scope_->set_is_dynamic_scope(true);
+        declaration_scope_->set_sloppy_eval_can_extend_vars(true);
       }
       if (calls_eval_) {
-        outer_scope_->calls_eval_ = true;
+        outer_scope_->set_calls_eval(true);
       }
     }
 
@@ -181,17 +182,17 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Zone* zone() const { return variables_.zone(); }
 
   void SetMustUsePreparseData() {
-    if (must_use_preparsed_scope_data_) {
+    if (must_use_preparsed_scope_data()) {
       return;
     }
-    must_use_preparsed_scope_data_ = true;
+    set_must_use_preparsed_scope_data(true);
     if (outer_scope_) {
       outer_scope_->SetMustUsePreparseData();
     }
   }
 
   bool must_use_preparsed_scope_data() const {
-    return must_use_preparsed_scope_data_;
+    return MustUsePreparsedScopeDataField::decode(flags_);
   }
 
   // ---------------------------------------------------------------------------
@@ -278,11 +279,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   inline void RecordEvalCall();
 
   void RecordInnerScopeEvalCall() {
-    inner_scope_calls_eval_ = true;
+    set_inner_scope_calls_eval(true);
     for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
-      if (scope->inner_scope_calls_eval_) return;
-      scope->inner_scope_calls_eval_ = true;
+      if (scope->inner_scope_calls_eval()) return;
+      scope->set_inner_scope_calls_eval(true);
     }
   }
 
@@ -301,7 +302,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // the three compilers will perform hole check elimination on a variable
   // located in VariableLocation::CONTEXT. So, direct eval and closures
   // will not expose holes.
-  void SetNonlinear() { scope_nonlinear_ = true; }
+  void SetNonlinear() { set_scope_nonlinear(true); }
 
   // Position in the source where this scope begins and ends.
   //
@@ -345,15 +346,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_end_position(int statement_pos) { end_position_ = statement_pos; }
 
   // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
-  bool is_hidden() const { return is_hidden_; }
-  void set_is_hidden() { is_hidden_ = true; }
+  bool is_hidden() const { return IsHiddenField::decode(flags_); }
+  void set_is_hidden() { flags_ = IsHiddenField::update(flags_, true); }
 
   void ForceContextAllocationForParameters() {
     DCHECK(!already_resolved_);
-    force_context_allocation_for_parameters_ = true;
+    set_force_context_allocation_for_parameters(true);
   }
   bool has_forced_context_allocation_for_parameters() const {
-    return force_context_allocation_for_parameters_;
+    return ForceContextAllocationForParametersField::decode(flags_);
   }
 
   // ---------------------------------------------------------------------------
@@ -371,40 +372,49 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;
   }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
-  bool is_declaration_scope() const { return is_declaration_scope_; }
+  bool is_declaration_scope() const {
+    return IsDeclarationScopeField::decode(flags_);
+  }
   bool is_class_scope() const { return scope_type_ == CLASS_SCOPE; }
   bool is_home_object_scope() const {
     return is_class_scope() ||
-           (is_block_scope() && is_block_scope_for_object_literal_);
+           (is_block_scope() && is_block_scope_for_object_literal());
   }
   bool is_block_scope_for_object_literal() const {
-    DCHECK_IMPLIES(is_block_scope_for_object_literal_, is_block_scope());
-    return is_block_scope_for_object_literal_;
+    DCHECK_IMPLIES(IsBlockScopeForObjectLiteralField::decode(flags_),
+                   is_block_scope());
+    return IsBlockScopeForObjectLiteralField::decode(flags_);
   }
   void set_is_block_scope_for_object_literal() {
     DCHECK(is_block_scope());
-    is_block_scope_for_object_literal_ = true;
+    flags_ = IsBlockScopeForObjectLiteralField::update(flags_, true);
   }
 
-  bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
+  bool inner_scope_calls_eval() const {
+    return InnerScopeCallsEvalField::decode(flags_);
+  }
   bool private_name_lookup_skips_outer_class() const {
-    return private_name_lookup_skips_outer_class_;
+    return PrivateNameLookupSkipsOuterClassField::decode(flags_);
   }
 
-  bool has_using_declaration() const { return has_using_declaration_; }
+  bool has_using_declaration() const {
+    return HasUsingDeclarationField::decode(flags_);
+  }
   bool has_await_using_declaration() const {
-    return has_await_using_declaration_;
+    return HasAwaitUsingDeclarationField::decode(flags_);
   }
 
-  bool has_context_cells() const { return has_context_cells_; }
+  bool has_context_cells() const {
+    return HasContextCellsField::decode(flags_);
+  }
 
   bool is_wrapped_function() const {
-    DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
-    return is_wrapped_function_;
+    DCHECK_IMPLIES(IsWrappedFunctionField::decode(flags_), is_function_scope());
+    return IsWrappedFunctionField::decode(flags_);
   }
   void set_is_wrapped_function() {
     DCHECK(is_function_scope());
-    is_wrapped_function_ = true;
+    flags_ = IsWrappedFunctionField::update(flags_, true);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -415,7 +425,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Does this scope have the potential to execute declarations non-linearly?
-  bool is_nonlinear() const { return scope_nonlinear_; }
+  bool is_nonlinear() const { return ScopeNonlinearField::decode(flags_); }
   // Returns if we need to force a context because the current scope is stricter
   // than the outerscope. We need this to properly track the language mode using
   // the context. This is required in ICs where we lookup the language mode
@@ -479,7 +489,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // The language mode of this scope.
   LanguageMode language_mode() const {
-    return is_strict_ ? LanguageMode::kStrict : LanguageMode::kSloppy;
+    return IsStrictField::decode(flags_) ? LanguageMode::kStrict
+                                         : LanguageMode::kSloppy;
   }
 
   // inner_scope() and sibling() together implement the inner scope list of a
@@ -512,12 +523,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
       case WITH_SCOPE:  // DebugEvaluateContext as well
         return true;
       default:
-        DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,
+        DCHECK_IMPLIES(sloppy_eval_can_extend_vars(),
                        scope_type_ == FUNCTION_SCOPE ||
                            scope_type_ == EVAL_SCOPE ||
                            scope_type_ == BLOCK_SCOPE);
-        DCHECK_IMPLIES(sloppy_eval_can_extend_vars_, is_declaration_scope());
-        return sloppy_eval_can_extend_vars_;
+        DCHECK_IMPLIES(sloppy_eval_can_extend_vars(), is_declaration_scope());
+        return sloppy_eval_can_extend_vars();
     }
     UNREACHABLE();
   }
@@ -606,19 +617,25 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
-  void set_is_dynamic_scope() { is_dynamic_scope_ = true; }
+  void set_is_dynamic_scope(bool value = true) {
+    flags_ = IsDynamicScopeField::update(flags_, value);
+  }
+  bool is_dynamic_scope() const { return IsDynamicScopeField::decode(flags_); }
+  bool sloppy_eval_can_extend_vars() const {
+    return SloppyEvalCanExtendVarsField::decode(flags_);
+  }
   bool is_debug_evaluate_scope() const;
   bool IsSkippableFunctionScope();
   bool is_repl_mode_scope() const { return scope_type_ == REPL_MODE_SCOPE; }
 
   bool needs_home_object() const {
     DCHECK(is_home_object_scope());
-    return needs_home_object_;
+    return NeedsHomeObjectField::decode(flags_);
   }
 
   void set_needs_home_object() {
     DCHECK(is_home_object_scope());
-    needs_home_object_ = true;
+    flags_ = NeedsHomeObjectField::update(flags_, true);
   }
 
   bool RemoveInnerScope(Scope* inner_scope) {
@@ -662,7 +679,48 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope(Zone* zone, ScopeType scope_type);
 
   void set_language_mode(LanguageMode language_mode) {
-    is_strict_ = is_strict(language_mode);
+    flags_ = IsStrictField::update(flags_, is_strict(language_mode));
+  }
+
+  bool calls_eval() const { return CallsEvalField::decode(flags_); }
+  void set_calls_eval(bool value) {
+    flags_ = CallsEvalField::update(flags_, value);
+  }
+  void set_sloppy_eval_can_extend_vars(bool value) {
+    flags_ = SloppyEvalCanExtendVarsField::update(flags_, value);
+  }
+  void set_inner_scope_calls_eval(bool value) {
+    flags_ = InnerScopeCallsEvalField::update(flags_, value);
+  }
+  void set_is_declaration_scope(bool value) {
+    flags_ = IsDeclarationScopeField::update(flags_, value);
+  }
+  void set_private_name_lookup_skips_outer_class(bool value) {
+    flags_ = PrivateNameLookupSkipsOuterClassField::update(flags_, value);
+  }
+  void set_is_block_scope_for_object_literal(bool value) {
+    flags_ = IsBlockScopeForObjectLiteralField::update(flags_, value);
+  }
+  void set_has_using_declaration(bool value) {
+    flags_ = HasUsingDeclarationField::update(flags_, value);
+  }
+  void set_has_await_using_declaration(bool value) {
+    flags_ = HasAwaitUsingDeclarationField::update(flags_, value);
+  }
+  void set_has_context_cells(bool value) {
+    flags_ = HasContextCellsField::update(flags_, value);
+  }
+  void set_must_use_preparsed_scope_data(bool value) {
+    flags_ = MustUsePreparsedScopeDataField::update(flags_, value);
+  }
+  void set_scope_nonlinear(bool value) {
+    flags_ = ScopeNonlinearField::update(flags_, value);
+  }
+  void set_force_context_allocation_for_parameters(bool value) {
+    flags_ = ForceContextAllocationForParametersField::update(flags_, value);
+  }
+  void set_is_wrapped_function(bool value) {
+    flags_ = IsWrappedFunctionField::update(flags_, value);
   }
 
  private:
@@ -673,8 +731,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Variable* result = variables_.Declare(
         zone, this, name, mode, kind, initialization_flag, maybe_assigned_flag,
         IsStaticFlag::kNotStatic, was_added);
-    if (mode == VariableMode::kUsing) has_using_declaration_ = true;
-    if (mode == VariableMode::kAwaitUsing) has_await_using_declaration_ = true;
+    if (mode == VariableMode::kUsing) {
+      set_has_using_declaration(true);
+    }
+    if (mode == VariableMode::kAwaitUsing) {
+      set_has_await_using_declaration(true);
+    }
     if (*was_added) locals_.Add(result);
     return result;
   }
@@ -817,46 +879,46 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   //
   // The language mode of this scope.
   static_assert(LanguageModeSize == 2);
-  bool is_strict_ : 1;
+  using IsStrictField = base::BitField<bool, 0, 1>;
   // This scope contains an 'eval' call.
-  bool calls_eval_ : 1;
+  using CallsEvalField = IsStrictField::Next<bool, 1>;
   // The context associated with this scope can be extended by a sloppy eval
   // called inside of it.
-  bool sloppy_eval_can_extend_vars_ : 1;
+  using SloppyEvalCanExtendVarsField = CallsEvalField::Next<bool, 1>;
   // This scope's declarations might not be executed in order (e.g., switch).
-  bool scope_nonlinear_ : 1;
-  bool is_hidden_ : 1;
+  using ScopeNonlinearField = SloppyEvalCanExtendVarsField::Next<bool, 1>;
+  using IsHiddenField = ScopeNonlinearField::Next<bool, 1>;
   // Temporary workaround that allows masking of 'this' in debug-evaluate
   // scopes.
-  bool is_dynamic_scope_ : 1;
-
+  using IsDynamicScopeField = IsHiddenField::Next<bool, 1>;
   // True if one of the inner scopes or the scope itself calls eval.
-  bool inner_scope_calls_eval_ : 1;
-  bool force_context_allocation_for_parameters_ : 1;
-
+  using InnerScopeCallsEvalField = IsDynamicScopeField::Next<bool, 1>;
+  using ForceContextAllocationForParametersField =
+      InnerScopeCallsEvalField::Next<bool, 1>;
   // True if it holds 'var' declarations.
-  bool is_declaration_scope_ : 1;
-
+  using IsDeclarationScopeField =
+      ForceContextAllocationForParametersField::Next<bool, 1>;
   // True if the outer scope is a class scope and should be skipped when
   // resolving private names, i.e. if the scope is in a class heritage
   // expression.
-  bool private_name_lookup_skips_outer_class_ : 1;
-
-  bool must_use_preparsed_scope_data_ : 1;
-
-  bool needs_home_object_ : 1;
-  bool is_block_scope_for_object_literal_ : 1;
-
+  using PrivateNameLookupSkipsOuterClassField =
+      IsDeclarationScopeField::Next<bool, 1>;
+  using MustUsePreparsedScopeDataField =
+      PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
+  using NeedsHomeObjectField = MustUsePreparsedScopeDataField::Next<bool, 1>;
+  using IsBlockScopeForObjectLiteralField = NeedsHomeObjectField::Next<bool, 1>;
   // If declarations include any `using` or `await using` declarations.
-  bool has_using_declaration_ : 1;
-  bool has_await_using_declaration_ : 1;
-
+  using HasUsingDeclarationField =
+      IsBlockScopeForObjectLiteralField::Next<bool, 1>;
+  using HasAwaitUsingDeclarationField = HasUsingDeclarationField::Next<bool, 1>;
   // If the scope was generated for wrapped function syntax, which will affect
   // its UniqueIdInScript.
-  bool is_wrapped_function_ : 1;
-
+  using IsWrappedFunctionField = HasAwaitUsingDeclarationField::Next<bool, 1>;
   // The context associated with the scope might have context cells.
-  bool has_context_cells_ : 1;
+  using HasContextCellsField = IsWrappedFunctionField::Next<bool, 1>;
+  using LastScopeField = HasContextCellsField;
+
+  uint32_t flags_;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -877,13 +939,18 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     DCHECK(IsConciseMethod(function_kind()) ||
            IsAccessorFunction(function_kind()) ||
            IsClassConstructor(function_kind()));
-    uses_super_property_ = true;
+    set_uses_super_property(true);
     Scope* home_object_scope = GetHomeObjectScope();
     DCHECK_NOT_NULL(home_object_scope);
     home_object_scope->set_needs_home_object();
   }
 
-  bool uses_super_property() const { return uses_super_property_; }
+  bool uses_super_property() const {
+    return UsesSuperPropertyField::decode(flags_);
+  }
+  void set_uses_super_property(bool value) {
+    flags_ = UsesSuperPropertyField::update(flags_, value);
+  }
 
   void TakeUnresolvedReferencesFromParent();
 
@@ -894,7 +961,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Inform the scope and outer scopes that the corresponding code contains an
   // eval call.
   void RecordDeclarationScopeEvalCall() {
-    calls_eval_ = true;
+    set_calls_eval(true);
 
     // The caller already checked whether we're in sloppy mode.
     CHECK(is_sloppy(language_mode()));
@@ -923,22 +990,27 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
         // TODO(9662): Figure out where variables declared by an eval inside a
         // debug-evaluate actually go.
       } else if (!outer_decl_scope->is_script_scope()) {
-        DCHECK(outer_decl_scope->sloppy_eval_can_extend_vars_);
+        DCHECK(outer_decl_scope->sloppy_eval_can_extend_vars());
       }
 #endif
 
       return;
     }
 
-    is_dynamic_scope_ = true;
-    sloppy_eval_can_extend_vars_ = true;
+    set_is_dynamic_scope(true);
+    set_sloppy_eval_can_extend_vars(true);
   }
 
   bool sloppy_eval_can_extend_vars() const {
-    return sloppy_eval_can_extend_vars_;
+    return SloppyEvalCanExtendVarsField::decode(flags_);
   }
 
-  bool was_lazily_parsed() const { return was_lazily_parsed_; }
+  bool was_lazily_parsed() const {
+    return WasLazilyParsedField::decode(flags_);
+  }
+  void set_was_lazily_parsed(bool value) {
+    flags_ = WasLazilyParsedField::update(flags_, value);
+  }
 
   Variable* LookupInModule(const AstRawString* name) {
     DCHECK(is_module_scope());
@@ -973,16 +1045,44 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Declaration* CheckConflictingVarDeclarations(
       bool* allowed_catch_binding_var_redeclaration);
 
-  void set_has_checked_syntax(bool has_checked_syntax) {
-    has_checked_syntax_ = has_checked_syntax;
+  void set_has_checked_syntax(bool value) {
+    flags_ = HasCheckedSyntaxField::update(flags_, value);
   }
-  bool has_checked_syntax() const { return has_checked_syntax_; }
+  bool has_checked_syntax() const {
+    return HasCheckedSyntaxField::decode(flags_);
+  }
 
   bool ShouldEagerCompile() const {
-    return force_eager_compilation_ || should_eager_compile_;
+    return force_eager_compilation() || should_eager_compile();
   }
 
   void set_should_eager_compile();
+
+  bool force_eager_compilation() const {
+    return ForceEagerCompilationField::decode(flags_);
+  }
+  void set_force_eager_compilation(bool value) {
+    flags_ = ForceEagerCompilationField::update(flags_, value);
+  }
+
+  bool should_eager_compile() const {
+    return ShouldEagerCompileField::decode(flags_);
+  }
+  void set_should_eager_compile(bool value) {
+    flags_ = ShouldEagerCompileField::update(flags_, value);
+  }
+
+  bool has_rest() const { return HasRestField::decode(flags_); }
+  void set_has_rest(bool value) {
+    flags_ = HasRestField::update(flags_, value);
+  }
+
+  bool has_arguments_parameter() const {
+    return HasArgumentsParameterField::decode(flags_);
+  }
+  void set_has_arguments_parameter(bool value) {
+    flags_ = HasArgumentsParameterField::update(flags_, value);
+  }
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
     DCHECK(is_script_scope());
@@ -991,12 +1091,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_asm_module() const { return is_asm_module_; }
-  void set_is_asm_module();
+  bool is_asm_module() const { return IsAsmModuleField::decode(flags_); }
+  void set_is_asm_module(bool value) {
+    flags_ = IsAsmModuleField::update(flags_, value);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool should_ban_arguments() const {
-    return IsClassMembersInitializerFunction(function_kind());
+    return IsClassInitializerFunction(function_kind());
   }
 
   void set_module_has_toplevel_await() {
@@ -1047,7 +1149,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return receiver_;
   }
 
-  bool has_this_declaration() const { return has_this_declaration_; }
+  bool has_this_declaration() const {
+    return HasThisDeclarationField::decode(flags_);
+  }
+  void set_has_this_declaration(bool value) {
+    flags_ = HasThisDeclarationField::update(flags_, value);
+  }
 
   // The variable corresponding to the 'new.target' value.
   Variable* new_target_var() { return new_target_; }
@@ -1081,10 +1188,16 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The function's rest parameter (nullptr if there is none).
   Variable* rest_parameter() const {
-    return has_rest_ ? params_[params_.length() - 1] : nullptr;
+    return has_rest() ? params_[params_.length() - 1] : nullptr;
   }
 
-  bool has_simple_parameters() const { return has_simple_parameters_; }
+  bool has_simple_parameters() const {
+    return HasSimpleParametersField::decode(flags_);
+  }
+
+  void set_has_simple_parameters(bool value) {
+    flags_ = HasSimpleParametersField::update(flags_, value);
+  }
 
   // TODO(caitp): manage this state in a better way. PreParser must be able to
   // communicate that the scope is non-simple, without allocating any parameters
@@ -1093,7 +1206,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // not.
   void SetHasNonSimpleParameters() {
     DCHECK(is_function_scope());
-    has_simple_parameters_ = false;
+    set_has_simple_parameters(false);
   }
 
   void MakeParametersNonSimple() {
@@ -1179,9 +1292,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     DeclarationScope* s;
     for (s = this; !s->is_script_scope();
          s = s->outer_scope()->GetClosureScope()) {
-      s->force_eager_compilation_ = true;
+      s->set_force_eager_compilation(true);
     }
-    s->force_eager_compilation_ = true;
+    s->set_force_eager_compilation(true);
   }
 
 #ifdef DEBUG
@@ -1194,17 +1307,19 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
-  bool is_skipped_function() const { return is_skipped_function_; }
-  void set_is_skipped_function(bool is_skipped_function) {
-    is_skipped_function_ = is_skipped_function;
+  bool is_skipped_function() const {
+    return IsSkippedFunctionField::decode(flags_);
+  }
+  void set_is_skipped_function(bool value) {
+    flags_ = IsSkippedFunctionField::update(flags_, value);
   }
 
   bool has_inferred_function_name() const {
-    return has_inferred_function_name_;
+    return HasInferredFunctionNameField::decode(flags_);
   }
   void set_has_inferred_function_name(bool value) {
     DCHECK(is_function_scope());
-    has_inferred_function_name_ = value;
+    flags_ = HasInferredFunctionNameField::update(flags_, value);
   }
 
   // Save data describing the context allocation of the variables in this scope
@@ -1220,23 +1335,30 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return preparse_data_builder_;
   }
 
-  void set_has_this_reference() { has_this_reference_ = true; }
-  bool has_this_reference() const { return has_this_reference_; }
+  void set_has_this_reference(bool value) {
+    flags_ = HasThisReferenceField::update(flags_, value);
+  }
+  bool has_this_reference() const {
+    return HasThisReferenceField::decode(flags_);
+  }
   void UsesThis() {
-    set_has_this_reference();
+    set_has_this_reference(true);
     GetReceiverScope()->receiver()->ForceContextAllocation();
   }
 
   bool needs_private_name_context_chain_recalc() const {
-    return needs_private_name_context_chain_recalc_;
+    return NeedsPrivateNameContextChainRecalcField::decode(flags_);
+  }
+  void set_needs_private_name_context_chain_recalc(bool value) {
+    flags_ = NeedsPrivateNameContextChainRecalcField::update(flags_, value);
   }
   void RecordNeedsPrivateNameContextChainRecalc();
 
   void set_class_scope_has_private_brand(bool value) {
-    class_scope_has_private_brand_ = value;
+    flags_ = ClassScopeHasPrivateBrandField::update(flags_, value);
   }
   bool class_scope_has_private_brand() const {
-    return class_scope_has_private_brand_;
+    return ClassScopeHasPrivateBrandField::decode(flags_);
   }
 
  private:
@@ -1262,31 +1384,36 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // need to be recomputed due scopes that do not need contexts.
   void RecalcPrivateNameContextChain();
 
-  bool has_simple_parameters_ : 1;
+  using HasSimpleParametersField = LastScopeField::Next<bool, 1>;
+  using ForceEagerCompilationField = HasSimpleParametersField::Next<bool, 1>;
+  // This function scope has a rest parameter.
+  using HasRestField = ForceEagerCompilationField::Next<bool, 1>;
+  // This scope has a parameter called "arguments".
+  using HasArgumentsParameterField = HasRestField::Next<bool, 1>;
+  // This scope uses "super" property ('super.foo').
+  using UsesSuperPropertyField = HasArgumentsParameterField::Next<bool, 1>;
+  using ShouldEagerCompileField = UsesSuperPropertyField::Next<bool, 1>;
+  // Set to true after we have finished lazy parsing the scope.
+  using WasLazilyParsedField = ShouldEagerCompileField::Next<bool, 1>;
+  using IsSkippedFunctionField = WasLazilyParsedField::Next<bool, 1>;
+  using HasInferredFunctionNameField = IsSkippedFunctionField::Next<bool, 1>;
+  using HasCheckedSyntaxField = HasInferredFunctionNameField::Next<bool, 1>;
+  using HasThisReferenceField = HasCheckedSyntaxField::Next<bool, 1>;
+  using HasThisDeclarationField = HasThisReferenceField::Next<bool, 1>;
+  using NeedsPrivateNameContextChainRecalcField =
+      HasThisDeclarationField::Next<bool, 1>;
+  using ClassScopeHasPrivateBrandField =
+      NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
+
 #if V8_ENABLE_WEBASSEMBLY
   // This scope contains an "use asm" annotation.
-  bool is_asm_module_ : 1;
+  using IsAsmModuleField = ClassScopeHasPrivateBrandField::Next<bool, 1>;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool force_eager_compilation_ : 1;
-  // This function scope has a rest parameter.
-  bool has_rest_ : 1;
-  // This scope has a parameter called "arguments".
-  bool has_arguments_parameter_ : 1;
-  // This scope uses "super" property ('super.foo').
-  bool uses_super_property_ : 1;
-  bool should_eager_compile_ : 1;
-  // Set to true after we have finished lazy parsing the scope.
-  bool was_lazily_parsed_ : 1;
+
 #if DEBUG
-  bool is_being_lazily_parsed_ : 1;
+  bool is_being_lazily_parsed_;
 #endif
-  bool is_skipped_function_ : 1;
-  bool has_inferred_function_name_ : 1;
-  bool has_checked_syntax_ : 1;
-  bool has_this_reference_ : 1;
-  bool has_this_declaration_ : 1;
-  bool needs_private_name_context_chain_recalc_ : 1;
-  bool class_scope_has_private_brand_ : 1;
+
   // If the scope is a function scope, this is the function kind.
   FunctionKind function_kind_;
 
@@ -1349,7 +1476,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 };
 
 void Scope::RecordEvalCall() {
-  calls_eval_ = true;
+  set_calls_eval(true);
   if (is_sloppy(language_mode())) {
     GetDeclarationScope()->RecordDeclarationScopeEvalCall();
   }
@@ -1370,13 +1497,13 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_list_.end()),
       top_local_(scope->GetClosureScope()->locals_.end()),
-      calls_eval_(outer_scope_->calls_eval_),
+      calls_eval_(outer_scope_->calls_eval()),
       sloppy_eval_can_extend_vars_(
-          declaration_scope_->sloppy_eval_can_extend_vars_) {
+          declaration_scope_->sloppy_eval_can_extend_vars()) {
   // Reset in order to record (sloppy) eval calls during this Snapshot's
   // lifetime.
-  outer_scope_->calls_eval_ = false;
-  declaration_scope_->sloppy_eval_can_extend_vars_ = false;
+  outer_scope_->set_calls_eval(false);
+  declaration_scope_->set_sloppy_eval_can_extend_vars(false);
 }
 
 class ModuleScope final : public DeclarationScope {
@@ -1470,7 +1597,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Only maintained when the scope is parsed, not when the scope is
   // deserialized.
   bool has_static_private_methods() const {
-    return has_static_private_methods_;
+    return HasStaticPrivateMethodsField::decode(flags_);
+  }
+
+  void set_has_static_private_methods(bool value) {
+    flags_ = HasStaticPrivateMethodsField::update(flags_, value);
   }
 
   // Returns whether the index of class variable of this class scope should be
@@ -1481,16 +1612,28 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // static private names.
   // Only maintained when the scope is parsed.
   bool should_save_class_variable() const {
-    return should_save_class_variable_ ||
-           has_explicit_static_private_methods_access_ ||
-           (has_static_private_methods_ && inner_scope_calls_eval_);
+    return ShouldSaveClassVariableField::decode(flags_) ||
+           HasExplicitStaticPrivateMethodsAccessField::decode(flags_) ||
+           (has_static_private_methods() && inner_scope_calls_eval());
   }
 
   // Only maintained when the scope is parsed.
-  bool is_anonymous_class() const { return is_anonymous_class_; }
+  bool is_anonymous_class() const {
+    return IsAnonymousClassField::decode(flags_);
+  }
 
   // Overriden during reparsing
-  void set_should_save_class_variable() { should_save_class_variable_ = true; }
+  void set_should_save_class_variable() {
+    flags_ = ShouldSaveClassVariableField::update(flags_, true);
+  }
+
+  void set_has_explicit_static_private_methods_access(bool value) {
+    flags_ = HasExplicitStaticPrivateMethodsAccessField::update(flags_, value);
+  }
+
+  void set_is_anonymous_class(bool value) {
+    flags_ = IsAnonymousClassField::update(flags_, value);
+  }
 
  private:
   friend class Scope;
@@ -1532,12 +1675,14 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* class_variable_ = nullptr;
   // These are only maintained when the scope is parsed, not when the
   // scope is deserialized.
-  bool has_static_private_methods_ : 1 = false;
-  bool has_explicit_static_private_methods_access_ : 1 = false;
-  bool is_anonymous_class_ : 1 = false;
+  using HasStaticPrivateMethodsField = LastScopeField::Next<bool, 1>;
+  using HasExplicitStaticPrivateMethodsAccessField =
+      HasStaticPrivateMethodsField::Next<bool, 1>;
+  using IsAnonymousClassField =
+      HasExplicitStaticPrivateMethodsAccessField::Next<bool, 1>;
   // This is only maintained during reparsing, restored from the
   // preparsed data.
-  bool should_save_class_variable_ : 1 = false;
+  using ShouldSaveClassVariableField = IsAnonymousClassField::Next<bool, 1>;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

@@ -1424,6 +1424,27 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
           Cast<JSAny>(Object::GetPropertyOrElement(isolate_, object, key_name)),
           EXCEPTION);
     }
+
+    // Handle Lazy Closures
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(property, &shared)) {
+      if (Tagged<PrototypeSharedClosureInfo> closure_infos;
+          map->TryGetPrototypeSharedClosureInfo(&closure_infos)) {
+        DirectHandle<FeedbackCell> feedback_cell(
+            closure_infos->closure_feedback_cell_array()->get(
+                shared->feedback_slot()),
+            isolate_);
+        property =
+            Factory::JSFunctionBuilder{
+                isolate_, shared, handle(closure_infos->context(), isolate_)}
+                .set_feedback_cell(feedback_cell)
+                .set_allocation_type(AllocationType::kYoung)
+                .Build();
+      } else {
+        UNREACHABLE();
+      }
+    }
+
     Result result = SerializeProperty(property, comma, key_name);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION || result == NEED_STACK) return result;

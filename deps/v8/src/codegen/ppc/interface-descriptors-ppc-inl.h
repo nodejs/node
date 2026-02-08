@@ -138,8 +138,6 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return r8; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return r8; }
 
 // static
-constexpr Register ApiGetterDescriptor::HolderRegister() { return r3; }
-// static
 constexpr Register ApiGetterDescriptor::CallbackRegister() { return r6; }
 
 // static
@@ -299,6 +297,11 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(r4, r3); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
+  return RegisterArray(r4, r3, r5);
+}
+
+// static
+constexpr auto Compare_WithEmbeddedFeedbackOffsetDescriptor::registers() {
   return RegisterArray(r4, r3, r5);
 }
 

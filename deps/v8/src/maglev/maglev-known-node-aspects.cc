@@ -116,7 +116,8 @@ bool MaybeNullAspectIncludes(const As& as, const Bs& bs,
 }
 
 bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
-  if (!NodeTypeIs(after.type(), before.type())) {
+  // TODO(428667907): Ideally we should bail out early for the kNone type.
+  if (!NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone)) {
     return false;
   }
   if (before.possible_maps_are_known() && before.any_map_is_unstable()) {
@@ -135,7 +136,8 @@ bool NodeInfoIsEmpty(const NodeInfo& info) {
 }
 
 bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
-  return NodeTypeIs(after.type(), before.type());
+  // TODO(428667907): Ideally we should bail out early for the kNone type.
+  return NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone);
 }
 
 bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
@@ -192,6 +194,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
+  if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kYes) return;
+
   while (true) {
     if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
       DCHECK_EQ(load_prev_ctxt->offset(),
@@ -258,7 +262,7 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     case StoreMap::Kind::kInlinedAllocation:
       return;
     case StoreMap::Kind::kTransitioning: {
-      if (NodeInfo* node_info = TryGetInfoFor(node->object_input().node())) {
+      if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
         if (node_info->possible_maps_are_known() &&
             node_info->possible_maps().size() == 1) {
           compiler::MapRef old_map = node_info->possible_maps().at(0);
@@ -489,6 +493,32 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
     }
   }
   return aliased_slots_;
+}
+
+void KnownNodeAspects::PrintLoadedProperties() {
+  std::cout << "Constant properties:\n";
+  for (auto [key, map] : loaded_constant_properties_) {
+    std::cout << "  - " << key << ": { ";
+    bool is_first = true;
+    for (auto [object, value] : map) {
+      if (!is_first) std::cout << ", ";
+      is_first = false;
+      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+    }
+    std::cout << " }\n";
+  }
+
+  std::cout << "Non-constant properties:\n";
+  for (auto [key, map] : loaded_properties_) {
+    std::cout << "  - " << key << ": { ";
+    bool is_first = true;
+    for (auto [object, value] : map) {
+      if (!is_first) std::cout << ", ";
+      is_first = false;
+      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+    }
+    std::cout << " }\n";
+  }
 }
 
 }  // namespace maglev

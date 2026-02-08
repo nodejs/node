@@ -32,6 +32,7 @@ RegExpCodeGenerator::RegExpCodeGenerator(
       iter_(bytecode_),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
       jump_targets_(bytecode_->length(), &zone_),
+      indirect_jump_targets_(bytecode_->length(), &zone_),
       has_unsupported_bytecode_(false) {}
 
 RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
@@ -82,207 +83,181 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
 #define VISIT_COMMENT(bc)
 #endif
 
-#define FIRST_ARG(arg1, ...) arg1
-#define IS_VA_EMPTY(...) FIRST_ARG(__VA_OPT__(0, ) 1)
-
-#define VISIT(Name) \
-  template <>       \
-  void RegExpCodeGenerator::Visit<RegExpBytecode::k##Name>()
-
 #define INIT(Name, ...)                                                      \
   VISIT_COMMENT(#Name);                                                      \
   using Operands [[maybe_unused]] =                                          \
       RegExpBytecodeOperands<RegExpBytecode::k##Name>;                       \
   __VA_OPT__(auto argument_tuple = GetArgumentValuesAsTuple<Operands>();     \
              static_assert(std::tuple_size_v<decltype(argument_tuple)> ==    \
-                               Operands::kCountWithoutPadding,               \
+                               Operands::kCount,                             \
                            "Number of arguments to VISIT doesn't match the " \
                            "bytecodes operands count");                      \
              auto [__VA_ARGS__] = argument_tuple;)                           \
-  static_assert((IS_VA_EMPTY(__VA_ARGS__) == 1) ==                           \
-                    (Operands::kCountWithoutPadding == 0),                   \
+  static_assert((IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCount == 0),       \
                 "Number of arguments to VISIT doesn't match the bytecodes "  \
                 "operands count")
 
+// These weird looking macros are required for clang-format and cpplint to not
+// interfere/complain about our logic of opening/closing blocks in our macros.
+#define OPEN_BLOCK {
+#define CLOSE_BLOCK }
+// This is just a hack to for the closing curly braces for the first VISIT.
+// Only VISIT macros are allowed between VISIT_METHODS_START() and
+// VISIT_METHODS_END(). If helper functions are needed, close the current VISIT
+// block with VISIT_METHODS_END() and start a new one afterwards.
+#define VISIT_METHODS_START() namespace OPEN_BLOCK
+#define VISIT_METHODS_END() CLOSE_BLOCK
+
+#define VISIT(Name, ...)                                     \
+  CLOSE_BLOCK                                                \
+  template <>                                                \
+  void RegExpCodeGenerator::Visit<RegExpBytecode::k##Name>() \
+      OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
+
 // Basic Bytecodes
 
+VISIT_METHODS_START()
+
 VISIT(PushCurrentPosition) {
-  INIT(PushCurrentPosition);
   __ PushCurrentPosition();
 }
 
-VISIT(PushBacktrack) {
-  INIT(PushBacktrack, on_bt_pushed);
-  __ PushBacktrack(on_bt_pushed);
-}
+VISIT(PushBacktrack, label) { __ PushBacktrack(label); }
 
-VISIT(WriteCurrentPositionToRegister) {
-  INIT(WriteCurrentPositionToRegister, register_index, cp_offset);
+VISIT(WriteCurrentPositionToRegister, register_index, cp_offset) {
   __ WriteCurrentPositionToRegister(register_index, cp_offset);
 }
 
-VISIT(ReadCurrentPositionFromRegister) {
-  INIT(ReadCurrentPositionFromRegister, register_index);
+VISIT(ReadCurrentPositionFromRegister, register_index) {
   __ ReadCurrentPositionFromRegister(register_index);
 }
 
-VISIT(WriteStackPointerToRegister) {
-  INIT(WriteStackPointerToRegister, register_index);
+VISIT(WriteStackPointerToRegister, register_index) {
   __ WriteStackPointerToRegister(register_index);
 }
 
-VISIT(ReadStackPointerFromRegister) {
-  INIT(ReadStackPointerFromRegister, register_index);
+VISIT(ReadStackPointerFromRegister, register_index) {
   __ ReadStackPointerFromRegister(register_index);
 }
 
-VISIT(SetRegister) {
-  INIT(SetRegister, register_index, value);
+VISIT(SetRegister, register_index, value) {
   __ SetRegister(register_index, value);
 }
 
-VISIT(ClearRegisters) {
-  INIT(ClearRegisters, from_register, to_register);
+VISIT(ClearRegisters, from_register, to_register) {
   __ ClearRegisters(from_register, to_register);
 }
 
-VISIT(AdvanceRegister) {
-  INIT(AdvanceRegister, register_index, by);
+VISIT(AdvanceRegister, register_index, by) {
   __ AdvanceRegister(register_index, by);
 }
 
 VISIT(PopCurrentPosition) {
-  INIT(PopCurrentPosition);
   __ PopCurrentPosition();
 }
 
-VISIT(PushRegister) {
-  INIT(PushRegister, register_index, stack_check);
+VISIT(PushRegister, register_index, stack_check) {
   __ PushRegister(register_index, stack_check);
 }
 
-VISIT(PopRegister) {
-  INIT(PopRegister, register_index);
-  __ PopRegister(register_index);
-}
+VISIT(PopRegister, register_index) { __ PopRegister(register_index); }
 
 VISIT(Fail) {
-  INIT(Fail);
   __ Fail();
 }
 
 VISIT(Succeed) {
-  INIT(Succeed);
   __ Succeed();
 }
 
-VISIT(AdvanceCurrentPosition) {
-  INIT(AdvanceCurrentPosition, by);
-  __ AdvanceCurrentPosition(by);
-}
+VISIT(AdvanceCurrentPosition, by) { __ AdvanceCurrentPosition(by); }
 
-VISIT(GoTo) {
-  INIT(GoTo, label);
-  __ GoTo(label);
-}
+VISIT(GoTo, label) { __ GoTo(label); }
 
-VISIT(LoadCurrentCharacter) {
-  INIT(LoadCurrentCharacter, cp_offset, on_failure);
+VISIT(LoadCurrentCharacter, cp_offset, on_failure) {
   __ LoadCurrentCharacter(cp_offset, on_failure);
 }
 
-VISIT(CheckPosition) {
-  INIT(CheckPosition, cp_offset, on_failure);
+VISIT(CheckPosition, cp_offset, on_failure) {
   __ CheckPosition(cp_offset, on_failure);
 }
 
-VISIT(CheckCharacter) {
-  INIT(CheckCharacter, character, on_equal);
+VISIT(CheckSpecialClassRanges, character_set, on_no_match) {
+  __ CheckSpecialClassRanges(character_set, on_no_match);
+}
+
+VISIT(CheckCharacter, character, on_equal) {
   __ CheckCharacter(character, on_equal);
 }
 
-VISIT(CheckNotCharacter) {
-  INIT(CheckNotCharacter, character, on_not_equal);
+VISIT(CheckNotCharacter, character, on_not_equal) {
   __ CheckNotCharacter(character, on_not_equal);
 }
 
-VISIT(CheckCharacterAfterAnd) {
-  INIT(CheckCharacterAfterAnd, character, mask, on_equal);
+VISIT(CheckCharacterAfterAnd, character, mask, on_equal) {
   __ CheckCharacterAfterAnd(character, mask, on_equal);
 }
 
-VISIT(CheckNotCharacterAfterAnd) {
-  INIT(CheckNotCharacterAfterAnd, character, mask, on_not_equal);
+VISIT(CheckNotCharacterAfterAnd, character, mask, on_not_equal) {
   __ CheckNotCharacterAfterAnd(character, mask, on_not_equal);
 }
 
-VISIT(CheckNotCharacterAfterMinusAnd) {
-  INIT(CheckNotCharacterAfterMinusAnd, character, minus, mask, on_not_equal);
+VISIT(CheckNotCharacterAfterMinusAnd, character, minus, mask, on_not_equal) {
   __ CheckNotCharacterAfterMinusAnd(character, minus, mask, on_not_equal);
 }
 
-VISIT(CheckCharacterInRange) {
-  INIT(CheckCharacterInRange, from, to, on_in_range);
+VISIT(CheckCharacterInRange, from, to, on_in_range) {
   __ CheckCharacterInRange(from, to, on_in_range);
 }
 
-VISIT(CheckCharacterNotInRange) {
-  INIT(CheckCharacterNotInRange, from, to, on_not_in_range);
+VISIT(CheckCharacterNotInRange, from, to, on_not_in_range) {
   __ CheckCharacterNotInRange(from, to, on_not_in_range);
 }
 
-VISIT(CheckCharacterLT) {
-  INIT(CheckCharacterLT, limit, on_less);
-  __ CheckCharacterLT(limit, on_less);
-}
+VISIT(CheckCharacterLT, limit, on_less) { __ CheckCharacterLT(limit, on_less); }
 
-VISIT(CheckCharacterGT) {
-  INIT(CheckCharacterGT, limit, on_greater);
+VISIT(CheckCharacterGT, limit, on_greater) {
   __ CheckCharacterGT(limit, on_greater);
 }
 
-VISIT(IfRegisterLT) {
-  INIT(IfRegisterLT, register_index, comparand, on_less_than);
+VISIT(IfRegisterLT, register_index, comparand, on_less_than) {
   __ IfRegisterLT(register_index, comparand, on_less_than);
 }
 
-VISIT(IfRegisterGE) {
-  INIT(IfRegisterGE, register_index, comparand, on_greater_or_equal);
+VISIT(IfRegisterGE, register_index, comparand, on_greater_or_equal) {
   __ IfRegisterGE(register_index, comparand, on_greater_or_equal);
 }
 
-VISIT(IfRegisterEqPos) {
-  INIT(IfRegisterEqPos, register_index, on_eq);
+VISIT(IfRegisterEqPos, register_index, on_eq) {
   __ IfRegisterEqPos(register_index, on_eq);
 }
 
-VISIT(CheckAtStart) {
-  INIT(CheckAtStart, cp_offset, on_at_start);
+VISIT(CheckAtStart, cp_offset, on_at_start) {
   __ CheckAtStart(cp_offset, on_at_start);
 }
 
-VISIT(CheckNotAtStart) {
-  INIT(CheckNotAtStart, cp_offset, on_not_at_start);
+VISIT(CheckNotAtStart, cp_offset, on_not_at_start) {
   __ CheckNotAtStart(cp_offset, on_not_at_start);
 }
 
-VISIT(CheckFixedLengthLoop) {
-  INIT(CheckFixedLengthLoop, on_tos_equals_current_position);
+VISIT(CheckFixedLengthLoop, on_tos_equals_current_position) {
   __ CheckFixedLengthLoop(on_tos_equals_current_position);
 }
 
-VISIT(SetCurrentPositionFromEnd) {
-  INIT(SetCurrentPositionFromEnd, by);
-  __ SetCurrentPositionFromEnd(by);
-}
+VISIT(SetCurrentPositionFromEnd, by) { __ SetCurrentPositionFromEnd(by); }
+
+VISIT_METHODS_END()
 
 // Special Bytecodes
 
-VISIT(Backtrack) {
-  INIT(Backtrack, return_code);
+VISIT_METHODS_START()
+
+VISIT(Backtrack, return_code) {
   USE(return_code);  // Intentionally ignored. Only used in the interpreter.
   __ Backtrack();
 }
+
+VISIT_METHODS_END()
 
 namespace {
 
@@ -322,113 +297,87 @@ Handle<ByteArray> CreateBitTableByteArray(
 
 }  // namespace
 
-VISIT(CheckBitInTable) {
-  INIT(CheckBitInTable, on_bit_set, table_data);
+VISIT_METHODS_START()
+
+VISIT(CheckBitInTable, on_bit_set, table_data) {
   Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
   __ CheckBitInTable(table, on_bit_set);
 }
 
-VISIT(LoadCurrentCharacterUnchecked) {
-  INIT(LoadCurrentCharacterUnchecked, cp_offset);
+VISIT(LoadCurrentCharacterUnchecked, cp_offset) {
   static constexpr int kChars = 1;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
-VISIT(Load2CurrentChars) {
-  INIT(Load2CurrentChars, cp_offset, on_failure);
+VISIT(Load2CurrentChars, cp_offset, on_failure) {
   static constexpr int kChars = 2;
   __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
 }
 
-VISIT(Load2CurrentCharsUnchecked) {
-  INIT(Load2CurrentCharsUnchecked, cp_offset);
+VISIT(Load2CurrentCharsUnchecked, cp_offset) {
   static constexpr int kChars = 2;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
-VISIT(Load4CurrentChars) {
-  INIT(Load4CurrentChars, cp_offset, on_failure);
+VISIT(Load4CurrentChars, cp_offset, on_failure) {
   static constexpr int kChars = 4;
   __ LoadCurrentCharacterImpl(cp_offset, on_failure, true, kChars, kChars);
 }
 
-VISIT(Load4CurrentCharsUnchecked) {
-  INIT(Load4CurrentCharsUnchecked, cp_offset);
+VISIT(Load4CurrentCharsUnchecked, cp_offset) {
   static constexpr int kChars = 4;
   __ LoadCurrentCharacterImpl(cp_offset, nullptr, false, kChars, kChars);
 }
 
-VISIT(Check4Chars) {
-  INIT(Check4Chars, characters, on_equal);
+VISIT(Check4Chars, characters, on_equal) {
   __ CheckCharacter(characters, on_equal);
 }
 
-VISIT(CheckNot4Chars) {
-  INIT(CheckNot4Chars, characters, on_not_equal);
+VISIT(CheckNot4Chars, characters, on_not_equal) {
   __ CheckNotCharacter(characters, on_not_equal);
 }
 
-VISIT(AndCheck4Chars) {
-  INIT(AndCheck4Chars, characters, mask, on_equal);
+VISIT(AndCheck4Chars, characters, mask, on_equal) {
   __ CheckCharacterAfterAnd(characters, mask, on_equal);
 }
 
-VISIT(AndCheckNot4Chars) {
-  INIT(AndCheckNot4Chars, characters, mask, on_not_equal);
+VISIT(AndCheckNot4Chars, characters, mask, on_not_equal) {
   __ CheckNotCharacterAfterAnd(characters, mask, on_not_equal);
 }
 
-VISIT(AdvanceCpAndGoto) {
-  INIT(AdvanceCpAndGoto, by, on_goto);
+VISIT(AdvanceCpAndGoto, by, on_goto) {
   __ AdvanceCurrentPosition(by);
   __ GoTo(on_goto);
 }
 
-VISIT(CheckNotBackRef) {
-  INIT(CheckNotBackRef, start_reg, on_not_equal);
+VISIT(CheckNotBackRef, start_reg, on_not_equal) {
   __ CheckNotBackReference(start_reg, false, on_not_equal);
 }
 
-VISIT(CheckNotBackRefNoCase) {
-  INIT(CheckNotBackRefNoCase, start_reg, on_not_equal);
+VISIT(CheckNotBackRefNoCase, start_reg, on_not_equal) {
   __ CheckNotBackReferenceIgnoreCase(start_reg, false, false, on_not_equal);
 }
 
-VISIT(CheckNotBackRefNoCaseUnicode) {
-  INIT(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal);
+VISIT(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal) {
   __ CheckNotBackReferenceIgnoreCase(start_reg, false, true, on_not_equal);
 }
 
-VISIT(CheckNotBackRefBackward) {
-  INIT(CheckNotBackRefBackward, start_reg, on_not_equal);
+VISIT(CheckNotBackRefBackward, start_reg, on_not_equal) {
   __ CheckNotBackReference(start_reg, true, on_not_equal);
 }
 
-VISIT(CheckNotBackRefNoCaseBackward) {
-  INIT(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal);
+VISIT(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal) {
   __ CheckNotBackReferenceIgnoreCase(start_reg, true, false, on_not_equal);
 }
 
-VISIT(CheckNotBackRefNoCaseUnicodeBackward) {
-  INIT(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal);
+VISIT(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal) {
   __ CheckNotBackReferenceIgnoreCase(start_reg, true, true, on_not_equal);
-}
-
-VISIT(CheckNotRegsEqual) {
-  INIT(CheckNotRegsEqual, reg1, reg2, on_not_equal);
-  // Unused bytecode.
-  UNREACHABLE();
-  // Make the compiler happy.
-  USE(reg1);
-  USE(reg2);
-  USE(on_not_equal);
 }
 
 // Bytecodes generated by peephole optimization.
 
-VISIT(SkipUntilBitInTable) {
-  INIT(SkipUntilBitInTable, cp_offset, advance_by, table_data, on_match,
-       on_no_match);
+VISIT(SkipUntilBitInTable, cp_offset, advance_by, table_data, on_match,
+      on_no_match) {
   // Nibble table is optionally constructed if we use SIMD.
   Handle<ByteArray> nibble_table;
   if (masm_->SkipUntilBitInTableUseSimd(advance_by)) {
@@ -442,48 +391,95 @@ VISIT(SkipUntilBitInTable) {
                          on_no_match);
 }
 
-VISIT(SkipUntilCharAnd) {
-  INIT(SkipUntilCharAnd, cp_offset, advance_by, character, mask, eats_at_least,
-       on_match, on_no_match);
+VISIT(SkipUntilCharAnd, cp_offset, advance_by, character, mask, eats_at_least,
+      on_match, on_no_match) {
   __ SkipUntilCharAnd(cp_offset, advance_by, character, mask, eats_at_least,
                       on_match, on_no_match);
 }
 
-VISIT(SkipUntilChar) {
-  INIT(SkipUntilChar, cp_offset, advance_by, character, on_match, on_no_match);
+VISIT(SkipUntilChar, cp_offset, advance_by, character, on_match, on_no_match) {
   __ SkipUntilChar(cp_offset, advance_by, character, on_match, on_no_match);
 }
 
-VISIT(SkipUntilCharPosChecked) {
-  INIT(SkipUntilCharPosChecked, cp_offset, advance_by, character, eats_at_least,
-       on_match, on_no_match);
+VISIT(SkipUntilCharPosChecked, cp_offset, advance_by, character, eats_at_least,
+      on_match, on_no_match) {
   __ SkipUntilCharPosChecked(cp_offset, advance_by, character, eats_at_least,
                              on_match, on_no_match);
 }
 
-VISIT(SkipUntilCharOrChar) {
-  INIT(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
-       on_no_match);
+VISIT(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
+      on_no_match) {
   __ SkipUntilCharOrChar(cp_offset, advance_by, char1, char2, on_match,
                          on_no_match);
 }
 
-VISIT(SkipUntilGtOrNotBitInTable) {
-  INIT(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character, table_data,
-       on_match, on_no_match);
+VISIT(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character, table_data,
+      on_match, on_no_match) {
   Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
   __ SkipUntilGtOrNotBitInTable(cp_offset, advance_by, character, table,
                                 on_match, on_no_match);
 }
 
-VISIT(SkipUntilOneOfMasked) {
-  INIT(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
-       max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
-       on_failure);
+VISIT(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
+      max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
+      on_failure) {
   __ SkipUntilOneOfMasked(cp_offset, advance_by, both_chars, both_mask,
                           max_offset, chars1, mask1, chars2, mask2, on_match1,
                           on_match2, on_failure);
 }
+
+VISIT(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
+      bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters, bc3_mask,
+      bc4_by, bc5_cp_offset, bc6_characters, bc6_mask, bc6_on_equal,
+      bc7_characters, bc7_mask, bc7_on_equal, bc8_characters, bc8_mask,
+      fallthrough_jump_target) {
+  RegExpMacroAssembler::SkipUntilOneOfMasked3Args args = {
+      .bc0_cp_offset = bc0_cp_offset,
+      .bc0_advance_by = bc0_advance_by,
+      .bc0_table = {},
+      .bc0_nibble_table = {},
+      .bc1_cp_offset = bc1_cp_offset,
+      .bc1_on_failure = bc1_on_failure,
+      .bc2_cp_offset = bc2_cp_offset,
+      .bc3_characters = bc3_characters,
+      .bc3_mask = bc3_mask,
+      .bc4_by = bc4_by,
+      .bc5_cp_offset = bc5_cp_offset,
+      .bc6_characters = bc6_characters,
+      .bc6_mask = bc6_mask,
+      .bc6_on_equal = bc6_on_equal,
+      .bc7_characters = bc7_characters,
+      .bc7_mask = bc7_mask,
+      .bc7_on_equal = bc7_on_equal,
+      .bc8_characters = bc8_characters,
+      .bc8_mask = bc8_mask,
+      .fallthrough_jump_target = fallthrough_jump_target,
+  };
+
+  // The nibble table is optionally constructed if we use SIMD.
+  Handle<ByteArray> nibble_table;
+  if (masm_->SkipUntilOneOfMasked3UseSimd(args)) {
+    static_assert(RegExpMacroAssembler::kTableSize == 128);
+    nibble_table = isolate_->factory()->NewByteArray(
+        RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
+  }
+  Handle<ByteArray> table =
+      CreateBitTableByteArray(isolate_, bc0_table, nibble_table);
+  args.bc0_table = table;
+  args.bc0_nibble_table = nibble_table;
+
+  __ SkipUntilOneOfMasked3(args);
+}
+
+VISIT_METHODS_END()
+
+#undef VISIT
+#undef VISIT_METHODS_END
+#undef VISIT_METHODS_START
+#undef CLOSE_BLOCK
+#undef OPEN_BLOCK
+#undef INIT
+#undef VISIT_COMMENT
 
 template <RegExpBytecode bc>
 void RegExpCodeGenerator::Visit() {
@@ -506,6 +502,10 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
       uint32_t offset = Operands::template Get<operand>(pc, no_gc);
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
+        if constexpr (bc == RegExpBytecode::kPushBacktrack) {
+          DCHECK(!indirect_jump_targets_.Contains(offset));
+          indirect_jump_targets_.Add(offset);
+        }
         Label* label = &labels_[offset];
         new (label) Label();
       }
@@ -518,7 +518,11 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
 void RegExpCodeGenerator::VisitBytecodes() {
   for (; !iter_.done() && !has_unsupported_bytecode_; iter_.advance()) {
     if (jump_targets_.Contains(iter_.current_offset())) {
-      __ Bind(&labels_[iter_.current_offset()]);
+      if (indirect_jump_targets_.Contains(iter_.current_offset())) {
+        __ BindJumpTarget(&labels_[iter_.current_offset()]);
+      } else {
+        __ Bind(&labels_[iter_.current_offset()]);
+      }
     }
     RegExpBytecodes::DispatchOnBytecode(
         iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });

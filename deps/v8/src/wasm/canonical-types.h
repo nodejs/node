@@ -24,10 +24,8 @@ struct WasmModule;
 
 // We use ValueType instances constructed from canonical type indices, so we
 // can't let them get bigger than what we have storage space for.
-// We could raise this limit using unused bits in the ValueType, but that
-// doesn't seem urgent, as we have no evidence of the current limit being
-// an actual limitation in practice.
-static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// We can raise this limit as long as we have unused bits in the ValueType.
+static constexpr size_t kMaxCanonicalTypes = 2 * kV8MaxWasmTypes;
 // We don't want any valid modules to fail canonicalization.
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
 // We want the invalid index to fail any range checks.
@@ -459,13 +457,13 @@ class TypeCanonicalizer {
   // Conceptually a vector of CanonicalType. Modification generally requires
   // synchronization, read-only access can be done without locking.
   class CanonicalTypeVector {
-    static constexpr uint32_t kSegmentSize = 1024;
+    static constexpr uint32_t kSegmentSize = 2048;
     static constexpr uint32_t kNumSegments =
         (kMaxCanonicalTypes + kSegmentSize - 1) / kSegmentSize;
     static_assert(kSegmentSize * kNumSegments >= kMaxCanonicalTypes);
     static_assert(
         kNumSegments <= 1024,
-        "Reconsider this data structures when increasing kMaxCanonicalTypes");
+        "Reconsider this data structure when increasing kMaxCanonicalTypes");
 
    public:
     const CanonicalType* operator[](CanonicalTypeIndex index) const {

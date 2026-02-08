@@ -1,0 +1,4 @@
+f3 in *%(basename)s*
+f2 in *%(basename)s*
+f1 in *%(basename)s*
+<none> in *%(basename)s*

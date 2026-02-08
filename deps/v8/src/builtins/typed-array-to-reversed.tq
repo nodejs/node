@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 namespace typed_array {
+const kBuiltinNameToReversed: constexpr string =
+    '%TypedArray%.prototype.toReversed';
+
 // https://tc39.es/proposal-change-array-by-copy/#sec-%typedarray%.prototype.toReversed
 transitioning javascript builtin TypedArrayPrototypeToReversed(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
@@ -10,7 +13,7 @@ transitioning javascript builtin TypedArrayPrototypeToReversed(
   // 2. Perform ? ValidateTypedArray(O).
   // 3. Let length be O.[[ArrayLength]].
   const len = ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.toReversed');
+      context, receiver, kBuiltinNameToReversed, TypedArrayAccessMode::kRead);
   const src: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   // 4. Let A be ? TypedArrayCreateSameType(O, « 𝔽(length) »).

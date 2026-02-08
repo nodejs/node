@@ -10,6 +10,7 @@
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-array.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
@@ -91,6 +92,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Sets the entry to (key, value) pair.
   inline void SetEntry(InternalIndex entry, Tagged<Object> key,
                        Tagged<Object> value, PropertyDetails details);
+  inline void SetEntry(InternalIndex entry, Tagged<Object> key,
+                       Tagged<Object> value, PropertyDetails details,
+                       WriteBarrierMode mode,
+                       const DisallowGarbageCollection& no_gc);
 
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
@@ -351,6 +356,10 @@ class V8_EXPORT_PRIVATE GlobalDictionary
                                      InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Tagged<Object> key,
                        Tagged<Object> value, PropertyDetails details);
+  inline void SetEntry(InternalIndex entry, Tagged<Object> key,
+                       Tagged<Object> value, PropertyDetails details,
+                       WriteBarrierMode mode,
+                       const DisallowGarbageCollection& no_gc);
   inline void ClearEntry(InternalIndex entry);
   inline Tagged<Name> NameAt(InternalIndex entry);
   inline Tagged<Name> NameAt(PtrComprCageBase cage_base, InternalIndex entry);

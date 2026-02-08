@@ -34,7 +34,7 @@ class V8_EXPORT External : public Value {
   }
   static Local<External> New(Isolate* isolate, void* value,
                              ExternalPointerTypeTag tag);
-  V8_INLINE static External* Cast(Value* value) {
+  V8_INLINE static External* Cast(Data* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
 #endif
@@ -47,7 +47,7 @@ class V8_EXPORT External : public Value {
   void* Value(ExternalPointerTypeTag tag) const;
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* obj);
 };
 
 }  // namespace v8

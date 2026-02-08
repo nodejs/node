@@ -306,10 +306,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void EmitPoolGuard();
 
   bool pools_blocked() const { return pools_blocked_nesting_ > 0; }
-  void StartBlockPools(ConstantPoolEmission cpe, int margin);
+  void StartBlockPools(int margin);
   void EndBlockPools();
 
-  void FinishCode() { constpool_.Check(Emission::kForced, Jump::kOmitted); }
+  void FinishCode() { constpool_.Emit(); }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
@@ -484,11 +484,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     static constexpr int kGap = kTrampolineSlotsSize * 16;
 
     explicit BlockPoolsScope(Assembler* assem, int margin = 0)
-        : BlockPoolsScope(assem, ConstantPoolEmission::kCheck, margin) {}
-
-    BlockPoolsScope(Assembler* assem, ConstantPoolEmission cpe, int margin = 0)
         : assem_(assem), margin_(margin) {
-      assem->StartBlockPools(cpe, margin);
+      assem->StartBlockPools(margin);
       start_offset_ = assem->pc_offset();
     }
 
@@ -573,13 +570,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   friend class VectorUnit;
   class VectorUnit {
    public:
-    inline int32_t sew() const { return 1 << (sew_ + 3); }
+    inline VSew sew() const { return sew_; }
+    inline int32_t sew_bits() const { return 1 << (sew_ + 3); }
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
-        return (CpuFeatures::vlen() / sew()) >> (lmul_ & 0b11);
+        return (CpuFeatures::vlen() / sew_bits()) >> (lmul_ & 0b11);
       } else {
-        return ((CpuFeatures::vlen() << lmul_) / sew());
+        return ((CpuFeatures::vlen() << lmul_) / sew_bits());
       }
     }
 
@@ -592,8 +590,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     // change it back to RNE before it finishes.
     void set(FPURoundingMode mode) {
       if (mode_ != mode) {
-        assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
-        assm_->fscsr(kScratchReg);
+        if (mode == 0) {
+          assm_->fsrm(zero_reg);
+        } else {
+          assm_->fsrm(mode);
+        }
         mode_ = mode;
       }
     }
@@ -614,6 +615,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = sew;
       lmul_ = lmul;
+    }
+
+    bool IsConfiguredForSimd128() const {
+      int32_t expected_avl = 128 / sew_bits();
+      return (avl_ == expected_avl);
     }
 
     void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
@@ -768,14 +774,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     pc_offset_for_safepoint_ = pc_offset;
   }
 
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted. This variant is used
-  // at unreachable positions in the code, such as right after an unconditional
-  // transfer of control (jump, return).
-  void EmitConstPoolWithoutJumpIfNeeded() {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted);
-  }
-
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode) {
     return constpool_.RecordEntry64(data, rmode);
   }
@@ -877,7 +875,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   void CheckTrampolinePool();
   inline void CheckTrampolinePoolQuick(int margin);
-  inline void CheckConstantPoolQuick(int margin);
   int32_t GetTrampolineEntry(int32_t pos);
 
   // We keep track of the position of all internal reference uses of labels,

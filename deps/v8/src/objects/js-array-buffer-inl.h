@@ -190,6 +190,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
                     JSArrayBuffer::IsResizableByJsBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
+                    JSArrayBuffer::IsImmutableBit)
 
 bool JSArrayBuffer::IsEmpty() const {
   auto backing_store = GetBackingStore();
@@ -391,22 +393,37 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 
 // static
 MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
-    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name) {
+    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
+    TypedArrayAccessMode access_mode) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
+  // All errors throw the same message. In theory we could be more specific
+  // here. However, many of the fast-paths do not distinguish and we'd rather be
+  // consistent.
+  const MessageTemplate message =
+      access_mode == TypedArrayAccessMode::kWrite
+          ? MessageTemplate::kTypedArrayValidateWriteErrorOperation
+          : MessageTemplate::kTypedArrayValidateErrorOperation;
+
   DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
-    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
+  if (access_mode == TypedArrayAccessMode::kWrite &&
+      Cast<JSArrayBuffer>(array->buffer())->is_immutable()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(message, isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
-    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));

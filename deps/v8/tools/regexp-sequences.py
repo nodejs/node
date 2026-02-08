@@ -23,45 +23,103 @@ def parse(file, seqlen):
                   r'curpos = (?P<curpos>\d+), curchar = (?P<char_hex>[0-9a-f]+) '
                   r'(:?\.|\()(?P<char>\.|\w)(:?\.|\)), bc = (?P<bc>\w+), .*')
   total = 0
-  bc_cnt = [None] * seqlen
-  for i in range(seqlen):
-    bc_cnt[i] = {}
-  last = [None] * seqlen
+
+  # stats[len][seq_tuple] = {'count': 0, 'loops': 0}
+  # Using tuple as key for easier rotation
+  stats = [{} for _ in range(seqlen)]
+
+  # last[len] = deque of (bc, pc_int)
+  last = [collections.deque(maxlen=i + 1) for i in range(seqlen)]
+
   with open(file) as f:
     l = f.readline()
     while l:
       l = l.strip()
       if l.startswith("Start bytecode interpreter"):
         for i in range(seqlen):
-          last[i] = collections.deque(maxlen=i+1)
+          last[i].clear()
 
       match = rx.search(l)
       if match:
         total += 1
         bc = match.group('bc')
+        pc = int(match.group('pc'), 16)
+
+        current_node = (bc, pc)
+
         for i in range(seqlen):
-          last[i].append(bc)
-          key = ' --> '.join(last[i])
-          bc_cnt[i][key] = bc_cnt[i].get(key,0) + 1
+          deque = last[i]
+
+          if len(deque) == i + 1:
+            # Canonicalize based on PC: find the rotation that starts with the
+            # lowest PC.  This aligns loops to their header.
+            min_pc = float('inf')
+            rotation_start = 0
+
+            # Find the index with the minimum PC
+            for idx, item in enumerate(deque):
+              if item[1] < min_pc:
+                min_pc = item[1]
+                rotation_start = idx
+              elif item[1] == min_pc:
+                # Tie-break. If the same sequence appears twice (A->B->A->B),
+                # we prefer the first.
+                pass
+
+            # Rotate to start at rotation_start
+            canonical_seq = []
+            for k in range(i + 1):
+              idx = (rotation_start + k) % (i + 1)
+              canonical_seq.append(deque[idx][0])
+
+            seq_key = tuple(canonical_seq)
+
+            if seq_key not in stats[i]:
+              stats[i][seq_key] = {'count': 0, 'loops': 0}
+
+            stats[i][seq_key]['count'] += 1
+
+            # Check for loops. Note that current_node is the node *after* the
+            # sequence we are currently looking at.
+            first_node = deque[0]
+            if current_node[1] == first_node[1]:
+              stats[i][seq_key]['loops'] += 1
+
+          deque.append(current_node)
 
       l = f.readline()
-  return bc_cnt, total
+  return stats, total
 
 def print_most_common(d, seqlen, total):
-  sorted_d = sorted(d.items(), key=lambda kv: kv[1], reverse=True)
-  for (k,v) in sorted_d:
-    if v*100/total < 1.0:
+  # Sort by count
+  sorted_items = sorted(d.items(), key=lambda kv: kv[1]['count'], reverse=True)
+
+  for (k, val) in sorted_items:
+    count = val['count']
+    loops = val['loops']
+    pct = count * 100.0 / total
+
+    if pct < 1.0:
       return
-    print("{}: {} ({} %)".format(k,v,(v*100/total)))
+
+    loop_pct = loops * 100.0 / count
+
+    seq_str = ' --> '.join(k)
+    print("{}: {} ({:.2f} %) - Loops: {} ({:.2f} %)".format(
+        seq_str, count, pct, loops, loop_pct))
 
 def main(argv):
+  if len(argv) < 2:
+    print("Usage: python {} <trace-file>".format(argv[0]))
+    sys.exit(1)
+
   max_seq = 7
-  bc_cnt, total = parse(argv[1],max_seq)
+  stats, total = parse(argv[1], max_seq)
   for i in range(max_seq):
     print()
     print("Most common of length {}".format(i+1))
     print()
-    print_most_common(bc_cnt[i], i, total)
+    print_most_common(stats[i], i, total)
 
 if __name__ == '__main__':
   main(sys.argv)

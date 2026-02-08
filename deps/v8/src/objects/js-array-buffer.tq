@@ -9,6 +9,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_asm_js_memory: bool: 1 bit;
   is_shared: bool: 1 bit;
   is_resizable_by_js: bool: 1 bit;
+  is_immutable: bool: 1 bit;
 }
 
 extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
@@ -47,6 +48,11 @@ macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
 @export
 macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
   return buffer.bit_field.is_resizable_by_js;
+}
+
+@export
+macro IsImmutableArrayBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.is_immutable;
 }
 
 // We have 4 different DataViews & TypedArrays:
@@ -91,13 +97,15 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
 }
 
 extern macro LoadVariableLengthJSArrayBufferViewByteLength(
-    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+    JSArrayBufferView, JSArrayBuffer, constexpr TypedArrayAccessMode): uintptr
+    labels Fail;
 
 macro LoadJSArrayBufferViewByteLength(
     view: JSArrayBufferView,
     buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
   if (IsVariableLengthJSArrayBufferView(view)) {
-    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+    return LoadVariableLengthJSArrayBufferViewByteLength(
+        view, buffer, TypedArrayAccessMode::kRead)
         otherwise DetachedOrOutOfBounds;
   }
   if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;

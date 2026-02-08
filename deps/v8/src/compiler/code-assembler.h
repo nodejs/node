@@ -708,9 +708,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         "Parameter is only for tagged types. Use UncheckedParameter instead.");
     std::stringstream message;
     message << "Parameter " << value;
-    if (loc.FileName()) {
-      message << " at " << loc.FileName() << ":" << loc.Line();
-    }
+    if (loc) message << " at " << loc.FileName() << ":" << loc.Line();
     size_t buf_size = message.str().size() + 1;
     char* message_dup = zone()->AllocateArray<char>(buf_size);
     snprintf(message_dup, buf_size, "%s", message.str().c_str());
@@ -748,6 +746,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void DebugBreak();
   void Unreachable();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  void ExitSandbox();
+  void EnterSandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;
@@ -764,9 +767,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
     USE(s << message.message, (s << std::forward<Args>(args))...);
-    if (message.loc.FileName()) {
-      s << " - " << message.loc.ToString();
-    }
+    if (message.loc) s << " - " << message.loc.ToString();
     EmitComment(std::move(s).str());
   }
 
@@ -919,6 +920,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(UnalignedLoad(mt, base, offset));
   }
 
+  template <typename Type>
+  TNode<Type> UnalignedLoad(TNode<BytecodeArray> base, TNode<IntPtrT> offset) {
+    MachineType type = MachineTypeOf<Type>::value;
+    if (UnalignedLoadSupported(type.representation())) {
+      return UncheckedCast<Type>(Load(type, base, offset));
+    } else {
+      TNode<RawPtrT> base_raw = BitcastTaggedToWord(base);
+      return UncheckedCast<Type>(UnalignedLoad(type, base_raw, offset));
+    }
+  }
+
   // Store value to raw memory location.
   void Store(Node* base, Node* value);
   void Store(Node* base, Node* offset, Node* value);
@@ -926,6 +938,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                            Node* value);
+  void UnalignedStoreNoWriteBarrier(MachineRepresentation rep,
+                                    TNode<BytecodeArray> base,
+                                    TNode<IntPtrT> offset, Node* value);
   void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                  Node* value);
   void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
@@ -1489,6 +1504,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
   }
 
+  // LINT.IfChange
   // Call the given JavaScript callable through one of the JS Call builtins.
   template <class... TArgs>
   TNode<JSAny> CallJS(Builtin builtin, TNode<Context> context,
@@ -1509,6 +1525,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                std::nullopt, arity, std::nullopt,
                                {receiver, args...}));
   }
+  // LINT.ThenChange(/src/codegen/turboshaft-builtins-assembler-inl.h)
 
   // Construct the given JavaScript callable through a JS Construct builtin.
   template <class... TArgs>

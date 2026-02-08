@@ -68,9 +68,8 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT =
-      TSAssembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
-                  VariableReducer>;
+  using AssemblerT = Assembler<ExplicitTruncationReducer,
+                               SimplifiedOptimizationReducer, VariableReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -1026,27 +1025,25 @@ OpIndex GraphBuilder::Process(
           CheckMinusZeroModeOf(node->op()));
 #undef CONVERT_PRIMITIVE_TO_OBJECT_CASE
 
-#define CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_type, \
-                                                  input_interpretation)   \
-  case IrOpcode::k##name: {                                               \
-    DCHECK(dominating_frame_state.valid());                               \
-    const CheckParameters& params = CheckParametersOf(node->op());        \
-    return __ ConvertUntaggedToJSPrimitiveOrDeopt(                        \
-        Map(node->InputAt(0)), dominating_frame_state,                    \
-        ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::k##kind,  \
-        V<input_type>::rep,                                               \
-        ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::      \
-            k##input_interpretation,                                      \
-        params.feedback());                                               \
+#define CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(name, input_type,        \
+                                                  input_interpretation)    \
+  case IrOpcode::k##name: {                                                \
+    DCHECK(dominating_frame_state.valid());                                \
+    const CheckParameters& params = CheckParametersOf(node->op());         \
+    return __ ConvertWordToSmiOrDeopt(                                     \
+        Map(node->InputAt(0)), dominating_frame_state, V<input_type>::rep, \
+        ConvertWordToSmiOrDeoptOp::InputInterpretation::                   \
+            k##input_interpretation,                                       \
+        params.feedback());                                                \
   }
-      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned, Smi,
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned,
                                                 Word32, Signed)
       CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedUint32ToTaggedSigned,
-                                                Smi, Word32, Unsigned)
-      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt64ToTaggedSigned, Smi,
+                                                Word32, Unsigned)
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt64ToTaggedSigned,
                                                 Word64, Signed)
       CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedUint64ToTaggedSigned,
-                                                Smi, Word64, Unsigned)
+                                                Word64, Unsigned)
 #undef CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE
 
 #define CONVERT_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions) \
@@ -1256,23 +1253,23 @@ OpIndex GraphBuilder::Process(
       return __ Select(cond, vtrue, vfalse,
                        RegisterRepresentation::FromMachineRepresentation(
                            params.representation()),
-                       params.hint(), SelectOp::Implementation::kBranch);
+                       params.hint(), SelectOp::Implementation::kAny);
     }
     case IrOpcode::kWord32Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Word32>(node->InputAt(1)),
           Map<Word32>(node->InputAt(2)), RegisterRepresentation::Word32(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
     case IrOpcode::kWord64Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Word64>(node->InputAt(1)),
           Map<Word64>(node->InputAt(2)), RegisterRepresentation::Word64(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
     case IrOpcode::kFloat32Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Float32>(node->InputAt(1)),
           Map<Float32>(node->InputAt(2)), RegisterRepresentation::Float32(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
 
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
@@ -1581,6 +1578,10 @@ OpIndex GraphBuilder::Process(
       return __ Projection(Map(input), index, rep);
     }
 
+    case IrOpcode::kMajorGCForCompilerTesting:
+      __ MajorGCForCompilerTesting();
+      return OpIndex::Invalid();
+
     case IrOpcode::kStaticAssert:
       __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();
@@ -1637,8 +1638,7 @@ OpIndex GraphBuilder::Process(
 
 #ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
-        value = __ ShiftLeft(value, kBoundedSizeShift,
-                             WordRepresentation::WordPtr());
+        value = __ WordPtrShiftLeft(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -1714,12 +1714,11 @@ OpIndex GraphBuilder::Process(
       OpIndex value = __ Load(Map(object), kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
       if (is_sandboxed_external) {
-        value = __ DecodeExternalPointer(value, access.external_pointer_tag);
+        value = __ LoadExternalPointer(value, access.external_pointer_tag);
       }
       if (access.is_bounded_size_access) {
         DCHECK(!is_sandboxed_external);
-        value = __ ShiftRightLogical(value, kBoundedSizeShift,
-                                     WordRepresentation::WordPtr());
+        value = __ WordPtrShiftRightLogical(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
       return value;
@@ -1925,9 +1924,11 @@ OpIndex GraphBuilder::Process(
 
 #ifdef V8_INTL_SUPPORT
     case IrOpcode::kStringToLowerCaseIntl:
-      return __ StringToLowerCaseIntl(Map(node->InputAt(0)));
+      return __ StringToLowerCaseIntl(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
     case IrOpcode::kStringToUpperCaseIntl:
-      return __ StringToUpperCaseIntl(Map(node->InputAt(0)));
+      return __ StringToUpperCaseIntl(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
 #else
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
@@ -2797,6 +2798,15 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    case IrOpcode::kSwitchSandboxMode: {
+      CodeSandboxingMode sandbox_mode =
+          OpParameter<CodeSandboxingMode>(node->op());
+      return __ SwitchSandboxMode(sandbox_mode);
+    }
+
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
       node->Print(std::cerr);
@@ -2811,8 +2821,8 @@ std::optional<BailoutReason> BuildGraph(
     JsWasmCallsSidetable* js_wasm_calls_sidetable) {
   GraphBuilder builder{data, phase_zone, *schedule, linkage,
                        js_wasm_calls_sidetable};
+  DCHECK(data->graph().IsCreatedFromTurbofan());
 #if DEBUG
-  data->graph().SetCreatedFromTurbofan();
   data->graph().set_broker(data->broker());
 #endif
   return builder.Run();

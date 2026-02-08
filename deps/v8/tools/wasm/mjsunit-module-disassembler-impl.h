@@ -83,13 +83,16 @@ class MjsunitNamesProvider {
       }
     }
     for (const WasmImport& imp : module_->import_table) {
-      if (imp.kind != kExternalFunction) continue;
+      if (imp.kind != kExternalFunction && imp.kind != kExternalExactFunction) {
+        continue;
+      }
       if (function_variable_names_[imp.index].is_set()) continue;
       if (IsSuitableFunctionVariableName(imp.field_name)) {
         function_variable_names_[imp.index] = imp.field_name;
       }
     }
     for (const WasmExport& ex : module_->export_table) {
+      DCHECK_NE(ex.kind, kExternalExactFunction);
       if (ex.kind != kExternalFunction) continue;
       if (function_variable_names_[ex.index].is_set()) continue;
       if (IsSuitableFunctionVariableName(ex.name)) {
@@ -111,7 +114,7 @@ class MjsunitNamesProvider {
     if (name_ref.offset() == ref.offset()) return true;
     WasmName name = wire_bytes_.GetNameOrNull(name_ref);
     WasmName question = wire_bytes_.GetNameOrNull(ref);
-    return memcmp(name.begin(), question.begin(), name.length()) == 0;
+    return memcmp(name.begin(), question.begin(), name.size()) == 0;
   }
 
   void PrintTypeVariableName(StringBuilder& out, ModuleTypeIndex index) {
@@ -467,18 +470,18 @@ class MjsunitNamesProvider {
     // This isn't perfect: any collision with a function (e.g. "makeSig")
     // or constant (e.g. "kFooRefCode") would also break the generated test,
     // but it doesn't seem feasible to accurately guard against all of those.
-    if (name.length() >= 8) {
+    if (name.size() >= 8) {
       if (memcmp(name.begin(), "$segment", 8) == 0) return false;
     }
-    if (name.length() >= 7) {
+    if (name.size() >= 7) {
       if (memcmp(name.begin(), "$global", 7) == 0) return false;
       if (memcmp(name.begin(), "$struct", 7) == 0) return false;
     }
-    if (name.length() >= 6) {
+    if (name.size() >= 6) {
       if (memcmp(name.begin(), "$array", 6) == 0) return false;
       if (memcmp(name.begin(), "$table", 6) == 0) return false;
     }
-    if (name.length() >= 5) {
+    if (name.size() >= 5) {
       if (memcmp(name.begin(), "$data", 5) == 0) return false;
       if (memcmp(name.begin(), "$func", 5) == 0) return false;
       if (memcmp(name.begin(), "kExpr", 5) == 0) return false;
@@ -486,7 +489,7 @@ class MjsunitNamesProvider {
       if (memcmp(name.begin(), "kWasm", 5) == 0) return false;
       if (memcmp(name.begin(), "throw", 5) == 0) return false;
     }
-    if (name.length() >= 4) {
+    if (name.size() >= 4) {
       if (memcmp(name.begin(), "$mem", 4) == 0) return false;
       if (memcmp(name.begin(), "$sig", 4) == 0) return false;
       if (memcmp(name.begin(), "$tag", 4) == 0) return false;
@@ -1240,9 +1243,9 @@ class MjsunitModuleDis {
     // Support self-referential and mutually-recursive types.
     std::vector<uint32_t> needed_at(module_->types.size(), kMaxUInt32);
     auto MarkAsNeededHere = [&needed_at](ValueType vt, uint32_t here) {
-      if (!vt.is_object_reference()) return;
+      if (!vt.is_ref()) return;
       HeapType ht = vt.heap_type();
-      if (!ht.is_index()) return;
+      if (!ht.has_index()) return;
       if (ht.ref_index().index < here) return;
       if (needed_at[ht.ref_index().index] < here) return;
       needed_at[ht.ref_index().index] = here;
@@ -1396,11 +1399,15 @@ class MjsunitModuleDis {
       out_ << "let ";
       switch (imported.kind) {
         case kExternalFunction:
+        case kExternalExactFunction:
           names()->PrintFunctionVariableName(out_, imported.index);
           out_ << " = builder.addImport('" << V(imported.module_name);
           out_ << "', '" << V(imported.field_name) << "', ";
           names()->PrintTypeIndex(
               out_, module_->functions[imported.index].sig_index, kEmitObjects);
+          if (imported.kind == kExternalExactFunction) {
+            out_ << ", kExternalExactFunction";
+          }
           break;
 
         case kExternalTable: {
@@ -1781,6 +1788,10 @@ class MjsunitModuleDis {
           names()->PrintTagName(out_, ex.index);
           out_ << ");";
           break;
+        case kExternalExactFunction:
+          // We could support this if we needed to, using {addExportOfKind()}.
+          out_ << "ERROR: 'exact function' is illegal as an export kind";
+          UNREACHABLE();
       }
       out_.NextLine(0);
       added_any_export = true;

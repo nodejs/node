@@ -6,6 +6,7 @@
 #define V8_CODEGEN_EXTERNAL_REFERENCE_H_
 
 #include "src/common/globals.h"
+#include "src/execution/isolate-data-fields.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -16,7 +17,7 @@ class CFunctionInfo;
 namespace internal {
 
 class Isolate;
-class PageMetadata;
+class NormalPage;
 class SCTableReference;
 class StatsCounter;
 enum class IsolateFieldId : uint8_t;
@@ -24,6 +25,7 @@ enum class IsolateFieldId : uint8_t;
 //------------------------------------------------------------------------------
 // External references
 
+// TODO(ishell): Remove entries accessible via IsolateFieldId.
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(V)                                \
   V(isolate_address, "isolate")                                                \
   V(handle_scope_implementer_address,                                          \
@@ -91,6 +93,7 @@ enum class IsolateFieldId : uint8_t;
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
+  V(abort_with_sandbox_violation, "abort_with_sandbox_violation")              \
   V(address_of_log_or_trace_osr, "v8_flags.log_or_trace_osr")                  \
   V(address_of_builtin_subclassing_flag, "v8_flags.builtin_subclassing")       \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
@@ -465,7 +468,7 @@ enum class IsolateFieldId : uint8_t;
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
-  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")   \
+  V(re_word_character_map, "RegExpMacroAssembler::word_character_map")         \
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
@@ -498,28 +501,24 @@ enum class IsolateFieldId : uint8_t;
   V(sandbox_base_address, "Sandbox::base()")                 \
   V(sandbox_end_address, "Sandbox::end()")                   \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()") \
-  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
+  V(memory_chunk_metadata_table_address, "BasePage::Table()")
 #else
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
-  V(sandbox_base_address, "Sandbox::base()")                             \
-  V(sandbox_end_address, "Sandbox::end()")                               \
-  V(sandboxed_mode_pkey_mask_address,                                    \
-    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")                \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
-  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
-  V(global_code_pointer_table_base_address,                              \
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                    \
+  V(sandbox_base_address, "Sandbox::base()")                  \
+  V(sandbox_end_address, "Sandbox::end()")                    \
+  V(sandboxed_mode_pkey_mask_address,                         \
+    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")     \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")  \
+  V(memory_chunk_metadata_table_address, "BasePage::Table()") \
+  V(global_code_pointer_table_base_address,                   \
     "IsolateGroup::current()->code_pointer_table()")
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
 #define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
   V(js_dispatch_table_address, "IsolateGroup::current()->js_dispatch_table()")
-#else
-#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
-#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 #define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \
@@ -612,8 +611,8 @@ class ExternalReference {
   Create(Isolate* isolate, ApiFunction* ptr, Type type, Address* c_functions,
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
-  static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
+  static ExternalReference Create(IsolateFieldId id, Isolate* isolate);
   static ExternalReference Create(IsolateFieldId id) {
     return ExternalReference{id};
   }
@@ -623,7 +622,10 @@ class ExternalReference {
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();
 
-  V8_EXPORT_PRIVATE static ExternalReference FromRawAddress(Address address);
+  V8_EXPORT_PRIVATE static ExternalReference FromRawAddress(Address address) {
+    // Use unchecked constructor.
+    return ExternalReference{address, nullptr};
+  }
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
   V8_EXPORT_PRIVATE static ExternalReference name();
@@ -638,7 +640,6 @@ class ExternalReference {
   V8_EXPORT_PRIVATE static ExternalReference isolate_address();
   V8_EXPORT_PRIVATE static ExternalReference
   address_of_code_pointer_table_base_address();
-  V8_EXPORT_PRIVATE static ExternalReference jslimit_address();
 
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);
@@ -650,7 +651,14 @@ class ExternalReference {
 
   static ExternalReference invoke_function_callback(CallApiCallbackMode mode);
 
-  bool IsIsolateFieldId() const;
+  bool IsIsolateFieldId() const { return IsIsolateFieldId(raw_); }
+
+  IsolateFieldId GetIsolateFieldId() const {
+    DCHECK(IsIsolateFieldId());
+    IsolateFieldId field_id =
+        static_cast<IsolateFieldId>(raw_ - kFirstIsolateFieldIdValue);
+    return field_id;
+  }
 
   Address raw() const { return raw_; }
 
@@ -673,6 +681,15 @@ class ExternalReference {
   static Address UnwrapRedirection(Address redirection_trampoline);
 
  private:
+  // IsolateFieldId's are encoded as `id + kFirstIsolateFieldIdValue` in order
+  // to avoid clash between first IsolateFieldId and kNullAddress.
+  static constexpr Address kFirstIsolateFieldIdValue = 1;
+
+  static constexpr bool IsIsolateFieldId(Address value) {
+    return (value >= kFirstIsolateFieldIdValue &&
+            value < (kFirstIsolateFieldIdValue + kNumIsolateFieldIds));
+  }
+
   explicit ExternalReference(Address address) : raw_(address) {
     CHECK(!IsIsolateFieldId());
   }
@@ -682,8 +699,11 @@ class ExternalReference {
     CHECK(!IsIsolateFieldId());
   }
 
+  // This is an unchecked constructor, used only in FromRawAddress.
+  explicit ExternalReference(Address address, std::nullptr_t) : raw_(address) {}
+
   explicit ExternalReference(IsolateFieldId id)
-      : raw_(static_cast<Address>(id)) {}
+      : raw_(static_cast<Address>(id) + kFirstIsolateFieldIdValue) {}
 
   Address raw_;
 };
@@ -697,6 +717,7 @@ size_t hash_value(ExternalReference);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
+void abort_with_sandbox_violation();
 
 }  // namespace internal
 }  // namespace v8

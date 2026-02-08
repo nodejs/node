@@ -28,7 +28,7 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
  protected:
   explicit MarkingVerifierBase(Heap* heap);
 
-  virtual const MarkingBitmap* bitmap(const MutablePageMetadata* chunk) = 0;
+  virtual const MarkingBitmap* bitmap(const MutablePage* chunk) = 0;
 
   virtual void VerifyMap(Tagged<Map> map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
@@ -61,8 +61,7 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
   void VisitMapPointer(Tagged<HeapObject> object) override;
 
   void VerifyRoots();
-  void VerifyMarkingOnPage(const PageMetadata* page, Address start,
-                           Address end);
+  void VerifyMarkingOnPage(const NormalPage* page, Address start, Address end);
   void VerifyMarking(NewSpace* new_space);
   void VerifyMarking(PagedSpaceBase* paged_space);
   void VerifyMarking(LargeObjectSpace* lo_space);
@@ -71,8 +70,6 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
 };
 #endif  // VERIFY_HEAP
 
-enum class ExternalStringTableCleaningMode { kAll, kYoungOnly };
-template <ExternalStringTableCleaningMode mode>
 class ExternalStringTableCleanerVisitor final : public RootVisitor {
  public:
   explicit ExternalStringTableCleanerVisitor(Heap* heap) : heap_(heap) {}
@@ -107,11 +104,6 @@ bool IsCppHeapMarkingFinished(Heap* heap,
 void VerifyRememberedSetsAfterEvacuation(Heap* heap,
                                          GarbageCollector garbage_collector);
 #endif  // DEBUG
-
-template class ExternalStringTableCleanerVisitor<
-    ExternalStringTableCleaningMode::kAll>;
-template class ExternalStringTableCleanerVisitor<
-    ExternalStringTableCleaningMode::kYoungOnly>;
 
 }  // namespace internal
 }  // namespace v8

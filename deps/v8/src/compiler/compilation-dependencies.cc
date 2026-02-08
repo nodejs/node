@@ -1269,7 +1269,7 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   return PropertyConstness::kConst;
 }
 
-CompilationDependency const*
+std::optional<CompilationDependency const*>
 CompilationDependencies::FieldConstnessDependencyOffTheRecord(
     MapRef map, MapRef owner, InternalIndex descriptor) {
   DCHECK_EQ(map.GetPropertyDetails(broker_, descriptor).constness(),

@@ -144,6 +144,14 @@ Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
         NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch));
   }
 
+  if (buffer->is_immutable()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kTypedArrayImmutableBufferErrorOperation,
+                     isolate->factory()->NewStringFromAsciiChecked(
+                         "DetachArrayBuffer")));
+  }
+
   if (buffer->was_detached()) return Just(true);
 
   if (force_for_wasm_memory) {
@@ -357,6 +365,30 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
       if (o->WasDetached() || out_of_bounds || index >= length) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
+      }
+      if (Cast<JSArrayBuffer>(o->buffer())->is_immutable()) {
+        // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc )
+        // step 1.b.ii. If IsImmutableBuffer(O.[[ViewedArrayBuffer]]) is true...
+        // We need to validate that the new descriptor is compatible with the
+        // existing immutable property (which is non-configurable,
+        // non-writable).
+
+        Handle<Object> current_value;
+        LookupIterator it(isolate, o, index, LookupIterator::OWN);
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, current_value, Object::GetProperty(&it), Nothing<bool>());
+
+        if (PropertyDescriptor::IsAccessorDescriptor(desc) ||
+            (desc->has_configurable() && desc->configurable()) ||
+            (desc->has_enumerable() && !desc->enumerable()) ||
+            (desc->has_writable() && desc->writable()) ||
+            (desc->has_value() &&
+             !Object::SameValue(*desc->value(), *current_value))) {
+          RETURN_FAILURE(
+              isolate, GetShouldThrow(isolate, should_throw),
+              NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+        }
+        return Just(true);
       }
       if (!lookup_key.is_element() || is_minus_zero) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),

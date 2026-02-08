@@ -100,6 +100,7 @@ namespace internal {
   IF_WASM(V, WasmStruct)
 
 // TODO(jgruber): Move more types to SIMPLE_HEAP_OBJECT_LIST_GENERATOR.
+// LINT.IfChange
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
   V(AccessorInfo)                               \
@@ -171,6 +172,7 @@ namespace internal {
   V(JSIteratorTakeHelper)                       \
   V(JSIteratorDropHelper)                       \
   V(JSIteratorFlatMapHelper)                    \
+  V(JSIteratorConcatHelper)                     \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
@@ -284,6 +286,9 @@ namespace internal {
   V(WeakCell)                                   \
   TORQUE_DEFINED_CLASS_LIST(V)                  \
   SIMPLE_HEAP_OBJECT_LIST1(V)
+// clang-format off
+// LINT.ThenChange(/src/objects/map.cc:get_visitor_id, /src/objects/js-objects.cc:get_header_size, /src/compiler/turbofan-types.cc:bitset_type_lub)
+// clang-format on
 
 // These are artificial object types which don't have properly defined classes
 // but exist for the sake of type checking, for example IsCallable().

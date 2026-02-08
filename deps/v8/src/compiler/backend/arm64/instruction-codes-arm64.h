@@ -55,22 +55,16 @@ namespace compiler {
   V(Arm64Word64AtomicStoreWord64)
 
 #define TARGET_ARCH_SIMD_OPCODE_LIST(V) \
-  V(Arm64F64x2Qfma)                     \
-  V(Arm64F64x2Qfms)                     \
-  V(Arm64F64x2Pmin)                     \
-  V(Arm64F64x2Pmax)                     \
+  V(Arm64Ffma)                          \
+  V(Arm64Ffms)                          \
+  V(Arm64Pmin)                          \
+  V(Arm64Pmax)                          \
   V(Arm64F64x2ConvertLowI32x4S)         \
   V(Arm64F64x2ConvertLowI32x4U)         \
   V(Arm64F64x2PromoteLowF32x4)          \
   V(Arm64F32x4SConvertI32x4)            \
   V(Arm64F32x4UConvertI32x4)            \
-  V(Arm64F32x4Qfma)                     \
-  V(Arm64F32x4Qfms)                     \
-  V(Arm64F32x4Pmin)                     \
-  V(Arm64F32x4Pmax)                     \
   V(Arm64F32x4DemoteF64x2Zero)          \
-  V(Arm64F16x8Pmin)                     \
-  V(Arm64F16x8Pmax)                     \
   V(Arm64F32x4PromoteLowF16x8)          \
   V(Arm64F16x8SConvertI16x8)            \
   V(Arm64F16x8UConvertI16x8)            \
@@ -78,20 +72,12 @@ namespace compiler {
   V(Arm64F16x8DemoteF64x2Zero)          \
   V(Arm64I16x8SConvertF16x8)            \
   V(Arm64I16x8UConvertF16x8)            \
-  V(Arm64F16x8Qfma)                     \
-  V(Arm64F16x8Qfms)                     \
-  V(Arm64I64x2ShrU)                     \
   V(Arm64I64x2BitMask)                  \
   V(Arm64I32x4SConvertF32x4)            \
-  V(Arm64I32x4Shl)                      \
-  V(Arm64I32x4ShrS)                     \
   V(Arm64I32x4Mul)                      \
   V(Arm64I16x8Q15MulRSatS)              \
   V(Arm64I16x8BitMask)                  \
-  V(Arm64I8x16Shl)                      \
-  V(Arm64I8x16ShrS)                     \
   V(Arm64I8x16SConvertI16x8)            \
-  V(Arm64I8x16ShrU)                     \
   V(Arm64I8x16UConvertI16x8)            \
   V(Arm64I8x16BitMask)                  \
   V(Arm64S128Const)                     \
@@ -102,6 +88,7 @@ namespace compiler {
   V(Arm64S128Not)                       \
   V(Arm64S128Select)                    \
   V(Arm64S128AndNot)                    \
+  V(Arm64S128OrNot)                     \
   V(Arm64S128Rev16)                     \
   V(Arm64S128Rev32)                     \
   V(Arm64S128Rev64)                     \
@@ -117,25 +104,15 @@ namespace compiler {
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
   V(Arm64S64x2Reverse)                  \
-  V(Arm64S64x2Shuffle)                  \
-  V(Arm64S64x1Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
-  V(Arm64S32x2Shuffle)                  \
-  V(Arm64S32x1Shuffle)                  \
-  V(Arm64S16x2Shuffle)                  \
-  V(Arm64S16x1Shuffle)                  \
-  V(Arm64S8x2Shuffle)                   \
   V(Arm64S8x16Concat)                   \
   V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S32x4Reverse)                  \
-  V(Arm64S32x4OneLaneSwizzle)           \
   V(Arm64S128MoveLane)                  \
+  V(Arm64S128MoveReg)                   \
   V(Arm64V128AnyTrue)                   \
-  V(Arm64I64x2AllTrue)                  \
-  V(Arm64I32x4AllTrue)                  \
-  V(Arm64I16x8AllTrue)                  \
-  V(Arm64I8x16AllTrue)                  \
+  V(Arm64AllTrue)                       \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \
@@ -151,30 +128,26 @@ namespace compiler {
   V(Arm64INeg)                          \
   V(Arm64IExtractLane)                  \
   V(Arm64IReplaceLane)                  \
-  V(Arm64I64x2Shl)                      \
-  V(Arm64I64x2ShrS)                     \
+  V(Arm64IShl)                          \
+  V(Arm64IShrS)                         \
+  V(Arm64IShrU)                         \
   V(Arm64I64x2Mul)                      \
   V(Arm64I32x4UConvertF32x4)            \
-  V(Arm64I32x4ShrU)                     \
   V(Arm64I32x4BitMask)                  \
   V(Arm64I32x4DotI16x8S)                \
   V(Arm64I16x8DotI8x16S)                \
   V(Arm64I32x4DotI8x16AddS)             \
-  V(Arm64I8x16Addv)                     \
-  V(Arm64I16x8Addv)                     \
-  V(Arm64I32x4Addv)                     \
-  V(Arm64I64x2AddPair)                  \
-  V(Arm64F32x4AddReducePairwise)        \
-  V(Arm64F64x2AddPair)                  \
+  V(Arm64IAddv)                         \
+  V(Arm64IAddp)                         \
+  V(Arm64IAddpScalar)                   \
+  V(Arm64FAddp)                         \
+  V(Arm64FAddpScalar)                   \
   V(Arm64I32x4TruncSatF64x2SZero)       \
   V(Arm64I32x4TruncSatF64x2UZero)       \
   V(Arm64IExtractLaneU)                 \
   V(Arm64IExtractLaneS)                 \
-  V(Arm64I16x8Shl)                      \
-  V(Arm64I16x8ShrS)                     \
   V(Arm64I16x8SConvertI32x4)            \
   V(Arm64I16x8Mul)                      \
-  V(Arm64I16x8ShrU)                     \
   V(Arm64I16x8UConvertI32x4)            \
   V(Arm64Mla)                           \
   V(Arm64Mls)                           \
@@ -219,7 +192,23 @@ namespace compiler {
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \
-  V(Arm64Umlal2)
+  V(Arm64Umlal2)                        \
+  V(Arm64Saddw)                         \
+  V(Arm64Saddw2)                        \
+  V(Arm64Uaddw)                         \
+  V(Arm64Uaddw2)                        \
+  V(Arm64Saddl)                         \
+  V(Arm64Saddl2)                        \
+  V(Arm64Uaddl)                         \
+  V(Arm64Uaddl2)                        \
+  V(Arm64Ssubw)                         \
+  V(Arm64Ssubw2)                        \
+  V(Arm64Usubw)                         \
+  V(Arm64Usubw2)                        \
+  V(Arm64Ssubl)                         \
+  V(Arm64Ssubl2)                        \
+  V(Arm64Usubl)                         \
+  V(Arm64Usubl2)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \

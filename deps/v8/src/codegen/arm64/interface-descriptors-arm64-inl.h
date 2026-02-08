@@ -139,8 +139,6 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return x5; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return x5; }
 
 // static
-constexpr Register ApiGetterDescriptor::HolderRegister() { return x0; }
-// static
 constexpr Register ApiGetterDescriptor::CallbackRegister() { return x3; }
 
 // static
@@ -305,6 +303,24 @@ constexpr auto Compare_BaselineDescriptor::registers() {
   // x1: left operand
   // x0: right operand
   // x2: feedback slot
+  return RegisterArray(x1, x0, x2);
+}
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+constexpr auto CompareAndTryPatchCodeDescriptor::registers() {
+  // x1: left operand
+  // x0: right operand
+  // x2: current feedback value
+  // x3: feedback offset
+  return RegisterArray(x1, x0, x2, x3);
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
+// static
+constexpr auto Compare_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  // x1: left operand
+  // x0: right operand
+  // x2: feedback offset
   return RegisterArray(x1, x0, x2);
 }
 

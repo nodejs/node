@@ -358,18 +358,6 @@ class V8_EXPORT Isolate {
     bool allow_atomics_wait = true;
 
     /**
-     * The following parameters describe the offsets for addressing type info
-     * for wrapped API objects and are used by the fast C API
-     * (for details see v8-fast-api-calls.h).
-     *
-     * V8_DEPRECATED was applied in v14.3.
-     */
-    V8_DEPRECATED("This field is unused.")
-    int embedder_wrapper_type_index = -1;
-    V8_DEPRECATED("This field is unused.")
-    int embedder_wrapper_object_index = -1;
-
-    /**
      * Callbacks to invoke in case of fatal or OOM errors.
      */
     FatalErrorCallback fatal_error_callback = nullptr;
@@ -1493,6 +1481,13 @@ class V8_EXPORT Isolate {
   void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**
+   * Enables the host application to provide a mechanism for allocating a new
+   * crash key and setting/updating values for them.
+   */
+  void SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback,
+                                  SetCrashKeyStringCallback);
+
+  /**
    * Optional notification that the system is running low on memory.
    * V8 uses these notifications to attempt to free memory.
    */
@@ -1552,6 +1547,19 @@ class V8_EXPORT Isolate {
    * may change frequently.
    */
   void SetIsLoading(bool is_loading);
+
+  /**
+   * Optional notification to tell V8 whether the embedder is currently
+   * handling user input. If the embedder uses this notification, it should
+   * call SetIsInputHandling(true) when input handling starts, and
+   * SetIsInputHandling(false) when it ends.
+   * Calling SetIsInputHandling(true) while handling input, or calling
+   * SetIsInputHandling(false) while not handling input, both have no effect.
+   * V8 uses these notifications to guide heuristics.
+   * This is an unfinished experimental feature. Semantics and implementation
+   * may change frequently.
+   */
+  void SetIsInputHandling(bool is_input_handling);
 
   /**
    * Optional notification to tell V8 whether the embedder is currently frozen.

@@ -50,13 +50,13 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       const CanonicalSig* sig,
                       WrapperCompilationInfo wrapper_info) {
   Zone zone(allocator, ZONE_NAME);
-  using Assembler = compiler::turboshaft::TSAssembler<
+  using Assembler = compiler::turboshaft::Assembler<
       compiler::turboshaft::SelectLoweringReducer,
       compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;
   Assembler assembler(data, graph, graph, &zone);
-  WasmWrapperTSGraphBuilder<Assembler> builder(data->isolate(), &zone,
-                                               assembler, sig);
+  WasmWrapperTSGraphBuilder<Assembler> builder(&zone, assembler, sig,
+                                               /*is_inlining_into_js*/ false);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
     builder.BuildJSToWasmWrapper(wrapper_info.receiver_is_first_param);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {

@@ -149,22 +149,14 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#ifdef V8_ENABLE_LEAPTIERING
-#define V8_ENABLE_LEAPTIERING_BOOL true
-
 #ifdef V8_COMPRESS_POINTERS
 #define V8_STATIC_DISPATCH_HANDLES_BOOL true
 #else
 #define V8_STATIC_DISPATCH_HANDLES_BOOL false
 #endif  // !V8_COMPRESS_POINTERS
 
-#else
-#define V8_ENABLE_LEAPTIERING_BOOL false
-#endif
-
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
-static_assert(V8_ENABLE_LEAPTIERING_BOOL);
 #define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE 1
 #define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL true
 #else
@@ -183,12 +175,14 @@ static_assert(V8_ENABLE_LEAPTIERING_BOOL);
 // allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
 #define V8_DEFAULT_STACK_SIZE_KB 864
 #elif V8_TARGET_ARCH_IA32
-// In mid-2022, we're observing an increase in stack overflow crashes on
-// 32-bit Windows; the suspicion is that some third-party software suddenly
-// started to consume a lot more stack memory (before V8 is even initialized).
-// So we speculatively lower the ia32 limit to the ARM limit for the time
-// being. See crbug.com/1346791.
-#define V8_DEFAULT_STACK_SIZE_KB 864
+// As of crrev.com/c/2461589, Chrome creates some threads (at least worker
+// pools threads, maybe others) on 32-bit Windows with only 512 KB of stack
+// space. Since we cannot accurately tell when that's the case, and since
+// this platform isn't being used very much any more, we play it safe by
+// reducing stack size for all ia32 builds.
+// Rationale behind the specific value: leave the same 40 KB of slack as
+// the 984 KB limit we used on systems with 1 MB stack size.
+#define V8_DEFAULT_STACK_SIZE_KB 472
 #elif V8_USE_ADDRESS_SANITIZER
 // ASan makes C++ frames consume more stack, so V8 should leave more stack
 // space available in case a C++ call happens. ClusterFuzz found a case where
@@ -359,6 +353,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_UNDEFINED_DOUBLE_BOOL true
 #else
 #define V8_UNDEFINED_DOUBLE_BOOL false
+#endif
+
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL true
+#else
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL false
 #endif
 
 #define V8_STACK_ALLOCATED CPPGC_STACK_ALLOCATED
@@ -702,6 +702,9 @@ constexpr int kSimd128Size = 16;
 // Half of 128 bit SIMD value size.
 constexpr int kSimd128HalfSize = kSimd128Size / 2;
 
+// Quarter of 128 bit SIMD value size.
+constexpr int kSimd128QuarterSize = kSimd128Size / 4;
+
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
 
@@ -875,6 +878,17 @@ enum class CallApiCallbackMode {
   kOptimized,
 };
 
+// This constant is used to indicate that feedback is embedded in the bytecode
+// itself.
+constexpr int kFeedbackIsEmbedded = -1;
+
+// This constant is used as an sentinel value for embedded feedback in
+// byteocode, indicating an uninitialized state.
+constexpr int kUninitializedEmbeddedFeedback = 0;
+
+// The bytecode operand index for embedded feedback.
+constexpr int kEmbeddedFeedbackOperandIndex = 1;
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 
@@ -990,6 +1004,11 @@ constexpr int kCodeAlignmentBits = 6;
 // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
 // don't cross 64-byte boundaries.
 constexpr int kCodeAlignmentBits = 6;
+#elif (defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)) && \
+    defined(RISCV_CODE_ALIGNMENT)
+static_assert(base::bits::IsPowerOfTwo(RISCV_CODE_ALIGNMENT));
+constexpr int kCodeAlignmentBits =
+    std::countr_zero(static_cast<unsigned>(RISCV_CODE_ALIGNMENT));
 #else
 constexpr int kCodeAlignmentBits = 5;
 #endif
@@ -1144,7 +1163,7 @@ class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
 template <typename T>
 class MaybeWeak;
-class MutablePageMetadata;
+class MutablePage;
 class MessageLocation;
 class ModuleScope;
 class Name;
@@ -1188,6 +1207,7 @@ class RelocInfo;
 class Scope;
 class ScopeInfo;
 class Script;
+class SharedFunctionInfo;
 class SimpleNumberDictionary;
 class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
@@ -1228,6 +1248,10 @@ using JSAnyNotNumber =
     Union<BigInt, String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSCallable =
     Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
+using JSAnyOrSharedFunctionInfo =
+    Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null, Undefined,
+          JSReceiver, SharedFunctionInfo>;
+
 // Object prototypes are either JSReceivers or null -- they are not allowed to
 // be any other primitive value.
 using JSPrototype = Union<JSReceiver, Null>;
@@ -1620,6 +1644,11 @@ enum AllocationAlignment : uint8_t {
   kDoubleUnaligned
 };
 
+struct GCEpochTag;
+using GCEpoch = base::StrongAlias<GCEpochTag, uint32_t>;
+
+static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
+
 // TODO(ishell, v8:8875): Consider using aligned allocations once the
 // allocation alignment inconsistency is fixed. For now we keep using
 // tagged aligned (not double aligned) access since all our supported platforms
@@ -1627,6 +1656,8 @@ enum AllocationAlignment : uint8_t {
 #define USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL false
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
+
+enum class TypedArrayAccessMode { kRead, kWrite };
 
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,
@@ -1665,12 +1696,6 @@ enum class CodeFlushMode {
   kFlushBytecode,
   kFlushBaselineCode,
   kForceFlush,
-};
-
-enum class ExternalBackingStoreType {
-  kArrayBuffer,
-  kExternalString,
-  kNumValues
 };
 
 enum class NewJSObjectType : uint8_t {
@@ -2554,65 +2579,6 @@ using FileAndLine = std::pair<const char*, int>;
 // sites.
 static constexpr bool kTieringStateInProgressBlocksTierup = true;
 
-#ifndef V8_ENABLE_LEAPTIERING
-
-#define TIERING_STATE_LIST(V)           \
-  V(None, 0b000)                        \
-  V(InProgress, 0b001)                  \
-  V(RequestMaglev_Synchronous, 0b010)   \
-  V(RequestMaglev_Concurrent, 0b011)    \
-  V(RequestTurbofan_Synchronous, 0b100) \
-  V(RequestTurbofan_Concurrent, 0b101)
-
-enum class TieringState : int32_t {
-#define V(Name, Value) k##Name = Value,
-  TIERING_STATE_LIST(V)
-#undef V
-      kLastTieringState = kRequestTurbofan_Concurrent,
-};
-
-// To efficiently check whether a marker is kNone or kInProgress using a single
-// mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
-// mask off the lsb for checking.
-static_assert(static_cast<int>(TieringState::kNone) == 0b00 &&
-              static_cast<int>(TieringState::kInProgress) == 0b01);
-static_assert(static_cast<int>(TieringState::kLastTieringState) <= 0b111);
-static constexpr uint32_t kNoneOrInProgressMask = 0b110;
-
-#define V(Name, Value)                          \
-  constexpr bool Is##Name(TieringState state) { \
-    return state == TieringState::k##Name;      \
-  }
-TIERING_STATE_LIST(V)
-#undef V
-
-constexpr bool IsRequestMaglev(TieringState state) {
-  return IsRequestMaglev_Concurrent(state) ||
-         IsRequestMaglev_Synchronous(state);
-}
-constexpr bool IsRequestTurbofan(TieringState state) {
-  return IsRequestTurbofan_Concurrent(state) ||
-         IsRequestTurbofan_Synchronous(state);
-}
-
-constexpr const char* ToString(TieringState marker) {
-  switch (marker) {
-#define V(Name, Value)        \
-  case TieringState::k##Name: \
-    return "TieringState::k" #Name;
-    TIERING_STATE_LIST(V)
-#undef V
-  }
-}
-
-inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
-  return os << ToString(marker);
-}
-
-#undef TIERING_STATE_LIST
-
-#endif  // !V8_ENABLE_LEAPTIERING
-
 // State machine:
 // S(tate)0: kPending
 // S1: kEarlySparkplug
@@ -2643,6 +2609,28 @@ enum class CachedTieringDecision : int32_t {
   kEarlyTurbofan,
   kNormal,
 };
+
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#define V8_ENABLE_SPARKPLUG_PLUS
+#endif
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V) \
+  V(None)                              \
+  V(SignedSmall)                       \
+  V(Number)                            \
+  V(InternalizedString)                \
+  V(String)                            \
+  V(Symbol)                            \
+  V(Receiver)                          \
+  V(Any)
+#else
+#define IF_SPARKPLUG_PLUS(V, ...)
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V)
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {
   kAllowSpeculation = 0,
@@ -2695,29 +2683,6 @@ enum class AliasingKind {
   kCombine,
   // SIMD128 Registers are independent of every other size (e.g Riscv)
   kIndependent
-};
-
-#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                            \
-  C(Handler, handler)                                               \
-  C(CEntryFP, c_entry_fp)                                           \
-  C(CFunction, c_function)                                          \
-  C(Context, context)                                               \
-  C(Exception, exception)                                           \
-  C(TopmostScriptHavingContext, topmost_script_having_context)      \
-  C(PendingHandlerContext, pending_handler_context)                 \
-  C(PendingHandlerEntrypoint, pending_handler_entrypoint)           \
-  C(PendingHandlerConstantPool, pending_handler_constant_pool)      \
-  C(PendingHandlerFP, pending_handler_fp)                           \
-  C(PendingHandlerSP, pending_handler_sp)                           \
-  C(NumFramesAbovePendingHandler, num_frames_above_pending_handler) \
-  C(IsOnCentralStackFlag, is_on_central_stack_flag)                 \
-  C(JSEntrySP, js_entry_sp)
-
-enum IsolateAddressId {
-#define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
-  FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
-#undef DECLARE_ENUM
-      kIsolateAddressCount
 };
 
 // The reason for a WebAssembly trap.

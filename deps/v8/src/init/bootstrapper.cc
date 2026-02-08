@@ -1445,6 +1445,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   // Set up the pointer back from the global object to the global proxy.
   global_object->set_global_proxy(*global_proxy);
+  global_object->set_global_proxy_for_api(*global_proxy);
   // Set the native context of the global proxy.
   global_proxy->map()->set_map(isolate(), native_context()->meta_map());
   // Set the global proxy of the native context. If the native context has been
@@ -3133,7 +3134,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<JSFunction> perform_promise_then =
         SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtin::kPerformPromiseThenFunction, 2, kAdapt);
+                             Builtin::kPerformPromiseThenFunction, 3, kAdapt);
     native_context()->set_perform_promise_then(*perform_promise_then);
 
     InstallFunctionWithBuiltinId(isolate_, prototype, "catch",
@@ -3826,25 +3827,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
       SimpleInstallGetter(isolate(), prototype,
                           factory->numberingSystem_string(),
                           Builtin::kLocalePrototypeNumberingSystem, kAdapt);
-
-      if (!v8_flags.harmony_remove_intl_locale_info_getters) {
-        // Intl Locale Info functions
-        SimpleInstallGetter(isolate(), prototype, factory->calendars_string(),
-                            Builtin::kLocalePrototypeCalendars, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->collations_string(),
-                            Builtin::kLocalePrototypeCollations, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->hourCycles_string(),
-                            Builtin::kLocalePrototypeHourCycles, kAdapt);
-        SimpleInstallGetter(isolate(), prototype,
-                            factory->numberingSystems_string(),
-                            Builtin::kLocalePrototypeNumberingSystems, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->textInfo_string(),
-                            Builtin::kLocalePrototypeTextInfo, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->timeZones_string(),
-                            Builtin::kLocalePrototypeTimeZones, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
-                            Builtin::kLocalePrototypeWeekInfo, kAdapt);
-      }
 
       SimpleInstallFunction(isolate(), prototype, "getCalendars",
                             Builtin::kLocalePrototypeGetCalendars, 0,
@@ -4633,32 +4615,52 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                               Builtin::kIteratorPrototypeSetConstructor);
 
     // --- Helper maps
-#define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \
-                                ALL_CAPS_NAME, argc)                           \
-  {                                                                            \
-    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(        \
-        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                             \
-        JSIterator##Capitalized_name##Helper::kHeaderSize,                     \
-        TERMINAL_FAST_ELEMENTS_KIND, 0);                                       \
-    Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
-    map->SetConstructor(*iterator_function);                                   \
-    native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
-    SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
-                          Builtin::kIteratorPrototype##Capitalized_name, argc, \
-                          kAdapt);                                             \
+#define INSTALL_ITERATOR_HELPER(BASE_AND_BUILTIN, lowercase_name,             \
+                                Capitalized_name, ALL_CAPS_NAME, argc, adapt) \
+  {                                                                           \
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(       \
+        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                            \
+        JSIterator##Capitalized_name##Helper::kHeaderSize,                    \
+        TERMINAL_FAST_ELEMENTS_KIND, 0);                                      \
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);             \
+    map->SetConstructor(*iterator_function);                                  \
+    native_context()->set_iterator_##lowercase_name##_helper_map(*map);       \
+    auto [base, builtin] = BASE_AND_BUILTIN(Capitalized_name);                \
+    SimpleInstallFunction(isolate(), base, #lowercase_name, builtin, argc,    \
+                          adapt);                                             \
   }
 
-#define ITERATOR_HELPERS(V)    \
-  V(map, Map, MAP, 1)          \
-  V(filter, Filter, FILTER, 1) \
-  V(take, Take, TAKE, 1)       \
-  V(drop, Drop, DROP, 1)       \
-  V(flatMap, FlatMap, FLAT_MAP, 1)
+#define ITERATOR_PROTOTYPE(Capitalized_name)  \
+  std::pair<DirectHandle<JSObject>, Builtin>{ \
+      iterator_prototype, Builtin::kIteratorPrototype##Capitalized_name}
+#define ITERATOR_FUNCTION(Capitalized_name)   \
+  std::pair<DirectHandle<JSObject>, Builtin>{ \
+      iterator_function, Builtin::kIterator##Capitalized_name}
+
+#define ITERATOR_HELPERS(V)                                \
+  V(ITERATOR_PROTOTYPE, map, Map, MAP, 1, kAdapt)          \
+  V(ITERATOR_PROTOTYPE, filter, Filter, FILTER, 1, kAdapt) \
+  V(ITERATOR_PROTOTYPE, take, Take, TAKE, 1, kAdapt)       \
+  V(ITERATOR_PROTOTYPE, drop, Drop, DROP, 1, kAdapt)       \
+  V(ITERATOR_PROTOTYPE, flatMap, FlatMap, FLAT_MAP, 1, kAdapt)
+
+    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
+    // removed, add the following line to the above macro:
+    // V(ITERATOR_FUNCTION, concat, Concat, CONCAT, 0, kDontAdapt)
 
     ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 
 #undef INSTALL_ITERATOR_HELPER
+#undef ITERATOR_PROTOTYPE
+#undef ITERATOR_FUNCTION
 #undef ITERATOR_HELPERS
+
+    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
+    // removed, remove the three lines below.
+    USE(v8_flags.js_iterator_sequencing);
+    native_context()->set_initial_iterator_helper_prototype(
+        *iterator_helper_prototype);
+    native_context()->set_initial_iterator_function(*iterator_function);
   }
 
   {  // -- I t e r a t o r R e s u l t
@@ -5480,7 +5482,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_remove_intl_locale_info_getters)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
@@ -5511,6 +5512,42 @@ void Genesis::InitializeGlobal_js_error_iserror() {
                                Builtin::kErrorIsError, 1, kAdapt);
 }
 
+void Genesis::InitializeGlobal_js_immutable_arraybuffer() {
+  if (!v8_flags.js_immutable_arraybuffer) return;
+
+  DirectHandle<JSFunction> array_buffer_fun(
+      native_context()->array_buffer_fun(), isolate());
+  DirectHandle<JSObject> prototype(
+      Cast<JSObject>(array_buffer_fun->instance_prototype()), isolate());
+
+  SimpleInstallGetter(isolate(), prototype,
+                      isolate()->factory()->immutable_string(),
+                      Builtin::kArrayBufferPrototypeGetImmutable, kAdapt);
+  SimpleInstallFunction(isolate(), prototype, "transferToImmutable",
+                        Builtin::kArrayBufferPrototypeTransferToImmutable, 0,
+                        kDontAdapt);
+  SimpleInstallFunction(isolate(), prototype, "sliceToImmutable",
+                        Builtin::kArrayBufferPrototypeSliceToImmutable, 2,
+                        kAdapt);
+}
+
+void Genesis::InitializeGlobal_js_iterator_sequencing() {
+  if (!v8_flags.js_iterator_sequencing) return;
+  auto iterator_helper_prototype = direct_handle(
+      native_context()->initial_iterator_helper_prototype(), isolate_);
+  auto iterator_function =
+      direct_handle(native_context()->initial_iterator_function(), isolate_);
+  DirectHandle<Map> map =
+      isolate_->factory()->NewContextfulMapForCurrentContext(
+          JS_ITERATOR_CONCAT_HELPER_TYPE, JSIteratorConcatHelper::kHeaderSize,
+          TERMINAL_FAST_ELEMENTS_KIND, 0);
+  Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+  map->SetConstructor(*iterator_function);
+  native_context()->set_iterator_concat_helper_map(*map);
+  SimpleInstallFunction(isolate_, iterator_function, "concat",
+                        Builtin::kIteratorConcat, 0, kDontAdapt);
+}
+
 void Genesis::InitializeGlobal_js_upsert() {
   if (!v8_flags.js_upsert) return;
 
@@ -5521,6 +5558,7 @@ void Genesis::InitializeGlobal_js_upsert() {
                           Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
     SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
                           Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
+    native_context()->set_initial_map_prototype_map(prototype->map());
   }
   {
     auto prototype =
@@ -5530,6 +5568,7 @@ void Genesis::InitializeGlobal_js_upsert() {
     SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
                           Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
                           kAdapt);
+    native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 }
 
@@ -5671,8 +5710,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsMutexTryLock, 2, kAdapt);
     SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
                           Builtin::kAtomicsMutexIsMutex, 1, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "lockAsync",
-                          Builtin::kAtomicsMutexLockAsync, 2, kAdapt);
   }
 
   {  // Atomics.Condition
@@ -5691,8 +5728,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsConditionNotify, 2, kDontAdapt);
     SimpleInstallFunction(isolate(), condition_fun, "isCondition",
                           Builtin::kAtomicsConditionIsCondition, 1, kAdapt);
-    SimpleInstallFunction(isolate(), condition_fun, "waitAsync",
-                          Builtin::kAtomicsConditionWaitAsync, 2, kDontAdapt);
   }
 }
 
@@ -6994,8 +7029,7 @@ Genesis::Genesis(Isolate* isolate,
       HookUpGlobalProxy(global_proxy);
     }
     DCHECK_EQ(global_proxy->GetCreationContext(), *native_context());
-    DCHECK(!global_proxy->IsDetachedFrom(isolate,
-                                         native_context()->global_object()));
+    DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
     DCHECK(native_context().is_null());
 

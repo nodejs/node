@@ -18,15 +18,6 @@ namespace v8::internal {
 
 // static
 bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-#ifdef DEBUG
-  // See `kContiguousReadOnlySpaceMask` definition for explanation.
-  const bool ro_via_address =
-      (object.ptr() & kContiguousReadOnlySpaceMask) == 0;
-  DCHECK_EQ(ro_via_address,
-            MemoryChunk::FromHeapObject(object)->InReadOnlySpace());
-#endif  // DEBUG
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 

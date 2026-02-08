@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-node-info.h"
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
@@ -707,6 +708,7 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
                           MaglevGraphLabeller::Provenance provenance,
                           MaglevGraphLabeller::Provenance existing_provenance) {
+  if (!v8_flags.maglev_print_provenance) return;
   DisallowGarbageCollection no_gc;
 
   // Print function every time the compilation unit changes.
@@ -765,7 +767,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
       os << "\033[0;34m";
     }
     os << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(os, iterator.current_address(), false);
+    iterator.PrintCurrentBytecodeTo(os);
     os << "\n";
     if (v8_flags.log_colour) {
       os << "\033[m";
@@ -787,6 +789,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kInt32:
       os_ << "ᴵ";
       break;
+    case ValueRepresentation::kShiftedInt53:
+      os_ << "ᴵ⁵³";
+      break;
     case ValueRepresentation::kUint32:
       os_ << "ᵁ";
       break;
@@ -797,6 +802,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << "ʰᶠ";
       break;
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -844,6 +850,20 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(max_node_id_, 2));
   return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevPrintingVisitor::Process(NodeBase* node,
+                                             const ProcessingState& state) {
+  if (node->Is<ControlNode>()) {
+    return Process(node->Cast<ControlNode>(), state);
+  }
+  if (node->Is<Phi>()) {
+    return Process(node->Cast<Phi>(), state);
+  }
+  if (node->Is<Node>()) {
+    return Process(node->Cast<Node>(), state);
+  }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevPrintingVisitor::Process(Node* node,
@@ -973,6 +993,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
           case ValueRepresentation::kUint32:
             os_ << "ᵁ";
             break;
+          case ValueRepresentation::kShiftedInt53:
+            os_ << "ᴵ⁵³";
+            break;
           case ValueRepresentation::kFloat64:
             os_ << "ᶠ";
             break;
@@ -980,6 +1003,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             os_ << "ʰᶠ";
             break;
           case ValueRepresentation::kIntPtr:
+          case ValueRepresentation::kRawPtr:
           case ValueRepresentation::kNone:
             UNREACHABLE();
         }
@@ -1018,6 +1042,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
 #endif
     }
   }
+
+  MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, control_node,
+                                        max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
   if (has_fallthrough) {

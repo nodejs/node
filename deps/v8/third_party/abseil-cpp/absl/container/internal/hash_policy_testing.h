@@ -170,18 +170,4 @@ auto keys(const Set& s)
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-// ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS is false for glibcxx versions
-// where the unordered containers are missing certain constructors that
-// take allocator arguments. This test is defined ad-hoc for the platforms
-// we care about (notably Crosstool 17) because libstdcxx's useless
-// versioning scheme precludes a more principled solution.
-// From GCC-4.9 Changelog: (src: https://gcc.gnu.org/gcc-4.9/changes.html)
-// "the unordered associative containers in <unordered_map> and <unordered_set>
-// meet the allocator-aware container requirements;"
-#if defined(__GLIBCXX__) && __GLIBCXX__ <= 20140425
-#define ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS 0
-#else
-#define ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS 1
-#endif
-
 #endif  // ABSL_CONTAINER_INTERNAL_HASH_POLICY_TESTING_H_

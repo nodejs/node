@@ -9,6 +9,13 @@ bitfield struct PrototypeInfoFlags extends uint31 {
 const kPrototypeInfoCachedHandlerCount: constexpr int31
     generates 'PrototypeInfo::kCachedHandlerCount';
 
+extern class PrototypeSharedClosureInfo extends Struct {
+  // Context in which closure(s) where defined.
+  context: Context;
+
+  closure_feedback_cell_array: ClosureFeedbackCellArray;
+}
+
 extern class PrototypeInfo extends Struct {
   // [module_namespace]: A backpointer to JSModuleNamespace from its
   // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace
@@ -32,6 +39,10 @@ extern class PrototypeInfo extends Struct {
   // for Object.create. The following contain entries used by GetDerivedMap
   // which feeds Reflect.construct, proxies and similar.
   derived_maps: WeakArrayList|Undefined;
+
+  // Use by SetPrototypeProperties Bytecode to store infos for lazy allocation
+  // of closures.
+  prototype_shared_closure_info: PrototypeSharedClosureInfo|Undefined;
 
   // Cached handler for loads of non-existent properties through this
   // prototype object.

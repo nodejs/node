@@ -43,11 +43,20 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
 
-ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
-          kInstanceDescriptorsOffset)
 #if V8_ENABLE_WEBASSEMBLY
+ACCESSORS_CHECKED2(Map, instance_descriptors, Tagged<DescriptorArray>,
+                   kInstanceDescriptorsOffset,
+                   // Fetching the instance descriptors of a Wasm map is safe
+                   // as long as that's the empty descriptor array (and not
+                   // a Custom Descriptor).
+                   !IsWasmStructMap(*this) ||
+                       HeapLayout::InReadOnlySpace(value),
+                   true)
 ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
                   kInstanceDescriptorsOffset, IsWasmStructMap(*this))
+#else
+ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
+          kInstanceDescriptorsOffset)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
@@ -71,9 +80,10 @@ ACCESSORS_CHECKED2(Map, prototype, Tagged<JSPrototype>, kPrototypeOffset, true,
                         (HeapLayout::InWritableSharedSpace(value) ||
                          value->map()->is_prototype_map())))
 
-DEF_GETTER(Map, prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>) {
-  Tagged<UnionOf<Smi, PrototypeInfo>> value =
-      TaggedField<UnionOf<Smi, PrototypeInfo>,
+DEF_GETTER(Map, prototype_info,
+           Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>>) {
+  Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>> value =
+      TaggedField<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>,
                   kTransitionsOrPrototypeInfoOffset>::load(cage_base, *this);
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(this->is_prototype_map() || IsWasmObjectMap(*this));
@@ -82,9 +92,11 @@ DEF_GETTER(Map, prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   return value;
 }
-RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info,
-                          (Tagged<UnionOf<Smi, PrototypeInfo>>),
-                          kTransitionsOrPrototypeInfoOffset)
+
+RELEASE_ACQUIRE_ACCESSORS(
+    Map, prototype_info,
+    (Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>>),
+    kTransitionsOrPrototypeInfoOffset)
 
 void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
   Tagged<HeapObject> null = roots.null_value();
@@ -601,6 +613,34 @@ bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
   if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
   *result = Cast<PrototypeInfo>(maybe_proto_info);
   return true;
+}
+
+bool Map::TryGetPrototypeSharedClosureInfo(
+    Tagged<PrototypeSharedClosureInfo>* result) const {
+  if (!is_prototype_map()) return false;
+
+  if (Tagged<PrototypeInfo> proto_info; TryGetPrototypeInfo(&proto_info)) {
+    if (Tagged<Object> maybe_proto_shared_closure_info =
+            proto_info->prototype_shared_closure_info();
+        TryCast(maybe_proto_shared_closure_info, result)) {
+      return true;
+    }
+  } else if (Tagged<Object> maybe_proto_shared_closure_info = prototype_info();
+             TryCast(maybe_proto_shared_closure_info, result)) {
+    return true;
+  }
+
+  return false;
+}
+
+void Map::SetPrototypeSharedClosureInfo(
+    Tagged<PrototypeSharedClosureInfo> closure_infos) {
+  DCHECK(is_prototype_map());
+  if (Tagged<PrototypeInfo> proto_info; TryGetPrototypeInfo(&proto_info)) {
+    proto_info->set_prototype_shared_closure_info(closure_infos);
+  } else {
+    this->set_prototype_info(closure_infos, kReleaseStore);
+  }
 }
 
 // static

@@ -78,7 +78,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-#ifdef _RISCV_TARGET_SIMULATOR
+#ifdef RISCV_TARGET_SIMULATOR
 static unsigned SimulatorFeatures() {
   unsigned answer = 0;
   answer |= 1u << RISCV_SIMD;
@@ -97,10 +97,10 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
 
-#ifdef _RISCV_TARGET_SIMULATOR
+#ifdef RISCV_TARGET_SIMULATOR
   supported_ |= SimulatorFeatures();
   vlen_ = kSimulatorRvvVLEN;
-#endif  // _RISCV_TARGET_SIMULATOR
+#endif  // RISCV_TARGET_SIMULATOR
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
   // Probe for additional features at runtime.
@@ -234,16 +234,12 @@ Assembler::Assembler(const AssemblerOptions& options,
   CHECK(!v8_flags.force_long_branches || is_trampoline_emitted());
 }
 
-void Assembler::StartBlockPools(ConstantPoolEmission cpe, int margin) {
+void Assembler::StartBlockPools(int margin) {
   int current = pools_blocked_nesting_;
   if (current == 0) {
-    if (cpe == ConstantPoolEmission::kCheck) {
-      CheckConstantPoolQuick(margin);
-    }
     CheckTrampolinePoolQuick(margin);
-    constpool_.DisableNextCheckIn();
     // TODO(kasperl): Once we can compute the next trampoline check
-    // reliably, we can also disable the trampoline checks here.
+    // reliably, we can disable the trampoline checks here.
   }
   pools_blocked_nesting_ = current + 1;
   DEBUG_PRINTF("\tStartBlockPools @ %d (nesting=%d)\n", pc_offset(),
@@ -256,9 +252,6 @@ void Assembler::EndBlockPools() {
                pools_blocked_nesting_);
   DCHECK_GE(pools_blocked_nesting_, 0);
   if (pools_blocked_nesting_ > 0) return;  // Still blocked.
-  DCHECK(constpool_.IsInRangeIfEmittedAt(Jump::kRequired, pc_offset()));
-  constpool_.EnableNextCheckIn();
-  CheckConstantPoolQuick(0);
   CheckTrampolinePoolQuick(0);
 }
 
@@ -272,9 +265,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
                         SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // In most cases, the constant pool will already have been emitted when
-  // we get here - sometimes through a call to {FinishCode}. For now, it
-  // is safe to call this again, but it might be worth changing its name
-  // to make that clearer.
+  // we get here. For now, it is safe to call this again, but it might be
+  // worth changing its name to make that clearer.
   FinishCode();
   DCHECK(constpool_.IsEmpty());
 
@@ -1371,7 +1363,7 @@ void Assembler::CheckTrampolinePool() {
     static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
     int preamble_start = pc_offset();
     USE(preamble_start);  // Only used in DCHECK.
-    BlockPoolsScope block_pools(this, ConstantPoolEmission::kSkip, size);
+    BlockPoolsScope block_pools(this, size);
     j(size);
 
     int pool_start = pc_offset();
@@ -1667,7 +1659,6 @@ void Assembler::EmitHelper(T x, bool disassemble) {
   }
   pc_ = pc + sizeof(x);
   CheckBuffer();
-  CheckConstantPoolQuick(0);
   CheckTrampolinePoolQuick(0);
 }
 

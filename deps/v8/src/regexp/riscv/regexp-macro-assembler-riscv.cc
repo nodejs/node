@@ -87,12 +87,11 @@ namespace internal {
 RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate,
                                                      Zone* zone, Mode mode,
                                                      int registers_to_save)
-    : NativeRegExpMacroAssembler(isolate, zone),
+    : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
           isolate, CodeObjectRequired::kYes,
           NewAssemblerBuffer(kInitialBufferSize))),
       no_root_array_scope_(masm_.get()),
-      mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
       entry_label_(),
@@ -130,10 +129,6 @@ void RegExpMacroAssemblerRISCV::AbortedCodeGeneration() {
   stack_overflow_label_.Unuse();
   internal_failure_label_.Unuse();
   fallback_label_.Unuse();
-}
-
-int RegExpMacroAssemblerRISCV::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 void RegExpMacroAssemblerRISCV::AdvanceCurrentPosition(int by) {
@@ -275,7 +270,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     BranchOrBacktrack(on_no_match, gt, t1, Operand(zero_reg));
   }
 
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     Label success;
     Label fail;
     Label loop_check;
@@ -334,7 +329,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
       __ SubWord(current_input_offset(), current_input_offset(), Operand(a2));
     }
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
 
     int argument_count = 4;
     __ PrepareCallCFunction(argument_count, a2);
@@ -420,13 +415,13 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
 
   Label loop;
   __ bind(&loop);
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     __ Lbu(a3, MemOperand(a0, 0));
     __ addi(a0, a0, char_size());
     __ Lbu(a4, MemOperand(a2, 0));
     __ addi(a2, a2, char_size());
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     __ Lhu(a3, MemOperand(a0, 0));
     __ addi(a0, a0, char_size());
     __ Lhu(a4, MemOperand(a2, 0));
@@ -495,7 +490,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacterNotInRange(
 void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
                                                 Label* on_bit_set) {
   __ li(a0, Operand(table));
-  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));
     __ AddWord(a0, a0, a1);
   } else {
@@ -569,8 +564,8 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     // Check if high nibble is set in row.
     // bitmask = 1 << (hi_nibbles & 0x7)
     //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-    // Note: The hi_nibbles & 0x7 part is implicitly executed, as tbl sets
-    // the result byte to zero if the lookup index is out of range.
+    // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
+    // lookup table repeats the 0x80402010'08040201 pattern.
     VRegister bitmask = v7;
     __ vrgather_vv(bitmask, hi_nibble_lookup_mask, hi_nibbles);
 
@@ -592,7 +587,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     __ Branch(&simd_repeat);
 
     Bind(&found);
-    if (mode_ == UC16) {
+    if (mode() == UC16) {
       // Make sure that we skip an even number of bytes in 2-byte subjects.
       // Odd skips can happen if the higher byte produced a match.
       // False positives should be rare and are no problem in general, as the
@@ -618,7 +613,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
 
   // This is the `CheckBitInTable` code, but with the table already loaded
   // in the `table_reg` register.
-  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableMask));
     __ AddWord(a1, table_reg, a1);
   } else {
@@ -634,64 +629,64 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
 bool RegExpMacroAssemblerRISCV::SkipUntilBitInTableUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
+  // We only implemented SIMD instead of the scalar version for latin1 strings.
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(RISCV_SIMD);
 }
 
-bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
+void RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode_ == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        __ BranchShort(&success, eq, current_character(), Operand(' '));
-        // Check range 0x09..0x0D.
-        __ SubWord(a0, current_character(), Operand('\t'));
-        __ BranchShort(&success, Uless_equal, a0, Operand('\r' - '\t'));
-        // \u00a0 (NBSP).
-        BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
-        __ bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      __ BranchShort(&success, eq, current_character(), Operand(' '));
+      // Check range 0x09..0x0D.
+      __ SubWord(a0, current_character(), Operand('\t'));
+      __ BranchShort(&success, Uless_equal, a0, Operand('\r' - '\t'));
+      // \u00a0 (NBSP).
+      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
+      __ bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match Latin1 digits ('0'..'9').
       __ SubWord(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Ugreater, a0, Operand('9' - '0'));
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match non Latin1-digits.
       __ SubWord(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand('9' - '0'));
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ Xor(a0, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
       __ SubWord(a0, a0, Operand(0x0B));
       BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand(0x0C - 0x0B));
-      if (mode_ == UC16) {
+      if (mode() == UC16) {
         // Compare original value to 0x2028 and 0x2029, using the already
         // computed (current_char ^ 0x01 - 0x0B). I.e., check for
         // 0x201D (0x2028 - 0x0B) or 0x201E.
         __ SubWord(a0, a0, Operand(0x2028 - 0x0B));
         BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand(1));
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ Xor(a0, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
       __ SubWord(a0, a0, Operand(0x0B));
-      if (mode_ == LATIN1) {
+      if (mode() == LATIN1) {
         BranchOrBacktrack(on_no_match, Ugreater, a0, Operand(0x0C - 0x0B));
       } else {
         Label done;
@@ -703,10 +698,10 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
         BranchOrBacktrack(on_no_match, Ugreater, a0, Operand(1));
         __ bind(&done);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         BranchOrBacktrack(on_no_match, Ugreater, current_character(),
                           Operand('z'));
@@ -716,11 +711,11 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
       __ AddWord(a0, a0, current_character());
       __ Lbu(a0, MemOperand(a0, 0));
       BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         __ BranchShort(&done, Ugreater, current_character(), Operand('z'));
       }
@@ -729,17 +724,17 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
       __ AddWord(a0, a0, current_character());
       __ Lbu(a0, MemOperand(a0, 0));
       BranchOrBacktrack(on_no_match, ne, a0, Operand(zero_reg));
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         __ bind(&done);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kEverything:
       // Match any character.
-      return true;
+      break;
     // No custom implementation (yet): s(UC16), S(UC16).
     default:
-      return false;
+      UNREACHABLE();
   }
 }
 
@@ -825,6 +820,9 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
 
   // According to MultiPush implementation, registers will be pushed in the
   // order of ra, fp, then s8, ..., s1, and finally a7,...a0
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspush_ra();
+#endif
   __ MultiPush(RegList{ra} | registers_to_retain);
 
   // Set frame pointer in space for it if this is not a direct call
@@ -897,7 +895,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   // (effectively string position -1).
   __ LoadWord(a1, MemOperand(frame_pointer(), kStartIndexOffset));
   __ SubWord(a0, current_input_offset(), Operand(char_size()));
-  __ slli(t1, a1, (mode_ == UC16) ? 1 : 0);
+  __ slli(t1, a1, (mode() == UC16) ? 1 : 0);
   __ SubWord(a0, a0, t1);
   // Store this value in a local variable, for use when clearing
   // position registers.
@@ -954,7 +952,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
       __ LoadWord(a2, MemOperand(frame_pointer(), kStartIndexOffset));
       __ SubWord(a1, end_of_input_address(), a1);
       // a1 is length of input in bytes.
-      if (mode_ == UC16) {
+      if (mode() == UC16) {
         __ srli(a1, a1, 1);
       }
       // a1 is length of input in characters.
@@ -972,7 +970,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
           // Keep capture start in a4 for the zero-length check later.
           __ mv(s3, a2);
         }
-        if (mode_ == UC16) {
+        if (mode() == UC16) {
           __ srai(a2, a2, 1);
           __ AddWord(a2, a2, a1);
           __ srai(a3, a3, 1);
@@ -1026,7 +1024,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
         Label advance;
         __ bind(&advance);
         __ AddWord(current_input_offset(), current_input_offset(),
-                   Operand((mode_ == UC16) ? 2 : 1));
+                   Operand((mode() == UC16) ? 2 : 1));
         if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
 
@@ -1055,7 +1053,9 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
 
   // Restore registers fp..s11 and return (restoring ra to pc).
   __ MultiPop(registers_to_retain | ra);
-
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   __ Ret();
 
   // Backtrack code (branch target for conditional backtracks).
@@ -1483,7 +1483,7 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
     DCHECK_EQ(1, characters);
   }
 
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     if (characters == 4) {
       __ AddWord(kScratchReg, end_of_input_address(), offset);
       __ Load32U(current_character(), MemOperand(kScratchReg));
@@ -1496,7 +1496,7 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
       __ Lbu(current_character(), MemOperand(kScratchReg));
     }
   } else {
-    DCHECK_EQ(UC16, mode_);
+    DCHECK_EQ(UC16, mode());
     if (characters == 2) {
       __ AddWord(kScratchReg, end_of_input_address(), offset);
       __ Load32U(current_character(), MemOperand(kScratchReg));

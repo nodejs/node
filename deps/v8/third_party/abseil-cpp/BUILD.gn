@@ -67,10 +67,14 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/container:fixed_array",
     "//third_party/abseil-cpp/absl/container:flat_hash_map",
     "//third_party/abseil-cpp/absl/container:flat_hash_set",
+    "//third_party/abseil-cpp/absl/container:hash_container_defaults",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
+    "//third_party/abseil-cpp/absl/container:linked_hash_map",
+    "//third_party/abseil-cpp/absl/container:linked_hash_set",
     "//third_party/abseil-cpp/absl/container:node_hash_map",
     "//third_party/abseil-cpp/absl/container:node_hash_set",
     "//third_party/abseil-cpp/absl/debugging:failure_signal_handler",
+    "//third_party/abseil-cpp/absl/debugging:leak_check",
     "//third_party/abseil-cpp/absl/debugging:stacktrace",
     "//third_party/abseil-cpp/absl/debugging:symbolize",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
@@ -128,6 +132,13 @@ group("absl_component_deps") {
   }
 
   visibility = [ ":absl" ]
+}
+
+# Abseil testing utilities should only be included in test binaries.
+source_set("test_support") {
+  testonly = true
+  public_deps = [ "//third_party/abseil-cpp/absl/hash:hash_testing" ]
+  deps = [ ":absl" ]
 }
 
 # Some third-party libraries use additional parts of absl that are banned in
@@ -268,6 +279,8 @@ if (absl_build_tests) {
         "absl/container:flat_hash_set_test",
         "absl/container:hash_function_defaults_test",
         "absl/container:inlined_vector_test",
+        "absl/container:linked_hash_map_test",
+        "absl/container:linked_hash_set_test",
         "absl/container:node_hash_map_test",
         "absl/container:node_hash_set_test",
         "absl/container:node_slot_policy_test",
@@ -304,10 +317,13 @@ if (absl_build_tests) {
         "absl/log:scoped_mock_log_test",
         "absl/log:stripping_test",
         "absl/log:vlog_is_on_test",
+        "absl/log/internal:container_test",
         "absl/log/internal:fnmatch_test",
         "absl/log/internal:stderr_log_sink_test",
         "absl/log/internal:structured_proto_test",
         "absl/memory:memory_test",
+        "absl/meta:constexpr_testing_test",
+        "absl/meta:requires_test",
         "absl/meta:type_traits_test",
         "absl/numeric:int128_test",
         "absl/profiling:exponential_biased_test",
@@ -318,6 +334,7 @@ if (absl_build_tests) {
         "absl/status:status_matchers_test",
         "absl/status:status_test",
         "absl/status:statusor_test",
+        "absl/strings:append_and_overwrite_test",
         "absl/strings:ascii_test",
         "absl/strings:char_formatting_test",
         "absl/strings:charset_test",
@@ -337,6 +354,7 @@ if (absl_build_tests) {
         "absl/strings:cordz_update_scope_test",
         "absl/strings:cordz_update_tracker_test",
         "absl/strings:damerau_levenshtein_distance_test",
+        "absl/strings:generic_printer_test",
         "absl/strings:has_absl_stringify_test",
         "absl/strings:has_ostream_operator_test",
         "absl/strings:match_test",

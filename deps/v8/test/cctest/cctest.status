@@ -192,11 +192,6 @@
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
-  # printf, being a variadic function, has a different, stack-based ABI on
-  # Apple silicon. See:
-  # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
-  'test-assembler-arm64/printf_no_preserve': [SKIP],
-
   # https://crbug.com/42204313
   'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [PASS, ['mode == debug', SKIP]],
 }],  # arch == arm64 and system == macos and not simulator_run
@@ -262,6 +257,9 @@
   'test-run-wasm/RunWasmLiftoff_I32Binop_Ior': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_LeU': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_LtU': [PASS, HEAVY],
+
+  # Slow tests.
+  'test-run-wasm/RunWasmTurbofan_Float32*': [PASS, SLOW],
 }],  # 'asan or tsan'
 
 ##############################################################################
@@ -592,13 +590,6 @@
 
   # --experimental-wasm-fp16
   'test-run-wasm-f16/*': [SKIP],
-
-  # -- Bug 435317720: Non-canonical NaNs are not propagated correctly in the Wasm interpreter.
-  'test-run-wasm/RunWasmInterpreter_Float32Add*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Sub*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Mul*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Div*': [SKIP],
-
  }],  # has_wasm_interpreter
 
 ##############################################################################
@@ -609,7 +600,6 @@
 
   # Tests that generate code at runtime.
   'test-accessor-assembler/*': [SKIP],
-  'test-assembler-*': [SKIP],
   'test-atomic-load-store-codegen/*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
@@ -635,7 +625,6 @@
   'test-verify-type/*': [SKIP],
   'test-concurrent-shared-function-info/*': [SKIP],
   'test-concurrent-allocation/*': [SKIP],
-  'test-sync-primitives-arm/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
   'turboshaft-test-branch-combine/*': [SKIP],
   'turboshaft-test-compare-combine/*': [SKIP],
@@ -700,11 +689,6 @@
 
   # --interpreted-frames-native-stack tests
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
-
-  # Crashes on native arm.
-  'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
-  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
-  'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }], # variant == jitless
 
 ##############################################################################

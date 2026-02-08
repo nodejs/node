@@ -49,6 +49,8 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TargetArchitecture::TaggedSize() == 8;
     build_flags_["V8_ENABLE_UNDEFINED_DOUBLE"] = V8_UNDEFINED_DOUBLE_BOOL;
+    build_flags_["V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS"] =
+        V8_EXPERIMENTAL_TSA_BUILTINS_BOOL;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;
 #else
@@ -970,13 +972,14 @@ int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
 
 std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results,
-                            {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR},
-                            {ANNOTATION_IF, ANNOTATION_INCREMENT_USE_COUNTER});
+  AnnotationSet annotations(
+      child_results, {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR},
+      {ANNOTATION_IF, ANNOTATION_IFNOT, ANNOTATION_INCREMENT_USE_COUNTER});
   const bool has_custom_interface_descriptor =
       annotations.Contains(ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR);
   std::optional<std::string> use_counter_name =
       annotations.GetStringParam(ANNOTATION_INCREMENT_USE_COUNTER);
+  const bool enabled = ProcessIfAnnotation(annotations);
   auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -1004,13 +1007,7 @@ std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ReportError("@incrementUseCounter needs a body.");
   }
   std::vector<Declaration*> results;
-  if (std::optional<std::string> condition =
-          annotations.GetStringParam(ANNOTATION_IF)) {
-    if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) {
-      return ParseResult{std::move(results)};
-    }
-  }
-  results.push_back(result);
+  if (enabled) results.push_back(result);
   return ParseResult{std::move(results)};
 }
 
@@ -1323,6 +1320,9 @@ std::optional<ParseResult> ProcessTorqueImportDeclaration(
 
 std::optional<ParseResult> MakeExternalBuiltin(
     ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {},
+                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  bool enabled = ProcessIfAnnotation(annotations);
   auto transitioning = child_results->NextAs<bool>();
   auto js_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -1336,7 +1336,9 @@ std::optional<ParseResult> MakeExternalBuiltin(
   if (!generic_parameters.empty()) {
     Error("External builtins cannot be generic.");
   }
-  return ParseResult{result};
+  std::vector<Declaration*> results;
+  if (enabled) results.push_back(result);
+  return ParseResult{std::move(results)};
 }
 
 std::optional<ParseResult> MakeExternalRuntime(
@@ -1605,8 +1607,9 @@ std::optional<ParseResult> MakeEnumDeclaration(
       if (generate_typed_constant) {
         // namespace Enum {
         //   const constexpr_constant_kEntry0: constexpr kEntry0 constexpr
-        //   'Enum::kEntry0'; const kEntry0 = %RawDownCast<T,
-        //   Base>(FromConstexpr<Enum>(constexpr_constant_kEntry0));
+        //       'Enum::kEntry0';
+        //   const kEntry0 = %RawDownCast<T, Base>(
+        //       FromConstexpr<Enum>(constexpr_constant_kEntry0));
         // }
         if (!generate_nonconstexpr) {
           Error(
@@ -2906,11 +2909,11 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &returnType, optionalLabelList, Token(";")},
            MakeExternalMacro),
-      Rule({Token("extern"), CheckIf(Token("transitioning")),
+      Rule({annotations, Token("extern"), CheckIf(Token("transitioning")),
             CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &returnType, Token(";")},
-           AsSingletonVector<Declaration*, MakeExternalBuiltin>()),
+           MakeExternalBuiltin),
       Rule({Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
             &name, &typeListMaybeVarArgs, &returnType, Token(";")},
            AsSingletonVector<Declaration*, MakeExternalRuntime>()),

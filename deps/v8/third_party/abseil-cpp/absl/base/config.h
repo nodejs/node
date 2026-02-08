@@ -526,19 +526,10 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_USES_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
 #define ABSL_USES_STD_OPTIONAL 1
+#define ABSL_HAVE_STD_STRING_VIEW 1
+#define ABSL_USES_STD_STRING_VIEW 1
 #define ABSL_HAVE_STD_VARIANT 1
 #define ABSL_USES_STD_VARIANT 1
-
-// ABSL_HAVE_STD_STRING_VIEW
-//
-// Deprecated: always defined to 1.
-// std::string_view was added in C++17, which means all versions of C++
-// supported by Abseil have it.
-#ifdef ABSL_HAVE_STD_STRING_VIEW
-#error "ABSL_HAVE_STD_STRING_VIEW cannot be directly set."
-#else
-#define ABSL_HAVE_STD_STRING_VIEW 1
-#endif
 
 // ABSL_HAVE_STD_ORDERING
 //
@@ -554,20 +545,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&        \
      ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
 #define ABSL_HAVE_STD_ORDERING 1
-#endif
-
-// ABSL_USES_STD_STRING_VIEW
-//
-// Indicates whether absl::string_view is an alias for std::string_view.
-#if !defined(ABSL_OPTION_USE_STD_STRING_VIEW)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0
-#undef ABSL_USES_STD_STRING_VIEW
-#elif ABSL_OPTION_USE_STD_STRING_VIEW == 1 || \
-    ABSL_OPTION_USE_STD_STRING_VIEW == 2
-#define ABSL_USES_STD_STRING_VIEW 1
-#else
-#error options.h is misconfigured.
 #endif
 
 // ABSL_USES_STD_ORDERING
@@ -755,7 +732,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #ifdef ABSL_INTERNAL_HAS_CXA_DEMANGLE
 #error ABSL_INTERNAL_HAS_CXA_DEMANGLE cannot be directly set
 #elif defined(OS_ANDROID) && (defined(__i386__) || defined(__x86_64__))
-#define ABSL_INTERNAL_HAS_CXA_DEMANGLE 0
+#undef ABSL_INTERNAL_HAS_CXA_DEMANGLE
 #elif defined(__GNUC__)
 #define ABSL_INTERNAL_HAS_CXA_DEMANGLE 1
 #elif defined(__clang__) && !defined(_MSC_VER)

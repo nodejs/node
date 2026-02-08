@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-string-tsa-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/turboshaft-builtins-assembler-inl.h"
 #include "src/common/globals.h"
@@ -17,138 +18,6 @@ namespace v8::internal {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 using namespace compiler::turboshaft;  // NOLINT(build/namespaces)
-
-template <typename Next>
-class StringBuiltinsReducer : public Next {
- public:
-  BUILTIN_REDUCER(StringBuiltins)
-
-  void CopyStringCharacters(V<String> src_string, ConstOrV<WordPtr> src_begin,
-                            String::Encoding src_encoding, V<String> dst_string,
-                            ConstOrV<WordPtr> dst_begin,
-                            String::Encoding dst_encoding,
-                            ConstOrV<WordPtr> character_count) {
-    bool src_one_byte = src_encoding == String::ONE_BYTE_ENCODING;
-    bool dst_one_byte = dst_encoding == String::ONE_BYTE_ENCODING;
-    __ CodeComment("CopyStringCharacters ",
-                   src_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING",
-                   " -> ",
-                   dst_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING");
-
-    const auto dst_rep = dst_one_byte ? MemoryRepresentation::Uint8()
-                                      : MemoryRepresentation::Uint16();
-    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
-                  OFFSET_OF_DATA_START(SeqTwoByteString));
-    const size_t data_offset = OFFSET_OF_DATA_START(SeqOneByteString);
-    const int dst_stride = dst_one_byte ? 1 : 2;
-
-    DisallowGarbageCollection no_gc;
-    V<WordPtr> dst_begin_offset =
-        __ WordPtrAdd(__ BitcastTaggedToWordPtr(dst_string),
-                      __ WordPtrAdd(data_offset - kHeapObjectTag,
-                                    __ WordPtrMul(dst_begin, dst_stride)));
-
-    StringView src_view(no_gc, src_string, src_encoding, src_begin,
-                        character_count);
-    FOREACH(src_char, dst_offset,
-            Zip(src_view, Sequence(dst_begin_offset, dst_stride))) {
-#if DEBUG
-      // Copying two-byte characters to one-byte is okay if callers have
-      // checked that this loses no information.
-      if (v8_flags.debug_code && !src_one_byte && dst_one_byte) {
-        TSA_DCHECK(this, __ Uint32LessThanOrEqual(src_char, 0xFF));
-      }
-#endif
-      __ Store(dst_offset, src_char, StoreOp::Kind::RawAligned(), dst_rep,
-               compiler::kNoWriteBarrier);
-    }
-  }
-
-  V<SeqOneByteString> AllocateSeqOneByteString(V<WordPtr> length) {
-    __ CodeComment("AllocateSeqOneByteString");
-    Label<SeqOneByteString> done(this);
-    GOTO_IF(__ WordPtrEqual(length, 0), done,
-            V<SeqOneByteString>::Cast(__ EmptyStringConstant()));
-
-    V<WordPtr> object_size =
-        __ WordPtrAdd(sizeof(SeqOneByteString),
-                      __ WordPtrMul(length, sizeof(SeqOneByteString::Char)));
-    V<WordPtr> aligned_size = __ AlignTagged(object_size);
-    Uninitialized<SeqOneByteString> new_string =
-        __ template Allocate<SeqOneByteString>(
-            aligned_size, AllocationType::kYoung, kTaggedAligned);
-    __ InitializeField(new_string, AccessBuilderTS::ForMap(),
-                       __ SeqOneByteStringMapConstant());
-
-    __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
-                       __ TruncateWordPtrToWord32(length));
-    __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
-                       Name::kEmptyHashField);
-    V<SeqOneByteString> string = __ FinishInitialization(std::move(new_string));
-    // Clear padding.
-    V<WordPtr> raw_padding_begin = __ WordPtrAdd(
-        __ WordPtrAdd(__ BitcastTaggedToWordPtr(string), aligned_size),
-        -kObjectAlignment - kHeapObjectTag);
-    static_assert(kObjectAlignment ==
-                  MemoryRepresentation::TaggedSigned().SizeInBytes());
-    __ Store(raw_padding_begin, {}, __ SmiConstant(Smi::zero()),
-             StoreOp::Kind::RawAligned(), MemoryRepresentation::TaggedSigned(),
-             compiler::kNoWriteBarrier, 0, 0, true);
-    GOTO(done, string);
-
-    BIND(done, result);
-    return result;
-  }
-
-  V<SeqTwoByteString> AllocateSeqTwoByteString(V<WordPtr> length) {
-    __ CodeComment("AllocateSeqTwoByteString");
-    Label<SeqTwoByteString> done(this);
-    GOTO_IF(__ WordPtrEqual(length, 0), done,
-            V<SeqTwoByteString>::Cast(__ EmptyStringConstant()));
-
-    V<WordPtr> object_size =
-        __ WordPtrAdd(sizeof(SeqTwoByteString),
-                      __ WordPtrMul(length, sizeof(SeqTwoByteString::Char)));
-    V<WordPtr> aligned_size = __ AlignTagged(object_size);
-    Uninitialized<SeqTwoByteString> new_string =
-        __ template Allocate<SeqTwoByteString>(
-            aligned_size, AllocationType::kYoung, kTaggedAligned);
-    __ InitializeField(new_string, AccessBuilderTS::ForMap(),
-                       __ SeqTwoByteStringMapConstant());
-
-    __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
-                       __ TruncateWordPtrToWord32(length));
-    __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
-                       Name::kEmptyHashField);
-    V<SeqTwoByteString> string = __ FinishInitialization(std::move(new_string));
-    // Clear padding.
-    V<WordPtr> raw_padding_begin = __ WordPtrAdd(
-        __ WordPtrAdd(__ BitcastTaggedToWordPtr(string), aligned_size),
-        -kObjectAlignment - kHeapObjectTag);
-    static_assert(kObjectAlignment ==
-                  MemoryRepresentation::TaggedSigned().SizeInBytes());
-    __ Store(raw_padding_begin, {}, __ SmiConstant(Smi::zero()),
-             StoreOp::Kind::RawAligned(), MemoryRepresentation::TaggedSigned(),
-             compiler::kNoWriteBarrier, 0, 0, true);
-    GOTO(done, string);
-
-    BIND(done, result);
-    return result;
-  }
-};
-
-class StringBuiltinsAssemblerTS
-    : public TurboshaftBuiltinsAssembler<StringBuiltinsReducer,
-                                         NoFeedbackCollectorReducer> {
- public:
-  using Base = TurboshaftBuiltinsAssembler;
-
-  StringBuiltinsAssemblerTS(compiler::turboshaft::PipelineData* data,
-                            compiler::turboshaft::Graph& graph,
-                            Zone* phase_zone)
-      : Base(data, graph, phase_zone) {}
-  using Base::Asm;
-};
 
 #ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
@@ -241,6 +110,12 @@ TS_BUILTIN(StringFromCharCode, StringBuiltinsAssemblerTS) {
     }
     PopAndReturn(arguments, one_byte_result);
   }
+}
+
+TS_BUILTIN(ToString, StringBuiltinsAssemblerTS) {
+  V<Context> context = Parameter<Context>(Descriptor::kContext);
+  V<JSAny> o = Parameter<JSAny>(Descriptor::kO);
+  Return(ToStringImpl(context, o));
 }
 
 #endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS

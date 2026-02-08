@@ -34,10 +34,9 @@ CallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
 
 // static
 ObjectAccess ObjectAccessForGCStores(wasm::ValueType type) {
-  return ObjectAccess(
-      MachineType::TypeForRepresentation(type.machine_representation(),
-                                         !type.is_packed()),
-      type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier);
+  return ObjectAccess(MachineType::TypeForRepresentation(
+                          type.machine_representation(), !type.is_packed()),
+                      type.is_ref() ? kFullWriteBarrier : kNoWriteBarrier);
 }
 
 // Sets {true_node} and {false_node} to their corresponding Branch outputs.

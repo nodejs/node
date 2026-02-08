@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
@@ -144,9 +146,9 @@ class WasmEHData {
  protected:
   BlockIndex GetTryBranchOf(BlockIndex catch_block_index) const;
 
-  std::unordered_map<CodeOffset, BlockIndex> code_trycatch_map_;
-  std::unordered_map<BlockIndex, TryBlock> try_blocks_;
-  std::unordered_map<BlockIndex, CatchBlock> catch_blocks_;
+  absl::flat_hash_map<CodeOffset, BlockIndex> code_trycatch_map_;
+  absl::flat_hash_map<BlockIndex, TryBlock> try_blocks_;
+  absl::flat_hash_map<BlockIndex, CatchBlock> catch_blocks_;
 };
 
 class WasmEHDataGenerator : public WasmEHData {
@@ -395,7 +397,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   void NotifyIsolateDisposal(Isolate* isolate);
 
  private:
-  typedef std::unordered_map<int, std::unique_ptr<WasmInterpreterThread>>
+  typedef absl::flat_hash_map<int, std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
   base::Mutex mutex_;
@@ -655,16 +657,16 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   }
   void Stop() { state_ = State::STOPPED; }
 
-  void Trap(TrapReason trap_reason, int trap_function_index, int trap_pc,
-            const FrameState& current_frame) {
+  void Trap(MessageTemplate message_template, int trap_function_index,
+            int trap_pc, const FrameState& current_frame) {
     state_ = State::TRAPPED;
-    trap_reason_ = trap_reason;
+    message_template_ = message_template;
 
     DCHECK(!activations_.empty());
     activations_.back()->SetCurrentFrame(current_frame);
     activations_.back()->SetTrapped(trap_function_index, trap_pc);
   }
-  TrapReason GetTrapReason() const { return trap_reason_; }
+  MessageTemplate GetMessageTemplate() const { return message_template_; }
 
   void Unwinding() { state_ = State::EH_UNWINDING; }
 
@@ -729,7 +731,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   static void SetRuntimeLastWasmError(Isolate* isolate,
                                       MessageTemplate message);
-  static TrapReason GetRuntimeLastWasmError(Isolate* isolate);
+  static MessageTemplate GetRuntimeLastWasmError(Isolate* isolate);
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   uint32_t CurrentStackFrameStart() const {
@@ -762,7 +764,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   Isolate* isolate_;
   State state_;
-  TrapReason trap_reason_;
+  MessageTemplate message_template_;
   // In fuzzer mode, the interpreter is not called from a JS function, but
   // directly from the fuzzer. We need to add a fake frame pointer that can be
   // used to access the stack.
@@ -1274,11 +1276,28 @@ enum ExternalCallResult {
 
 constexpr uint32_t kBranchOnCastDataTargetTypeBitSize = 30;
 struct BranchOnCastData {
-  uint32_t label_depth;
-  uint32_t src_is_null : 1;  //  BrOnCastFlags
-  uint32_t res_is_null : 1;  //  BrOnCastFlags
-  uint32_t target_type_bit_fields
-      : kBranchOnCastDataTargetTypeBitSize;  //  HeapType bit_fields
+  BranchOnCastData(uint32_t label_depth, bool src_is_null, bool res_is_null,
+                   uint32_t target_type_bit_fields)
+      : label_depth_(label_depth),
+        flags_(SrcIsNullField::encode(src_is_null) |
+               ResIsNullField::encode(src_is_null) |
+               TargetTypeField::encode(src_is_null)) {}
+
+  uint32_t label_depth() const { return label_depth_; }
+  bool src_is_null() const { return SrcIsNullField::decode(flags_); }
+  bool res_is_null() const { return ResIsNullField::decode(flags_); }
+  uint32_t target_type_bit_fields() const {
+    return TargetTypeField::decode(flags_);
+  }
+
+ private:
+  uint32_t label_depth_;
+  uint32_t flags_;
+
+  using SrcIsNullField = base::BitField<bool, 0, 1>;
+  using ResIsNullField = SrcIsNullField::Next<bool, 1>;
+  using TargetTypeField =
+      ResIsNullField::Next<uint32_t, kBranchOnCastDataTargetTypeBitSize>;
 };
 
 struct WasmInstruction {
@@ -1596,7 +1615,7 @@ class WasmBytecodeGenerator {
     DCHECK(wasm::is_reference(slots_[stack_.back()].kind()));
     uint32_t ref_index = slots_[stack_.back()].ref_stack_index;
     ValueType value_type = slots_[stack_.back()].value_type;
-    DCHECK(value_type.is_object_reference());
+    DCHECK(value_type.is_ref());
     PopSlot();
     if (emit) EmitRefStackIndex(ref_index);
     return value_type;
@@ -1652,7 +1671,7 @@ class WasmBytecodeGenerator {
   inline void EmitMemoryOffset(uint64_t value) {
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_compact_bytecode) {
-      printf("EmitMemoryOffset %llu\n", value);
+      printf("EmitMemoryOffset %" PRIu64 "\n", value);
     }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
@@ -1997,15 +2016,15 @@ class WasmBytecodeGenerator {
 
   std::vector<uint8_t> const_slots_values_;
   uint32_t const_slot_offset_;
-  std::unordered_map<int32_t, uint32_t> i32_const_cache_;
-  std::unordered_map<int64_t, uint32_t> i64_const_cache_;
-  std::unordered_map<float, uint32_t> f32_const_cache_;
-  std::unordered_map<double, uint32_t> f64_const_cache_;
+  absl::flat_hash_map<int32_t, uint32_t> i32_const_cache_;
+  absl::flat_hash_map<int64_t, uint32_t> i64_const_cache_;
+  absl::flat_hash_map<float, uint32_t> f32_const_cache_;
+  absl::flat_hash_map<double, uint32_t> f64_const_cache_;
 
   struct Simd128Hash {
     size_t operator()(const Simd128& s128) const;
   };
-  std::unordered_map<Simd128, uint32_t, Simd128Hash> s128_const_cache_;
+  absl::flat_hash_map<Simd128, uint32_t, Simd128Hash> s128_const_cache_;
 
   std::vector<Simd128> simd_immediates_;
   uint32_t slot_offset_;  // TODO(paolosev@microsoft.com): manage holes
@@ -2195,7 +2214,7 @@ class InterpreterTracer final : public Malloced {
   int isolate_id_;
   base::EmbeddedVector<char, 128> filename_;
   FILE* file_;
-  std::unordered_set<int> traced_functions_;
+  absl::flat_hash_set<int> traced_functions_;
   int current_chunk_index_;
   int64_t write_count_;
 

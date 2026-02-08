@@ -17,6 +17,12 @@ class Vector;
 
 namespace internal {
 
+namespace detail {
+// Non-inlined SIMD implementation for checking if a uint16_t string contains
+// only Latin1 characters. Used by the inline IsOnly8Bit wrapper.
+V8_EXPORT_PRIVATE bool IsOnly8BitSIMD(const uint16_t* chars, unsigned len);
+}  // namespace detail
+
 // A simple incremental string hasher. Slow but allows for special casing each
 // individual character.
 class RunningStringHasher final {
