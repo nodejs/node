@@ -1397,7 +1397,8 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
 
   // Use the default initializer for source text modules without custom
   // callbacks.
-  if (id == env->source_text_module_default_hdo()) {
+  if (id == env->source_text_module_default_hdo() ||
+      id == env->embedder_module_hdo()) {
     USE(DefaultImportMetaObjectInitializer(realm, wrap, meta));
     return;
   }

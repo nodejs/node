@@ -1,6 +1,7 @@
+#include "libplatform/libplatform.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "libplatform/libplatform.h"
+#include "node_url.h"
 #include "util.h"
 
 #include <string>
@@ -847,6 +848,171 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithESModule) {
   node::Utf8Value frame_str(isolate_, frame_value);
   printf("Frame: %s\n", *frame_str);
   EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
+}
+
+static const char* dynamic_import_source =
+    "const importedProcess = import('node:process');\n"
+    "const importedNonBuiltin = import('./non-existent.mjs');\n"
+    "importedNonBuiltin.catch((err) => \n"
+    "  globalThis.importedNonBuiltinStack = err.stack)\n";
+void CheckDynamicImportResult(v8::Isolate* isolate,
+                              v8::Local<v8::Value> result) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  // Check the result of import('node:process').
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Value> imported_process =
+      result.As<v8::Object>()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate, "importedProcess"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_process->IsPromise());
+  EXPECT_EQ(imported_process.As<v8::Promise>()->State(),
+            v8::Promise::kFulfilled);
+  v8::Local<v8::Value> imported_value =
+      imported_process.As<v8::Promise>()->Result();
+  EXPECT_TRUE(imported_value->IsObject());
+  v8::Local<v8::Value> dynamic_process =
+      imported_value.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "default"))
+          .ToLocalChecked();
+  EXPECT_TRUE(dynamic_process->IsObject());
+
+  v8::Local<v8::Value> global_process_value =
+      context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "process"))
+          .ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(dynamic_process->StrictEquals(global_process_value));
+
+  // Check the result of import('./non-existent.mjs')
+  v8::Local<v8::Value> imported_non_builtin =
+      result.As<v8::Object>()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate, "importedNonBuiltin"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_non_builtin->IsPromise());
+  EXPECT_EQ(imported_non_builtin.As<v8::Promise>()->State(),
+            v8::Promise::kRejected);
+
+  // Check the error message
+  v8::Local<v8::Value> imported_non_builtin_stack =
+      context->Global()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate,
+                                               "importedNonBuiltinStack"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_non_builtin_stack->IsString());
+  node::Utf8Value error_str(isolate, imported_non_builtin_stack);
+  // Error stack should include "ERR_UNKNOWN_BUILTIN_MODULE"
+  EXPECT_NE(error_str.ToString().find("ERR_UNKNOWN_BUILTIN_MODULE"),
+            std::string::npos);
+  // Error stack should include "No such built-in module: ./non-existent.mjs"
+  EXPECT_NE(
+      error_str.ToString().find("No such built-in module: ./non-existent.mjs"),
+      std::string::npos);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleDynamicImport) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  // Test dynamic import('node:process') in entry point.
+  std::string source = std::string(dynamic_import_source) +
+                       "export { importedProcess, importedNonBuiltin };\n";
+  node::ModuleData entry_point;
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name("embedded:dynamic-import.mjs");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // Finish the await.
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  CheckDynamicImportResult(isolate_, result);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCommonJSDynamicImport) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  std::string source = std::string(dynamic_import_source) +
+                       "return { importedProcess, importedNonBuiltin };\n";
+  node::ModuleData entry_point;
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kCommonJS);
+  entry_point.set_resource_name("/test-cjs-dynamic-import.js");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // Finish the await.
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  CheckDynamicImportResult(isolate_, result);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleImportMeta) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  node::ModuleData entry_point;
+  // Test import.meta properties in ESM entry point.
+  std::string source = "export const url = import.meta.url;\n"
+                       "export const main = import.meta.main;\n"
+                       "export const filename = import.meta.filename;\n"
+                       "export const dirname = import.meta.dirname;\n";
+  std::string exec_path = (*env)->exec_path();
+  std::string url = node::url::FromFilePath(exec_path);
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name(url);
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  // Check import.meta.url
+  v8::Local<v8::Value> url_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "url"))
+          .ToLocalChecked();
+  EXPECT_TRUE(url_value->IsString());
+  node::Utf8Value url_str(isolate_, url_value);
+  EXPECT_EQ(url_str.ToStringView(), url);
+
+  // Check import.meta.main
+  v8::Local<v8::Value> main_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "main"))
+          .ToLocalChecked();
+  EXPECT_TRUE(main_value->IsBoolean());
+  EXPECT_TRUE(main_value->BooleanValue(isolate_));
+
+  // Check import.meta.filename
+  v8::Local<v8::Value> filename_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "filename"))
+          .ToLocalChecked();
+  EXPECT_TRUE(filename_value->IsString());
+  node::Utf8Value filename_str(isolate_, filename_value);
+  EXPECT_EQ(filename_str.ToStringView(), exec_path);
+
+  // Check import.meta.dirname
+  v8::Local<v8::Value> dirname_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "dirname"))
+          .ToLocalChecked();
+  EXPECT_TRUE(dirname_value->IsString());
+  node::Utf8Value dirname_str(isolate_, dirname_value);
+  // Just check that dirname is a substring of exec_path
+  EXPECT_NE(exec_path.find(dirname_str.ToStringView()), std::string::npos);
 }
 
 TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithCommonJSModule) {
