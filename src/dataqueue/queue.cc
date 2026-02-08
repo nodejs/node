@@ -20,10 +20,18 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
+using v8::Promise;
+using v8::TypedArray;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace {
@@ -34,25 +42,34 @@ class NonIdempotentDataQueueReader;
 class EntryImpl : public DataQueue::Entry {
  public:
   virtual std::shared_ptr<DataQueue::Reader> get_reader() = 0;
+  virtual void clearPendingNext() = 0;
 };
 
 class DataQueueImpl final : public DataQueue,
                             public std::enable_shared_from_this<DataQueueImpl> {
  public:
   // Constructor for an idempotent, fixed sized DataQueue.
-  DataQueueImpl(std::vector<std::unique_ptr<Entry>>&& list, uint64_t size)
+  DataQueueImpl(Environment* env,
+                std::vector<std::unique_ptr<Entry>>&& list,
+                uint64_t size)
       : entries_(std::move(list)),
         idempotent_(true),
         size_(size),
-        capped_size_(0) {}
+        capped_size_(0),
+        notifier_(nullptr),
+        env_(env) {}
 
   // Constructor for a non-idempotent DataQueue. This kind of queue can have
   // entries added to it over time. The size is set to 0 initially. The queue
   // can be capped immediately on creation. Depending on the entries that are
   // added, the size can be cleared if any of the entries are not capable of
   // providing a size.
-  DataQueueImpl(std::optional<uint64_t> cap = std::nullopt)
-      : idempotent_(false), size_(0), capped_size_(cap) {}
+  DataQueueImpl(Environment* env, std::optional<uint64_t> cap = std::nullopt)
+      : idempotent_(false),
+        size_(0),
+        capped_size_(cap),
+        notifier_(nullptr),
+        env_(env) {}
 
   // Disallow moving and copying.
   DataQueueImpl(const DataQueueImpl&) = delete;
@@ -100,7 +117,7 @@ class DataQueueImpl final : public DataQueue,
       }
     }
 
-    return std::make_shared<DataQueueImpl>(std::move(slices), len);
+    return std::make_shared<DataQueueImpl>(env_, std::move(slices), len);
   }
 
   std::optional<uint64_t> size() const override { return size_; }
@@ -132,6 +149,12 @@ class DataQueueImpl final : public DataQueue,
     }
 
     entries_.push_back(std::move(entry));
+    if (notifier_) {
+      notifier_->newDataOrCloseAdded();
+    }
+    for (auto cur = readers_.begin(); cur != readers_.end(); cur++) {
+      (*cur)->newDataOrEnd();
+    }
     return true;
   }
 
@@ -141,11 +164,18 @@ class DataQueueImpl final : public DataQueue,
     // cap again with a smaller size.
     if (capped_size_.has_value()) {
       capped_size_ = std::min(limit, capped_size_.value());
+      if (notifier_) notifier_->newDataOrCloseAdded();
+      for (auto cur = readers_.begin(); cur != readers_.end(); cur++) {
+        (*cur)->newDataOrEnd();
+      }
       return;
     }
-
     // Otherwise just set the limit.
     capped_size_ = limit;
+    if (notifier_) notifier_->newDataOrCloseAdded();
+    for (auto cur = readers_.begin(); cur != readers_.end(); cur++) {
+      (*cur)->newDataOrEnd();
+    }
   }
 
   std::optional<uint64_t> maybeCapRemaining() const override {
@@ -157,10 +187,18 @@ class DataQueueImpl final : public DataQueue,
     return std::nullopt;
   }
 
+  void clearPendingNext() override {
+    for (const auto& entry : entries_) {
+      entry->clearPendingNext();
+    }
+  }
+
   void MemoryInfo(node::MemoryTracker* tracker) const override {
     tracker->TrackField(
         "entries", entries_, "std::vector<std::unique_ptr<Entry>>");
   }
+
+  void SetNotifier(Notifier* notifier) override { notifier_ = notifier; }
 
   void addBackpressureListener(BackpressureListener* listener) override {
     if (idempotent_) return;
@@ -183,6 +221,17 @@ class DataQueueImpl final : public DataQueue,
     return !backpressure_listeners_.empty();
   }
 
+  Environment* env() { return env_; }
+
+  class NotifyReader {
+   public:
+    virtual void newDataOrEnd() = 0;
+  };
+
+  void reader_destructed(NotifyReader* reader) { readers_.erase(reader); }
+
+  void SetEnvironment(Environment* env) override { env_ = env; }
+
   std::shared_ptr<Reader> get_reader() override;
   SET_MEMORY_INFO_NAME(DataQueue)
   SET_SELF_SIZE(DataQueueImpl)
@@ -193,8 +242,12 @@ class DataQueueImpl final : public DataQueue,
   std::optional<uint64_t> size_ = std::nullopt;
   std::optional<uint64_t> capped_size_ = std::nullopt;
   bool locked_to_reader_ = false;
+  std::set<NotifyReader*> readers_;  // we may need to notify them
 
   std::unordered_set<BackpressureListener*> backpressure_listeners_;
+
+  Notifier* notifier_;
+  Environment* env_;
 
   friend class DataQueue;
   friend class IdempotentDataQueueReader;
@@ -207,6 +260,7 @@ class DataQueueImpl final : public DataQueue,
 // will not and cannot be changed.
 class IdempotentDataQueueReader final
     : public DataQueue::Reader,
+      public DataQueueImpl::NotifyReader,
       public std::enable_shared_from_this<IdempotentDataQueueReader> {
  public:
   IdempotentDataQueueReader(std::shared_ptr<DataQueueImpl> data_queue)
@@ -214,12 +268,18 @@ class IdempotentDataQueueReader final
     CHECK(data_queue_->is_idempotent());
   }
 
+  ~IdempotentDataQueueReader() { data_queue_->reader_destructed(this); }
+
   // Disallow moving and copying.
   IdempotentDataQueueReader(const IdempotentDataQueueReader&) = delete;
   IdempotentDataQueueReader(IdempotentDataQueueReader&&) = delete;
   IdempotentDataQueueReader& operator=(const IdempotentDataQueueReader&) =
       delete;
   IdempotentDataQueueReader& operator=(IdempotentDataQueueReader&&) = delete;
+
+  void newDataOrEnd() override {
+    // Currently nothing, but it may change
+  }
 
   int Pull(Next next,
            int options,
@@ -269,7 +329,10 @@ class IdempotentDataQueueReader final
     int status = current_reader->Pull(
         [this, next = std::move(next)](
             int status, const DataQueue::Vec* vecs, uint64_t count, Done done) {
-          pull_pending_ = false;
+          if (status != bob::Status::STATUS_WAIT) {
+            // do not set for an async call
+            pull_pending_ = false;
+          }
           // In each of these cases, we do not expect that the source will
           // actually have provided any actual data.
           CHECK_IMPLIES(status == bob::Status::STATUS_BLOCK ||
@@ -305,8 +368,11 @@ class IdempotentDataQueueReader final
 
     // The pull was handled synchronously. If we're not ended, we want to
     // make sure status returned is CONTINUE.
+    // But if the source blocks, we should let the caller know,
+    // otherwise, we may provoke a busy loop
     if (!pull_pending_) {
-      if (!ended_) return bob::Status::STATUS_CONTINUE;
+      if (!ended_ && status != bob::Status::STATUS_BLOCK)
+        return bob::Status::STATUS_CONTINUE;
       // For all other status, we just fall through and return it straightaway.
     }
 
@@ -317,6 +383,7 @@ class IdempotentDataQueueReader final
     //                              pull but it is not available yet. The
     //                              caller should not keep calling pull for
     //                              now but may check again later.
+    //                              Though we may call a notifier to signal.
     //  bob::Status::STATUS_WAIT - means that the entry has more data to
     //                             pull but it won't be provided
     //                             synchronously, instead the next() callback
@@ -359,12 +426,15 @@ class IdempotentDataQueueReader final
 // is mutated as the read proceeds.
 class NonIdempotentDataQueueReader final
     : public DataQueue::Reader,
+      public DataQueueImpl::NotifyReader,
       public std::enable_shared_from_this<NonIdempotentDataQueueReader> {
  public:
   NonIdempotentDataQueueReader(std::shared_ptr<DataQueueImpl> data_queue)
       : data_queue_(std::move(data_queue)) {
     CHECK(!data_queue_->is_idempotent());
   }
+
+  ~NonIdempotentDataQueueReader() { data_queue_->reader_destructed(this); }
 
   // Disallow moving and copying.
   NonIdempotentDataQueueReader(const NonIdempotentDataQueueReader&) = delete;
@@ -374,12 +444,25 @@ class NonIdempotentDataQueueReader final
   NonIdempotentDataQueueReader& operator=(NonIdempotentDataQueueReader&&) =
       delete;
 
+  void newDataOrEnd() override {
+    if (waited_next_) {
+      auto next = std::move(waited_next_);
+      data_queue_->env()->SetImmediate(
+          [next, dropme = shared_from_this()](Environment* env) {
+            std::move(next)(
+                bob::Status::STATUS_CONTINUE, nullptr, 0, [](uint64_t) {});
+          },
+          CallbackFlags::kUnrefed);
+    }
+  }
+
   int Pull(Next next,
            int options,
            DataQueue::Vec* data,
            size_t count,
            size_t max_count_hint = bob::kMaxCountHint) override {
     std::shared_ptr<DataQueue::Reader> self = shared_from_this();
+    assert(!waited_next_);  // Do not call us with blocked next
 
     // If ended is true, this reader has already reached the end and cannot
     // provide any more data.
@@ -397,8 +480,17 @@ class NonIdempotentDataQueueReader final
       // that'll happe, so the proper response here is to return a blocked
       // status.
       if (!data_queue_->is_capped()) {
-        std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
-        return bob::STATUS_BLOCK;
+        // Do we have to call next?
+        if (!(options & bob::OPTIONS_SYNC)) {
+          assert(!waited_next_);
+          next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
+          waited_next_ = std::move(next);
+          return bob::STATUS_WAIT;
+        } else {
+          std::move(next)(
+              bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+          return bob::STATUS_BLOCK;
+        }
       }
 
       // However, if we are capped, the status will depend on whether the size
@@ -409,9 +501,16 @@ class NonIdempotentDataQueueReader final
         // still might get more data. We just don't know exactly when that'll
         // come, so let's return a blocked status.
         if (data_queue_->size().value() < data_queue_->capped_size_.value()) {
-          std::move(next)(
-              bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
-          return bob::STATUS_BLOCK;
+          if (!(options & bob::OPTIONS_SYNC)) {
+            assert(!waited_next_);
+            next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
+            waited_next_ = std::move(next);
+            return bob::STATUS_WAIT;
+          } else {
+            std::move(next)(
+                bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+            return bob::STATUS_BLOCK;
+          }
         }
 
         // Otherwise, if size is equal to or greater than capped, we are done.
@@ -437,7 +536,7 @@ class NonIdempotentDataQueueReader final
     CHECK(!pull_pending_);
     pull_pending_ = true;
     int status = current_reader->Pull(
-        [this, next = std::move(next)](
+        [this, next = std::move(next), options](
             int status, const DataQueue::Vec* vecs, uint64_t count, Done done) {
           pull_pending_ = false;
 
@@ -448,10 +547,32 @@ class NonIdempotentDataQueueReader final
                             status == bob::Status::STATUS_EOS,
                         vecs == nullptr && count == 0);
           if (status == bob::Status::STATUS_EOS) {
-            data_queue_->entries_.erase(data_queue_->entries_.begin());
-            ended_ = data_queue_->entries_.empty();
             current_reader_ = nullptr;
-            if (!ended_) status = bob::Status::STATUS_CONTINUE;
+            // must be done before erasing the entries
+            // as FdEntry's and FeederEntry's reader hold
+            // a pointer to the entry! and FeederEntry
+            // invoke it in destructor
+            data_queue_->entries_.erase(data_queue_->entries_.begin());
+            // if the DataQueue is ended does not only depend
+            // if entries_ is empty, but also if it is capped!
+            if (data_queue_->entries_.empty()) {
+              if (data_queue_->is_capped()) {
+                ended_ = true;
+              } else {
+                if (!(options & bob::OPTIONS_SYNC)) {
+                  assert(!waited_next_);
+                  next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
+                  waited_next_ = std::move(next);
+                  return;
+                } else {
+                  std::move(next)(
+                      bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+                  return;
+                }
+              }
+            } else {
+              status = bob::Status::STATUS_CONTINUE;
+            }
             std::move(next)(status, nullptr, 0, [](uint64_t) {});
             return;
           }
@@ -478,7 +599,9 @@ class NonIdempotentDataQueueReader final
 
     if (!pull_pending_) {
       // The callback was resolved synchronously. Let's check our status.
-      if (!ended_) return bob::Status::STATUS_CONTINUE;
+      if (!ended_) {
+        return bob::Status::STATUS_CONTINUE;
+      }
       // For all other status, we just fall through and return it straightaway.
     }
 
@@ -489,6 +612,7 @@ class NonIdempotentDataQueueReader final
     //                              pull but it is not available yet. The
     //                              caller should not keep calling pull for
     //                              now but may check again later.
+    //                              Though we may call a notifier to signal.
     //  bob::Status::STATUS_WAIT - means that the entry has more data to
     //                             pull but it won't be provided
     //                             synchronously, instead the next() callback
@@ -519,17 +643,24 @@ class NonIdempotentDataQueueReader final
   std::shared_ptr<DataQueue::Reader> current_reader_ = nullptr;
   bool ended_ = false;
   bool pull_pending_ = false;
+  Next waited_next_;
 };
 
 std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader() {
   if (is_idempotent()) {
-    return std::make_shared<IdempotentDataQueueReader>(shared_from_this());
+    auto reader =
+        std::make_shared<IdempotentDataQueueReader>(shared_from_this());
+    readers_.insert(reader.get());
+    return reader;
   }
 
   if (locked_to_reader_) return nullptr;
   locked_to_reader_ = true;
 
-  return std::make_shared<NonIdempotentDataQueueReader>(shared_from_this());
+  auto reader =
+      std::make_shared<NonIdempotentDataQueueReader>(shared_from_this());
+  readers_.insert(reader.get());
+  return reader;
 }
 
 // ============================================================================
@@ -582,6 +713,10 @@ class EmptyEntry final : public EntryImpl {
       std::optional<uint64_t> maybeEnd = std::nullopt) override {
     if (start != 0) return nullptr;
     return std::make_unique<EmptyEntry>();
+  }
+
+  void clearPendingNext() override {
+    // this is a noop for an empty object
   }
 
   std::optional<uint64_t> size() const override { return 0; }
@@ -696,6 +831,10 @@ class InMemoryEntry final : public EntryImpl {
     return makeEntry(start, byte_length_ - start);
   }
 
+  void clearPendingNext() override {
+    // this is a noop for an object, that immediately calls next.
+  }
+
   std::optional<uint64_t> size() const override { return byte_length_; }
 
   bool is_idempotent() const override { return true; }
@@ -742,6 +881,11 @@ class DataQueueEntry : public EntryImpl {
     if (!sliced) return nullptr;
 
     return std::make_unique<DataQueueEntry>(std::move(sliced));
+  }
+
+  void clearPendingNext() override {
+    // this is just calls clearPendingNext of the queue
+    data_queue_->clearPendingNext();
   }
 
   // Returns the number of bytes represented by this Entry if it is
@@ -862,6 +1006,8 @@ class FdEntry final : public EntryImpl {
     return std::make_unique<FdEntry>(env_, path_, stat_, new_start, new_end);
   }
 
+  void clearPendingNext() override { clearPendingNextImpl(); }
+
   std::optional<uint64_t> size() const override { return end_ - start_; }
 
   bool is_idempotent() const override { return true; }
@@ -878,6 +1024,16 @@ class FdEntry final : public EntryImpl {
   uv_stat_t stat_;
   uint64_t start_ = 0;
   uint64_t end_ = 0;
+
+  class ReaderImpl;
+  std::unordered_set<ReaderImpl*> readers_;
+
+  void clearPendingNextImpl() {
+    // this should clear all pending pulls from the FD reader
+    for (ReaderImpl* p : readers_) {
+      p->ClearAllPendingPulls();
+    }
+  }
 
   bool is_modified(const uv_stat_t& other) {
     return other.st_size != stat_.st_size ||
@@ -926,12 +1082,14 @@ class FdEntry final : public EntryImpl {
         : env_(handle->env()), handle_(std::move(handle)), entry_(entry) {
       handle_->PushStreamListener(this);
       handle_->env()->AddCleanupHook(cleanup, this);
+      entry_->readers_.insert(this);
     }
 
     ~ReaderImpl() override {
       handle_->env()->RemoveCleanupHook(cleanup, this);
       DrainAndClose();
       handle_->RemoveStreamListener(this);
+      entry_->readers_.erase(this);
     }
 
     uv_buf_t OnStreamAlloc(size_t suggested_size) override {
@@ -996,6 +1154,12 @@ class FdEntry final : public EntryImpl {
         std::move(next)(UV_EINVAL, nullptr, 0, [](uint64_t) {});
         return UV_EINVAL;
       }
+      // Note: we do not support sync reading, so if it is requested
+      // we need to bail out and say we are blocked
+      if ((options & bob::OPTIONS_SYNC)) {
+        std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+        return bob::STATUS_BLOCK;
+      }
 
       pending_pulls_.emplace_back(std::move(next), shared_from_this());
       if (!reading_) {
@@ -1056,18 +1220,18 @@ class FdEntry final : public EntryImpl {
       return std::move(pending_pulls_.front());
     }
 
+    void ClearAllPendingPulls() { pending_pulls_.clear(); }
+
     friend class FdEntry;
   };
 
   friend class ReaderImpl;
 };
-
+}  // namespace
 // ============================================================================
 
-}  // namespace
-
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
-    std::vector<std::unique_ptr<Entry>> list) {
+    Environment* env, std::vector<std::unique_ptr<Entry>> list) {
   // Any entry is invalid for an idempotent DataQueue if any of the entries
   // are nullptr or is not idempotent.
   uint64_t size = 0;
@@ -1094,11 +1258,12 @@ std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
     return nullptr;
   }
 
-  return std::make_shared<DataQueueImpl>(std::move(list), size);
+  return std::make_shared<DataQueueImpl>(env, std::move(list), size);
 }
 
-std::shared_ptr<DataQueue> DataQueue::Create(std::optional<uint64_t> capped) {
-  return std::make_shared<DataQueueImpl>(capped);
+std::shared_ptr<DataQueue> DataQueue::Create(Environment* env,
+                                             std::optional<uint64_t> capped) {
+  return std::make_shared<DataQueueImpl>(env, capped);
 }
 
 std::unique_ptr<DataQueue::Entry> DataQueue::CreateInMemoryEntryFromView(
@@ -1147,4 +1312,210 @@ void DataQueue::RegisterExternalReferences(
   // Nothing to do here currently.
 }
 
+DataQueueFeeder::DataQueueFeeder(Environment* env, Local<Object> object)
+    : AsyncWrap(env, object), buffer_size_(0), bytecount(0) {
+  MakeWeak();
+}
+
+void DataQueueFeeder::setDataQueue(std::shared_ptr<DataQueue> queue) {
+  queue->SetEnvironment(env());
+  dataQueue_ = queue;
+
+  // Allows us to be notified when data is actually read from the
+  // queue so that we can limit the data hold in DataQueueFeeder
+  dataQueue_->addBackpressureListener(this);
+}
+
+void DataQueueFeeder::tryWakePulls() {
+  if (!readFinish_.IsEmpty()) {
+    v8::Local<v8::Promise::Resolver> resolver =
+        readFinish_.Get(env()->isolate());
+    // I do not think, that this can error...
+    [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+        resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::EntryRead(size_t amount) {
+  buffer_size_ -= amount;
+  if (!Full() && !readFinish_.IsEmpty()) {
+    Local<v8::Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+        resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::DrainAndClose() {
+  if (done) return;
+  done = true;
+  // do not do this several time, and note,
+  // it may be called several times.
+  if (dataQueue_) {
+    dataQueue_->cap();
+  }
+  if (!readFinish_.IsEmpty()) {
+    Local<v8::Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+        resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::New(const FunctionCallbackInfo<Value>& args) {
+  DCHECK(args.IsConstructCall());
+  auto env = Environment::GetCurrent(args);
+  new DataQueueFeeder(env, args.This());
+}
+
+void DataQueueFeeder::Ready(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  if (feeder->Full()) {
+    // FIXME(martenrichter): may be use a queue for the promises,
+    // this is necessary, if used outside of quic
+    Local<Promise::Resolver> readFinish =
+        Promise::Resolver::New(env->context()).ToLocalChecked();
+    feeder->readFinish_.Reset(env->isolate(), readFinish);
+    args.GetReturnValue().Set(readFinish->GetPromise());
+  } else {
+    // may be not required
+    feeder->readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::Submit(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+
+  bool done = false;
+  if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
+    done = true;
+  }
+  if (!args[0].IsEmpty() && !args[0]->IsUndefined() && !args[0]->IsNull()) {
+    CHECK(!feeder->Full());
+    auto chunk = args[0];
+
+    if (chunk->IsArrayBuffer()) {
+      auto buffer = chunk.As<ArrayBuffer>();
+      chunk = Uint8Array::New(buffer, 0, buffer->ByteLength());
+    }
+    if (!chunk->IsTypedArray()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Invalid data must be Arraybuffer or TypedArray");
+      return;
+    }
+    Local<TypedArray> typedArray = chunk.As<TypedArray>();
+    // now we create a copy
+    // detaching, would not be a good idea for example, such
+    // a limitation is not given with W3C Webtransport
+    // if we do not do it here, a transform stream would
+    // be needed to do the copy in the Webtransport case.
+    // there may be also troubles, if multiple Uint8Array
+    // are derived in a parser from a single ArrayBuffer
+    size_t nread = typedArray->ByteLength();
+    auto backingUniq = v8::ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        nread,
+        v8::BackingStoreInitializationMode::kUninitialized,
+        v8::BackingStoreOnFailureMode::kReturnNull);
+    if (!backingUniq) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
+    std::shared_ptr<BackingStore> backing = std::move(backingUniq);
+
+    auto originalStore = typedArray->Buffer()->GetBackingStore();
+    const void* originalData =
+        static_cast<char*>(originalStore->Data()) + typedArray->ByteOffset();
+    memcpy(backing->Data(), originalData, nread);
+    feeder->buffer_size_ += nread;
+    feeder->dataQueue_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
+        std::move(backing), 0, nread));
+    feeder->bytecount += nread;
+  }
+  if (done) {
+    feeder->DrainAndClose();
+    feeder->readFinish_.Reset();
+    args.GetReturnValue().Set(v8::False(env->isolate()));
+    return;
+  } else {
+    if (!feeder->Full()) {
+      feeder->readFinish_.Reset();
+      args.GetReturnValue().Set(v8::True(env->isolate()));
+      return;
+    } else {
+      Local<Promise::Resolver> readFinish =
+          Promise::Resolver::New(env->context()).ToLocalChecked();
+      feeder->readFinish_.Reset(env->isolate(), readFinish);
+      args.GetReturnValue().Set(readFinish->GetPromise());
+      return;
+    }
+  }
+}
+
+void DataQueueFeeder::Error(const FunctionCallbackInfo<Value>& args) {
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  // FIXME, how should I pass on the error
+  // ResetStream must be send also
+  feeder->DrainAndClose();
+}
+
+bool DataQueueFeeder::HasInstance(Environment* env, Local<Value> object) {
+  return GetConstructorTemplate(env)->HasInstance(object);
+}
+
+Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->data_queue_feeder_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, DataQueueFeeder::New);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        BaseObject::kInternalFieldCount);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    env->set_data_queue_feeder_constructor_template(tmpl);
+    SetProtoMethod(isolate, tmpl, "error", Error);
+    SetProtoMethod(isolate, tmpl, "submit", Submit);
+    SetProtoMethod(isolate, tmpl, "ready", Ready);
+  }
+  return tmpl;
+}
+
+void DataQueueFeeder::CreatePerIsolateProperties(
+    IsolateData* isolate_data, v8::Local<v8::ObjectTemplate> target) {}
+
+void DataQueueFeeder::CreatePerContextProperties(v8::Local<v8::Object> target,
+                                                 v8::Local<v8::Value> unused,
+                                                 v8::Local<v8::Context> context,
+                                                 void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  SetConstructorFunction(context,
+                         target,
+                         "DataQueueFeeder",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+}
+
+void DataQueueFeeder::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(DataQueueFeeder::New);
+  registry->Register(DataQueueFeeder::Submit);
+  registry->Register(DataQueueFeeder::Error);
+  registry->Register(DataQueueFeeder::Ready);
+}
+
 }  // namespace node
+
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    dataqueuefeeder, node::DataQueueFeeder::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(dataqueuefeeder,
+                              node::DataQueueFeeder::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    dataqueuefeeder, node::DataQueueFeeder::RegisterExternalReferences)
