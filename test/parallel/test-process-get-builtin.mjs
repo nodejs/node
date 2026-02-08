@@ -38,6 +38,8 @@ if (!hasIntl) {
 }
 // TODO(@jasnell): Remove this once node:quic graduates from unflagged.
 publicBuiltins.delete('node:quic');
+// node:logger requires --experimental-logger flag.
+publicBuiltins.delete('node:logger');
 
 if (!hasInspector) {
   publicBuiltins.delete('inspector');
