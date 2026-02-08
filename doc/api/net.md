@@ -695,7 +695,7 @@ added:
 
 * Type: {boolean}
 
-Set this property to `true` to begin closing connections once the number of connections reaches the \[`server.maxConnections`]\[] threshold. This setting is only effective in cluster mode.
+Set this property to `true` to begin closing connections once the number of connections reaches the [`server.maxConnections`][] threshold. This setting is only effective in cluster mode.
 
 ### `server.ref()`
 
@@ -2062,6 +2062,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`server.listen(options)`]: #serverlistenoptions-callback
 [`server.listen(path)`]: #serverlistenpath-backlog-callback
 [`server.listen(port)`]: #serverlistenport-host-backlog-callback
+[`server.maxConnections`]: #servermaxconnections
 [`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #socketconnect
 [`socket.connect(options)`]: #socketconnectoptions-connectlistener
