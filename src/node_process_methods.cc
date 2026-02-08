@@ -162,6 +162,10 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   char buf[PATH_MAX_BYTES];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
+  if (err == UV_ENOENT) {
+    THROW_ERR_CWD_DELETED(env);
+    return;
+  }
   if (err) {
     std::string err_msg =
         std::string("process.cwd failed with error ") + uv_strerror(err);
