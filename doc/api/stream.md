@@ -3219,7 +3219,8 @@ changes:
       If no value is provided, the size will be `1` for all the chunks.
       * `chunk` {any}
       * Returns: {number}
-  * `type` {string} Must be 'bytes' or undefined.
+  * `type` {string} Specifies the type of the created `ReadableStream`. Must be
+    `'bytes'` or undefined.
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
@@ -3398,9 +3399,13 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61632
+    description: Added the 'readableType' option to specify the ReadableStream
+                 type. The 'type' option is deprecated.
   - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/58664
-    description: Add 'type' option to specify 'bytes'.
+    description: Added the 'type' option to specify the ReadableStream type.
   - version:
       - v24.0.0
       - v22.17.0
@@ -3410,7 +3415,9 @@ changes:
 
 * `streamDuplex` {stream.Duplex}
 * `options` {Object}
-  * `type` {string} Must be 'bytes' or undefined.
+  * `readableType` {string} Specifies the type of the `ReadableStream` half of
+    the created readable-writable pair. Must be `'bytes'` or undefined.
+    (`options.type` is a deprecated alias for this option.)
 * Returns: {Object}
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
