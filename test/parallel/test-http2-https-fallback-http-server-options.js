@@ -20,6 +20,9 @@ const ca = fixtures.readKey('fake-startcom-root-cert.pem');
 function onRequest(request, response) {
   const { socket: { alpnProtocol } } = request.httpVersion === '2.0' ?
     request.stream.session : request;
+  // Verify that keepAliveTimeout is set when allowHTTP1 is true
+  assert.strictEqual(typeof request.socket.server.keepAliveTimeout, 'number');
+  assert.strictEqual(request.socket.server.keepAliveTimeout, 5000);
   response.status(200);
   response.end(JSON.stringify({
     alpnProtocol,
