@@ -30,7 +30,7 @@ class ConfigReader {
   ParseResult ParseConfig(const std::string_view& config_path);
 
   std::optional<std::string_view> GetDataFromArgs(
-      const std::vector<std::string>& args);
+      std::vector<std::string>* args);
 
   std::string GetNodeOptions();
   const std::vector<std::string>& GetNamespaceFlags() const;
