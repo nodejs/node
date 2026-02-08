@@ -1,5 +1,5 @@
 
-<project-root>/test/fixtures/errors/throw_null.js:*
+<project-root>/test/fixtures/errors/throw_null.js:26
 throw null;
 ^
 null

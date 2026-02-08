@@ -5,10 +5,7 @@ with(this){__filename}
 The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.
 
 SyntaxError: Strict mode code may not include a with statement
-
-
-
-
+    at <node-internal-frames>
 
 Node.js <node-version>
 42
@@ -18,14 +15,10 @@ throw new Error("hello")
 ^
 
 Error: hello
-
-
-
-
-
-
-
-
+    at [eval]:1:7
+    at <node-internal-frames>
+    at [eval]-wrapper:6:24
+    at <node-internal-frames>
 
 Node.js <node-version>
 [eval]:1
@@ -33,14 +26,10 @@ throw new Error("hello")
 ^
 
 Error: hello
-
-
-
-
-
-
-
-
+    at [eval]:1:7
+    at <node-internal-frames>
+    at [eval]-wrapper:6:24
+    at <node-internal-frames>
 
 Node.js <node-version>
 100
@@ -49,14 +38,10 @@ var x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
-
-
-
-
-
-
-
-
+    at [eval]:1:16
+    at <node-internal-frames>
+    at [eval]-wrapper:6:24
+    at <node-internal-frames>
 
 Node.js <node-version>
 
