@@ -1772,8 +1772,9 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   // terminate the session to prevent resource leaks and further inconsistent
   // callbacks. (Ref: https://github.com/nodejs/node/issues/61304)
   if (!is_write_in_progress()) {
-    Debug(this, "write callback invoked but write not in progress, "
-                "possible zombie session");
+    Debug(this,
+          "write callback invoked but write not in progress, "
+          "possible zombie session");
     // Force session termination to clean up resources
     // Don't attempt to send GOAWAY (socket likely already closed)
     if (!is_destroyed()) {
