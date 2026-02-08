@@ -1015,6 +1015,43 @@ Object {
 }
 `
 
+exports[`test/lib/utils/error-message.js TAP eotp/e401 one-time pass webauth challenge > must match snapshot 1`] = `
+Object {
+  "detail": Array [
+    Array [
+      "",
+      "Open this URL in your browser to authenticate:",
+    ],
+    Array [
+      "",
+      "  https://registry.npmjs.org/-/auth/login/abc123",
+    ],
+    Array [
+      "",
+      "",
+    ],
+    Array [
+      "",
+      "After authenticating, your token can be retrieved from:",
+    ],
+    Array [
+      "",
+      "  https://registry.npmjs.org/-/auth/done/abc123",
+    ],
+  ],
+  "json": Object {
+    "authUrl": "https://registry.npmjs.org/-/auth/login/abc123",
+    "doneUrl": "https://registry.npmjs.org/-/auth/done/abc123",
+  },
+  "summary": Array [
+    Array [
+      "",
+      "This operation requires a one-time password.",
+    ],
+  ],
+}
+`
+
 exports[`test/lib/utils/error-message.js TAP eotp/e401 www-authenticate challenges Basic realm=by, charset="UTF-8", challenge="your friends" > must match snapshot 1`] = `
 Object {
   "detail": Array [

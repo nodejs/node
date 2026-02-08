@@ -469,11 +469,31 @@ const FileFetcher = require('./file.js')
 const DirFetcher = require('./dir.js')
 const RemoteFetcher = require('./remote.js')
 
+// possible values for allow: 'all', 'root', 'none'
+const canUseGit = (allow = 'all', isRoot = false) => {
+  if (allow === 'all') {
+    return true
+  }
+  if (allow !== 'none' && isRoot) {
+    return true
+  }
+  return false
+}
+
 // Get an appropriate fetcher object from a spec and options
 FetcherBase.get = (rawSpec, opts = {}) => {
   const spec = npa(rawSpec, opts.where)
   switch (spec.type) {
     case 'git':
+      if (!canUseGit(opts.allowGit, opts._isRoot)) {
+        throw Object.assign(
+          new Error(`Fetching${opts.allowGit === 'root' ? ' non-root' : ''} packages from git has been disabled`),
+          {
+            code: 'EALLOWGIT',
+            package: spec.toString(),
+          }
+        )
+      }
       return new GitFetcher(spec, opts)
 
     case 'remote':

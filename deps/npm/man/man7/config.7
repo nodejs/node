@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "January 2026" "NPM@11.8.0" ""
+.TH "CONFIG" "7" "February 2026" "NPM@11.9.0" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -194,6 +194,18 @@ Type: Boolean
 
 .P
 When running \fBnpm outdated\fR and \fBnpm ls\fR, setting \fB--all\fR will show all outdated or installed packages, rather than only those directly depended upon by the current project.
+.SS "\fBallow-git\fR"
+.RS 0
+.IP \(bu 4
+Default: "all"
+.IP \(bu 4
+Type: "all", "none", or "root"
+.RE 0
+
+.P
+Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed.
+.P
+\fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-same-version\fR"
 .RS 0
 .IP \(bu 4

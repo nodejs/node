@@ -378,7 +378,7 @@ const packument = (nv, opts) => {
 }
 
 const loadMockNpm = async function (t, opts = {}) {
-  const mockNpm = await _loadMockNpm(t, {
+  return _loadMockNpm(t, {
     command: 'view',
     mocks: {
       pacote: {
@@ -391,7 +391,6 @@ const loadMockNpm = async function (t, opts = {}) {
       ...opts.config,
     },
   })
-  return mockNpm
 }
 
 t.test('package from git', async t => {
@@ -827,8 +826,17 @@ t.test('no package completion', async t => {
   t.end()
 })
 
-t.test('package with multiple dist‑tags and no time', async t => {
-  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
+t.test('allow-git=root, package with multiple dist‑tags and no time', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false, 'allow-git': 'root' } })
   await view.exec(['https://github.com/npm/gray'])
   t.matchSnapshot(joinedOutput())
+})
+
+t.test('allow-git=none', async t => {
+  const { view } = await loadMockNpm(t, { config: { 'allow-git': 'none' }, mocks: {} })
+  await t.rejects(view.exec(['npm/npm']), {
+    code: 'EALLOWGIT',
+    package: 'github:npm/npm',
+    message: 'Fetching packages from git has been disabled',
+  })
 })

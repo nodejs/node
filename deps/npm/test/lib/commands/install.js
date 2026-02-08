@@ -236,6 +236,40 @@ t.test('exec commands', async t => {
     await npm.exec('install', ['npm'])
     t.ok('No exceptions happen')
   })
+
+  t.test('allow-git=none', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-git': 'none',
+      },
+    })
+    await t.rejects(
+      npm.exec('install', ['npm/npm']),
+      {
+        code: 'EALLOWGIT',
+        message: 'Fetching packages from git has been disabled',
+        package: 'github:npm/npm',
+      }
+    )
+  })
+
+  t.test('allow-git=root refuses non-root git dependency', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-git': 'none',
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({ name: '@npmcli/test-package', version: '1.0.0' }),
+        abbrev: {
+          'package.json': JSON.stringify({ name: 'abbrev', version: '1.0.0', dependencies: { npm: 'npm/npm' } }),
+        },
+      },
+    })
+    await t.rejects(
+      npm.exec('install', ['./abbrev']),
+      /Fetching packages from git has been disabled/
+    )
+  })
 })
 
 t.test('completion', async t => {

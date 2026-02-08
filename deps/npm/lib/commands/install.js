@@ -28,6 +28,7 @@ class Install extends ArboristWorkspaceCmd {
     'package-lock-only',
     'foreground-scripts',
     'ignore-scripts',
+    'allow-git',
     'audit',
     'before',
     'bin-links',

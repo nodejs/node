@@ -1,4 +1,4 @@
-.TH "NPM-DEDUPE" "1" "January 2026" "NPM@11.8.0" ""
+.TH "NPM-DEDUPE" "1" "February 2026" "NPM@11.9.0" ""
 .SH "NAME"
 \fBnpm-dedupe\fR - Reduce duplication in the package tree
 .SS "Synopsis"
@@ -165,6 +165,18 @@ Type: Boolean
 If true, npm does not run scripts specified in package.json files.
 .P
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBallow-git\fR"
+.RS 0
+.IP \(bu 4
+Default: "all"
+.IP \(bu 4
+Type: "all", "none", or "root"
+.RE 0
+
+.P
+Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed.
+.P
+\fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4

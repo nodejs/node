@@ -187,6 +187,20 @@ const definitions = {
   `,
     flatten,
   }),
+  'allow-git': new Definition('allow-git', {
+    default: 'all',
+    type: ['all', 'none', 'root'],
+    description: `
+      Limits the ability for npm to fetch dependencies from git references.
+      That is, dependencies that point to a git repo instead of a version or semver range.
+      Please note that this could leave your tree incomplete and some packages may not function as intended or designed.
+
+      \`all\` allows any git dependencies to be fetched and installed.
+      \`none\` prevents any git dependencies from being fetched and installed.
+      \`root\` only allows git dependencies defined in your project's package.json to be fetched installed.  Also allows git dependencies to be fetched for other commands like \`npm view\`
+  `,
+    flatten,
+  }),
   also: new Definition('also', {
     default: null,
     type: [null, 'dev', 'development'],

@@ -26,6 +26,7 @@ class Unpublish extends BaseCommand {
       ...opts,
       spec: name,
       query: { write: true },
+      _isRoot: true,
     })
     return Object.keys(packument.versions)
   }

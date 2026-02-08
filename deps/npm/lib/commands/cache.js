@@ -181,11 +181,12 @@ class Cache extends BaseCommand {
       await pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, { ...this.npm.flatOptions })
+      }, { ...this.npm.flatOptions, _isRoot: true })
 
       await pacote.manifest(spec, {
         ...this.npm.flatOptions,
         fullMetadata: true,
+        _isRoot: true,
       })
     }))
   }

@@ -23,12 +23,12 @@ class PackageUrlCommand extends BaseCommand {
     }
 
     for (const arg of args) {
-      // XXX It is very odd that `where` is how pacote knows to look anywhere
-      // other than the cwd.
+      // XXX It is very odd that `where` is how pacote knows to look anywhere other than the cwd.
       const opts = {
         ...this.npm.flatOptions,
         where: this.npm.localPrefix,
         fullMetadata: true,
+        _isRoot: true,
       }
       const mani = await pacote.manifest(arg, opts)
       const url = this.getUrl(arg, mani)

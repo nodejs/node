@@ -584,9 +584,7 @@ class Node {
   }
 
   get isProjectRoot () {
-    // only treat as project root if it's the actual link that is the root,
-    // or the target of the root link, but NOT if it's another link to the
-    // same root that happens to be somewhere else.
+    // only treat as project root if it's the actual link that is the root, or the target of the root link, but NOT if it's another link to the same root that happens to be somewhere else.
     return this === this.root || this === this.root.target
   }
 

@@ -198,6 +198,7 @@ class Diff extends BaseCommand {
         const packument = await pacote.packument(spec, {
           ...this.npm.flatOptions,
           preferOnline: true,
+          _isRoot: true,
         })
         bSpec = pickManifest(
           packument,

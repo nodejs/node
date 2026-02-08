@@ -14,7 +14,7 @@ Note: This command is unaware of workspaces.
 
 ### Version
 
-11.8.0
+11.9.0
 
 ### Description
 
