@@ -1,0 +1,22 @@
+{
+  "id": 12345,
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "age": 30,
+  "active": true,
+  "balance": 1234.56,
+  "address": "123 Main St",
+  "city": "New York",
+  "state": "NY",
+  "zip": "10001",
+  "country": "USA",
+  "phone": "+1-555-1234",
+  "website": "https://example.com",
+  "company": "Acme Corp",
+  "role": "Developer",
+  "department": "Engineering",
+  "salary": 75000,
+  "hired": "2020-01-15",
+  "verified": true,
+  "score": 98.5
+}

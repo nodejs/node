@@ -1,0 +1,124 @@
+{
+  "utilisateurs": [
+    {
+      "id": 1,
+      "nom": "Marie Dubois",
+      "profil": {
+        "courriel": "marie@exemple.fr",
+        "âge": 28,
+        "adresse": {
+          "rue": "123 Rue de la Paix",
+          "ville": "Paris",
+          "pays": "France",
+          "code": "75001",
+          "coordonnées": {
+            "lat": 48.8566,
+            "lng": 2.3522
+          }
+        },
+        "préférences": {
+          "notifications": true,
+          "thème": "sombre",
+          "langue": "fr"
+        }
+      },
+      "publications": [
+        {
+          "id": 101,
+          "titre": "Première publication",
+          "contenu": "Bonjour le monde! 🌍",
+          "étiquettes": [
+            "intro",
+            "bienvenue"
+          ],
+          "mentions": 42,
+          "commentaires": [
+            {
+              "utilisateur": "jean",
+              "texte": "Excellent! 👍",
+              "horodatage": 1609459200
+            },
+            {
+              "utilisateur": "sophie",
+              "texte": "Bienvenue! 🎉",
+              "horodatage": 1609462800
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "nom": "田中太郎",
+      "profil": {
+        "courriel": "tanaka@example.jp",
+        "âge": 35,
+        "adresse": {
+          "rue": "東京都渋谷区1-2-3",
+          "ville": "東京",
+          "pays": "日本",
+          "code": "150-0001",
+          "coordonnées": {
+            "lat": 35.6762,
+            "lng": 139.6503
+          }
+        },
+        "préférences": {
+          "notifications": false,
+          "thème": "明るい",
+          "langue": "ja"
+        }
+      },
+      "publications": [
+        {
+          "id": 201,
+          "titre": "技術について",
+          "contenu": "新しい技術を議論しています",
+          "étiquettes": [
+            "技術",
+            "議論"
+          ],
+          "mentions": 156,
+          "commentaires": [
+            {
+              "utilisateur": "山田",
+              "texte": "興味深い! ⭐",
+              "horodatage": 1609466400
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "nom": "Иван Петров",
+      "profil": {
+        "courriel": "ivan@example.ru",
+        "âge": 32,
+        "adresse": {
+          "rue": "Невский проспект 123",
+          "ville": "Санкт-Петербург",
+          "pays": "Россия",
+          "code": "190000",
+          "coordonnées": {
+            "lat": 59.9343,
+            "lng": 30.3351
+          }
+        },
+        "préférences": {
+          "notifications": true,
+          "thème": "тёмная",
+          "langue": "ru"
+        }
+      },
+      "publications": []
+    }
+  ],
+  "métadonnées": {
+    "version": "1.0",
+    "horodatage": 1609459200,
+    "total": 3,
+    "mis_en_cache": false,
+    "description": "Données avec caractères Unicode: émojis 😀, alphabets cyrilliques Й, japonais 漢字, et accents français é"
+  }
+}

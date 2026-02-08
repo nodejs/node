@@ -1,0 +1,89 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "profile": {
+        "email": "alice@example.com",
+        "age": 28,
+        "address": {
+          "street": "456 Oak Ave",
+          "city": "Boston",
+          "state": "MA",
+          "zip": "02101",
+          "coordinates": {
+            "lat": 42.3601,
+            "lng": -71.0589
+          }
+        },
+        "preferences": {
+          "notifications": true,
+          "theme": "dark",
+          "language": "en"
+        }
+      },
+      "posts": [
+        {
+          "id": 101,
+          "title": "First Post",
+          "content": "Hello world!",
+          "tags": ["intro", "welcome"],
+          "likes": 42,
+          "comments": [
+            {"user": "bob", "text": "Great post!", "timestamp": 1609459200},
+            {"user": "charlie", "text": "Welcome!", "timestamp": 1609462800}
+          ]
+        },
+        {
+          "id": 102,
+          "title": "Second Post",
+          "content": "Another update",
+          "tags": ["update", "news"],
+          "likes": 87,
+          "comments": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "profile": {
+        "email": "bob@example.com",
+        "age": 35,
+        "address": {
+          "street": "789 Pine Rd",
+          "city": "Seattle",
+          "state": "WA",
+          "zip": "98101",
+          "coordinates": {
+            "lat": 47.6062,
+            "lng": -122.3321
+          }
+        },
+        "preferences": {
+          "notifications": false,
+          "theme": "light",
+          "language": "en"
+        }
+      },
+      "posts": [
+        {
+          "id": 201,
+          "title": "Tech Talk",
+          "content": "Discussing new technologies",
+          "tags": ["tech", "discussion"],
+          "likes": 156,
+          "comments": [
+            {"user": "alice", "text": "Interesting!", "timestamp": 1609466400}
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "timestamp": 1609459200,
+    "total": 2,
+    "cached": false
+  }
+}
