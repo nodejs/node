@@ -11,7 +11,8 @@ jobs:
   notifyOnForcePush:
     name: Notify on Force Push on `main`
     if: github.repository == 'nodejs/node' && github.event.forced
-    runs-on: ubuntu-slim
+    # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
+    runs-on: ubuntu-latest
     steps:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
@@ -30,7 +31,8 @@ jobs:
   validateCommitMessage:
     name: Notify on Push on `main` with invalid message
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-slim
+    # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
