@@ -75,6 +75,7 @@
 /lib/https.js @nodejs/crypto @nodejs/net @nodejs/http
 /src/node_http_common* @nodejs/http @nodejs/http2 @nodejs/net
 /src/node_http_parser.cc @nodejs/http @nodejs/net
+/lib/internal/http/* @nodejs/http @nodejs/net
 
 # http2
 
