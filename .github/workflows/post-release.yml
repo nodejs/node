@@ -16,7 +16,7 @@ permissions:
 jobs:
   post-release-actions:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
         run: |

@@ -20,7 +20,7 @@ env:
 jobs:
   wpt-subsystem-update:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     strategy:
       fail-fast: false
       matrix:

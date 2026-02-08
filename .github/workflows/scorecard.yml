@@ -21,6 +21,7 @@ permissions: read-all
 jobs:
   analysis:
     name: Scorecard analysis
+    # cannot use ubuntu-slim here because ossf/scorecard-action is dockerized
     runs-on: ubuntu-latest
     permissions:
       # Needed to upload the results to code-scanning dashboard.
