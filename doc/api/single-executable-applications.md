@@ -174,6 +174,59 @@ const raw = getRawAsset('a.jpg');
 See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 [`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
 
+### Virtual File System (VFS) for assets
+
+> Stability: 1 - Experimental
+
+Instead of using the `node:sea` API to access individual assets, you can use
+the Virtual File System (VFS) to access bundled assets through standard `fs`
+APIs. When running as a Single Executable Application, the VFS is automatically
+initialized and mounted at `/sea`. All assets defined in the SEA configuration
+are accessible through this virtual path.
+
+```cjs
+const fs = require('node:fs');
+
+// Assets are automatically available at /sea when running as SEA
+const rawConfig = fs.readFileSync('/sea/config.json', 'utf8');
+const data = fs.readFileSync('/sea/data/file.txt');
+
+const config = JSON.parse(rawConfig);
+
+// Directory operations work too
+const files = fs.readdirSync('/sea/assets');
+
+// Check if a bundled file exists
+if (fs.existsSync('/sea/optional.json')) {
+  // ...
+}
+```
+
+The VFS supports the following `fs` operations on bundled assets:
+
+* `readFileSync()` / `readFile()` / `promises.readFile()`
+* `statSync()` / `stat()` / `promises.stat()`
+* `lstatSync()` / `lstat()` / `promises.lstat()`
+* `readdirSync()` / `readdir()` / `promises.readdir()`
+* `existsSync()`
+* `realpathSync()` / `realpath()` / `promises.realpath()`
+* `accessSync()` / `access()` / `promises.access()`
+* `openSync()` / `open()` - for reading
+* `createReadStream()`
+
+#### Loading modules from VFS in SEA
+
+You can use `require()` directly with absolute VFS paths:
+
+```cjs
+// Require bundled modules directly
+const myModule = require('/sea/lib/mymodule.js');
+const utils = require('/sea/utils/helpers.js');
+```
+
+The SEA's `require()` function automatically detects VFS paths (paths starting
+with `/sea/`) and loads modules from the virtual file system.
+
 ### Startup snapshot support
 
 The `useSnapshot` field can be used to enable startup snapshot support. In this

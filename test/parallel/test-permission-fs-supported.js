@@ -61,6 +61,8 @@ const supportedApis = [
 // Non functions
 const ignoreList = [
   'constants',
+  // VFS operates in-memory only, does not touch real filesystem
+  'createVirtual',
   'promises',
   'X_OK',
   'W_OK',
