@@ -8,7 +8,7 @@ export async function load(url, context, nextLoad) {
     try {
       const { source } = await nextLoad(url, {
         ...context,
-        format: "module"
+        format
       });
       const { code, map } = transformSync(source.toString(), {
         mode: "transform",
