@@ -1515,13 +1515,13 @@ class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
 
   ThreadWithParam(UserThreadFunc* func, T param, Notification* thread_can_start)
       : ThreadWithParamBase(new RunnableImpl(func, param), thread_can_start) {}
-  ~ThreadWithParam() override {}
+  ~ThreadWithParam() override = default;
 
  private:
   class RunnableImpl : public Runnable {
    public:
     RunnableImpl(UserThreadFunc* func, T param) : func_(func), param_(param) {}
-    ~RunnableImpl() override {}
+    ~RunnableImpl() override = default;
     void Run() override { func_(param_); }
 
    private:
