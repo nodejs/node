@@ -510,19 +510,24 @@ This module can export any of the following:
 * A `globalSetup` function which runs once before all tests start
 * A `globalTeardown` function which runs once after all tests complete
 
+The same context object is passed as the first argument to both `globalSetup`
+and `globalTeardown`.
+
 The module is specified using the `--test-global-setup` flag when running tests from the command line.
 
 ```cjs
 // setup-module.js
-async function globalSetup() {
+async function globalSetup(context) {
   // Setup shared resources, state, or environment
   console.log('Global setup executed');
+  context.server = await startServer();
   // Run servers, create files, prepare databases, etc.
 }
 
-async function globalTeardown() {
+async function globalTeardown(context) {
   // Clean up resources, state, or environment
   console.log('Global teardown executed');
+  await context.server.close();
   // Close servers, remove files, disconnect from databases, etc.
 }
 
@@ -531,15 +536,17 @@ module.exports = { globalSetup, globalTeardown };
 
 ```mjs
 // setup-module.mjs
-export async function globalSetup() {
+export async function globalSetup(context) {
   // Setup shared resources, state, or environment
   console.log('Global setup executed');
+  context.server = await startServer();
   // Run servers, create files, prepare databases, etc.
 }
 
-export async function globalTeardown() {
+export async function globalTeardown(context) {
   // Clean up resources, state, or environment
   console.log('Global teardown executed');
+  await context.server.close();
   // Close servers, remove files, disconnect from databases, etc.
 }
 ```
