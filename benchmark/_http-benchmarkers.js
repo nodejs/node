@@ -1,8 +1,6 @@
 'use strict';
 
 const child_process = require('child_process');
-const path = require('path');
-const fs = require('fs');
 
 const requirementsURL =
   'https://github.com/nodejs/node/blob/HEAD/doc/contributing/writing-and-running-benchmarks.md#http-benchmark-requirements';
@@ -96,46 +94,6 @@ class WrkBenchmarker {
 }
 
 /**
- * Simple, single-threaded benchmarker for testing if the benchmark
- * works
- */
-class TestDoubleBenchmarker {
-  constructor(type) {
-    // `type` is the type of benchmarker. Possible values are 'http', 'https',
-    // and 'http2'.
-    this.name = `test-double-${type}`;
-    this.executable = path.resolve(__dirname, '_test-double-benchmarker.js');
-    this.present = fs.existsSync(this.executable);
-    this.type = type;
-  }
-
-  create(options) {
-    process.env.duration ||= options.duration || 5;
-
-    const scheme = options.scheme || 'http';
-    const env = {
-      test_url: `${scheme}://127.0.0.1:${options.port}${options.path}`,
-      ...process.env,
-    };
-
-    const child = child_process.fork(this.executable,
-                                     [this.type],
-                                     { silent: true, env });
-    return child;
-  }
-
-  processResults(output) {
-    let result;
-    try {
-      result = JSON.parse(output);
-    } catch {
-      return undefined;
-    }
-    return result.throughput;
-  }
-}
-
-/**
  * HTTP/2 Benchmarker
  */
 class H2LoadBenchmarker {
@@ -188,22 +146,28 @@ class H2LoadBenchmarker {
 }
 
 const http_benchmarkers = [
-  new WrkBenchmarker(),
   new AutocannonBenchmarker(),
-  new TestDoubleBenchmarker('http'),
-  new TestDoubleBenchmarker('https'),
-  new TestDoubleBenchmarker('http2'),
+  new WrkBenchmarker(),
   new H2LoadBenchmarker(),
 ];
 
 const benchmarkers = {};
 
-http_benchmarkers.forEach((benchmarker) => {
-  benchmarkers[benchmarker.name] = benchmarker;
-  if (!exports.default_http_benchmarker && benchmarker.present) {
-    exports.default_http_benchmarker = benchmarker.name;
+let notFoundBenchmarkers = '';
+
+if (!exports.default_http_benchmarker) {
+  for (const benchmarker of http_benchmarkers) {
+    benchmarkers[benchmarker.name] = benchmarker;
+    if (!benchmarker.present) {
+      notFoundBenchmarkers += `⚠️ ${benchmarker.name} not found.\n`;
+    }
+
+    if (!exports.default_http_benchmarker && benchmarker.present) {
+      exports.default_http_benchmarker = benchmarker.name;
+      break;
+    }
   }
-});
+}
 
 exports.run = function(options, callback) {
   options = {
@@ -215,8 +179,9 @@ exports.run = function(options, callback) {
     ...options,
   };
   if (!options.benchmarker) {
-    callback(new Error('Could not locate required http benchmarker. See ' +
-                       `${requirementsURL} for further instructions.`));
+    callback(new Error('Could not locate required http benchmarker.' +
+                       `\n${notFoundBenchmarkers}` +
+                       `See ${requirementsURL} for further instructions.`));
     return;
   }
   const benchmarker = benchmarkers[options.benchmarker];
