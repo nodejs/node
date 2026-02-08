@@ -1489,14 +1489,25 @@ foo(ee, 'foo', ac.signal);
 ac.abort(); // Prints: Waiting for the event was canceled!
 ```
 
-### Awaiting multiple events emitted on `process.nextTick()`
+### Caveats when awaiting multiple events
 
-There is an edge case worth noting when using the `events.once()` function
-to await multiple events emitted on in the same batch of `process.nextTick()`
-operations, or whenever multiple events are emitted synchronously. Specifically,
-because the `process.nextTick()` queue is drained before the `Promise` microtask
-queue, and because `EventEmitter` emits all events synchronously, it is possible
-for `events.once()` to miss an event.
+It is important to be aware of execution order when using the `events.once()`
+method to await multiple events.
+
+Conventional event listeners are called synchronously when the event is
+emitted. This guarantees that execution will not proceed beyond the emitted
+event until all listeners have finished executing.
+
+The same is _not_ true when awaiting Promises returned by `events.once()`.
+Promise tasks are not handled until after the current execution stack runs to
+completion, which means that multiple events could be emitted before
+asynchronous execution continues from the relevant `await` statement.
+
+As a result, events can be "missed" if a series of `await events.once()`
+statements is used to listen to multiple events, since there might be times
+where more than one event is emitted during the same phase of the event loop.
+(The same is true when using `process.nextTick()` to emit events, because the
+tasks queued by `process.nextTick()` are executed before Promise tasks.)
 
 ```mjs
 import { EventEmitter, once } from 'node:events';
@@ -1504,22 +1515,22 @@ import process from 'node:process';
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await once(myEE, 'bar');
-  console.log('bar');
-
-  // This Promise will never resolve because the 'foo' event will
-  // have already been emitted before the Promise is created.
+async function listen() {
   await once(myEE, 'foo');
   console.log('foo');
+
+  // This Promise will never resolve, because the 'bar' event will
+  // have already been emitted before the next line is executed.
+  await once(myEE, 'bar');
+  console.log('bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ```cjs
@@ -1527,26 +1538,26 @@ const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await once(myEE, 'bar');
-  console.log('bar');
-
-  // This Promise will never resolve because the 'foo' event will
-  // have already been emitted before the Promise is created.
+async function listen() {
   await once(myEE, 'foo');
   console.log('foo');
+
+  // This Promise will never resolve, because the 'bar' event will
+  // have already been emitted before the next line is executed.
+  await once(myEE, 'bar');
+  console.log('bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
-To catch both events, create each of the Promises _before_ awaiting either
-of them, then it becomes possible to use `Promise.all()`, `Promise.race()`,
+To catch multiple events, create all of the Promises _before_ awaiting any of
+them. This is usually made easier by using `Promise.all()`, `Promise.race()`,
 or `Promise.allSettled()`:
 
 ```mjs
@@ -1555,17 +1566,20 @@ import process from 'node:process';
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+async function listen() {
+  await Promise.all([
+    once(myEE, 'foo'),
+    once(myEE, 'bar'),
+  ]);
   console.log('foo', 'bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ```cjs
@@ -1573,17 +1587,20 @@ const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+async function listen() {
+  await Promise.all([
+    once(myEE, 'bar'),
+    once(myEE, 'foo'),
+  ]);
   console.log('foo', 'bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ## `events.captureRejections`
