@@ -2431,16 +2431,29 @@ changes:
     generates a new mock module. If `true`, subsequent calls will return the same
     module mock, and the mock module is inserted into the CommonJS cache.
     **Default:** false.
+  * `exports` {Object} Optional mocked exports. The `default` property, if
+    provided, is used as the mocked module's default export. All other own
+    enumerable properties are used as named exports.
+    * If the mock is a CommonJS or builtin module, `exports.default` is used as
+      the value of `module.exports`.
+    * If `exports.default` is not provided for a CommonJS or builtin mock,
+      `module.exports` defaults to an empty object.
+    * If named exports are provided with a non-object default export, the mock
+      throws an exception when used as a CommonJS or builtin module.
   * `defaultExport` {any} An optional value used as the mocked module's default
     export. If this value is not provided, ESM mocks do not include a default
     export. If the mock is a CommonJS or builtin module, this setting is used as
     the value of `module.exports`. If this value is not provided, CJS and builtin
     mocks use an empty object as the value of `module.exports`.
+    This option is deprecated and will be removed in a future major release.
+    Prefer `options.exports.default`.
   * `namedExports` {Object} An optional object whose keys and values are used to
     create the named exports of the mock module. If the mock is a CommonJS or
     builtin module, these values are copied onto `module.exports`. Therefore, if a
     mock is created with both named exports and a non-object default export, the
     mock will throw an exception when used as a CJS or builtin module.
+    This option is deprecated and will be removed in a future major release.
+    Prefer `options.exports`.
 * Returns: {MockModuleContext} An object that can be used to manipulate the mock.
 
 This function is used to mock the exports of ECMAScript modules, CommonJS modules, JSON modules, and
@@ -2455,7 +2468,7 @@ test('mocks a builtin module in both module systems', async (t) => {
   // Create a mock of 'node:readline' with a named export named 'fn', which
   // does not exist in the original 'node:readline' module.
   const mock = t.mock.module('node:readline', {
-    namedExports: { fn() { return 42; } },
+    exports: { fn() { return 42; } },
   });
 
   let esmImpl = await import('node:readline');
