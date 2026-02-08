@@ -742,6 +742,8 @@ This feature is not available in [`Worker`][] threads.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `fn` {Function}
 
 The `process.addUncaughtExceptionCaptureCallback()` function adds a callback
@@ -4055,6 +4057,11 @@ This implies calling `module.setSourceMapsSupport()` with an option
 
 <!-- YAML
 added: v9.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61227
+    description: Use `process.addUncaughtExceptionCaptureCallback()` to
+      register multiple callbacks.
 -->
 
 * `fn` {Function|null}
