@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const test = require('node:test');
 const data = 'foo';
+const data2 = 'bar';
 let cnt = 0;
 
 function nextFile() {
@@ -25,15 +26,27 @@ test('synchronous version', async (t) => {
 
   await t.test('performs flush', (t) => {
     const spy = t.mock.method(fs, 'fsyncSync');
+    const checkCalls = (expected) => {
+      const calls = spy.mock.calls;
+      assert.strictEqual(calls.length, expected);
+      if (expected === 0) return;
+      assert.strictEqual(calls.at(-1).result, undefined);
+      assert.strictEqual(calls.at(-1).error, undefined);
+      assert.strictEqual(calls.at(-1).arguments.length, 1);
+      assert.strictEqual(typeof calls.at(-1).arguments[0], 'number');
+    };
+
     const file = nextFile();
+
+    checkCalls(0);
     fs.writeFileSync(file, data, { flush: true });
-    const calls = spy.mock.calls;
-    assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0].result, undefined);
-    assert.strictEqual(calls[0].error, undefined);
-    assert.strictEqual(calls[0].arguments.length, 1);
-    assert.strictEqual(typeof calls[0].arguments[0], 'number');
+    checkCalls(1);
     assert.strictEqual(fs.readFileSync(file, 'utf8'), data);
+
+    checkCalls(1);
+    fs.writeFileSync(file, data2, { flush: true, encoding: 'utf8' });
+    checkCalls(2);
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), data2);
   });
 
   await t.test('does not perform flush', (t) => {
