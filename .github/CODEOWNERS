@@ -64,7 +64,6 @@
 /lib/tls.js @nodejs/crypto @nodejs/net
 /src/crypto/* @nodejs/crypto
 /src/node_crypto* @nodejs/crypto
-/deps/ncrypto/* @nodejs/crypto
 
 # http
 
