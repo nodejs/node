@@ -282,6 +282,53 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 });
 ```
 
+#### `diagnostics_channel.windowChannel(nameOrChannels)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|WindowChannel} Channel name or
+  object containing all the [WindowChannel Channels][]
+* Returns: {WindowChannel} Collection of channels to trace with
+
+Creates a [`WindowChannel`][] wrapper for the given channels. If a name is
+given, the corresponding channels will be created in the form of
+`tracing:${name}:${eventType}` where `eventType` is `start` or `end`.
+
+A `WindowChannel` is a simplified version of [`TracingChannel`][] that only
+traces synchronous operations. It only has `start` and `end` events, without
+`asyncStart`, `asyncEnd`, or `error` events, making it suitable for tracing
+operations that don't involve asynchronous continuations or error handling.
+
+```mjs
+import { windowChannel, channel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+// or...
+
+const wc2 = windowChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
+```cjs
+const { windowChannel, channel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+// or...
+
+const wc2 = windowChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
 ### Class: `Channel`
 
 <!-- YAML
@@ -619,6 +666,77 @@ channel.runStores({ some: 'message' }, () => {
   store.getStore(); // Span({ some: 'message' })
 });
 ```
+
+#### `channel.withStoreScope(data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `data` {any} Message to bind to stores
+* Returns: {RunStoresScope} Disposable scope object
+
+Creates a disposable scope that binds the given data to any AsyncLocalStorage
+instances bound to the channel and publishes it to subscribers. The scope
+automatically restores the previous storage contexts when disposed.
+
+This method enables the use of JavaScript's explicit resource management
+(`using` syntax with `Symbol.dispose`) to manage store contexts without
+closure wrapping.
+
+```mjs
+import { channel } from 'node:diagnostics_channel';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+```cjs
+const { channel } = require('node:diagnostics_channel');
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+### Class: `RunStoresScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `RunStoresScope` represents a disposable scope created by
+[`channel.withStoreScope(data)`][]. It manages the lifecycle of store
+contexts and ensures they are properly restored when the scope exits.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
 
 ### Class: `TracingChannel`
 
@@ -1012,6 +1130,281 @@ if (channels.hasSubscribers) {
   // Do something
 }
 ```
+
+### Class: `WindowChannel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `WindowChannel` is a simplified version of [`TracingChannel`][] that
+only traces synchronous operations. It consists of two channels (`start` and
+`end`) instead of five, omitting the `asyncStart`, `asyncEnd`, and `error`
+events. This makes it suitable for tracing operations that don't involve
+asynchronous continuations or error handling.
+
+Like `TracingChannel`, it is recommended to create and reuse a single
+`WindowChannel` at the top-level of the file rather than creating them
+dynamically.
+
+#### `windowChannel.hasSubscribers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `true` if any of the individual channels has a subscriber,
+  `false` if not.
+
+Check if any of the `start` or `end` channels have subscribers.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+#### `windowChannel.subscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+
+Subscribe to the window channel events. This is equivalent to calling
+[`channel.subscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+#### `windowChannel.unsubscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+* Returns: {boolean} `true` if all handlers were successfully unsubscribed,
+  `false` otherwise.
+
+Unsubscribe from the window channel events. This is equivalent to calling
+[`channel.unsubscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+#### `windowChannel.run(context, fn[, thisArg[, ...args]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* `fn` {Function} Function to wrap a trace around
+* `thisArg` {any} The receiver to be used for the function call
+* `...args` {any} Optional arguments to pass to the function
+* Returns: {any} The return value of the given function
+
+Trace a synchronous function call. This will produce a `start` event and `end`
+event around the execution. This runs the given function using
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events have any bound stores set to match this trace context.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+#### `windowChannel.withScope([context])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* Returns: {WindowChannelScope} Disposable scope object
+
+Create a disposable scope for tracing a synchronous operation using JavaScript's
+explicit resource management (`using` syntax). The scope automatically publishes
+`start` and `end` events, enters bound stores, and handles cleanup when disposed.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+### Class: `WindowChannelScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `WindowChannelScope` represents a disposable scope created by
+[`windowChannel.withScope(context)`][]. It manages the lifecycle of a traced
+operation, automatically publishing events and managing store contexts.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
+
+```mjs
+import { windowChannel } from 'node:diagnostics_channel';
+
+const wc = windowChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+```cjs
+const { windowChannel } = require('node:diagnostics_channel');
+
+const wc = windowChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+### WindowChannel Channels
+
+A `WindowChannel` consists of two diagnostics channels representing the
+lifecycle of a scope created with the `using` syntax:
+
+* `tracing:${name}:start` - Published when the `using` statement executes (scope creation)
+* `tracing:${name}:end` - Published when exiting the block (scope disposal)
+
+When using the `using` syntax with \[`windowChannel.withScope([context])`]\[], the `start`
+event is published immediately when the statement executes, and the `end` event
+is automatically published when disposal occurs at the end of the block. All
+events share the same context object, which can be extended with additional
+properties like `result` during scope execution.
 
 ### TracingChannel Channels
 
@@ -1440,14 +1833,17 @@ added: v16.18.0
 Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
+[WindowChannel Channels]: #windowchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`TracingChannel`]: #class-tracingchannel
+[`WindowChannel`]: #class-windowchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
 [`channel.bindStore(store)`]: #channelbindstorestore-transform
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
@@ -1456,4 +1852,5 @@ Emitted when a new thread is created.
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`windowChannel.withScope(context)`]: #windowchannelwithscopecontext
 [context loss]: async_context.md#troubleshooting-context-loss
