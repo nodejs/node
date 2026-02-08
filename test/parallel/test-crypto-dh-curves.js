@@ -16,7 +16,7 @@ const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
 crypto.createDiffieHellman(p, 'hex');
 
 // Confirm DH_check() results are exposed for optional examination.
-const bad_dh = crypto.createDiffieHellman('02', 'hex');
+const bad_dh = crypto.createDiffieHellman('abcd', 'hex', 0);
 assert.notStrictEqual(bad_dh.verifyError, 0);
 
 const availableCurves = new Set(crypto.getCurves());
