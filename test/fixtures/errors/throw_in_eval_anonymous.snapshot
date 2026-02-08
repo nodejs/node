@@ -3,6 +3,6 @@
   ^
 
 Error: error in anonymous script
-    at eval (eval at <anonymous> (*throw_in_eval_anonymous.js:*:*), <anonymous>:*:*)
+    at eval (eval at <anonymous> (<project-root>/test/fixtures/errors/throw_in_eval_anonymous.js:*:*), <anonymous>:*:*)
 
-Node.js *
+Node.js <node-version>

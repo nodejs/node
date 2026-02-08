@@ -476,6 +476,7 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 #### Parameter: `ResponseData`
 
 * **statusCode** `number`
+* **statusText** `string` - The status message from the response (e.g., "OK", "Not Found").
 * **headers** `Record<string, string | string[]>` - Note that all header keys are lower-cased, e.g. `content-type`.
 * **body** `stream.Readable` which also implements [the body mixin from the Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
 * **trailers** `Record<string, string>` - This object starts out
@@ -517,7 +518,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const { body, headers, statusCode, trailers } = await client.request({
+  const { body, headers, statusCode, statusText, trailers } = await client.request({
     path: '/',
     method: 'GET'
   })

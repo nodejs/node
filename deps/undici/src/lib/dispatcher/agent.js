@@ -92,7 +92,9 @@ class Agent extends DispatcherBase {
           if (connected) result.count -= 1
           if (result.count <= 0) {
             this[kClients].delete(key)
-            result.dispatcher.close()
+            if (!result.dispatcher.destroyed) {
+              result.dispatcher.close()
+            }
           }
           this[kOrigins].delete(key)
         }

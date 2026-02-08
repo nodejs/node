@@ -2261,20 +2261,38 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
   // original type.
+  Isolate* isolate = env()->isolate();
   int r;
   if (value->IsNumber()) {
-    double val = value.As<Number>()->Value();
+    const double val = value.As<Number>()->Value();
     r = sqlite3_bind_double(statement_, index, val);
   } else if (value->IsString()) {
-    Utf8Value val(env()->isolate(), value.As<String>());
-    r = sqlite3_bind_text(
-        statement_, index, *val, val.length(), SQLITE_TRANSIENT);
+    Utf8Value val(isolate, value.As<String>());
+    if (val.IsAllocated()) {
+      // Avoid an extra SQLite copy for large strings by transferring ownership
+      // of the malloc()'d buffer to SQLite.
+      char* data = *val;
+      const sqlite3_uint64 length = static_cast<sqlite3_uint64>(val.length());
+      val.Release();
+      r = sqlite3_bind_text64(
+          statement_, index, data, length, std::free, SQLITE_UTF8);
+    } else {
+      r = sqlite3_bind_text64(statement_,
+                              index,
+                              *val,
+                              static_cast<sqlite3_uint64>(val.length()),
+                              SQLITE_TRANSIENT,
+                              SQLITE_UTF8);
+    }
   } else if (value->IsNull()) {
     r = sqlite3_bind_null(statement_, index);
   } else if (value->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob(
-        statement_, index, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    r = sqlite3_bind_blob64(statement_,
+                            index,
+                            buf.data(),
+                            static_cast<sqlite3_uint64>(buf.length()),
+                            SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -2285,13 +2303,13 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     r = sqlite3_bind_int64(statement_, index, as_int);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
-        env()->isolate(),
+        isolate,
         "Provided value cannot be bound to SQLite parameter %d.",
         index);
     return false;
   }
 
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(isolate, db_.get(), r, SQLITE_OK, false);
   return true;
 }
 
@@ -2406,7 +2424,7 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
-  Local<Object> result = Object::New(isolate);
+
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
   Local<Value> last_insert_rowid_val;
@@ -2420,13 +2438,18 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
     changes_val = Number::New(isolate, changes);
   }
 
-  if (result
-          ->Set(env->context(),
-                env->last_insert_rowid_string(),
-                last_insert_rowid_val)
-          .IsNothing() ||
-      result->Set(env->context(), env->changes_string(), changes_val)
-          .IsNothing()) {
+  auto run_result_template = env->sqlite_run_result_template();
+  if (run_result_template.IsEmpty()) {
+    static constexpr std::string_view run_result_keys[] = {"changes",
+                                                           "lastInsertRowid"};
+    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
+    env->set_sqlite_run_result_template(run_result_template);
+  }
+
+  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
+  Local<Object> result;
+  if (!NewDictionaryInstance(env->context(), run_result_template, values)
+           .ToLocal(&result)) {
     return MaybeLocal<Object>();
   }
 

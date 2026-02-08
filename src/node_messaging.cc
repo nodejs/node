@@ -1619,11 +1619,11 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::shared_ptr<Message> msg = std::make_shared<Message>();
+  Message msg;
   Local<Value> result;
-  if (msg->Serialize(env, context, value, transfer_list, Local<Object>())
+  if (msg.Serialize(env, context, value, transfer_list, Local<Object>())
           .IsNothing() ||
-      !msg->Deserialize(env, context, nullptr).ToLocal(&result)) {
+      !msg.Deserialize(env, context, nullptr).ToLocal(&result)) {
     return;
   }
   args.GetReturnValue().Set(result);

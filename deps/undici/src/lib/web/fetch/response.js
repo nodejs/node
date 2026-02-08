@@ -242,7 +242,8 @@ class Response {
     const clonedResponse = cloneResponse(this.#state)
 
     // Note: To re-register because of a new stream.
-    if (this.#state.body?.stream) {
+    // Don't set finalizers other than for fetch responses.
+    if (this.#state.urlList.length !== 0 && this.#state.body?.stream) {
       streamRegistry.register(this, new WeakRef(this.#state.body.stream))
     }
 

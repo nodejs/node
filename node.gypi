@@ -226,6 +226,10 @@
         'dependencies': [ 'deps/ada/ada.gyp:ada' ],
     }],
 
+    [ 'node_shared_merve=="false"', {
+        'dependencies': [ 'deps/merve/merve.gyp:merve' ],
+    }],
+
     [ 'node_shared_simdjson=="false"', {
         'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
     }],

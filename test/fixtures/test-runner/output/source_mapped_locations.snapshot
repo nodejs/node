@@ -4,13 +4,13 @@ not ok 1 - fails
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/source_mapped_locations.ts:5:1'
+  location: '<project-root>/test/fixtures/test-runner/output/source_mapped_locations.ts:5:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     1 !== 2
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 2

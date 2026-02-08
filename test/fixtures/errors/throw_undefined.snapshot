@@ -1,8 +1,8 @@
 
-*throw_undefined.js:*
+<project-root>/test/fixtures/errors/throw_undefined.js:*
 throw undefined;
 ^
 undefined
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+(Use `<node-exe> --trace-uncaught ...` to show where the exception was thrown)
 
-Node.js *
+Node.js <node-version>

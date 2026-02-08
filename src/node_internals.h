@@ -27,6 +27,7 @@
 #include "env.h"
 #include "node.h"
 #include "node_binding.h"
+#include "node_file_utils.h"
 #include "node_mutex.h"
 #include "tracing/trace_event.h"
 #include "util.h"
@@ -411,11 +412,6 @@ typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
-int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
-int WriteFileSync(const char* path, uv_buf_t buf);
-int WriteFileSync(v8::Isolate* isolate,
-                  const char* path,
-                  v8::Local<v8::String> string);
 
 class DiagnosticFilename {
  public:

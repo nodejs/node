@@ -2,7 +2,7 @@ AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
 
   assert(false)
 
-    at Object.<anonymous> (*/test/fixtures/source-map/output/source_map_assert_source_line.ts:11:3)
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/output/source_map_assert_source_line.ts:11:3)
     *
     *
     *

@@ -120,9 +120,9 @@ true !== false
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
+
   true !== false
-  
+
       *
       *
       *
@@ -463,7 +463,7 @@ should loosely deep-equal
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
-  
+
   {
     bar: 1,
     baz: {
@@ -478,9 +478,9 @@ should loosely deep-equal
     ],
     foo: 1
   }
-  
+
   should loosely deep-equal
-  
+
   {
     baz: {
       date: 1970-01-01T00:00:00.000Z,

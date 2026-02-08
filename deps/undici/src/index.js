@@ -121,10 +121,40 @@ module.exports.getGlobalDispatcher = getGlobalDispatcher
 
 const fetchImpl = require('./lib/web/fetch').fetch
 
+// Capture __filename at module load time for stack trace augmentation.
+// This may be undefined when bundled in environments like Node.js internals.
+const currentFilename = typeof __filename !== 'undefined' ? __filename : undefined
+
+function appendFetchStackTrace (err, filename) {
+  if (!err || typeof err !== 'object') {
+    return
+  }
+
+  const stack = typeof err.stack === 'string' ? err.stack : ''
+  const normalizedFilename = filename.replace(/\\/g, '/')
+
+  if (stack && (stack.includes(filename) || stack.includes(normalizedFilename))) {
+    return
+  }
+
+  const capture = {}
+  Error.captureStackTrace(capture, appendFetchStackTrace)
+
+  if (!capture.stack) {
+    return
+  }
+
+  const captureLines = capture.stack.split('\n').slice(1).join('\n')
+
+  err.stack = stack ? `${stack}\n${captureLines}` : capture.stack
+}
+
 module.exports.fetch = function fetch (init, options = undefined) {
   return fetchImpl(init, options).catch(err => {
-    if (err && typeof err === 'object') {
-      Error.captureStackTrace(err)
+    if (currentFilename) {
+      appendFetchStackTrace(err, currentFilename)
+    } else if (err && typeof err === 'object') {
+      Error.captureStackTrace(err, module.exports.fetch)
     }
     throw err
   })

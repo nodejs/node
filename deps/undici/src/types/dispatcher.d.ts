@@ -181,6 +181,7 @@ declare namespace Dispatcher {
   }
   export interface ResponseData<TOpaque = null> {
     statusCode: number;
+    statusText: string;
     headers: IncomingHttpHeaders;
     body: BodyReadable & BodyMixin;
     trailers: Record<string, string>;

@@ -24,6 +24,7 @@ const {
   kStrictContentLength,
   kOnError,
   kMaxConcurrentStreams,
+  kPingInterval,
   kHTTP2Session,
   kHTTP2InitialWindowSize,
   kHTTP2ConnectionWindowSize,
@@ -34,7 +35,8 @@ const {
   kBodyTimeout,
   kEnableConnectProtocol,
   kRemoteSettings,
-  kHTTP2Stream
+  kHTTP2Stream,
+  kHTTP2SessionState
 } = require('../core/symbols.js')
 const { channels } = require('../core/diagnostics.js')
 
@@ -102,10 +104,15 @@ function connectH2 (client, socket) {
     }
   })
 
+  client[kSocket] = socket
   session[kOpenStreams] = 0
   session[kClient] = client
   session[kSocket] = socket
-  session[kHTTP2Session] = null
+  session[kHTTP2SessionState] = {
+    ping: {
+      interval: client[kPingInterval] === 0 ? null : setInterval(onHttp2SendPing, client[kPingInterval], session).unref()
+    }
+  }
   // We set it to true by default in a best-effort; however once connected to an H2 server
   // we will check if extended CONNECT protocol is supported or not
   // and set this value accordingly.
@@ -253,6 +260,31 @@ function onHttp2RemoteSettings (settings) {
   this[kClient][kResume]()
 }
 
+function onHttp2SendPing (session) {
+  const state = session[kHTTP2SessionState]
+  if ((session.closed || session.destroyed) && state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+    return
+  }
+
+  // If no ping sent, do nothing
+  session.ping(onPing.bind(session))
+
+  function onPing (err, duration) {
+    const client = this[kClient]
+    const socket = this[kClient]
+
+    if (err != null) {
+      const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`)
+      socket[kError] = error
+      client[kOnError](error)
+    } else {
+      client.emit('ping', duration)
+    }
+  }
+}
+
 function onHttp2SessionError (err) {
   assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
 
@@ -316,13 +348,18 @@ function onHttp2SessionGoAway (errorCode) {
 }
 
 function onHttp2SessionClose () {
-  const { [kClient]: client } = this
+  const { [kClient]: client, [kHTTP2SessionState]: state } = this
   const { [kSocket]: socket } = client
 
   const err = this[kSocket][kError] || this[kError] || new SocketError('closed', util.getSocketInfo(socket))
 
   client[kSocket] = null
   client[kHTTPContext] = null
+
+  if (state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+  }
 
   if (client.destroyed) {
     assert(client[kPending] === 0)

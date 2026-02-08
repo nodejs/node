@@ -3,24 +3,24 @@ node:assert:*
     ^
 
 AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
-    at z (*if-error-has-good-stack.js:*:*)
-    at y (*if-error-has-good-stack.js:*:*)
-    at x (*if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
-    at c (*if-error-has-good-stack.js:*:*)
-    at b (*if-error-has-good-stack.js:*:*)
-    at a (*if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (*if-error-has-good-stack.js:*:*) {
+    at z (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at y (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at x (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*) {
   generatedMessage: false,
   code: 'ERR_ASSERTION',
   actual: Error: test error
-      at c (*if-error-has-good-stack.js:*:*)
-      at b (*if-error-has-good-stack.js:*:*)
-      at a (*if-error-has-good-stack.js:*:*)
-      at Object.<anonymous> (*if-error-has-good-stack.js:*:*),
+      at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*),
   expected: null,
   operator: 'ifError',
   diff: 'simple'
 }
 
-Node.js *
+Node.js <node-version>

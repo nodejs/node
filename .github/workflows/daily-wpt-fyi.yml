@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -52,7 +52,7 @@ jobs:
         run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
@@ -64,7 +64,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -80,7 +80,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false

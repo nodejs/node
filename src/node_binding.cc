@@ -43,6 +43,7 @@
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(cjs_lexer)                                                                 \
   V(config)                                                                    \
   V(constants)                                                                 \
   V(contextify)                                                                \

@@ -312,9 +312,33 @@ function mockDispatch (opts, handler) {
     return true
   }
 
+  // Track whether the request has been aborted
+  let aborted = false
+  let timer = null
+
+  function abort (err) {
+    if (aborted) {
+      return
+    }
+    aborted = true
+
+    // Clear the pending delayed response if any
+    if (timer !== null) {
+      clearTimeout(timer)
+      timer = null
+    }
+
+    // Notify the handler of the abort
+    handler.onError(err)
+  }
+
+  // Call onConnect to allow the handler to register the abort callback
+  handler.onConnect?.(abort, null)
+
   // Handle the request with a delay if necessary
   if (typeof delay === 'number' && delay > 0) {
-    setTimeout(() => {
+    timer = setTimeout(() => {
+      timer = null
       handleReply(this[kDispatches])
     }, delay)
   } else {
@@ -322,6 +346,11 @@ function mockDispatch (opts, handler) {
   }
 
   function handleReply (mockDispatches, _data = data) {
+    // Don't send response if the request was aborted
+    if (aborted) {
+      return
+    }
+
     // fetch's HeadersList is a 1D string array
     const optsHeaders = Array.isArray(opts.headers)
       ? buildHeadersFromArray(opts.headers)
@@ -340,11 +369,15 @@ function mockDispatch (opts, handler) {
       return body.then((newData) => handleReply(mockDispatches, newData))
     }
 
+    // Check again if aborted after async body resolution
+    if (aborted) {
+      return
+    }
+
     const responseData = getResponseData(body)
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
-    handler.onConnect?.(err => handler.onError(err), null)
     handler.onHeaders?.(statusCode, responseHeaders, resume, getStatusText(statusCode))
     handler.onData?.(Buffer.from(responseData))
     handler.onComplete?.(responseTrailers)
