@@ -245,6 +245,29 @@ it.expectFailure('should do the thing', () => {
 it('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
+
+it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should fail with specific error', {
+  expectFailure: {
+    match: /error message/,
+    label: 'reason for failure',
+  },
+}, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should fail with regex', { expectFailure: /error message/ }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should fail with function', {
+  expectFailure: (err) => err.code === 'ERR_CODE',
+}, () => {
+  assert.strictEqual(doTheThing(), true);
+});
 ```
 
 `skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
@@ -1684,6 +1707,12 @@ changes:
     thread. If `false`, only one test runs at a time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `false`.
+  * `expectFailure` {boolean|string|Object} If truthy, the test is expected to
+    fail. If a string is provided, that string is displayed in the test results
+    as the reason why the test is expected to fail. If an object is provided,
+    it can contain a `label` property (string) for the failure reason and a
+    `match` property (RegExp, Function, Object, or Error) to validate the error
+    thrown. **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.

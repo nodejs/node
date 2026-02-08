@@ -10,8 +10,8 @@ if (!process.env.NODE_TEST_CONTEXT) {
   stream.on('test:fail', common.mustCall((event) => {
     assert.strictEqual(event.expectFailure, true);
     assert.strictEqual(event.details.error.code, 'ERR_TEST_FAILURE');
-    assert.strictEqual(event.details.error.failureType, 'expectedFailure');
-    assert.strictEqual(event.details.error.cause, 'test was expected to fail but passed');
+    assert.strictEqual(event.details.error.failureType, 'testCodeFailure');
+    assert.strictEqual(event.details.error.cause, 'Test passed but was expected to fail');
   }, 1));
 } else {
   test('passing test', { expectFailure: true }, () => {});
