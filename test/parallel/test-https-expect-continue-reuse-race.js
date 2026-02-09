@@ -74,7 +74,7 @@ function sendRequest(port) {
       agent,
       headers: {
         'Content-Length': '0',
-        Expect: '100-continue',
+        'Expect': '100-continue',
       },
     }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
