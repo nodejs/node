@@ -429,7 +429,7 @@ class XCObject:
             hash.update(data)
 
         if seed_hash is None:
-            seed_hash = hashlib.sha1()
+            seed_hash = hashlib.sha256()
 
         hash = seed_hash.copy()
 

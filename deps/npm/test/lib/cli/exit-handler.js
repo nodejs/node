@@ -296,6 +296,35 @@ t.test('merges output buffers errors with --json', async (t) => {
   )
 })
 
+t.test('json output includes authUrl and doneUrl for webauth EOTP errors', async (t) => {
+  const { exitHandler, outputs } = await mockExitHandler(t, {
+    config: { json: true },
+    error: Object.assign(new Error('one-time pass required'), {
+      code: 'EOTP',
+      body: {
+        authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+        doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+      },
+    }),
+  })
+
+  await exitHandler()
+
+  t.equal(process.exitCode, 1)
+  const jsonOutput = JSON.parse(outputs[0])
+  t.same(jsonOutput.error, {
+    code: 'EOTP',
+    summary: 'This operation requires a one-time password.',
+    detail: 'Open this URL in your browser to authenticate:\n' +
+      '  https://registry.npmjs.org/-/auth/login/abc123\n' +
+      '\n' +
+      'After authenticating, your token can be retrieved from:\n' +
+      '  https://registry.npmjs.org/-/auth/done/abc123',
+    authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+    doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+  })
+})
+
 t.test('output buffer without json', async (t) => {
   const { exitHandler, outputs, logs } = await mockExitHandler(t, {
     error: err('Error: EBADTHING Something happened'),

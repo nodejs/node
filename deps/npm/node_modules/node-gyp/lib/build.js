@@ -163,7 +163,7 @@ async function build (gyp, argv) {
         if (!isNaN(j) && j > 0) {
           argv.push('/m:' + j)
         } else if (jobs.toUpperCase() === 'MAX') {
-          argv.push('/m:' + require('os').cpus().length)
+          argv.push('/m:' + require('os').availableParallelism())
         }
       }
     } else {
@@ -178,7 +178,7 @@ async function build (gyp, argv) {
           argv.push(j)
         } else if (jobs.toUpperCase() === 'MAX') {
           argv.push('--jobs')
-          argv.push(require('os').cpus().length)
+          argv.push(require('os').availableParallelism())
         }
       }
     }
