@@ -1775,10 +1775,15 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
     Debug(this,
           "write callback invoked but write not in progress, "
           "possible zombie session");
-    // Force session termination to clean up resources
+    // Schedule session termination on next tick to avoid reentrancy issues
     // Don't attempt to send GOAWAY (socket likely already closed)
     if (!is_destroyed()) {
-      Close(NGHTTP2_INTERNAL_ERROR, true);
+      BaseObjectPtr<Http2Session> strong_ref(this);
+      env()->SetImmediate([strong_ref](Environment* env) {
+        if (!strong_ref->is_destroyed()) {
+          strong_ref->Close(NGHTTP2_INTERNAL_ERROR, true);
+        }
+      });
     }
     return;
   }
