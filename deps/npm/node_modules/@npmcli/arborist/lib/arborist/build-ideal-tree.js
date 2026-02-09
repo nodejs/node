@@ -504,27 +504,25 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this.#depsQueue.push(tree)
   }
 
-  // This returns a promise because we might not have the name yet, and need to
-  // call pacote.manifest to find the name.
+  // This returns a promise because we might not have the name yet, and need to call pacote.manifest to find the name.
   async #add (tree, { add, saveType = null, saveBundle = false }) {
     // If we have a link it will need to be added relative to the target's path
     const path = tree.target.path
 
-    // get the name for each of the specs in the list.
-    // ie, doing `foo@bar` we just return foo but if it's a url or git, we
-    // don't know the name until we fetch it and look in its manifest.
+    // Get the name for each of the specs in the list.
+    // e.g. doing `foo@bar` we just return foo but if it's a url or git, we don't know the name until we fetch it and look in its manifest.
     await Promise.all(add.map(async rawSpec => {
-      // We do NOT provide the path to npa here, because user-additions need to
-      // be resolved relative to the tree being added to.
+      // We do NOT provide the path to npa here, because user-additions need to be resolved relative to the tree being added to.
       let spec = npa(rawSpec)
 
-      // if it's just @'' then we reload whatever's there, or get latest
-      // if it's an explicit tag, we need to install that specific tag version
+      // if it's just @'' then we reload whatever's there, or get latest.
+      // if it's an explicit tag, we need to install that specific tag version.
       const isTag = spec.rawSpec && spec.type === 'tag'
 
       // look up the names of file/directory/git specs
       if (!spec.name || isTag) {
-        const mani = await pacote.manifest(spec, { ...this.options })
+        const _isRoot = tree.isProjectRoot || tree.isWorkspace
+        const mani = await pacote.manifest(spec, { ...this.options, _isRoot })
         if (isTag) {
           // translate tag to a version
           spec = npa(`${mani.name}@${mani.version}`)

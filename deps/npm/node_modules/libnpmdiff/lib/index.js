@@ -22,7 +22,10 @@ const diff = async (specs, opts = {}) => {
     aManifest,
     bManifest,
   ] =
-    await Promise.all(specs.map(spec => pacote.manifest(spec, opts)))
+    await Promise.all(specs.map(spec => pacote.manifest(spec, {
+      ...opts,
+      _isRoot: true,
+    })))
 
   const versions = {
     a: aManifest.version,
