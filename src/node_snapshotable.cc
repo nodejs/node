@@ -968,6 +968,61 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
   return result;
 }
 
+// Find bindings that have been loaded by internalBinding() but the external
+// reference method have not been called. This requires that the caller
+// match the id passed into their NODE_BINDING_CONTEXT_AWARE_INTERNAL() and
+// NODE_BINDING_EXTERNAL_REFERENCE() calls. Note that this only serves as a
+// preemptive check. Binding methods create the actual external references
+// (usually through function templates) and there's currently no easy way
+// to verify at that level of granularity. See "Registering binding functions
+// used in bootstrap" in src/README.md.
+bool ValidateBindings(Environment* env) {
+  std::set<std::string> registered;
+#define V(modname) registered.insert(#modname);
+  EXTERNAL_REFERENCE_BINDING_LIST(V)
+#undef V
+
+  std::set<std::string> bindings_without_external_references = {
+      "async_context_frame",
+      "constants",
+      "symbols",
+  };
+
+  std::set<std::string> unregistered;
+  for (auto* mod : env->principal_realm()->internal_bindings) {
+    if (registered.count(mod->nm_modname) == 0 &&
+        bindings_without_external_references.count(mod->nm_modname) == 0) {
+      unregistered.insert(mod->nm_modname);
+    }
+  }
+
+  if (unregistered.size() == 0) {
+    return true;
+  }
+
+  FPrintF(
+      stderr,
+      "\n---- snapshot building check failed ---\n\n"
+      "The following bindings are loaded during the snapshot building process,"
+      " but their external reference registration methods have not been "
+      "called:\n\n");
+  for (auto& binding : unregistered) {
+    FPrintF(stderr, " - %s\n", binding);
+  }
+  FPrintF(stderr,
+          "\nIf the binding does not have any external references, "
+          "add it to the list of bindings_without_external_references "
+          "in src/node_snapshotable.cc.\n"
+          "Otherwise, make sure to call NODE_BINDING_EXTERNAL_REFERENCE() "
+          "with an appropriate register method for the binding, "
+          "and add it to EXTERNAL_REFERENCE_BINDING_LIST in "
+          "src/node_external_reference.h"
+          "\n\nSee \"Registering binding functions used in bootstrap\" "
+          "in src/README.md for more details."
+          "\n----\n\n");
+  return false;
+}
+
 ExitCode BuildSnapshotWithoutCodeCache(
     SnapshotData* out,
     const std::vector<std::string>& args,
@@ -1032,6 +1087,11 @@ ExitCode BuildSnapshotWithoutCodeCache(
         SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
     if (exit_code != ExitCode::kNoFailure) {
       return exit_code;
+    }
+
+    if (snapshot_type == SnapshotMetadata::Type::kDefault &&
+        !ValidateBindings(env)) {
+      return ExitCode::kStartupSnapshotFailure;
     }
   }
 
