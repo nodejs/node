@@ -221,6 +221,7 @@ class Publish extends BaseCommand {
         ...this.npm.flatOptions,
         preferOnline: true,
         registry,
+        _isRoot: true,
       })
       if (typeof packument?.versions === 'undefined') {
         return { versions: [], highestVersion: null }

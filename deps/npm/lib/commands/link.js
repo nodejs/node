@@ -25,6 +25,7 @@ class Link extends ArboristWorkspaceCmd {
     'omit',
     'include',
     'ignore-scripts',
+    'allow-git',
     'audit',
     'bin-links',
     'fund',
