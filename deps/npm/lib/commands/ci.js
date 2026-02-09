@@ -21,6 +21,7 @@ class CI extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'foreground-scripts',
     'ignore-scripts',
+    'allow-git',
     'audit',
     'bin-links',
     'fund',

@@ -5,6 +5,22 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/commands/view.js TAP allow-git=root, package with multiple dist‑tags and no time > must match snapshot 1`] = `
+
+[4m[36mgray@1.1.0[39m[24m | [31mProprietary[39m | deps: [36mnone[39m | versions: [36m1[39m
+
+dist
+.tarball: [34mhttp://gray/1.1.0.tgz[39m
+.shasum: [32mb[39m
+
+dist-tags:
+[34mlatest[39m: 1.1.0
+[34mstable[39m: 1.1.0
+[34mold[39m: 1.0.0
+[34mbeta[39m: 1.2.0-beta
+[34malpha[39m: 1.2.0-alpha
+`
+
 exports[`test/lib/commands/view.js TAP deprecated package with license, bugs, repository and other fields > must match snapshot 1`] = `
 
 [4m[36mgreen@1.0.0[39m[24m | [32mACME[39m | deps: [36m2[39m | versions: [36m2[39m
@@ -277,22 +293,6 @@ dependencies:
 
 dist-tags:
 [34mlatest[39m: 1.0.0
-`
-
-exports[`test/lib/commands/view.js TAP package with multiple dist‑tags and no time > must match snapshot 1`] = `
-
-[4m[36mgray@1.1.0[39m[24m | [31mProprietary[39m | deps: [36mnone[39m | versions: [36m1[39m
-
-dist
-.tarball: [34mhttp://gray/1.1.0.tgz[39m
-.shasum: [32mb[39m
-
-dist-tags:
-[34mlatest[39m: 1.1.0
-[34mstable[39m: 1.1.0
-[34mold[39m: 1.0.0
-[34mbeta[39m: 1.2.0-beta
-[34malpha[39m: 1.2.0-alpha
 `
 
 exports[`test/lib/commands/view.js TAP package with no modified time > must match snapshot 1`] = `
