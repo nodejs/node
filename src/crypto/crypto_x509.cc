@@ -253,8 +253,8 @@ MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
 
 MaybeLocal<Value> GetSerialNumber(Environment* env, const X509View& view) {
   if (auto serial = view.getSerialNumber()) {
-    return OneByteString(env->isolate(),
-                         static_cast<unsigned char*>(serial.get()));
+    return ToV8Value(
+        env, ToUpper(std::string_view(static_cast<char*>(serial.get()))));
   }
   return Undefined(env->isolate());
 }
