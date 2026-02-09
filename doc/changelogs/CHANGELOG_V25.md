@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#25.6.1">25.6.1</a><br/>
 <a href="#25.6.0">25.6.0</a><br/>
 <a href="#25.5.0">25.5.0</a><br/>
 <a href="#25.4.0">25.4.0</a><br/>
@@ -46,6 +47,68 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="25.6.1"></a>
+
+## 2026-02-10, Version 25.6.1 (Current), @aduh95
+
+### Notable Changes
+
+* \[[`47df4328d7`](https://github.com/nodejs/node/commit/47df4328d7)] - **build,deps**: replace `cjs-module-lexer` with `merve` (Yagiz Nizipli) [#61456](https://github.com/nodejs/node/pull/61456)
+
+### Commits
+
+* \[[`47df4328d7`](https://github.com/nodejs/node/commit/47df4328d7)] - **build,deps**: replace cjs-module-lexer with merve (Yagiz Nizipli) [#61456](https://github.com/nodejs/node/pull/61456)
+* \[[`a727054503`](https://github.com/nodejs/node/commit/a727054503)] - **deps**: upgrade npm to 11.9.0 (npm team) [#61685](https://github.com/nodejs/node/pull/61685)
+* \[[`c78c49ed6b`](https://github.com/nodejs/node/commit/c78c49ed6b)] - **deps**: update amaro to 1.1.7 (Node.js GitHub Bot) [#61730](https://github.com/nodejs/node/pull/61730)
+* \[[`4790816d9b`](https://github.com/nodejs/node/commit/4790816d9b)] - **deps**: update minimatch to 10.1.2 (Node.js GitHub Bot) [#61732](https://github.com/nodejs/node/pull/61732)
+* \[[`8c71740e8a`](https://github.com/nodejs/node/commit/8c71740e8a)] - **deps**: update undici to 7.21.0 (Node.js GitHub Bot) [#61683](https://github.com/nodejs/node/pull/61683)
+* \[[`e559ef6ab1`](https://github.com/nodejs/node/commit/e559ef6ab1)] - **deps**: update googletest to 56efe3983185e3f37e43415d1afa97e3860f187f (Node.js GitHub Bot) [#61605](https://github.com/nodejs/node/pull/61605)
+* \[[`300de2bb5a`](https://github.com/nodejs/node/commit/300de2bb5a)] - **deps**: update amaro to 1.1.6 (Node.js GitHub Bot) [#61603](https://github.com/nodejs/node/pull/61603)
+* \[[`e71e9505ef`](https://github.com/nodejs/node/commit/e71e9505ef)] - **dns**: fix Windows SRV ECONNREFUSED by adjusting c-ares fallback detection (notvivek12) [#61453](https://github.com/nodejs/node/pull/61453)
+* \[[`439b816bc7`](https://github.com/nodejs/node/commit/439b816bc7)] - **doc**: clarify EventEmitter error handling in threat model (Matteo Collina) [#61701](https://github.com/nodejs/node/pull/61701)
+* \[[`c1c6641f23`](https://github.com/nodejs/node/commit/c1c6641f23)] - **doc**: mention default option for test runner env (Steven) [#61659](https://github.com/nodejs/node/pull/61659)
+* \[[`41ec451f98`](https://github.com/nodejs/node/commit/41ec451f98)] - **doc**: fix --inspect security warning section (Tim Perry) [#61675](https://github.com/nodejs/node/pull/61675)
+* \[[`bb90ef2356`](https://github.com/nodejs/node/commit/bb90ef2356)] - **doc**: document `url.format(urlString)` as deprecated under DEP0169 (René) [#61644](https://github.com/nodejs/node/pull/61644)
+* \[[`513df82e6f`](https://github.com/nodejs/node/commit/513df82e6f)] - **doc**: update to Visual Studio 2026 manual install (Mike McCready) [#61655](https://github.com/nodejs/node/pull/61655)
+* \[[`9409d30736`](https://github.com/nodejs/node/commit/9409d30736)] - **doc**: deprecation add more codemod (Augustin Mauroy) [#61642](https://github.com/nodejs/node/pull/61642)
+* \[[`75a7a67151`](https://github.com/nodejs/node/commit/75a7a67151)] - **doc**: fix grammatical error in README.md (ayj8201) [#61653](https://github.com/nodejs/node/pull/61653)
+* \[[`821e59e884`](https://github.com/nodejs/node/commit/821e59e884)] - **doc**: correct tools README Boxstarter link (Mike McCready) [#61638](https://github.com/nodejs/node/pull/61638)
+* \[[`4998f539a0`](https://github.com/nodejs/node/commit/4998f539a0)] - **doc**: update `server.dropMaxConnection` link (YuSheng Chen) [#61584](https://github.com/nodejs/node/pull/61584)
+* \[[`9383ac4ab7`](https://github.com/nodejs/node/commit/9383ac4ab7)] - **http**: implement slab allocation for HTTP header parsing (Mert Can Altin) [#61375](https://github.com/nodejs/node/pull/61375)
+* \[[`e90eb1d561`](https://github.com/nodejs/node/commit/e90eb1d561)] - **meta**: persist sccache daemon until end of build workflows (René) [#61639](https://github.com/nodejs/node/pull/61639)
+* \[[`ade36ac367`](https://github.com/nodejs/node/commit/ade36ac367)] - **meta**: bump github/codeql-action from 4.31.9 to 4.32.0 (dependabot\[bot]) [#61622](https://github.com/nodejs/node/pull/61622)
+* \[[`26638bd67f`](https://github.com/nodejs/node/commit/26638bd67f)] - **meta**: bump step-security/harden-runner from 2.14.0 to 2.14.1 (dependabot\[bot]) [#61621](https://github.com/nodejs/node/pull/61621)
+* \[[`eaa9a96cb6`](https://github.com/nodejs/node/commit/eaa9a96cb6)] - **meta**: bump actions/setup-python from 6.1.0 to 6.2.0 (dependabot\[bot]) [#61627](https://github.com/nodejs/node/pull/61627)
+* \[[`fd98187828`](https://github.com/nodejs/node/commit/fd98187828)] - **meta**: bump cachix/cachix-action (dependabot\[bot]) [#61626](https://github.com/nodejs/node/pull/61626)
+* \[[`820c1d021c`](https://github.com/nodejs/node/commit/820c1d021c)] - **meta**: bump actions/setup-node from 6.1.0 to 6.2.0 (dependabot\[bot]) [#61625](https://github.com/nodejs/node/pull/61625)
+* \[[`72a4136bd5`](https://github.com/nodejs/node/commit/72a4136bd5)] - **meta**: bump actions/cache from 5.0.1 to 5.0.3 (dependabot\[bot]) [#61624](https://github.com/nodejs/node/pull/61624)
+* \[[`e3ef6cb3bc`](https://github.com/nodejs/node/commit/e3ef6cb3bc)] - **meta**: bump peter-evans/create-pull-request from 8.0.0 to 8.1.0 (dependabot\[bot]) [#61623](https://github.com/nodejs/node/pull/61623)
+* \[[`020a836202`](https://github.com/nodejs/node/commit/020a836202)] - **meta**: bump actions/stale from 10.1.0 to 10.1.1 (dependabot\[bot]) [#61620](https://github.com/nodejs/node/pull/61620)
+* \[[`0df72f07c8`](https://github.com/nodejs/node/commit/0df72f07c8)] - **meta**: bump actions/checkout from 6.0.1 to 6.0.2 (dependabot\[bot]) [#61619](https://github.com/nodejs/node/pull/61619)
+* \[[`d147c08b83`](https://github.com/nodejs/node/commit/d147c08b83)] - **module**: do not invoke resolve hooks twice for imported cjs (Joyee Cheung) [#61529](https://github.com/nodejs/node/pull/61529)
+* \[[`a2843f8556`](https://github.com/nodejs/node/commit/a2843f8556)] - **net**: defer synchronous destroy calls in internalConnect (RajeshKumar11) [#61658](https://github.com/nodejs/node/pull/61658)
+* \[[`7fb7030781`](https://github.com/nodejs/node/commit/7fb7030781)] - **repl**: fix flaky test-repl-programmatic-history (Matteo Collina) [#61614](https://github.com/nodejs/node/pull/61614)
+* \[[`d4c9b5cf5b`](https://github.com/nodejs/node/commit/d4c9b5cf5b)] - **sqlite**: avoid extra copy for large text binds (Ali Hassan) [#61580](https://github.com/nodejs/node/pull/61580)
+* \[[`aa1b3661d9`](https://github.com/nodejs/node/commit/aa1b3661d9)] - **sqlite**: use DictionaryTemplate for run() result (Mert Can Altin) [#61432](https://github.com/nodejs/node/pull/61432)
+* \[[`9c8ad7e881`](https://github.com/nodejs/node/commit/9c8ad7e881)] - **src**: elide heap allocation in structured clone implementation (Anna Henningsen) [#61703](https://github.com/nodejs/node/pull/61703)
+* \[[`c4ecfef93d`](https://github.com/nodejs/node/commit/c4ecfef93d)] - **src**: use simdutf for one-byte string UTF-8 write in stringBytes (Mert Can Altin) [#61696](https://github.com/nodejs/node/pull/61696)
+* \[[`28905b9734`](https://github.com/nodejs/node/commit/28905b9734)] - **src**: consolidate C++ ReadFileSync/WriteFileSync utilities (Joyee Cheung) [#61662](https://github.com/nodejs/node/pull/61662)
+* \[[`e90cec2f69`](https://github.com/nodejs/node/commit/e90cec2f69)] - **test**: restraint version replacement pattern in snapshots (Chengzhong Wu) [#61748](https://github.com/nodejs/node/pull/61748)
+* \[[`adce20c0a1`](https://github.com/nodejs/node/commit/adce20c0a1)] - **test**: print stack immediately avoiding GC interleaving (Chengzhong Wu) [#61699](https://github.com/nodejs/node/pull/61699)
+* \[[`7643bc8999`](https://github.com/nodejs/node/commit/7643bc8999)] - **test**: fix case-insensitive path matching on Windows (Matteo Collina) [#61682](https://github.com/nodejs/node/pull/61682)
+* \[[`23d1ecf66f`](https://github.com/nodejs/node/commit/23d1ecf66f)] - **test**: fix flaky test-performance-eventloopdelay (Matteo Collina) [#61629](https://github.com/nodejs/node/pull/61629)
+* \[[`99012a88ed`](https://github.com/nodejs/node/commit/99012a88ed)] - **test**: remove duplicate wpt tests (Filip Skokan) [#61617](https://github.com/nodejs/node/pull/61617)
+* \[[`a8b32b8ce1`](https://github.com/nodejs/node/commit/a8b32b8ce1)] - **test**: fix race condition in watch mode tests (Matteo Collina) [#61615](https://github.com/nodejs/node/pull/61615)
+* \[[`086a5a5a25`](https://github.com/nodejs/node/commit/086a5a5a25)] - **test**: update WPT for url to e3c46fdf55 (Node.js GitHub Bot) [#61602](https://github.com/nodejs/node/pull/61602)
+* \[[`f0574fd419`](https://github.com/nodejs/node/commit/f0574fd419)] - **test**: use the skipIfNoWatch() utility function (Luigi Pinca) [#61531](https://github.com/nodejs/node/pull/61531)
+* \[[`b064ddc221`](https://github.com/nodejs/node/commit/b064ddc221)] - **test**: unify assertSnapshot common patterns (Chengzhong Wu) [#61590](https://github.com/nodejs/node/pull/61590)
+* \[[`17122e521b`](https://github.com/nodejs/node/commit/17122e521b)] - **test\_runner**: fix test enqueue when test file has syntax error (Edy Silva) [#61573](https://github.com/nodejs/node/pull/61573)
+* \[[`bad3f02dd9`](https://github.com/nodejs/node/commit/bad3f02dd9)] - **tools**: enforce removal of `lts-watch-*` labels on release proposals (Antoine du Hamel) [#61672](https://github.com/nodejs/node/pull/61672)
+* \[[`a8f33fd6bd`](https://github.com/nodejs/node/commit/a8f33fd6bd)] - **tools**: use ubuntu-slim runner in meta GitHub Actions (Tierney Cyren) [#61663](https://github.com/nodejs/node/pull/61663)
+* \[[`c843e447ca`](https://github.com/nodejs/node/commit/c843e447ca)] - **tools**: test `--shared-merve` in `test-shared` workflow (Antoine du Hamel) [#61649](https://github.com/nodejs/node/pull/61649)
+* \[[`2fedc03f96`](https://github.com/nodejs/node/commit/2fedc03f96)] - **tools**: update OpenSSL to 3.5.5 in `test-shared` (Antoine du Hamel) [#61551](https://github.com/nodejs/node/pull/61551)
+* \[[`1c1db94670`](https://github.com/nodejs/node/commit/1c1db94670)] - **tools,win**: upgrade install additional tools to Visual Studio 2026 (Mike McCready) [#61562](https://github.com/nodejs/node/pull/61562)
 
 <a id="25.6.0"></a>
 
