@@ -86,14 +86,10 @@ class PythonFinder {
         {
           before: () => {
             if (!this.configPython) {
-              this.addLog(
-                'Python is not set from command line or npm configuration')
+              this.addLog('--python was not set on the command line')
               return SKIP
             }
-            this.addLog('checking Python explicitly set from command line or ' +
-              'npm configuration')
-            this.addLog('- "--python=" or "npm config get python" is ' +
-              `"${this.configPython}"`)
+            this.addLog(`--python=${this.configPython} was set on the command line`)
           },
           check: () => this.checkCommand(this.configPython)
         },
@@ -295,8 +291,6 @@ class PythonFinder {
       `- Use the switch --python="${pathExample}"`,
       '  (accepted by both node-gyp and npm)',
       '- Set the environment variable PYTHON',
-      '- Set the npm configuration variable python:',
-      `  npm config set python "${pathExample}"`,
       'For more information consult the documentation at:',
       'https://github.com/nodejs/node-gyp#installation',
       '**********************************************************'

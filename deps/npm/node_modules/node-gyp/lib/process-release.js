@@ -109,15 +109,15 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
     versionDir: (name !== 'node' ? name + '-' : '') + version,
     ia32: {
       libUrl: libUrl32,
-      libPath: normalizePath(path.relative(url.parse(baseUrl).path, url.parse(libUrl32).path))
+      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrl32).pathname))
     },
     x64: {
       libUrl: libUrl64,
-      libPath: normalizePath(path.relative(url.parse(baseUrl).path, url.parse(libUrl64).path))
+      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrl64).pathname))
     },
     arm64: {
       libUrl: libUrlArm64,
-      libPath: normalizePath(path.relative(url.parse(baseUrl).path, url.parse(libUrlArm64).path))
+      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrlArm64).pathname))
     }
   }
 }
