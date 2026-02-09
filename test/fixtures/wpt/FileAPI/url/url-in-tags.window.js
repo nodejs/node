@@ -1,3 +1,10 @@
+setup(() => {
+  const viewport_meta = document.createElement('meta');
+  viewport_meta.name = "viewport";
+  viewport_meta.content = "width=device-width,initial-scale=1";
+  document.head.appendChild(viewport_meta);
+});
+
 async_test(t => {
   const run_result = 'test_script_OK';
   const blob_contents = 'window.test_result = "' + run_result + '";';
