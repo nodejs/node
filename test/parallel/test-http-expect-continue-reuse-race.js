@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const net = require('net');
 
 const REQUEST_COUNT = 100;
 const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
