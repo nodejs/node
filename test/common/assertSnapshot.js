@@ -14,7 +14,7 @@ const windowNewlineRegexp = /\r/g;
 // placeholder. This could commonly present in an unhandled exception
 // output.
 function replaceNodeVersion(str) {
-  return str.replaceAll(process.version, '<node-version>');
+  return str.replaceAll(`Node.js ${process.version}`, 'Node.js <node-version>');
 }
 
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
