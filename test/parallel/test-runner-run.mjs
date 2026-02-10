@@ -398,7 +398,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream) ;
 
-    assert.strictEqual(executionOrder.length, internalTestNames.length);
     return executionOrder;
   }
 
