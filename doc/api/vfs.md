@@ -390,7 +390,17 @@ including `string`, `Buffer`, `TypedArray`, and `DataView` where applicable.
 #### Overlay mode behavior
 
 When overlay mode is enabled, the following behavior applies to `fs` operations
-on mounted paths:
+on mounted paths.
+
+**Path encoding:** The VFS uses UTF-8 encoding for file and directory names
+internally. In overlay mode, path matching is performed using the VFS's UTF-8
+encoding. When falling through to the real file system, paths are passed to
+the native file system APIs which handle encoding according to platform
+conventions (UTF-8 on most Unix systems, UTF-16 on Windows). This means the
+VFS inherits the underlying file system's encoding behavior for paths that
+fall through, while VFS-internal paths always use UTF-8.
+
+**Operation routing:**
 
 * **Read operations** (`readFile`, `readdir`, `stat`, `lstat`, `access`,
   `exists`, `realpath`, `readlink`): Check VFS first. If the path doesn't exist
@@ -768,7 +778,7 @@ const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
 myVfs.mkdirSync('/data');
-myVfs.writeFileSync('/data/config.json', '{}');
+myVfs.writeFileSync('/data/config.json', JSON.stringify({}));
 
 // This works - symlink within VFS
 myVfs.symlinkSync('/data/config.json', '/config');
@@ -797,7 +807,7 @@ const fs = require('node:fs');
 
 const myVfs = vfs.create({ overlay: true });
 myVfs.mkdirSync('/data');
-myVfs.writeFileSync('/data/config.json', '{"source": "vfs"}');
+myVfs.writeFileSync('/data/config.json', JSON.stringify({ source: 'vfs' }));
 myVfs.symlinkSync('/data/config.json', '/data/link');
 myVfs.mount('/app');
 
