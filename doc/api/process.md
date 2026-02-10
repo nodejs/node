@@ -994,7 +994,7 @@ changes:
     description: Change stability index for this feature from Experimental to Stable.
 -->
 
-* Type: {number}
+* Returns: {number}
 
 Gets the amount of free memory that is still available to the process
 (in bytes).
@@ -1166,7 +1166,7 @@ changes:
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
-* Type: {number}
+* Returns: {number}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
