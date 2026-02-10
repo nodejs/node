@@ -60,7 +60,7 @@ const fs = require('node:fs');
 
 // Overlay mode: only intercept files that exist in VFS
 const myVfs = vfs.create({ overlay: true });
-myVfs.writeFileSync('/etc/config.json', '{"mocked": true}');
+myVfs.writeFileSync('/etc/config.json', JSON.stringify({ mocked: true }));
 myVfs.mount('/');
 
 // This reads from VFS (file exists in VFS)
@@ -203,6 +203,12 @@ added: REPLACEME
 
 Creates a new `VirtualFileSystem` instance.
 
+Multiple `VirtualFileSystem` instances can be created and used independently.
+Each instance maintains its own file tree and can be mounted at different
+paths. However, only one VFS can be mounted at a given path prefix at a time.
+If two VFS instances are mounted at overlapping paths (e.g., `/virtual` and
+`/virtual/sub`), the more specific path takes precedence for matching paths.
+
 ### `vfs.chdir(path)`
 
 <!-- YAML
@@ -264,6 +270,19 @@ myVfs.mount('/virtual');
 require('node:fs').readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
 ```
 
+On Windows, mount paths use drive letters:
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/data.txt', 'Hello');
+myVfs.mount('C:\\virtual');
+
+// Now accessible as C:\virtual\data.txt
+require('node:fs').readFileSync('C:\\virtual\\data.txt', 'utf8'); // 'Hello'
+```
+
 The VFS supports the [Explicit Resource Management][] proposal. Use the `using`
 declaration to automatically unmount when leaving scope:
 
@@ -300,7 +319,7 @@ added: REPLACEME
 
 * {string | null}
 
-The current mount point, or `null` if not mounted.
+The current mount point as an absolute path, or `null` if not mounted.
 
 ### `vfs.overlay`
 
@@ -356,6 +375,9 @@ Unmounts the virtual file system. After unmounting, virtual files are no longer
 accessible through the `fs` module. The VFS can be remounted at the same or a
 different path by calling `mount()` again. Unmounting also resets the virtual
 working directory if one was set.
+
+This method is idempotent: calling `unmount()` on an already unmounted VFS
+has no effect.
 
 ### File System Methods
 
