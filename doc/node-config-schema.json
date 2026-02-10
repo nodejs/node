@@ -528,6 +528,14 @@
           "type": "boolean",
           "description": "run tests with 'only' option set"
         },
+        "test-random-seed": {
+          "type": "number",
+          "description": "seed used to randomize test execution order"
+        },
+        "test-randomize": {
+          "type": "boolean",
+          "description": "run tests in a random order"
+        },
         "test-reporter": {
           "oneOf": [
             {
@@ -909,6 +917,14 @@
         "test-only": {
           "type": "boolean",
           "description": "run tests with 'only' option set"
+        },
+        "test-random-seed": {
+          "type": "number",
+          "description": "seed used to randomize test execution order"
+        },
+        "test-randomize": {
+          "type": "boolean",
+          "description": "run tests in a random order"
         },
         "test-reporter": {
           "oneOf": [

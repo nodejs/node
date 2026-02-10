@@ -585,6 +585,94 @@ prevent shell expansion, which can reduce portability across systems.
 node --test "**/*.test.js" "**/*.spec.js"
 ```
 
+### Randomizing tests execution order
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The test runner can randomize execution order to help detect
+order-dependent tests. When enabled, the runner randomizes both discovered
+test files and queued tests within each file. Use `--test-randomize` to
+enable this mode.
+
+```bash
+node --test --test-randomize
+```
+
+When randomization is enabled, the test runner prints the seed used for the run
+as a diagnostic message:
+
+```text
+Randomized test order seed: 12345
+```
+
+Use `--test-random-seed=<number>` to replay the same randomized order
+deterministically. Supplying `--test-random-seed` also enables randomization,
+so `--test-randomize` is optional when a seed is provided:
+
+```bash
+node --test --test-randomize --test-random-seed=12345
+```
+
+In most test files, randomization works automatically. One important exception
+is when subtests are awaited one by one. In that pattern, each subtest starts
+only after the previous one finishes, so the runner keeps declaration order
+instead of randomizing it.
+
+Example: this runs sequentially and is **not** randomized.
+
+```mjs
+import test from 'node:test';
+
+test('math', async (t) => {
+  for (const name of ['adds', 'subtracts', 'multiplies']) {
+    // Sequentially awaiting each subtest preserves declaration order.
+    await t.test(name, async () => {});
+  }
+});
+```
+
+```cjs
+const test = require('node:test');
+
+test('math', async (t) => {
+  for (const name of ['adds', 'subtracts', 'multiplies']) {
+    // Sequentially awaiting each subtest preserves declaration order.
+    await t.test(name, async () => {});
+  }
+});
+```
+
+Using suite-style APIs such as `describe()`/`it()` or `suite()`/`test()`
+still allows randomization, because sibling tests are queued together.
+
+Example: this remains eligible for randomization.
+
+```mjs
+import { describe, it } from 'node:test';
+
+describe('math', () => {
+  it('adds', () => {});
+  it('subtracts', () => {});
+  it('multiplies', () => {});
+});
+```
+
+```cjs
+const { describe, it } = require('node:test');
+
+describe('math', () => {
+  it('adds', () => {});
+  it('subtracts', () => {});
+  it('multiplies', () => {});
+});
+```
+
+`--test-randomize` and `--test-random-seed` are not supported with `--watch` mode.
+
 Matching files are executed as test files.
 More information on the test file execution can be found
 in the [test runner execution model][] section.
@@ -625,6 +713,10 @@ test runner functionality:
 * `--test-reporter` - Reporting is managed by the parent process
 * `--test-reporter-destination` - Output destinations are controlled by the parent
 * `--experimental-config-file` - Config file paths are managed by the parent
+* `--test-randomize` - Randomization is managed by the parent process and
+  propagated to child processes
+* `--test-random-seed` - Randomization seed is managed by the parent process and
+  propagated to child processes
 
 All other Node.js options from command line arguments, environment variables,
 and configuration files are inherited by the child processes.
@@ -1531,6 +1623,13 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `randomize` {boolean} Randomize execution order for test files and queued tests.
+    This option is not supported with `watch: true`.
+    **Default:** `false`.
+  * `randomSeed` {number} Seed used when randomizing execution order. If this
+    option is set, runs can replay the same randomized order deterministically,
+    and setting this option also enables randomization.
+    **Default:** `undefined`.
   * `rerunFailuresFilePath` {string} A file path where the test runner will
     store the state of the tests to allow rerunning only the failed tests on a next run.
     see \[Rerunning failed tests]\[] for more information.

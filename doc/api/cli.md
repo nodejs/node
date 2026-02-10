@@ -2762,6 +2762,38 @@ changes:
 Configures the test runner to only execute top level tests that have the `only`
 option set. This flag is not necessary when test isolation is disabled.
 
+### `--test-random-seed`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the seed used to randomize test execution order. This applies to both test
+file execution order and queued tests within each file. Providing this flag
+enables randomization implicitly, even without `--test-randomize`.
+
+The value must be an integer between `0` and `4294967295`.
+
+This flag cannot be used with `--watch` or `--test-rerun-failures`.
+
+### `--test-randomize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Randomize test execution order. This applies to both test file execution order
+and queued tests within each file. This can help detect tests that rely on
+shared state or execution order.
+
+The seed used for randomization is printed in the test summary and can be
+reused with `--test-random-seed`.
+
+For detailed behavior and examples, see
+[randomizing tests execution order][].
+
+This flag cannot be used with `--watch` or `--test-rerun-failures`.
+
 ### `--test-reporter`
 
 <!-- YAML
@@ -3679,6 +3711,8 @@ one is included in the list below.
 * `--test-isolation`
 * `--test-name-pattern`
 * `--test-only`
+* `--test-random-seed`
+* `--test-randomize`
 * `--test-reporter-destination`
 * `--test-reporter`
 * `--test-rerun-failures`
@@ -4257,6 +4291,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line
+[randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space

@@ -1357,6 +1357,22 @@ tests must satisfy \fBboth\fR requirements in order to be executed.
 Configures the test runner to only execute top level tests that have the \fBonly\fR
 option set. This flag is not necessary when test isolation is disabled.
 .
+.It Fl -test-random-seed
+Set the seed used to randomize test execution order.
+This applies to both test file execution order and queued tests within each file.
+Providing this flag enables randomization implicitly, even without
+\fB--test-randomize\fR.
+The value must be an integer between 0 and 4294967295.
+This flag cannot be used with \fB--watch\fR or \fB--test-rerun-failures\fR.
+.
+.It Fl -test-randomize
+Randomize test execution order.
+This applies to both test file execution order and queued tests within each file.
+This can help detect tests that rely on shared state or execution order.
+The seed used for randomization is printed in the test summary and can be
+reused with \fB--test-random-seed\fR.
+This flag cannot be used with \fB--watch\fR or \fB--test-rerun-failures\fR.
+.
 .It Fl -test-reporter
 A test reporter to use when running tests. See the documentation on
 test reporters for more details.
@@ -2033,6 +2049,10 @@ one is included in the list below.
 \fB--test-only\fR
 .It
 \fB--test-reporter-destination\fR
+.It
+\fB--test-randomize\fR
+.It
+\fB--test-random-seed\fR
 .It
 \fB--test-reporter\fR
 .It
