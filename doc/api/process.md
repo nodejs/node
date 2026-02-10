@@ -158,7 +158,7 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
-* `message` { Object | boolean | number | string | null } a parsed JSON object
+* `message` {Object|boolean|number|string|null} a parsed JSON object
   or a serializable primitive value.
 * `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
   object, or undefined.
