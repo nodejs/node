@@ -10,7 +10,7 @@ permissions:
 jobs:
   create-issue:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:
