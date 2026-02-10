@@ -4289,9 +4289,9 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
 [preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
+[randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line
-[randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
