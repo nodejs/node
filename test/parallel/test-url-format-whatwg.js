@@ -147,3 +147,11 @@ test('should format tel: prefix', { skip: !hasIntl }, () => {
     url.format(new URL('tel:123'), { unicode: true })
   );
 });
+
+// Regression test: url.format should not crash on URLs that ada::url_aggregator
+// can parse but ada::url cannot (e.g. special scheme URLs with opaque paths).
+test('should not crash on URLs with invalid IDN hostnames', () => {
+  const u = new URL('ws:xn-\u022B');
+  // doesNotThrow
+  url.format(u, { fragment: false, unicode: false, auth: false, search: false });
+});
