@@ -240,6 +240,7 @@ li.picker-header a span {
   max-width: 75vw;
   max-height: min(600px, 60vh);
   overflow-y: auto;
+  z-index: 10;
 }
 
 .picker > ul, .picker > ol {
