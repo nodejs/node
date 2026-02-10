@@ -66,6 +66,51 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.clearCache(specifier[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `specifier` {string|URL} The module specifier or URL to clear.
+* `options` {Object}
+  * `mode` {string} Which caches to clear. Supported values are `'all'`, `'cjs'`, and `'esm'`.
+    **Default:** `'all'`.
+  * `parentURL` {string|URL} The parent URL or absolute path used to resolve non-URL specifiers.
+    For CommonJS, pass `__filename`. For ES modules, pass `import.meta.url`.
+  * `type` {string} Import attributes `type` used for ESM resolution.
+  * `importAttributes` {Object} Import attributes for ESM resolution. Cannot be used with `type`.
+* Returns: {Object} An object with `{ cjs: boolean, esm: boolean }` indicating whether entries
+  were removed from each cache.
+
+Clears the CommonJS `require` cache and/or the ESM module cache for a module. This enables
+reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
+When `mode` is `'all'`, resolution failures for one module system do not throw; check the
+returned flags to see what was cleared.
+
+```mjs
+import { clearCache } from 'node:module';
+
+const url = new URL('./mod.mjs', import.meta.url);
+await import(url.href);
+
+clearCache(url);
+await import(url.href); // re-executes the module
+```
+
+```cjs
+const { clearCache } = require('node:module');
+const path = require('node:path');
+
+const file = path.join(__dirname, 'mod.js');
+require(file);
+
+clearCache(file);
+require(file); // re-executes the module
+```
+
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
