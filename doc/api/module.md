@@ -89,6 +89,7 @@ Clears the CommonJS `require` cache and/or the ESM module cache for a module. Th
 reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
 When `mode` is `'all'`, resolution failures for one module system do not throw; check the
 returned flags to see what was cleared.
+This also clears internal resolution caches for the resolved module.
 
 ```mjs
 import { clearCache } from 'node:module';
