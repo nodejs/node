@@ -15,7 +15,7 @@ jobs:
       contents: write  # for gr2m/create-or-update-pull-request-action to push local changes
       pull-requests: write  # for gr2m/create-or-update-pull-request-action to create a PR
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
