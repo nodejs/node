@@ -74,7 +74,12 @@ function replaceWindowsLineEndings(str) {
 // Replaces all Windows path separators with posix separators for unified snapshots
 // across platforms.
 function replaceWindowsPaths(str) {
-  return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
+  if (!common.isWindows) {
+    return str;
+  }
+  // Only replace `\` and `\\` with a leading letter, colon, or a `.`.
+  // Avoid replacing escaping patterns like ` \#`, `\ `, or `\\`.
+  return str.replaceAll(/(?<=(\w:|\.|\w+)(?:\S|\\ )*)\\\\?/g, '/');
 }
 
 // Removes line trailing white spaces.
@@ -224,10 +229,6 @@ function replaceJunitDuration(str) {
     .replaceAll(/file="[^"]*"/g, 'file="*"');
 }
 
-function removeWindowsPathEscaping(str) {
-  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
-}
-
 // The Node test coverage returns results for all files called by the test. This
 // will make the output file change if files like test/common/index.js change.
 // This transform picks only the first line and then the lines from the test
@@ -254,7 +255,6 @@ function pickTestFileFromLcov(str) {
 const basicTransform = transform(
   replaceWindowsLineEndings,
   replaceTrailingSpaces,
-  removeWindowsPathEscaping,
   replaceWindowsPaths,
   replaceNodeVersion,
   generalizeExeName,
