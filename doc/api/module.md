@@ -74,7 +74,9 @@ added: REPLACEME
 
 > Stability: 1.1 - Active development
 
-* `specifier` {string|URL} The module specifier or URL to clear.
+* `specifier` {string|URL} The module specifier or URL to resolve. The resolved URL/filename
+  is cleared from the load cache; the specifier (with `parentURL` and `importAttributes`)
+  is cleared from the resolve cache.
 * `options` {Object}
   * `mode` {string} Which caches to clear. Supported values are `'all'`, `'commonjs'`, and `'module'`.
     **Default:** `'all'`.
@@ -88,8 +90,9 @@ Clears the CommonJS `require` cache and/or the ESM module cache for a module. Th
 reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
 When `mode` is `'all'`, resolution failures for one module system do not throw; check the
 returned flags to see what was cleared.
-This also clears internal resolution caches for the resolved module. Clearing a module does
-not clear cached entries for its dependencies.
+This also clears resolution cache entries for that specifier. Clearing a module does not clear
+cached entries for its dependencies, and other specifiers that resolve to the same target may
+remain.
 When a `file:` URL is resolved, cached module jobs for the same file path are cleared even if
 they differ by search or hash.
 
