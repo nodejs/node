@@ -889,11 +889,11 @@ releases on a rotation basis as outlined in the
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
 * [HeroDevs](https://www.herodevs.com/)
+  * [juanarbol](https://github.com/juanarbol) - OpenJSF handle: `juanarbol`
+    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
   * [marco-ippolito](https://github.com/marco-ippolito) - OpenJSF handle: `Marco Ippolito`
     **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [NodeSource](https://nodesource.com/)
-  * [juanarbol](https://github.com/juanarbol) -
-    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
   * [RafaelGSS](https://github.com/RafaelGSS) - OpenJSF handle: `RafaelGSS`
     **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * [Platformatic](https://platformatic.dev/)
