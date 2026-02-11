@@ -8,6 +8,7 @@ spawn(
   [
     '--no-warnings',
     '--test-reporter', 'spec',
+    '--test-concurrency', '1',
     '--test-random-seed=12345',
     '--test',
     fixtures.path('test-runner/shards/a.cjs'),
