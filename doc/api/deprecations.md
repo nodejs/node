@@ -4430,6 +4430,42 @@ Passing the `type` option to [`Duplex.toWeb()`][] is deprecated. To specify the
 type of the readable half of the constructed readable-writable pair, use the
 `readableType` option instead.
 
+### DEP0202: `Http1IncomingMessage` and `Http1ServerResponse` options of HTTP/2 servers
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61713
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `Http1IncomingMessage` and `Http1ServerResponse` options of
+[`http2.createServer()`][] and [`http2.createSecureServer()`][] are
+deprecated. Use `http1Options.IncomingMessage` and
+`http1Options.ServerResponse` instead.
+
+```cjs
+// Deprecated
+const server = http2.createSecureServer({
+  allowHTTP1: true,
+  Http1IncomingMessage: MyIncomingMessage,
+  Http1ServerResponse: MyServerResponse,
+});
+```
+
+```cjs
+// Use this instead
+const server = http2.createSecureServer({
+  allowHTTP1: true,
+  http1Options: {
+    IncomingMessage: MyIncomingMessage,
+    ServerResponse: MyServerResponse,
+  },
+});
+```
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4509,6 +4545,8 @@ type of the readable half of the constructed readable-writable pair, use the
 [`http.ServerResponse`]: http.md#class-httpserverresponse
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
+[`http2.createSecureServer()`]: http2.md#http2createsecureserveroptions-onrequesthandler
+[`http2.createServer()`]: http2.md#http2createserveroptions-onrequesthandler
 [`https.get()`]: https.md#httpsgetoptions-callback
 [`https.request()`]: https.md#httpsrequestoptions-callback
 [`message.connection`]: http.md#messageconnection
