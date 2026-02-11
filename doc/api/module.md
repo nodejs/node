@@ -76,20 +76,22 @@ added: REPLACEME
 
 * `specifier` {string|URL} The module specifier or URL to clear.
 * `options` {Object}
-  * `mode` {string} Which caches to clear. Supported values are `'all'`, `'cjs'`, and `'esm'`.
+  * `mode` {string} Which caches to clear. Supported values are `'all'`, `'commonjs'`, and `'module'`.
     **Default:** `'all'`.
-  * `parentURL` {string|URL} The parent URL or absolute path used to resolve non-URL specifiers.
-    For CommonJS, pass `__filename`. For ES modules, pass `import.meta.url`.
-  * `type` {string} Import attributes `type` used for ESM resolution.
-  * `importAttributes` {Object} Import attributes for ESM resolution. Cannot be used with `type`.
-* Returns: {Object} An object with `{ cjs: boolean, esm: boolean }` indicating whether entries
+  * `parentURL` {string|URL} The parent URL used to resolve non-URL specifiers.
+    For CommonJS, pass `pathToFileURL(__filename)`. For ES modules, pass `import.meta.url`.
+  * `importAttributes` {Object} Import attributes for ESM resolution.
+* Returns: {Object} An object with `{ commonjs: boolean, module: boolean }` indicating whether entries
   were removed from each cache.
 
 Clears the CommonJS `require` cache and/or the ESM module cache for a module. This enables
 reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
 When `mode` is `'all'`, resolution failures for one module system do not throw; check the
 returned flags to see what was cleared.
-This also clears internal resolution caches for the resolved module.
+This also clears internal resolution caches for the resolved module. Clearing a module does
+not clear cached entries for its dependencies.
+When a `file:` URL is resolved, cached module jobs for the same file path are cleared even if
+they differ by search or hash.
 
 ```mjs
 import { clearCache } from 'node:module';
