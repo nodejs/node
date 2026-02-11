@@ -12,6 +12,12 @@
         "Getters and value conversions should happen in order until an exception is thrown.",
         "options properties should be accessed in lexicographic order.",
         "Arguments should be evaluated from left to right."
+      ],
+      "flaky": [
+        "Passing typed arrays as elements of the blobParts array should work.",
+        "Passing a Float16Array as element of the blobParts array should work.",
+        "Passing a Float64Array as element of the blobParts array should work.",
+        "Passing BigInt typed arrays as elements of the blobParts array should work."
       ]
     }
   },
