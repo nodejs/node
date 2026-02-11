@@ -914,6 +914,32 @@ This is particularly dangerous because:
 * Only specific targeted files are affected
 * Other operations appear to work normally
 
+### Monitoring VFS mounts
+
+To help detect unauthorized VFS usage, the `process` object emits events when
+a VFS is mounted or unmounted:
+
+```cjs
+process.on('vfs-mount', (info) => {
+  console.log(`VFS mounted at ${info.mountPoint}`);
+  console.log(`  overlay: ${info.overlay}`);
+  console.log(`  readonly: ${info.readonly}`);
+});
+
+process.on('vfs-unmount', (info) => {
+  console.log(`VFS unmounted from ${info.mountPoint}`);
+});
+```
+
+The event object contains:
+
+* `mountPoint` {string} The path where the VFS is mounted.
+* `overlay` {boolean} Whether overlay mode is enabled.
+* `readonly` {boolean} Whether the VFS is read-only.
+
+Applications can use these events to log VFS activity, alert on suspicious
+mounts (such as mounting over system paths), or enforce security policies.
+
 ### Recommendations
 
 * **Audit dependencies**: Be cautious of third-party modules that use VFS, as
