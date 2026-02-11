@@ -4415,6 +4415,21 @@ import { opendir } from 'node:fs/promises';
 }
 ```
 
+### DEP0201: Passing `options.type` to `Duplex.toWeb()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61632
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Passing the `type` option to [`Duplex.toWeb()`][] is deprecated. To specify the
+type of the readable half of the constructed readable-writable pair, use the
+`readableType` option instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4433,6 +4448,7 @@ import { opendir } from 'node:fs/promises';
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
 [`Decipheriv`]: crypto.md#class-decipheriv
+[`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
