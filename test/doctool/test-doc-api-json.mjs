@@ -150,6 +150,7 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
     'index.md': [],
     'intl.md': ['introduced_in', 'miscs'],
     'n-api.md': ['introduced_in', 'stability', 'stabilityText', 'miscs'],
+    'otel.md': ['introduced_in', 'meta', 'stability', 'stabilityText', 'miscs'],
     'packages.md': ['introduced_in', 'meta', 'miscs'],
     'process.md': ['globals'],
     'report.md': ['introduced_in', 'meta', 'stability', 'stabilityText', 'miscs'],

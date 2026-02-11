@@ -875,6 +875,12 @@ This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .It Fl -experimental-network-inspection
 Enable experimental support for the network inspection with Chrome DevTools.
 .
+.It Fl -experimental-otel
+Enable the experimental built-in OpenTelemetry tracing subsystem. When
+enabled, tracing is activated by setting the \fBNODE_OTEL\fR or
+\fBNODE_OTEL_ENDPOINT\fR environment variables. See the OpenTelemetry
+documentation for details.
+.
 .It Fl -experimental-package-map Ns = Ns Ar <path>
 Enable experimental package map resolution. The \fBpath\fR argument specifies the
 location of a JSON configuration file that defines package resolution mappings.
@@ -2243,6 +2249,8 @@ one is included in the list below.
 .It
 \fB--experimental-modules\fR
 .It
+\fB--experimental-otel\fR
+.It
 \fB--experimental-package-map\fR
 .It
 \fB--experimental-print-required-tla\fR
@@ -2543,6 +2551,43 @@ V8 options that are allowed are:
 \fB--perf-basic-prof-only-functions\fR, \fB--perf-basic-prof\fR,
 \fB--perf-prof-unwinding-info\fR, and \fB--perf-prof\fR are only available on Linux.
 \fB--enable-etw-stack-walking\fR is only available on Windows.
+.
+.It Ev NODE_OTEL Ar value
+
+When set to \fB1\fR while the \fB--experimental-otel\fR flag is
+enabled, activates the built-in OpenTelemetry tracing subsystem using the
+default collector endpoint (\fBhttp://localhost:4318\fR). Values other than
+\fB1\fR are ignored. If \fBNODE_OTEL_ENDPOINT\fR is also set, it takes precedence
+for the endpoint. See the OpenTelemetry documentation for details.
+.
+.It Ev NODE_OTEL_ENDPOINT Ar url
+
+When set to a non-empty value while the \fB--experimental-otel\fR flag is
+enabled, activates the built-in OpenTelemetry tracing subsystem and directs
+spans to the specified OTLP/HTTP collector endpoint. The endpoint must be
+the base URL of the collector: any path present in the endpoint is
+replaced with \fB/v1/traces\fR, and an endpoint that already ends with
+\fB/v1/traces\fR is used as is. When only \fBNODE_OTEL=1\fR is set, the default
+collector endpoint (\fBhttp://localhost:4318\fR) is used. If \fBNODE_OTEL\fR is
+also set, \fBNODE_OTEL_ENDPOINT\fR takes precedence for the endpoint. See the
+OpenTelemetry documentation for details.
+.
+.It Ev NODE_OTEL_FILTER Ar module[,…]
+
+Comma-separated list of core modules to instrument when OpenTelemetry tracing
+is active. When not set, all supported modules are instrumented. Supported
+values: \fBnode:http\fR, \fBnode:undici\fR, \fBnode:fetch\fR. See the OpenTelemetry
+documentation for details.
+.
+.It Ev NODE_OTEL_FLUSH_INTERVAL Ar milliseconds
+
+Interval in milliseconds between periodic flushes of buffered spans to the
+collector. Must be a positive integer. \fBDefault:\fR \fB10000\fR.
+.
+.It Ev NODE_OTEL_MAX_BUFFER_SIZE Ar number
+
+Maximum number of spans buffered in memory before an immediate flush to the
+collector is triggered. Must be a positive integer. \fBDefault:\fR \fB100\fR.
 .
 .It Ev NODE_PATH Ar path[:…]
 \fB':'\fR-separated list of directories prefixed to the module search path.
