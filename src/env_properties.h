@@ -305,6 +305,7 @@
   V(psk_string, "psk")                                                         \
   V(public_exponent_string, "publicExponent")                                  \
   V(rate_string, "rate")                                                       \
+  V(read_string, "read")                                                       \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
   V(read_bigints_string, "readBigInts")                                        \
@@ -374,6 +375,7 @@
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")             \
   V(wrap_string, "wrap")                                                       \
   V(writable_string, "writable")                                               \
+  V(written_string, "written")                                                 \
   V(write_host_object_string, "_writeHostObject")                              \
   V(write_queue_size_string, "writeQueueSize")
 
@@ -442,6 +444,7 @@
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(text_encoder_encode_into_result_template, v8::ObjectTemplate)              \
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(txt_record_template, v8::DictionaryTemplate)                               \

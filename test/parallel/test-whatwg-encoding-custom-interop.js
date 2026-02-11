@@ -47,7 +47,7 @@ assert(TextEncoder);
 
   const expectedError = {
     name: 'TypeError',
-    message: /from an object whose class did not declare it/,
+    message: /Illegal invocation/,
   };
 
   inspectFn.call(instance, Infinity, {});
@@ -62,7 +62,7 @@ assert(TextEncoder);
   for (const i of invalidThisArgs) {
     assert.throws(() => encodeFn.call(i), {
       name: 'TypeError',
-      message: 'Receiver must be an instance of class TextEncoder',
+      message: /Illegal invocation/,
     });
   }
 }

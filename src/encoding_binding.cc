@@ -5,7 +5,7 @@
 #include "node_external_reference.h"
 #include "simdutf.h"
 #include "string_bytes.h"
-#include "util.h"
+#include "util-inl.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -20,13 +20,16 @@ using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SnapshotCreator;
 using v8::String;
+using v8::Symbol;
 using v8::Uint8Array;
 using v8::Value;
 
@@ -81,6 +84,9 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
 //     https://opensource.org/licenses/Apache-2.0
 namespace {
 constexpr int MAX_SIZE_FOR_STACK_ALLOC = 4096;
+constexpr int kEncodeIntoResultInternalFieldCount = 2;
+constexpr int kEncodeIntoResultReadField = 0;
+constexpr int kEncodeIntoResultWrittenField = 1;
 
 constexpr bool isSurrogatePair(uint16_t lead, uint16_t trail) {
   return (lead & 0xfc00) == 0xd800 && (trail & 0xfc00) == 0xdc00;
@@ -90,6 +96,20 @@ constexpr size_t simpleUtfEncodingLength(uint16_t c) {
   if (c < 0x80) return 1;
   if (c < 0x400) return 2;
   return 3;
+}
+
+void EncodeIntoResultReadGetter(const FunctionCallbackInfo<Value>& args) {
+  Local<Object> self = args.This().As<Object>();
+  Local<Value> value =
+      self->GetInternalField(kEncodeIntoResultReadField).As<Value>();
+  args.GetReturnValue().Set(value);
+}
+
+void EncodeIntoResultWrittenGetter(const FunctionCallbackInfo<Value>& args) {
+  Local<Object> self = args.This().As<Object>();
+  Local<Value> value =
+      self->GetInternalField(kEncodeIntoResultWrittenField).As<Value>();
+  args.GetReturnValue().Set(value);
 }
 
 // Finds the maximum number of input characters (UTF-16 or Latin1) that can be
@@ -178,6 +198,213 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
   }
   return pos;
 }
+
+
+MaybeLocal<Uint8Array> EncodeUtf8StringImpl(Isolate* isolate,
+                                            Local<String> source) {
+  // For small strings, use the V8 path
+  static constexpr int kSmallStringThreshold = 16;
+  if (source->Length() <= kSmallStringThreshold) {
+    size_t length = source->Utf8LengthV2(isolate);
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate,
+        length,
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+
+    if (!bs) [[unlikely]] {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      return MaybeLocal<Uint8Array>();
+    }
+
+    source->WriteUtf8V2(isolate,
+                        static_cast<char*>(bs->Data()),
+                        bs->MaxByteLength(),
+                        String::WriteFlags::kReplaceInvalidUtf8);
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+    return Uint8Array::New(ab, 0, length);
+  }
+
+  size_t length = source->Length();
+  size_t utf8_length = 0;
+
+  if (source->IsOneByte()) {
+    bool is_ascii = false;
+    {
+      v8::String::ValueView view(isolate, source);
+      auto data = reinterpret_cast<const char*>(view.data8());
+      simdutf::result result =
+          simdutf::validate_ascii_with_errors(data, length);
+      if (result.error == simdutf::SUCCESS) {
+        is_ascii = true;
+      } else {
+        utf8_length = simdutf::utf8_length_from_latin1(data, length);
+      }
+    }
+
+    size_t output_length = is_ascii ? length : utf8_length;
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, output_length, BackingStoreInitializationMode::kUninitialized);
+    CHECK(bs);
+
+    {
+      v8::String::ValueView view(isolate, source);
+      auto data = reinterpret_cast<const char*>(view.data8());
+      if (is_ascii) {
+        memcpy(bs->Data(), data, length);
+      } else {
+        [[maybe_unused]] size_t written = simdutf::convert_latin1_to_utf8(
+            data, length, static_cast<char*>(bs->Data()));
+        DCHECK_EQ(written, output_length);
+      }
+    }
+
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+    return Uint8Array::New(ab, 0, output_length);
+  }
+
+  bool needs_well_formed = false;
+  MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer;
+  {
+    v8::String::ValueView view(isolate, source);
+    auto data = reinterpret_cast<const char16_t*>(view.data16());
+    simdutf::result validation_result =
+        simdutf::validate_utf16_with_errors(data, length);
+
+    if (validation_result.error == simdutf::SUCCESS) {
+      utf8_length = simdutf::utf8_length_from_utf16(data, length);
+    } else {
+      conversion_buffer.AllocateSufficientStorage(length);
+      conversion_buffer.SetLength(length);
+      simdutf::to_well_formed_utf16(data, length, conversion_buffer.out());
+      utf8_length =
+          simdutf::utf8_length_from_utf16(conversion_buffer.out(), length);
+      needs_well_formed = true;
+    }
+  }
+
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
+  CHECK(bs);
+
+  if (needs_well_formed) {
+    [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
+        conversion_buffer.out(), length, static_cast<char*>(bs->Data()));
+    DCHECK_EQ(written, utf8_length);
+  } else {
+    v8::String::ValueView view(isolate, source);
+    auto data = reinterpret_cast<const char16_t*>(view.data16());
+    [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
+        data, length, static_cast<char*>(bs->Data()));
+    DCHECK_EQ(written, utf8_length);
+  }
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+  return Uint8Array::New(ab, 0, utf8_length);
+}
+
+struct EncodeIntoResult {
+  size_t read = 0;
+  size_t written = 0;
+};
+
+EncodeIntoResult EncodeIntoImpl(Isolate* isolate,
+                                Local<String> source,
+                                Local<Uint8Array> dest) {
+  EncodeIntoResult result;
+  Local<ArrayBuffer> buf = dest->Buffer();
+
+  // Handle detached buffers - return {read: 0, written: 0}
+  if (buf->Data() == nullptr) return result;
+
+  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
+  size_t dest_length = dest->ByteLength();
+
+  // For small strings (length <= 16), use the old V8 path for better
+  // performance
+  static constexpr int kSmallStringThreshold = 16;
+  if (source->Length() <= kSmallStringThreshold) {
+    result.written = source->WriteUtf8V2(
+        isolate,
+        write_result,
+        dest_length,
+        String::WriteFlags::kReplaceInvalidUtf8,
+        &result.read);
+    return result;
+  }
+
+  v8::String::ValueView view(isolate, source);
+  size_t length_that_fits =
+      std::min(static_cast<size_t>(view.length()), dest_length);
+
+  if (view.is_one_byte()) {
+    auto data = reinterpret_cast<const char*>(view.data8());
+    simdutf::result validation_result =
+        simdutf::validate_ascii_with_errors(data, length_that_fits);
+    result.written = result.read = validation_result.count;
+    memcpy(write_result, data, result.read);
+    write_result += result.read;
+    data += result.read;
+    length_that_fits -= result.read;
+    dest_length -= result.read;
+    if (length_that_fits != 0 && dest_length != 0) {
+      if (size_t rest = findBestFit(data, length_that_fits, dest_length)) {
+        DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
+        result.written +=
+            simdutf::convert_latin1_to_utf8(data, rest, write_result);
+        result.read += rest;
+      }
+    }
+  } else {
+    auto data = reinterpret_cast<const char16_t*>(view.data16());
+
+    // Limit conversion to what could fit in destination, avoiding splitting
+    // a valid surrogate pair at the boundary, which could cause a spurious call
+    // of simdutf::to_well_formed_utf16()
+    if (length_that_fits > 0 && length_that_fits < view.length() &&
+        isSurrogatePair(data[length_that_fits - 1], data[length_that_fits])) {
+      length_that_fits--;
+    }
+
+    // Check if input has unpaired surrogates - if so, convert to well-formed
+    // first
+    simdutf::result validation_result =
+        simdutf::validate_utf16_with_errors(data, length_that_fits);
+
+    if (validation_result.error == simdutf::SUCCESS) {
+      // Valid UTF-16 - use the fast path
+      result.read = findBestFit(data, length_that_fits, dest_length);
+      if (result.read != 0) {
+        DCHECK_LE(simdutf::utf8_length_from_utf16(data, result.read),
+                  dest_length);
+        result.written =
+            simdutf::convert_utf16_to_utf8(data, result.read, write_result);
+      }
+    } else {
+      // Invalid UTF-16 with unpaired surrogates - convert to well-formed first
+      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
+      // available
+      MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
+          length_that_fits);
+      simdutf::to_well_formed_utf16(
+          data, length_that_fits, conversion_buffer.out());
+
+      // Now use findBestFit with the well-formed data
+      result.read =
+          findBestFit(conversion_buffer.out(), length_that_fits, dest_length);
+      if (result.read != 0) {
+        DCHECK_LE(simdutf::utf8_length_from_utf16(conversion_buffer.out(),
+                                                  result.read),
+                  dest_length);
+        result.written = simdutf::convert_utf16_to_utf8(
+            conversion_buffer.out(), result.read, write_result);
+      }
+    }
+  }
+
+  DCHECK_LE(result.written, dest->ByteLength());
+  return result;
+}
 }  // namespace
 
 void BindingData::Deserialize(Local<Context> context,
@@ -200,109 +427,16 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsUint8Array());
 
   Realm* realm = Realm::GetCurrent(args);
-  Isolate* isolate = realm->isolate();
   BindingData* binding_data = realm->GetBindingData<BindingData>();
 
   Local<String> source = args[0].As<String>();
-
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
-  Local<ArrayBuffer> buf = dest->Buffer();
 
-  // Handle detached buffers - return {read: 0, written: 0}
-  if (buf->Data() == nullptr) {
-    binding_data->encode_into_results_buffer_[0] = 0;
-    binding_data->encode_into_results_buffer_[1] = 0;
-    return;
-  }
-
-  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
-  size_t dest_length = dest->ByteLength();
-  size_t read = 0;
-  size_t written = 0;
-
-  // For small strings (length <= 32), use the old V8 path for better
-  // performance
-  static constexpr int kSmallStringThreshold = 32;
-  if (source->Length() <= kSmallStringThreshold) {
-    written = source->WriteUtf8V2(isolate,
-                                  write_result,
-                                  dest_length,
-                                  String::WriteFlags::kReplaceInvalidUtf8,
-                                  &read);
-    binding_data->encode_into_results_buffer_[0] = static_cast<double>(read);
-    binding_data->encode_into_results_buffer_[1] = static_cast<double>(written);
-    return;
-  }
-
-  v8::String::ValueView view(isolate, source);
-  size_t length_that_fits =
-      std::min(static_cast<size_t>(view.length()), dest_length);
-
-  if (view.is_one_byte()) {
-    auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result =
-        simdutf::validate_ascii_with_errors(data, length_that_fits);
-    written = read = result.count;
-    memcpy(write_result, data, read);
-    write_result += read;
-    data += read;
-    length_that_fits -= read;
-    dest_length -= read;
-    if (length_that_fits != 0 && dest_length != 0) {
-      if (size_t rest = findBestFit(data, length_that_fits, dest_length)) {
-        DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
-        written += simdutf::convert_latin1_to_utf8(data, rest, write_result);
-        read += rest;
-      }
-    }
-  } else {
-    auto data = reinterpret_cast<const char16_t*>(view.data16());
-
-    // Limit conversion to what could fit in destination, avoiding splitting
-    // a valid surrogate pair at the boundary, which could cause a spurious call
-    // of simdutf::to_well_formed_utf16()
-    if (length_that_fits > 0 && length_that_fits < view.length() &&
-        isSurrogatePair(data[length_that_fits - 1], data[length_that_fits])) {
-      length_that_fits--;
-    }
-
-    // Check if input has unpaired surrogates - if so, convert to well-formed
-    // first
-    simdutf::result validation_result =
-        simdutf::validate_utf16_with_errors(data, length_that_fits);
-
-    if (validation_result.error == simdutf::SUCCESS) {
-      // Valid UTF-16 - use the fast path
-      read = findBestFit(data, length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(simdutf::utf8_length_from_utf16(data, read), dest_length);
-        written = simdutf::convert_utf16_to_utf8(data, read, write_result);
-      }
-    } else {
-      // Invalid UTF-16 with unpaired surrogates - convert to well-formed first
-      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
-      // available
-      MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
-          length_that_fits);
-      simdutf::to_well_formed_utf16(
-          data, length_that_fits, conversion_buffer.out());
-
-      // Now use findBestFit with the well-formed data
-      read =
-          findBestFit(conversion_buffer.out(), length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(
-            simdutf::utf8_length_from_utf16(conversion_buffer.out(), read),
-            dest_length);
-        written = simdutf::convert_utf16_to_utf8(
-            conversion_buffer.out(), read, write_result);
-      }
-    }
-  }
-  DCHECK_LE(written, dest->ByteLength());
-
-  binding_data->encode_into_results_buffer_[0] = static_cast<double>(read);
-  binding_data->encode_into_results_buffer_[1] = static_cast<double>(written);
+  EncodeIntoResult result = EncodeIntoImpl(realm->isolate(), source, dest);
+  binding_data->encode_into_results_buffer_[0] =
+      static_cast<double>(result.read);
+  binding_data->encode_into_results_buffer_[1] =
+      static_cast<double>(result.written);
 }
 
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
@@ -313,104 +447,121 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> source = args[0].As<String>();
+  MaybeLocal<Uint8Array> result = EncodeUtf8StringImpl(isolate, source);
+  if (!result.IsEmpty()) {
+    args.GetReturnValue().Set(result.ToLocalChecked());
+  }
+}
 
-  // For small strings, use the V8 path
-  static constexpr int kSmallStringThreshold = 32;
-  if (source->Length() <= kSmallStringThreshold) {
-    size_t length = source->Utf8LengthV2(isolate);
-    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-        isolate,
-        length,
-        BackingStoreInitializationMode::kUninitialized,
-        BackingStoreOnFailureMode::kReturnNull);
+void TextEncoderConstructor(const FunctionCallbackInfo<Value>& args) {
+  if (!args.IsConstructCall()) {
+    Isolate* isolate = args.GetIsolate();
+    isolate->ThrowException(v8::Exception::TypeError(
+        OneByteString(isolate,
+                      "Class constructor TextEncoder cannot be invoked without "
+                      "'new'")));
+    return;
+  }
+}
 
-    if (!bs) [[unlikely]] {
-      THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+void TextEncoderEncode(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<String> input;
+  if (args.Length() < 1 || args[0]->IsUndefined()) {
+    input = String::Empty(isolate);
+  } else {
+    if (!args[0]->ToString(context).ToLocal(&input)) return;
+  }
+
+  MaybeLocal<Uint8Array> result = EncodeUtf8StringImpl(isolate, input);
+  if (!result.IsEmpty()) {
+    args.GetReturnValue().Set(result.ToLocalChecked());
+  }
+}
+
+void TextEncoderEncodeInto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 2 || !args[0]->IsString() ||
+      args[0]->IsStringObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env,
+                               "The \"src\" argument must be of type string");
+    return;
+  }
+
+  if (!args[1]->IsUint8Array()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The \"dest\" argument must be an instance of Uint8Array");
+    return;
+  }
+
+  Local<String> source = args[0].As<String>();
+  Local<Uint8Array> dest = args[1].As<Uint8Array>();
+
+  EncodeIntoResult result = EncodeIntoImpl(isolate, source, dest);
+
+  // Use a cached ObjectTemplate so every result shares the same hidden class
+  // (map). This gives V8 fast-properties objects with inline storage, unlike
+  // DictionaryTemplate which creates slow dictionary-mode objects.
+  Local<Context> context = env->context();
+  auto result_template = env->text_encoder_encode_into_result_template();
+  if (result_template.IsEmpty()) {
+    result_template = ObjectTemplate::New(isolate);
+    result_template->SetInternalFieldCount(kEncodeIntoResultInternalFieldCount);
+    Local<FunctionTemplate> read_getter =
+        FunctionTemplate::New(isolate, EncodeIntoResultReadGetter);
+    Local<FunctionTemplate> written_getter =
+        FunctionTemplate::New(isolate, EncodeIntoResultWrittenGetter);
+    read_getter->SetLength(0);
+    written_getter->SetLength(0);
+    result_template->SetAccessorProperty(
+        env->read_string(),
+        read_getter,
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::None);
+    result_template->SetAccessorProperty(
+        env->written_string(),
+        written_getter,
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::None);
+    env->set_text_encoder_encode_into_result_template(result_template);
+  }
+
+  Local<Object> out;
+  if (!result_template->NewInstance(context).ToLocal(&out)) return;
+  out->SetInternalField(
+      kEncodeIntoResultReadField,
+      v8::Integer::NewFromUnsigned(isolate,
+                                   static_cast<uint32_t>(result.read)));
+  out->SetInternalField(
+      kEncodeIntoResultWrittenField,
+      v8::Integer::NewFromUnsigned(isolate,
+                                   static_cast<uint32_t>(result.written)));
+  args.GetReturnValue().Set(out);
+}
+
+void TextEncoderEncodingAccessor(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(isolate, "utf-8"));
+}
+
+void TextEncoderInspect(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  if (args.Length() > 0 && args[0]->IsNumber()) {
+    double depth = args[0].As<v8::Number>()->Value();
+    if (depth < 0) {
+      args.GetReturnValue().Set(args.This());
       return;
     }
-
-    source->WriteUtf8V2(isolate,
-                        static_cast<char*>(bs->Data()),
-                        bs->MaxByteLength(),
-                        String::WriteFlags::kReplaceInvalidUtf8);
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-    args.GetReturnValue().Set(Uint8Array::New(ab, 0, length));
-    return;
   }
 
-  size_t length = source->Length();
-  size_t utf8_length = 0;
-  bool is_one_byte = source->IsOneByte();
-
-  if (is_one_byte) {
-    // One-byte string (Latin1) - copy to buffer first, then process
-    MaybeStackBuffer<uint8_t, MAX_SIZE_FOR_STACK_ALLOC> latin1_buffer(length);
-    source->WriteOneByteV2(isolate, 0, length, latin1_buffer.out());
-
-    auto data = reinterpret_cast<const char*>(latin1_buffer.out());
-
-    // Check if it's pure ASCII - if so, we can just copy
-    simdutf::result result = simdutf::validate_ascii_with_errors(data, length);
-    if (result.error == simdutf::SUCCESS) {
-      // Pure ASCII - direct copy
-      std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-          isolate, length, BackingStoreInitializationMode::kUninitialized);
-      CHECK(bs);
-      memcpy(bs->Data(), data, length);
-      Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-      args.GetReturnValue().Set(Uint8Array::New(ab, 0, length));
-      return;
-    }
-
-    // Latin1 with non-ASCII characters - need conversion
-    utf8_length = simdutf::utf8_length_from_latin1(data, length);
-    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-        isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
-    CHECK(bs);
-    [[maybe_unused]] size_t written = simdutf::convert_latin1_to_utf8(
-        data, length, static_cast<char*>(bs->Data()));
-    DCHECK_EQ(written, utf8_length);
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-    args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
-    return;
-  }
-
-  // Two-byte string (UTF-16) - copy to buffer first
-  MaybeStackBuffer<uint16_t, MAX_SIZE_FOR_STACK_ALLOC> utf16_buffer(length);
-  source->WriteV2(isolate, 0, length, utf16_buffer.out());
-
-  auto data = reinterpret_cast<char16_t*>(utf16_buffer.out());
-
-  // Check for unpaired surrogates
-  simdutf::result validation_result =
-      simdutf::validate_utf16_with_errors(data, length);
-
-  if (validation_result.error == simdutf::SUCCESS) {
-    // Valid UTF-16 - use the fast path
-    utf8_length = simdutf::utf8_length_from_utf16(data, length);
-    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-        isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
-    CHECK(bs);
-    [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
-        data, length, static_cast<char*>(bs->Data()));
-    DCHECK_EQ(written, utf8_length);
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-    args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
-    return;
-  }
-
-  // Invalid UTF-16 with unpaired surrogates - convert to well-formed in place
-  simdutf::to_well_formed_utf16(data, length, data);
-
-  utf8_length = simdutf::utf8_length_from_utf16(data, length);
-  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-      isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
-  CHECK(bs);
-  [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
-      data, length, static_cast<char*>(bs->Data()));
-  DCHECK_EQ(written, utf8_length);
-  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-  args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
+  args.GetReturnValue().Set(
+      OneByteString(isolate, "TextEncoder { encoding: 'utf-8' }"));
 }
 
 // Convert the input into an encoded string
@@ -505,6 +656,72 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
   SetMethodNoSideEffect(isolate, target, "toUnicode", ToUnicode);
+
+  Local<FunctionTemplate> text_encoder =
+      NewFunctionTemplate(isolate, TextEncoderConstructor);
+  text_encoder->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "TextEncoder"));
+  Local<v8::Signature> signature = v8::Signature::New(isolate, text_encoder);
+
+  Local<FunctionTemplate> encode =
+      NewFunctionTemplate(isolate,
+                          TextEncoderEncode,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  encode->SetLength(0);
+  Local<String> encode_name = FIXED_ONE_BYTE_STRING(isolate, "encode");
+  text_encoder->PrototypeTemplate()->Set(encode_name, encode);
+  encode->SetClassName(encode_name);
+
+  Local<FunctionTemplate> encode_into =
+      NewFunctionTemplate(isolate,
+                          TextEncoderEncodeInto,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  encode_into->SetLength(2);
+  Local<String> encode_into_name =
+      FIXED_ONE_BYTE_STRING(isolate, "encodeInto");
+  text_encoder->PrototypeTemplate()->Set(encode_into_name, encode_into);
+  encode_into->SetClassName(encode_into_name);
+
+  Local<FunctionTemplate> encoding_getter =
+      NewFunctionTemplate(isolate,
+                          TextEncoderEncodingAccessor,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  encoding_getter->SetClassName(
+      FIXED_ONE_BYTE_STRING(isolate, "get encoding"));
+  encoding_getter->SetLength(0);
+  text_encoder->PrototypeTemplate()->SetAccessorProperty(
+      FIXED_ONE_BYTE_STRING(isolate, "encoding"),
+      encoding_getter,
+      Local<FunctionTemplate>(),
+      v8::PropertyAttribute::None);
+
+  Local<FunctionTemplate> inspect =
+      NewFunctionTemplate(isolate,
+                          TextEncoderInspect,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  inspect->SetLength(2);
+  Local<Symbol> inspect_symbol =
+      Symbol::For(isolate,
+                  FIXED_ONE_BYTE_STRING(isolate,
+                                        "nodejs.util.inspect.custom"));
+  text_encoder->PrototypeTemplate()->Set(
+      inspect_symbol, inspect, v8::PropertyAttribute::DontEnum);
+
+  text_encoder->PrototypeTemplate()->Set(
+      Symbol::GetToStringTag(isolate),
+      FIXED_ONE_BYTE_STRING(isolate, "TextEncoder"),
+      static_cast<v8::PropertyAttribute>(
+          v8::PropertyAttribute::ReadOnly | v8::PropertyAttribute::DontEnum));
+
+  text_encoder->ReadOnlyPrototype();
+  SetConstructorFunction(isolate, target, "TextEncoder", text_encoder);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -520,6 +737,11 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
   registry->Register(DecodeUTF8);
+  registry->Register(TextEncoderConstructor);
+  registry->Register(TextEncoderEncode);
+  registry->Register(TextEncoderEncodeInto);
+  registry->Register(TextEncoderEncodingAccessor);
+  registry->Register(TextEncoderInspect);
   registry->Register(ToASCII);
   registry->Register(ToUnicode);
 }
