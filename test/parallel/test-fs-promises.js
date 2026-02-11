@@ -152,6 +152,12 @@ async function executeOnHandle(dest, func) {
       }));
     }
 
+    // File stats throwIfNoEntry: false
+    {
+      const stats = await stat('meow.js', { throwIfNoEntry: false });
+      assert.strictEqual(stats, undefined);
+    }
+
     // File system stats
     {
       const statFs = await statfs(dest);
