@@ -1956,6 +1956,9 @@ npx codemod@latest @nodejs/node-url-to-whatwg-url
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61780
+    description: Documentation-only deprecation.
   - version:
       - v15.13.0
       - v14.17.0
@@ -1978,6 +1981,8 @@ changes:
     description: The `auth` fields is cleared now the `to` parameter
                  contains a hostname.
 -->
+
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
 
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
