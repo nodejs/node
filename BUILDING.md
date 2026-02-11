@@ -780,22 +780,36 @@ first and then reinstalling them.
 
 ##### Option 2: Automated install with WinGet
 
-[WinGet configuration files](https://github.com/nodejs/node/tree/main/.configurations)
+[WinGet configuration files](./.configurations)
 can be used to install all the required prerequisites for Node.js development
 easily. These files will install the following
 [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/) packages:
 
 * Git for Windows with the `git` and Unix tools added to the `PATH`
 * `Python 3.14`
-* `Visual Studio 2022` (Community, Enterprise or Professional)
-* `Visual Studio 2022 Build Tools` with Visual C++ workload, Clang and ClangToolset
+* `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
+  "Desktop development with C++" workload, Clang and ClangToolset optional components
 * `NetWide Assembler`
 
-To install Node.js prerequisites from PowerShell Terminal:
+The following Desired State Configuration (DSC) files are available:
+
+| Edition      | DSC Configuration                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| Build Tools  | [configuration.vsBuildTools.dsc.yaml](./.configurations/configuration.vsBuildTools.dsc.yaml)     |
+| Community    | [configuration.dsc.yaml](./.configurations/configuration.dsc.yaml)                               |
+| Professional | [configuration.vsProfessional.dsc.yaml](./.configurations/configuration.vsProfessional.dsc.yaml) |
+| Enterprise   | [configuration.vsEnterprise.dsc.yaml](./.configurations/configuration.vsEnterprise.dsc.yaml)     |
+
+Use one of the above DSC files with
+[winget configure](https://learn.microsoft.com/en-us/windows/package-manager/winget/configure#configure-subcommands)
+in a PowerShell Terminal to install Node.js prerequisites.
+For example, using the DSC file for Visual Studio Community Edition, execute the following command line:
 
 ```powershell
 winget configure .\.configurations\configuration.dsc.yaml
 ```
+
+To add optional components for MSI or ARM64 builds, refer to [Option 1: Manual install](#option-1-manual-install).
 
 ##### Option 3: Automated install with Boxstarter
 
