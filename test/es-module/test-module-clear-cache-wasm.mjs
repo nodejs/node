@@ -1,5 +1,6 @@
 // Flags: --no-warnings
 
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { clearCache } from 'node:module';
 
