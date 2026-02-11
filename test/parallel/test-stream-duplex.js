@@ -147,10 +147,14 @@ process.on('exit', () => {
     })
   });
 
-  const { writable, readable } = Duplex.toWeb(duplex, { type: 'bytes' });
+  const { writable, readable } = Duplex.toWeb(duplex, { readableType: 'bytes' });
   writable.getWriter().write(dataToWrite);
   const data = new Uint8Array(dataToRead.length);
   readable.getReader({ mode: 'byob' }).read(data).then(common.mustCall((result) => {
     assert.deepStrictEqual(Buffer.from(result.value), dataToRead);
   }));
+
+  // Ensure that the originally-named `options.type` still works as an alias for `options.readableType`
+  // `getReader({ mode: 'byob' })` throws if the underlying ReadableStream is not a byte stream
+  Duplex.toWeb(duplex, { type: 'bytes' }).readable.getReader({ mode: 'byob' });
 }
