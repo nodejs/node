@@ -3,11 +3,30 @@ const common = require('.');
 const path = require('node:path');
 const test = require('node:test');
 const fs = require('node:fs/promises');
+const { realpathSync } = require('node:fs');
 const assert = require('node:assert/strict');
 const { pathToFileURL } = require('node:url');
 const { hostname } = require('node:os');
 
-const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
+/* eslint-disable @stylistic/js/max-len,no-control-regex */
+/**
+ * Group 1: Line start (including color codes and escapes)
+ * Group 2: Function name
+ * Group 3: Filename
+ * Group 4: Line number
+ * Group 5: Column number
+ * Group 6: Line end (including color codes and `{` which indicates the start of an error object details)
+ */
+// Mappings:                              (g1                             )   (g2 )          (g3      ) (g4 )    (g5 )      (g6                       )
+const internalStackFramesRegexp = /(?<=\n)(\s*(?:\x1b?\[\d+m\s+)?(?:at\s)?)(?:(.+?)\s+\()?(?:(node:.+?):(\d+)(?::(\d+))?)\)?((?:\x1b?\[\d+m)?\s*{?\n|$)/g;
+/**
+ * Group 1: Filename
+ * Group 2: Line number
+ * Group 3: Line end and source code line
+ */
+const internalErrorSourceLines = /(?<=\n|^)(node:.+?):(\d+)(\n.*\n\s*\^(?:\n|$))/g;
+/* eslint-enable @stylistic/js/max-len,no-control-regex */
+
 const windowNewlineRegexp = /\r/g;
 
 // Replaces the current Node.js executable version strings with a
@@ -17,14 +36,33 @@ function replaceNodeVersion(str) {
   return str.replaceAll(`Node.js ${process.version}`, 'Node.js <node-version>');
 }
 
-function replaceStackTrace(str, replacement = '$1*$7$8\n') {
-  return str.replace(stackFramesRegexp, replacement);
+// Collapse consecutive identical lines containing the keyword into
+// one single line. The `str` should have been processed by `replaceWindowsLineEndings`.
+function foldIdenticalLines(str, keyword) {
+  const lines = str.split('\n');
+  const folded = lines.filter((line, idx) => {
+    if (idx === 0) {
+      return true;
+    }
+    if (line.includes(keyword) && line === lines[idx - 1]) {
+      return false;
+    }
+    return true;
+  });
+  return folded.join('\n');
 }
 
+const kInternalFrame = '<node-internal-frames>';
+// Replace non-internal frame `at TracingChannel.traceSync (node:diagnostics_channel:328:14)`
+// as well as `at node:internal/main/run_main_module:33:47` with `at <node-internal-frames>`.
+// Also replaces error source line like:
+//   node:internal/mod.js:44
+//     throw err;
+//     ^
 function replaceInternalStackTrace(str) {
-  // Replace non-internal frame `at TracingChannel.traceSync (node:diagnostics_channel:328:14)`
-  // as well as `at node:internal/main/run_main_module:33:47` with `*`.
-  return str.replaceAll(/(\W+).*[(\s]node:.*/g, '$1*');
+  const result = str.replaceAll(internalErrorSourceLines, `$1:<line>$3`)
+    .replaceAll(internalStackFramesRegexp, `$1${kInternalFrame}$6`);
+  return foldIdenticalLines(result, kInternalFrame);
 }
 
 // Replaces Windows line endings with posix line endings for unified snapshots
@@ -36,7 +74,12 @@ function replaceWindowsLineEndings(str) {
 // Replaces all Windows path separators with posix separators for unified snapshots
 // across platforms.
 function replaceWindowsPaths(str) {
-  return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
+  if (!common.isWindows) {
+    return str;
+  }
+  // Only replace `\` and `\\` with a leading letter, colon, or a `.`.
+  // Avoid replacing escaping patterns like ` \#`, `\ `, or `\\`.
+  return str.replaceAll(/(?<=(\w:|\.|\w+)(?:\S|\\ )*)\\\\?/g, '/');
 }
 
 // Removes line trailing white spaces.
@@ -55,28 +98,51 @@ function replaceWarningPid(str) {
   return str.replaceAll(/\(node:\d+\)/g, '(node:<pid>)');
 }
 
-// Replaces path strings representing the nodejs/node repo full project root with
-// `<project-root>`. Also replaces file URLs containing the full project root path.
-// The project root path may contain unicode characters.
-function transformProjectRoot(replacement = '<project-root>') {
-  const projectRoot = path.resolve(__dirname, '../..');
+// Replaces a path with a placeholder. The path can be a platform specific path
+// or a file URL.
+function transformPath(dirname, replacement) {
   // Handles output already processed by `replaceWindowsPaths`.
-  const winPath = replaceWindowsPaths(projectRoot);
-  // Handles URL encoded project root in file URL strings as well.
-  const urlEncoded = pathToFileURL(projectRoot).pathname;
+  const winPath = replaceWindowsPaths(dirname);
+  // Handles URL encoded path in file URL strings as well.
+  const urlEncoded = pathToFileURL(dirname).pathname;
   // On Windows, paths are case-insensitive, so we need to use case-insensitive
   // regex replacement to handle cases where the drive letter case differs.
   const flags = common.isWindows ? 'gi' : 'g';
   const urlEncodedRegex = new RegExp(RegExp.escape(urlEncoded), flags);
-  const projectRootRegex = new RegExp(RegExp.escape(projectRoot), flags);
+  const dirnameRegex = new RegExp(RegExp.escape(dirname), flags);
   const winPathRegex = new RegExp(RegExp.escape(winPath), flags);
   return (str) => {
     return str.replaceAll('\\\'', "'")
       // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
       .replaceAll(urlEncodedRegex, replacement)
-      .replaceAll(projectRootRegex, replacement)
+      .replaceAll(dirnameRegex, replacement)
       .replaceAll(winPathRegex, replacement);
   };
+}
+
+// Replaces path strings representing the nodejs/node repo full project root with
+// `<project-root>`. Also replaces file URLs containing the full project root path.
+// The project root path may contain unicode characters.
+const kProjectRoot = '<project-root>';
+function transformProjectRoot() {
+  const projectRoot = path.resolve(__dirname, '../..');
+  if (process.env.NODE_TEST_DIR) {
+    const testDir = realpathSync(process.env.NODE_TEST_DIR);
+    // On Jenkins CI, the test dir may be overridden by `NODE_TEST_DIR`.
+    return transform(
+      transformPath(projectRoot, kProjectRoot),
+      transformPath(testDir, `${kProjectRoot}/test`),
+      // TODO(legendecas): test-runner may print relative paths to the test relative to cwd.
+      // It will be better if we could distinguish them from the project root.
+      transformPath(path.relative(projectRoot, testDir), 'test'),
+    );
+  }
+  return transformPath(projectRoot, kProjectRoot);
+}
+
+// Replaces tmpdirs created by `test/common/tmpdir.js`.
+function transformTmpDir(str) {
+  return str.replaceAll(/\/\.tmp\.\d+\//g, '/<tmpdir>/');
 }
 
 function transform(...args) {
@@ -149,14 +215,10 @@ function replaceTestDuration(str) {
 }
 
 const root = path.resolve(__dirname, '..', '..');
-const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${RegExp.escape(root)}/?${color}(.*)${color}\\)`, 'g');
-
 function replaceSpecDuration(str) {
   return str
     .replaceAll(/[0-9.]+ms/g, '*ms')
-    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replace(stackTraceBasePath, '$3');
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
 }
 
 function replaceJunitDuration(str) {
@@ -164,16 +226,7 @@ function replaceJunitDuration(str) {
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
-    .replaceAll(/file="[^"]*"/g, 'file="*"')
-    .replace(stackTraceBasePath, '$3');
-}
-
-function removeWindowsPathEscaping(str) {
-  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
-}
-
-function replaceTestLocationLine(str) {
-  return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
+    .replaceAll(/file="[^"]*"/g, 'file="*"');
 }
 
 // The Node test coverage returns results for all files called by the test. This
@@ -194,40 +247,37 @@ function pickTestFileFromLcov(str) {
 }
 
 // Transforms basic patterns like:
-// - platform specific path and line endings,
-// - line trailing spaces,
-// - executable specific path and versions.
+// - platform specific path and line endings
+// - line trailing spaces
+// - executable specific path and versions
+// - project root path and tmpdir
+// - node internal stack frames
 const basicTransform = transform(
   replaceWindowsLineEndings,
   replaceTrailingSpaces,
-  removeWindowsPathEscaping,
   replaceWindowsPaths,
   replaceNodeVersion,
   generalizeExeName,
   replaceWarningPid,
+  transformProjectRoot(),
+  transformTmpDir,
+  replaceInternalStackTrace,
 );
 
 const defaultTransform = transform(
   basicTransform,
-  replaceStackTrace,
-  transformProjectRoot(),
   replaceTestDuration,
-  replaceTestLocationLine,
 );
 const specTransform = transform(
   replaceSpecDuration,
   basicTransform,
-  replaceStackTrace,
 );
 const junitTransform = transform(
   replaceJunitDuration,
   basicTransform,
-  replaceStackTrace,
 );
 const lcovTransform = transform(
   basicTransform,
-  replaceStackTrace,
-  transformProjectRoot(),
   pickTestFileFromLcov,
 );
 
@@ -246,7 +296,6 @@ module.exports = {
   assertSnapshot,
   getSnapshotPath,
   replaceNodeVersion,
-  replaceStackTrace,
   replaceInternalStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,
