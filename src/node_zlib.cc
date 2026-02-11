@@ -257,7 +257,7 @@ class BrotliEncoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init(std::string_view dictionary = {});
+  CompressionError Init(std::vector<uint8_t>&& dictionary = {});
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -279,7 +279,7 @@ class BrotliDecoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init(std::string_view dictionary = {});
+  CompressionError Init(std::vector<uint8_t>&& dictionary = {});
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -849,19 +849,18 @@ class BrotliCompressionStream final :
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    std::string_view dictionary;
-    ArrayBufferViewContents<char> contents;
+    std::vector<uint8_t> dictionary;
     if (args.Length() == 4 && !args[3]->IsUndefined()) {
       if (!args[3]->IsArrayBufferView()) {
         THROW_ERR_INVALID_ARG_TYPE(
             wrap->env(), "dictionary must be an ArrayBufferView if provided");
         return;
       }
-      contents.ReadValue(args[3]);
-      dictionary = std::string_view(contents.data(), contents.length());
+      ArrayBufferViewContents<uint8_t> contents(args[3]);
+      dictionary.assign(contents.data(), contents.data() + contents.length());
     }
 
-    CompressionError err = wrap->context()->Init(dictionary);
+    CompressionError err = wrap->context()->Init(std::move(dictionary));
     if (err.IsError()) {
       wrap->EmitError(err);
       // TODO(addaleax): Sometimes we generate better error codes in C++ land,
@@ -1412,7 +1411,7 @@ void BrotliEncoderContext::Close() {
   mode_ = NONE;
 }
 
-CompressionError BrotliEncoderContext::Init(std::string_view dictionary) {
+CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
   brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
   brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
   void* opaque =
@@ -1432,11 +1431,8 @@ CompressionError BrotliEncoderContext::Init(std::string_view dictionary) {
 
   if (!dictionary.empty()) {
     // The dictionary data must remain valid for the lifetime of the prepared
-    // dictionary, so copy it into a member vector.
-    dictionary_.assign(
-        reinterpret_cast<const uint8_t*>(dictionary.data()),
-        reinterpret_cast<const uint8_t*>(dictionary.data()) +
-            dictionary.size());
+    // dictionary, so take ownership via move.
+    dictionary_ = std::move(dictionary);
 
     prepared_dictionary_.reset(BrotliEncoderPrepareDictionary(
         BROTLI_SHARED_DICTIONARY_RAW,
@@ -1513,7 +1509,7 @@ void BrotliDecoderContext::DoThreadPoolWork() {
   }
 }
 
-CompressionError BrotliDecoderContext::Init(std::string_view dictionary) {
+CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
   brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
   brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
   void* opaque =
@@ -1532,11 +1528,8 @@ CompressionError BrotliDecoderContext::Init(std::string_view dictionary) {
 
   if (!dictionary.empty()) {
     // The dictionary data must remain valid for the lifetime of the decoder,
-    // so copy it into a member vector.
-    dictionary_.assign(
-        reinterpret_cast<const uint8_t*>(dictionary.data()),
-        reinterpret_cast<const uint8_t*>(dictionary.data()) +
-            dictionary.size());
+    // so take ownership via move.
+    dictionary_ = std::move(dictionary);
 
     if (!BrotliDecoderAttachDictionary(state_.get(),
                                        BROTLI_SHARED_DICTIONARY_RAW,

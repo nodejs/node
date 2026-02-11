@@ -64,9 +64,63 @@ zlib.brotliCompress(input, { dictionary }, common.mustSucceed((compressed) => {
   assert.throws(() => {
     zlib.brotliDecompressSync(compressed);
   }, (err) => {
-    // The exact error may vary, but decoding should fail without the
-    // matching dictionary.
-    return err.code === 'ERR_BROTLI_COMPRESSION_FAILED' ||
-           err instanceof Error;
+    assert.match(err.code, /ERR_/);
+    return true;
   });
+}
+
+// Test that decompression with wrong dictionary fails.
+{
+  const compressed = zlib.brotliCompressSync(input, { dictionary });
+  const wrongDictionary = Buffer.from('this is the wrong dictionary');
+  assert.throws(() => {
+    zlib.brotliDecompressSync(compressed, { dictionary: wrongDictionary });
+  }, (err) => {
+    assert.match(err.code, /ERR_/);
+    return true;
+  });
+}
+
+// Test that dictionary works with ArrayBuffer (converted to Buffer).
+{
+  const arrayBufferDict = dictionary.buffer.slice(
+    dictionary.byteOffset,
+    dictionary.byteOffset + dictionary.byteLength,
+  );
+  const compressed = zlib.brotliCompressSync(input, { dictionary: arrayBufferDict });
+  const decompressed = zlib.brotliDecompressSync(compressed, { dictionary: arrayBufferDict });
+  assert.strictEqual(decompressed.toString(), input.toString());
+}
+
+// Test that dictionary works with TypedArray (Uint8Array).
+{
+  const uint8Dict = new Uint8Array(dictionary);
+  const compressed = zlib.brotliCompressSync(input, { dictionary: uint8Dict });
+  const decompressed = zlib.brotliDecompressSync(compressed, { dictionary: uint8Dict });
+  assert.strictEqual(decompressed.toString(), input.toString());
+}
+
+// Test that invalid dictionary type throws ERR_INVALID_ARG_TYPE.
+for (const invalidDict of ['string', 123, true, { object: true }, [1, 2, 3]]) {
+  assert.throws(() => {
+    zlib.createBrotliCompress({ dictionary: invalidDict });
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+
+  assert.throws(() => {
+    zlib.createBrotliDecompress({ dictionary: invalidDict });
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
+// Test with streaming API and wrong dictionary emits error event.
+{
+  const compressed = zlib.brotliCompressSync(input, { dictionary });
+  const wrongDict = Buffer.from('wrong dictionary data');
+  const decoder = zlib.createBrotliDecompress({ dictionary: wrongDict });
+
+  decoder.on('error', common.mustCall((err) => {
+    assert.match(err.code, /ERR_/);
+  }));
+
+  decoder.write(compressed);
+  decoder.end();
 }
