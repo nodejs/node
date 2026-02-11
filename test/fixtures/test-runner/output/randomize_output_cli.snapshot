@@ -1,13 +1,13 @@
 ✔ g.cjs this should pass (*ms)
-✔ e.cjs this should pass (*ms)
-✔ i.cjs this should pass (*ms)
-✔ a.cjs this should pass (*ms)
-✔ b.cjs this should pass (*ms)
-✔ h.cjs this should pass (*ms)
-✔ f.cjs this should pass (*ms)
-✔ d.cjs this should pass (*ms)
-✔ c.cjs this should pass (*ms)
 ✔ j.cjs this should pass (*ms)
+✔ a.cjs this should pass (*ms)
+✔ h.cjs this should pass (*ms)
+✔ d.cjs this should pass (*ms)
+✔ b.cjs this should pass (*ms)
+✔ i.cjs this should pass (*ms)
+✔ e.cjs this should pass (*ms)
+✔ c.cjs this should pass (*ms)
+✔ f.cjs this should pass (*ms)
 ℹ Randomized test order seed: 12345
 ℹ tests 10
 ℹ suites 0
