@@ -1,8 +1,8 @@
-evalscript.js:*
+evalscript.js:3
   throw new Error('error in named script');
   ^
 
 Error: error in named script
-    at eval (evalscript.js:*:*)
+    at eval (evalscript.js:3:9)
 
 Node.js <node-version>

@@ -5,13 +5,13 @@ TAP version 13
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/unfinished-suite-async-error.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/unfinished-suite-async-error.js:5:3'
       failureType: 'uncaughtException'
       error: 'callback test does not complete'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
+        Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/unfinished-suite-async-error.js:7:13)
+        <node-internal-frames>
       ...
     # Subtest: should pass 1
     ok 2 - should pass 1
@@ -24,7 +24,7 @@ not ok 1 - unfinished suite with asynchronous error
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/unfinished-suite-async-error.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/unfinished-suite-async-error.js:4:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
