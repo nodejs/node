@@ -370,11 +370,12 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   if (!v8_flags.experimental_wasm_growable_stacks) {
     return rbp;
   }
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   cmpq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
        Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   j(equal, &call_runtime);
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
   movq(old_fp.gp(), rbp);
   jmp(&done);
 

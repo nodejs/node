@@ -966,25 +966,6 @@ class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class CallSiteInfo::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    // The field can contain either a Code or a BytecodeArray object, so we need
-    // to use the kUnknownIndirectPointerTag here.
-    IterateTrustedPointer(obj, kCodeObjectOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kUnknownIndirectPointerTag);
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return obj->SizeFromMap(map);
-  }
-};
-
 class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1027,6 +1008,13 @@ class JSSynchronizationPrimitive::BodyDescriptor final
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return map->instance_size();
+  }
+};
+
+class Hole::BodyDescriptor : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(Hole);
   }
 };
 
@@ -1249,7 +1237,7 @@ class WasmNull::BodyDescriptor : public DataOnlyBodyDescriptor {
                 WasmNull::kEndOfStrongFieldsOffset);
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return WasmNull::Size();
+    return WasmNull::kSize;
   }
 };
 
@@ -1488,9 +1476,8 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
 class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(AccessorInfo::kEndOfStrongFieldsOffset ==
-                AccessorInfo::kMaybeRedirectedGetterOffset);
-  static_assert(AccessorInfo::kMaybeRedirectedGetterOffset <
-                AccessorInfo::kSetterOffset);
+                AccessorInfo::kGetterOffset);
+  static_assert(AccessorInfo::kGetterOffset < AccessorInfo::kSetterOffset);
   static_assert(AccessorInfo::kSetterOffset < AccessorInfo::kFlagsOffset);
   static_assert(AccessorInfo::kFlagsOffset < AccessorInfo::kSize);
 
@@ -1499,9 +1486,9 @@ class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize,
                     AccessorInfo::kEndOfStrongFieldsOffset, v);
-    v->VisitExternalPointer(obj, obj->RawExternalPointerField(
-                                     AccessorInfo::kMaybeRedirectedGetterOffset,
-                                     kAccessorInfoGetterTag));
+    v->VisitExternalPointer(
+        obj, obj->RawExternalPointerField(AccessorInfo::kGetterOffset,
+                                          kAccessorInfoGetterTag));
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(AccessorInfo::kSetterOffset,
                                           kAccessorInfoSetterTag));
@@ -1563,9 +1550,8 @@ class FunctionTemplateInfo::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, HeapObject::kHeaderSize,
                     FunctionTemplateInfo::kEndOfStrongFieldsOffset, v);
     v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(
-                 FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-                 kFunctionTemplateInfoCallbackTag));
+        obj, obj->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
+                                          kFunctionTemplateInfoCallbackTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

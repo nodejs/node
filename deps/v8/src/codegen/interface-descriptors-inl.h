@@ -813,11 +813,12 @@ constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
 
 #if V8_ENABLE_WEBASSEMBLY
 constexpr auto WasmFXResumeDescriptor::registers() {
-  return RegisterArray(wasm::kGpParamRegisters[0]);
+  return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1]);
 }
 constexpr auto WasmFXSuspendDescriptor::registers() {
   // Reg 0 is the context register.
-  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2]);
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3]);
 }
 #endif
 

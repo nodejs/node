@@ -22,10 +22,10 @@ frame size: 1
 parameter count: 1
 bytecode array length: 11
 bytecodes: [
-  /*  102 S> */ B(LdaImmutableContextSlot), R(context), U8(2), U8(1),
+  /*  102 S> */ B(LdaImmutableContextSlot), R(context), C8(2), U8(1),
                 B(Star0),
-                B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  118 E> */ B(Mul), R(0), U8(0),
+                B(LdaImmutableCurrentContextSlot), C8(2),
+  /*  118 E> */ B(Mul), R(0), FBV(0),
   /*  129 S> */ B(Return),
 ]
 constant pool: [
@@ -49,8 +49,8 @@ frame size: 0
 parameter count: 1
 bytecode array length: 8
 bytecodes: [
-  /*  102 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  111 E> */ B(StaContextSlotNoCell), R(context), U8(2), U8(1),
+  /*  102 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
+  /*  111 E> */ B(StaContextSlotNoCell), R(context), C8(2), U8(1),
                 B(LdaUndefined),
   /*  123 S> */ B(Return),
 ]

@@ -1300,15 +1300,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector, r1);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  // Check for an tiering state.
-  Label flags_need_processing;
-  Register flags = r8;
-  {
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1385,17 +1376,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
-
-    // Drop the frame created by the baseline call.
-    __ Pop(r14, fp);
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-    __ Trap();
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {
@@ -1471,16 +1451,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadFeedbackVector(feedback_vector, closure, r6, &push_stack_frame);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  // If feedback vector is valid, check for optimized code and update invocation
-  // count.
-
-  Register flags = r6;
-  Label flags_need_processing;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &flags_need_processing);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, r1);
 
@@ -1643,43 +1613,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&is_baseline);
   {
-#ifndef V8_ENABLE_LEAPTIERING
-    // Load the feedback vector from the closure.
-    __ LoadTaggedField(
-        feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ LoadTaggedField(
-        feedback_vector,
-        FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
-
-    Label install_baseline_code;
-    // Check if feedback vector is valid. If not, call prepare for baseline to
-    // allocate it.
-    __ LoadTaggedField(
-        ip, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
-    __ LoadU16(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
-    __ CmpS32(ip, Operand(FEEDBACK_VECTOR_TYPE));
-    __ b(ne, &install_baseline_code);
-
-    // Check for an tiering state.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-
-    // Load the baseline code into the closure.
-    __ mov(r4, kInterpreterBytecodeArrayRegister);
-    static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-    __ ReplaceClosureCodeWithOptimizedCode(r4, closure, ip, r1);
-    __ JumpCodeObject(r4);
-
-    __ bind(&install_baseline_code);
-#endif  // !V8_ENABLE_LEAPTIERING
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 #endif  // !V8_JITLESS
@@ -3613,9 +3549,11 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+  DCHECK(!AreAliased(r3, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, r3);
   __ Trap();
   __ bind(&suspend);
@@ -3627,7 +3565,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label resume;
+  __ Push(arg_buffer);
   __ Push(cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -3645,7 +3585,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
   __ Pop(cont, kContextRegister);
-
+  __ Pop(arg_buffer);
   Label ok;
   __ CmpU64(target_stack, Operand(0));
   __ bne(&ok);
@@ -3654,9 +3594,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
+  DCHECK(!AreAliased(r5, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, r5);
   __ Trap();
   __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4641,8 +4583,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   if (mode == CallApiCallbackMode::kGeneric) {
     __ LoadU64(
         api_function_address,
-        FieldMemOperand(func_templ,
-                        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
+        FieldMemOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
   }
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                     StackFrame::API_CALLBACK_EXIT);
@@ -4702,9 +4643,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4714,9 +4655,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
   Register name_arg = kCArgRegs[0];
@@ -4731,12 +4672,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(receiver, holder, callback, scratch, smi_zero));
 
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset), r1);
-  __ Push(receiver, scratch);
+  __ Push(receiver, callback);
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Move(smi_zero, Smi::zero());
-  __ Push(scratch, smi_zero);  // kReturnValueIndex, kHolderV2Index
+  __ Push(scratch, smi_zero);  // kReturnValueIndex, kUnusedIndex
   __ Move(scratch, ER::isolate_address());
   __ Push(scratch, holder);
   __ LoadTaggedField(name_arg,
@@ -4745,9 +4684,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Push(smi_zero, name_arg);  // should_throw_on_error -> kDontThrow, name
 
   __ RecordComment("Load api_function_address");
-  __ LoadU64(
-      api_function_address,
-      FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
+  __ LoadU64(api_function_address,
+             FieldMemOperand(callback, AccessorInfo::kGetterOffset));
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),

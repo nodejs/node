@@ -49,7 +49,7 @@ class InterpreterFrameState {
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     frame_[interpreter::Register::virtual_accumulator()] = value;
   }
   ValueNode* accumulator() const {
@@ -63,7 +63,7 @@ class InterpreterFrameState {
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
     // Conversions should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     frame_[reg] = value;
   }
   ValueNode* get(interpreter::Register reg) const {

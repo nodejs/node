@@ -1445,6 +1445,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   // Set up the pointer back from the global object to the global proxy.
   global_object->set_global_proxy(*global_proxy);
+  global_object->set_global_proxy_for_api(*global_proxy);
   // Set the native context of the global proxy.
   global_proxy->map()->set_map(isolate(), native_context()->meta_map());
   // Set the global proxy of the native context. If the native context has been
@@ -3133,7 +3134,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<JSFunction> perform_promise_then =
         SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtin::kPerformPromiseThenFunction, 2, kAdapt);
+                             Builtin::kPerformPromiseThenFunction, 3, kAdapt);
     native_context()->set_perform_promise_then(*perform_promise_then);
 
     InstallFunctionWithBuiltinId(isolate_, prototype, "catch",
@@ -5671,8 +5672,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsMutexTryLock, 2, kAdapt);
     SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
                           Builtin::kAtomicsMutexIsMutex, 1, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "lockAsync",
-                          Builtin::kAtomicsMutexLockAsync, 2, kAdapt);
   }
 
   {  // Atomics.Condition
@@ -5691,8 +5690,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsConditionNotify, 2, kDontAdapt);
     SimpleInstallFunction(isolate(), condition_fun, "isCondition",
                           Builtin::kAtomicsConditionIsCondition, 1, kAdapt);
-    SimpleInstallFunction(isolate(), condition_fun, "waitAsync",
-                          Builtin::kAtomicsConditionWaitAsync, 2, kDontAdapt);
   }
 }
 
@@ -6994,8 +6991,7 @@ Genesis::Genesis(Isolate* isolate,
       HookUpGlobalProxy(global_proxy);
     }
     DCHECK_EQ(global_proxy->GetCreationContext(), *native_context());
-    DCHECK(!global_proxy->IsDetachedFrom(isolate,
-                                         native_context()->global_object()));
+    DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
     DCHECK(native_context().is_null());
 

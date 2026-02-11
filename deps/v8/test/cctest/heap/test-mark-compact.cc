@@ -218,7 +218,8 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   page->set_is_pinned_for_testing(true);
 
   heap::InvokeMajorGC(heap);
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   // The pinned flag should prevent the page from moving.
   for (DirectHandle<FixedArray> object : handles) {
@@ -228,7 +229,8 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   page->set_is_pinned_for_testing(false);
 
   heap::InvokeMajorGC(heap);
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   // `compact_on_every_full_gc` ensures that this page is an evacuation
   // candidate, so with the pin flag cleared compaction should now move it.
@@ -350,8 +352,8 @@ TEST(Regress5829) {
   heap::SealCurrentObjects(heap);
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (heap->sweeping_in_progress()) {
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                  CompleteSweepingReason::kTesting);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {

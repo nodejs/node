@@ -369,7 +369,7 @@ class ConvertableToTraceFormat {
  *
  * Can be implemented by an embedder to record trace events from V8.
  *
- * Will become obsolete in Perfetto SDK build (v8_use_perfetto = true).
+ * Will become obsolete in Perfetto build (v8_use_perfetto = true).
  */
 class TracingController {
  public:

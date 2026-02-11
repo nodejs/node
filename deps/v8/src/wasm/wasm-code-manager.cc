@@ -2371,8 +2371,8 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
-                                                     int code_section_length) {
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(
+    int num_functions, size_t code_section_length) {
   // It can happen that even without any functions we still have a code section
   // of size 1, defining 0 function bodies. Still report 0 overall in this case.
   if (num_functions == 0) return 0;

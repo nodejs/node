@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/debugging/stacktrace.h"
 #include "benchmark/benchmark.h"
+
+static bool g_enable_fixup = false;
+
+#if ABSL_HAVE_ATTRIBUTE_WEAK
+// Override these weak symbols if possible.
+bool absl::internal_stacktrace::ShouldFixUpStack() { return g_enable_fixup; }
+void absl::internal_stacktrace::FixUpStack(void**, uintptr_t*, int*, size_t,
+                                           size_t&) {}
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -42,14 +55,24 @@ ABSL_ATTRIBUTE_NOINLINE void func(benchmark::State& state, int x, int depth) {
   func(state, --x, depth);
 }
 
+template <bool EnableFixup>
 void BM_GetStackTrace(benchmark::State& state) {
+  const Cleanup restore_state(
+      [prev = g_enable_fixup]() { g_enable_fixup = prev; });
+  g_enable_fixup = EnableFixup;
   int depth = state.range(0);
   for (auto s : state) {
     func(state, depth, depth);
   }
 }
 
-BENCHMARK(BM_GetStackTrace)->DenseRange(10, kMaxStackDepth, 10);
+#if ABSL_HAVE_ATTRIBUTE_WEAK
+auto& BM_GetStackTraceWithFixup = BM_GetStackTrace<true>;
+BENCHMARK(BM_GetStackTraceWithFixup)->DenseRange(10, kMaxStackDepth, 10);
+#endif
+
+auto& BM_GetStackTraceWithoutFixup = BM_GetStackTrace<false>;
+BENCHMARK(BM_GetStackTraceWithoutFixup)->DenseRange(10, kMaxStackDepth, 10);
 }  // namespace
 ABSL_NAMESPACE_END
 }  // namespace absl

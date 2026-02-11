@@ -12,6 +12,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"  // For kMaximumStackSize.
@@ -110,6 +111,25 @@ uint32_t Load16AlignedUnsigned(const uint8_t* pc) {
 int32_t Load16AlignedSigned(const uint8_t* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const int16_t*>(pc);
+}
+
+template <class Char>
+constexpr int BitsPerChar() {
+  return kBitsPerByte * sizeof(Char);
+}
+
+template <class Char>
+uint32_t Load2Characters(const base::Vector<const Char>& string, int index) {
+  return string[index] | (string[index + 1] << BitsPerChar<Char>());
+}
+
+uint32_t Load4Characters(const base::Vector<const uint8_t>& string, int index) {
+  return string[index] | (string[index + 1] << 8) | (string[index + 2] << 16) |
+         (string[index + 3] << 24);
+}
+
+uint32_t Load4Characters(const base::Vector<const base::uc16>&, int) {
+  UNREACHABLE();
 }
 
 // Helpers to access the packed argument. Takes the 32 bits containing the
@@ -397,6 +417,90 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODE(name) BC_LABEL(name)
 #endif  // DEBUG
 
+namespace {
+
+template <typename Char>
+bool CheckSpecialClassRanges(uint32_t current_char,
+                             StandardCharacterSet character_set) {
+  constexpr bool is_one_byte = sizeof(Char) == 1;
+  switch (character_set) {
+    case StandardCharacterSet::kWhitespace:
+      DCHECK(is_one_byte);
+      if (current_char == ' ' || base::IsInRange(current_char, '\t', '\r') ||
+          current_char == 0xA0) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      UNREACHABLE();
+    case StandardCharacterSet::kWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return false;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] != 0;
+      return true;
+    }
+    case StandardCharacterSet::kNotWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return true;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] == 0;
+    }
+    case StandardCharacterSet::kDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return false;
+      }
+      return true;
+    case StandardCharacterSet::kLineTerminator: {
+      if (current_char == '\n' || current_char == '\r') {
+        return true;
+      }
+      if constexpr (!is_one_byte) {
+        if (current_char == 0x2028 || current_char == 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kNotLineTerminator: {
+      const bool is_one_byte_match =
+          current_char != '\n' && current_char != '\r';
+      if constexpr (is_one_byte) {
+        if (is_one_byte_match) {
+          return true;
+        }
+      } else {
+        if (is_one_byte_match && current_char != 0x2028 &&
+            current_char != 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kEverything:
+      return true;
+  }
+}
+
+}  // namespace
+
 template <typename Char>
 IrregexpInterpreter::Result RawMatch(
     Isolate* isolate, Tagged<TrustedByteArray>* code_array,
@@ -422,11 +526,7 @@ IrregexpInterpreter::Result RawMatch(
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 61 real bytecodes -> 3 fillers
-#define BYTECODE_FILLER_ITERATOR(V) \
-  V(BREAK) /* 1 */                  \
-  V(BREAK) /* 2 */                  \
-  V(BREAK) /* 3 */
+#define BYTECODE_FILLER_ITERATOR(V) V(BREAK) /* 1 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -622,16 +722,14 @@ IrregexpInterpreter::Result RawMatch(
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(LOAD_2_CURRENT_CHARS);
-        Char next = subject[pos + 1];
-        current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+        current_char = Load2Characters(subject, pos);
       }
       DISPATCH();
     }
     BYTECODE(LOAD_2_CURRENT_CHARS_UNCHECKED) {
       ADVANCE(LOAD_2_CURRENT_CHARS_UNCHECKED);
       int pos = current + LoadPacked24Signed(insn);
-      Char next = subject[pos + 1];
-      current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+      current_char = Load2Characters(subject, pos);
       DISPATCH();
     }
     BYTECODE(LOAD_4_CURRENT_CHARS) {
@@ -641,11 +739,7 @@ IrregexpInterpreter::Result RawMatch(
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(LOAD_4_CURRENT_CHARS);
-        Char next1 = subject[pos + 1];
-        Char next2 = subject[pos + 2];
-        Char next3 = subject[pos + 3];
-        current_char =
-            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+        current_char = Load4Characters(subject, pos);
       }
       DISPATCH();
     }
@@ -653,11 +747,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE(LOAD_4_CURRENT_CHARS_UNCHECKED);
       DCHECK_EQ(1, sizeof(Char));
       int pos = current + LoadPacked24Signed(insn);
-      Char next1 = subject[pos + 1];
-      Char next2 = subject[pos + 2];
-      Char next3 = subject[pos + 3];
-      current_char =
-          (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+      current_char = Load4Characters(subject, pos);
       DISPATCH();
     }
     BYTECODE(CHECK_4_CHARS) {
@@ -943,6 +1033,19 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
+    BYTECODE(CHECK_SPECIAL_CLASS_RANGES) {
+      StandardCharacterSet character_set =
+          static_cast<StandardCharacterSet>(LoadPacked24Unsigned(insn));
+      const bool match =
+          CheckSpecialClassRanges<Char>(current_char, character_set);
+      if (match) {
+        ADVANCE(CHECK_SPECIAL_CLASS_RANGES);
+      } else {
+        const int on_no_match = Load32Aligned(pc + 4);
+        SET_PC_FROM_OFFSET(on_no_match);
+      }
+      DISPATCH();
+    }
     BYTECODE(SKIP_UNTIL_CHAR) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
@@ -1068,11 +1171,7 @@ IrregexpInterpreter::Result RawMatch(
       DCHECK_EQ(1, sizeof(Char));
       while (IndexIsInBounds(current + max_offset, subject.length())) {
         int pos = current + cp_offset;
-        Char next1 = subject[pos + 1];
-        Char next2 = subject[pos + 2];
-        Char next3 = subject[pos + 3];
-        current_char =
-            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
+        current_char = Load4Characters(subject, pos);
         if (both_chars == (current_char & both_mask)) {
           if (chars1 == (current_char & mask1)) {
             SET_PC_FROM_OFFSET(on_match1);
@@ -1087,6 +1186,96 @@ IrregexpInterpreter::Result RawMatch(
       }
       SET_PC_FROM_OFFSET(on_failure);
       DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_ONE_OF_MASKED3) {
+      using kOperands =
+          RegExpBytecodeOperands<RegExpBytecode::kSkipUntilOneOfMasked3>;
+#define OP(OPERAND) kOperands::Get<kOperands::Operand::OPERAND>(pc, no_gc)
+      int16_t bc0_cp_offset = OP(bc0_cp_offset);
+      int16_t bc0_advance_by = OP(bc0_advance_by);
+      const uint8_t* bc0_table = OP(bc0_table);
+      int16_t bc1_cp_offset = OP(bc1_cp_offset);
+      uint32_t bc1_on_failure = OP(bc1_on_failure);
+      int16_t bc2_cp_offset = OP(bc2_cp_offset);
+      uint32_t bc3_characters = OP(bc3_characters);
+      uint32_t bc3_mask = OP(bc3_mask);
+      int16_t bc4_by = OP(bc4_by);
+      int16_t bc5_cp_offset = OP(bc5_cp_offset);
+      uint32_t bc6_characters = OP(bc6_characters);
+      uint32_t bc6_mask = OP(bc6_mask);
+      uint32_t bc6_on_equal = OP(bc6_on_equal);
+      uint32_t bc7_characters = OP(bc7_characters);
+      uint32_t bc7_mask = OP(bc7_mask);
+      uint32_t bc7_on_equal = OP(bc7_on_equal);
+      uint32_t bc8_characters = OP(bc8_characters);
+      uint32_t bc8_mask = OP(bc8_mask);
+      uint32_t fallthrough_jump_target = OP(fallthrough_jump_target);
+#undef OP
+
+      // We should only get here in 1-byte mode.
+      DCHECK_EQ(1, sizeof(Char));
+
+      while (true) {
+        // bcO: BC_SKIP_UNTIL_BIT_IN_TABLE
+        // on_match and on_no_match are constrained to jump to bc1.
+        while (IndexIsInBounds(current + bc0_cp_offset, subject.length())) {
+          current_char = subject[current + bc0_cp_offset];
+          if (CheckBitInTable(current_char, bc0_table)) {
+            break;
+          }
+          ADVANCE_CURRENT_POSITION(bc0_advance_by);
+        }
+
+        // bc1: BC_CHECK_CURRENT_POSITION
+        if (!IndexIsInBounds(current + bc1_cp_offset, subject.length())) {
+          SET_PC_FROM_OFFSET(bc1_on_failure);
+          DISPATCH();
+        }
+
+        // bc2: LOAD_4_CURRENT_CHARS_UNCHECKED
+        int pos = current + bc2_cp_offset;
+        current_char = Load4Characters(subject, pos);
+
+        // bc3: AND_CHECK_4_CHARS
+        // on_equal is constrained to jump to bc5.
+        if (bc3_characters == (current_char & bc3_mask)) {
+          // bc5: LOAD_4_CURRENT_CHARS
+          // on_failure is constrained to jump to bc4.
+          DCHECK_GE(bc5_cp_offset, 0);
+          if (current + bc5_cp_offset + 4 > subject.length()) {
+            // bc4: ADVANCE_CP_AND_GOTO
+            // on_goto is constrained to jump back to bc0.
+            ADVANCE_CURRENT_POSITION(bc4_by);
+            continue;
+          }
+          // TODO(jgruber): Usually we can reuse some of the bytes loaded above.
+          pos = current + bc5_cp_offset;
+          current_char = Load4Characters(subject, pos);
+
+          // bc6: AND_CHECK_4_CHARS
+          if (bc6_characters == (current_char & bc6_mask)) {
+            SET_PC_FROM_OFFSET(bc6_on_equal);
+            DISPATCH();
+          }
+          // bc7: AND_CHECK_4_CHARS
+          if (bc7_characters == (current_char & bc7_mask)) {
+            SET_PC_FROM_OFFSET(bc7_on_equal);
+            DISPATCH();
+          }
+          // bc8: AND_CHECK_NOT_4_CHARS
+          // on_not_equal is constrained to jump to bc4.
+          if (bc8_characters == (current_char & bc8_mask)) {
+            SET_PC_FROM_OFFSET(fallthrough_jump_target);
+            DISPATCH();
+          }
+        }
+
+        // bc4: ADVANCE_CP_AND_GOTO
+        // on_goto is constrained to jump back to bc0.
+        ADVANCE_CURRENT_POSITION(bc4_by);
+      }
+
+      UNREACHABLE();
     }
 #if V8_USE_COMPUTED_GOTO
 // Lint gets confused a lot if we just use !V8_USE_COMPUTED_GOTO or ifndef

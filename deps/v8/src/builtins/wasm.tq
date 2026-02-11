@@ -116,8 +116,7 @@ const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
 const kSharedAnyType: constexpr int31
     generates 'wasm::kWasmSharedAnyRef.raw_bit_field()';
-const kMaxPolymorphism:
-    constexpr int31 generates 'wasm::kMaxPolymorphism';
+const kMaxPolymorphism: constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';

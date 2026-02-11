@@ -284,6 +284,11 @@ enum class StatusCode : int {
 // Returns the name for the status code, or "" if it is an unknown value.
 std::string StatusCodeToString(StatusCode code);
 
+// StatusCodeToStringView()
+//
+// Same as StatusCodeToString(), but returns a string_view.
+absl::string_view StatusCodeToStringView(StatusCode code);
+
 // operator<<
 //
 // Streams StatusCodeToString(code) to `os`.

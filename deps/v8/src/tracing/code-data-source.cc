@@ -4,9 +4,6 @@
 
 #include "src/tracing/code-data-source.h"
 
-#include "protos/perfetto/common/data_source_descriptor.gen.h"
-#include "protos/perfetto/config/chrome/v8_config.gen.h"
-#include "protos/perfetto/trace/chrome/v8.pbzero.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/code-range.h"
@@ -15,6 +12,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
 #include "src/tracing/perfetto-logger.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/perfetto-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -110,8 +108,10 @@ InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
     case FunctionKind::kStaticConciseMethod:
       return InternedV8JsFunction::KIND_STATIC_CONCISE_METHOD;
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
       return InternedV8JsFunction::KIND_CLASS_MEMBERS_INITIALIZER_FUNCTION;
     case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return InternedV8JsFunction::KIND_CLASS_STATIC_INITIALIZER_FUNCTION;
     case FunctionKind::kInvalid:
       return InternedV8JsFunction::KIND_INVALID;

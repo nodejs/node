@@ -6,6 +6,7 @@
 
 #include "src/flags/flags.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
@@ -689,6 +690,175 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .MapArgument(0, 4, 4)       // goto on failure
       .IgnoreArgument(3, 4, 4)    // loop jump
       .IgnoreArgument(2, 12, 4);  // jump to the second AND_CHECK_4_CHARS
+
+  // TODO(jgruber): BC_SKIP_UNTIL_BIT_IN_TABLE is itself both a
+  // peephole-generated bc, AND a standard bytecode. Either we run to a fixed
+  // point, or we need to be careful around ordering (and specify the seq based
+  // on basic bytecodes).
+  // TODO(jgruber): The convenience macros below should be replaced. Ideally we
+  // should have easy and concise access to all of these fields, e.g. just
+  //
+  //  kSkipUntilBitInTable::cp_offset.size
+  //  kSkipUntilBitInTable::cp_offset.offset
+  //
+  // Once that's done, methods in this class should be refactored to use that:
+  //
+  //  foo.MapArgument(0, kSkipUntilBitInTable::cp_offset)
+  //
+  // The original bytecode sequence for BC_SKIP_UNTIL_ONE_OF_MASKED3 is:
+  //
+  // sequence offset name
+  // bc0   0  SKIP_UNTIL_BIT_IN_TABLE
+  // bc1  20  CHECK_CURRENT_POSITION
+  // bc2  28  LOAD_4_CURRENT_CHARS_UNCHECKED
+  // bc3  2c  AND_CHECK_4_CHARS
+  // bc4  3c  ADVANCE_CP_AND_GOTO
+  // bc5  48  LOAD_4_CURRENT_CHARS
+  // bc6  4c  AND_CHECK_4_CHARS
+  // bc7  5c  AND_CHECK_4_CHARS
+  // bc8  6c  AND_CHECK_NOT_4_CHARS
+
+#define OP_OFFSET(BYTECODE, OPERAND)        \
+  RegExpBytecodeOperands<BYTECODE>::Offset( \
+      RegExpBytecodeOperands<BYTECODE>::Operand::OPERAND)
+#define OP_SIZE(BYTECODE, OPERAND)        \
+  RegExpBytecodeOperands<BYTECODE>::Size( \
+      RegExpBytecodeOperands<BYTECODE>::Operand::OPERAND)
+#define OP_OFFSET_AND_SIZE(BYTECODE, OPERAND) \
+  OP_OFFSET(BYTECODE, OPERAND), OP_SIZE(BYTECODE, OPERAND)
+
+  {
+    using B = RegExpBytecode;
+    static constexpr int kOffsetOfBc0SkipUntilBitInTable = 0x0;
+    static constexpr int kOffsetOfBc1CheckCurrentPosition = 0x20;
+    static constexpr int kOffsetOfBc4AdvanceBcAndGoto = 0x3c;
+    BytecodeSequenceNode& s0 =
+        CreateSequence(BC_SKIP_UNTIL_BIT_IN_TABLE)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kSkipUntilBitInTable, on_no_match),
+                kOffsetOfBc1CheckCurrentPosition)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kSkipUntilBitInTable, on_no_match),
+                kOffsetOfBc1CheckCurrentPosition);
+
+    DCHECK_EQ(s0.SequenceLength(), 0x20);
+    DCHECK_EQ(s0.SequenceLength(), kOffsetOfBc1CheckCurrentPosition);
+    static constexpr int kOffsetOfBc5Load4CurrentChars = 0x44;
+    BytecodeSequenceNode& s1 =
+        s0.FollowedBy(BC_CHECK_CURRENT_POSITION)
+            .FollowedBy(BC_LOAD_4_CURRENT_CHARS_UNCHECKED)
+            .FollowedBy(BC_AND_CHECK_4_CHARS)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kAndCheck4Chars, on_equal),
+                kOffsetOfBc5Load4CurrentChars);
+
+    DCHECK_EQ(s1.SequenceLength(), 0x3c);
+    DCHECK_EQ(s1.SequenceLength(), kOffsetOfBc4AdvanceBcAndGoto);
+    BytecodeSequenceNode& s2 =
+        s1.FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kAdvanceCpAndGoto, on_goto),
+                kOffsetOfBc0SkipUntilBitInTable);
+
+    DCHECK_EQ(s2.SequenceLength(), 0x44);
+    DCHECK_EQ(s2.SequenceLength(), kOffsetOfBc5Load4CurrentChars);
+    BytecodeSequenceNode& s3 =
+        s2.FollowedBy(BC_LOAD_4_CURRENT_CHARS)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kLoad4CurrentChars, on_failure),
+                kOffsetOfBc4AdvanceBcAndGoto)
+            .FollowedBy(BC_AND_CHECK_4_CHARS)
+            .FollowedBy(BC_AND_CHECK_4_CHARS)
+            .FollowedBy(BC_AND_CHECK_NOT_4_CHARS)
+            .IfArgumentEqualsOffset(
+                OP_OFFSET_AND_SIZE(B::kAndCheckNot4Chars, on_not_equal),
+                kOffsetOfBc4AdvanceBcAndGoto);
+
+    // TODO(jgruber): As above, these should be replaced.
+    // "OS": Offset and size.
+    // "OSN": Offset, size, new_size.
+#define OS OP_OFFSET_AND_SIZE
+    // OSN_FIRST preserves legacy packing behavior for the first operand.
+    // TODO(jgruber): Remove it once legacy bytecode behavior is gone.
+#define OSN_FIRST(BYTECODE, OPERAND)                                        \
+  OP_OFFSET(BYTECODE, OPERAND),                                             \
+      (OP_OFFSET(BYTECODE, OPERAND) == 1 ? 3 : OP_SIZE(BYTECODE, OPERAND)), \
+      (OP_OFFSET(BYTECODE, OPERAND) == 1 ? 3 : OP_SIZE(BYTECODE, OPERAND))
+#define OSN(BYTECODE, OPERAND)                                              \
+  OP_OFFSET(BYTECODE, OPERAND),                                             \
+      (OP_OFFSET(BYTECODE, OPERAND) == 1 ? 3 : OP_SIZE(BYTECODE, OPERAND)), \
+      OP_SIZE(BYTECODE, OPERAND)
+
+    // Subtle: The sequence below must be crafted so that all alignment
+    // requirements are implicitly fulfilled.
+    // TODO(jgruber): Remove the verbose size comments and the duplicate args
+    // that ensure alignment, once we've switched exclusively to the new
+    // bytecode format.
+    s3.ReplaceWith(BC_SKIP_UNTIL_ONE_OF_MASKED3)
+        // Size 2 packed.
+        .MapArgument(0, OSN_FIRST(B::kSkipUntilBitInTable, cp_offset))
+        // Size 2.
+        // TODO(jgruber): We emit this twice to satisfy alignment requirements
+        // of the next argument. Remove the duplicate once EmitArgument
+        // properly handles this on its own.
+        .MapArgument(0, OSN(B::kSkipUntilBitInTable, advance_by))
+        .MapArgument(0, OSN(B::kSkipUntilBitInTable, advance_by))
+        // Size 16
+        .MapArgument(0, OSN(B::kSkipUntilBitInTable, table))
+        .IgnoreArgument(0, OS(B::kSkipUntilBitInTable, on_match))
+        .IgnoreArgument(0, OS(B::kSkipUntilBitInTable, on_no_match))
+        // Size 2.
+        // TODO(jgruber): We emit this twice to satisfy alignment requirements
+        // of the next argument. Remove the duplicate once EmitArgument
+        // properly handles this on its own.
+        .MapArgument(1, OSN(B::kCheckPosition, cp_offset))
+        .MapArgument(1, OSN(B::kCheckPosition, cp_offset))
+        // Size 4.
+        .MapArgument(1, OSN(B::kCheckPosition, on_failure))
+        // Size 2.
+        // TODO(jgruber): We emit this twice to satisfy alignment requirements
+        // of the next argument. Remove the duplicate once EmitArgument
+        // properly handles this on its own.
+        .MapArgument(2, OSN(B::kLoad4CurrentCharsUnchecked, cp_offset))
+        .MapArgument(2, OSN(B::kLoad4CurrentCharsUnchecked, cp_offset))
+        // Size 4.
+        .MapArgument(3, OSN(B::kAndCheck4Chars, characters))
+        // Size 4.
+        .MapArgument(3, OSN(B::kAndCheck4Chars, mask))
+        .IgnoreArgument(3, OS(B::kAndCheck4Chars, on_equal))
+        // Size 2.
+        .MapArgument(4, OSN(B::kAdvanceCpAndGoto, by))
+        .IgnoreArgument(4, OS(B::kAdvanceCpAndGoto, on_goto))
+        // Size 2.
+        .MapArgument(5, OSN(B::kLoad4CurrentChars, cp_offset))
+        .IgnoreArgument(5, OS(B::kLoad4CurrentChars, on_failure))
+        // Size 4.
+        .MapArgument(6, OSN(B::kAndCheck4Chars, characters))
+        // Size 4.
+        .MapArgument(6, OSN(B::kAndCheck4Chars, mask))
+        // Size 4.
+        .MapArgument(6, OSN(B::kAndCheck4Chars, on_equal))
+        // Size 4.
+        .MapArgument(7, OSN(B::kAndCheck4Chars, characters))
+        // Size 4.
+        .MapArgument(7, OSN(B::kAndCheck4Chars, mask))
+        // Size 4.
+        .MapArgument(7, OSN(B::kAndCheck4Chars, on_equal))
+        // Size 4.
+        .MapArgument(8, OSN(B::kAndCheckNot4Chars, characters))
+        // Size 4.
+        .MapArgument(8, OSN(B::kAndCheckNot4Chars, mask))
+        .IgnoreArgument(8, OS(B::kAndCheckNot4Chars, on_not_equal))
+        // Size 4.
+        .EmitOffsetAfterSequence();
+#undef OS
+#undef OSN_FIRST
+#undef OSN
+  }
+
+#undef OP_OFFSET
+#undef OP_SIZE
+#undef OP_OFFSET_AND_SIZE
 }
 
 bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,

@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -812,7 +813,7 @@ std::optional<bool> HeapObjectData::TryGetBooleanValue(
   // Keep in sync with Object::BooleanValue.
   auto result = TryGetBooleanValueImpl(broker);
   DCHECK_IMPLIES(
-      broker->IsMainThread() && result.has_value(),
+      broker->IsMainThread() && result.has_value() && !IsAnyHole(*object()),
       result.value() == Object::BooleanValue(*object(), broker->isolate()));
   return result;
 }
@@ -980,24 +981,15 @@ class JSGlobalProxyData : public JSObjectData {
       : JSObjectData(broker, storage, object, kind) {}
 };
 
-#define DEFINE_IS(Name)                                                    \
-  bool ObjectData::Is##Name() const {                                      \
-    if (should_access_heap()) {                                            \
-      static_assert(!is_subtype_v<Name, Hole>);                            \
-      /* If this could be a hole, first check for that before the full */  \
-      /* predicate, because hole unmapping can make the following */       \
-      /* predicate crash. */                                               \
-      if (!is_subtype_v<Name, TrustedObject> && i::IsAnyHole(*object())) { \
-        /* If this is a hole, then the overall predicate might still be */ \
-        /* true, e.g. if Name is HeapObject. */                            \
-        return is_subtype_v<Hole, Name>;                                   \
-      }                                                                    \
-      return i::Is##Name(*object());                                       \
-    }                                                                      \
-    if (is_smi()) return false;                                            \
-    InstanceType instance_type =                                           \
-        static_cast<const HeapObjectData*>(this)->GetMapInstanceType();    \
-    return InstanceTypeChecker::Is##Name(instance_type);                   \
+#define DEFINE_IS(Name)                                                 \
+  bool ObjectData::Is##Name() const {                                   \
+    if (should_access_heap()) {                                         \
+      return i::Is##Name(*object());                                    \
+    }                                                                   \
+    if (is_smi()) return false;                                         \
+    InstanceType instance_type =                                        \
+        static_cast<const HeapObjectData*>(this)->GetMapInstanceType(); \
+    return InstanceTypeChecker::Is##Name(instance_type);                \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
@@ -1099,23 +1091,9 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   }
 
   if (ReadOnlyHeap::SandboxSafeContains(*heap_object)) {
-    if (IndirectHandle<Hole> hole; TryCast<Hole>(heap_object, &hole)) {
-      // Holes are marked as background serialized, so that their map is
-      // cached on the HeapObjectData. This prevents reads of the unmapped
-      // hole value's map.
-
-      // Load the hole map before creating the entry, so that the hole map
-      // lookup doesn't allocate an entry itself and invalidate this entry.
-      MapRef cached_hole_map = hole_map();
-      entry = refs_->InsertNew(heap_object.address());
-      return zone()->New<HeapObjectData>(this, &entry->value, hole,
-                                         cached_hole_map,
-                                         kBackgroundSerializedHeapObject);
-    } else {
-      entry = refs_->InsertNew(heap_object.address());
-      return zone()->New<ObjectData>(this, &entry->value, heap_object,
-                                     kUnserializedReadOnlyHeapObject);
-    }
+    entry = refs_->InsertNew(heap_object.address());
+    return zone()->New<ObjectData>(this, &entry->value, heap_object,
+                                   kUnserializedReadOnlyHeapObject);
   }
 
   ObjectData* object_data;
@@ -1158,6 +1136,14 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   Name##Ref ObjectRef::As##Name() const {                         \
     DCHECK(Is##Name());                                           \
     return Name##Ref(data());                                     \
+  }                                                               \
+  template <>                                                     \
+  bool ObjectRef::Is<Name>() const {                              \
+    return Is##Name();                                            \
+  }                                                               \
+  template <>                                                     \
+  ref_traits<Name>::ref_type ObjectRef::As<Name>() const {        \
+    return As##Name();                                            \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
@@ -2030,30 +2016,18 @@ bool ObjectRef::IsNull() const { return i::IsNull(*object()); }
 
 bool ObjectRef::IsUndefined() const { return i::IsUndefined(*object()); }
 
-bool ObjectRef::IsTheHole() const {
-  if (i::IsTheHole(*object())) return true;
-  DCHECK(!i::IsAnyHole(*object()));
-  return false;
-}
+bool ObjectRef::IsTheHole() const { return i::IsTheHole(*object()); }
 
 bool ObjectRef::IsPropertyCellHole() const {
-  if (i::IsPropertyCellHole(*object())) return true;
-  DCHECK(!i::IsAnyHole(*object()));
-  return false;
+  return i::IsPropertyCellHole(*object());
 }
 
 bool ObjectRef::IsHashTableHole() const {
-  if (i::IsHashTableHole(*object())) return true;
-  DCHECK(!i::IsAnyHole(*object()));
-  return false;
+  return i::IsHashTableHole(*object());
 }
 
 HoleType ObjectRef::HoleType() const {
-  // Trusted objects cannot be TheHole and comparing them to TheHole is not
-  // allowed, as they live in different cage bases.
-  if (i::IsHeapObject(*object()) &&
-      i::TrustedHeapLayout::InTrustedSpace(Cast<HeapObject>(*object())))
-    return HoleType::kNone;
+  if (!i::IsAnyHole(*object())) return HoleType::kNone;
 #define IF_HOLE_THEN_RETURN(Name, name, Root) \
   if (i::Is##Name(*object())) {               \
     return HoleType::k##Name;                 \
@@ -2396,9 +2370,7 @@ OptionalSharedFunctionInfoRef FeedbackCellRef::shared_function_info(
   return vector->shared_function_info(broker);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 HEAP_ACCESSOR_C(FeedbackCell, JSDispatchHandle, dispatch_handle)
-#endif
 
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info(
     JSHeapBroker* broker) const {
@@ -2498,9 +2470,7 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
 
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-#ifdef V8_ENABLE_LEAPTIERING
 HEAP_ACCESSOR_C(JSFunction, JSDispatchHandle, dispatch_handle)
-#endif
 
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C

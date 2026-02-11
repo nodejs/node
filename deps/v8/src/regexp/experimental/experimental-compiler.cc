@@ -1191,20 +1191,13 @@ class CompileVisitor : private RegExpVisitor {
     DCHECK(quantifier_id_remapping_.has_value());
     auto& map = quantifier_id_remapping_.value();
 
-    if (!map.contains(id)) {
-      map[id] = static_cast<int>(map.size());
-    }
-
-    return map[id];
+    return map.try_emplace(id, static_cast<int>(map.size())).first->second;
   }
 
   int RemapLookaround(int id) {
-    if (!lookaround_id_remapping_.contains(id)) {
-      lookaround_id_remapping_[id] =
-          static_cast<int>(lookaround_id_remapping_.size());
-    }
-
-    return lookaround_id_remapping_[id];
+    return lookaround_id_remapping_
+        .try_emplace(id, static_cast<int>(lookaround_id_remapping_.size()))
+        .first->second;
   }
 
  private:

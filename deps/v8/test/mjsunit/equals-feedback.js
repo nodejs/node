@@ -39,6 +39,33 @@ function testOneWayWithMultipleValues(valuesAndExpected, eq, expectedFeedback) {
   assertMatches(new RegExp('CompareOp:' + expectedFeedback), feedback[0][1]);
 }
 
+function testStrictWideHandler(a, b, expectedEquals, expectedFeedback) {
+  const padding_size = 260;
+  let padding = "";
+  for (let i = 0; i < padding_size; i++) {
+    padding += `let v${i} = ${i}; `;
+  }
+
+  const source =
+    `function f_widehandler_${counter}(a, b) {
+       function force_use_reg(x) {return x;}
+       ${padding}
+       let rhs = force_use_reg(a);
+       let lhs = force_use_reg(b);
+       return lhs === rhs;
+     } f_widehandler_${counter}`;
+  const equalsFunction = eval(source);
+  ++counter;
+  %PrepareFunctionForOptimization(equalsFunction);
+
+  assertEquals(expectedEquals, equalsFunction(a, b));
+  const feedback = %GetFeedback(equalsFunction);
+  if (feedback === undefined) {
+    return;
+  }
+  assertMatches(new RegExp('CompareOp:' + expectedFeedback), feedback[feedback.length - 1][1]);
+}
+
 function testLoose(a, b, expectedEquals, expectedFeedback) {
   testOneWay(a, b, '==', expectedEquals, expectedFeedback);
   testOneWay(b, a, '==', expectedEquals, expectedFeedback);
@@ -386,3 +413,12 @@ testOneWayWithMultipleValues([['foo', null, false], ['foo', 'bar', false]], '===
 testOneWayWithMultipleValues([['foo', undefined, false], ['foo', 'bar', false]], '===', 'StringOrOddball');
 testOneWayWithMultipleValues([['bar', 'bar', true], [null, 'bar', false]], '===', 'StringOrOddball');
 testOneWayWithMultipleValues([['bar', 'foo', false], [undefined, 'bar', false]], '===', 'StringOrOddball');
+
+// Tests for StrictEqual wide handler with embedded feedback
+testStrictWideHandler(1, 1, true, 'SignedSmall');
+testStrictWideHandler(undefined, null, false, 'ReceiverOrNullOrUndefined');
+testStrictWideHandler(null, '', false, 'StringOrOddball');
+testStrictWideHandler('not', 'equal', false, 'InternalizedString');
+testStrictWideHandler(BigInt(1000000006), {c: 16}, false, 'Any');
+testStrictWideHandler(true, 'true', false, 'StringOrOddball');
+testStrictWideHandler(%GetUndetectable(), null, false, 'ReceiverOrNullOrUndefined');

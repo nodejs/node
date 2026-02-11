@@ -303,7 +303,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -966,7 +966,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadReceiver(Register dest) { Ld(dest, MemOperand(sp, 0)); }
   void StoreReceiver(Register rec) { Sd(rec, MemOperand(sp, 0)); }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Load the entrypoint pointer of a JSDispatchTable entry.
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
@@ -977,7 +976,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
-#endif  // V8_ENABLE_LEAPTIERING
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
 
@@ -1103,7 +1101,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register actual_parameter_count,
@@ -1120,20 +1117,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register actual_parameter_count, InvokeType type,
                           ArgumentAdaptionMode argument_adaption_mode =
                               ArgumentAdaptionMode::kAdapt);
-#else
-  void InvokeFunction(Register function, Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
-
-  // Invoke the JavaScript function in the given register. Changes the
-  // current context to the context in the function before invoking.
-  void InvokeFunctionWithNewTarget(Register function, Register new_target,
-                                   Register actual_parameter_count,
-                                   InvokeType type);
-  // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-#endif
   // On function call, call into the debugger if necessary.
   //  void CheckDebugHook(Register fun, Register new_target,
   //                    Register expected_parameter_count,
@@ -1255,13 +1238,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                            Register closure, Register scratch1,
                                            Register scratch2);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
-#ifndef V8_ENABLE_LEAPTIERING
-  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      Register flags, Register feedback_vector, CodeKind current_code_kind,
-      Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                               Register feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
   template <typename Field>
   void DecodeField(Register dst, Register src) {
     Ext(dst, src, Field::kShift, Field::kSize);

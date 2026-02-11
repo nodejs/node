@@ -145,9 +145,8 @@ class VirtualAddressSubspace;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - abort_mode: see src/base/abort-mode.h for details.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(AbortMode abort_mode, const char* const gc_fake_mmap);
+  static void Initialize(const char* const gc_fake_mmap);
 
 #if V8_OS_WIN
   // On Windows, ensure the newer memory API is loaded if available.  This

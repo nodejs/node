@@ -19,6 +19,9 @@
 
 namespace v8 {
 class Isolate;
+namespace internal {
+class ThreadLocalTop;
+}
 }
 
 namespace v8::internal::wasm {
@@ -122,7 +125,8 @@ class StackMemory {
       segment = segment->next_segment_;
     }
   }
-  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate);
+  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
+               ThreadLocalTop* thread);
 
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp, size_t min_size);

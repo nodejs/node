@@ -6,8 +6,7 @@ namespace array {
 
 type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
 
-const kMaxArrayLength:
-    constexpr uint32 generates 'JSArray::kMaxArrayLength';
+const kMaxArrayLength: constexpr uint32 generates 'JSArray::kMaxArrayLength';
 
 // Make sure that the buffer chunks are new-space allocatable.
 const kMaxBufferChunkSize: constexpr int31 = kMaxNewSpaceFixedArrayElements;

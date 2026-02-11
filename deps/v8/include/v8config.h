@@ -600,14 +600,10 @@ path. Add it with -I<path> to the command line
 // functions.
 // Use like:
 //   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
-#if V8_OS_WIN
-# define V8_PRESERVE_MOST
-#else
 #if V8_HAS_ATTRIBUTE_PRESERVE_MOST
 # define V8_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define V8_PRESERVE_MOST /* NOT SUPPORTED */
-#endif
 #endif
 
 
@@ -1065,6 +1061,14 @@ arm64 host
 #define V8_TARGET_BIG_ENDIAN_BOOL true
 #else
 #define V8_TARGET_BIG_ENDIAN_BOOL false
+#endif
+
+// V8_USE_PERFETTO_SDK and V8_USE_PERFETTO_JSON_EXPORT must imply
+// V8_USE_PERFETTO.
+#if (defined(V8_USE_PERFETTO_SDK) || defined(V8_USE_PERFETTO_JSON_EXPORT)) && \
+    !defined(V8_USE_PERFETTO)
+#error Inconsistent build configuration: To build the V8 with Perfetto \
+features, set V8_USE_PERFETTO as well.
 #endif
 
 #endif  // V8CONFIG_H_

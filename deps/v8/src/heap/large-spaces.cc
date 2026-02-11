@@ -202,11 +202,6 @@ void LargeObjectSpace::AddPage(LargePageMetadata* page, size_t object_size) {
   page_count_++;
   memory_chunk_list_.PushBack(page);
   page->set_owner(this);
-  ForAll<ExternalBackingStoreType>(
-      [this, page](ExternalBackingStoreType type, int index) {
-        IncrementExternalBackingStoreBytes(
-            type, page->ExternalBackingStoreBytes(type));
-      });
 }
 
 void LargeObjectSpace::RemovePage(LargePageMetadata* page) {
@@ -215,11 +210,6 @@ void LargeObjectSpace::RemovePage(LargePageMetadata* page) {
   page_count_--;
   memory_chunk_list_.Remove(page);
   page->set_owner(nullptr);
-  ForAll<ExternalBackingStoreType>(
-      [this, page](ExternalBackingStoreType type, int index) {
-        DecrementExternalBackingStoreBytes(
-            type, page->ExternalBackingStoreBytes(type));
-      });
 }
 
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
@@ -304,9 +294,6 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify(Isolate* isolate,
                               SpaceVerificationVisitor* visitor) const {
-  size_t external_backing_store_bytes[static_cast<int>(
-      ExternalBackingStoreType::kNumValues)] = {0};
-
   PtrComprCageBase cage_base(isolate);
   for (const LargePageMetadata* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
@@ -332,21 +319,8 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     // Invoke visitor on each object.
     visitor->VerifyObject(object);
 
-    ForAll<ExternalBackingStoreType>(
-        [chunk, &external_backing_store_bytes](ExternalBackingStoreType type,
-                                               int index) {
-          external_backing_store_bytes[index] +=
-              chunk->ExternalBackingStoreBytes(type);
-        });
-
     visitor->VerifyPageDone(chunk);
   }
-  ForAll<ExternalBackingStoreType>(
-      [this, external_backing_store_bytes](ExternalBackingStoreType type,
-                                           int index) {
-        CHECK_EQ(external_backing_store_bytes[index],
-                 ExternalBackingStoreBytes(type));
-      });
 }
 #endif
 

@@ -130,7 +130,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
     std::vector<Node*> inputs;
     inputs.push_back(left);
     inputs.push_back(right);
-    if (JSOperator::IsBinaryWithFeedback(op->opcode())) {
+    if (JSOperator::IsBinaryWithFeedback(op->opcode()) &&
+        !JSOperator::IsBinaryWithEmbeddedFeedback(op->opcode())) {
       inputs.push_back(UndefinedConstant());  // Feedback vector.
     }
     if (OperatorProperties::HasContextInput(op)) {
@@ -833,8 +834,9 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
     Node* p1 = j == 1 ? l : r;
 
     {
-      const Operator* op = strict ? R->javascript.StrictEqual(feedback_source)
-                                  : R->javascript.Equal(feedback_source);
+      const Operator* op =
+          strict ? R->javascript.StrictEqual(CompareOperationHint::kNone)
+                 : R->javascript.Equal(feedback_source);
       Node* eq = R->Binop(op, p0, p1);
       Node* reduced = R->reduce(eq);
       R->CheckBinop(expected, reduced);

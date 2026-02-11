@@ -236,7 +236,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       (scope->is_module_scope()
            ? 2 + kModuleVariableEntryLength * module_vars_count
            : 0) +
-      (has_dependent_code ? 1 : 0);
+      (has_dependent_code ? 1 : 0) + (scope->is_function_scope() ? 1 : 0);
 
   // Create hash table if local names are not inlined.
   Handle<NameToIndexHashTable> local_names_hashtable;
@@ -446,6 +446,17 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       ReadOnlyRoots roots(isolate);
       scope_info->set(index++, DependentCode::empty_dependent_code(roots));
     }
+    DCHECK_EQ(index, scope_info->UnusedParameterBitsIndex());
+    if (scope->is_function_scope()) {
+      uint32_t unused_parameter_bits = 0;
+      auto func_scope = scope->AsDeclarationScope();
+      int count = std::min(31, func_scope->num_parameters());
+      for (int i = 0; i < count; ++i) {
+        bool unused = !func_scope->parameter(i)->is_used();
+        unused_parameter_bits |= static_cast<uint32_t>(unused) << i;
+      }
+      scope_info->set(index++, Smi::From31BitPattern(unused_parameter_bits));
+    }
   }
 
   DCHECK_EQ(index, scope_info_handle->length());
@@ -510,6 +521,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
     scope_info->set(index++, outer);
   }
   DCHECK_EQ(index, scope_info->DependentCodeIndex());
+  DCHECK_EQ(index, scope_info->UnusedParameterBitsIndex());
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(length, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
@@ -564,7 +576,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   DCHECK_LT(context_local_count, kScopeInfoMaxInlinedLocalNamesSize);
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (is_empty_function ? kFunctionNameEntries : 0) +
-                     (has_inferred_function_name ? 1 : 0);
+                     (has_inferred_function_name ? 1 : 0) +
+                     (is_empty_function ? 1 : 0);
 
   Factory* factory = isolate->factory();
   DirectHandle<ScopeInfo> scope_info =
@@ -637,6 +650,11 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   }
   DCHECK_EQ(index, raw_scope_info->OuterScopeInfoIndex());
   DCHECK_EQ(index, raw_scope_info->DependentCodeIndex());
+  DCHECK_EQ(index, scope_info->UnusedParameterBitsIndex());
+  if (is_empty_function) {
+    // unused parameters
+    raw_scope_info->set(index++, Smi::zero());
+  }
   DCHECK_EQ(index, raw_scope_info->length());
   DCHECK_EQ(length, raw_scope_info->length());
   DCHECK_EQ(raw_scope_info->ParameterCount(), parameter_count);
@@ -1187,6 +1205,10 @@ void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
 
 int ScopeInfo::DependentCodeIndex() const {
   return ConvertOffsetToIndex(DependentCodeOffset());
+}
+
+int ScopeInfo::UnusedParameterBitsIndex() const {
+  return ConvertOffsetToIndex(UnusedParameterBitsOffset());
 }
 
 uint32_t ScopeInfo::Hash() {

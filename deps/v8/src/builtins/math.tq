@@ -30,8 +30,7 @@ extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiAbs(Smi): Smi labels Overflow;
 extern macro Float64Abs(float64): float64;
-const kSmiMaxValuePlusOne:
-    constexpr float64 generates '0.0 - kSmiMinValue';
+const kSmiMaxValuePlusOne: constexpr float64 generates '0.0 - kSmiMinValue';
 
 transitioning javascript builtin MathAbs(
     js-implicit context: NativeContext)(x: JSAny): Number {

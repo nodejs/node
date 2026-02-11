@@ -13,7 +13,7 @@ frame size: 0
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(0),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0:"ab+d"), FBV(0), Flag16(0x0),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
@@ -30,7 +30,7 @@ frame size: 0
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(2),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0:"(\u005cw+)\u005cs(\u005cw+)"), FBV(0), Flag16(0x2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -47,13 +47,13 @@ frame size: 3
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(0),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0:"ab+d"), FBV(0), Flag16(0x0),
                 B(Star1),
-  /*   48 E> */ B(GetNamedProperty), R(1), U8(1), U8(1),
+  /*   48 E> */ B(GetNamedProperty), R(1), U8(1:"exec"), FBV(1),
                 B(Star0),
-                B(LdaConstant), U8(2),
+                B(LdaConstant), U8(2:"abdd"),
                 B(Star2),
-  /*   48 E> */ B(CallProperty1), R(0), R(1), R(2), U8(3),
+  /*   48 E> */ B(CallProperty1), R(0), R(1), R(2), FBV(3),
   /*   61 S> */ B(Return),
 ]
 constant pool: [

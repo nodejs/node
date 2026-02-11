@@ -151,6 +151,19 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   AllocationStatus allocation_status_ = AllocationStatus::kSuccess;
 };
 
+constexpr const char* ToString(BoundedPageAllocator::AllocationStatus status) {
+  switch (status) {
+    case BoundedPageAllocator::AllocationStatus::kSuccess:
+      return "success";
+    case BoundedPageAllocator::AllocationStatus::kFailedToCommit:
+      return "failed to commit";
+    case BoundedPageAllocator::AllocationStatus::kRanOutOfReservation:
+      return "ran out of reservation";
+    case BoundedPageAllocator::AllocationStatus::kHintedAddressTakenOrNotFound:
+      return "hinted address taken or not found";
+  }
+}
+
 }  // namespace base
 }  // namespace v8
 

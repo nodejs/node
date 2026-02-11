@@ -68,10 +68,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
                             : PageAllocator::kReadWriteExecute;
   }
 
-  static inline void MoveExternalBackingStoreBytes(
-      ExternalBackingStoreType type, MutablePageMetadata* from,
-      MutablePageMetadata* to, size_t amount);
-
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
                                                     Address a);
@@ -205,16 +201,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return marking_progress_tracker_;
   }
 
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
-
   Space* owner() const {
     return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
   }
@@ -341,10 +327,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
       ConcurrentSweepingState::kDone};
-
-  // Tracks off-heap memory used by this memory chunk.
-  std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
-      ExternalBackingStoreType::kNumValues)] = {0};
 
   heap::ListNode<MutablePageMetadata> list_node_;
 

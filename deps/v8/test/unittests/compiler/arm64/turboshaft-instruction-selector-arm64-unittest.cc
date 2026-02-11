@@ -4210,11 +4210,65 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle8x8Test) {
     m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
                               Simd128ShuffleOp::Kind::kI8x8, shuffle));
     Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64I8x16Shuffle, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64S128UnzipLeft, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kArm64S128UnzipLeft, s[1]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  {
+    const uint8_t shuffle[] = {
+        1, 5, 9, 13, 17, 21, 25, 29,
+    };
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x8, shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64S128UnzipRight, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(kArm64S128UnzipLeft, s[1]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  {
+    const uint8_t shuffle[] = {
+        2, 6, 10, 14, 18, 22, 26, 30,
+    };
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x8, shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64S128UnzipLeft, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(kArm64S128UnzipRight, s[1]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  {
+    const uint8_t shuffle[] = {
+        3, 7, 11, 15, 19, 23, 27, 31,
+    };
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                              Simd128ShuffleOp::Kind::kI8x8, shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64S128UnzipRight, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(kArm64S128UnzipRight, s[1]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(1U, s[1]->OutputCount());
   }
 }
 
@@ -8302,6 +8356,262 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDConstAndTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
+
+TEST_F(TurboshaftInstructionSelectorTest, wasmSimdOrnTest) {
+  // NOT node on the left
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, l);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, not_op, r);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the ((not L) or R) is correctly optimized to (R orn L)
+    EXPECT_EQ(kArm64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(0)));
+  }
+  // NOT node on the right
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, l, not_op);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the (L or (not R)) is correctly optimized to (L orn R)
+    EXPECT_EQ(kArm64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(1)));
+  }
+  // NOT node used elsewhere too (should not optimise)
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op1 = m.Emit(TSBinop::kS128Or, l, not_op);
+    // Use the not_op elsewhere, blocking CanCover()
+    OpIndex or_op2 = m.Emit(TSBinop::kS128Or, r, not_op);
+    // Combine ops together, to one parent.
+    OpIndex combining_op = m.Emit(TSBinop::kS128Or, or_op1, or_op2);
+    m.Return(combining_op);
+    Stream s = m.Build();
+
+    EXPECT_EQ(4U, s.size());
+    // Test that or_op1 has not been optimised.
+    EXPECT_EQ(kArm64S128Or, s[1]->arch_opcode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[1]->InputAt(1)));
+    // Test that or_op2 has not been optimised.
+    EXPECT_EQ(kArm64S128Or, s[2]->arch_opcode());
+    EXPECT_EQ(2U, s[2]->InputCount());
+    EXPECT_EQ(1U, s[2]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[2]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[2]->InputAt(1)));
+  }
+}
+// TEST SADDW, UADDW, SADDL, UADDL, and `2` variants
+
+struct SIMDAddFamilyTest {
+  const TSBinop add_opcode;
+  const TSUnop convert_opcode;
+  const ArchOpcode target_opcode;
+  const ArchOpcode target_addl_opcode;
+  const int lsf;  // ta_size
+};
+
+static const SIMDAddFamilyTest kSIMDAddFamilyTests[] = {
+    // 2D tests:
+    {
+        // SADDW 2D
+        TSBinop::kI64x2Add,
+        TSUnop::kI64x2SConvertI32x4Low,
+        ArchOpcode::kArm64Saddw,
+        ArchOpcode::kArm64Saddl,
+        64,
+    },
+    {
+        // SADDW2 2D
+        TSBinop::kI64x2Add,
+        TSUnop::kI64x2SConvertI32x4High,
+        ArchOpcode::kArm64Saddw2,
+        ArchOpcode::kArm64Saddl2,
+        64,
+    },
+    {
+        // UADDW 2D
+        TSBinop::kI64x2Add,
+        TSUnop::kI64x2UConvertI32x4Low,
+        ArchOpcode::kArm64Uaddw,
+        ArchOpcode::kArm64Uaddl,
+        64,
+    },
+    {
+        // UADDW2 2D
+        TSBinop::kI64x2Add,
+        TSUnop::kI64x2UConvertI32x4High,
+        ArchOpcode::kArm64Uaddw2,
+        ArchOpcode::kArm64Uaddl2,
+        64,
+    },
+    // 4S tests:
+    {
+        // SADDW 4S
+        TSBinop::kI32x4Add,
+        TSUnop::kI32x4SConvertI16x8Low,
+        ArchOpcode::kArm64Saddw,
+        ArchOpcode::kArm64Saddl,
+        32,
+    },
+    {
+        // SADDW2 4S
+        TSBinop::kI32x4Add,
+        TSUnop::kI32x4SConvertI16x8High,
+        ArchOpcode::kArm64Saddw2,
+        ArchOpcode::kArm64Saddl2,
+        32,
+    },
+    {
+        // UADDW 4S
+        TSBinop::kI32x4Add,
+        TSUnop::kI32x4UConvertI16x8Low,
+        ArchOpcode::kArm64Uaddw,
+        ArchOpcode::kArm64Uaddl,
+        32,
+    },
+    {
+        // UADDW2 4S
+        TSBinop::kI32x4Add,
+        TSUnop::kI32x4UConvertI16x8High,
+        ArchOpcode::kArm64Uaddw2,
+        ArchOpcode::kArm64Uaddl2,
+        32,
+    },
+    // 8H tests:
+    {
+        // SADDW 2H
+        TSBinop::kI16x8Add,
+        TSUnop::kI16x8SConvertI8x16Low,
+        ArchOpcode::kArm64Saddw,
+        ArchOpcode::kArm64Saddl,
+        16,
+    },
+    {
+        // SADDW2 2H
+        TSBinop::kI16x8Add,
+        TSUnop::kI16x8SConvertI8x16High,
+        ArchOpcode::kArm64Saddw2,
+        ArchOpcode::kArm64Saddl2,
+        16,
+    },
+    {
+        // UADDW 2H
+        TSBinop::kI16x8Add,
+        TSUnop::kI16x8UConvertI8x16Low,
+        ArchOpcode::kArm64Uaddw,
+        ArchOpcode::kArm64Uaddl,
+        16,
+    },
+    {
+        // UADDW2 2H
+        TSBinop::kI16x8Add,
+        TSUnop::kI16x8UConvertI8x16High,
+        ArchOpcode::kArm64Uaddw2,
+        ArchOpcode::kArm64Uaddl2,
+        16,
+    },
+};
+
+using TurboshaftInstructionSelectorSIMDAddFamilyTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDAddFamilyTest>;
+
+TEST_P(TurboshaftInstructionSelectorSIMDAddFamilyTest, wasmSimdAddFamilyTest) {
+  const SIMDAddFamilyTest param = GetParam();
+
+  {  // Convert on the left (ADDW)
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex convert_op = m.Emit(param.convert_opcode, l);
+    OpIndex add_op = m.Emit(param.add_opcode, convert_op, r);
+    m.Return(add_op);
+    Stream s = m.Build();
+
+    // Test that the ((Convert L) ADD R) is correctly optimized to (R ADDW L)
+    EXPECT_EQ(param.target_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(0)));
+    int lsf = LaneSizeField::decode(s[0]->opcode());
+    EXPECT_EQ(param.lsf, lsf);
+  }
+  {  // Convert on the right (ADDW)
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex convert_op = m.Emit(param.convert_opcode, r);
+    OpIndex add_op = m.Emit(param.add_opcode, l, convert_op);
+    m.Return(add_op);
+    Stream s = m.Build();
+
+    // Test that the (L ADD (Convert R)) is correctly optimized to (L ADDW R)
+    EXPECT_EQ(param.target_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(1)));
+    int lsf = LaneSizeField::decode(s[0]->opcode());
+    EXPECT_EQ(param.lsf, lsf);
+  }
+  {  // Convert on both sides (ADDL)
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex convertl_op = m.Emit(param.convert_opcode, l);
+    OpIndex convertr_op = m.Emit(param.convert_opcode, r);
+    OpIndex add_op = m.Emit(param.add_opcode, convertl_op, convertr_op);
+    m.Return(add_op);
+    Stream s = m.Build();
+
+    // Test that the ((Convert L) ADD (Convert R)) is correctly optimized to (L
+    // ADDL R)
+    EXPECT_EQ(param.target_addl_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(1)));
+    int lsf = LaneSizeField::decode(s[0]->opcode());
+    EXPECT_EQ(param.lsf, lsf);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSIMDAddFamilyTest,
+                         ::testing::ValuesIn(kSIMDAddFamilyTests));
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {

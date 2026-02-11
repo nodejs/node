@@ -68,6 +68,10 @@ WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
       return kExprStructNew;
     case WasmInitExpr::kStructNewDefault:
       return kExprStructNewDefault;
+    case WasmInitExpr::kStructNewDesc:
+      return kExprStructNewDesc;
+    case WasmInitExpr::kStructNewDefaultDesc:
+      return kExprStructNewDefaultDesc;
     case WasmInitExpr::kArrayNew:
       return kExprArrayNew;
     case WasmInitExpr::kArrayNewDefault:
@@ -134,6 +138,8 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
       break;
     case WasmInitExpr::kStructNew:
     case WasmInitExpr::kStructNewDefault:
+    case WasmInitExpr::kStructNewDesc:
+    case WasmInitExpr::kStructNewDefaultDesc:
     case WasmInitExpr::kArrayNew:
     case WasmInitExpr::kArrayNewDefault: {
       if (init.operands() != nullptr) {
@@ -885,6 +891,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           buffer->write_size(ex.index);
           break;
         case kExternalTag:
+        case kExternalExactFunction:
           UNREACHABLE();
       }
     }

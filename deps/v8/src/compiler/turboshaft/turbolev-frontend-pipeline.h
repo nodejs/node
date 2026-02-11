@@ -11,15 +11,15 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-bool RunMaglevOptimizations(PipelineData* data,
+bool RunMaglevOptimizations(PipelineData& data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::Graph* maglev_graph);
 
 void PrintMaglevGraph(PipelineData& data, maglev::Graph* maglev_graph,
                       const char* msg);
 
-inline bool ShouldPrintMaglevGraph(PipelineData* data) {
-  return data->info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend;
+inline bool ShouldPrintMaglevGraph(PipelineData& data) {
+  return data.info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

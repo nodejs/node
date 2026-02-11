@@ -94,7 +94,7 @@ v8_source_set("cctest_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/test-alloc.cc",
-    "heap/test-array-buffer-tracker.cc",
+    "heap/test-array-buffer-sweeper.cc",
     "heap/test-compaction.cc",
     "heap/test-concurrent-allocation.cc",
     "heap/test-concurrent-marking.cc",

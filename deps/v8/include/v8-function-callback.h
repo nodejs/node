@@ -239,24 +239,10 @@ class PropertyCallbackInfo {
    *  CompileRun("obj.a = 'obj'; var r = {a: 'r'}; Reflect.get(obj, 'x', r)");
    * \endcode
    */
+  V8_DEPRECATE_SOON(
+      "Access to receiver will be deprecated soon. Use HolderV2() instead. \n"
+      "See http://crbug.com/455600234. ")
   V8_INLINE Local<Object> This() const;
-
-  /**
-   * \return The object in the prototype chain of the receiver that has the
-   * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
-   * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
-   * The Holder() could be a hidden object (the global object, rather
-   * than the global proxy).
-   *
-   * \note For security reasons, do not pass the object back into the runtime.
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use HolderV2() instead. \n"
-      "DO NOT try to workaround this by accessing JSGlobalObject via "
-      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
-      "See http://crbug.com/333672197. ")
-  V8_INLINE Local<Object> Holder() const;
 
   /**
    * \return The object in the prototype chain of the receiver that has the
@@ -264,6 +250,7 @@ class PropertyCallbackInfo {
    * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
    * In case the property is installed on the global object the Holder()
    * would return the global proxy.
+   * TODO(http://crbug.com/333672197): rename back to Holder().
    */
   V8_INLINE Local<Object> HolderV2() const;
 
@@ -278,11 +265,18 @@ class PropertyCallbackInfo {
   V8_INLINE ReturnValue<T> GetReturnValue() const;
 
   /**
-   * \return True if the intercepted function should throw if an error occurs.
-   * Usually, `true` corresponds to `'use strict'`.
+   * For [[Set]], [[DefineOwnProperty]] and [[Delete]] operations (i.e.
+   * for setter/definer/deleter callbacks) indicates whether TypeError
+   * should be thrown upon operation failure. The callback should throw
+   * TypeError only if it's necessary to provide more details than a default
+   * error thrown by V8 contains in this case.
    *
-   * \note Always `false` when intercepting `Reflect.set()`
-   * independent of the language mode.
+   * \return True if the intercepted function should throw if an error occurs.
+   * Usually, `true` corresponds to `'use strict'` execution mode.
+   *
+   * \note Always `false` when the operation was initiated by respecive
+   * `Reflect` call (i.e. `Reflect.set()`, `Reflect.defineProperty()` and
+   * `Reflect.deleteProperty()`).
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
@@ -298,9 +292,10 @@ class PropertyCallbackInfo {
   static constexpr int kShouldThrowOnErrorIndex = 1;
   static constexpr int kHolderIndex = 2;
   static constexpr int kIsolateIndex = 3;
-  static constexpr int kHolderV2Index = 4;
+  // TODO(http://crbug.com/333672197): drop this parameter.
+  static constexpr int kUnusedIndex = 4;
   static constexpr int kReturnValueIndex = 5;
-  static constexpr int kDataIndex = 6;
+  static constexpr int kCallbackInfoIndex = 6;
   static constexpr int kThisIndex = 7;
   static constexpr int kArgsLength = 8;
 
@@ -377,8 +372,9 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  // "V8_DEPRECATED" this method if |T| is |void|.
+#if defined(V8_DEPRECATION_WARNINGS) || \
+    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static constexpr bool is_allowed_void = false;
   static_assert(!std::is_void_v<T>,
                 "ReturnValue<void>::Set(const Local<S>) is deprecated. "
@@ -388,7 +384,8 @@ void ReturnValue<T>::Set(const Local<S> handle) {
                 "See http://crbug.com/348660658 for details.");
 #else
   static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+#endif  // defined(V8_DEPRECATION_WARNINGS) ||
+        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
@@ -404,8 +401,9 @@ void ReturnValue<T>::Set(const Local<S> handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  // "V8_DEPRECATED" this method if |T| is |void|.
+#if defined(V8_DEPRECATION_WARNINGS) || \
+    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static constexpr bool is_allowed_void = false;
   static_assert(!std::is_void_v<T>,
                 "ReturnValue<void>::SetNonEmpty(const Local<S>) is deprecated. "
@@ -415,7 +413,9 @@ void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
                 "See http://crbug.com/348660658 for details.");
 #else
   static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+#endif  // defined(V8_DEPRECATION_WARNINGS) ||
+        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
+
   static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
@@ -668,7 +668,11 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 
 template <typename T>
 Local<Value> PropertyCallbackInfo<T>::Data() const {
-  return Local<Value>::FromSlot(&args_[kDataIndex]);
+  using I = internal::Internals;
+  internal::Address callback_info = args_[kCallbackInfoIndex];
+  internal::Address data =
+      I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
+  return Local<Value>::New(GetIsolate(), data);
 }
 
 template <typename T>
@@ -677,25 +681,8 @@ Local<Object> PropertyCallbackInfo<T>::This() const {
 }
 
 template <typename T>
-Local<Object> PropertyCallbackInfo<T>::Holder() const {
-  return Local<Object>::FromSlot(&args_[kHolderIndex]);
-}
-
-namespace api_internal {
-// Returns JSGlobalProxy if holder is JSGlobalObject or unmodified holder
-// otherwise.
-V8_EXPORT internal::Address ConvertToJSGlobalProxyIfNecessary(
-    internal::Address holder);
-}  // namespace api_internal
-
-template <typename T>
 Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
-  using I = internal::Internals;
-  if (!I::HasHeapObjectTag(args_[kHolderV2Index])) {
-    args_[kHolderV2Index] =
-        api_internal::ConvertToJSGlobalProxyIfNecessary(args_[kHolderIndex]);
-  }
-  return Local<Object>::FromSlot(&args_[kHolderV2Index]);
+  return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 
 template <typename T>

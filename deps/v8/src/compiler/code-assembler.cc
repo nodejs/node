@@ -659,6 +659,12 @@ void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
 void CodeAssembler::Unreachable() { raw_assembler()->Unreachable(); }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void CodeAssembler::EnterSandbox() { raw_assembler()->EnterSandbox(); }
+
+void CodeAssembler::ExitSandbox() { raw_assembler()->ExitSandbox(); }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 void CodeAssembler::EmitComment(std::string str) {
   if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
@@ -1044,6 +1050,21 @@ void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
   raw_assembler()->Store(
       rep, base, offset, value,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+}
+
+void CodeAssembler::UnalignedStoreNoWriteBarrier(MachineRepresentation rep,
+                                                 TNode<BytecodeArray> base,
+                                                 TNode<IntPtrT> offset,
+                                                 Node* value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  if (UnalignedStoreSupported(rep)) {
+    raw_assembler()->Store(
+        rep, base, offset, value,
+        CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+  } else {
+    Node* base_raw = BitcastTaggedToWord(base);
+    raw_assembler()->UnalignedStore(rep, base_raw, offset, value);
+  }
 }
 
 void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,

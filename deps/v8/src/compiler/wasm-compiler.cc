@@ -1149,10 +1149,6 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
       "WasmCapiCall", WasmStubAssemblerOptions());
 }
 
-bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
-  return fast_api_call::CanOptimizeFastSignature(sig);
-}
-
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
     const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),

@@ -2147,6 +2147,16 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
           break;
         case WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory: {
           array_buffer->set_is_resizable_by_js(true);
+          // Update the byte_length at the same time as the flag to keep
+          // consistent state. The ByteLength is also post-processed after
+          // the creation of the memory object, which should take care of the
+          // most common case. Updating the flag, but not the byte_length is
+          // inconsistent for the buffer object and causes DCHECKS fails.
+          uint32_t byte_length;
+          if (!ReadVarint<uint32_t>().To(&byte_length)) {
+            return MaybeDirectHandle<JSArrayBuffer>();
+          }
+          array_buffer->set_byte_length(byte_length);
           DirectHandle<Object> wasm_memory_obj;
           if (!ReadObject().ToHandle(&wasm_memory_obj) ||
               !IsWasmMemoryObject(*wasm_memory_obj, isolate_)) {

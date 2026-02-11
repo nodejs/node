@@ -263,7 +263,6 @@ v8_source_set("v8_unittests_sources") {
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
     "api/smi-tagging-unittest.cc",
-    "api/v8-array-buffer-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
     "api/v8-memory-span-unittest.cc",
@@ -415,6 +414,7 @@ v8_source_set("v8_unittests_sources") {
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
     "maglev/maglev-assembler-unittest.cc",
+    "maglev/maglev-graph-builder-unittest.cc",
     "maglev/maglev-test.cc",
     "maglev/maglev-test.h",
     "maglev/node-type-unittest.cc",
@@ -469,6 +469,7 @@ v8_source_set("v8_unittests_sources") {
     "sandbox/pointer-table-unittest.cc",
     "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
+    "sandbox/sandbox-violation-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
@@ -575,6 +576,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
       "compiler/turboshaft/load-store-address-hoisting-unittest.cc",
@@ -612,6 +614,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/wasm-address-reassociation-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
       "wasm/basic-block-calculator-unittest.cc",
+      "wasm/compilation-hints-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
@@ -712,6 +715,11 @@ v8_source_set("v8_unittests_sources") {
       "assembler/disasm-mips64-unittest.cc",
       "assembler/macro-assembler-mips64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/mips64/turboshaft-instruction-selector-mips64-unittest.cc",
+      ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
@@ -769,6 +777,11 @@ v8_source_set("v8_unittests_sources") {
       "assembler/disasm-loong64-unittest.cc",
       "assembler/macro-assembler-loong64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/loong64/turboshaft-instruction-selector-loong64-unittest.cc",
+      ]
+    }
     if (v8_enable_webassembly && current_cpu == "loong64") {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }

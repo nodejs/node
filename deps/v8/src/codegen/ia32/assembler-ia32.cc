@@ -1623,8 +1623,8 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   CHECK(jump_opt->is_optimizing());
 
   auto& dict = jump_opt->may_optimizable_farjmp;
-  if (dict.find(idx) != dict.end()) {
-    auto record_jmp_info = dict[idx];
+  if (auto it = dict.find(idx); it != dict.end()) {
+    auto record_jmp_info = it->second;
 
     int record_pos = record_jmp_info.pos;
 

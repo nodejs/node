@@ -24,7 +24,7 @@ class ReadStringVisitor;
 
 namespace compiler::turboshaft {
 template <typename Next>
-class TurboshaftAssemblerOpInterface;
+class AssemblerOpInterface;
 }
 
 class CodeStubAssembler;
@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // If this changes, we also need to update
     // - CodeStubAssembler::MemoryChunkFromAddress
     // - MacroAssembler::MemoryChunkHeaderFromObject
-    // - TurboshaftAssemblerOpInterface::MemoryChunkFromAddress
+    // - AssemblerOpInterface::MemoryChunkFromAddress
     return a & ~kAlignmentMask;
     // clang-format off
     // LINT.ThenChange(src/codegen/code-stub-assembler.cc, src/codegen/ia32/macro-assembler-ia32.cc, src/codegen/x64/macro-assembler-x64.cc, src/compiler/turboshaft/assembler.h)
@@ -358,7 +358,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   friend class CodeStubAssembler;
   friend class MacroAssembler;
   template <typename Next>
-  friend class compiler::turboshaft::TurboshaftAssemblerOpInterface;
+  friend class compiler::turboshaft::AssemblerOpInterface;
   // For IsFlagSet().
   friend class IsolateGroup;
   friend class MemoryChunkMetadata;

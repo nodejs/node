@@ -31,9 +31,10 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
     case Opcode::kCheckedNumberOrOddballToFloat64:
     case Opcode::kCheckedNumberToFloat64:
-    case Opcode::kUncheckedNumberOrOddballToFloat64:
-    case Opcode::kUncheckedNumberToFloat64:
+    case Opcode::kUnsafeNumberOrOddballToFloat64:
+    case Opcode::kUnsafeNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
+    case Opcode::kCheckedNumberToShiftedInt53:
       return true;
     default:
       return false;
@@ -166,6 +167,9 @@ class MaglevPhiRepresentationSelector {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult UpdateNodePhiInput(NumberToString* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,

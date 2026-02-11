@@ -1296,11 +1296,13 @@ BUILTIN(SegmentsPrototypeIterator) {
   const char* const method_name = "%SegmentIsPrototype%[@@iterator]";
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
+  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator(
+      segments->icu_break_iterator(), isolate);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSSegmentIterator::Create(
-          isolate, direct_handle(segments->raw_string(), isolate),
-          segments->icu_break_iterator()->raw(), segments->granularity()));
+      isolate, JSSegmentIterator::Create(
+                   isolate, direct_handle(segments->raw_string(), isolate),
+                   managed_break_iterator, segments->granularity()));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

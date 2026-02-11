@@ -516,6 +516,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
 
+  // Distance between the address of the code target in the call instruction
+  // and the return address pushed on the stack.
+  static const int kCallTargetAddressOffset = 4;
+
   void GetCode(LocalIsolate* isolate, CodeDesc* desc,
                SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);

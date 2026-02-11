@@ -31,6 +31,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kIsBeingInterpreted:
       return ReduceIsBeingInterpreted(node);
+    case Runtime::kMajorGCForCompilerTesting:
+      return ReduceMajorGCForCompilerTesting(node);
     case Runtime::kTurbofanStaticAssert:
       return ReduceTurbofanStaticAssert(node);
     case Runtime::kVerifyType:
@@ -263,6 +265,21 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
   return Change(node, simplified()->ObjectIsReceiver());
 }
 
+Reduction JSIntrinsicLowering::ReduceMajorGCForCompilerTesting(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Removing all inputs and re-inserting the effect/control input in order to
+  // remove all value inputs.
+  node->TrimInputCount(0);
+  node->AppendInput(zone(), effect);
+  node->AppendInput(zone(), control);
+  NodeProperties::ChangeOp(node, common()->MajorGCForCompilerTesting());
+  // Replacing value uses of {node} by uses of UndefinedConstant, since
+  // MajorGCForCompilerTesting doesn't return anything.
+  ReplaceWithValue(node, jsgraph_->UndefinedConstant(), node, node);
+  return Changed(node);
+}
+
 Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -420,6 +437,8 @@ Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
 }
 
 TFGraph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
+
+Zone* JSIntrinsicLowering::zone() const { return graph()->zone(); }
 
 Isolate* JSIntrinsicLowering::isolate() const { return jsgraph()->isolate(); }
 

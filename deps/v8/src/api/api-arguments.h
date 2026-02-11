@@ -57,8 +57,6 @@ class CustomArguments : public CustomArgumentsBase {
   Address values_[T::kArgsLength];
 };
 
-// Note: Calling args.Call() sets the return value on args. For multiple
-// Call()'s, a new args should be used every time.
 // This class also serves as a side effects detection scope (JavaScript code
 // execution). It is used for ensuring correctness of the interceptor callback
 // implementations. The idea is that the interceptor callback that does not
@@ -74,22 +72,22 @@ class PropertyCallbackArguments final
   using Super = CustomArguments<T>;
   static constexpr int kArgsLength = T::kArgsLength;
   static constexpr int kThisIndex = T::kThisIndex;
-  static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kHolderV2Index = T::kHolderV2Index;
+  static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
   static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
 
-  // This constructor leaves kPropertyKeyIndex and kReturnValueIndex slots
-  // uninitialized in order to let them be initialized by the subsequent
-  // CallXXX(..) and avoid double initialization. As a consequence, there
-  // must be no GC call between this constructor and CallXXX(..).
-  // In debug mode these slots are zapped, so GC should be able to detect
-  // the misuse of this object.
-  PropertyCallbackArguments(Isolate* isolate, Tagged<Object> data,
-                            Tagged<Object> self, Tagged<JSObject> holder,
-                            Maybe<ShouldThrow> should_throw);
+  // This constructor leaves kPropertyKeyIndex, kReturnValueIndex and
+  // kCallbackInfoIndex slots uninitialized in order to let them be
+  // initialized by the subsequent CallXXX(..) and avoid double initialization.
+  // As a consequence, there must be no GC call between this constructor and
+  // CallXXX(..). In debug mode these slots are zapped, so GC should be able
+  // to detect misuse of this object.
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> self,
+                                   Tagged<JSObject> holder,
+                                   Maybe<ShouldThrow> should_throw);
   inline ~PropertyCallbackArguments();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
@@ -231,13 +229,14 @@ class PropertyCallbackArguments final
     return pca->index_;
   }
 
+  inline DirectHandle<JSObject> holder() const;
+
  private:
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
       DirectHandle<InterceptorInfo> interceptor);
 
-  inline Tagged<JSObject> holder() const;
-  inline Tagged<Object> receiver() const;
+  inline DirectHandle<Object> receiver() const;
 
   // This field is used for propagating index value from CallIndexedXXX()
   // to ExceptionPropagationCallback.
@@ -278,10 +277,10 @@ class FunctionCallbackArguments
   static_assert(T::kValuesOffset == offsetof(T, values_));
   static_assert(T::kLengthOffset == offsetof(T, length_));
 
-  FunctionCallbackArguments(Isolate* isolate,
-                            Tagged<FunctionTemplateInfo> target,
-                            Tagged<HeapObject> new_target, Address* argv,
-                            int argc);
+  inline FunctionCallbackArguments(Isolate* isolate,
+                                   Tagged<FunctionTemplateInfo> target,
+                                   Tagged<HeapObject> new_target, Address* argv,
+                                   int argc);
 
   /*
    * The following Call function wraps the calling of all callbacks to handle

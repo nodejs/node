@@ -355,7 +355,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   ASM_CODE_COMMENT(masm_);
   __ StoreTaggedField(value, FieldMemOperand(target, offset));
   ScratchRegisterScope temps(this);
-  __ RecordWriteField(target, offset, value, kRAHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, kRAHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,

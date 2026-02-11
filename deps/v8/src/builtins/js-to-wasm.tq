@@ -61,11 +61,9 @@ const kWasmF32Type:
 const kWasmF64Type:
     constexpr uint32 generates 'wasm::kWasmF64.raw_bit_field()';
 
-const kIsFpAlwaysDouble:
-    constexpr bool generates 'wasm::kIsFpAlwaysDouble';
+const kIsFpAlwaysDouble: constexpr bool generates 'wasm::kIsFpAlwaysDouble';
 const kIsBigEndian: constexpr bool generates 'wasm::kIsBigEndian';
-const kIsBigEndianOnSim:
-    constexpr bool generates 'wasm::kIsBigEndianOnSim';
+const kIsBigEndianOnSim: constexpr bool generates 'wasm::kIsBigEndianOnSim';
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
@@ -114,17 +112,13 @@ const kWrapperBufferStackReturnBufferStart: constexpr intptr
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart'
     ;
 const kWrapperBufferFPReturnRegister1: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1';
 const kWrapperBufferFPReturnRegister2: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2';
 const kWrapperBufferGPReturnRegister1: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1';
 const kWrapperBufferGPReturnRegister2: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2';
 const kWrapperBufferSize: constexpr int32
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferSize';
 const kMaxParamBufferSize: constexpr intptr
@@ -508,7 +502,9 @@ macro HandleF32Params(
   }
 }
 
-const kCppQuietNaN: constexpr float64
+const kCppQuietNaN32: constexpr float32
+    generates 'std::numeric_limits<float>::quiet_NaN()';
+const kCppQuietNaN64: constexpr float64
     generates 'std::numeric_limits<double>::quiet_NaN()';
 
 macro JSToWasmWrapperHelper(
@@ -709,6 +705,19 @@ macro JSToWasmWrapperHelper(
         HandleF32Params(context, locationAllocator, toRef, param);
       } else {
         *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every
+        // single bit can be observable when the float64 is reinterpret casted
+        // to an integral type. Hence, differences in NaN bit patterns are
+        // detected by differential fuzzing, in particular the difference
+        // between the shipped NaN pattern produced from undefined and the new
+        // pattern used for the undefined double experiment. In order to silence
+        // these false positives, we temporarily fall back to the old pattern.
+        // This should be removed when the feature is shipped.
+        @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+          if (param == Undefined) {
+            *RefCast<float32>(toRef) = kCppQuietNaN32;
+          }
+        }
       }
     } else if (paramType == kWasmF64Type) {
       let toRef = locationAllocator.GetFP64Slot();
@@ -723,7 +732,7 @@ macro JSToWasmWrapperHelper(
       // when the feature is shipped.
       @if(V8_ENABLE_UNDEFINED_DOUBLE) {
         if (param == Undefined) {
-          *RefCast<float64>(toRef) = kCppQuietNaN;
+          *RefCast<float64>(toRef) = kCppQuietNaN64;
         }
       }
     } else if (paramType == kWasmI64Type) {

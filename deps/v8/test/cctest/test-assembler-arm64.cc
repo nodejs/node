@@ -1606,7 +1606,7 @@ TEST(label) {
   __ B(&label_2);     // Backward branch.
   __ Mov(x0, 0x0);
   __ Bind(&label_3);
-  __ Bl(&label_4);
+  __ Call(&label_4);
   END();
 
   __ Bind(&label_4);
@@ -1949,7 +1949,7 @@ TEST(branch_to_reg) {
   __ Br(x0);
 
   __ Bind(&after_fn1);
-  __ Bl(&fn1);
+  __ Call(&fn1);
   __ Bind(&after_bl1, BranchTargetIdentifier::kBtiJump);  // For Br(x0) in fn1.
 
   // Test blr.
@@ -1961,10 +1961,10 @@ TEST(branch_to_reg) {
   __ Bind(&fn2);
   __ Mov(x0, lr);
   __ Mov(x2, 84);
-  __ Blr(x0);
+  __ Call(x0);
 
   __ Bind(&after_fn2);
-  __ Bl(&fn2);
+  __ Call(&fn2);
   __ Bind(&after_bl2, BranchTargetIdentifier::kBtiCall);  // For Blr(x0) in fn2.
   __ Mov(x3, lr);
 
@@ -1993,16 +1993,16 @@ static void BtiHelper(Register ipreg) {
 
   __ Bind(&jump_target, BranchTargetIdentifier::kBtiJump);
   __ Adr(x0, &call_target);
-  __ Blr(x0);
+  __ Call(x0);
 
   __ Adr(ipreg, &jump_call_target);
-  __ Blr(ipreg);
+  __ Call(ipreg);
   __ Adr(lr, &test_pacibsp);  // Make Ret return to test_pacibsp.
   __ Br(ipreg);
 
   __ Bind(&test_pacibsp, BranchTargetIdentifier::kNone);
   __ Adr(ipreg, &pacibsp_target);
-  __ Blr(ipreg);
+  __ Call(ipreg);
   __ Adr(lr, &done);  // Make Ret return to done label.
   __ Br(ipreg);
 
@@ -2056,7 +2056,7 @@ TEST(unguarded_bti_is_nop) {
 
   __ Bind(&call_to_j);
   __ Adr(x0, &j);
-  __ Blr(x0);
+  __ Call(x0);
   END();
 
 #ifdef USE_SIMULATOR
@@ -14348,7 +14348,7 @@ TEST(blr_lr) {
   __ Mov(x0, 0x0);
   __ Adr(lr, &target);
 
-  __ Blr(lr);
+  __ Call(lr);
   __ Mov(x0, 0xDEADBEEF);
   __ B(&end);
 

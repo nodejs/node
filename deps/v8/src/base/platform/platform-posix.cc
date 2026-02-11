@@ -82,19 +82,7 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-/*
- * NOTE: illumos starting with illumos#14418 (pushed April 20th, 2022)
- * prototypes madvise(3C) properly with a `void *` first argument.
- * The only way to detect this outside of configure-time checking is to
- * check for the existence of MEMCNTL_SHARED, which gets defined for the first
- * time in illumos#14418 under the same circumstances save _STRICT_POSIX, which
- * thankfully neither Solaris nor illumos builds of Node or V8 do.
- *
- * If some future illumos push changes the MEMCNTL_SHARED assumptions made
- * above, the illumos check below will have to be revisited.  This check
- * will work on both pre-and-post illumos#14418 illumos environments.
- */
-#if defined(V8_OS_SOLARIS) && !(defined(__illumos__) && defined(MEMCNTL_SHARED))
+#if defined(V8_OS_SOLARIS)
 #if (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE > 2) || defined(__EXTENSIONS__)
 extern "C" int madvise(caddr_t, size_t, int);
 #else
@@ -280,15 +268,13 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void PosixInitializeCommon(AbortMode abort_mode,
-                           const char* const gc_fake_mmap) {
-  g_abort_mode = abort_mode;
+void PosixInitializeCommon(const char* const gc_fake_mmap) {
   g_gc_fake_mmap = gc_fake_mmap;
 }
 
 #if !V8_OS_FUCHSIA
-void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
-  PosixInitializeCommon(abort_mode, gc_fake_mmap);
+void OS::Initialize(const char* const gc_fake_mmap) {
+  PosixInitializeCommon(gc_fake_mmap);
 }
 #endif  // !V8_OS_FUCHSIA
 

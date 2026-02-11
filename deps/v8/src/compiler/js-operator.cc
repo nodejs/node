@@ -274,6 +274,39 @@ FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
   return OpParameter<FeedbackParameter>(op);
 }
 
+bool operator==(EmbeddedHintParameter const& lhs,
+                EmbeddedHintParameter const& rhs) {
+  return lhs.hint() == rhs.hint();
+}
+
+bool operator!=(EmbeddedHintParameter const& lhs,
+                EmbeddedHintParameter const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(EmbeddedHintParameter const& p) {
+  return std::visit(
+      [](auto const& hint) {
+        using T = std::decay_t<decltype(hint)>;
+        if constexpr (std::is_same_v<T, CompareOperationHint>) {
+          return static_cast<size_t>(hint);
+        } else {
+          UNREACHABLE();
+        }
+      },
+      p.hint());
+}
+
+std::ostream& operator<<(std::ostream& os, EmbeddedHintParameter const& p) {
+  std::visit([&os](auto const& hint) { os << hint; }, p.hint());
+  return os;
+}
+
+EmbeddedHintParameter const& EmbeddedHintParameterOf(const Operator* op) {
+  DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(op->opcode()));
+  return OpParameter<EmbeddedHintParameter>(op);
+}
+
 bool operator==(NamedAccess const& lhs, NamedAccess const& rhs) {
   return lhs.name_.object().location() == rhs.name_.object().location() &&
          lhs.language_mode() == rhs.language_mode() &&
@@ -689,6 +722,29 @@ size_t hash_value(GetIteratorParameters const& p) {
                             FeedbackSource::Hash()(p.callFeedback()));
 }
 
+std::ostream& operator<<(std::ostream& os, ForOfNextParameters const& p) {
+  return os << p.callFeedback();
+}
+
+bool operator==(ForOfNextParameters const& lhs,
+                ForOfNextParameters const& rhs) {
+  return lhs.callFeedback() == rhs.callFeedback();
+}
+
+bool operator!=(ForOfNextParameters const& lhs,
+                ForOfNextParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+ForOfNextParameters const& ForOfNextParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSForOfNext);
+  return OpParameter<ForOfNextParameters>(op);
+}
+
+size_t hash_value(ForOfNextParameters const& p) {
+  return FeedbackSource::Hash()(p.callFeedback());
+}
+
 size_t hash_value(ForInMode const& mode) { return static_cast<uint8_t>(mode); }
 
 std::ostream& operator<<(std::ostream& os, ForInMode const& mode) {
@@ -876,7 +932,17 @@ JS_UNOP_WITH_FEEDBACK(UNARY_OP)
         Operator::ZeroIfNoThrow(kProperties), parameters);                    \
   }
 JS_BINOP_WITH_FEEDBACK(BINARY_OP)
+JS_BINOP_WITH_EMBEDDED_FEEDBACK(BINARY_OP)
 #undef BINARY_OP
+
+const Operator* JSOperatorBuilder::StrictEqual(
+    const CompareOperationHint feedback) {
+  static constexpr auto kProperties = BinopProperties(IrOpcode::kJSStrictEqual);
+  EmbeddedHintParameter hint_parameter(feedback);
+  return zone()->New<Operator1<EmbeddedHintParameter>>(
+      IrOpcode::kJSStrictEqual, kProperties, "JSStrictEqual", 2, 1, 1, 1, 1,
+      Operator::ZeroIfNoThrow(kProperties), hint_parameter);
+}
 
 const Operator* JSOperatorBuilder::DefineKeyedOwnPropertyInLiteral(
     const FeedbackSource& feedback) {
@@ -1110,11 +1176,14 @@ const Operator* JSOperatorBuilder::GetIterator(
       access);                                            // parameter
 }
 
-const Operator* JSOperatorBuilder::ForOfNext() {
-  return zone()->New<Operator>(                         // --
+const Operator* JSOperatorBuilder::ForOfNext(
+    FeedbackSource const& call_feedback) {
+  ForOfNextParameters access(call_feedback);
+  return zone()->New<Operator1<ForOfNextParameters>>(   // --
       IrOpcode::kJSForOfNext, Operator::kNoProperties,  // opcode
       "JSForOfNext",                                    // name
-      2, 1, 1, 2, 1, 2);                                // counts
+      3, 1, 1, 2, 1, 2,                                 // counts
+      access);                                          // parameter
 }
 
 const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {

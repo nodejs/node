@@ -150,7 +150,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
     __ GetObjectType(map, type, type);
     __ Assert(eq, AbortReason::kUnexpectedValue, type, Operand(MAP_TYPE));
   }
-  __ LoadWord(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Lhu(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(target, cc, type, Operand(instance_type), distance);
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,

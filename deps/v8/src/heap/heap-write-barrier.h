@@ -16,6 +16,9 @@
 
 namespace v8::internal {
 
+template <typename T, IndirectPointerTag kTag>
+class TrustedPointerMember;
+
 class ArrayBufferExtension;
 class InstructionStream;
 class DescriptorArray;
@@ -101,6 +104,10 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForIndirectPointer(
       Tagged<HeapObject> host, IndirectPointerSlot slot,
       Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  template <typename T, IndirectPointerTag kTag>
+  static inline void ForIndirectPointer(
+      HeapObjectLayout* host, TrustedPointerMember<T, kTag>* slot,
+      Tagged<T> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForProtectedPointer(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
       Tagged<TrustedObject> value,

@@ -400,6 +400,11 @@ class WritableJitAllocation {
   static V8_INLINE WritableJitAllocation ForNonExecutableMemory(
       Address addr, size_t size, ThreadIsolation::JitAllocationType type);
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  static V8_INLINE WritableJitAllocation ForPatchableBaselineJIT(Address addr,
+                                                                 size_t size);
+#endif
+
   // Writes a header slot either as a primitive or as a Tagged value.
   // Important: this function will not trigger a write barrier by itself,
   // since we want to keep the code running with write access to executable
@@ -457,6 +462,11 @@ class WritableJitAllocation {
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
                                   ThreadIsolation::JitAllocationType type,
                                   bool enforce_write_api);
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  // Used for patchable baseline JIT.
+  V8_INLINE WritableJitAllocation(Address addr, size_t size);
+#endif
 
   ThreadIsolation::JitPageReference& page_ref() { return page_ref_.value(); }
 

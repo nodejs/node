@@ -418,7 +418,7 @@ test(function() {
   new Promise(1);
 }, "Promise resolver 1 is not a function", TypeError);
 
-// kStrictDeleteProperty
+// kStrictCannotDeleteProperty
 test(function() {
   "use strict";
   var o = {};

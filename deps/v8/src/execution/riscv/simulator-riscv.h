@@ -676,6 +676,9 @@ class Simulator : public SimulatorBase {
     // WORD_DWORD
   };
 
+  template <typename T, typename OP>
+  void AtomicMemoryHelper(sreg_t rs1, T value, OP f, Instruction* instr);
+
   // "Probe" if an address range can be read. This is currently implemented
   // by doing a 1-byte read of the last accessed byte, since the assumption is
   // that if the last byte is accessible, also all lower bytes are accessible
@@ -693,13 +696,6 @@ class Simulator : public SimulatorBase {
   T ReadMem(sreg_t addr, Instruction* instr);
   template <typename T>
   void WriteMem(sreg_t addr, T value, Instruction* instr);
-  template <typename T, typename OP>
-  T amo(sreg_t addr, OP f, Instruction* instr, TraceType t) {
-    auto lhs = ReadMem<T>(addr, instr);
-    // TODO(RISCV): trace memory read for AMO
-    WriteMem<T>(addr, (T)f(lhs), instr);
-    return lhs;
-  }
 
   // Helper for debugging memory access.
   inline void DieOrDebug();
@@ -1296,6 +1292,18 @@ class Simulator : public SimulatorBase {
 
   class GlobalMonitor {
    public:
+    class SimulatorMutex final {
+     public:
+      explicit SimulatorMutex(GlobalMonitor* global_monitor) {
+        if (!global_monitor->IsSingleThreaded()) {
+          guard.emplace(global_monitor->mutex_);
+        }
+      }
+
+     private:
+      std::optional<base::MutexGuard> guard;
+    };
+
     class LinkedAddress {
      public:
       LinkedAddress();
@@ -1322,32 +1330,32 @@ class Simulator : public SimulatorBase {
       int failure_counter_;
     };
 
-    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
-    base::Mutex mutex;
-
     void NotifyLoadLinked_Locked(uintptr_t addr, LinkedAddress* linked_address);
     void NotifyStore_Locked(LinkedAddress* linked_address);
     bool NotifyStoreConditional_Locked(uintptr_t addr,
                                        LinkedAddress* linked_address);
 
+    // Called when the simulator is constructed.
+    void PrependLinkedAddress(LinkedAddress* linked_address);
     // Called when the simulator is destroyed.
     void RemoveLinkedAddress(LinkedAddress* linked_address);
 
     static GlobalMonitor* Get();
 
    private:
+    bool IsSingleThreaded() const { return num_linked_address_ == 1; }
     // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
     GlobalMonitor() = default;
     friend class base::LeakyObject<GlobalMonitor>;
 
-    bool IsProcessorInLinkedList_Locked(LinkedAddress* linked_address) const;
-    void PrependProcessor_Locked(LinkedAddress* linked_address);
-
     LinkedAddress* head_ = nullptr;
+    std::atomic<uint32_t> num_linked_address_ = 0;
+    base::Mutex mutex_;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::LinkedAddress global_monitor_thread_;
+  GlobalMonitor* global_monitor_;
 };
 }  // namespace internal
 }  // namespace v8

@@ -8,6 +8,7 @@
 #include <initializer_list>
 
 #include "src/base/logging.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/common/scoped-modification.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -52,7 +53,33 @@ class MaglevGraphOptimizer {
   }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
+    DCHECK(current_node()->properties().can_eager_deopt() ||
+           current_node()->properties().is_deopt_checkpoint());
     return &current_node()->eager_deopt_info()->top_frame();
+  }
+
+  std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
+      bool can_throw) {
+    DCHECK(current_node()->properties().can_lazy_deopt());
+    LazyDeoptInfo* info = current_node()->lazy_deopt_info();
+    return std::make_tuple(&info->top_frame(), info->result_location(),
+                           info->result_size());
+  }
+
+  void AttachExceptionHandlerInfo(Node* node) {
+    DCHECK(node->properties().can_throw());
+    DCHECK(current_node()->properties().can_throw());
+    DCHECK(!node->Is<CallKnownJSFunction>());
+    ExceptionHandlerInfo* info = current_node()->exception_handler_info();
+    if (info->ShouldLazyDeopt()) {
+      new (node->exception_handler_info())
+          ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
+    } else if (!info->HasExceptionHandler()) {
+      new (node->exception_handler_info()) ExceptionHandlerInfo();
+    } else {
+      new (node->exception_handler_info())
+          ExceptionHandlerInfo(info->catch_block(), info->depth());
+    }
   }
 
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
@@ -72,11 +99,15 @@ class MaglevGraphOptimizer {
   compiler::JSHeapBroker* broker() const;
 
   std::optional<Range> GetRange(ValueNode* node);
+  bool IsRangeLessEqual(ValueNode* lhs, ValueNode* rhs);
 
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.
   void UnwrapDeoptFrames();
   void UnwrapInputs();
+
+  template <typename NodeT>
+  ValueNode* TrySmiTag(Input input);
 
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,
@@ -84,7 +115,7 @@ class MaglevGraphOptimizer {
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
-  ValueNode* GetUntaggedValueWithRepresentation(
+  MaybeReduceResult GetUntaggedValueWithRepresentation(
       ValueNode* node, UseRepresentation repr,
       std::optional<TaggedToFloat64ConversionType> conversion_type);
 
@@ -116,6 +147,10 @@ class MaglevGraphOptimizer {
 
   template <typename NodeT>
   ProcessResult ProcessLoadContextSlot(NodeT* node);
+  template <typename NodeT>
+  ProcessResult ProcessCheckMaps(NodeT* node, ValueNode* object_map = nullptr);
+
+  ProcessResult EmitAbort(AbortReason);
 };
 
 }  // namespace maglev

@@ -913,20 +913,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
                         Label::kNear);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  // If feedback vector is valid, check for optimized code and update invocation
-  // count. Load the optimization state from the feedback vector and reuse the
-  // register.
-  Label flags_need_processing;
-  Register flags = ecx;
-  XMMRegister saved_feedback_vector = xmm1;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, saved_feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &flags_need_processing);
-
-  // Reload the feedback vector.
-  __ movd(feedback_vector, saved_feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch);
 
@@ -1106,14 +1092,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    // Restore actual argument count.
-    __ movd(eax, xmm0);
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&compile_lazy);
   // Restore actual argument count.
@@ -1122,39 +1100,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-#ifndef V8_ENABLE_LEAPTIERING
-    __ movd(xmm2, ecx);  // Save baseline data.
-    // Load the feedback vector from the closure.
-    __ mov(feedback_vector,
-           FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ mov(feedback_vector,
-           FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
-
-    Label install_baseline_code;
-    // Check if feedback vector is valid. If not, call prepare for baseline to
-    // allocate it.
-    __ LoadMap(eax, feedback_vector);
-    __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
-    __ j(not_equal, &install_baseline_code);
-
-    // Check the tiering state.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, xmm1, CodeKind::BASELINE, &flags_need_processing);
-
-    // Load the baseline code into the closure.
-    __ movd(ecx, xmm2);
-    static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-    __ push(edx);  // Spill.
-    __ push(ecx);
-    __ Push(xmm0, eax);  // Save the argument count (currently in xmm0).
-    __ ReplaceClosureCodeWithOptimizedCode(ecx, closure, eax, ecx);
-    __ pop(eax);  // Restore the argument count.
-    __ pop(ecx);
-    __ pop(edx);
-    __ JumpCodeObject(ecx);
-
-    __ bind(&install_baseline_code);
-#endif  // !V8_ENABLE_LEAPTIERING
 
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1878,19 +1823,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector, scratch);
   feedback_cell = no_reg;
 
-#ifdef V8_ENABLE_LEAPTIERING
   __ movd(saved_feedback_vector, feedback_vector);
-#else
-  // Load the optimization state from the feedback vector and reuse the
-  // register.
-  Label flags_need_processing;
-  Register flags = ecx;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, saved_feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-
-  // Reload the feedback vector.
-  __ movd(feedback_vector, saved_feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     DCHECK_EQ(arg_count, eax);
@@ -1955,20 +1888,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
-    // Drop the return address and bytecode array, rebalancing the return stack
-    // buffer by using JumpMode::kPushAndReturn. We can't leave the slot and
-    // overwrite it on return since we may do a runtime call along the way that
-    // requires the stack to only contain valid frames.
-    __ Drop(2);
-    __ movd(arg_count, saved_arg_count);  // Restore actual argument count.
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, saved_feedback_vector);
-    __ Trap();
-  }
-#endif  //! V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {
@@ -3935,9 +3854,10 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&suspend);
@@ -3949,7 +3869,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
+  __ Push(arg_buffer);
   __ Push(cont);
   __ Push(kContextRegister);
   {
@@ -3970,6 +3892,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(kContextRegister);
   cont = kReturnRegister0;
   __ Pop(cont);
+  __ Pop(arg_buffer);
 
   Label ok;
   __ cmp(target_stack, Immediate(0));
@@ -3981,6 +3904,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&resume);
+  __ mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(0);
 }
@@ -4524,8 +4448,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   if (mode == CallApiCallbackMode::kGeneric) {
     __ mov(api_function_address,
-           FieldOperand(func_templ,
-                        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
+           FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
   }
 
   __ PushReturnAddressFrom(argc);
@@ -4604,9 +4527,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4620,14 +4543,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   esp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   esp[3 * kSystemPointerSize]: kHolderIndex
   //   esp[4 * kSystemPointerSize]: kIsolateIndex
-  //   esp[5 * kSystemPointerSize]: kHolderV2Index
+  //   esp[5 * kSystemPointerSize]: kUnusedIndex
   //   esp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   esp[7 * kSystemPointerSize]: kDataIndex
+  //   esp[7 * kSystemPointerSize]: kCallbackInfoIndex
   //   esp[8 * kSystemPointerSize]: kThisIndex / receiver
 
   __ PopReturnAddressTo(scratch);
-  __ push(receiver);
-  __ push(FieldOperand(callback, AccessorInfo::kDataOffset));
+  __ push(receiver);                        // kThisIndex
+  __ push(callback);                        // kCallbackInfoIndex
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(Smi::zero());                     // kHolderV2
   Register isolate_reg = ReassignRegister(receiver);
@@ -4650,7 +4573,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register api_function_address = ReassignRegister(isolate_reg);
   __ RecordComment("Load function_address");
   __ mov(api_function_address,
-         FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
+         FieldOperand(callback, AccessorInfo::kGetterOffset));
 
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>() + kApiArgc,
                     StackFrame::API_ACCESSOR_EXIT, api_function_address);

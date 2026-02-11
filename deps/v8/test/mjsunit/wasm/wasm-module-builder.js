@@ -205,6 +205,7 @@ let kExternalTable = 1;
 let kExternalMemory = 2;
 let kExternalGlobal = 3;
 let kExternalTag = 4;
+let kExternalExactFunction = 32;
 
 let kTableZero = 0;
 let kMemoryZero = 0;
@@ -510,7 +511,8 @@ const kWasmOpcodes = {
   'Suspend': 0xe2,
   'Resume': 0xe3,
   'ResumeThrow': 0xe4,
-  'Switch': 0xe5
+  'ResumeThrowRef': 0xe5,
+  'Switch': 0xe6
 };
 
 function defineWasmOpcode(name, value) {
@@ -583,6 +585,8 @@ let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
 let kExprRefI31Shared = 0x1f;
 // Custom Descriptors proposal:
+let kExprStructNewDesc = 0x20;
+let kExprStructNewDefaultDesc = 0x21;
 let kExprRefGetDesc = 0x22;
 let kExprRefCastDesc = 0x23;
 let kExprRefCastDescNull = 0x24;
@@ -1465,6 +1469,8 @@ class WasmModuleBuilder {
     this.explicit = [];
     this.rec_groups = [];
     this.compilation_priorities = new Map();
+    this.instruction_frequencies = new Map();
+    this.call_targets = new Map();
     this.start_index = undefined;
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
@@ -1639,27 +1645,24 @@ class WasmModuleBuilder {
     arg_names = arg_names || [];
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
     let num_args = this.types[type_index].params.length;
-    if (num_args < arg_names.length)
+    if (num_args < arg_names.length) {
       throw new Error('too many arg names provided');
-    if (num_args > arg_names.length)
+    }
+    if (num_args > arg_names.length) {
       arg_names.push(num_args - arg_names.length);
+    }
     let func = new WasmFunctionBuilder(this, name, type_index, arg_names);
     func.index = this.functions.length + this.num_imported_funcs;
     this.functions.push(func);
     return func;
   }
 
-  addImport(module, name, type) {
+  addImport(module, name, type, kind = kExternalFunction) {
     if (this.functions.length != 0) {
       throw new Error('Imported functions must be declared before local ones');
     }
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
-    this.imports.push({
-      module: module,
-      name: name,
-      kind: kExternalFunction,
-      type_index: type_index
-    });
+    this.imports.push({module, name, kind, type_index});
     return this.num_imported_funcs++;
   }
 
@@ -1667,14 +1670,8 @@ class WasmModuleBuilder {
     if (this.globals.length != 0) {
       throw new Error('Imported globals must be declared before local ones');
     }
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalGlobal,
-      type: type,
-      mutable: mutable,
-      shared: shared
-    };
+    let kind = kExternalGlobal;
+    let o = {module, name, kind, type, mutable, shared};
     this.imports.push(o);
     return this.num_imported_globals++;
   }
@@ -1686,15 +1683,10 @@ class WasmModuleBuilder {
           'up the indexes');
     }
     let mem_index = this.imports.filter(i => i.kind == kExternalMemory).length;
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalMemory,
-      initial: initial,
-      maximum: maximum,
-      shared: !!shared,
-      is_memory64: !!is_memory64
-    };
+    let kind = kExternalMemory;
+    shared = !!shared;
+    is_memory64 = !!is_memory64;
+    let o = {module, name, kind, initial, maximum, shared, is_memory64};
     this.imports.push(o);
     return mem_index;
   }
@@ -1706,12 +1698,12 @@ class WasmModuleBuilder {
       throw new Error('Imported tables must be declared before local ones');
     }
     let o = {
-      module: module,
-      name: name,
+      module,
+      name,
       kind: kExternalTable,
-      initial: initial,
-      maximum: maximum,
-      type: type,
+      initial,
+      maximum,
+      type,
       shared: !!shared,
       is_table64: !!is_table64,
     };
@@ -1724,12 +1716,8 @@ class WasmModuleBuilder {
       throw new Error('Imported tags must be declared before local ones');
     }
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalTag,
-      type_index: type_index
-    };
+    let kind = kExternalTag;
+    let o = {module, name, kind, type_index};
     this.imports.push(o);
     return this.num_imported_tags++;
   }
@@ -1873,6 +1861,23 @@ class WasmModuleBuilder {
     });
   }
 
+  // `instruction_frequencies` must be an array of {offset, frequency} objects.
+  setInstructionFrequencies(function_index, instruction_frequencies) {
+    if (!Array.isArray(instruction_frequencies)) {
+      throw new Error("instruction_frequencies must be an array");
+    }
+    this.instruction_frequencies.set(function_index, instruction_frequencies);
+  }
+
+  // `call_targets` must be an array of {offset, targets} object, where
+  // `targets` is an array of {function_index, frequency_percent} objects.
+  setCallTargets(function_index, call_targets) {
+    if (!Array.isArray(call_targets)) {
+      throw new Error("call_targets must be an array");
+    }
+    this.call_targets.set(function_index, call_targets);
+  }
+
   toBuffer(debug = false) {
     let binary = new Binary;
     let wasm = this;
@@ -1957,7 +1962,8 @@ class WasmModuleBuilder {
           section.emit_string(imp.module);
           section.emit_string(imp.name || '');
           section.emit_u8(imp.kind);
-          if (imp.kind == kExternalFunction) {
+          if (imp.kind == kExternalFunction ||
+              imp.kind == kExternalExactFunction) {
             section.emit_u32v(imp.type_index);
           } else if (imp.kind == kExternalGlobal) {
             section.emit_type(imp.type);
@@ -2306,7 +2312,7 @@ class WasmModuleBuilder {
         section.emit_u32v(this.compilation_priorities.size);
         this.compilation_priorities.forEach((priority, index) => {
           section.emit_u32v(index);
-          section.emit_u8(0);  // Byte offset 0 for function level hint.
+          section.emit_u8(0);  // Byte offset 0 for function-level hint.
           let compilation_priority =
               wasmUnsignedLeb(priority.compilation_priority);
           let optimization_priority =
@@ -2317,6 +2323,54 @@ class WasmModuleBuilder {
                             optimization_priority.length);
           section.emit_bytes(compilation_priority);
           section.emit_bytes(optimization_priority);
+        })
+      })
+    }
+
+    // Add instruction frequencies.
+    if (this.instruction_frequencies.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.instr_freq");
+        section.emit_u32v(this.instruction_frequencies.size);
+        this.instruction_frequencies.forEach((frequencies, index) => {
+          section.emit_u32v(index);
+          section.emit_u32v(frequencies.length);
+          frequencies.forEach(frequency => {
+            section.emit_u32v(frequency.offset);
+            section.emit_u32v(1);  // Hint length.
+            section.emit_u8(frequency.frequency);
+          })
+        })
+      })
+    }
+
+    // Add call targets.
+    if (this.call_targets.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.call_targets");
+        section.emit_u32v(this.call_targets.size);
+        this.call_targets.forEach((targets, index) => {
+          section.emit_u32v(index);
+          section.emit_u32v(targets.length);
+          targets.forEach(targets_for_offset => {
+            section.emit_u32v(targets_for_offset.offset);
+            let hints = targets_for_offset.targets.map(target => {
+              return {
+                function_index: wasmUnsignedLeb(target.function_index),
+                frequency_percent: wasmUnsignedLeb(target.frequency_percent)
+              }
+            })
+            var hint_length = 0;
+            hints.forEach(hint => {
+              hint_length += hint.function_index.length;
+              hint_length += hint.frequency_percent.length;
+            });
+            section.emit_u32v(hint_length);
+            hints.forEach(hint => {
+              section.emit_u32v(hint.function_index);
+              section.emit_u32v(hint.frequency_percent);
+            })
+          })
         })
       })
     }

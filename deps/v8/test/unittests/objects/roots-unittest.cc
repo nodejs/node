@@ -115,7 +115,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
-    CHECK_EQ(!IsAnyHole(obj) && IsHeapNumber(obj), in_nr_range);
+    CHECK_EQ(IsHeapNumber(obj), in_nr_range);
   }
 }
 

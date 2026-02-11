@@ -310,7 +310,10 @@ class ParserBase {
 
   void SkipInfos(int delta) { info_id_ += delta; }
 
-  void ResetInfoId() { info_id_ = 0; }
+  void ResetInfoId(int id = 0) {
+    DCHECK_LE(0, id);
+    info_id_ = id;
+  }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->single_parse_zone(); }
@@ -628,8 +631,11 @@ class ParserBase {
     DeclarationScope* EnsureStaticElementsScope(ParserBase* parser, int beg_pos,
                                                 int info_id) {
       if (!has_static_elements()) {
-        static_elements_scope = parser->NewFunctionScope(
-            FunctionKind::kClassStaticInitializerFunction);
+        FunctionKind kind =
+            has_instance_members()
+                ? FunctionKind::kClassStaticInitializerFunctionPrecededByMember
+                : FunctionKind::kClassStaticInitializerFunction;
+        static_elements_scope = parser->NewFunctionScope(kind);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
         static_elements_function_id = info_id;
@@ -643,8 +649,11 @@ class ParserBase {
     DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser,
                                                  int beg_pos, int info_id) {
       if (!has_instance_members()) {
-        instance_members_scope = parser->NewFunctionScope(
-            FunctionKind::kClassMembersInitializerFunction);
+        FunctionKind kind =
+            has_static_elements()
+                ? FunctionKind::kClassMembersInitializerFunctionPrecededByStatic
+                : FunctionKind::kClassMembersInitializerFunction;
+        instance_members_scope = parser->NewFunctionScope(kind);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
         instance_members_function_id = info_id;

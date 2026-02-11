@@ -570,6 +570,24 @@ void ContextFilter::OnMoveEvent(Address from_address, Address to_address) {
 
 using v8::tracing::TracedValue;
 
+namespace {
+
+constexpr const char* ToString(v8::CpuProfileSource source) {
+  switch (source) {
+    case v8::CpuProfileSource::kUnspecified:
+      return "Unspecified";
+    case v8::CpuProfileSource::kInspector:
+      return "Inspector";
+    case v8::CpuProfileSource::kSelfProfiling:
+      return "SelfProfiling";
+    case v8::CpuProfileSource::kInternal:
+      return "Internal";
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 std::atomic<ProfilerId> CpuProfilesCollection::last_id_{0};
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
@@ -590,6 +608,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
   // should be used instead (it is recorded nearly immediately after).
   auto value = TracedValue::Create();
   value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
+  value->SetString("source", ToString(options_.profile_source()));
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "Profile", id_, "data", std::move(value));
 
@@ -693,6 +712,8 @@ void CpuProfile::StreamPendingTraceEvents() {
   if (pending_nodes.empty() && samples_.empty()) return;
   auto value = TracedValue::Create();
 
+  value->SetString("source", ToString(options_.profile_source()));
+
   if (!pending_nodes.empty() || streaming_next_sample_ != samples_.size()) {
     value->BeginDictionary("cpuProfile");
     if (!pending_nodes.empty()) {
@@ -774,6 +795,7 @@ void CpuProfile::FinishProfile() {
   context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();
   auto value = TracedValue::Create();
+  value->SetString("source", ToString(options_.profile_source()));
   // The endTime timestamp is not converted to Perfetto's clock domain and will
   // get out of sync with other timestamps Perfetto knows about, including the
   // automatic trace event "ts" timestamp. endTime is included for backward

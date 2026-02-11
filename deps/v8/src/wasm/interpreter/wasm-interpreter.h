@@ -655,16 +655,16 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   }
   void Stop() { state_ = State::STOPPED; }
 
-  void Trap(TrapReason trap_reason, int trap_function_index, int trap_pc,
-            const FrameState& current_frame) {
+  void Trap(MessageTemplate message_template, int trap_function_index,
+            int trap_pc, const FrameState& current_frame) {
     state_ = State::TRAPPED;
-    trap_reason_ = trap_reason;
+    message_template_ = message_template;
 
     DCHECK(!activations_.empty());
     activations_.back()->SetCurrentFrame(current_frame);
     activations_.back()->SetTrapped(trap_function_index, trap_pc);
   }
-  TrapReason GetTrapReason() const { return trap_reason_; }
+  MessageTemplate GetMessageTemplate() const { return message_template_; }
 
   void Unwinding() { state_ = State::EH_UNWINDING; }
 
@@ -729,7 +729,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   static void SetRuntimeLastWasmError(Isolate* isolate,
                                       MessageTemplate message);
-  static TrapReason GetRuntimeLastWasmError(Isolate* isolate);
+  static MessageTemplate GetRuntimeLastWasmError(Isolate* isolate);
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   uint32_t CurrentStackFrameStart() const {
@@ -762,7 +762,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   Isolate* isolate_;
   State state_;
-  TrapReason trap_reason_;
+  MessageTemplate message_template_;
   // In fuzzer mode, the interpreter is not called from a JS function, but
   // directly from the fuzzer. We need to add a fake frame pointer that can be
   // used to access the stack.
@@ -1652,7 +1652,7 @@ class WasmBytecodeGenerator {
   inline void EmitMemoryOffset(uint64_t value) {
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_compact_bytecode) {
-      printf("EmitMemoryOffset %llu\n", value);
+      printf("EmitMemoryOffset %" PRIu64 "\n", value);
     }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 

@@ -9,6 +9,7 @@
 #include "include/cppgc/platform.h"
 #include "include/v8-sandbox.h"
 #include "src/api/api.h"
+#include "src/base/abort-mode.h"
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
@@ -132,9 +133,40 @@ void V8::InitializePlatformForTesting(v8::Platform* platform) {
   V8::InitializePlatform(platform);
 }
 
+namespace {
+base::AbortMode ChooseAbortMode() {
+  if (v8_flags.sandbox_fuzzing || v8_flags.hole_fuzzing) {
+    // In this mode, controlled crashes are harmless. Furthermore, DCHECK
+    // failures should be ignored (and execution should continue past them) as
+    // they may otherwise hide issues.
+    return base::AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
+  }
+  if (v8_flags.sandbox_testing) {
+    // Similar to the above case, but here we want to exit with a status
+    // indicating success (e.g. zero on unix). This is useful for example for
+    // sandbox regression tests, which should "pass" if they crash in a
+    // controlled fashion (e.g. in a SBXCHECK).
+    return base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
+  }
+  if (v8_flags.fuzzing || v8_flags.allow_natives_for_differential_fuzzing) {
+    // For fuzzing, we want to ignore certain types of crashes that are known
+    // to be safe (no security impact), such as OOMs and similar issues.
+    return base::AbortMode::kExitIfNoSecurityImpact;
+  }
+  if (v8_flags.hard_abort) {
+    return base::AbortMode::kImmediateCrash;
+  }
+  return base::AbortMode::kDefault;
+}
+}  // namespace
+
 void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
+
+  // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
+  // it can apply to flag contradictions.
+  base::g_abort_mode = ChooseAbortMode();
 
   FlagList::EnforceFlagImplications();
 
@@ -145,6 +177,9 @@ void V8::Initialize() {
   // are not allowed. Global initialization of the Isolate or the WasmEngine
   // already reads flags, so they should not be changed afterwards.
   if (v8_flags.freeze_flags_after_init) FlagList::FreezeFlags();
+
+  // Verify the abort mode was not changed by flag implications.
+  DCHECK_EQ(ChooseAbortMode(), base::g_abort_mode);
 
   if (v8_flags.trace_turbo) {
     // Create an empty file shared by the process (e.g. the wasm engine).
@@ -157,28 +192,7 @@ void V8::Initialize() {
   // generation.
   CHECK(!v8_flags.interpreted_frames_native_stack || !v8_flags.jitless);
 
-  base::AbortMode abort_mode = base::AbortMode::kDefault;
-
-  if (v8_flags.sandbox_fuzzing || v8_flags.hole_fuzzing) {
-    // In this mode, controlled crashes are harmless. Furthermore, DCHECK
-    // failures should be ignored (and execution should continue past them) as
-    // they may otherwise hide issues.
-    abort_mode = base::AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
-  } else if (v8_flags.sandbox_testing) {
-    // Similar to the above case, but here we want to exit with a status
-    // indicating success (e.g. zero on unix). This is useful for example for
-    // sandbox regression tests, which should "pass" if they crash in a
-    // controlled fashion (e.g. in a SBXCHECK).
-    abort_mode = base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
-  } else if (v8_flags.hard_abort) {
-    abort_mode = base::AbortMode::kImmediateCrash;
-  } else if (v8_flags.fuzzing) {
-    // For fuzzing, we want to ignore certain types of crashes that are known
-    // to be safe (no security impact), such as OOMs and similar issues.
-    abort_mode = base::AbortMode::kExitIfNoSecurityImpact;
-  }
-
-  base::OS::Initialize(abort_mode, v8_flags.gc_fake_mmap);
+  base::OS::Initialize(v8_flags.gc_fake_mmap);
 
   if (v8_flags.random_seed) {
     GetPlatformPageAllocator()->SetRandomMmapSeed(v8_flags.random_seed);

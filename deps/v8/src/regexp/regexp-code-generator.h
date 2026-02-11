@@ -72,6 +72,10 @@ class RegExpCodeGenerator final {
   // BitVector indicating if a specific offset is a valid jump target.
   // Labels are allocated for all offsets that are jump targets.
   BitVector jump_targets_;
+  // BitVector indicating if a specific offset is an indirect jump target.
+  // Indirect Jump Targets are all targets of `PushBacktrack`.
+  // This is required for CFI.
+  BitVector indirect_jump_targets_;
   bool has_unsupported_bytecode_;
 };
 

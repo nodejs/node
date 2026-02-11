@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/float16.h"
 #include "src/base/ieee754.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
@@ -19,7 +20,6 @@
 #include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
-#include "src/wasm/float16.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 

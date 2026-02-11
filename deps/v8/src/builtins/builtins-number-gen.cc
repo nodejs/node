@@ -310,15 +310,17 @@ TF_BUILTIN(Equal_WithFeedback, CodeStubAssembler) {
   Unreachable();
 }
 
-TF_BUILTIN(StrictEqual_WithFeedback, CodeStubAssembler) {
+TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto bytecode_array = Parameter<BytecodeArray>(Descriptor::kBytecodeArray);
+  auto feedback_offset =
+      UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+                         feedback_offset);
 
   Return(result);
 }
@@ -355,12 +357,13 @@ TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
 TF_BUILTIN(StrictEqual_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto feedback_offset =
+      UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
+                         LoadBytecodeArrayFromBaseline(), feedback_offset);
 
   Return(result);
 }

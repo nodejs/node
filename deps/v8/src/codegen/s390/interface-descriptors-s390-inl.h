@@ -307,6 +307,11 @@ constexpr auto Compare_BaselineDescriptor::registers() {
 }
 
 // static
+constexpr auto Compare_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  return RegisterArray(r3, r2, r4);
+}
+
+// static
 constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r3, r2); }
 
 // static

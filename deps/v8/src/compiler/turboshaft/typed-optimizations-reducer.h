@@ -94,8 +94,10 @@ class TypedOptimizationsReducer
       }
       case Type::Kind::kFloat32: {
         auto f32 = type.AsFloat32();
-        if (f32.is_only_nan()) {
-          return Asm().Float32Constant(nan_v<32>);
+        if (f32.has_nan()) {
+          // In the presence of hole and undefined nans, we cannot replace this
+          // without knowing the bit pattern.
+          break;
         } else if (f32.is_only_minus_zero()) {
           return Asm().Float32Constant(-0.0f);
         } else if (auto c = f32.try_get_constant()) {
@@ -105,8 +107,10 @@ class TypedOptimizationsReducer
       }
       case Type::Kind::kFloat64: {
         auto f64 = type.AsFloat64();
-        if (f64.is_only_nan()) {
-          return Asm().Float64Constant(nan_v<64>);
+        if (f64.has_nan()) {
+          // In the presence of hole and undefined nans, we cannot replace this
+          // without knowing the bit pattern.
+          break;
         } else if (f64.is_only_minus_zero()) {
           return Asm().Float64Constant(-0.0);
         } else if (auto c = f64.try_get_constant()) {

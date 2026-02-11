@@ -55,7 +55,11 @@ namespace v8::internal::compiler::turboshaft {
   V(F32x4UConvertI32x4, F32x8UConvertI32x8)                \
   V(F32x4SConvertI32x4, F32x8SConvertI32x8)                \
   V(I32x4RelaxedTruncF32x4S, I32x8RelaxedTruncF32x8S)      \
-  V(I32x4RelaxedTruncF32x4U, I32x8RelaxedTruncF32x8U)
+  V(I32x4RelaxedTruncF32x4U, I32x8RelaxedTruncF32x8U)      \
+  V(F32x4Ceil, F32x8Ceil)                                  \
+  V(F32x4Floor, F32x8Floor)                                \
+  V(F32x4Trunc, F32x8Trunc)                                \
+  V(F32x4NearestInt, F32x8NearestInt)
 
 #define SIMD256_UNARY_SIGN_EXTENSION_OP(V)                              \
   V(I64x2SConvertI32x4Low, I64x4SConvertI32x4, I64x2SConvertI32x4High)  \

@@ -44,7 +44,8 @@ inline void InvokeAtomicMajorGC(i::Isolate* isolate) {
                                  GarbageCollectionReason::kTesting);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+        CompleteSweepingReason::kTesting);
   }
 }
 
@@ -53,7 +54,8 @@ inline void InvokeAtomicMinorGC(i::Isolate* isolate) {
   Heap* heap = isolate->heap();
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+        CompleteSweepingReason::kTesting);
   }
 }
 
@@ -120,7 +122,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     InvokeMajorGC();
     InvokeMajorGC();
     heap()->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
+        Heap::SweepingForcedFinalizationMode::kV8Only,
+        CompleteSweepingReason::kTesting);
     heap()->FreeMainThreadLinearAllocationAreas();
     for (PageMetadata* page : *heap()->old_space()) {
       page->MarkNeverAllocateForTesting();

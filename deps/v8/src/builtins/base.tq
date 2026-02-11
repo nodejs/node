@@ -511,7 +511,6 @@ extern enum MessageTemplate {
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
   kWasmTrapResume,
-  kWasmObjectsAreOpaque,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,
@@ -948,6 +947,7 @@ extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro SmiToString(Smi): String;
+extern macro Int32ToString(int32): String;
 extern macro Float64ToString(float64): String;
 extern macro StringToNumber(String): Number;
 extern transitioning macro NonNumberToNumber(
@@ -1414,6 +1414,7 @@ extern macro Uint64Constant(constexpr uint64): uint64;
 extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
 extern macro Float64Constant(constexpr IntegerLiteral): float64;
+extern macro Float32Constant(constexpr float32): float32;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;

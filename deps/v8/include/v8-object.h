@@ -163,30 +163,44 @@ enum PropertyAttribute {
 };
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when setting|getting
- * a particular data property. See Object::SetNativeDataProperty and
+ * This callback function is called when getting a particular data property
+ * (i.e. when performing [[Get]] operation).
+ *
+ * The callback returns the result by calling `info.GetReturnValue().Set(..)`.
+ *
+ * \param property The name of the property being requested.
+ * \param info Information about the intercepted request, such as
+ * isolate, object holding the property, return value. See
+ * `PropertyCallbackInfo`.
+ *
+ * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
 using AccessorNameGetterCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
+/**
+ * This callback function is called when setting a particular data property
+ * (i.e. when performing [[Set]] operation).
+ *
+ * In case of operation failure the callback should
+ *  - call `info.GetReturnValue().Set(false)`,
+ *  - (optionally) upon operation failure and info.ShouldThrowOnError()
+ *    is true (indicating execution in `'use strict'` mode) the callback can
+ *    throw TypeError if the error message needs to include more details than
+ *    a TypeError thrown by V8 in this case.
+ *
+ * \param property The name of the property being requested.
+ * \param info Information about the intercepted request, such as
+ * isolate, object holding the property, return value, or whether running in
+ * `'use strict'` mode. See `PropertyCallbackInfo`.
+ *
+ * See Object::SetNativeDataProperty and
+ * ObjectTemplate::SetNativeDataProperty methods.
+ */
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);
-
-/**
- * Access control specifications.
- *
- * Some accessors should be accessible across contexts. These
- * accessors have an explicit access control parameter which specifies
- * the kind of cross-context access that should be allowed.
- *
- */
-enum V8_DEPRECATED(
-    "This enum is no longer used and will be removed in V8 14.3.")
-    AccessControl {
-      DEFAULT V8_ENUM_DEPRECATED("not used") = 0,
-    };
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -517,7 +531,7 @@ class V8_EXPORT Object : public Value {
                                                      int index,
                                                      EmbedderDataTypeTag tag);
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromInternalField(int index) {
@@ -525,7 +539,7 @@ class V8_EXPORT Object : public Value {
                                               kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
@@ -542,7 +556,7 @@ class V8_EXPORT Object : public Value {
         index, tag);
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
@@ -559,7 +573,7 @@ class V8_EXPORT Object : public Value {
         index, tag);
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
@@ -576,14 +590,14 @@ class V8_EXPORT Object : public Value {
   void SetAlignedPointerInInternalField(int index, void* value,
                                         EmbedderDataTypeTag tag);
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
       "instead.")
   void SetAlignedPointerInInternalField(int index, void* value) {
     SetAlignedPointerInInternalField(index, value, kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   void SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -821,7 +835,7 @@ class V8_EXPORT Object : public Value {
   void* GetAlignedPointerFromEmbedderDataInCreationContext(
       int index, EmbedderDataTypeTag tag);
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
       "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
@@ -830,7 +844,7 @@ class V8_EXPORT Object : public Value {
         isolate, index, kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
       "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(int index) {

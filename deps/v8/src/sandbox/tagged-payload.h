@@ -58,6 +58,10 @@ struct TaggedPayload {
         PayloadTaggingScheme::kMarkBit);
   }
 
+  Address ExtractPointerUnchecked() const {
+    return encoded_word_ & ~PayloadTaggingScheme::kTagMask;
+  }
+
   bool ContainsFreelistLink() const {
       return IsTaggedWith(PayloadTaggingScheme::kFreeEntryTag);
   }

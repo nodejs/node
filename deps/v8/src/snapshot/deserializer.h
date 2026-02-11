@@ -95,6 +95,9 @@ class Deserializer : public SerializerDeserializer {
   base::Vector<const DirectHandle<AccessorInfo>> accessor_infos() const {
     return {accessor_infos_.data(), accessor_infos_.size()};
   }
+  base::Vector<const DirectHandle<InterceptorInfo>> interceptor_infos() const {
+    return {interceptor_infos_.data(), interceptor_infos_.size()};
+  }
   base::Vector<const DirectHandle<FunctionTemplateInfo>>
   function_template_infos() const {
     return {function_template_infos_.data(), function_template_infos_.size()};
@@ -285,6 +288,7 @@ class Deserializer : public SerializerDeserializer {
   DirectHandleVector<AllocationSite> new_allocation_sites_;
   DirectHandleVector<InstructionStream> new_code_objects_;
   DirectHandleVector<AccessorInfo> accessor_infos_;
+  DirectHandleVector<InterceptorInfo> interceptor_infos_;
   DirectHandleVector<FunctionTemplateInfo> function_template_infos_;
   DirectHandleVector<Script> new_scripts_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;

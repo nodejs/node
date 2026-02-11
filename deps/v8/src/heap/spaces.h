@@ -66,9 +66,6 @@ void ForAll(Callback callback) {
 // sealed after startup (i.e. not ReadOnlySpace).
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
-  static inline void MoveExternalBackingStoreBytes(
-      ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
-
   Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list)
       : BaseSpace(heap, id), free_list_(std::move(free_list)) {}
 
@@ -85,17 +82,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   virtual size_t Available() const = 0;
 
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
-
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  // Returns amount of off-heap memory in-use by objects in this Space.
-  virtual size_t ExternalBackingStoreBytes(
-      ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
 
   virtual MutablePageMetadata* first_page() {
     return memory_chunk_list_.front();
@@ -134,9 +120,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
  protected:
   // The List manages the pages that belong to the given space.
   heap::List<MutablePageMetadata> memory_chunk_list_;
-  // Tracks off-heap memory used by this space.
-  std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
-      ExternalBackingStoreType::kNumValues)] = {0};
   std::unique_ptr<FreeList> free_list_;
 };
 

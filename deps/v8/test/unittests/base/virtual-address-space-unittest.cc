@@ -178,7 +178,8 @@ TEST(VirtualAddressSpaceTest, TestSubspace) {
   constexpr size_t kSubspaceSize = 32 * MB;
   constexpr size_t kSubSubspaceSize = 16 * MB;
 
-  VirtualAddressSpace rootspace;
+  VirtualAddressSpace rootspace_impl;
+  v8::VirtualAddressSpace& rootspace = rootspace_impl;
 
   if (!rootspace.CanAllocateSubspaces()) return;
   size_t subspace_alignment = rootspace.allocation_granularity();
@@ -220,7 +221,8 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
   // and the unmapped region.
   constexpr size_t kSubspaceMappedSize = 1 * MB;
 
-  VirtualAddressSpace rootspace;
+  VirtualAddressSpace rootspace_impl;
+  v8::VirtualAddressSpace& rootspace = rootspace_impl;
 
   size_t subspace_alignment = rootspace.allocation_granularity();
   ASSERT_TRUE(

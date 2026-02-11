@@ -213,7 +213,15 @@ class V8_EXPORT_PRIVATE Utf8 {
   static bool ValidateEncoding(const uint8_t* str, size_t length);
 
   template <typename Char>
-  static bool IsAsciiOneByteString(const Char* buffer, size_t size);
+  static size_t WriteLeadingAscii(const Char* src, char* dest, size_t size);
+
+  template <>
+  size_t WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
+                                    size_t size);
+
+  template <>
+  size_t WriteLeadingAscii<uint16_t>(const uint16_t* src, char* dest,
+                                     size_t size);
 
   // Encode the given characters as Utf8 into the provided output buffer.
   struct EncodingResult {
@@ -225,14 +233,6 @@ class V8_EXPORT_PRIVATE Utf8 {
                                char* buffer, size_t capacity, bool write_null,
                                bool replace_invalid_utf8);
 };
-
-template <>
-inline bool Utf8::IsAsciiOneByteString<uint8_t>(const uint8_t* buffer,
-                                                 size_t size);
-
-template <>
-inline bool Utf8::IsAsciiOneByteString<uint16_t>(const uint16_t* buffer,
-                                                  size_t size);
 
 #if V8_ENABLE_WEBASSEMBLY
 class V8_EXPORT_PRIVATE Wtf8 {

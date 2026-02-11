@@ -71,8 +71,6 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
 };
 #endif  // VERIFY_HEAP
 
-enum class ExternalStringTableCleaningMode { kAll, kYoungOnly };
-template <ExternalStringTableCleaningMode mode>
 class ExternalStringTableCleanerVisitor final : public RootVisitor {
  public:
   explicit ExternalStringTableCleanerVisitor(Heap* heap) : heap_(heap) {}
@@ -107,11 +105,6 @@ bool IsCppHeapMarkingFinished(Heap* heap,
 void VerifyRememberedSetsAfterEvacuation(Heap* heap,
                                          GarbageCollector garbage_collector);
 #endif  // DEBUG
-
-template class ExternalStringTableCleanerVisitor<
-    ExternalStringTableCleaningMode::kAll>;
-template class ExternalStringTableCleanerVisitor<
-    ExternalStringTableCleaningMode::kYoungOnly>;
 
 }  // namespace internal
 }  // namespace v8

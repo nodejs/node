@@ -165,8 +165,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
                                           Tagged<Object> value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(IsAnyHole(key) || !IsName(key) || details.dictionary_index() > 0 ||
-         !Shape::kHasDetails);
+  DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = this->GetWriteBarrierMode(no_gc);

@@ -1003,7 +1003,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
       BIND(&element_k_not_smi);
       TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
-      GotoIf(IsTheHole(ho_element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(ho_element_k), &continue_loop);
       Branch(
           Float64Equal(search_num.value(), LoadHeapNumberValue(ho_element_k)),
@@ -1024,7 +1023,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
           UnsafeLoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
       TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
-      GotoIf(IsTheHole(ho_element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(ho_element_k), &continue_loop);
       BranchIfFloat64IsNaN(LoadHeapNumberValue(ho_element_k), &return_found,
                            &continue_loop);
@@ -1051,7 +1049,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
     GotoIf(TaggedEqual(search_element_string, ho_element_k), &return_found);
-    GotoIf(IsTheHole(ho_element_k), &continue_loop);
     TNode<Uint16T> element_k_type = LoadInstanceType(ho_element_k);
     GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
     TNode<String> string_element_k = UncheckedCast<String>(ho_element_k);
@@ -2026,8 +2023,6 @@ class SlowBoilerplateCloneAssembler : public CodeStubAssembler {
         is_array(this, &current_allocation_site);
 
     GotoIf(TaggedIsSmi(item), not_cloned);
-    GotoIf(IsUninitialized(item), not_cloned);
-    GotoIf(IsTheHole(item), not_cloned);
     GotoIf(IsJSArray(CAST(item)), &is_array);
     GotoIf(IsJSObject(CAST(item)), &is_object);
     Goto(not_cloned);

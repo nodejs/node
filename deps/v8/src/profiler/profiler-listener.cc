@@ -347,7 +347,7 @@ void ProfilerListener::CodeDeoptEvent(DirectHandle<Code> code,
                                       int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+  Deoptimizer::DeoptInfo info = Deoptimizer::ComputeDeoptInfo(*code, pc);
   rec->instruction_start = code->instruction_start();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;

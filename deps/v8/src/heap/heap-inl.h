@@ -153,13 +153,21 @@ void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-PagedSpace* Heap::paged_space(int idx) const {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE ||
-         idx == TRUSTED_SPACE || idx == SHARED_TRUSTED_SPACE);
-  return static_cast<PagedSpace*>(space_[idx].get());
+PagedSpace* Heap::paged_space(int index) const {
+  DCHECK(index == OLD_SPACE || index == CODE_SPACE || index == SHARED_SPACE ||
+         index == TRUSTED_SPACE || index == SHARED_TRUSTED_SPACE);
+  return static_cast<PagedSpace*>(space_[index].get());
 }
 
-Space* Heap::space(int idx) const { return space_[idx].get(); }
+Space* Heap::space(int index) const {
+  DCHECK_LE(AllocationSpace::FIRST_SPACE, index);
+  DCHECK_LE(index, AllocationSpace::LAST_SPACE);
+  return space_[index].get();
+}
+
+Space* Heap::space(AllocationSpace allocation_space) const {
+  return space(static_cast<int>(allocation_space));
+}
 
 inline const base::AddressRegion& Heap::code_region() {
   static constexpr base::AddressRegion kEmptyRegion;
@@ -203,10 +211,6 @@ void Heap::RegisterExternalString(Tagged<String> string) {
 void Heap::FinalizeExternalString(Tagged<String> string) {
   DCHECK(IsExternalString(string));
   Tagged<ExternalString> ext_string = Cast<ExternalString>(string);
-  PageMetadata* page = PageMetadata::FromHeapObject(string);
-  page->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString,
-      ext_string->ExternalPayloadSize());
   ext_string->DisposeResource(isolate());
 }
 
@@ -358,12 +362,10 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
 
   DCHECK(IsExternalString(string));
   DCHECK(!Contains(string));
+  DCHECK(!HeapLayout::InYoungGeneration(string));
 
-  if (HeapLayout::InYoungGeneration(string)) {
-    young_strings_.push_back(string);
-  } else {
-    old_strings_.push_back(string);
-  }
+  old_strings_.push_back(string);
+  bytes_ += string->length();
 }
 
 Tagged<Boolean> Heap::ToBoolean(bool condition) {
@@ -384,20 +386,6 @@ uint32_t Heap::GetNextTemplateSerialNumber() {
   DCHECK_NE(next_serial_number, TemplateInfo::kUninitializedSerialNumber);
   set_next_template_serial_number(Smi::FromInt(next_serial_number));
   return next_serial_number;
-}
-
-void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                              size_t amount) {
-  base::CheckedIncrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
-                         std::memory_order_relaxed);
-  // TODO(mlippautz): Implement interrupt for global memory allocations that can
-  // trigger garbage collections.
-}
-
-void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                              size_t amount) {
-  base::CheckedDecrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
-                         std::memory_order_relaxed);
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {

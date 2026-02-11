@@ -16,6 +16,8 @@
 
 namespace v8::internal::wasm {
 
+using compiler::turboshaft::WasmBodyInliningResult;
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <typename Assembler>
@@ -35,7 +37,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
     compiler::turboshaft::V<Word32> value) -> V<Number> {
   // We expect most integers at runtime to be Smis, so it is important for
   // wrapper performance that Smi conversion be inlined.
-  if (SmiValuesAre32Bits()) {
+  if constexpr (SmiValuesAre32Bits()) {
     return BuildChangeInt32ToSmi(value);
   }
   DCHECK(SmiValuesAre31Bits());
@@ -227,18 +229,24 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
                 }) {
     if (inlined_function_data_.has_value()) {
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-      OptionalV<Any> wasmval =
+      WasmBodyInliningResult inlining_result =
           static_cast<Assembler*>(&Asm())->TryInlineWasmCall(
               inlined_function_data_->native_module,
               inlined_function_data_->function_index, inlined_args);
-      if (wasmval.has_value()) {
-        DCHECK_LE(sig_->return_count(), 1);
-        if (sig_->return_count() == 0) {
+      switch (inlining_result.type) {
+        case WasmBodyInliningResult::Type::kSuccessWithValue:
+          DCHECK_EQ(sig_->return_count(), 1);
+          DCHECK(inlining_result.value.valid());
+          return ToJS(inlining_result.value.value(), sig_->GetReturn(),
+                      js_context);
+        case WasmBodyInliningResult::Type::kSuccessVoid:
+          DCHECK_EQ(sig_->return_count(), 0);
           DCHECK_NOT_NULL(isolate_);
+          DCHECK(!inlining_result.value.valid());
           return __ HeapConstant(isolate_->factory()->undefined_value());
-        } else {  // sig_->return_count() == 1.
-          return ToJS(wasmval.value(), sig_->GetReturn(), js_context);
-        }
+        case WasmBodyInliningResult::Type::kFailed:
+          // Do nothing, building non-inlined call is handled below.
+          break;
       }
     }
   }

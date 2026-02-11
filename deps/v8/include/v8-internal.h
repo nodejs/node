@@ -425,6 +425,19 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // which all subtypes of a given supertype use contiguous tags. This struct can
 // then be used to represent such a type range.
 //
+// As an example, consider the following type hierarchy:
+//
+//          A     F
+//         / \
+//        B   E
+//       / \
+//      C   D
+//
+// A potential type id assignment for range-based type checks is
+// {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5}. With that, the type check for type A
+// would check for the range [A, E], while the check for B would check range
+// [B, D], and for F it would simply check [F, F].
+//
 // In addition, there is an option for performance tweaks: if the size of the
 // type range corresponding to a supertype is a power of two and starts at a
 // power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
@@ -483,7 +496,7 @@ struct TagRange {
     return (static_cast<size_t>(first) << 16) | last;
   }
 
-  // Internally we represent tag ranges as half-open ranges [first, last).
+  // Internally we represent tag ranges as closed ranges [first, last].
   const Tag first;
   const Tag last;
 };
@@ -901,6 +914,9 @@ class Internals {
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalOneByteRepresentationTag = 0x0a;
 
+  // AccessorInfo::data and InterceptorInfo::data field.
+  static const int kCallbackInfoDataOffset = 1 * kApiTaggedSize;
+
   static const uint32_t kNumIsolateDataSlots = 4;
   static const int kStackGuardSize = 8 * kApiSystemPointerSize;
   static const int kNumberOfBooleanFlags = 6;
@@ -1020,13 +1036,9 @@ class Internals {
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
 #ifdef V8_ENABLE_WEBASSEMBLY
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x20001;
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x2fffd;
 #else
-#ifdef V8_INTL_SUPPORT
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6581;
-#else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x58d1;
-#endif
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0xfffd;
 #endif
 
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;

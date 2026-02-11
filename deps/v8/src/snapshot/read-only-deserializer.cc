@@ -310,10 +310,12 @@ class ObjectPostProcessor final {
     DecodeExternalPointerSlot(
         o, o->RawExternalPointerField(AccessorInfo::kSetterOffset,
                                       kAccessorInfoSetterTag));
-    DecodeExternalPointerSlot(o, o->RawExternalPointerField(
-                                     AccessorInfo::kMaybeRedirectedGetterOffset,
-                                     kAccessorInfoGetterTag));
-    if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
+    DecodeExternalPointerSlot(
+        o, o->RawExternalPointerField(AccessorInfo::kGetterOffset,
+                                      kAccessorInfoGetterTag));
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
   void PostProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
@@ -327,6 +329,9 @@ class ObjectPostProcessor final {
 
     INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
 #undef PROCESS_FIELD
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
   void PostProcessJSExternalObject(Tagged<JSExternalObject> o) {
     DecodeExternalPointerSlot(
@@ -336,10 +341,11 @@ class ObjectPostProcessor final {
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(
-        o, o->RawExternalPointerField(
-               FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-               kFunctionTemplateInfoCallbackTag));
-    if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
+        o, o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
+                                      kFunctionTemplateInfoCallbackTag));
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
 
 #if V8_ENABLE_GEARBOX
@@ -370,7 +376,7 @@ class ObjectPostProcessor final {
 #endif
 
   void PostProcessCode(Tagged<Code> o) {
-    o->init_self_indirect_pointer(isolate_);
+    o->InitAndPublish(isolate_);
     o->wrapper()->set_code(o);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.

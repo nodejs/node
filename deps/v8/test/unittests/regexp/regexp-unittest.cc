@@ -1244,7 +1244,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeLotsOfRegisters) {
 
 TEST_F(RegExpTest, MacroAssembler) {
   Zone zone(i_isolate()->allocator(), ZONE_NAME);
-  RegExpBytecodeGenerator m(i_isolate(), &zone);
+  RegExpBytecodeGenerator m(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
   // ^f(o)o.
   Label start, fail, backtrack;
 
@@ -1815,8 +1815,9 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeNoChangeBytecode(&orig);
   CreatePeepholeNoChangeBytecode(&opt);
@@ -1851,8 +1852,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilChar) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharBytecode(&orig);
   CreatePeepholeSkipUntilCharBytecode(&opt);
@@ -1905,8 +1907,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilBitInTableBytecode(&orig, factory);
   CreatePeepholeSkipUntilBitInTableBytecode(&opt, factory);
@@ -1953,8 +1956,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharPosChecked) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharPosCheckedBytecode(&orig);
   CreatePeepholeSkipUntilCharPosCheckedBytecode(&opt);
@@ -2002,8 +2006,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharAnd) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharAndBytecode(&orig);
   CreatePeepholeSkipUntilCharAndBytecode(&opt);
@@ -2051,8 +2056,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharOrChar) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilCharOrCharBytecode(&orig);
   CreatePeepholeSkipUntilCharOrCharBytecode(&opt);
@@ -2111,8 +2117,9 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&orig, factory);
   CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&opt, factory);
@@ -2174,8 +2181,9 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   {
     Label dummy_before, dummy_after, dummy_inside;
@@ -2278,8 +2286,9 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
 
-  RegExpBytecodeGenerator orig(i_isolate(), &zone);
-  RegExpBytecodeGenerator opt(i_isolate(), &zone);
+  RegExpBytecodeGenerator orig(i_isolate(), &zone,
+                               RegExpMacroAssembler::LATIN1);
+  RegExpBytecodeGenerator opt(i_isolate(), &zone, RegExpMacroAssembler::LATIN1);
 
   {
     Label dummy_before, dummy_between, dummy_after, dummy_inside;
