@@ -4,13 +4,6 @@ import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
 describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  const defaultTransform = snapshot
-    .transform(
-      snapshot.basicTransform,
-      snapshot.transformProjectRoot(),
-      snapshot.replaceInternalStackTrace,
-    );
-
   const tests = [
     { name: 'source-map/output/source_map_assert_source_line.ts' },
     { name: 'source-map/output/source_map_disabled_by_api.js' },
@@ -35,7 +28,7 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
   for (const { name } of tests) {
     const skip = name.endsWith('.ts') && !process.config.variables.node_use_amaro;
     it(name, { skip }, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), snapshot.defaultTransform);
     });
   }
 });

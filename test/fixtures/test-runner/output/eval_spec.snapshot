@@ -13,10 +13,5 @@
 
 ✖ fails (*ms)
   Error: fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.eval (eval at <anonymous> (<project-root>/test/fixtures/test-runner/output/eval_spec.js:3:1), <anonymous>:6:11)
+      at <node-internal-frames>

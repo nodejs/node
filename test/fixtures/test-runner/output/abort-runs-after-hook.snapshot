@@ -5,13 +5,13 @@ not ok 1 - test that aborts
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/abort-runs-after-hook.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/abort-runs-after-hook.js:4:1'
   failureType: 'uncaughtException'
   error: 'boom'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
+    Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/abort-runs-after-hook.js:12:11)
+    <node-internal-frames>
   ...
 1..1
 # tests 1
