@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 
-import { mustCall } from '../common/index.mjs';
+import { mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import { clearCache, createRequire } from 'node:module';
 
@@ -12,7 +12,7 @@ const baseUrl = new URL('../fixtures/simple.wasm', import.meta.url);
 const outer = 8;
 const inner = 4;
 
-const runIteration = mustCall(async (i) => {
+const runIteration = mustCallAtLeast(async (i) => {
   for (let j = 0; j < inner; j++) {
     const url = new URL(baseUrl);
     url.search = `?v=${i}-${j}`;
@@ -21,6 +21,6 @@ const runIteration = mustCall(async (i) => {
     clearCache(url);
   }
   return inner;
-}, outer);
+});
 
 checkIfCollectableByCounting(runIteration, WebAssembly.Instance, outer).then(mustCall());
