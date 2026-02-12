@@ -559,7 +559,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
                          "Failed to compile code cache for %s\n",
-                         id.data());
+                         id);
       all_succeeded = false;
       PrintCaughtException(Isolate::GetCurrent(), context, bootstrapCatch);
     } else {

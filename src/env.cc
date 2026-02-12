@@ -2200,7 +2200,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
     env->RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
-  FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
+  FPrintF(stderr, "Wrote snapshot to %s\n", filename);
   // Tell V8 to reset the heap limit once the heap usage falls down to
   // 95% of the initial limit.
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
