@@ -100,9 +100,9 @@ jobs:
     needs: build-tarball
     runs-on: ubuntu-24.04
     env:
-      CC: sccache clang-19
-      CXX: sccache clang++-19
-      SCCACHE_GHA_ENABLED: 'true'
+      CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+      CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -120,6 +120,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0
