@@ -400,6 +400,19 @@ conventions (UTF-8 on most Unix systems, UTF-16 on Windows). This means the
 VFS inherits the underlying file system's encoding behavior for paths that
 fall through, while VFS-internal paths always use UTF-8.
 
+**Case sensitivity:** The VFS is always case-sensitive internally. In overlay
+mode, this can cause unexpected behavior when overlaying a case-insensitive
+file system (such as macOS HFS+ or Windows NTFS):
+
+* A VFS file at `/Data.txt` will not shadow a real file at `/data.txt`
+* Looking up `/DATA.TXT` will fall through to the real file system (not found
+  in case-sensitive VFS), potentially finding a real file with different casing
+* This mismatch is intentional: the VFS maintains consistent cross-platform
+  behavior rather than emulating the underlying file system's case handling
+
+If case-insensitive matching is required, applications should normalize paths
+before VFS operations.
+
 **Operation routing:**
 
 * **Read operations** (`readFile`, `readdir`, `stat`, `lstat`, `access`,
