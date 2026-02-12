@@ -10,7 +10,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
