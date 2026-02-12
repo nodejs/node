@@ -270,7 +270,8 @@ class BrotliEncoderContext final : public BrotliContext {
   bool last_result_ = false;
   DeleteFnPtr<BrotliEncoderState, BrotliEncoderDestroyInstance> state_;
   DeleteFnPtr<BrotliEncoderPreparedDictionary,
-              BrotliEncoderDestroyPreparedDictionary> prepared_dictionary_;
+              BrotliEncoderDestroyPreparedDictionary>
+      prepared_dictionary_;
   // Dictionary data must remain valid while the prepared dictionary is alive.
   std::vector<uint8_t> dictionary_;
 };
@@ -1434,14 +1435,14 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
     // dictionary, so take ownership via move.
     dictionary_ = std::move(dictionary);
 
-    prepared_dictionary_.reset(BrotliEncoderPrepareDictionary(
-        BROTLI_SHARED_DICTIONARY_RAW,
-        dictionary_.size(),
-        dictionary_.data(),
-        BROTLI_MAX_QUALITY,
-        alloc,
-        free,
-        opaque));
+    prepared_dictionary_.reset(
+        BrotliEncoderPrepareDictionary(BROTLI_SHARED_DICTIONARY_RAW,
+                                       dictionary_.size(),
+                                       dictionary_.data(),
+                                       BROTLI_MAX_QUALITY,
+                                       alloc,
+                                       free,
+                                       opaque));
     if (!prepared_dictionary_) {
       return CompressionError("Failed to prepare brotli dictionary",
                               "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
@@ -1456,7 +1457,7 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
     }
   }
 
-  return CompressionError {};
+  return CompressionError{};
 }
 
 CompressionError BrotliEncoderContext::ResetStream() {
@@ -1541,7 +1542,7 @@ CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
     }
   }
 
-  return CompressionError {};
+  return CompressionError{};
 }
 
 CompressionError BrotliDecoderContext::ResetStream() {
