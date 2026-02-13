@@ -14,6 +14,7 @@
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
+#include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
