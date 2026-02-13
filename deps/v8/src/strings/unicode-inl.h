@@ -8,6 +8,7 @@
 #include "src/strings/unicode.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "third_party/simdutf/simdutf.h"
 #include "src/base/logging.h"
 #include "src/utils/utils.h"
 
