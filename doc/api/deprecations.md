@@ -2659,6 +2659,14 @@ future release.
 <!-- YAML
 changes:
   - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61780
+    description: \`url.resolve` is deprecated again in DEP0169.
+  - version:
+      - v25.6.1
+    pr-url: https://github.com/nodejs/node/pull/61644
+    description: \`url.format(string)` is deprecated again in DEP0169.
+  - version:
       - v19.0.0
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
@@ -3776,8 +3784,8 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
-Passing a string argument to [`url.format()`][] invokes `url.parse()`
-internally, and is therefore also covered by this deprecation.
+Passing a string argument to [`url.format()`][] or [`url.resolve()`][] invokes
+`url.parse()` internally, and is therefore also covered by this deprecation.
 
 ### DEP0170: Invalid port when using `url.parse()`
 
