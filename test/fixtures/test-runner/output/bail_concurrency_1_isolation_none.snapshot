@@ -1,0 +1,39 @@
+✔ test 1 passes (*ms)
+✔ test 2 passes (*ms)
+✖ failing test 1 (*ms)
+⚠ Bailing out!
+✖ failing test 2
+✖ test 3 passes
+✖ test 4 passes
+✖ test 5 passes
+ℹ tests 7
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 4
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+*
+✖ failing test 1 (*ms)
+  AssertionError [ERR_ASSERTION]: This test should fail
+  
+  1 !== 2
+  
+      *
+      *
+      *
+      *
+      *
+      *
+      * {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

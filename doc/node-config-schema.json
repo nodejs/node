@@ -671,6 +671,9 @@
         "test": {
           "type": "boolean"
         },
+        "test-bail": {
+          "type": "boolean"
+        },
         "test-concurrency": {
           "type": "number"
         },

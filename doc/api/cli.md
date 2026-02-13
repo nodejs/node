@@ -2614,6 +2614,21 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 See the documentation on [running tests from the command line][]
 for more details.
 
+### `--test-bail`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Stops the test runner after the first test failure.
+
+Behavior depends on `--test-isolation`.
+See the [test runner execution model][] section for details.
+
+This flag cannot be combined with `--watch`.
+
 ### `--test-concurrency`
 
 <!-- YAML
@@ -3679,6 +3694,7 @@ one is included in the list below.
 * `--secure-heap-min`
 * `--secure-heap`
 * `--snapshot-blob`
+* `--test-bail`
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`

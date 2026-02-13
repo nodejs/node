@@ -471,6 +471,15 @@ Specify the minimum allocation from the OpenSSL secure heap. The default is 2. T
 .It Fl -test
 Starts the Node.js command line test runner.
 .
+.It Fl -test-bail
+Stops the test runner after the first test failure.
+This option is in early development.
+Behavior depends on the selected
+.Fl -test-isolation
+mode.
+This flag cannot be combined with
+.Fl -watch .
+.
 .It Fl -test-concurrency
 The maximum number of test files that the test runner CLI will execute
 concurrently.

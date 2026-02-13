@@ -611,6 +611,16 @@ each other in ways that are not possible when isolation is enabled. For example,
 if a test relies on global state, it is possible for that state to be modified
 by a test originating from another file.
 
+When bail is enabled (via [`--test-bail`][] or `run({ bail: true })`),
+isolation mode changes how execution stops:
+
+* In `'process'` isolation, no new test files are started after the first
+  failure, and test files that have already started are not forcibly
+  terminated. Within already-started files, tests that have not started yet
+  may still be aborted by bailout.
+* In `'none'` isolation, no new tests are started and queued tests are
+  cancelled.
+
 #### Child process option inheritance
 
 When running tests in process isolation mode (the default), spawned child processes
@@ -1505,6 +1515,15 @@ changes:
   * `argv` {Array} An array of CLI flags to pass to each test file when spawning the
     subprocesses. This option has no effect when `isolation` is `'none'`.
     **Default:** `[]`.
+  * `bail` {boolean} Stops the test run after the first failure.
+    If `isolation` is `'process'`, no new test files are started after the
+    first failure, and files that have already started are not forcibly
+    terminated. Within already-started files, tests that have not started yet
+    may still be aborted by bailout.
+    If `isolation` is `'none'`, no new tests are started and queued tests are
+    cancelled.
+    This option cannot be used together with `watch`.
+    **Default:** `false`.
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
   * `testNamePatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
     that can be used to only run tests whose name matches the provided pattern.
@@ -3232,6 +3251,22 @@ are defined, while others are emitted in the order that the tests execute.
 
 Emitted when code coverage is enabled and all tests have completed.
 
+### Event: `'test:bail'`
+
+* `data` {Object}
+  * `column` {number|undefined} The column number where the bailout originated,
+    or `undefined` if it was run through the REPL.
+  * `file` {string|undefined} The path of the test file, `undefined` if test
+    was run through the REPL.
+  * `line` {number|undefined} The line number where the bailout originated, or
+    `undefined` if it was run through the REPL.
+  * `nesting` {number} The nesting level of the test.
+  * `test` {string} The bailout message.
+
+Emitted when bail is enabled and the first failure triggers bailout behavior.
+In `'process'` isolation this means no new test files are started, while in
+`'none'` isolation no new tests are started and queued tests are cancelled.
+
 ### Event: `'test:complete'`
 
 * `data` {Object}
@@ -4096,6 +4131,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
 [`--no-strip-types`]: cli.md#--no-strip-types
+[`--test-bail`]: cli.md#--test-bail
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
