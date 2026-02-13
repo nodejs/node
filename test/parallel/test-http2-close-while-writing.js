@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
   });
   client_stream = client.request({ ':method': 'POST' });
   client_stream.on('close', common.mustCall(() => {
-    client.close();
+    client.destroy();
     server.close();
   }));
   client_stream.resume();
