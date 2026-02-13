@@ -176,7 +176,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
         with:
           script: |
-            core.exportVariable('SCCACHE_GHA_ENABLED', 'true');
+            core.exportVariable('SCCACHE_GHA_ENABLED', 'on');
             core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
