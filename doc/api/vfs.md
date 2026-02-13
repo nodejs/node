@@ -131,6 +131,43 @@ console.log(greet('World')); // Hello, World!
 myVfs.unmount();
 ```
 
+## Limitations
+
+The VFS has the following limitations:
+
+### Native addons
+
+Native addons (`.node` files) cannot be loaded from the VFS. Native addons
+must exist on the real file system because they are loaded by the operating
+system's dynamic linker, which cannot access virtual files.
+
+### Child processes
+
+Child processes spawned via `child_process.spawn()`, `child_process.exec()`,
+or similar methods cannot directly access VFS files. The child process runs
+in a separate address space and does not inherit the parent's VFS mounts.
+To share data with child processes, write files to the real file system or
+use inter-process communication.
+
+### Worker threads
+
+Each worker thread has its own independent VFS state. A VFS mounted in the
+main thread is not automatically available in worker threads. To use VFS in
+workers, create and mount a new VFS instance within each worker.
+
+### fs.watch limitations
+
+The `fs.watch()` and `fs.watchFile()` functions work with VFS files but use
+polling internally rather than native file system notifications, since VFS
+files exist only in memory.
+
+### Code caching in SEA
+
+When using VFS with Single Executable Applications, the `useCodeCache` option
+in the SEA configuration does not apply to modules loaded from the VFS. Code
+caching requires executing modules during the SEA build process, but VFS
+modules are only available at runtime.
+
 ## `vfs.create([provider][, options])`
 
 <!-- YAML
