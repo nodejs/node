@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { kMaxLength } = require('buffer');
 
 const zero = [];
 const one = [ Buffer.from('asdf') ];
@@ -84,8 +85,8 @@ assert.throws(() => {
   Buffer.concat([Buffer.from('hello')], -2);
 }, {
   code: 'ERR_OUT_OF_RANGE',
-  message: 'The value of "length" is out of range. It must be >= 0 && <= 9007199254740991. ' +
-           'Received -2'
+  message: 'The value of "length" is out of range. It must be >= 0 && <= ' +
+    `${kMaxLength}. Received -2`
 });
 
 // eslint-disable-next-line node-core/crypto-check
