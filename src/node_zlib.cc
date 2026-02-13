@@ -40,6 +40,7 @@
 
 #include "brotli/decode.h"
 #include "brotli/encode.h"
+#include "brotli/shared_dictionary.h"
 #include "zlib.h"
 #include "zstd.h"
 #include "zstd_errors.h"
@@ -256,7 +257,7 @@ class BrotliEncoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init();
+  CompressionError Init(std::vector<uint8_t>&& dictionary = {});
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -268,13 +269,18 @@ class BrotliEncoderContext final : public BrotliContext {
  private:
   bool last_result_ = false;
   DeleteFnPtr<BrotliEncoderState, BrotliEncoderDestroyInstance> state_;
+  DeleteFnPtr<BrotliEncoderPreparedDictionary,
+              BrotliEncoderDestroyPreparedDictionary>
+      prepared_dictionary_;
+  // Dictionary data must remain valid while the prepared dictionary is alive.
+  std::vector<uint8_t> dictionary_;
 };
 
 class BrotliDecoderContext final : public BrotliContext {
  public:
   void Close();
   void DoThreadPoolWork();
-  CompressionError Init();
+  CompressionError Init(std::vector<uint8_t>&& dictionary = {});
   CompressionError ResetStream();
   CompressionError SetParams(int key, uint32_t value);
   CompressionError GetErrorInfo() const;
@@ -288,6 +294,8 @@ class BrotliDecoderContext final : public BrotliContext {
   BrotliDecoderErrorCode error_ = BROTLI_DECODER_NO_ERROR;
   std::string error_string_;
   DeleteFnPtr<BrotliDecoderState, BrotliDecoderDestroyInstance> state_;
+  // Dictionary data must remain valid for the lifetime of the decoder.
+  std::vector<uint8_t> dictionary_;
 };
 
 class ZstdContext : public MemoryRetainer {
@@ -830,7 +838,8 @@ class BrotliCompressionStream final :
   static void Init(const FunctionCallbackInfo<Value>& args) {
     BrotliCompressionStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-    CHECK(args.Length() == 3 && "init(params, writeResult, writeCallback)");
+    CHECK((args.Length() == 3 || args.Length() == 4) &&
+          "init(params, writeResult, writeCallback[, dictionary])");
 
     CHECK(args[1]->IsUint32Array());
     CHECK_GE(args[1].As<Uint32Array>()->Length(), 2);
@@ -841,7 +850,18 @@ class BrotliCompressionStream final :
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    CompressionError err = wrap->context()->Init();
+    std::vector<uint8_t> dictionary;
+    if (args.Length() == 4 && !args[3]->IsUndefined()) {
+      if (!args[3]->IsArrayBufferView()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            wrap->env(), "dictionary must be an ArrayBufferView if provided");
+        return;
+      }
+      ArrayBufferViewContents<uint8_t> contents(args[3]);
+      dictionary.assign(contents.data(), contents.data() + contents.length());
+    }
+
+    CompressionError err = wrap->context()->Init(std::move(dictionary));
     if (err.IsError()) {
       wrap->EmitError(err);
       // TODO(addaleax): Sometimes we generate better error codes in C++ land,
@@ -1387,23 +1407,57 @@ void BrotliEncoderContext::DoThreadPoolWork() {
 
 void BrotliEncoderContext::Close() {
   state_.reset();
+  prepared_dictionary_.reset();
+  dictionary_.clear();
   mode_ = NONE;
 }
 
-CompressionError BrotliEncoderContext::Init() {
+CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
   brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
   brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
   void* opaque =
       CompressionStream<BrotliEncoderContext>::AllocatorOpaquePointerForContext(
           this);
+
+  // Clean up any previous dictionary state before re-initializing.
+  prepared_dictionary_.reset();
+  dictionary_.clear();
+
   state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
   if (!state_) {
     return CompressionError("Could not initialize Brotli instance",
                             "ERR_ZLIB_INITIALIZATION_FAILED",
                             -1);
-  } else {
-    return CompressionError {};
   }
+
+  if (!dictionary.empty()) {
+    // The dictionary data must remain valid for the lifetime of the prepared
+    // dictionary, so take ownership via move.
+    dictionary_ = std::move(dictionary);
+
+    prepared_dictionary_.reset(
+        BrotliEncoderPrepareDictionary(BROTLI_SHARED_DICTIONARY_RAW,
+                                       dictionary_.size(),
+                                       dictionary_.data(),
+                                       BROTLI_MAX_QUALITY,
+                                       alloc,
+                                       free,
+                                       opaque));
+    if (!prepared_dictionary_) {
+      return CompressionError("Failed to prepare brotli dictionary",
+                              "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
+                              -1);
+    }
+
+    if (!BrotliEncoderAttachPreparedDictionary(state_.get(),
+                                               prepared_dictionary_.get())) {
+      return CompressionError("Failed to attach brotli dictionary",
+                              "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
+                              -1);
+    }
+  }
+
+  return CompressionError{};
 }
 
 CompressionError BrotliEncoderContext::ResetStream() {
@@ -1435,6 +1489,7 @@ CompressionError BrotliEncoderContext::GetErrorInfo() const {
 
 void BrotliDecoderContext::Close() {
   state_.reset();
+  dictionary_.clear();
   mode_ = NONE;
 }
 
@@ -1455,20 +1510,39 @@ void BrotliDecoderContext::DoThreadPoolWork() {
   }
 }
 
-CompressionError BrotliDecoderContext::Init() {
+CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
   brotli_alloc_func alloc = CompressionStreamMemoryOwner::AllocForBrotli;
   brotli_free_func free = CompressionStreamMemoryOwner::FreeForZlib;
   void* opaque =
       CompressionStream<BrotliDecoderContext>::AllocatorOpaquePointerForContext(
           this);
+
+  // Clean up any previous dictionary state before re-initializing.
+  dictionary_.clear();
+
   state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
   if (!state_) {
     return CompressionError("Could not initialize Brotli instance",
                             "ERR_ZLIB_INITIALIZATION_FAILED",
                             -1);
-  } else {
-    return CompressionError {};
   }
+
+  if (!dictionary.empty()) {
+    // The dictionary data must remain valid for the lifetime of the decoder,
+    // so take ownership via move.
+    dictionary_ = std::move(dictionary);
+
+    if (!BrotliDecoderAttachDictionary(state_.get(),
+                                       BROTLI_SHARED_DICTIONARY_RAW,
+                                       dictionary_.size(),
+                                       dictionary_.data())) {
+      return CompressionError("Failed to attach brotli dictionary",
+                              "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
+                              -1);
+    }
+  }
+
+  return CompressionError{};
 }
 
 CompressionError BrotliDecoderContext::ResetStream() {
