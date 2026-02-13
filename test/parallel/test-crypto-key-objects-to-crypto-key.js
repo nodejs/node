@@ -35,7 +35,6 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
     }
 
     for (const algorithm of algorithms) {
-      console.log(algorithm);
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
       for (const extractable of [true, false]) {
         const cryptoKey = key.toCryptoKey(algorithm, extractable, usages);
