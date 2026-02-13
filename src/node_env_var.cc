@@ -360,9 +360,9 @@ Maybe<void> KVStore::AssignToObject(v8::Isolate* isolate,
 }
 
 struct TraceEnvVarOptions {
-  bool print_message : 1 = 0;
-  bool print_js_stack : 1 = 0;
-  bool print_native_stack : 1 = 0;
+  bool print_message : 1 = false;
+  bool print_js_stack : 1 = false;
+  bool print_native_stack : 1 = false;
 };
 
 template <typename... Args>
@@ -387,13 +387,13 @@ TraceEnvVarOptions GetTraceEnvVarOptions(Environment* env) {
                          ? env->options()
                          : per_process::cli_options->per_isolate->per_env;
   if (cli_options->trace_env) {
-    options.print_message = 1;
+    options.print_message = true;
   };
   if (cli_options->trace_env_js_stack) {
-    options.print_js_stack = 1;
+    options.print_js_stack = true;
   };
   if (cli_options->trace_env_native_stack) {
-    options.print_native_stack = 1;
+    options.print_native_stack = true;
   };
   return options;
 }
