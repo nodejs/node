@@ -239,24 +239,21 @@ changes:
 Register [hooks][] that customize Node.js module resolution and loading behavior.
 See [Customization hooks][].
 
-### `module.stripTypeScriptTypes(code[, options])`
+### `module.stripTypeScriptTypes(code)`
 
 <!-- YAML
 added:
   - v23.2.0
   - v22.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/9999999999999
+    description: Remove `mode` input argument and support for TypeScript features that require transformation and source map.
 -->
 
 > Stability: 1.2 - Release candidate
 
 * `code` {string} The code to strip type annotations from.
-* `options` {Object}
-  * `mode` {string} **Default:** `'strip'`. Possible values are:
-    * `'strip'` Only strip type annotations without performing the transformation of TypeScript features.
-    * `'transform'` Strip type annotations and transform TypeScript features to JavaScript.
-  * `sourceMap` {boolean} **Default:** `false`. Only when `mode` is `'transform'`, if `true`, a source map
-    will be generated for the transformed code.
-  * `sourceUrl` {string}  Specifies the source url used in the source map.
 * Returns: {string} The code with type annotations stripped.
   `module.stripTypeScriptTypes()` removes type annotations from TypeScript code. It
   can be used to strip type annotations from TypeScript code before running it
@@ -264,10 +261,6 @@ added:
   By default, it will throw an error if the code contains TypeScript features
   that require transformation such as `Enums`,
   see [type-stripping][] for more information.
-  When mode is `'transform'`, it also transforms TypeScript features to JavaScript,
-  see [transform TypeScript features][] for more information.
-  When mode is `'strip'`, source maps are not generated, because locations are preserved.
-  If `sourceMap` is provided, when mode is `'strip'`, an error will be thrown.
 
 _WARNING_: The output of this function should not be considered stable across Node.js versions,
 due to changes in the TypeScript parser.
@@ -286,58 +279,6 @@ const code = 'const a: number = 1;';
 const strippedCode = stripTypeScriptTypes(code);
 console.log(strippedCode);
 // Prints: const a         = 1;
-```
-
-If `sourceUrl` is provided, it will be used appended as a comment at the end of the output:
-
-```mjs
-import { stripTypeScriptTypes } from 'node:module';
-const code = 'const a: number = 1;';
-const strippedCode = stripTypeScriptTypes(code, { mode: 'strip', sourceUrl: 'source.ts' });
-console.log(strippedCode);
-// Prints: const a         = 1\n\n//# sourceURL=source.ts;
-```
-
-```cjs
-const { stripTypeScriptTypes } = require('node:module');
-const code = 'const a: number = 1;';
-const strippedCode = stripTypeScriptTypes(code, { mode: 'strip', sourceUrl: 'source.ts' });
-console.log(strippedCode);
-// Prints: const a         = 1\n\n//# sourceURL=source.ts;
-```
-
-When `mode` is `'transform'`, the code is transformed to JavaScript:
-
-```mjs
-import { stripTypeScriptTypes } from 'node:module';
-const code = `
-  namespace MathUtil {
-    export const add = (a: number, b: number) => a + b;
-  }`;
-const strippedCode = stripTypeScriptTypes(code, { mode: 'transform', sourceMap: true });
-console.log(strippedCode);
-// Prints:
-// var MathUtil;
-// (function(MathUtil) {
-//     MathUtil.add = (a, b)=>a + b;
-// })(MathUtil || (MathUtil = {}));
-// # sourceMappingURL=data:application/json;base64, ...
-```
-
-```cjs
-const { stripTypeScriptTypes } = require('node:module');
-const code = `
-  namespace MathUtil {
-    export const add = (a: number, b: number) => a + b;
-  }`;
-const strippedCode = stripTypeScriptTypes(code, { mode: 'transform', sourceMap: true });
-console.log(strippedCode);
-// Prints:
-// var MathUtil;
-// (function(MathUtil) {
-//     MathUtil.add = (a, b)=>a + b;
-// })(MathUtil || (MathUtil = {}));
-// # sourceMappingURL=data:application/json;base64, ...
 ```
 
 ### `module.syncBuiltinESMExports()`
@@ -2041,5 +1982,4 @@ returned object contains the following keys:
 [synchronous hook functions]: #hook-functions-accepted-by-moduleregisterhooks
 [the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
-[transform TypeScript features]: typescript.md#typescript-features
 [type-stripping]: typescript.md#type-stripping

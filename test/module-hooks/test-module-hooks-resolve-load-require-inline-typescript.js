@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --no-experimental-strip-types --no-experimental-transform-types
+// Flags: --no-experimental-strip-types
 // This tests that a mini TypeScript loader works with resolve and
 // load hooks when TypeScript support is disabled.
 

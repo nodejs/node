@@ -61,8 +61,8 @@ test('should handle empty object json', async () => {
 test('should parse boolean flag', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
   assert.match(result.stderr, /--experimental-config-file is an experimental feature and might change at any time/);
   assert.match(result.stdout, /Hello, TypeScript!/);
@@ -85,9 +85,9 @@ test('should throw an error when a flag is declared twice', async () => {
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/override-property.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Option --experimental-transform-types is already defined/);
+  assert.match(result.stderr, /Option --strip-types is already defined/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -96,9 +96,9 @@ test('should override env-file', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
+    fixtures.path('rc/strip-types.json'),
     '--env-file', fixtures.path('dotenv/node-options-no-tranform.env'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
   assert.strictEqual(result.stderr, '');
   assert.match(result.stdout, /Hello, TypeScript!/);
@@ -109,15 +109,15 @@ test('should not override NODE_OPTIONS', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ], {
     env: {
       ...process.env,
-      NODE_OPTIONS: '--no-experimental-transform-types',
+      NODE_OPTIONS: '--no-strip-types',
     },
   });
-  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.match(result.stderr, /SyntaxError/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 1);
 });
@@ -125,12 +125,12 @@ test('should not override NODE_OPTIONS', onlyWithAmaro, async () => {
 test('should not override CLI flags', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
-    '--no-experimental-transform-types',
+    '--no-strip-types',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
-  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.match(result.stderr, /SyntaxError/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 1);
 });

@@ -213,10 +213,6 @@
           "type": "boolean",
           "description": "experimental node:sqlite module"
         },
-        "experimental-transform-types": {
-          "type": "boolean",
-          "description": "enable transformation of TypeScript-onlysyntax into JavaScript code"
-        },
         "experimental-vm-modules": {
           "type": "boolean",
           "description": "experimental ES Module support in vm module"

@@ -1,6 +1,6 @@
 {
   "nodeOptions": {
-    "experimental-transform-types": true,
+    "strip-types": true,
     "max-http-header-size": 8192
   },
   "test": {
