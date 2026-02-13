@@ -121,6 +121,36 @@ try {
 }
 ```
 
+## Virtual File System (VFS) support
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `fs` module can operate on virtual files when the [`node:vfs`][] module is
+used. When a virtual file system is mounted, `fs` operations on paths under
+the mount point are automatically routed to the VFS instead of the real file
+system.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/data.txt', 'Hello from VFS');
+myVfs.mount('/virtual');
+
+// This reads from the virtual file system
+fs.readFileSync('/virtual/data.txt', 'utf8'); // 'Hello from VFS'
+
+myVfs.unmount();
+```
+
+Not all `fs` operations are supported with VFS. See the [`node:vfs`][]
+documentation for the complete list of supported operations and limitations.
+
 ## Promises API
 
 <!-- YAML
@@ -8779,6 +8809,7 @@ the file contents.
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
+[`node:vfs`]: vfs.md
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
