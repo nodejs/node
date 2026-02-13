@@ -227,6 +227,14 @@ const utils = require('/sea/utils/helpers.js');
 The SEA's `require()` function automatically detects VFS paths (paths starting
 with `/sea/`) and loads modules from the virtual file system.
 
+#### Code caching limitations
+
+The `useCodeCache` option in the SEA configuration does not apply to modules
+loaded from the VFS. Code caching requires executing modules during the SEA
+build process to generate cached code, but VFS modules are only available at
+runtime after the SEA is built. If performance is critical, consider using
+`useCodeCache` for your main entry point and `useSnapshot` for initialization.
+
 ### Startup snapshot support
 
 The `useSnapshot` field can be used to enable startup snapshot support. In this
