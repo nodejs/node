@@ -18,7 +18,7 @@ const { hostname } = require('node:os');
  * Group 6: Line end (including color codes and `{` which indicates the start of an error object details)
  */
 // Mappings:                              (g1                             )   (g2 )          (g3      ) (g4 )    (g5 )      (g6                       )
-const internalStackFramesRegexp = /(?<=\n)(\s*(?:\x1b?\[\d+m\s+)?(?:at\s)?)(?:(.+?)\s+\()?(?:(node:.+?):(\d+)(?::(\d+))?)\)?((?:\x1b?\[\d+m)?\s*{?\n|$)/g;
+const internalStackFramesRegexp = /(?<=\n)(\s*(?:\x1b?\[\d+m\s+)?(?:at\s+)?)(?:async\s+)?(?:(.+?)\s+\()?(?:(node:.+?):(\d+)(?::(\d+))?)\)?((?:\x1b?\[\d+m)?\s*{?\n|$)/g;
 /**
  * Group 1: Filename
  * Group 2: Line number
