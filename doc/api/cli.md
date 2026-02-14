@@ -758,7 +758,7 @@ added:
 
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
