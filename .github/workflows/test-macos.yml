@@ -18,7 +18,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**
@@ -49,7 +48,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**

@@ -38,7 +38,6 @@ file a new issue.
     * [Windows Prerequisites](#windows-prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with WinGet](#option-2-automated-install-with-winget)
-      * [Option 3: Automated install with Boxstarter](#option-3-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
       * [Using ccache](#using-ccache)
   * [Android](#android)
@@ -810,39 +809,6 @@ winget configure .\.configurations\configuration.dsc.yaml
 ```
 
 To add optional components for MSI or ARM64 builds, refer to [Option 1: Manual install](#option-1-manual-install).
-
-##### Option 3: Automated install with Boxstarter
-
-A [Boxstarter](https://boxstarter.org/) script can be used for easy setup of
-Windows systems with all the required prerequisites for Node.js development.
-This script will install the following [Chocolatey](https://chocolatey.org/)
-packages:
-
-* [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
-  Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python)
-* [Visual Studio 2022 Build Tools](https://chocolatey.org/packages/visualstudio2022buildtools)
-  with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2022-workload-vctools)
-* [NetWide Assembler](https://chocolatey.org/packages/nasm)
-
-To install Node.js prerequisites using
-[Boxstarter WebLauncher](https://boxstarter.org/weblauncher), visit
-<https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
-with a supported browser.
-
-Alternatively, you can use PowerShell. Run those commands from
-an elevated (Administrator) PowerShell terminal:
-
-```powershell
-Set-ExecutionPolicy Unrestricted -Force
-iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
-get-boxstarter -Force
-Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
-refreshenv
-```
-
-The entire installation using Boxstarter will take up approximately 10 GB of
-disk space.
 
 #### Building Node.js
 
