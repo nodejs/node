@@ -18,9 +18,9 @@ For more details refer to the [`process.env` documentation][].
 
 ## DotEnv
 
-Set of utilities for dealing with additional environment variables defined in `.env` files.
-
 > Stability: 2 - Stable
+
+Set of utilities for dealing with additional environment variables defined in `.env` files.
 
 ### .env files
 
