@@ -49,7 +49,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kBoolean: {
       bool result;
       if (option_value->get_bool().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
 
@@ -75,13 +75,13 @@ ParseResult ConfigReader::ProcessOptionValue(
           std::vector<std::string> result;
           simdjson::ondemand::array raw_imports;
           if (option_value->get_array().get(raw_imports)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            FPrintF(stderr, "Invalid value for %s\n", option_name);
             return ParseResult::InvalidContent;
           }
           for (auto raw_import : raw_imports) {
             std::string_view import;
             if (raw_import.get_string(import)) {
-              FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+              FPrintF(stderr, "Invalid value for %s\n", option_name);
               return ParseResult::InvalidContent;
             }
             output->push_back(option_name + "=" + std::string(import));
@@ -91,14 +91,14 @@ ParseResult ConfigReader::ProcessOptionValue(
         case simdjson::ondemand::json_type::string: {
           std::string result;
           if (option_value->get_string(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            FPrintF(stderr, "Invalid value for %s\n", option_name);
             return ParseResult::InvalidContent;
           }
           output->push_back(option_name + "=" + result);
           break;
         }
         default:
-          FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+          FPrintF(stderr, "Invalid value for %s\n", option_name);
           return ParseResult::InvalidContent;
       }
       break;
@@ -106,7 +106,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kString: {
       std::string result;
       if (option_value->get_string(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + result);
@@ -115,7 +115,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kInteger: {
       int64_t result;
       if (option_value->get_int64().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + std::to_string(result));
@@ -125,22 +125,19 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kUInteger: {
       uint64_t result;
       if (option_value->get_uint64().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + std::to_string(result));
       break;
     }
     case options_parser::OptionType::kNoOp: {
-      FPrintF(stderr,
-              "No-op flag %s is currently not supported\n",
-              option_name.c_str());
+      FPrintF(
+          stderr, "No-op flag %s is currently not supported\n", option_name);
       return ParseResult::InvalidContent;
     }
     case options_parser::OptionType::kV8Option: {
-      FPrintF(stderr,
-              "V8 flag %s is currently not supported\n",
-              option_name.c_str());
+      FPrintF(stderr, "V8 flag %s is currently not supported\n", option_name);
       return ParseResult::InvalidContent;
     }
     default:
@@ -189,8 +186,7 @@ ParseResult ConfigReader::ParseOptions(
     if (option != options_map.end()) {
       // If the option has already been set, return an error
       if (unique_options->contains(option->first)) {
-        FPrintF(
-            stderr, "Option %s is already defined\n", option->first.c_str());
+        FPrintF(stderr, "Option %s is already defined\n", option->first);
         return ParseResult::InvalidContent;
       }
       // Add the option to the unique set to prevent duplicates
@@ -206,7 +202,7 @@ ParseResult ConfigReader::ParseOptions(
       FPrintF(stderr,
               "Unknown or not allowed option %s for namespace %s\n",
               option_key,
-              namespace_name.c_str());
+              namespace_name);
       return ParseResult::InvalidContent;
     }
   }
@@ -303,7 +299,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     if (field_error) {
       FPrintF(stderr,
               "\"%s\" value unexpected for %s (should be an object)\n",
-              namespace_name.c_str(),
+              namespace_name,
               config_path.data());
       return ParseResult::InvalidContent;
     }
