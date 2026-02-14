@@ -156,10 +156,8 @@ static std::string GetErrorSource(Isolate* isolate,
     end -= script_start;
   }
 
-  std::string buf = SPrintF("%s:%i\n%s\n",
-                            filename_string,
-                            linenum,
-                            sourceline.c_str());
+  std::string buf =
+      SPrintF("%s:%i\n%s\n", filename_string, linenum, sourceline);
   CHECK_GT(buf.size(), 0);
   *added_exception_line = true;
 

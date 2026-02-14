@@ -886,7 +886,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
                              "The \"%s\" argument must be a string, "
                              "Uint8Array, or URL without null bytes.",
-                             field_name.c_str());
+                             field_name);
 
   return std::nullopt;
 }
