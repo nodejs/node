@@ -317,8 +317,8 @@
         'NODE_PLATFORM="sunos"',
       ],
     }],
-    [ '(OS=="freebsd" or OS=="linux" or OS=="openharmony") and node_shared=="false"'
-        ' and force_load=="true"', {
+    [ 'node_use_bundled_v8=="true" and (OS=="freebsd" or OS=="linux" or OS=="openharmony") '
+        'and node_shared=="false" and force_load=="true"', {
       'ldflags': [
         '-Wl,-z,noexecstack',
         '-Wl,--whole-archive <(v8_base)',
