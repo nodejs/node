@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, chmodSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { createInterface } from 'node:readline';
 
@@ -46,6 +46,44 @@ async function runNode({
     child.kill();
   }
   return { stdout, stderr, pid: child.pid };
+}
+
+async function runExecutable({
+  file,
+  expectedCompletionLog = 'Completed running',
+  options = {},
+  timeout = common.platformTimeout(10_000),
+}) {
+  const child = spawn(file, [], { encoding: 'utf8', stdio: 'pipe', ...options });
+  let stderr = '';
+  const stdout = [];
+  let timedOut = true;
+
+  child.stderr.on('data', (data) => {
+    stderr += data;
+  });
+
+  const timer = setTimeout(() => {
+    child.kill();
+  }, timeout);
+
+  try {
+    for await (const data of createInterface({ input: child.stdout })) {
+      if (!data.startsWith('Waiting for graceful termination') &&
+          !data.startsWith('Gracefully restarted')) {
+        stdout.push(data);
+      }
+      if (data.startsWith(expectedCompletionLog)) {
+        timedOut = false;
+        break;
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+    child.kill();
+  }
+
+  return { stdout, stderr, timedOut };
 }
 
 tmpdir.refresh();
@@ -94,4 +132,38 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
+
+  it('should not recursively re-enter watch mode for shebang scripts when NODE_OPTIONS=--watch',
+    { skip: common.isWindows || process.config.variables.node_without_node_options },
+    async () => {
+      const projectDir = tmpdir.resolve('project-watch-node-options-shebang');
+      mkdirSync(projectDir);
+
+      const file = createTmpFile(
+        '#!/usr/bin/env node\nconsole.log("shebang run");\n',
+        '.js',
+        projectDir,
+      );
+      chmodSync(file, 0o755);
+
+      const { stdout, stderr, timedOut } = await runExecutable({
+        file,
+        options: {
+          cwd: projectDir,
+          env: {
+            ...process.env,
+            NODE_OPTIONS: '--watch',
+            // Ensure shebang resolves this test binary, not system node.
+            PATH: `${path.dirname(execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
+          },
+        },
+      });
+
+      assert.strictEqual(timedOut, false);
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        'shebang run',
+        `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      ]);
+    });
 });
