@@ -3348,6 +3348,32 @@ This event is guaranteed to be emitted in the same order as the tests are
 defined.
 The corresponding execution ordered event is `'test:complete'`.
 
+### Event: `'test:interrupted'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {Object}
+  * `tests` {Array} An array of objects containing information about the
+    interrupted tests.
+    * `column` {number|undefined} The column number where the test is defined,
+      or `undefined` if the test was run through the REPL.
+    * `file` {string|undefined} The path of the test file,
+      `undefined` if test was run through the REPL.
+    * `line` {number|undefined} The line number where the test is defined, or
+      `undefined` if the test was run through the REPL.
+    * `name` {string} The test name.
+    * `nesting` {number} The nesting level of the test.
+
+Emitted when the test runner is interrupted by a `SIGINT` signal (e.g., when
+pressing <kbd>Ctrl</kbd>+<kbd>C</kbd>). The event contains information about
+the tests that were running at the time of interruption.
+
+When using process isolation (the default), the test name will be the file path
+since the parent runner only knows about file-level tests. When using
+`--test-isolation=none`, the actual test name is shown.
+
 ### Event: `'test:pass'`
 
 * `data` {Object}

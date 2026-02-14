@@ -6,7 +6,7 @@ const { spawnSync, spawn } = require('child_process');
 const { once } = require('events');
 const { finished } = require('stream/promises');
 
-async function runAndKill(file) {
+async function runAndKill(file, expectedTestName) {
   if (common.isWindows) {
     common.printSkipMessage(`signals are not supported in windows, skipping ${file}`);
     return;
@@ -21,6 +21,9 @@ async function runAndKill(file) {
   const [code, signal] = await once(child, 'exit');
   await finished(child.stdout);
   assert(stdout.startsWith('TAP version 13\n'));
+  // Verify interrupted test message
+  assert(stdout.includes(`Interrupted while running: ${expectedTestName}`),
+         `Expected output to contain interrupted test name`);
   assert.strictEqual(signal, null);
   assert.strictEqual(code, 1);
 }
@@ -67,6 +70,10 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 
-  runAndKill(fixtures.path('test-runner', 'never_ending_sync.js')).then(common.mustCall());
-  runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall());
+  // With process isolation (default), the test name shown is the file path
+  // because the parent runner only knows about file-level tests
+  const neverEndingSync = fixtures.path('test-runner', 'never_ending_sync.js');
+  const neverEndingAsync = fixtures.path('test-runner', 'never_ending_async.js');
+  runAndKill(neverEndingSync, neverEndingSync).then(common.mustCall());
+  runAndKill(neverEndingAsync, neverEndingAsync).then(common.mustCall());
 }
