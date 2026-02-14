@@ -265,8 +265,8 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
     if (!relative_path.empty()) {
       file_path = relative_path;
       Debug("[compile cache] using relative path %s from %s\n",
-            file_path.c_str(),
-            compile_cache_dir_.c_str());
+            file_path,
+            compile_cache_dir_);
     }
   }
   uint32_t key = GetCacheKey(file_path, type);

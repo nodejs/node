@@ -225,7 +225,7 @@ builtins::CodeCacheInfo SnapshotDeserializer::Read() {
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<builtins::CodeCacheInfo>() %s\n", str.c_str());
+    Debug("Read<builtins::CodeCacheInfo>() %s\n", str);
   }
   return result;
 }
@@ -234,7 +234,7 @@ template <>
 size_t SnapshotSerializer::Write(const builtins::CodeCacheInfo& info) {
   Debug("\nWrite<builtins::CodeCacheInfo>() id = %s"
         ", length=%d\n",
-        info.id.c_str(),
+        info.id,
         info.data.length);
 
   size_t written_total = WriteString(info.id);
@@ -263,7 +263,7 @@ PropInfo SnapshotDeserializer::Read() {
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<PropInfo>() %s\n", str.c_str());
+    Debug("Read<PropInfo>() %s\n", str);
   }
 
   return result;
@@ -273,7 +273,7 @@ template <>
 size_t SnapshotSerializer::Write(const PropInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<PropInfo>() %s\n", str.c_str());
+    Debug("Write<PropInfo>() %s\n", str);
   }
 
   size_t written_total = WriteString(data.name);
@@ -305,7 +305,7 @@ AsyncHooks::SerializeInfo SnapshotDeserializer::Read() {
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<AsyncHooks::SerializeInfo>() %s\n", str.c_str());
+    Debug("Read<AsyncHooks::SerializeInfo>() %s\n", str);
   }
 
   return result;
@@ -314,7 +314,7 @@ template <>
 size_t SnapshotSerializer::Write(const AsyncHooks::SerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<AsyncHooks::SerializeInfo>() %s\n", str.c_str());
+    Debug("Write<AsyncHooks::SerializeInfo>() %s\n", str);
   }
 
   size_t written_total =
@@ -341,7 +341,7 @@ TickInfo::SerializeInfo SnapshotDeserializer::Read() {
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<TickInfo::SerializeInfo>() %s\n", str.c_str());
+    Debug("Read<TickInfo::SerializeInfo>() %s\n", str);
   }
 
   return result;
@@ -351,7 +351,7 @@ template <>
 size_t SnapshotSerializer::Write(const TickInfo::SerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<TickInfo::SerializeInfo>() %s\n", str.c_str());
+    Debug("Write<TickInfo::SerializeInfo>() %s\n", str);
   }
 
   size_t written_total = WriteArithmetic<AliasedBufferIndex>(data.fields);
@@ -370,7 +370,7 @@ ImmediateInfo::SerializeInfo SnapshotDeserializer::Read() {
   result.fields = ReadArithmetic<AliasedBufferIndex>();
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<ImmediateInfo::SerializeInfo>() %s\n", str.c_str());
+    Debug("Read<ImmediateInfo::SerializeInfo>() %s\n", str);
   }
   return result;
 }
@@ -379,7 +379,7 @@ template <>
 size_t SnapshotSerializer::Write(const ImmediateInfo::SerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<ImmediateInfo::SerializeInfo>() %s\n", str.c_str());
+    Debug("Write<ImmediateInfo::SerializeInfo>() %s\n", str);
   }
 
   size_t written_total = WriteArithmetic<AliasedBufferIndex>(data.fields);
@@ -403,7 +403,7 @@ performance::PerformanceState::SerializeInfo SnapshotDeserializer::Read() {
   result.observers = ReadArithmetic<AliasedBufferIndex>();
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<PerformanceState::SerializeInfo>() %s\n", str.c_str());
+    Debug("Read<PerformanceState::SerializeInfo>() %s\n", str);
   }
   return result;
 }
@@ -413,7 +413,7 @@ size_t SnapshotSerializer::Write(
     const performance::PerformanceState::SerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<PerformanceState::SerializeInfo>() %s\n", str.c_str());
+    Debug("Write<PerformanceState::SerializeInfo>() %s\n", str);
   }
 
   size_t written_total = WriteArithmetic<AliasedBufferIndex>(data.root);
@@ -439,7 +439,7 @@ IsolateDataSerializeInfo SnapshotDeserializer::Read() {
   result.template_values = ReadVector<PropInfo>();
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<IsolateDataSerializeInfo>() %s\n", str.c_str());
+    Debug("Read<IsolateDataSerializeInfo>() %s\n", str);
   }
   return result;
 }
@@ -448,7 +448,7 @@ template <>
 size_t SnapshotSerializer::Write(const IsolateDataSerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<IsolateDataSerializeInfo>() %s\n", str.c_str());
+    Debug("Write<IsolateDataSerializeInfo>() %s\n", str);
   }
 
   size_t written_total = WriteVector<SnapshotIndex>(data.primitive_values);
@@ -473,7 +473,7 @@ template <>
 size_t SnapshotSerializer::Write(const RealmSerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("\nWrite<RealmSerializeInfo>() %s\n", str.c_str());
+    Debug("\nWrite<RealmSerializeInfo>() %s\n", str);
   }
 
   // Use += here to ensure order of evaluation.
@@ -507,7 +507,7 @@ template <>
 size_t SnapshotSerializer::Write(const EnvSerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("\nWrite<EnvSerializeInfo>() %s\n", str.c_str());
+    Debug("\nWrite<EnvSerializeInfo>() %s\n", str);
   }
 
   // Use += here to ensure order of evaluation.
@@ -549,7 +549,7 @@ SnapshotMetadata SnapshotDeserializer::Read() {
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<SnapshotMetadata>() %s\n", str.c_str());
+    Debug("Read<SnapshotMetadata>() %s\n", str);
   }
   return result;
 }
@@ -558,7 +558,7 @@ template <>
 size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("\nWrite<SnapshotMetadata>() %s\n", str.c_str());
+    Debug("\nWrite<SnapshotMetadata>() %s\n", str);
   }
   size_t written_total = 0;
   // We need the Node.js version, platform and arch to match because
@@ -566,7 +566,7 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   // can be changed in semver-patches.
   Debug("Write snapshot type %d\n", static_cast<uint8_t>(data.type));
   written_total += WriteArithmetic<uint8_t>(static_cast<uint8_t>(data.type));
-  Debug("Write Node.js version %s\n", data.node_version.c_str());
+  Debug("Write Node.js version %s\n", data.node_version);
   written_total += WriteString(data.node_version);
   Debug("Write Node.js arch %s\n", data.node_arch);
   written_total += WriteString(data.node_arch);
@@ -1130,8 +1130,8 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
       std::string size_str = FormatSize(item.data.length);
       per_process::Debug(DebugCategory::MKSNAPSHOT,
                          "Generated code cache for %d: %s\n",
-                         item.id.c_str(),
-                         size_str.c_str());
+                         item.id,
+                         size_str);
     }
   }
   return ExitCode::kNoFailure;

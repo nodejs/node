@@ -639,7 +639,7 @@ int BuildAssets(const std::unordered_map<std::string, std::string>& config,
     int r = ReadFileSync(&blob, path.c_str());
     if (r != 0) {
       const char* err = uv_strerror(r);
-      FPrintF(stderr, "Cannot read asset %s: %s\n", path.c_str(), err);
+      FPrintF(stderr, "Cannot read asset %s: %s\n", path, err);
       return r;
     }
     assets->emplace(key, std::move(blob));
