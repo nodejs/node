@@ -17,7 +17,7 @@ function main({ input, n }) {
       str = 'This is a plain text string without any ANSI codes';
       break;
     case 'noAnsi-long':
-      str = 'Long plain text without ANSI. '.repeat(100);
+      str = 'Long plain text without ANSI. '.repeat(333);
       break;
     case 'ansi-short':
       str = '\u001B[31mHello\u001B[39m';
