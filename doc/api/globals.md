@@ -585,6 +585,40 @@ The following globals are available to use with `fetch`:
 * [`Request`](https://nodejs.org/api/globals.html#request)
 * [`Response`](https://nodejs.org/api/globals.html#response).
 
+### Differences from the standard
+
+While Node.js's `fetch()` implementation is browser-compatible, there are some notable differences from the standard Fetch API:
+
+#### AsyncIterable Response body
+
+Node.js extends the standard `Response` constructor to accept async iterables:
+
+```mjs
+import { Readable } from 'node:stream';
+
+const stream = Readable.from(['Hello', ' ', 'World']);
+const response = new Response(stream);
+const text = await response.text();
+console.log(text); // 'Hello World'
+```
+
+This is a Node.js-specific extension and is not part of the standard Fetch API.
+
+#### Cookies handling
+
+Node.js `fetch()` does not automatically handle cookies. Unlike browsers, cookies are not stored or sent automatically with requests. If you need cookie support, you must handle it manually using the `Headers` API.
+
+#### No forbidden headers
+
+The standard Fetch API restricts certain headers (called "forbidden headers") from being set by user code for security reasons. Node.js `fetch()` does not enforce these restrictions, allowing you to set any header, including:
+
+* `Host`
+* `Connection`
+* `Content-Length`
+* And other headers typically restricted in browsers
+
+This gives you more flexibility in server-side scenarios where such restrictions are not necessary.
+
 ## Class: `File`
 
 <!-- YAML
