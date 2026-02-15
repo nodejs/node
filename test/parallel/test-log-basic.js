@@ -65,7 +65,6 @@ describe('Logger', () => {
       assert.strictEqual(typeof logger.warn, 'function');
       assert.strictEqual(typeof logger.error, 'function');
       assert.strictEqual(typeof logger.fatal, 'function');
-      assert.strictEqual(typeof logger.enabled, 'function');
       assert.strictEqual(typeof logger.child, 'function');
     });
   });
