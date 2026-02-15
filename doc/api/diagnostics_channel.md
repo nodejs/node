@@ -1417,6 +1417,28 @@ added: v16.18.0
 
 Emitted when a new process is created.
 
+`tracing:child_process.spawn:start`
+
+* `process` {ChildProcess}
+* `options` {Object}
+
+Emitted when [`child_process.spawn()`][] is invoked, before the process is
+actually spawned.
+
+`tracing:child_process.spawn:end`
+
+* `process` {ChildProcess}
+
+Emitted when [`child_process.spawn()`][] has completed successfully and the
+process has been created.
+
+`tracing:child_process.spawn:error`
+
+* `process` {ChildProcess}
+* `error` {Error}
+
+Emitted when [`child_process.spawn()`][] encounters an error.
+
 ##### Event: `'execve'`
 
 * `execPath` {string}
@@ -1453,6 +1475,7 @@ Emitted when a new thread is created.
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
