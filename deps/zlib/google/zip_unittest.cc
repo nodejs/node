@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -81,8 +82,8 @@ class ProgressWriterDelegate : public zip::WriterDelegate {
     CHECK_GT(expected_size_, 0);
   }
 
-  bool WriteBytes(const char* data, int num_bytes) override {
-    received_bytes_ += num_bytes;
+  bool WriteBytes(base::span<const uint8_t> data) override {
+    received_bytes_ += data.size();
     LogProgressIfNecessary();
     return true;
   }
