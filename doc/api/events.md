@@ -1908,15 +1908,10 @@ Returns a disposable so that it may be unsubscribed from more easily.
 const { addAbortListener } = require('node:events');
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
@@ -1924,15 +1919,10 @@ function example(signal) {
 import { addAbortListener } from 'node:events';
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
