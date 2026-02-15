@@ -134,36 +134,35 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
   });
 
   it('should not recursively re-enter watch mode for shebang scripts when NODE_OPTIONS=--watch',
-    { skip: common.isWindows || process.config.variables.node_without_node_options },
-    async () => {
-      const projectDir = tmpdir.resolve('project-watch-node-options-shebang');
-      mkdirSync(projectDir);
+     { skip: common.isWindows || process.config.variables.node_without_node_options },
+     async () => {
+       const projectDir = tmpdir.resolve('project-watch-node-options-shebang');
+       mkdirSync(projectDir);
 
-      const file = createTmpFile(
-        '#!/usr/bin/env node\nconsole.log("shebang run");\n',
-        '.js',
-        projectDir,
-      );
-      chmodSync(file, 0o755);
+       const file = createTmpFile(
+         '#!/usr/bin/env node\nconsole.log("shebang run");\n',
+         '.js',
+         projectDir,
+       );
+       chmodSync(file, 0o755);
 
-      const { stdout, stderr, timedOut } = await runExecutable({
-        file,
-        options: {
-          cwd: projectDir,
-          env: {
-            ...process.env,
-            NODE_OPTIONS: '--watch',
-            // Ensure shebang resolves this test binary, not system node.
-            PATH: `${path.dirname(execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
-          },
-        },
-      });
+       const { stdout, stderr, timedOut } = await runExecutable({
+         file,
+         options: {
+           cwd: projectDir,
+           env: {
+             ...process.env,
+             NODE_OPTIONS: '--watch',
+             PATH: `${path.dirname(execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
+           },
+         },
+       });
 
-      assert.strictEqual(timedOut, false);
-      assert.strictEqual(stderr, '');
-      assert.deepStrictEqual(stdout, [
-        'shebang run',
-        `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ]);
-    });
+       assert.strictEqual(timedOut, false);
+       assert.strictEqual(stderr, '');
+       assert.deepStrictEqual(stdout, [
+         'shebang run',
+         `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+       ]);
+     });
 });
