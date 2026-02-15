@@ -1470,12 +1470,12 @@ Emitted when a new thread is created.
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
 [`end` event]: #endevent
 [`error` event]: #errorevent
-[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
