@@ -906,6 +906,25 @@ resources.
 
 The constructor of this class is not exposed to users directly.
 
+### `performanceResourceTiming.initiatorType`
+
+<!-- YAML
+added:
+  - v18.8.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {string}
+
+A string representing the type of resource that initiated the performance
+entry. The value depends on the context in which the resource was fetched
+(e.g. `'fetch'`).
+
 ### `performanceResourceTiming.workerStart`
 
 <!-- YAML
@@ -1071,6 +1090,27 @@ changes:
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts the handshake process to secure the current connection.
 
+### `performanceResourceTiming.nextHopProtocol`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {string}
+
+A string representing the network protocol used to fetch the resource, as
+identified by the [ALPN protocol ID (RFC 7301)][]. When a proxy is used, if
+a tunnel connection is established, this property returns the ALPN protocol
+ID of the tunneled protocol. Otherwise, this property returns the ALPN
+protocol ID of the first hop to the proxy.
+
 ### `performanceResourceTiming.requestStart`
 
 <!-- YAML
@@ -1088,6 +1128,24 @@ changes:
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js receives the first byte of the response from the server.
+
+### `performanceResourceTiming.responseStart`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the first byte of the response from the server.
 
 ### `performanceResourceTiming.responseEnd`
 
@@ -1163,6 +1221,31 @@ changes:
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the message body, after removing any applied
 content-codings.
+
+### `performanceResourceTiming.deliveryType`
+
+<!-- YAML
+added: v22.2.0
+-->
+
+* Type: {string}
+
+A string representing how the resource was delivered. The value is one of the
+following:
+
+* `'cache'` if the resource was retrieved from the cache.
+* `''` (empty string) otherwise.
+
+### `performanceResourceTiming.responseStatus`
+
+<!-- YAML
+added: v22.2.0
+-->
+
+* Type: {number}
+
+A number representing the HTTP response status code returned when fetching
+the resource.
 
 ### `performanceResourceTiming.toJSON()`
 
@@ -2346,6 +2429,7 @@ dns.lookup('localhost', () => {});
 dns.promises.resolve('localhost');
 ```
 
+[ALPN protocol ID (RFC 7301)]: https://www.rfc-editor.org/rfc/rfc7301
 [Async Hooks]: async_hooks.md
 [Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
 [Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
