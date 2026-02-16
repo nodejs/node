@@ -161,7 +161,9 @@ Maybe<bool> SerializerContext::IsHostObject(Isolate* isolate,
   }
 
   bool is_domexception = false;
-  if (!object->InstanceOf(env()->context(), domexception_ctor_val.As<Function>())
+  if (!object
+           ->InstanceOf(env()->context(),
+                        domexception_ctor_val.As<Function>())
            .To(&is_domexception)) {
     return Nothing<bool>();
   }

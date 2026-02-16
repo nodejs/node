@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('node:assert');
 const { serialize, deserialize } = require('node:v8');
 
