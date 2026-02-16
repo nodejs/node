@@ -37,6 +37,8 @@ class SerializerContext : public BaseObject,
 
   ~SerializerContext() override = default;
 
+  bool HasCustomHostObject(Isolate* isolate) override { return true; }
+  Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object) override;
   void ThrowDataCloneError(Local<String> message) override;
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override;
   Maybe<uint32_t> GetSharedArrayBufferId(
@@ -143,6 +145,27 @@ Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
   }
 
   return id->Uint32Value(env()->context());
+}
+
+Maybe<bool> SerializerContext::IsHostObject(Isolate* isolate,
+                                            Local<Object> object) {
+  Local<Object> per_context_bindings;
+  Local<Value> domexception_ctor_val;
+  if (!GetPerContextExports(env()->context()).ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(env()->context(),
+                 FIXED_ONE_BYTE_STRING(env()->isolate(), "DOMException"))
+           .ToLocal(&domexception_ctor_val) ||
+      !domexception_ctor_val->IsFunction()) {
+    return Just(object->InternalFieldCount() != 0);
+  }
+
+  bool is_domexception = false;
+  if (!object->InstanceOf(env()->context(), domexception_ctor_val.As<Function>())
+           .To(&is_domexception)) {
+    return Nothing<bool>();
+  }
+  return Just(is_domexception || object->InternalFieldCount() != 0);
 }
 
 Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
