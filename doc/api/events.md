@@ -1909,6 +1909,8 @@ const { addAbortListener } = require('node:events');
 
 function example(signal) {
   signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
   using _ = addAbortListener(signal, (e) => {
     // Do something when signal is aborted.
   });
@@ -1920,6 +1922,8 @@ import { addAbortListener } from 'node:events';
 
 function example(signal) {
   signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
   using _ = addAbortListener(signal, (e) => {
     // Do something when signal is aborted.
   });
