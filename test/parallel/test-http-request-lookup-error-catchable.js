@@ -13,8 +13,8 @@ const net = require('net');
 // 2. The lookup returns an IP that triggers a synchronous error (e.g., blockList)
 // 3. The error is emitted before http's error handler is set up (via nextTick)
 //
-// The fix defers socket.destroy() calls in internalConnect to the next tick,
-// giving http.request() time to set up its error handlers.
+// The fix attaches socketErrorListener synchronously in onSocket so that
+// socket errors are forwarded to the request before onSocketNT runs.
 
 const blockList = new net.BlockList();
 blockList.addAddress(common.localhostIPv4);
