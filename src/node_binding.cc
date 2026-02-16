@@ -76,6 +76,7 @@
   V(sea)                                                                       \
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
+  V(json_parser)                                                               \
   V(spawn_sync)                                                                \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
