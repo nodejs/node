@@ -265,11 +265,12 @@ added:
  - v25.5.0
 -->
 
-This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
-in order to "pass"; a test/test-case that does not throw, fails.
+This flips the pass/fail reporting for a specific test or suite: a flagged test
+case must throw in order to pass, and a flagged test case that does not throw
+fails.
 
-In the following, `doTheThing()` returns _currently_ `false` (`false` does not equal `true`, causing
-`strictEqual` to throw, so the test-case passes).
+In each of the following, `doTheThing()` fails to return `true`, but since the
+tests are flagged `expectFailure`, they pass.
 
 ```js
 it.expectFailure('should do the thing', () => {
@@ -277,6 +278,50 @@ it.expectFailure('should do the thing', () => {
 });
 
 it('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+If the value of `expectFailure` is a
+[<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) |
+[<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) |
+[<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+[<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
+the tests will pass only if they throw a matching value.
+See [`assert.throws`][] for how each value type is handled.
+
+Each of the following tests fails _despite_ being flagged `expectFailure`
+because the failure does not match the specific **expected** failure.
+
+```js
+it('fails because regex does not match', {
+  expectFailure: /expected message/,
+}, () => {
+  throw new Error('different message');
+});
+
+it('fails because object matcher does not match', {
+  expectFailure: { code: 'ERR_EXPECTED' },
+}, () => {
+  const err = new Error('boom');
+  err.code = 'ERR_ACTUAL';
+  throw err;
+});
+```
+
+To supply both a reason and specific error for `expectFailure`, use `{ label, match }`.
+
+```js
+it('should fail with specific error and reason', {
+  expectFailure: {
+    label: 'reason for failure',
+    match: /error message/,
+  },
+}, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```
@@ -1683,6 +1728,18 @@ changes:
     If `true`, all scheduled asynchronous tests run concurrently within the
     thread. If `false`, only one test runs at a time.
     If unspecified, subtests inherit this value from their parent.
+    **Default:** `false`.
+  * `expectFailure` {boolean|string|RegExp|Function|Object|Error} If truthy, the
+    test is expected to fail. If a non-empty string is provided, that string is displayed
+    in the test results as the reason why the test is expected to fail. If a
+    [<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
+    [<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
+    [<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object), or
+    [<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+    is provided directly (without wrapping in `{ match: … }`), the test passes
+    only if the thrown error matches, following the behavior of
+    [`assert.throws`][]. To provide both a reason and validation, pass an object
+    with `label` (string) and `match` (RegExp, Function, Object, or Error).
     **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
@@ -4148,6 +4205,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.skip`]: #contextskipmessage
 [`context.todo`]: #contexttodomessage
