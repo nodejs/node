@@ -19,7 +19,7 @@ dc.subscribe('node:permission-model:fs', (msg) => {
 
 // Granted permission should not publish
 fs.readFileSync(__filename);
-assert.strictEqual(messages.length, 0, 'Granted checks should not publish');
+assert.strictEqual(messages.length, 0);
 
 // Denied permission should publish
 const hasWrite = process.permission.has('fs.write', '/tmp/test');
