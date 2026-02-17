@@ -918,8 +918,11 @@ Environment::Environment(IsolateData* isolate_data,
                                       tracing::CastTracedValue(traced_value));
   }
 
-  if (options_->permission) {
+  if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
+    if (options_->permission_audit) {
+      permission()->EnableWarningOnly();
+    }
     // The process shouldn't be able to neither
     // spawn/worker nor use addons or enable inspector
     // unless explicitly allowed by the user

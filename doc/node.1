@@ -1115,6 +1115,11 @@ WASI - manageable through \fB--allow-wasi\fR flag
 Addons - manageable through \fB--allow-addons\fR flag
 .El
 .
+.It Fl -permission-audit
+Enable audit only for the permission model. When enabled, permission checks
+are performed but access is not denied. Instead, a warning is emitted for
+each permission violation via diagnostics channel.
+.
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and
 caching modules.
@@ -1977,6 +1982,8 @@ one is included in the list below.
 \fB--pending-deprecation\fR
 .It
 \fB--permission\fR
+.It
+\fB--permission-audit\fR
 .It
 \fB--preserve-symlinks-main\fR
 .It
