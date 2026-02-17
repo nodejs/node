@@ -232,9 +232,10 @@ bool Permission::is_scope_granted(Environment* env,
             .Check();
         msg->Set(context,
                  FIXED_ONE_BYTE_STRING(isolate, "resource"),
-                 v8::String::NewFromUtf8(
-                     isolate, res.data(), v8::NewStringType::kNormal,
-                     static_cast<int>(res.size()))
+                 v8::String::NewFromUtf8(isolate,
+                                         res.data(),
+                                         v8::NewStringType::kNormal,
+                                         static_cast<int>(res.size()))
                      .ToLocalChecked())
             .Check();
         ch.Publish(env, msg);

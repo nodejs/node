@@ -37,7 +37,7 @@ namespace permission {
         [[unlikely]] {                                                         \
       node::permission::Permission::ThrowAccessDenied(                         \
           env__, perm__, resource__);                                          \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;                                                      \
+      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
     }                                                                          \
   } while (0)
 
@@ -51,7 +51,7 @@ namespace permission {
         [[unlikely]] {                                                         \
       node::permission::Permission::AsyncThrowAccessDenied(                    \
           env__, (wrap), perm__, resource__);                                  \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;                                                      \
+      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
     }                                                                          \
   } while (0)
 
