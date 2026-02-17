@@ -58,8 +58,8 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
       ];
     };
 
+  # We need to patch tools/gyp/ to work from within Nix sandbox
   prePatch = ''
-    # Filter patches to only include changes under deps/npm/ and strip that prefix
     patches=()
     for patch in ${pkgs.lib.concatStringsSep " " nodejs.patches}; do
       filtered=$(mktemp)
