@@ -25,9 +25,8 @@ BindingData::BindingData(Realm* realm,
                          Local<Object> wrap,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, wrap, type_int),
-      subscribers_(realm->isolate(),
-                   kMaxChannels,
-                   MAYBE_FIELD_PTR(info, subscribers)) {
+      subscribers_(
+          realm->isolate(), kMaxChannels, MAYBE_FIELD_PTR(info, subscribers)) {
   if (info == nullptr) {
     wrap->Set(realm->context(),
               FIXED_ONE_BYTE_STRING(realm->isolate(), "subscribers"),
@@ -67,8 +66,7 @@ void BindingData::GetOrCreateChannelIndex(
   args.GetReturnValue().Set(index);
 }
 
-void BindingData::SetPublishCallback(
-    const FunctionCallbackInfo<Value>& args) {
+void BindingData::SetPublishCallback(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
   CHECK_NOT_NULL(binding);
@@ -82,8 +80,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
                                           SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
-  internal_field_info_->subscribers =
-      subscribers_.Serialize(context, creator);
+  internal_field_info_->subscribers = subscribers_.Serialize(context, creator);
   publish_callback_.Reset();
   return true;
 }
@@ -153,8 +150,7 @@ void Channel::Publish(Environment* env, Local<Value> message) const {
 
   if (binding_data_->publish_callback_.IsEmpty()) return;
 
-  Local<v8::Function> callback =
-      binding_data_->publish_callback_.Get(isolate);
+  Local<v8::Function> callback = binding_data_->publish_callback_.Get(isolate);
   Local<String> channel_name =
       String::NewFromUtf8(isolate, name_).ToLocalChecked();
 

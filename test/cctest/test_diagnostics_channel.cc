@@ -11,8 +11,7 @@ static v8::Local<v8::Value> RunJS(v8::Isolate* isolate, const char* code) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Script> script =
       v8::Script::Compile(
-          context,
-          v8::String::NewFromUtf8(isolate, code).ToLocalChecked())
+          context, v8::String::NewFromUtf8(isolate, code).ToLocalChecked())
           .ToLocalChecked();
   return script->Run(context).ToLocalChecked();
 }
@@ -29,9 +28,7 @@ TEST_F(DiagnosticsChannelTest, HasSubscribersReturnsFalseWithoutSubscribers) {
   });
 
   // Load the environment to initialize bindings.
-  node::LoadEnvironment(
-      *env,
-      "require('diagnostics_channel');");
+  node::LoadEnvironment(*env, "require('diagnostics_channel');");
 
   Channel ch = Channel::Get(*env, "test:cctest:no-subscribers");
   EXPECT_FALSE(ch.HasSubscribers());
@@ -48,10 +45,9 @@ TEST_F(DiagnosticsChannelTest, HasSubscribersReturnsTrueAfterSubscribe) {
     node::Stop(*env);
   });
 
-  node::LoadEnvironment(
-      *env,
-      "const dc = require('diagnostics_channel');"
-      "dc.subscribe('test:cctest:with-sub', () => {});");
+  node::LoadEnvironment(*env,
+                        "const dc = require('diagnostics_channel');"
+                        "dc.subscribe('test:cctest:with-sub', () => {});");
 
   Channel ch = Channel::Get(*env, "test:cctest:with-sub");
   EXPECT_TRUE(ch.HasSubscribers());
@@ -68,10 +64,9 @@ TEST_F(DiagnosticsChannelTest, GetReturnsSameChannelState) {
     node::Stop(*env);
   });
 
-  node::LoadEnvironment(
-      *env,
-      "const dc = require('diagnostics_channel');"
-      "dc.subscribe('test:cctest:same-channel', () => {});");
+  node::LoadEnvironment(*env,
+                        "const dc = require('diagnostics_channel');"
+                        "dc.subscribe('test:cctest:same-channel', () => {});");
 
   Channel ch1 = Channel::Get(*env, "test:cctest:same-channel");
   Channel ch2 = Channel::Get(*env, "test:cctest:same-channel");
@@ -108,7 +103,8 @@ TEST_F(DiagnosticsChannelTest, PublishDeliversToJSSubscribers) {
   v8::Local<v8::Object> msg = v8::Object::New(isolate_);
   msg->Set(context,
            v8::String::NewFromUtf8Literal(isolate_, "value"),
-           v8::Integer::New(isolate_, 42)).Check();
+           v8::Integer::New(isolate_, 42))
+      .Check();
 
   ch.Publish(*env, msg);
 
@@ -133,9 +129,8 @@ TEST_F(DiagnosticsChannelTest, CppChannelVisibleFromJS) {
   });
 
   // Expose dc on globalThis so RunJS (v8::Script) can access it.
-  node::LoadEnvironment(
-      *env,
-      "globalThis.__dc = require('diagnostics_channel');");
+  node::LoadEnvironment(*env,
+                        "globalThis.__dc = require('diagnostics_channel');");
 
   Channel ch = Channel::Get(*env, "test:cctest:cpp-first");
   EXPECT_FALSE(ch.HasSubscribers());
@@ -156,7 +151,8 @@ TEST_F(DiagnosticsChannelTest, CppChannelVisibleFromJS) {
   v8::Local<v8::Object> msg = v8::Object::New(isolate_);
   msg->Set(context,
            v8::String::NewFromUtf8Literal(isolate_, "from"),
-           v8::String::NewFromUtf8Literal(isolate_, "cpp")).Check();
+           v8::String::NewFromUtf8Literal(isolate_, "cpp"))
+      .Check();
 
   ch.Publish(*env, msg);
 
@@ -186,14 +182,13 @@ TEST_F(DiagnosticsChannelTest, JSChannelVisibleFromCpp) {
     node::Stop(*env);
   });
 
-  node::LoadEnvironment(
-      *env,
-      "const dc = require('diagnostics_channel');"
-      "globalThis.__dc = dc;"
-      "globalThis.__jsFirstMessages = [];"
-      "dc.subscribe('test:cctest:js-first', (msg) => {"
-      "  globalThis.__jsFirstMessages.push(msg);"
-      "});");
+  node::LoadEnvironment(*env,
+                        "const dc = require('diagnostics_channel');"
+                        "globalThis.__dc = dc;"
+                        "globalThis.__jsFirstMessages = [];"
+                        "dc.subscribe('test:cctest:js-first', (msg) => {"
+                        "  globalThis.__jsFirstMessages.push(msg);"
+                        "});");
 
   v8::Local<v8::Context> context = (*env)->context();
 
@@ -204,20 +199,21 @@ TEST_F(DiagnosticsChannelTest, JSChannelVisibleFromCpp) {
   v8::Local<v8::Object> msg1 = v8::Object::New(isolate_);
   msg1->Set(context,
             v8::String::NewFromUtf8Literal(isolate_, "seq"),
-            v8::Integer::New(isolate_, 1)).Check();
+            v8::Integer::New(isolate_, 1))
+      .Check();
   ch.Publish(*env, msg1);
 
   v8::Local<v8::Object> msg2 = v8::Object::New(isolate_);
   msg2->Set(context,
             v8::String::NewFromUtf8Literal(isolate_, "seq"),
-            v8::Integer::New(isolate_, 2)).Check();
+            v8::Integer::New(isolate_, 2))
+      .Check();
   ch.Publish(*env, msg2);
 
   v8::Local<v8::Value> msgs_val =
       context->Global()
           ->Get(context,
-                v8::String::NewFromUtf8Literal(isolate_,
-                                               "__jsFirstMessages"))
+                v8::String::NewFromUtf8Literal(isolate_, "__jsFirstMessages"))
           .ToLocalChecked();
   ASSERT_TRUE(msgs_val->IsArray());
   v8::Local<v8::Array> msgs = msgs_val.As<v8::Array>();
