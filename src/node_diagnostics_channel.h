@@ -6,6 +6,7 @@
 #include <cinttypes>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "aliased_buffer.h"
 #include "node_snapshotable.h"
 
@@ -42,11 +43,13 @@ class BindingData : public SnapshotableObject {
 
   uint32_t GetOrCreateChannelIndex(const std::string& name);
 
-  v8::Global<v8::Function> publish_callback_;
+  v8::Global<v8::Function> link_callback_;
+  std::vector<v8::Global<v8::Object>> js_channels_;
+  std::vector<uint32_t> pending_channels_;
 
   static void GetOrCreateChannelIndex(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetPublishCallback(
+  static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
@@ -72,11 +75,12 @@ class Channel {
   void Publish(Environment* env, v8::Local<v8::Value> message) const;
 
  private:
-  Channel(BindingData* binding_data, uint32_t index, const char* name);
+  friend class BindingData;
+
+  Channel(BindingData* binding_data, uint32_t index);
 
   BindingData* binding_data_;
   uint32_t index_;
-  const char* name_;
 };
 
 }  // namespace diagnostics_channel

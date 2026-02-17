@@ -13,6 +13,7 @@
 #include "permission/permission_base.h"
 #include "permission/wasi_permission.h"
 #include "permission/worker_permission.h"
+#include "node_diagnostics_channel.h"
 #include "v8.h"
 
 #include <string_view>
@@ -124,10 +125,15 @@ class Permission {
                                       const PermissionScope permission,
                                       const std::string_view& res = "") const;
 
+  diagnostics_channel::Channel GetOrCreateChannel(
+      Environment* env, PermissionScope scope) const;
+
   std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
   bool enabled_;
   bool warning_only_;
   mutable bool publishing_ = false;
+  mutable std::unordered_map<PermissionScope, diagnostics_channel::Channel>
+      channels_;
 };
 
 v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,

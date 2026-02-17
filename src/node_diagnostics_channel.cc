@@ -11,6 +11,7 @@ namespace node {
 namespace diagnostics_channel {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -66,14 +67,38 @@ void BindingData::GetOrCreateChannelIndex(
   args.GetReturnValue().Set(index);
 }
 
-void BindingData::SetPublishCallback(const FunctionCallbackInfo<Value>& args) {
+void BindingData::LinkNativeChannel(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
   CHECK_NOT_NULL(binding);
 
   CHECK(args[0]->IsFunction());
-  binding->publish_callback_.Reset(realm->isolate(),
-                                   args[0].As<v8::Function>());
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
+  binding->link_callback_.Reset(isolate, args[0].As<Function>());
+
+  // Resolve channels created before the link callback was available.
+  for (uint32_t index : binding->pending_channels_) {
+    for (const auto& pair : binding->channel_indices_) {
+      if (pair.second == index) {
+        Local<String> name =
+            String::NewFromUtf8(isolate, pair.first.c_str()).ToLocalChecked();
+        Local<Value> argv[] = {name};
+        Local<Value> result;
+        if (binding->link_callback_.Get(isolate)
+                ->Call(context, v8::Undefined(isolate), 1, argv)
+                .ToLocal(&result) &&
+            result->IsObject()) {
+          if (index >= binding->js_channels_.size()) {
+            binding->js_channels_.resize(index + 1);
+          }
+          binding->js_channels_[index].Reset(isolate, result.As<Object>());
+        }
+        break;
+      }
+    }
+  }
+  binding->pending_channels_.clear();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
@@ -81,7 +106,10 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->subscribers = subscribers_.Serialize(context, creator);
-  publish_callback_.Reset();
+  link_callback_.Reset();
+  for (auto& global : js_channels_) {
+    global.Reset();
+  }
   return true;
 }
 
@@ -109,7 +137,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   Isolate* isolate = isolate_data->isolate();
   SetMethod(
       isolate, target, "getOrCreateChannelIndex", GetOrCreateChannelIndex);
-  SetMethod(isolate, target, "setPublishCallback", SetPublishCallback);
+  SetMethod(isolate, target, "linkNativeChannel", LinkNativeChannel);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -124,38 +152,72 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(GetOrCreateChannelIndex);
-  registry->Register(SetPublishCallback);
+  registry->Register(LinkNativeChannel);
 }
 
-Channel::Channel(BindingData* binding_data, uint32_t index, const char* name)
-    : binding_data_(binding_data), index_(index), name_(name) {}
+Channel::Channel(BindingData* binding_data, uint32_t index)
+    : binding_data_(binding_data), index_(index) {}
 
 Channel Channel::Get(Environment* env, const char* name) {
   Realm* realm = env->principal_realm();
   BindingData* binding = realm->GetBindingData<BindingData>();
   if (binding == nullptr) {
-    return Channel(nullptr, 0, name);
+    return Channel(nullptr, 0);
   }
   uint32_t index = binding->GetOrCreateChannelIndex(std::string(name));
-  return Channel(binding, index, name);
+
+  if (!binding->link_callback_.IsEmpty()) {
+    if (index >= binding->js_channels_.size()) {
+      binding->js_channels_.resize(index + 1);
+    }
+    if (binding->js_channels_[index].IsEmpty()) {
+      Isolate* isolate = env->isolate();
+      HandleScope handle_scope(isolate);
+      Local<Context> context = env->context();
+      Local<String> js_name =
+          String::NewFromUtf8(isolate, name).ToLocalChecked();
+      Local<Value> argv[] = {js_name};
+      Local<Value> result;
+      if (binding->link_callback_.Get(isolate)
+              ->Call(context, v8::Undefined(isolate), 1, argv)
+              .ToLocal(&result) &&
+          result->IsObject()) {
+        binding->js_channels_[index].Reset(isolate, result.As<Object>());
+      }
+    }
+  } else {
+    binding->pending_channels_.push_back(index);
+  }
+
+  return Channel(binding, index);
 }
 
 void Channel::Publish(Environment* env, Local<Value> message) const {
   if (!HasSubscribers()) return;
+
+  if (binding_data_ == nullptr) return;
 
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = env->context();
   Context::Scope context_scope(context);
 
-  if (binding_data_->publish_callback_.IsEmpty()) return;
+  if (index_ >= binding_data_->js_channels_.size() ||
+      binding_data_->js_channels_[index_].IsEmpty()) {
+    return;
+  }
 
-  Local<v8::Function> callback = binding_data_->publish_callback_.Get(isolate);
-  Local<String> channel_name =
-      String::NewFromUtf8(isolate, name_).ToLocalChecked();
+  Local<Object> js_channel =
+      binding_data_->js_channels_[index_].Get(isolate);
+  Local<Value> publish_val;
+  if (!js_channel->Get(context, FIXED_ONE_BYTE_STRING(isolate, "publish"))
+           .ToLocal(&publish_val) ||
+      !publish_val->IsFunction()) {
+    return;
+  }
 
-  Local<Value> argv[] = {channel_name, message};
-  USE(callback->Call(context, v8::Undefined(isolate), 2, argv));
+  Local<Value> argv[] = {message};
+  USE(publish_val.As<Function>()->Call(context, js_channel, 1, argv));
 }
 
 }  // namespace diagnostics_channel

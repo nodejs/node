@@ -28,7 +28,7 @@ namespace permission {
 
 namespace {
 
-const char* GetDiagnosticsChannelName(PermissionScope scope) {
+constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
   switch (scope) {
     case PermissionScope::kFileSystem:
     case PermissionScope::kFileSystemRead:
@@ -215,16 +215,16 @@ bool Permission::is_scope_granted(Environment* env,
   }
 
   if (!result && !publishing_) {
-    const char* channel_name = GetDiagnosticsChannelName(permission);
+    auto channel_name = GetDiagnosticsChannelName(permission);
     if (channel_name != nullptr) {
       diagnostics_channel::Channel ch =
-          diagnostics_channel::Channel::Get(env, channel_name);
+          GetOrCreateChannel(env, permission);
       if (ch.HasSubscribers()) {
         publishing_ = true;
         v8::Isolate* isolate = env->isolate();
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context = env->context();
-        v8::Local<v8::Object> msg = v8::Object::New(isolate);
+        v8::Local<v8::Object> msg = v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
         const char* perm_str = PermissionToString(permission);
         msg->Set(context,
                  FIXED_ONE_BYTE_STRING(isolate, "permission"),
@@ -245,6 +245,19 @@ bool Permission::is_scope_granted(Environment* env,
   }
 
   return result;
+}
+
+diagnostics_channel::Channel Permission::GetOrCreateChannel(
+    Environment* env, PermissionScope scope) const {
+  auto it = channels_.find(scope);
+  if (it != channels_.end()) {
+    return it->second;
+  }
+  const char* name = GetDiagnosticsChannelName(scope);
+  diagnostics_channel::Channel ch =
+      diagnostics_channel::Channel::Get(env, name);
+  channels_.emplace(scope, ch);
+  return ch;
 }
 
 void Permission::Apply(Environment* env,
