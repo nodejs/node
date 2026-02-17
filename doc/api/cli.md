@@ -2137,6 +2137,16 @@ following permissions are restricted:
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
 
+### `--permission-audit`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable audit only for the permission model. When enabled, permission checks
+are performed but access is not denied. Instead, a warning is emitted for
+each permission violation via diagnostics channel.
+
 ### `--preserve-symlinks`
 
 <!-- YAML
@@ -3661,6 +3671,7 @@ one is included in the list below.
 * `--openssl-legacy-provider`
 * `--openssl-shared-config`
 * `--pending-deprecation`
+* `--permission-audit`
 * `--permission`
 * `--preserve-symlinks-main`
 * `--preserve-symlinks`
