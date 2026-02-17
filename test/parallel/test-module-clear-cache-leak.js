@@ -15,7 +15,7 @@ const inner = 64;
 checkIfCollectableByCounting(() => {
   for (let i = 0; i < inner; i++) {
     require(fixture);
-    clearCache(fixture, { mode: 'commonjs' });
+    clearCache(fixture);
   }
   return inner;
 }, Module, outer).then(common.mustCall(() => {
