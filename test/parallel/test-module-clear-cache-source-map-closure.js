@@ -18,8 +18,8 @@ const fixture = path.join(
 const { crash } = require(fixture);
 
 const result = clearCache(fixture);
-assert.strictEqual(result.commonjs, true);
-assert.strictEqual(result.module, false);
+assert.strictEqual(result.require, true);
+assert.strictEqual(result.import, false);
 
 try {
   crash();

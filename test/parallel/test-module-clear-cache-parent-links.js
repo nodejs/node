@@ -26,10 +26,10 @@ const parentModule = require.cache[parentPath];
 assert.strictEqual(childModule[module_first_parent_private_symbol], parentModule);
 assert.strictEqual(childModule[module_last_parent_private_symbol], parentModule);
 
-clearCache(parentPath, { mode: 'commonjs' });
+clearCache(parentPath);
 
 assert.strictEqual(childModule[module_first_parent_private_symbol], undefined);
 assert.strictEqual(childModule[module_last_parent_private_symbol], undefined);
 
-clearCache(childPath, { mode: 'commonjs' });
+clearCache(childPath);
 delete globalThis.__module_cache_cjs_child_counter;

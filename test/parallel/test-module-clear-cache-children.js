@@ -15,9 +15,9 @@ assert.strictEqual(parent.child.count, 1);
 const parentModule = require.cache[parentPath];
 assert.ok(parentModule.children.some((child) => child.id === childPath));
 
-const result = clearCache(childPath, { mode: 'commonjs' });
-assert.strictEqual(result.commonjs, true);
-assert.strictEqual(result.module, false);
+const result = clearCache(childPath);
+assert.strictEqual(result.require, true);
+assert.strictEqual(result.import, false);
 
 assert.strictEqual(require.cache[childPath], undefined);
 assert.ok(!parentModule.children.some((child) => child.id === childPath));

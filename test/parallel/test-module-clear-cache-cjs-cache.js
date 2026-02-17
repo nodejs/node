@@ -17,8 +17,8 @@ const url = pathToFileURL(fixturePath);
   assert.strictEqual(first.default.count, 1);
 
   const result = clearCache(url);
-  assert.strictEqual(result.commonjs, true);
-  assert.strictEqual(result.module, true);
+  assert.strictEqual(result.require, true);
+  assert.strictEqual(result.import, true);
 
   assert.strictEqual(clearCjsCache(`${url.href}?v=1`), false);
   delete globalThis.__module_cache_cjs_counter;

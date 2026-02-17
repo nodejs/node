@@ -37,11 +37,10 @@ const first = require('virtual');
 assert.strictEqual(first.count, 1);
 
 const result = clearCache('virtual', {
-  mode: 'commonjs',
   parentURL: pathToFileURL(__filename),
 });
-assert.strictEqual(result.commonjs, true);
-assert.strictEqual(result.module, false);
+assert.strictEqual(result.require, true);
+assert.strictEqual(result.import, false);
 
 const second = require('virtual');
 assert.strictEqual(second.count, 2);

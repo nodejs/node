@@ -10,8 +10,8 @@ const first = await import(url.href);
 assert.strictEqual(first.add(1, 2), 3);
 
 const result = clearCache(url);
-assert.strictEqual(result.commonjs, false);
-assert.strictEqual(result.module, true);
+assert.strictEqual(result.require, false);
+assert.strictEqual(result.import, true);
 
 const second = await import(url.href);
 assert.strictEqual(second.add(2, 3), 5);

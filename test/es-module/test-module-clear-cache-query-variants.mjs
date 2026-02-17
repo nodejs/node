@@ -11,8 +11,8 @@ assert.strictEqual(first.count, 1);
 assert.strictEqual(second.count, 2);
 
 const result = clearCache(url);
-assert.strictEqual(result.commonjs, false);
-assert.strictEqual(result.module, true);
+assert.strictEqual(result.require, false);
+assert.strictEqual(result.import, true);
 
 const third = await import(`${url.href}?v=1`);
 assert.strictEqual(third.count, 3);

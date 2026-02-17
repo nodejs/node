@@ -16,8 +16,8 @@ assert.strictEqual(second.count, 1);
 assert.strictEqual(first, second);
 
 const result = clearCache(fixture);
-assert.strictEqual(result.commonjs, true);
-assert.strictEqual(result.module, false);
+assert.strictEqual(result.require, true);
+assert.strictEqual(result.import, false);
 
 const third = require(fixture);
 assert.strictEqual(third.count, 2);
