@@ -47,6 +47,43 @@ if (!hasOpenSSL(3, 5)) {
     'sign_verify/mldsa.tentative.https.any.js');
 }
 
+const cshakeExpectedFailures = ['cSHAKE128', 'cSHAKE256'].flatMap((algorithm) => {
+  return [0, 256, 384, 512].flatMap((length) => {
+    return ['empty', 'short', 'medium'].flatMap((size) => {
+      const base = `${algorithm} with ${length} bit output and ${size} source data`;
+      return [
+        base,
+        `${base} and altered buffer after call`,
+      ];
+    });
+  });
+});
+
+const kmacVectorNames = [
+  'KMAC128 with no customization',
+  'KMAC128 with customization',
+  'KMAC128 with large data and customization',
+  'KMAC256 with customization and 512-bit output',
+  'KMAC256 with large data and no customization',
+  'KMAC256 with large data and customization',
+];
+
+const kmacExpectedFailures = kmacVectorNames.flatMap((name) => {
+  return [
+    `${name} verification`,
+    `${name} verification with altered signature after call`,
+    `${name} with altered plaintext after call`,
+    `${name} no verify usage`,
+    `${name} round trip`,
+    `${name} verification failure due to wrong plaintext`,
+    `${name} verification failure due to wrong signature`,
+    `${name} verification failure due to short signature`,
+    `${name} verification failure due to wrong length parameter`,
+    `${name} signing with wrong algorithm name`,
+    `${name} verifying with wrong algorithm name`,
+  ];
+});
+
 module.exports = {
   ...conditionalSkips,
   'algorithm-discards-context.https.window.js': {
@@ -84,6 +121,18 @@ module.exports = {
         'Large length: Uint32Array',
         'Large length: BigUint64Array',
       ],
+    },
+  },
+  'digest/cshake.tentative.https.any.js': {
+    'fail': {
+      'note': 'WPT still uses CShakeParams.length; implementation moved to CShakeParams.outputLength',
+      'expected': cshakeExpectedFailures,
+    },
+  },
+  'sign_verify/kmac.tentative.https.any.js': conditionalSkips['sign_verify/kmac.tentative.https.any.js'] ?? {
+    'fail': {
+      'note': 'WPT still uses KmacParams.length; implementation moved to KmacParams.outputLength',
+      'expected': kmacExpectedFailures,
     },
   },
 };
