@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -8,7 +8,19 @@ const { execSync } = require('child_process');
 
 tmpdir.refresh(); // Prepare a clean temporary directory
 
-const dirPath = path.join(tmpdir.path, '速速速_dir');
+function countOccurrences(haystack, needle) {
+  let count = 0;
+  let offset = 0;
+
+  while ((offset = haystack.indexOf(needle, offset)) !== -1) {
+    count++;
+    offset += needle.length;
+  }
+
+  return count;
+}
+
+const dirPath = path.join(tmpdir.path, '速_dir');
 const filePath = path.join(dirPath, 'test_file.txt');
 
 // Create a directory and a file within it
@@ -24,28 +36,34 @@ if (process.platform === 'win32') {
   fs.chmodSync(dirPath, 0o555); // Read and execute permissions only
 }
 
-// Attempt to delete the directory which should now fail
 try {
-  fs.rmSync(dirPath, { recursive: true });
-} catch (err) {
+  // Attempt to delete the directory which should now fail
+  assert.throws(() => {
+    fs.rmSync(dirPath, { recursive: true });
+  }, (err) => {
+    // Verify that the error is due to permission restrictions
+    let expectedCode = 'EACCES';
+    if (common.isMacOS) {
+      expectedCode = 'ENOTEMPTY';
+    } else if (common.isWindows) {
+      expectedCode = 'EPERM';
+    }
+    assert.strictEqual(err.code, expectedCode);
+    assert.strictEqual(err.syscall, 'rm');
+    assert.strictEqual(err.path, dirPath);
+    assert.strictEqual(countOccurrences(err.message, dirPath), 1);
+    return true;
+  });
+} finally {
+  // Cleanup - resetting permissions and removing the directory safely
   if (process.platform === 'win32') {
-    assert.strictEqual(err.code, 'EPERM');
+    // Remove the explicit permissions before attempting to delete
+    execSync(`icacls "${filePath}" /remove:d Everyone`);
   } else {
-    // POSIX: rmSync may surface different errors
-    assert(['EACCES', 'EPERM', 'ENOTEMPTY'].includes(err.code), err.code);
+    // Reset permissions to allow deletion
+    fs.chmodSync(dirPath, 0o755); // Restore full permissions to the directory
   }
-  assert.strictEqual(err.path, dirPath);
-  assert(err.message.includes(dirPath), 'Error message should include the path treated as a directory');
-}
 
-// Cleanup - resetting permissions and removing the directory safely
-if (process.platform === 'win32') {
-  // Remove the explicit permissions before attempting to delete
-  execSync(`icacls "${filePath}" /remove:d Everyone`);
-} else {
-  // Reset permissions to allow deletion
-  fs.chmodSync(dirPath, 0o755); // Restore full permissions to the directory
+  // Attempt to clean up
+  fs.rmSync(dirPath, { recursive: true }); // This should now succeed
 }
-
-// Attempt to clean up
-fs.rmSync(dirPath, { recursive: true }); // This should now succeed
