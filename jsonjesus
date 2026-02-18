@@ -1,0 +1,9 @@
+% initialize J vals to a matrix of 0's
+J vals = zeros(length(theta0 vals), length(theta1 vals));
+% Fill out J vals
+for i = 1:length(theta0 vals)
+for j = 1:length(theta1 vals)
+t = [theta0 vals(i); theta1 vals(j)];
+J vals(i,j) = computeCost(x, y, t);
+end
+end
