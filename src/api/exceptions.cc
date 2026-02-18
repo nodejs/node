@@ -8,6 +8,8 @@
 #include "v8.h"
 
 #include <cstring>
+#include <string>
+#include <string_view>
 
 namespace node {
 
@@ -20,19 +22,38 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static Local<String> StringFromPath(Isolate* isolate, const char* path) {
+static Local<String> StringFromPath(Isolate* isolate, std::string_view path) {
 #ifdef _WIN32
-  if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
-    return String::Concat(
-        isolate,
-        FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-        String::NewFromUtf8(isolate, path + 8).ToLocalChecked());
-  } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-    return String::NewFromUtf8(isolate, path + 4).ToLocalChecked();
+  constexpr std::string_view kUncPrefix = "\\\\?\\UNC\\";
+  constexpr std::string_view kLongPrefix = "\\\\?\\";
+
+  if (path.starts_with(kUncPrefix)) {
+    std::string s;
+    s.reserve(2 + (path.size() - kUncPrefix.size()));
+    s.append("\\\\");
+    s.append(path.substr(kUncPrefix.size()));
+    return String::NewFromUtf8(isolate,
+                               s.data(),
+                               v8::NewStringType::kNormal,
+                               static_cast<int>(s.size()))
+        .ToLocalChecked();
+  }
+
+  if (path.starts_with(kLongPrefix)) {
+    auto rest = path.substr(kLongPrefix.size());
+    return String::NewFromUtf8(isolate,
+                               rest.data(),
+                               v8::NewStringType::kNormal,
+                               static_cast<int>(rest.size()))
+        .ToLocalChecked();
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path).ToLocalChecked();
+  return String::NewFromUtf8(isolate,
+                             path.data(),
+                             v8::NewStringType::kNormal,
+                             static_cast<int>(path.size()))
+      .ToLocalChecked();
 }
 
 Local<Value> ErrnoException(Isolate* isolate,
@@ -57,7 +78,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = StringFromPath(isolate, path);
+    path_string = StringFromPath(isolate, std::string_view(path));
   }
 
   if (path_string.IsEmpty() == false) {
@@ -113,7 +134,7 @@ Local<Value> UVException(Isolate* isolate,
   js_msg = String::Concat(isolate, js_msg, js_syscall);
 
   if (path != nullptr) {
-    js_path = StringFromPath(isolate, path);
+    js_path = StringFromPath(isolate, std::string_view(path));
 
     js_msg =
         String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " '"));
@@ -123,7 +144,7 @@ Local<Value> UVException(Isolate* isolate,
   }
 
   if (dest != nullptr) {
-    js_dest = StringFromPath(isolate, dest);
+    js_dest = StringFromPath(isolate, std::string_view(dest));
 
     js_msg = String::Concat(
         isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " -> '"));
