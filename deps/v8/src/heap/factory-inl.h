@@ -93,8 +93,8 @@ HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
     AllocationType allocation) {
-  return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                allocation);
+  return NewJSArrayWithElements(elements, elements_kind,
+                                elements->ulength().value(), allocation);
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(

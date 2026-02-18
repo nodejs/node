@@ -92,7 +92,7 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
 
 V8InspectorSessionImpl* V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
-    V8Inspector::Channel* channel, StringView state,
+    V8Inspector::ManagedChannel* channel, StringView state,
     V8Inspector::ClientTrustLevel clientTrustLevel,
     std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
   return new V8InspectorSessionImpl(inspector, contextGroupId, sessionId,
@@ -102,7 +102,7 @@ V8InspectorSessionImpl* V8InspectorSessionImpl::create(
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
-    V8Inspector::Channel* channel, StringView savedState,
+    V8Inspector::ManagedChannel* channel, StringView savedState,
     V8Inspector::ClientTrustLevel clientTrustLevel,
     std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
     : m_contextGroupId(contextGroupId),
@@ -480,7 +480,7 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
                                             bool caseSensitive, bool isRegex) {
   // TODO(dgozman): search may operate on StringView and avoid copying |text|.
   std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> matches =
-      searchInTextByLinesImpl(this, toString16(text), toString16(query),
+      searchInTextByLinesImpl(m_inspector, toString16(text), toString16(query),
                               caseSensitive, isRegex);
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>> result;
   for (size_t i = 0; i < matches.size(); ++i)

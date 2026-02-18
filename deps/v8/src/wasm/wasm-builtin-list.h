@@ -152,6 +152,8 @@ namespace v8::internal::wasm {
   V(DebugPrintObject)                                                          \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(WasmFXResume)                                                              \
+  V(WasmFXResumeThrow)                                                         \
+  V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \

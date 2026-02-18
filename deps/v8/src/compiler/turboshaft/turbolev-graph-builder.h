@@ -10,13 +10,17 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/zone/zone.h"
 
+namespace v8::internal::maglev {
+class Graph;
+}
+
 namespace v8::internal::compiler::turboshaft {
 
 struct TurbolevGraphBuildingPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(TurbolevGraphBuilding)
 
   std::optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
-                                   Linkage* linkage);
+                                   maglev::Graph* maglev_graph);
 };
 
 }  // namespace v8::internal::compiler::turboshaft

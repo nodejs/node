@@ -98,7 +98,7 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
               << "\", \"source\":\"\",\n\"phases\":[";
     }
 
-    turboshaft::Pipeline pipeline(&data);
+    turboshaft::Pipeline pipeline(&data, turboshaft::kNoLinkage);
     CHECK(pipeline.AllocateRegisters(config(), nullptr, true));
   }
 };

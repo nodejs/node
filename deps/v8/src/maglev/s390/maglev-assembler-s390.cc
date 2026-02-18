@@ -148,30 +148,12 @@ void MaglevAssembler::Prologue(Graph* graph) {
   Register scratch = temps.AcquireScratch();
   DCHECK(!graph->is_osr());
 
-  BailoutIfDeoptimized(scratch);
-
+  if (v8_flags.debug_code) {
+    AssertNotDeoptimized(scratch);
+  }
   if (graph->has_recursive_calls()) {
     bind(code_gen_state()->entry_label());
   }
-
-#ifndef V8_ENABLE_LEAPTIERING
-  // Tiering support.
-  if (v8_flags.turbofan) {
-    using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
-    Register flags = D::GetRegisterParameter(D::kFlags);
-    Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
-    DCHECK(!AreAliased(feedback_vector, kJavaScriptCallArgCountRegister,
-                       kJSFunctionRegister, kContextRegister,
-                       kJavaScriptCallNewTargetRegister));
-    DCHECK(!temps.Available().has(flags));
-    DCHECK(!temps.Available().has(feedback_vector));
-    Move(feedback_vector,
-         compilation_info()->toplevel_compilation_unit()->feedback().object());
-    TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
-                    LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
-                        flags, feedback_vector, CodeKind::MAGLEV));
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.

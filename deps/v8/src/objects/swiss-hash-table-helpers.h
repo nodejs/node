@@ -347,9 +347,9 @@ using Group = GroupSse2Impl;
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 // If we do not detect SSE2 when building for the ia32/x64 target, the
 // V8_SWISS_TABLE_HAVE_SSE2_TARGET logic will incorrectly cause the final output
-// to use the inefficient polyfill implementation. Detect this case and warn if
-// it happens.
-#warning "Did not detect required SSE2 support on ia32/x64."
+// to use the inefficient polyfill implementation. Detect this case and diagnose
+// if it happens.
+#error "Did not detect required SSE2 support on ia32/x64."
 #endif
 using Group = GroupSse2Polyfill;
 #endif

@@ -75,34 +75,34 @@ TEST_F(MemoryControllerTest, OldGenerationAllocationLimit) {
   double mutator_speed = 1;
   size_t new_space_capacity = 16 * MB;
 
-  double factor = V8Controller::GrowingFactor(heap, max_old_generation_size,
-                                              gc_speed, mutator_speed,
-                                              Heap::HeapGrowingMode::kDefault);
+  double factor = V8Controller::GrowingFactor(
+      i_isolate(), heap->physical_memory(), max_old_generation_size, gc_speed,
+      mutator_speed, Heap::HeapGrowingMode::kDefault);
 
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::BoundAllocationLimit(
-                heap, old_gen_size, old_gen_size * factor, 0u,
+                i_isolate(), old_gen_size, old_gen_size * factor, 0u,
                 max_old_generation_size, new_space_capacity,
                 Heap::HeapGrowingMode::kDefault));
 
   factor = std::min({factor, V8HeapTrait::kConservativeGrowingFactor});
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::BoundAllocationLimit(
-                heap, old_gen_size, old_gen_size * factor, 0u,
+                i_isolate(), old_gen_size, old_gen_size * factor, 0u,
                 max_old_generation_size, new_space_capacity,
                 Heap::HeapGrowingMode::kSlow));
 
   factor = std::min({factor, V8HeapTrait::kConservativeGrowingFactor});
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::BoundAllocationLimit(
-                heap, old_gen_size, old_gen_size * factor, 0u,
+                i_isolate(), old_gen_size, old_gen_size * factor, 0u,
                 max_old_generation_size, new_space_capacity,
                 Heap::HeapGrowingMode::kConservative));
 
   factor = V8HeapTrait::kMinGrowingFactor;
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::BoundAllocationLimit(
-                heap, old_gen_size, old_gen_size * factor, 0u,
+                i_isolate(), old_gen_size, old_gen_size * factor, 0u,
                 max_old_generation_size, new_space_capacity,
                 Heap::HeapGrowingMode::kMinimal));
 
@@ -111,7 +111,7 @@ TEST_F(MemoryControllerTest, OldGenerationAllocationLimit) {
       2 * static_cast<size_t>(old_gen_size * factor + new_space_capacity);
   EXPECT_EQ(min_old_generation_size,
             V8Controller::BoundAllocationLimit(
-                heap, old_gen_size, old_gen_size * factor,
+                i_isolate(), old_gen_size, old_gen_size * factor,
                 min_old_generation_size, max_old_generation_size,
                 new_space_capacity, Heap::HeapGrowingMode::kMinimal));
 }

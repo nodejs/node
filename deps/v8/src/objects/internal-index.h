@@ -34,8 +34,8 @@ class InternalIndex {
   bool is_found() const { return entry_ != kNotFound; }
   bool is_not_found() const { return entry_ == kNotFound; }
 
-  size_t raw_value() const { return entry_; }
-  uint32_t as_uint32() const {
+  constexpr size_t raw_value() const { return entry_; }
+  constexpr uint32_t as_uint32() const {
     DCHECK_LE(entry_, std::numeric_limits<uint32_t>::max());
     return static_cast<uint32_t>(entry_);
   }

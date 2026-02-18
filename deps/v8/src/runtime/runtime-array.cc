@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     index = static_cast<uint32_t>(value);
   }
 
-  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t capacity = object->elements()->ulength().value();
 
   if (index >= capacity) {
     bool has_grown;

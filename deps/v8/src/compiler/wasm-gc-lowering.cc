@@ -722,10 +722,10 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
 
   Node* store =
       implicit_null_check
-          ? gasm_.StoreTrapOnNull({field_type.machine_representation(),
-                                   field_type.is_reference() ? kFullWriteBarrier
-                                                             : kNoWriteBarrier},
-                                  object, offset, value)
+          ? gasm_.StoreTrapOnNull(
+                {field_type.machine_representation(),
+                 field_type.is_ref() ? kFullWriteBarrier : kNoWriteBarrier},
+                object, offset, value)
       : info.type->mutability(info.field_index)
           ? gasm_.StoreToObject(ObjectAccessForGCStores(field_type), object,
                                 offset, value)

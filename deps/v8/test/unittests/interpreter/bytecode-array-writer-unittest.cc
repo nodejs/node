@@ -61,6 +61,9 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
   SourcePositionTableBuilder* source_position_table_builder() {
     return writer()->source_position_table_builder();
   }
+  ConstantArrayBuilder* constant_array_builder() {
+    return &constant_array_builder_;
+  }
 
  private:
   ConstantArrayBuilder constant_array_builder_;
@@ -154,7 +157,7 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   }
 
   DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, 0, factory()->empty_trusted_byte_array());
+      isolate(), 201, 0, 0, factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
@@ -205,6 +208,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   BytecodeLoopHeader loop_header;
   BytecodeLabel jump_for_in, jump_end_1, jump_end_2, jump_end_3;
 
+  constant_array_builder()->Insert(Smi::zero());
+
   Write(Bytecode::kLdaConstant, U8(0), {42, true});
   Write(Bytecode::kAdd, R(1), U8(1), {42, false});
   WriteJump(Bytecode::kJumpIfUndefined, &jump_end_1, {68, true});
@@ -237,7 +242,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   }
 
   DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, 0, factory()->empty_trusted_byte_array());
+      isolate(), 8, 0, 0, factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -286,7 +291,7 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
   }
 
   DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, 0, factory()->empty_trusted_byte_array());
+      isolate(), 21, 0, 0, factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(

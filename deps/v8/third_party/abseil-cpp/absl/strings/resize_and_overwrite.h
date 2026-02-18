@@ -53,9 +53,9 @@
 
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 
 #if defined(__cpp_lib_string_resize_and_overwrite) && \
     __cpp_lib_string_resize_and_overwrite >= 202110L
@@ -124,7 +124,7 @@ struct has_Resize_and_overwrite<
 template <typename T, typename Op>
 void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   if (ABSL_PREDICT_FALSE(n > str.max_size())) {
-    absl::base_internal::ThrowStdLengthError("absl::StringResizeAndOverwrite");
+    ThrowStdLengthError("absl::StringResizeAndOverwrite");
   }
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   auto old_size = str.size();
@@ -139,6 +139,29 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   ABSL_HARDENING_ASSERT(new_size >= 0 && new_size <= n);
   ABSL_HARDENING_ASSERT(str.data()[n] == typename T::value_type{});
   str.erase(static_cast<typename T::size_type>(new_size));
+}
+
+template <typename T, typename Op>
+void StringResizeAndOverwriteImpl(T& str, typename T::size_type n, Op op) {
+#ifdef ABSL_INTERNAL_HAS_RESIZE_AND_OVERWRITE
+  str.resize_and_overwrite(n, std::move(op));
+#else
+  if constexpr (strings_internal::
+                    has__google_nonstandard_backport_resize_and_overwrite<
+                        T>::value) {
+    str.__google_nonstandard_backport_resize_and_overwrite(n, std::move(op));
+  } else if constexpr (strings_internal::has__resize_and_overwrite<T>::value) {
+    str.__resize_and_overwrite(n, std::move(op));
+  } else if constexpr (strings_internal::has__resize_default_init<T>::value) {
+    str.__resize_default_init(n);
+    str.__resize_default_init(
+        static_cast<typename T::size_type>(std::move(op)(str.data(), n)));
+  } else if constexpr (strings_internal::has_Resize_and_overwrite<T>::value) {
+    str._Resize_and_overwrite(n, std::move(op));
+  } else {
+    strings_internal::StringResizeAndOverwriteFallback(str, n, std::move(op));
+  }
+#endif
 }
 
 }  // namespace strings_internal
@@ -157,28 +180,9 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
 // value to `buf[buf_size]`.
 template <typename T, typename Op>
 void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
-#ifdef ABSL_INTERNAL_HAS_RESIZE_AND_OVERWRITE
-  str.resize_and_overwrite(n, std::move(op));
-#else
-  if constexpr (strings_internal::
-                    has__google_nonstandard_backport_resize_and_overwrite<
-                        T>::value) {
-    str.__google_nonstandard_backport_resize_and_overwrite(n, std::move(op));
-  } else if constexpr (strings_internal::has__resize_and_overwrite<T>::value) {
-    str.__resize_and_overwrite(n, std::move(op));
-  } else if constexpr (strings_internal::has__resize_default_init<T>::value) {
-    str.__resize_default_init(n);
-    str.__resize_default_init(
-        static_cast<typename T::size_type>(std::move(op)(str.data(), n)));
-  } else if constexpr (strings_internal::has_Resize_and_overwrite<T>::value) {
-    str._Resize_and_overwrite(n, std::move(op));
-  } else {
-    strings_internal::StringResizeAndOverwriteFallback(str, n, op);
-  }
-#endif
+  strings_internal::StringResizeAndOverwriteImpl(str, n, std::move(op));
 #if defined(ABSL_HAVE_MEMORY_SANITIZER)
-  auto shadow = __msan_test_shadow(str.data(), str.size());
-  ABSL_ASSERT(shadow == -1);
+  __msan_check_mem_is_initialized(str.data(), str.size());
 #endif
 }
 

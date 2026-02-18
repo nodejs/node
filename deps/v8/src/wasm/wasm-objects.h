@@ -42,7 +42,7 @@ class NativeModule;
 class WasmCode;
 struct WasmFunction;
 struct WasmGlobal;
-class WasmImportWrapperHandle;
+class WasmWrapperHandle;
 struct WasmModule;
 struct WasmTag;
 using WasmTagSig = FunctionSig;
@@ -146,7 +146,7 @@ class ImportedFunctionEntry {
   // allocates a WasmImportData.
   V8_EXPORT_PRIVATE void SetWasmToWrapper(
       Isolate*, DirectHandle<JSReceiver> callable,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
       wasm::Suspend suspend, const wasm::CanonicalSig* sig);
 
   Tagged<JSReceiver> callable();
@@ -350,6 +350,8 @@ class WasmMemoryObject
 
   DECL_ACCESSORS(instances, Tagged<WeakArrayList>)
 
+  inline const std::shared_ptr<BackingStore>& backing_store() const;
+
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
   // fields of the instance to reference this memory's buffer.
@@ -365,7 +367,8 @@ class WasmMemoryObject
   inline bool is_memory64() const;
 
   V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryObject> New(
-      Isolate* isolate, DirectHandle<JSArrayBuffer> buffer, int maximum,
+      Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
+      std::shared_ptr<BackingStore> backing_store, int maximum,
       wasm::AddressType address_type);
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryObject> New(
@@ -397,32 +400,29 @@ class WasmMemoryObject
   // Both divergences are impossible for JS-created buffers.
   void FixUpResizableArrayBuffer(Tagged<JSArrayBuffer> new_buffer);
 
-  // Detaches the existing buffer, makes a new buffer backed by
-  // new_backing_store, and update all the links.
+  // Makes a new buffer backed by backing_store and update all the links.
+  // The resizability of the new AB is determined by the bit on the backing
+  // store, except if `override_resizable` is given (for shared ABs where the
+  // bit on the backing store is not authoritative).
   static DirectHandle<JSArrayBuffer> RefreshBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      std::shared_ptr<BackingStore> new_backing_store);
-
-  // Makes a new SharedArrayBuffer backed by the same backing store.
-  static DirectHandle<JSArrayBuffer> RefreshSharedBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      DirectHandle<JSArrayBuffer> old_buffer, ResizableFlag resizable_by_js);
+      std::shared_ptr<BackingStore> backing_store,
+      std::optional<ResizableFlag> override_resizable = {});
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
                                         uint32_t pages);
 
-  // Makes the ArrayBuffer fixed-length. Assumes the current ArrayBuffer is
-  // resizable. Detaches the existing buffer if it is not shared.
-  static DirectHandle<JSArrayBuffer> ToFixedLengthBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      DirectHandle<JSArrayBuffer> old_buffer);
+  // Returns the current JSArrayBuffer bound to this memory object. If there is
+  // none yet it will be allocated and stored in the `array_buffer` field.
+  V8_EXPORT_PRIVATE static DirectHandle<JSArrayBuffer> GetArrayBuffer(
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
 
-  // Makes the ArrayBuffer resizable by JS. Assumes the current ArrayBuffer is
-  // fixed-length. Detaches the existing buffer if it is not shared.
-  static DirectHandle<JSArrayBuffer> ToResizableBuffer(
+  // Changes resizability of the attached ArrayBuffer.
+  // Detaches the existing buffer if it is not shared.
+  static DirectHandle<JSArrayBuffer> ChangeArrayBufferResizability(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      DirectHandle<JSArrayBuffer> old_buffer);
+      ResizableFlag new_resizability);
 
   static constexpr int kNoMaximum = -1;
 
@@ -437,7 +437,7 @@ class WasmGlobalObject
 
   DECL_ACCESSORS(untagged_buffer, Tagged<JSArrayBuffer>)
   DECL_ACCESSORS(tagged_buffer, Tagged<FixedArray>)
-  DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
+  DECL_PRIMITIVE_ACCESSORS(unsafe_type, wasm::ValueType)
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   // Dispatched behavior.
@@ -449,14 +449,14 @@ class WasmGlobalObject
       MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
-  inline int type_size() const;
+  inline int unsafe_type_size() const;
 
-  inline int32_t GetI32();
-  inline int64_t GetI64();
-  inline float GetF32();
-  inline double GetF64();
-  inline uint8_t* GetS128RawBytes();
-  inline DirectHandle<Object> GetRef();
+  inline int32_t GetI32() const;
+  inline int64_t GetI64() const;
+  inline float GetF32() const;
+  inline double GetF64() const;
+  inline uint8_t* GetS128RawBytes() const;
+  inline DirectHandle<Object> GetRef() const;
 
   inline void SetI32(int32_t value);
   inline void SetI64(int64_t value);
@@ -777,28 +777,26 @@ class WasmTagObject
 };
 
 // Off-heap data object owned by a WasmDispatchTable. Owns the {shared_ptr}s
-// which manage the lifetimes of the {WasmImportWrapperHandle}s.
+// which manage the lifetimes of the {WasmWrapperHandle}s.
 class WasmDispatchTableData {
  public:
   // If a wrapper is installed at the given {index}, returns the corresponding
-  // {WasmImportWrapperHandle} so that it can be reused in other tables.
+  // {WasmWrapperHandle} so that it can be reused in other tables.
   V8_EXPORT_PRIVATE
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index) const;
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index) const;
 
 #ifdef DEBUG
   WasmCodePointer WrapperCodePointerForDebugging(int index);
 #endif
 
-  void Add(int index,
-           std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
+  void Add(int index, std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
   void Remove(int index);
 
  private:
   friend class WasmDispatchTable;
 
-  std::unordered_map<int, std::shared_ptr<wasm::WasmImportWrapperHandle>>
-      wrappers_;
+  std::unordered_map<int, std::shared_ptr<wasm::WasmWrapperHandle>> wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every
@@ -904,7 +902,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // Set an entry for indirect calls to a WasmToJS wrapper.
   void V8_EXPORT_PRIVATE
   SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
-                std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+                std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
                 wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
                 uint32_t function_index,
@@ -917,8 +915,8 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
 
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index);
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index);
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -1014,20 +1012,19 @@ class WasmDispatchTableForImports : public TrustedObject {
       WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
-  void SetForWrapper(
-      int index, Tagged<WasmImportData> implicit_arg,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-      wasm::CanonicalTypeIndex sig_id,
+  void SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
+                     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
+                     wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-      uint32_t function_index,
+                     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-      WasmDispatchTable::NewOrExistingEntry new_or_existing);
+                     WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   void Clear(int index, WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   V8_EXPORT_PRIVATE
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index);
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index);
 
   DECL_PRINTER(WasmDispatchTableForImports)
   DECL_VERIFIER(WasmDispatchTableForImports)
@@ -1053,8 +1050,9 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
       Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
-  static uint32_t GetEncodedSize(const wasm::WasmTagSig* tag);
-  static uint32_t GetEncodedSize(const wasm::WasmTag* tag);
+  static uint32_t GetEncodedSize(const wasm::WasmModule* module,
+                                 const wasm::WasmTag* tag);
+  static uint32_t GetEncodedSize(const wasm::CanonicalSig* sig);
 
   // In-object fields.
   enum { kTagIndex, kValuesIndex, kInObjectFieldCount };
@@ -1184,7 +1182,7 @@ class WasmFunctionData
 
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<
-          WasmFunctionData, kWasmFunctionDataIndirectPointerTag>,
+          WasmFunctionData, kWasmFunctionDataIndirectPointerTagRange>,
       WithStrongCodePointer<kWrapperCodeOffset>,
       WithProtectedPointer<kProtectedInternalOffset>>;
 
@@ -1311,15 +1309,15 @@ class WasmJSFunctionData
   class OffheapData {
    public:
     explicit OffheapData(
-        std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle)
+        std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle)
         : wrapper_handle_(wrapper_handle) {}
 
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle() const {
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle() const {
       return wrapper_handle_;
     }
 
    private:
-    const std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle_;
+    const std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle_;
   };
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
@@ -1645,44 +1643,24 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
-  // The payload size is either two max page size -- one so that we can safely
-  // unmap the page immediately after the header, and a second for holes, so
-  // that the page containing the holes can be unmapped conditionally
-  // independent of the wasm null page. The unmapped hole page is part of the
-  // WasmNull so that RO heap iteration can safely skip over the unmapped page.
-  // TODO(leszeks): Consider making hole unmapping independent of wasm null.
-  static constexpr int kFirstPayloadSize = 64 * KB;
-  static constexpr int kSecondPayloadSize = 64 * KB;
-  static constexpr int kFullPayloadSize =
-      kFirstPayloadSize + kSecondPayloadSize;
+  static constexpr int kPayloadSize = 64 * KB;
   // Payload should be a multiple of page size.
-  static_assert(kFirstPayloadSize % kMinimumOSPageSize == 0);
-  static_assert(kFullPayloadSize % kMinimumOSPageSize == 0);
+  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
 
-  Address first_payload() { return field_address(kPayloadOffset); }
-  Address second_payload() {
-    return field_address(kPayloadOffset + kFirstPayloadSize);
-  }
+  Address payload() { return field_address(kPayloadOffset); }
 
   static constexpr int kPayloadOffset = HeapObject::kHeaderSize;
-  static constexpr int kSizeWithFirstPayload =
-      kPayloadOffset + kFirstPayloadSize;
-  static constexpr int kSizeWithFullPayload = kPayloadOffset + kFullPayloadSize;
+  static constexpr int kSizeWithPayload = kPayloadOffset + kPayloadSize;
 
-  static inline int Size() {
-    return v8_flags.unmap_holes ? WasmNull::kSizeWithFullPayload
-                                : WasmNull::kSizeWithFirstPayload;
-  }
+  static constexpr int kSize = kSizeWithPayload;
 
   // Any wasm struct offset should fit in the object.
-  static_assert(kSizeWithFirstPayload >=
+  static_assert(kSizeWithPayload >=
                 WasmStruct::kHeaderSize +
                     (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
                         kSimd128Size);
 #else
   static constexpr int kSize = HeapObject::kHeaderSize;
-
-  static constexpr inline int Size() { return kSize; }
 #endif
 
   // WasmNull cannot use `FixedBodyDescriptorFor()` as its map is variable size

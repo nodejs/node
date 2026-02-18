@@ -35,6 +35,57 @@ package(
 licenses(["notice"])
 
 cc_library(
+    name = "constexpr_testing",
+    testonly = 1,
+    hdrs = ["internal/constexpr_testing.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "constexpr_testing_test",
+    srcs = ["internal/constexpr_testing_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":constexpr_testing",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "requires",
+    hdrs = ["internal/requires.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "requires_test",
+    srcs = ["internal/requires_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":requires",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "type_traits",
     hdrs = ["type_traits.h"],
     copts = ABSL_DEFAULT_COPTS,

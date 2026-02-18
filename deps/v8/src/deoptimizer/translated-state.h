@@ -505,8 +505,8 @@ class TranslatedState {
             Address stack_frame_pointer, DeoptTranslationIterator* iterator,
             Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
             const DeoptimizationLiteralProvider& literal_array,
-            RegisterValues* registers, FILE* trace_file, int parameter_count,
-            int actual_argument_count);
+            RegisterValues* registers, FILE* trace_file,
+            uint32_t parameter_count, uint32_t actual_argument_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback(DeoptimizeReason reason);
@@ -588,8 +588,8 @@ class TranslatedState {
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
-  int formal_parameter_count_;
-  int actual_argument_count_;
+  uint32_t formal_parameter_count_;
+  uint32_t actual_argument_count_;
 
   struct ObjectPosition {
     int frame_index_;

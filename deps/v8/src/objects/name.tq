@@ -18,13 +18,18 @@ bitfield struct NameHash extends uint32 {
 // kinds of names.
 type AnyName = PrivateSymbol|PublicSymbol|String;
 
+extern enum PrivateSymbolKind extends uint8 {
+  kPublic,
+  kInternal,
+  kFieldName,
+  kBrand
+}
+
 bitfield struct SymbolFlags extends uint32 {
-  is_private: bool: 1 bit;
+  private_symbol_kind: PrivateSymbolKind: 2 bit;
   is_well_known_symbol: bool: 1 bit;
   is_in_public_symbol_table: bool: 1 bit;
   is_interesting_symbol: bool: 1 bit;
-  is_private_name: bool: 1 bit;
-  is_private_brand: bool: 1 bit;
 }
 
 @cppObjectLayoutDefinition

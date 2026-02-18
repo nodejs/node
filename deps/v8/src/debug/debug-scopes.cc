@@ -929,7 +929,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           DCHECK(!generator_.is_null());
           Tagged<FixedArray> parameters_and_registers =
               generator_->parameters_and_registers();
-          DCHECK_LT(index, parameters_and_registers->length());
+          DCHECK_GE(index, 0);
+          DCHECK_LT(static_cast<uint32_t>(index),
+                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
         } else if (var->IsReceiver()) {
           value = frame_inspector_->GetReceiver();
@@ -948,7 +950,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           int parameter_count =
               function_->shared()->scope_info()->ParameterCount();
           index += parameter_count;
-          DCHECK_LT(index, parameters_and_registers->length());
+          DCHECK_GE(index, 0);
+          DCHECK_LT(static_cast<uint32_t>(index),
+                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
         } else {
           value = frame_inspector_->GetExpression(index);
@@ -1064,7 +1068,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
                                 KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS)
             .ToHandleChecked();
 
-    for (int i = 0; i < keys->length(); i++) {
+    uint32_t keys_len = keys->ulength().value();
+    for (uint32_t i = 0; i < keys_len; i++) {
       // Names of variables introduced by eval are strings.
       DCHECK(IsString(keys->get(i)));
       Handle<String> key(Cast<String>(keys->get(i)), isolate_);
@@ -1101,7 +1106,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             DCHECK(!generator_.is_null());
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_LT(index, parameters_and_registers->length());
+            DCHECK_GE(index, 0);
+            DCHECK_LT(static_cast<uint32_t>(index),
+                      parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             JavaScriptFrame* frame = GetFrame();
@@ -1121,7 +1128,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             index += parameter_count;
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_LT(index, parameters_and_registers->length());
+            DCHECK_GE(index, 0);
+            DCHECK_LT(static_cast<uint32_t>(index),
+                      parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             // Set the variable on the stack.

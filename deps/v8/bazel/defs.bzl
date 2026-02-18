@@ -97,7 +97,7 @@ v8_config = rule(
 
 def _default_args():
     return struct(
-        deps = [":define_flags"],
+        deps = [":define_flags", "@libcxx//:libc++"],
         defines = select({
             "@v8//bazel/config:is_windows": [
                 "UNICODE",
@@ -111,6 +111,7 @@ def _default_args():
             "@v8//bazel/config:is_posix": [
                 "-fPIC",
                 "-fno-strict-aliasing",
+                "-fconstexpr-steps=2000000",
                 "-Werror",
                 "-Wextra",
                 "-Wno-unneeded-internal-declaration",
@@ -122,7 +123,6 @@ def _default_args():
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
-                "-Wno-unnecessary-virtual-specifier",
                 "-isystem .",
             ],
             "//conditions:default": [],
@@ -563,6 +563,7 @@ def build_config_content(cpu, icu):
         ("dict_property_const_tracking", "false"),
         ("direct_handle", "false"),
         ("disassembler", "false"),
+        ("dumpling", "false"),
         ("full_debug", "false"),
         ("gdbjit", "false"),
         ("has_jitless", "false"),

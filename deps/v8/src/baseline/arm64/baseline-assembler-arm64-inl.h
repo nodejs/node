@@ -9,6 +9,7 @@
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -198,6 +199,37 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   __ Ldr(tmp, operand);
   __ CompareTaggedAndBranch(tmp, value, cc, target);
 }
+
+#ifdef V8_STATIC_ROOTS
+void BaselineAssembler::JumpIfStaticRootToBoolean(
+    Register value, Label* true_target, Label::Distance true_distance,
+    Label* false_target, Label::Distance false_distance) {
+  static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                StaticReadOnlyRoot::kUndefinedValue);
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
+                StaticReadOnlyRoot::kNullValue);
+  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
+                StaticReadOnlyRoot::kempty_string);
+  static_assert(StaticReadOnlyRoot::kempty_string +
+                    SeqOneByteString::SizeFor(0) ==
+                StaticReadOnlyRoot::kFalseValue);
+  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
+                StaticReadOnlyRoot::kTrueValue);
+
+  // Smi zero is falsey.
+  __ CompareTaggedAndBranch(value, Immediate(Smi::zero()), kEqual,
+                            false_target);
+  // Other Smis are true.
+  __ JumpIfSmi(value, true_target);
+  // The falsey static roots are at the start of the cage, just before the true
+  // value.
+  __ CmpTagged(value, Operand(StaticReadOnlyRoot::kTrueValue));
+  __ B(kUnsignedLessThan, false_target);
+  __ B(kEqual, true_target);
+  // Fallthrough for more complex cases.
+}
+#endif
+
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
   JumpIf(cc, value, Immediate(byte), target);
@@ -436,7 +468,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          Register value) {
   ASM_CODE_COMMENT(masm_);
   __ StoreTaggedField(value, FieldMemOperand(target, offset));
-  __ RecordWriteField(target, offset, value, kLRHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, kLRHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 

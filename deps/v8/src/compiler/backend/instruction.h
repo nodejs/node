@@ -242,11 +242,15 @@ class UnallocatedOperand final : public InstructionOperand {
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index, int virtual_register)
+      : UnallocatedOperand(policy, index, USED_AT_END, virtual_register) {}
+
+  UnallocatedOperand(ExtendedPolicy policy, int index, Lifetime lifetime,
+                     int virtual_register)
       : UnallocatedOperand(virtual_register) {
     DCHECK(policy == FIXED_REGISTER || policy == FIXED_FP_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
-    value_ |= LifetimeField::encode(USED_AT_END);
+    value_ |= LifetimeField::encode(lifetime);
     value_ |= FixedRegisterField::encode(index);
   }
 

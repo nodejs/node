@@ -195,7 +195,7 @@ class StraightForwardRegisterAllocator {
                        const compiler::AllocatedOperand& location);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
-  void AllocateNode(Node* node);
+  void AllocateNode(NodeBase* node);
   void AllocateNodeResult(ValueNode* node);
   void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
   void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);

@@ -352,7 +352,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   __ Sd(value, FieldMemOperand(target, offset));
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ RecordWriteField(target, offset, value, scratch, kRAHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, scratch, kRAHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,

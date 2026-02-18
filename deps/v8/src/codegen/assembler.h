@@ -426,10 +426,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     if (V8_LIKELY(!v8_flags.code_comments)) return;
     if (options().emit_code_comments) {
       std::string comment_str(comment);
-      if (loc.FileName()) {
+      if (loc) {
         comment_str += " - " + loc.ToString();
       }
-      code_comments_writer_.Add(pc_offset(), comment_str);
+
+      code_comments_writer_.Add(pc_offset(), std::move(comment_str));
     }
   }
 

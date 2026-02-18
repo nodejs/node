@@ -44,8 +44,8 @@ class ArrayHeaderBase<Super, false> : public Super {
  public:
   inline int capacity() const;
   inline int capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(int value);
-  inline void set_capacity(int value, ReleaseStoreTag tag);
+  inline void set_capacity(uint32_t value);
+  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
   // TODO(leszeks): Make this private.
  public:
@@ -55,15 +55,22 @@ class ArrayHeaderBase<Super, false> : public Super {
 V8_OBJECT template <class Super>
 class ArrayHeaderBase<Super, true> : public Super {
  public:
+  // Length and capacity are never supposed to be negative.
+  // See https://crbug.com/441221573.
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
+  inline uint32_t ucapacity() const;
+
   inline int length() const;
-  inline int length(AcquireLoadTag tag) const;
-  inline void set_length(int value);
-  inline void set_length(int value, ReleaseStoreTag tag);
+  inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
+  inline void set_length(uint32_t value);
+  inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
   inline int capacity() const;
   inline int capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(int value);
-  inline void set_capacity(int value, ReleaseStoreTag tag);
+  inline void set_capacity(uint32_t value);
+  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
   // TODO(leszeks): Make this private.
  public:
@@ -121,48 +128,51 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
  public:
   using Shape = ShapeT;
 
-  inline Tagged<ElementT> get(int index) const;
-  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
-  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
-  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
+  // Index is never supposed to be negative.
+  // See https://crbug.com/441221573.
 
-  inline void set(int index, Tagged<ElementT> value,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(int index, Tagged<Smi> value);
-  inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
-  inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
+  inline Tagged<ElementT> get(uint32_t index) const;
+  inline Tagged<ElementT> get(uint32_t index, RelaxedLoadTag) const;
+  inline Tagged<ElementT> get(uint32_t index, AcquireLoadTag) const;
+  inline Tagged<ElementT> get(uint32_t index, SeqCstAccessTag) const;
 
-  inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
+  inline void set(uint32_t index, Tagged<ElementT> value,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
+  inline void set(uint32_t index, Tagged<Smi> value);
+  inline void set(uint32_t index, Tagged<ElementT> value, RelaxedStoreTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
+  inline void set(uint32_t index, Tagged<Smi> value, RelaxedStoreTag);
+  inline void set(uint32_t index, Tagged<ElementT> value, ReleaseStoreTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
+  inline void set(uint32_t index, Tagged<Smi> value, ReleaseStoreTag);
+  inline void set(uint32_t index, Tagged<ElementT> value, SeqCstAccessTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
+  inline void set(uint32_t index, Tagged<Smi> value, SeqCstAccessTag);
+
+  inline Tagged<ElementT> swap(uint32_t index, Tagged<ElementT> value,
                                SeqCstAccessTag,
                                WriteBarrierMode mode = kDefaultMode);
   inline Tagged<ElementT> compare_and_swap(
-      int index, Tagged<ElementT> expected, Tagged<ElementT> value,
+      uint32_t index, Tagged<ElementT> expected, Tagged<ElementT> value,
       SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.
   inline static void MoveElements(Isolate* isolate, Tagged<Derived> dst,
-                                  int dst_index, Tagged<Derived> src,
-                                  int src_index, int len,
+                                  uint32_t dst_index, Tagged<Derived> src,
+                                  uint32_t src_index, uint32_t len,
                                   WriteBarrierMode mode = kDefaultMode);
   inline static void CopyElements(Isolate* isolate, Tagged<Derived> dst,
-                                  int dst_index, Tagged<Derived> src,
-                                  int src_index, int len,
+                                  uint32_t dst_index, Tagged<Derived> src,
+                                  uint32_t src_index, uint32_t len,
                                   WriteBarrierMode mode = kDefaultMode);
 
   // Right-trim the array.
@@ -179,7 +189,7 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
   // Gives access to raw memory which stores the array's data.
   inline SlotType RawFieldOfFirstElement() const;
-  inline SlotType RawFieldOfElementAt(int index) const;
+  inline SlotType RawFieldOfElementAt(uint32_t index) const;
 
   // Maximal allowed capacity, in number of elements. Chosen s.t. the byte size
   // fits into a Smi which is necessary for being able to create a free space
@@ -195,7 +205,7 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
  protected:
   template <class IsolateT>
   static Handle<Derived> Allocate(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
@@ -224,12 +234,12 @@ V8_OBJECT class FixedArray
  public:
   template <class IsolateT>
   static inline Handle<FixedArray> New(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
   template <class IsolateT, typename ElementsCallback>
   static inline Handle<FixedArray> New(
-      IsolateT* isolate, int length, ElementsCallback elements_callback,
+      IsolateT* isolate, uint32_t length, ElementsCallback elements_callback,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
 
@@ -237,18 +247,19 @@ V8_OBJECT class FixedArray
   using Super::MoveElements;
 
   // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
-  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
-                           int len, WriteBarrierMode mode);
-  inline void CopyElements(Isolate* isolate, int dst_index,
-                           Tagged<FixedArray> src, int src_index, int len,
+  inline void MoveElements(Isolate* isolate, uint32_t dst_index,
+                           uint32_t src_index, uint32_t len,
                            WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, uint32_t dst_index,
+                           Tagged<FixedArray> src, uint32_t src_index,
+                           uint32_t len, WriteBarrierMode mode);
 
   // Return a grown copy if the index is bigger than the array's length.
   template <template <typename> typename HandleType>
     requires(
         std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
   V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
-      Isolate* isolate, HandleType<FixedArray> array, int index,
+      Isolate* isolate, HandleType<FixedArray> array, uint32_t index,
       DirectHandle<Object> value);
 
   // Right-trim the array.
@@ -260,16 +271,16 @@ V8_OBJECT class FixedArray
         std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
   static HandleType<FixedArray> RightTrimOrEmpty(Isolate* isolate,
                                                  HandleType<FixedArray> array,
-                                                 int new_length);
+                                                 uint32_t new_length);
 
   // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
-  inline void FillWithHoles(int from, int to);
+  inline void FillWithHoles(uint32_t from, uint32_t to);
 
   // For compatibility with FixedDoubleArray:
   // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
-  inline bool is_the_hole(Isolate* isolate, int index);
-  inline void set_the_hole(Isolate* isolate, int index);
-  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
+  inline bool is_the_hole(Isolate* isolate, uint32_t index);
+  inline void set_the_hole(Isolate* isolate, uint32_t index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, uint32_t index);
 
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
@@ -281,7 +292,7 @@ V8_OBJECT class FixedArray
 
  private:
   inline static Handle<FixedArray> Resize(
-      Isolate* isolate, DirectHandle<FixedArray> xs, int new_capacity,
+      Isolate* isolate, DirectHandle<FixedArray> xs, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 } V8_OBJECT_END;
@@ -312,7 +323,7 @@ V8_OBJECT class TrustedFixedArray
  public:
   template <class IsolateT>
   static inline Handle<TrustedFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kTrusted);
 
   DECL_PRINTER(TrustedFixedArray)
@@ -346,7 +357,8 @@ V8_OBJECT class ProtectedFixedArray
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
   // Smi::zero().
   template <class IsolateT>
-  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate, int capacity,
+  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate,
+                                                uint32_t capacity,
                                                 bool shared = false);
 
   DECL_PRINTER(ProtectedFixedArray)
@@ -443,7 +455,7 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
  protected:
   template <class IsolateT>
   static Handle<Derived> Allocate(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -468,33 +480,34 @@ V8_OBJECT class FixedDoubleArray
   // empty_fixed_array.
   template <class IsolateT>
   static inline Handle<FixedArrayBase> New(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
   template <class IsolateT, typename ElementsCallback>
   static inline Handle<FixedArrayBase> New(
-      IsolateT* isolate, int length, ElementsCallback elements_callback,
+      IsolateT* isolate, uint32_t length, ElementsCallback elements_callback,
       AllocationType allocation = AllocationType::kYoung);
 
   // Setter and getter for elements.
-  inline double get_scalar(int index);
-  inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(Tagged<FixedDoubleArray> array, int index,
-                                   Isolate* isolate);
-  inline void set(int index, double value);
+  inline double get_scalar(uint32_t index);
+  inline uint64_t get_representation(uint32_t index);
+  static inline Handle<Object> get(Tagged<FixedDoubleArray> array,
+                                   uint32_t index, Isolate* isolate);
+  inline void set(uint32_t index, double value);
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  inline void set_undefined(int index);
-  inline bool is_undefined(int index);
+  inline void set_undefined(uint32_t index);
+  inline bool is_undefined(uint32_t index);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-  inline void set_the_hole(Isolate* isolate, int index);
-  inline void set_the_hole(int index);
-  inline bool is_the_hole(Isolate* isolate, int index);
-  inline bool is_the_hole(int index);
+  inline void set_the_hole(Isolate* isolate, uint32_t index);
+  inline void set_the_hole(uint32_t index);
+  inline bool is_the_hole(Isolate* isolate, uint32_t index);
+  inline bool is_the_hole(uint32_t index);
 
-  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
-                           int len, WriteBarrierMode /* unused */);
+  inline void MoveElements(Isolate* isolate, uint32_t dst_index,
+                           uint32_t src_index, uint32_t len,
+                           WriteBarrierMode /* unused */);
 
-  inline void FillWithHoles(int from, int to);
+  inline void FillWithHoles(uint32_t from, uint32_t to);
 
   DECL_PRINTER(FixedDoubleArray)
   DECL_VERIFIER(FixedDoubleArray)
@@ -521,7 +534,7 @@ V8_OBJECT class WeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       MaybeDirectHandle<Object> initial_value = {});
 
@@ -550,7 +563,7 @@ V8_OBJECT class TrustedWeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<TrustedWeakFixedArray> New(IsolateT* isolate,
-                                                  int capacity);
+                                                  uint32_t capacity);
 
   DECL_PRINTER(TrustedWeakFixedArray)
   DECL_VERIFIER(TrustedWeakFixedArray)
@@ -580,7 +593,7 @@ V8_OBJECT class ProtectedWeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<ProtectedWeakFixedArray> New(IsolateT* isolate,
-                                                    int capacity);
+                                                    uint32_t capacity);
   DECL_PRINTER(ProtectedWeakFixedArray)
   DECL_VERIFIER(ProtectedWeakFixedArray)
 
@@ -634,6 +647,10 @@ class WeakArrayList
   using TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject>::capacity;
   inline int capacity(RelaxedLoadTag) const;
 
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
+
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
   }
@@ -645,9 +662,9 @@ class WeakArrayList
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
 
-  inline void CopyElements(Isolate* isolate, int dst_index,
-                           Tagged<WeakArrayList> src, int src_index, int len,
-                           WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, uint32_t dst_index,
+                           Tagged<WeakArrayList> src, uint32_t src_index,
+                           uint32_t len, WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull() const;
 
@@ -729,8 +746,12 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
       IsolateT* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
 
+  // TODO(375937549): Convert usages to uint32_t.
   inline int length() const;
   inline void set_length(int value);
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
 
   V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
       Isolate* isolate, DirectHandle<ArrayList> array, Tagged<Smi> obj,

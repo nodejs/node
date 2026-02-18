@@ -91,7 +91,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
       Isolate* isolate, DirectHandle<DebugInfo> debug_info,
       DirectHandle<BreakPoint> break_point);
   // Get the number of break points for this function.
-  int GetBreakPointCount(Isolate* isolate);
+  uint32_t GetBreakPointCount(Isolate* isolate);
 
   // Returns whether we should be able to break before entering the function.
   // This is true for functions with no source, e.g. builtins.
@@ -166,7 +166,7 @@ class BreakPointInfo
   static MaybeDirectHandle<BreakPoint> GetBreakPointById(
       Isolate* isolate, DirectHandle<BreakPointInfo> info, int breakpoint_id);
   // Get the number of break points for this code offset.
-  int GetBreakPointCount(Isolate* isolate);
+  uint32_t GetBreakPointCount(Isolate* isolate);
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 

@@ -10,6 +10,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
+#include "src/base/iterator.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
@@ -216,8 +217,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
 
   // We need to process the stack in reverse order as the top of the stack is
   // the first element in the list.
-  for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
-    Tagged<SharedFunctionInfo> shared = *it;
+  for (Tagged<SharedFunctionInfo> shared : base::Reversed(stack)) {
     const char* name = this->names()->GetCopy(shared->DebugNameCStr().get());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (IsScript(shared->script())) {

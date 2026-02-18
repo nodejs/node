@@ -22,6 +22,25 @@
 #define SLOW_DCHECK_IMPLIES(v1, v2) ((void)0)
 #endif
 
+#ifdef DEBUG
+#define DCHECK_WITH_SANDBOX_ACCESS(condition)        \
+  do {                                               \
+    v8::internal::AllowSandboxAccess sandbox_access( \
+        "Sandbox access for debug check");           \
+    DCHECK(condition);                               \
+  } while (false)
+#define DCHECK_WITH_SANDBOX_ACCESS_AND_MSG_AND_LOC(condition, msg, loc) \
+  do {                                                                  \
+    v8::internal::AllowSandboxAccess sandbox_access(                    \
+        "Sandbox access for debug check");                              \
+    DCHECK_WITH_MSG_AND_LOC(condition, msg, loc);                       \
+  } while (false)
+#else
+#define DCHECK_WITH_SANDBOX_ACCESS(condition) ((void)0)
+#define DCHECK_WITH_SANDBOX_ACCESS_AND_MSG_AND_LOC(condition, msg, loc) \
+  ((void)0)
+#endif
+
 #define DCHECK_TAG_ALIGNED(address) \
   DCHECK((address & ::v8::internal::kHeapObjectTagMask) == 0)
 

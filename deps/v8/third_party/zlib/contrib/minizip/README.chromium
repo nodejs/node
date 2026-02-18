@@ -40,3 +40,6 @@ Local Modifications:
   large CRX files).
   0018-support-prefixed-zip64.patch
 
+- Added stricter parsing for zip64 candidates to avoid an issue where a zip64
+  could be embedded in a non-zip64 zip.
+  0019-fix-zip64-in-zip.patch

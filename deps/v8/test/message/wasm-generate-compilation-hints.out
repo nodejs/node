@@ -1,0 +1,19 @@
+TestGenerateCompilationPriorities
+0: optimized
+1: compiled
+2: uncompiled
+0
+1
+2 no feedback
+TestGenerateInstructionFrequenciesAndCallTargets
+0: compiled
+1: compiled
+2: optimized
+0
+1
+2
+  slot 0, offset 22: total relative call count 1.000000
+    call to 1, percentage 66
+    call to 0, percentage 33
+  slot 1, offset 30: total relative call count 0.333333
+    direct call to 0

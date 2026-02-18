@@ -121,13 +121,6 @@
 }], # no_simd_hardware
 
 ##############################################################################
-['arch == loong64', {
-  # SIMD support is still in progress.
-  'debugger/wasm-scope-info*': [SKIP],
-  'debugger/wasm-step-after-trap': [SKIP],
-}],  # 'arch == loong64'
-
-##############################################################################
 ['arch == riscv64 or arch == riscv32', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
@@ -181,6 +174,7 @@
   'debugger/script-on-after-compile': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
+  'debugger/set-script-source-repl-mode': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],

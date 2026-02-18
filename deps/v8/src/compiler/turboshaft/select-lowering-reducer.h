@@ -40,10 +40,48 @@ class SelectLoweringReducer : public Next {
   V<Any> REDUCE(Select)(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
                         RegisterRepresentation rep, BranchHint hint,
                         SelectOp::Implementation implem) {
-    if (implem == SelectOp::Implementation::kCMove) {
+    bool use_cmove = false;
+    switch (implem) {
+      case SelectOp::Implementation::kForceBranch:
+        use_cmove = false;
+        break;
+      case SelectOp::Implementation::kForceCMove:
+        use_cmove = true;
+        break;
+      case SelectOp::Implementation::kAny:
+        switch (rep.value()) {
+          case RegisterRepresentation::Enum::kWord32:
+            use_cmove = SupportedOperations::word32_select();
+            break;
+          case RegisterRepresentation::Enum::kWord64:
+            use_cmove = SupportedOperations::word64_select();
+            break;
+          case RegisterRepresentation::Enum::kFloat32:
+            use_cmove = SupportedOperations::float32_select();
+            break;
+          case RegisterRepresentation::Enum::kFloat64:
+            use_cmove = SupportedOperations::float64_select();
+            break;
+
+          case RegisterRepresentation::Enum::kTagged:
+          case RegisterRepresentation::Enum::kCompressed:
+            // TODO(dmercadier): consider enabling use of CMove for
+            // Tagged/Compressed values.
+            use_cmove = false;
+            break;
+
+          case RegisterRepresentation::Enum::kSimd128:
+          case RegisterRepresentation::Enum::kSimd256:
+            use_cmove = false;
+            break;
+        }
+    }
+
+    if (use_cmove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
-      return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
+      return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint,
+                                SelectOp::Implementation::kForceCMove);
     }
 
     Variable result = __ NewLoopInvariantVariable(rep);

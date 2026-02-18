@@ -18,6 +18,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-raw-json-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
@@ -1424,6 +1425,27 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
           Cast<JSAny>(Object::GetPropertyOrElement(isolate_, object, key_name)),
           EXCEPTION);
     }
+
+    // Handle Lazy Closures
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(property, &shared)) {
+      if (Tagged<PrototypeSharedClosureInfo> closure_infos;
+          map->TryGetPrototypeSharedClosureInfo(&closure_infos)) {
+        DirectHandle<FeedbackCell> feedback_cell(
+            closure_infos->closure_feedback_cell_array()->get(
+                shared->feedback_slot()),
+            isolate_);
+        property =
+            Factory::JSFunctionBuilder{
+                isolate_, shared, handle(closure_infos->context(), isolate_)}
+                .set_feedback_cell(feedback_cell)
+                .set_allocation_type(AllocationType::kYoung)
+                .Build();
+      } else {
+        UNREACHABLE();
+      }
+    }
+
     Result result = SerializeProperty(property, comma, key_name);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION || result == NEED_STACK) return result;
@@ -1449,7 +1471,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   AppendCharacter('{');
   Indent();
   bool comma = false;
-  for (int i = 0; i < contents->length(); i++) {
+  uint32_t contents_len = contents->ulength().value();
+  for (uint32_t i = 0; i < contents_len; i++) {
     Handle<String> key(Cast<String>(contents->get(i)), isolate_);
     Handle<Object> property;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(

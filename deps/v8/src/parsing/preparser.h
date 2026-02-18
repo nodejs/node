@@ -905,9 +905,10 @@ class PreParser : public ParserBase<PreParser> {
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseFunction(
-      const AstRawString* function_name, FunctionKind kind,
-      FunctionSyntaxKind function_syntax_kind, DeclarationScope* function_scope,
-      int* use_counts, ProducedPreparseData** produced_preparser_scope_data);
+      int function_literal_id, const AstRawString* function_name,
+      FunctionKind kind, FunctionSyntaxKind function_syntax_kind,
+      DeclarationScope* function_scope, int* use_counts,
+      ProducedPreparseData** produced_preparser_scope_data);
 
   PreparseDataBuilder* preparse_data_builder() const {
     return preparse_data_builder_;
@@ -946,7 +947,8 @@ class PreParser : public ParserBase<PreParser> {
     return pending_error_handler_;
   }
 
-  V8_INLINE bool SkipFunction(const AstRawString* name, FunctionKind kind,
+  V8_INLINE bool SkipFunction(int function_literal_id, const AstRawString* name,
+                              FunctionKind kind,
                               FunctionSyntaxKind function_syntax_kind,
                               DeclarationScope* function_scope,
                               int* num_parameters, int* function_length,
@@ -967,7 +969,8 @@ class PreParser : public ParserBase<PreParser> {
 
   bool HasCheckedSyntax() { return false; }
 
-  void ParseStatementListAndLogFunction(PreParserFormalParameters* formals);
+  void ParseStatementListAndLogFunction(int function_literal_id,
+                                        PreParserFormalParameters* formals);
 
   struct TemplateLiteralState {};
 
@@ -1005,7 +1008,8 @@ class PreParser : public ParserBase<PreParser> {
 
   void DeclareAndBindVariable(const VariableProxy* proxy, VariableKind kind,
                               VariableMode mode, Scope* scope, bool* was_added,
-                              int initializer_position) {
+                              int initializer_position,
+                              VariableProxy::BindingMode binding_mode) {
     Variable* var = DeclareVariableName(proxy->raw_name(), mode, scope,
                                         was_added, proxy->position(), kind);
     var->set_initializer_position(initializer_position);

@@ -169,7 +169,7 @@ void StatisticsExtension::GetCounters(
       }
       Tagged<TrustedByteArray> source_positions;
       if (!TryCast(maybe_source_positions, &source_positions)) continue;
-      if (source_positions->length() == 0) continue;
+      if (source_positions->ulength().value() == 0) continue;
       source_position_table_total += source_positions->AllocatedSize();
     }
   }

@@ -150,8 +150,7 @@ ValueType ToNullSentinel(TypeInModule type);
 ValueType ToTopType(ValueType type);
 
 // Returns if two types share the same type hierarchy (any, extern, funcref).
-bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
-                         const WasmModule* module);
+V8_EXPORT_PRIVATE bool IsSameTypeHierarchy(HeapType type1, HeapType type2);
 
 }  // namespace v8::internal::wasm
 

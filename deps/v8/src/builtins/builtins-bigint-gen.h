@@ -265,17 +265,6 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
                   std::make_pair(MachineType::IntPtr(), shift),
                   std::make_pair(MachineType::Uint32(), must_round_down));
   }
-
-  TNode<Int32T> CppAbsoluteCompare(TNode<BigInt> x, TNode<BigInt> y) {
-    TNode<ExternalReference> mutable_big_int_absolute_compare =
-        ExternalConstant(
-            ExternalReference::mutable_big_int_absolute_compare_function());
-    TNode<Int32T> result = UncheckedCast<Int32T>(
-        CallCFunction(mutable_big_int_absolute_compare, MachineType::Int32(),
-                      std::make_pair(MachineType::AnyTagged(), x),
-                      std::make_pair(MachineType::AnyTagged(), y)));
-    return result;
-  }
 };
 
 }  // namespace internal

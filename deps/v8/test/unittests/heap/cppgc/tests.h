@@ -97,7 +97,7 @@ class TestWithHeap : public TestWithPlatform {
     internal::Heap::From(GetHeap())->CollectGarbage(
         {CollectionType::kMajor, Heap::StackState::kMayContainHeapPointers,
          cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
-         GCConfig::FreeMemoryHandling::kDiscardWherePossible});
+         GCConfig::FreeMemoryHandling::kReleaseMemory});
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }

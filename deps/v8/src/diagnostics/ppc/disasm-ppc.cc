@@ -997,8 +997,56 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "add'o'.     'rt, 'ra, 'rb");
       return;
     }
+    case ADDCX: {
+      Format(instr, "addc'o'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case ADDEX: {
+      Format(instr, "adde'o'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case ADDZEX: {
+      Format(instr, "addze'o'.   'rt, 'ra");
+      return;
+    }
+    case SUBFX: {
+      Format(instr, "subf'o'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case SUBFCX: {
+      Format(instr, "subfc'o'. 'rt, 'ra, 'rb");
+      return;
+    }
+    case SUBFEX: {
+      Format(instr, "subfe'o'. 'rt, 'ra, 'rb");
+      return;
+    }
     case NEGX: {
       Format(instr, "neg'o'.    'rt, 'ra");
+      return;
+    }
+    case DIVW: {
+      Format(instr, "divw'o'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case DIVWU: {
+      Format(instr, "divwu'o'.  'rt, 'ra, 'rb");
+      return;
+    }
+    case DIVD: {
+      Format(instr, "divd'o'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case MULLD: {
+      Format(instr, "mulld'o'.  'rt, 'ra, 'rb");
+      return;
+    }
+    case MULLW: {
+      Format(instr, "mullw'o'.  'rt, 'ra, 'rb");
+      return;
+    }
+    case MULHWX: {
+      Format(instr, "mulhw'o'.  'rt, 'ra, 'rb");
       return;
     }
   }
@@ -1019,22 +1067,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case SLDX: {
       Format(instr, "sld'.   'ra, 'rs, 'rb");
-      return;
-    }
-    case SUBFCX: {
-      Format(instr, "subfc'. 'rt, 'ra, 'rb");
-      return;
-    }
-    case SUBFEX: {
-      Format(instr, "subfe'. 'rt, 'ra, 'rb");
-      return;
-    }
-    case ADDCX: {
-      Format(instr, "addc'.   'rt, 'ra, 'rb");
-      return;
-    }
-    case ADDEX: {
-      Format(instr, "adde'.   'rt, 'ra, 'rb");
       return;
     }
     case CNTLZWX: {
@@ -1083,38 +1115,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case NORX: {
       Format(instr, "nor'.    'rt, 'ra, 'rb");
-      return;
-    }
-    case SUBFX: {
-      Format(instr, "subf'.   'rt, 'ra, 'rb");
-      return;
-    }
-    case MULHWX: {
-      Format(instr, "mulhw'o'.  'rt, 'ra, 'rb");
-      return;
-    }
-    case ADDZEX: {
-      Format(instr, "addze'.   'rt, 'ra");
-      return;
-    }
-    case MULLW: {
-      Format(instr, "mullw'o'.  'rt, 'ra, 'rb");
-      return;
-    }
-    case MULLD: {
-      Format(instr, "mulld'o'.  'rt, 'ra, 'rb");
-      return;
-    }
-    case DIVW: {
-      Format(instr, "divw'o'.   'rt, 'ra, 'rb");
-      return;
-    }
-    case DIVWU: {
-      Format(instr, "divwu'o'.  'rt, 'ra, 'rb");
-      return;
-    }
-    case DIVD: {
-      Format(instr, "divd'o'.   'rt, 'ra, 'rb");
       return;
     }
     case XORX: {

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/roots/roots-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -86,19 +87,7 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsSmi(obj));
-}
-
-RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
-}
-
-RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
+  return ReadOnlyRoots(isolate).boolean_value(IsSmi(obj));
 }
 
 }  // namespace internal

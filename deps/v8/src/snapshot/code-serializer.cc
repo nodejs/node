@@ -697,7 +697,9 @@ CodeSerializer::FinishOffThreadDeserialize(
           reinterpret_cast<void*>(source->ptr()));
     }
 #else
-    CHECK_EQ(result_script->source(), ReadOnlyRoots(isolate).empty_string());
+    // Check whether the source is reclaimed (replaced by empty string) or
+    // unreclaimable (already a read-only string).
+    CHECK(HeapLayout::InReadOnlySpace(result_script->source()));
 #endif
     Script::SetSource(isolate, result_script, source);
 

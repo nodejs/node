@@ -28,14 +28,10 @@ void RelocInfo::Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor) {
   } else if (IsBuiltinEntryMode(mode)) {
     visitor->VisitOffHeapTarget(host, this);
   } else if (IsJSDispatchHandle(mode)) {
-#ifdef V8_ENABLE_LEAPTIERING
     // This would need to pass the RelocInfo if dispatch entries were allowed
     // to move and we needed to update this slot.
     static_assert(!JSDispatchTable::kSupportsCompaction);
     visitor->VisitJSDispatchTableEntry(host, js_dispatch_handle());
-#else
-    UNREACHABLE();
-#endif
   }
 }
 

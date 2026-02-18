@@ -23,12 +23,14 @@ TEST(SourceLocationTest, DefaultCtor) {
   EXPECT_EQ("", loc.Function());
   EXPECT_EQ("", loc.FileName());
   EXPECT_EQ(0u, loc.Line());
+  EXPECT_EQ(false, loc);
 }
 
 void TestSourceLocationCurrent() {
   static constexpr char kFunctionName[] = "TestSourceLocationCurrent";
   static constexpr size_t kNextLine = __LINE__ + 1;
   constexpr auto loc = SourceLocation::Current();
+  EXPECT_EQ(true, loc);
   EXPECT_EQ(kNextLine, loc.Line());
   EXPECT_TRUE(Contains(loc.FileName(), kFileName));
   EXPECT_TRUE(Contains(loc.Function(), kFunctionName));

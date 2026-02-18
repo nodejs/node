@@ -22,6 +22,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDetachedTypedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
@@ -109,16 +110,13 @@ void JSArrayBuffer::init_extension() {
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
 #if V8_COMPRESS_POINTERS
-  // We need Acquire semantics here when loading the entry, see below.
-  // Consider adding respective external pointer accessors if non-relaxed
-  // ordering semantics are ever needed in other places as well.
   Isolate* isolate = Isolate::Current();
   ExternalPointerHandle handle =
-      base::AsAtomic32::Acquire_Load(extension_handle_location());
+      base::AsAtomic32::Relaxed_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
       isolate->external_pointer_table().Get(handle, kArrayBufferExtensionTag));
 #else
-  return base::AsAtomicPointer::Acquire_Load(extension_location());
+  return base::AsAtomicPointer::Relaxed_Load(extension_location());
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -128,23 +126,21 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   // pointer fields in the no-sandbox-ptr-compression config, replace this code
   // here and above with the respective external pointer accessors.
   IsolateForPointerCompression isolate = Isolate::Current();
-  const ExternalPointerTag tag = kArrayBufferExtensionTag;
+  constexpr ExternalPointerTag tag = kArrayBufferExtensionTag;
   Address value = reinterpret_cast<Address>(extension);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
-
   ExternalPointerHandle current_handle =
       base::AsAtomic32::Relaxed_Load(extension_handle_location());
   if (current_handle == kNullExternalPointerHandle) {
-    // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-    base::AsAtomic32::Release_Store(extension_handle_location(), handle);
+    base::AsAtomic32::Relaxed_Store(extension_handle_location(), handle);
     EXTERNAL_POINTER_WRITE_BARRIER(*this, kExtensionOffset, tag);
   } else {
     table.Set(current_handle, value, tag);
   }
 #else
-  base::AsAtomicPointer::Release_Store(extension_location(), extension);
+  base::AsAtomicPointer::Relaxed_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS
   WriteBarrier::ForArrayBufferExtension(*this, extension);
 }
@@ -169,7 +165,56 @@ void JSArrayBuffer::clear_padding() {
   }
 }
 
-ACCESSORS(JSArrayBuffer, detach_key, Tagged<Object>, kDetachKeyOffset)
+ACCESSORS_CHECKED2(JSArrayBuffer, views_or_detach_key, Tagged<MaybeObject>,
+                   kViewsOrDetachKeyOffset, true, true)
+
+Tagged<MaybeObject> JSArrayBuffer::views() const {
+  if (has_detach_key()) return kManyViews;
+  Tagged<MaybeObject> res = views_or_detach_key();
+  DCHECK(res.IsSmi() || res.IsWeak() || res.IsCleared());
+  return res;
+}
+
+void JSArrayBuffer::set_views(Tagged<MaybeObject> value,
+                              WriteBarrierMode mode) {
+  DCHECK(!has_detach_key());
+  DCHECK(value.IsWeak() || value == kNoView || value == kManyViews);
+  set_views_or_detach_key(value, mode);
+}
+
+Tagged<Cell> JSArrayBuffer::detach_key() const {
+  DCHECK(has_detach_key());
+  return Cast<Cell>(views_or_detach_key().GetHeapObjectAssumeStrong());
+}
+
+void JSArrayBuffer::set_detach_key(Tagged<Cell> value, WriteBarrierMode mode) {
+  set_views_or_detach_key(value, mode);
+}
+
+bool JSArrayBuffer::has_detach_key() const {
+  Tagged<MaybeObject> value = views_or_detach_key();
+  return value.IsStrong() && IsCell(value.GetHeapObjectAssumeStrong());
+}
+
+Tagged<Object> JSArrayBuffer::DetachKey(Isolate* isolate) {
+  if (!has_detach_key()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  return detach_key()->value();
+}
+
+inline void JSArrayBuffer::AttachView(Tagged<JSArrayBufferView> new_view) {
+  if (!v8_flags.track_array_buffer_views) return;
+  if (is_shared() || has_detach_key()) return;
+  Tagged<MaybeObject> current_views = views();
+  if (current_views == kManyViews) return;
+  if (current_views.IsCleared() || current_views == kNoView) {
+    set_views(MakeWeak(new_view));
+    return;
+  }
+  DCHECK(IsJSArrayBufferView(current_views.GetHeapObjectAssumeWeak()));
+  set_views(kManyViews);
+}
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
@@ -190,6 +235,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
                     JSArrayBuffer::IsResizableByJsBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
+                    JSArrayBuffer::IsImmutableBit)
 
 bool JSArrayBuffer::IsEmpty() const {
   auto backing_store = GetBackingStore();
@@ -391,22 +438,37 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 
 // static
 MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
-    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name) {
+    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
+    TypedArrayAccessMode access_mode) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
+  // All errors throw the same message. In theory we could be more specific
+  // here. However, many of the fast-paths do not distinguish and we'd rather be
+  // consistent.
+  const MessageTemplate message =
+      access_mode == TypedArrayAccessMode::kWrite
+          ? MessageTemplate::kTypedArrayValidateWriteErrorOperation
+          : MessageTemplate::kTypedArrayValidateErrorOperation;
+
   DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
-    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
+  if (access_mode == TypedArrayAccessMode::kWrite &&
+      Cast<JSArrayBuffer>(array->buffer())->is_immutable()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(message, isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
-    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));

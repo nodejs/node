@@ -131,16 +131,6 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   }
 }
 
-bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
-  return IsArrayOrObjectPrototype(object.object());
-}
-
-bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
-  return isolate()->IsInCreationContext(
-             *object, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-         object->map(isolate_)->instance_type() == JS_OBJECT_PROTOTYPE_TYPE;
-}
-
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
                                           GetOrCreateDataFlags flags) {
   ObjectData* return_value = TryGetOrCreateData(object, flags | kCrashOnError);

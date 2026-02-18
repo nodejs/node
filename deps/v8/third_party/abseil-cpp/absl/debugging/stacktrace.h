@@ -69,6 +69,9 @@ extern int GetStackFramesWithContext(void** result, uintptr_t* frames,
                                      int* sizes, int max_depth, int skip_count,
                                      const void* uc, int* min_dropped_frames);
 
+// As above, but skips fix-ups for efficiency.
+extern int GetStackTraceNoFixup(void** result, int max_depth, int skip_count);
+
 // Same as `absl::DefaultStackUnwinder`, but with an optional `frames` parameter
 // to allow callers to receive the raw stack frame addresses.
 // This is internal for now; do not depend on this externally.

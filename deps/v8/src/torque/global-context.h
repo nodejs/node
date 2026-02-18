@@ -18,6 +18,28 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+struct CppInclude {
+  std::string include_path;
+  IncludeSelector include_selector;
+
+  bool csa_selected() const {
+    return include_selector == IncludeSelector::kCSA ||
+           include_selector == IncludeSelector::kAny;
+  }
+
+  bool tsa_selected() const {
+    return include_selector == IncludeSelector::kTSA ||
+           include_selector == IncludeSelector::kAny;
+  }
+};
+
+inline bool operator<(const CppInclude& lhs, const CppInclude& rhs) {
+  if (lhs.include_path == rhs.include_path) {
+    return lhs.include_selector < rhs.include_selector;
+  }
+  return lhs.include_path < rhs.include_path;
+}
+
 class GlobalContext : public base::ContextualClass<GlobalContext> {
  public:
   GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
@@ -36,10 +58,12 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
     return Get().declarables_;
   }
 
-  static void AddCppInclude(std::string include_path) {
-    Get().cpp_includes_.insert(std::move(include_path));
+  static void AddCppInclude(std::string include_path,
+                            IncludeSelector include_selector) {
+    Get().cpp_includes_.insert(
+        CppInclude(std::move(include_path), include_selector));
   }
-  static const std::set<std::string>& CppIncludes() {
+  static const std::set<CppInclude>& CppIncludes() {
     return Get().cpp_includes_;
   }
 
@@ -138,7 +162,7 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
-  std::set<std::string> cpp_includes_;
+  std::set<CppInclude> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   std::map<std::string, size_t> fresh_ids_;
   std::vector<std::pair<TorqueMacro*, SourceId>> macros_for_cc_output_;

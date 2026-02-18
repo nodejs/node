@@ -125,7 +125,7 @@ class StreamProgressIndicator(ProgressIndicator):
         self.print("FAIL", test)
 
   def print(self, prefix, test):
-    print('%s: %ss' % (prefix, test))
+    print('%s: %s' % (prefix, test))
     sys.stdout.flush()
 
 

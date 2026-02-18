@@ -140,8 +140,9 @@ base::Vector<RegExpInstruction> AsInstructionSequence(
     Tagged<TrustedByteArray> raw_bytes) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
-  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
+  uint32_t raw_bytes_len = raw_bytes->ulength().value();
+  uint32_t inst_num = raw_bytes_len / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes_len);
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 

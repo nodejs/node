@@ -32,6 +32,10 @@
 #include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -341,6 +345,36 @@ TEST(NodeHashMap, RecursiveTypeCompiles) {
   RecursiveType t;
   t.m[0] = RecursiveType{};
 }
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+TEST(NodeHashMap, FromRange) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::node_hash_map<int, int> m(std::from_range, v);
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+
+TEST(NodeHashMap, FromRangeWithAllocator) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::node_hash_map<int, int,
+                      absl::container_internal::hash_default_hash<int>,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<std::pair<const int, int>>>
+      m(std::from_range, v, 0, Alloc<std::pair<const int, int>>());
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+
+TEST(NodeHashMap, FromRangeWithHasherAndAllocator) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  using TestingHash = absl::container_internal::StatefulTestingHash;
+  absl::node_hash_map<int, int, TestingHash,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<std::pair<const int, int>>>
+      m(std::from_range, v, 0, TestingHash{},
+        Alloc<std::pair<const int, int>>());
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

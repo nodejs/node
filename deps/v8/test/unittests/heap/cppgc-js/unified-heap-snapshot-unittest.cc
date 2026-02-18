@@ -779,7 +779,7 @@ class WrappedContext : public cppgc::GarbageCollected<WrappedContext>,
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Local<v8::Object> obj =
         WrapperHelper::CreateWrapper(context, nullptr, "js WrappedContext");
-    context->SetEmbedderData(kContextDataIndex, obj);
+    context->SetEmbedderDataV2(kContextDataIndex, obj);
     cppgc::Persistent<WrappedContext> ref =
         cppgc::MakeGarbageCollected<WrappedContext>(
             isolate->GetCppHeap()->GetAllocationHandle(), isolate, obj,

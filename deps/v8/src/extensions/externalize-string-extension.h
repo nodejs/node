@@ -31,7 +31,6 @@ class ExternalizeStringExtension : public v8::Extension {
  private:
   static const char* BuildSource(char* buf, size_t size);
   char buffer_[400];
-  static const char* const kSource;
 };
 
 }  // namespace internal

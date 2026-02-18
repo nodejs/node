@@ -1688,7 +1688,7 @@ void Decoder::DecodeIType(Instruction* instr) {
       else if (instr->RdValue() == ra.code() && instr->Imm12Value() == 0)
         Format(instr, "jalr      'rs1");
       else
-        Format(instr, "jalr      'rd, 'imm12('rs1)");
+        Format(instr, "jalr      'rd, 'imm12('rs1)'target");
       break;
     case RO_LB:
       Format(instr, "lb        'rd, 'imm12('rs1)");

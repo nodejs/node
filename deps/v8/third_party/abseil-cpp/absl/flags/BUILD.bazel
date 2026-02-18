@@ -151,6 +151,7 @@ cc_library(
         ":commandlineflag_internal",
         "//absl/base:config",
         "//absl/base:fast_type_id",
+        "//absl/base:nullability",
         "//absl/strings",
         "//absl/types:optional",
     ],

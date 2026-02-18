@@ -31,6 +31,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/fast_type_id.h"
+#include "absl/base/nullability.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -158,7 +159,7 @@ class CommandLineFlag {
   // Sets the value of the flag based on specified string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
   // to indicate the error, leaves the flag unchanged, and returns false.
-  bool ParseFrom(absl::string_view value, std::string* error);
+  bool ParseFrom(absl::string_view value, std::string* absl_nonnull error);
 
  protected:
   ~CommandLineFlag() = default;
@@ -188,7 +189,7 @@ class CommandLineFlag {
 
   // Copy-construct a new value of the flag's type in a memory referenced by
   // the dst based on the current flag's value.
-  virtual void Read(void* dst) const = 0;
+  virtual void Read(void* absl_nonnull dst) const = 0;
 
   // To be deleted. Used to return true if flag's current value originated from
   // command line.

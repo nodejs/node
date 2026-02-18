@@ -30,11 +30,6 @@ class SerializerDeserializer : public RootVisitor {
   };
   static bool CanBeDeferred(Tagged<HeapObject> o, SlotType slot_type);
 
-  void RestoreExternalReferenceRedirector(Isolate* isolate,
-                                          Tagged<AccessorInfo> accessor_info);
-  void RestoreExternalReferenceRedirector(
-      Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info);
-
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x22..0x2f */                                     \

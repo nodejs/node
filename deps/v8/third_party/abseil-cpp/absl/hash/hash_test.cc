@@ -762,10 +762,8 @@ TEST(HashValueTest, Variant) {
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
       V(Private{1}), V(Private{-1}), V(Private{2}), V("ABC"), V("BCD"))));
 
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   struct S {};
   EXPECT_FALSE(is_hashable<absl::variant<S>>::value);
-#endif
 }
 
 TEST(HashValueTest, ReferenceWrapper) {
@@ -811,7 +809,6 @@ TEST(IsHashableTest, ValidHash) {
   EXPECT_TRUE(IsAggregateInitializable<absl::Hash<int>>::value);
 }
 
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 TEST(IsHashableTest, PoisonHash) {
   struct X {};
   EXPECT_FALSE((is_hashable<X>::value));
@@ -826,7 +823,6 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
 #endif
 }
-#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
 // Hashable types
 //
@@ -962,13 +958,11 @@ void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>, T...) {
 }
 
 void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>) {
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   // is_hashable is false if we don't support any of the hooks.
   using type = CustomHashType<>;
   EXPECT_FALSE(is_hashable<type>());
   EXPECT_FALSE(is_hashable<const type>());
   EXPECT_FALSE(is_hashable<const type&>());
-#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 }
 
 template <InvokeTag Tag, typename... T>
@@ -1284,7 +1278,7 @@ TEST(SwisstableCollisions, LowEntropyStrings) {
   constexpr char kMinChar = 0;
   constexpr char kMaxChar = 64;
   // These sizes cover the different hashing cases.
-  for (size_t size : {8u, 16u, 32u, 64u}) {
+  for (size_t size : {8u, 16u, 32u, 64u, 128u}) {
     for (size_t b = 0; b < size - 1; ++b) {
       absl::flat_hash_set<std::string> set;
       std::string s(size, '\0');
@@ -1311,7 +1305,7 @@ TEST(SwisstableCollisions, LowEntropyInts) {
     for (size_t i = 0; i < 128 * 1024; ++i) {
       size_t v = absl::rotl(i, bit);
       set.insert(v);
-      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 32)
+      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 48)
           << bit << " " << i;
     }
   }

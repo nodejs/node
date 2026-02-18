@@ -163,8 +163,8 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
 
 Name GetNameFromWireBytes(const i::wasm::WireBytesRef& ref,
                           v8::base::Vector<const uint8_t> wire_bytes) {
-  DCHECK_LE(ref.offset(), wire_bytes.length());
-  DCHECK_LE(ref.end_offset(), wire_bytes.length());
+  DCHECK_LE(ref.offset(), wire_bytes.size());
+  DCHECK_LE(ref.end_offset(), wire_bytes.size());
   if (ref.length() == 0) return Name::make();
   Name name = Name::make_uninitialized(ref.length());
   std::memcpy(name.get(), wire_bytes.begin() + ref.offset(), ref.length());
@@ -189,7 +189,8 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
                                     const i::wasm::ImportExportKindCode kind,
                                     const uint32_t index) {
   switch (kind) {
-    case i::wasm::kExternalFunction: {
+    case i::wasm::kExternalFunction:
+    case i::wasm::kExternalExactFunction: {
       return FunctionSigToFuncType(module->functions[index].sig);
     }
     case i::wasm::kExternalTable: {
@@ -1127,7 +1128,7 @@ own<Instance> GetInstance(StoreImpl* store,
                           i::DirectHandle<i::WasmInstanceObject> instance);
 
 own<Frame> CreateFrameFromInternal(i::DirectHandle<i::FixedArray> frames,
-                                   int index, i::Isolate* isolate,
+                                   uint32_t index, i::Isolate* isolate,
                                    StoreImpl* store) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::CallSiteInfo> frame(
@@ -1152,7 +1153,7 @@ own<Frame> Trap::origin() const {
 
   i::DirectHandle<i::FixedArray> frames =
       isolate->GetSimpleStackTrace(impl(this)->v8_object());
-  if (frames->length() == 0) {
+  if (frames->ulength().value() == 0) {
     return own<Frame>();
   }
   return CreateFrameFromInternal(frames, 0, isolate, impl(this)->store());
@@ -1166,10 +1167,10 @@ ownvec<Frame> Trap::trace() const {
 
   i::DirectHandle<i::FixedArray> frames =
       isolate->GetSimpleStackTrace(impl(this)->v8_object());
-  int num_frames = frames->length();
+  uint32_t num_frames = frames->ulength().value();
   // {num_frames} can be 0; the code below can handle that case.
   ownvec<Frame> result = ownvec<Frame>::make_uninitialized(num_frames);
-  for (int i = 0; i < num_frames; i++) {
+  for (uint32_t i = 0; i < num_frames; i++) {
     result[i] =
         CreateFrameFromInternal(frames, i, isolate, impl(this)->store());
   }
@@ -1342,12 +1343,13 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   const byte_t* ptr = serialized.get();
-  uint64_t binary_size = ReadLebU64(&ptr);
+  size_t binary_size = static_cast<size_t>(ReadLebU64(&ptr));
   ptrdiff_t size_size = ptr - serialized.get();
   size_t serial_size = serialized.size() - size_size - binary_size;
+  v8::base::OwnedVector<const uint8_t> wire_bytes =
+      v8::base::OwnedCopyOf(reinterpret_cast<const uint8_t*>(ptr), binary_size);
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
-    size_t data_size = static_cast<size_t>(binary_size);
     // The C-API does not allow passing compile imports.
     // We thus use an empty `CompileTimeImports` object, analogous to module
     // creation.
@@ -1359,9 +1361,8 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
         i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
     if (!i::wasm::DeserializeNativeModule(
              isolate, features,
-             {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
-             {reinterpret_cast<const uint8_t*>(ptr), data_size},
-             compile_imports, {})
+             {reinterpret_cast<const uint8_t*>(ptr + binary_size), serial_size},
+             wire_bytes, compile_imports, {})
              .ToHandle(&module_obj)) {
       // We were given a serialized module, but failed to deserialize. Report
       // this as an error.
@@ -1725,6 +1726,7 @@ void PushArgs(const i::wasm::CanonicalSig* sig, const vec<Val>& args,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -1766,6 +1768,7 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -2025,7 +2028,7 @@ WASM_EXPORT auto Global::make(Store* store_abs, const GlobalType* type,
 
 WASM_EXPORT auto Global::type() const -> own<GlobalType> {
   i::DirectHandle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
-  ValKind kind = V8ValueTypeToWasm(v8_global->type());
+  ValKind kind = V8ValueTypeToWasm(v8_global->unsafe_type());
   Mutability mutability =
       v8_global->is_mutable() ? Mutability::VAR : Mutability::CONST;
   return GlobalType::make(ValType::make(kind), mutability);
@@ -2036,7 +2039,7 @@ WASM_EXPORT auto Global::get() const -> Val {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
-  switch (v8_global->type().kind()) {
+  switch (v8_global->unsafe_type().kind()) {
     case i::wasm::kI32:
       return Val(v8_global->GetI32());
     case i::wasm::kI64:
@@ -2067,6 +2070,7 @@ WASM_EXPORT auto Global::get() const -> Val {
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kVoid:
     case i::wasm::kTop:
     case i::wasm::kBottom:
@@ -2093,9 +2097,10 @@ WASM_EXPORT void Global::set(const Val& val) {
       i::Isolate* isolate = impl(this)->store()->i_isolate();
       auto external = WasmRefToV8(impl(this)->store()->i_isolate(), val.ref());
       const char* error_message;
-      auto internal = i::wasm::JSToWasmObject(isolate, nullptr, external,
-                                              v8_global->type(), &error_message)
-                          .ToHandleChecked();
+      auto internal =
+          i::wasm::JSToWasmObject(isolate, nullptr, external,
+                                  v8_global->unsafe_type(), &error_message)
+              .ToHandleChecked();
       v8_global->SetRef(internal);
       return;
     }
@@ -2302,7 +2307,7 @@ WASM_EXPORT auto Memory::make(Store* store_abs, const MemoryType* type)
 WASM_EXPORT auto Memory::type() const -> own<MemoryType> {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(impl(this)->isolate());
   i::DirectHandle<i::WasmMemoryObject> memory = impl(this)->v8_object();
-  uint32_t min = static_cast<uint32_t>(memory->array_buffer()->byte_length() /
+  uint32_t min = static_cast<uint32_t>(memory->backing_store()->byte_length() /
                                        i::wasm::kWasmPageSize);
   uint32_t max =
       memory->has_maximum_pages() ? memory->maximum_pages() : 0xFFFFFFFFu;
@@ -2314,14 +2319,14 @@ WASM_EXPORT auto Memory::data() const -> byte_t* {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   return reinterpret_cast<byte_t*>(
-      impl(this)->v8_object()->array_buffer()->backing_store());
+      impl(this)->v8_object()->backing_store()->buffer_start());
 }
 
 WASM_EXPORT auto Memory::data_size() const -> size_t {
   i::Isolate* isolate = impl(this)->isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
-  return impl(this)->v8_object()->array_buffer()->byte_length();
+  return impl(this)->v8_object()->backing_store()->byte_length();
 }
 
 WASM_EXPORT auto Memory::size() const -> pages_t {
@@ -2329,7 +2334,7 @@ WASM_EXPORT auto Memory::size() const -> pages_t {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   return static_cast<pages_t>(
-      impl(this)->v8_object()->array_buffer()->byte_length() /
+      impl(this)->v8_object()->backing_store()->byte_length() /
       i::wasm::kWasmPageSize);
 }
 

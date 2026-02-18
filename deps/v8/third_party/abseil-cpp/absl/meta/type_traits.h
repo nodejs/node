@@ -211,21 +211,7 @@ template <typename F>
 using result_of_t = typename type_traits_internal::result_of<F>::type;
 
 namespace type_traits_internal {
-// In MSVC we can't probe std::hash or stdext::hash because it triggers a
-// static_assert instead of failing substitution. Libc++ prior to 4.0
-// also used a static_assert.
-//
-#if defined(_MSC_VER) || (defined(_LIBCPP_VERSION) && \
-                          _LIBCPP_VERSION < 4000 && _LIBCPP_STD_VER > 11)
-#define ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_ 0
-#else
-#define ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_ 1
-#endif
 
-#if !ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
-template <typename Key, typename = size_t>
-struct IsHashable : std::true_type {};
-#else   // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 template <typename Key, typename = void>
 struct IsHashable : std::false_type {};
 
@@ -235,7 +221,6 @@ struct IsHashable<
     absl::enable_if_t<std::is_convertible<
         decltype(std::declval<std::hash<Key>&>()(std::declval<Key const&>())),
         std::size_t>::value>> : std::true_type {};
-#endif  // !ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
 struct AssertHashEnabledHelper {
  private:

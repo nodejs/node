@@ -95,8 +95,8 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
 // This is the same as Factory::NewFixedArray, except it doesn't retry
 // on allocation failure.
 AllocationResult HeapTester::AllocateFixedArrayForTest(
-    Heap* heap, int length, AllocationType allocation) {
-  DCHECK(length >= 0 && length <= FixedArray::kMaxLength);
+    Heap* heap, uint32_t length, AllocationType allocation) {
+  DCHECK_LE(length, FixedArray::kMaxLength);
   int size = FixedArray::SizeFor(length);
   Tagged<HeapObject> obj;
   {
@@ -131,7 +131,7 @@ HEAP_TEST(MarkCompactCollector) {
   AllocationResult allocation;
   if (!v8_flags.single_generation) {
     // keep allocating garbage in new space until it fails
-    const int arraysize = 100;
+    const uint32_t arraysize = 100;
     do {
       allocation =
           AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
@@ -212,13 +212,14 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
       AllocationType::kOld, &handles);
 
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*handles.front());
-  auto* page = MutablePageMetadata::FromHeapObject(isolate, *handles.front());
+  auto* page = MutablePage::FromHeapObject(isolate, *handles.front());
 
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
   page->set_is_pinned_for_testing(true);
 
   heap::InvokeMajorGC(heap);
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   // The pinned flag should prevent the page from moving.
   for (DirectHandle<FixedArray> object : handles) {
@@ -228,7 +229,8 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   page->set_is_pinned_for_testing(false);
 
   heap::InvokeMajorGC(heap);
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   // `compact_on_every_full_gc` ensures that this page is an evacuation
   // candidate, so with the pin flag cleared compaction should now move it.
@@ -350,8 +352,8 @@ TEST(Regress5829) {
   heap::SealCurrentObjects(heap);
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (heap->sweeping_in_progress()) {
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                  CompleteSweepingReason::kTesting);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -367,7 +369,7 @@ TEST(Regress5829) {
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->FreeMainThreadLinearAllocationAreas();
-  PageMetadata* page = PageMetadata::FromAddress(array->address());
+  NormalPage* page = NormalPage::FromAddress(array->address());
   for (auto object_and_size : LiveObjectRange(page)) {
     CHECK(!IsFreeSpaceOrFiller(object_and_size.first));
   }

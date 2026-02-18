@@ -1,6 +1,61 @@
 testJsWasmWrapperInliningWithI64Args
 Test BigInt can be converted
+❌ SKIP   js-to-wasm:l:l                 it has not been compiled/run with feedback yet
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareI64 of module {ADDRESS}
 Considering wasm function [0] squareI64 of module {ADDRESS} for inlining
 - not inlining: unsupported operation: i64.mul
 Test input of unconvertible type
+testJsWasmWrapperInliningWithI32Args
+❌ SKIP   js-to-wasm:i:i                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+Test different callee
+[marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
+Test optimizing again does not trigger another deoptimization
+testJsWasmWrapperInliningWithDifferentModules
+❌ SKIP   js-to-wasm:i:i                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test callee from different instance
+[marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
+Test optimizing again does not trigger another deoptimization
+testJsWasmWrapperInliningOfSameExportedImportedFunction
+❌ SKIP   js-to-wasm:i:i                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
+Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
+- inlining
+Test replacing callee with same function imported and exported by different modules
+Test replacing callee with different function from same module
+[marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
+Test optimizing again does not trigger another deoptimization
+testJsWasmWrapperInliningWithF32Args
+❌ SKIP   js-to-wasm:f:f                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareF32 of module {ADDRESS}
+Considering wasm function [0] squareF32 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+testJsWasmWrapperInliningWithF64Args
+❌ SKIP   js-to-wasm:d:d                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] squareF64 of module {ADDRESS}
+Considering wasm function [0] squareF64 of module {ADDRESS} for inlining
+- inlining
+Test inputs of different convertible type
+Test input of unconvertible type
+testJsWasmWrapperInliningWithExternRefArgs
+Test input of externref type
+❌ SKIP   js-to-wasm:n:n                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] refTest of module {ADDRESS}
+Considering wasm function [0] refTest of module {ADDRESS} for inlining
+- inlining
+testNoJsWasmWrapperInliningWithRefArgs
+❌ SKIP   js-to-wasm:n:n                 it has not been compiled/run with feedback yet
+testJsWasmWrapperInliningRetrievesWasmInstance
+❌ SKIP   js-to-wasm:i:i                 it has not been compiled/run with feedback yet
+Inlining JS-to-Wasm wrapper for Wasm function [0] globalTest of module {ADDRESS}
+Considering wasm function [0] globalTest of module {ADDRESS} for inlining
+- inlining

@@ -28,7 +28,7 @@ class MemoryMeasurement {
 
   bool EnqueueRequest(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                       v8::MeasureMemoryExecution execution,
-                      const std::vector<Handle<NativeContext>> contexts);
+                      const std::vector<Handle<NativeContext>>& contexts);
   std::vector<Address> StartProcessing();
   void FinishProcessing(const NativeContextStats& stats);
 

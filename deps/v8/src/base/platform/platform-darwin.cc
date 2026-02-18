@@ -141,32 +141,32 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 }
 
 // static
-PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+std::optional<SharedMemoryHandle> OS::CreateSharedMemoryHandleForTesting(
+    size_t size) {
   mach_vm_size_t vm_size = size;
   mach_port_t port;
   kern_return_t kr = mach_make_memory_entry_64(
       mach_task_self(), &vm_size, 0,
       MAP_MEM_NAMED_CREATE | VM_PROT_READ | VM_PROT_WRITE, &port,
       MACH_PORT_NULL);
-  if (kr != KERN_SUCCESS) return kInvalidSharedMemoryHandle;
-  return SharedMemoryHandleFromMachMemoryEntry(port);
+  if (kr != KERN_SUCCESS) return std::nullopt;
+  return SharedMemoryHandle::FromPlatformHandle(port);
 }
 
 // static
-void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
-  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
-  mach_port_t port = MachMemoryEntryFromSharedMemoryHandle(handle);
+void OS::DestroySharedMemoryHandle(SharedMemoryHandle handle) {
+  mach_port_t port = handle.GetPlatformHandle();
   CHECK_EQ(KERN_SUCCESS, mach_port_deallocate(mach_task_self(), port));
 }
 
 // static
 void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
-                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+                         SharedMemoryHandle handle, uint64_t offset) {
   DCHECK_EQ(0, size % AllocatePageSize());
 
   mach_vm_address_t addr = reinterpret_cast<mach_vm_address_t>(hint);
   vm_prot_t prot = GetVMProtFromMemoryPermission(access);
-  mach_port_t shared_mem_port = MachMemoryEntryFromSharedMemoryHandle(handle);
+  mach_port_t shared_mem_port = handle.GetPlatformHandle();
   kern_return_t kr = mach_vm_map_wrapper(&addr, size, VM_FLAGS_FIXED,
                                          shared_mem_port, offset, prot);
 
@@ -209,13 +209,13 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
 
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
                                              OS::MemoryPermission access,
-                                             PlatformSharedMemoryHandle handle,
+                                             SharedMemoryHandle handle,
                                              uint64_t offset) {
   DCHECK(Contains(address, size));
 
   vm_prot_t prot = GetVMProtFromMemoryPermission(access);
   mach_vm_address_t addr = reinterpret_cast<mach_vm_address_t>(address);
-  mach_port_t shared_mem_port = MachMemoryEntryFromSharedMemoryHandle(handle);
+  mach_port_t shared_mem_port = handle.GetPlatformHandle();
   kern_return_t kr =
       mach_vm_map_wrapper(&addr, size, VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE,
                           shared_mem_port, offset, prot);

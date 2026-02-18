@@ -105,6 +105,7 @@ class Label {
   friend class Assembler;
   friend class Displacement;
   friend class RegExpBytecodeGenerator;
+  friend class RegExpBytecodeWriter;
 };
 
 }  // namespace internal

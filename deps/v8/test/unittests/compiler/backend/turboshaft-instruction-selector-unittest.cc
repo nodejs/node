@@ -26,7 +26,7 @@ TurboshaftInstructionSelectorTest::~TurboshaftInstructionSelectorTest() =
 
 TurboshaftInstructionSelectorTest::Stream
 TurboshaftInstructionSelectorTest::StreamBuilder::Build(
-    InstructionSelector::Features features,
+    CpuFeatureSet features,
     TurboshaftInstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
   if (v8_flags.trace_turbo) {

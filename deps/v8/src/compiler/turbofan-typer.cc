@@ -174,6 +174,7 @@ class Typer::Visitor : public Reducer {
       MACHINE_ATOMIC_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(AbortCSADcheck)
       DECLARE_IMPOSSIBLE_CASE(DebugBreak)
+      IF_HARDWARE_SANDBOX(DECLARE_IMPOSSIBLE_CASE, SwitchSandboxMode)
       DECLARE_IMPOSSIBLE_CASE(Comment)
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
       DECLARE_IMPOSSIBLE_CASE(StorePair)
@@ -1111,21 +1112,21 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
     // Apply ordinary typing to the "increment" operation.
     // clang-format off
     switch (arith->opcode()) {
-#define CASE(x)                             \
+#define OPCODE_CASE(x)                        \
       case IrOpcode::k##x:                    \
         type = Type##x(type, increment_type); \
         break;
-      CASE(JSAdd)
-      CASE(JSSubtract)
-      CASE(NumberAdd)
-      CASE(NumberSubtract)
-      CASE(SpeculativeNumberAdd)
-      CASE(SpeculativeNumberSubtract)
-      CASE(SpeculativeAdditiveSafeIntegerAdd)
-      CASE(SpeculativeAdditiveSafeIntegerSubtract)
-      CASE(SpeculativeSmallIntegerAdd)
-      CASE(SpeculativeSmallIntegerSubtract)
-#undef CASE
+      OPCODE_CASE(JSAdd)
+      OPCODE_CASE(JSSubtract)
+      OPCODE_CASE(NumberAdd)
+      OPCODE_CASE(NumberSubtract)
+      OPCODE_CASE(SpeculativeNumberAdd)
+      OPCODE_CASE(SpeculativeNumberSubtract)
+      OPCODE_CASE(SpeculativeAdditiveSafeIntegerAdd)
+      OPCODE_CASE(SpeculativeAdditiveSafeIntegerSubtract)
+      OPCODE_CASE(SpeculativeSmallIntegerAdd)
+      OPCODE_CASE(SpeculativeSmallIntegerSubtract)
+#undef OPCODE_CASE
       default:
         UNREACHABLE();
     }
@@ -1288,6 +1289,9 @@ Type Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
 Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 
 Type Typer::Visitor::TypePlug(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeMajorGCForCompilerTesting(Node* node) {
+  UNREACHABLE();
+}
 Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeSLVerifierHint(Node* node) { UNREACHABLE(); }
 

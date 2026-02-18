@@ -25,7 +25,7 @@ InstructionSelectorTest::InstructionSelectorTest()
 InstructionSelectorTest::~InstructionSelectorTest() = default;
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
-    InstructionSelector::Features features,
+    CpuFeatureSet features,
     InstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = ExportForTest();

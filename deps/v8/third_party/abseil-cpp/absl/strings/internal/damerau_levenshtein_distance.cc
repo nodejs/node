@@ -16,9 +16,15 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
+#include <utility>
 
+#include "absl/base/config.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace strings_internal {

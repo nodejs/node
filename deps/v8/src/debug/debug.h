@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "src/base/enum-set.h"
-#include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
@@ -417,7 +416,7 @@ class V8_EXPORT_PRIVATE Debug {
   void PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id);
 
   bool PerformSideEffectCheckForAccessor(
-      DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
+      DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> holder,
       AccessorComponent component);
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
@@ -490,9 +489,6 @@ class V8_EXPORT_PRIVATE Debug {
   static const int kInstrumentationId = -1;
 
   void RemoveBreakInfoAndMaybeFree(DirectHandle<DebugInfo> debug_info);
-
-  // Stops the timer for the top-most `DebugScope` and records a UMA event.
-  void NotifyDebuggerPausedEventSent();
 
   static char* Iterate(RootVisitor* v, char* thread_storage);
 
@@ -743,8 +739,6 @@ class V8_NODISCARD DebugScope {
 
   void set_terminate_on_resume();
 
-  base::TimeDelta ElapsedTimeSinceCreation();
-
  private:
   Isolate* isolate() { return debug_->isolate_; }
 
@@ -754,10 +748,6 @@ class V8_NODISCARD DebugScope {
   PostponeInterruptsScope no_interrupts_;
   // This is used as a boolean.
   bool terminate_on_resume_ = false;
-
-  // Measures (for UMA) the duration beginning when we enter this `DebugScope`
-  // until we potentially send a "Debugger.paused" response in the inspector.
-  base::ElapsedTimer timer_;
 };
 
 // This scope is used to handle return values in nested debug break points.

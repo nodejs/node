@@ -123,7 +123,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertSame(f3, table.get(1));
 
   // Test table #1 next.
-  assertTraps(kTrapFuncSigMismatch, () => instance.exports.call1(0));
+  assertTraps(kTrapNullFunc, () => instance.exports.call1(0));
   instance.exports.tbl.set(0, f1);
   assertEquals(v1, instance.exports.call1(0));
   assertSame(f1, instance.exports.tbl.get(0));

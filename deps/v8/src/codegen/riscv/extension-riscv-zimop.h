@@ -21,10 +21,10 @@ class AssemblerRISCVZimop : public AssemblerRiscvBase {
 // extension for Zicfiss instructions.
 class AssemblerRISCVZicfiss : public AssemblerRISCVZimop {
  public:
-  void sspush_x1() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, ra); }
-  void sspush_x5() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, t0); }
-  void sspopchk_x1() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, ra); }
-  void sspopchk_x5() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, t0); }
+  void sspush_ra() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, ra); }
+  void sspush_t0() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, t0); }
+  void sspopchk_ra() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, ra); }
+  void sspopchk_t0() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, t0); }
 
   void ssrdp(Register rd) {
     DCHECK_NE(rd, zero_reg);

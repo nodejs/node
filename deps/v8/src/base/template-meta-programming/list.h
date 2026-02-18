@@ -94,6 +94,12 @@ template <TYPENAME1... Ts, TYPENAME1 Element>
 struct contains_impl1<list1<Ts...>, Element>
     : std::bool_constant<(equals1<Ts, Element>::value || ...)> {};
 
+template <typename List, template <typename> typename P>
+struct all_of_impl;
+template <typename... Ts, template <typename> typename P>
+struct all_of_impl<list<Ts...>, P> : std::bool_constant<(P<Ts>::value && ...)> {
+};
+
 template <typename List, template <typename, typename> typename Cmp>
 struct all_equal_impl;
 template <typename Head, typename... Tail,
@@ -101,11 +107,18 @@ template <typename Head, typename... Tail,
 struct all_equal_impl<list<Head, Tail...>, Cmp>
     : std::bool_constant<(Cmp<Head, Tail>::value && ...)> {};
 
-template <typename List, typename T>
+template <typename List, typename... Ts>
 struct append_impl;
-template <typename... Ts, typename T>
-struct append_impl<list<Ts...>, T> {
-  using type = list<Ts..., T>;
+template <typename... Us, typename... Ts>
+struct append_impl<list<Us...>, Ts...> {
+  using type = list<Us..., Ts...>;
+};
+
+template <typename List, TYPENAME1... Ts>
+struct append1_impl;
+template <TYPENAME1... Us, TYPENAME1... Ts>
+struct append1_impl<list1<Us...>, Ts...> {
+  using type = list1<Us..., Ts...>;
 };
 
 template <size_t I, typename T, typename Before, typename After>
@@ -123,19 +136,20 @@ struct insert_at_impl<0, T, list<Before...>, list<Head, Tail...>> {
   using type = list<Before..., T, Head, Tail...>;
 };
 
-template <size_t I, TYPENAME1 T, typename Before, typename After>
+template <size_t I, typename Before, typename After, TYPENAME1... T>
 struct insert_at1_impl;
-template <size_t I, TYPENAME1 T, TYPENAME1... Before, TYPENAME1 Head,
-          TYPENAME1... Tail>
-struct insert_at1_impl<I, T, list1<Before...>, list1<Head, Tail...>>
-    : insert_at1_impl<I - 1, T, list1<Before..., Head>, list1<Tail...>> {};
-template <size_t I, TYPENAME1 T, TYPENAME1... Before>
-struct insert_at1_impl<I, T, list1<Before...>, list<>> {
-  using type = list1<Before..., T>;
+template <size_t I, TYPENAME1... Before, TYPENAME1 Head, TYPENAME1... Tail,
+          TYPENAME1... Ts>
+struct insert_at1_impl<I, list1<Before...>, list1<Head, Tail...>, Ts...>
+    : insert_at1_impl<I - 1, list1<Before..., Head>, list1<Tail...>, Ts...> {};
+template <size_t I, TYPENAME1... Before, TYPENAME1... Ts>
+struct insert_at1_impl<I, list1<Before...>, list1<>, Ts...> {
+  using type = list1<Before..., Ts...>;
 };
-template <TYPENAME1 T, TYPENAME1... Before, TYPENAME1 Head, TYPENAME1... Tail>
-struct insert_at1_impl<0, T, list1<Before...>, list1<Head, Tail...>> {
-  using type = list1<Before..., T, Head, Tail...>;
+template <TYPENAME1... Before, TYPENAME1 Head, TYPENAME1... Tail,
+          TYPENAME1... Ts>
+struct insert_at1_impl<0, list1<Before...>, list1<Head, Tail...>, Ts...> {
+  using type = list1<Before..., Ts..., Head, Tail...>;
 };
 
 template <template <typename, typename> typename F, typename T, typename List>
@@ -233,6 +247,13 @@ struct contains1 : detail::contains_impl1<List1, T> {};
 template <typename List1, TYPENAME1 T>
 constexpr bool contains1_v = contains1<List1, T>::value;
 
+// all_of<List, P>::value is true iff P<T>::value is true for all instantiations
+// of values T in {List}.
+template <typename List, template <typename> typename P>
+struct all_of : detail::all_of_impl<List, P> {};
+template <typename List, template <typename> typename P>
+constexpr bool all_of_v = all_of<List, P>::value;
+
 // all_equal<List, Cmp = equals>::value is true iff all values in {List}
 // are equal with respect to {Cmp}.
 template <typename List, template <typename, typename> typename Cmp = equals>
@@ -240,11 +261,15 @@ struct all_equal : detail::all_equal_impl<List, Cmp> {};
 template <typename List, template <typename, typename> typename Cmp = equals>
 constexpr bool all_equal_v = all_equal<List, Cmp>::value;
 
-// append<List, T>::value appends {T} to {List}.
-template <typename List, typename T>
-struct append : public detail::append_impl<List, T> {};
-template <typename List, typename T>
-using append_t = append<List, T>::type;
+// append<List, Ts...>::value appends {Ts...} to {List}.
+template <typename List, typename... Ts>
+struct append : public detail::append_impl<List, Ts...> {};
+template <typename List, typename... Ts>
+using append_t = append<List, Ts...>::type;
+template <typename List, TYPENAME1... Ts>
+struct append1 : public detail::append1_impl<List, Ts...> {};
+template <typename List, TYPENAME1... Ts>
+using append1_t = append1<List, Ts...>::type;
 
 // insert_at<List, I, T>::type is identical to {List}, except that {T} is
 // inserted at position {I}. If {I} is larger than the length of the list, {T}
@@ -253,10 +278,10 @@ template <typename List, size_t I, typename T>
 struct insert_at : public detail::insert_at_impl<I, T, list<>, List> {};
 template <typename List, size_t I, typename T>
 using insert_at_t = insert_at<List, I, T>::type;
-template <typename List1, size_t I, TYPENAME1 T>
-struct insert_at1 : public detail::insert_at1_impl<I, T, list1<>, List1> {};
-template <typename List1, size_t I, TYPENAME1 T>
-using insert_at1_t = insert_at1<List1, I, T>::type;
+template <typename List1, size_t I, TYPENAME1... Ts>
+struct insert_at1 : public detail::insert_at1_impl<I, list1<>, List1, Ts...> {};
+template <typename List1, size_t I, TYPENAME1... Ts>
+using insert_at1_t = insert_at1<List1, I, Ts...>::type;
 
 // fold_right recursively applies binary function {F} to elements of the {List}
 // and the previous result, starting from the right. The initial value is {T}.

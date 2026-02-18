@@ -11,7 +11,7 @@ namespace v8::internal::wasm {
 
 // static
 DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
-                                                         int capacity) {
+                                                         uint32_t capacity) {
   // Probing depends on bit-masking the hashes, so the capacity needs to be
   // a power of two.
   DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -62,16 +62,17 @@ uint32_t WasmExportWrapperCache::Capacity(Tagged<WeakFixedArray> cache) {
   // If we ever add more reserved slots, we'll have to subtract them properly
   // rather than just shifting them out implicitly.
   static_assert((kReservedSlots >> 1) == 0);
-  return cache->length() >> 1;
+  return cache->ulength().value() >> 1;
 }
 
 // static
 Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
     Isolate* isolate) {
   Tagged<WeakFixedArray> cache = isolate->heap()->js_to_wasm_wrappers();
-  if (cache->length() == 0) {
+  uint32_t cache_len = cache->ulength().value();
+  if (cache_len == 0) {
     // Lazy initialization.
-    static constexpr int kInitialCapacity = 16;
+    static constexpr uint32_t kInitialCapacity = 16;
     DirectHandle<WeakFixedArray> new_cache = New(isolate, kInitialCapacity);
     isolate->heap()->SetJSToWasmWrappers(*new_cache);
     return *new_cache;
@@ -87,8 +88,8 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
   Tagged<WeakFixedArray> grown = *New(isolate, capacity * 2);
   DisallowGarbageCollection no_gc;
   cache = *old_cache;
-  int num_used_entries = 0;
-  for (int i = kReservedSlots; i < cache->length(); i += kSlotsPerEntry) {
+  uint32_t num_used_entries = 0;
+  for (uint32_t i = kReservedSlots; i < cache_len; i += kSlotsPerEntry) {
     Tagged<MaybeWeak<Object>> raw_key = cache->get(i);
     DCHECK(raw_key.IsSmi());
     int key = raw_key.ToSmi().value();
@@ -98,7 +99,7 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
     num_used_entries++;
     PutInternal<false>(grown, key, value);
   }
-  grown->set(kNumUsedElementsIndex, Smi::FromInt(num_used_entries));
+  grown->set(kNumUsedElementsIndex, Smi::FromUInt(num_used_entries));
   isolate->heap()->SetJSToWasmWrappers(grown);
   return grown;
 }
@@ -142,9 +143,10 @@ void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
 // static
 void WasmExportWrapperCache::Verify(Heap* heap) {
   Tagged<WeakFixedArray> cache = heap->js_to_wasm_wrappers();
-  if (cache->length() == 0) return;
+  uint32_t cache_len = cache->ulength().value();
+  if (cache_len == 0) return;
   CHECK(cache->get(kNumUsedElementsIndex).IsSmi());
-  for (int i = kReservedSlots; i < cache->length(); i += kSlotsPerEntry) {
+  for (uint32_t i = kReservedSlots; i < cache_len; i += kSlotsPerEntry) {
     Tagged<MaybeObject> key = cache->get(i);
     Tagged<MaybeObject> value = cache->get(i + 1);
     CHECK(key.IsSmi());

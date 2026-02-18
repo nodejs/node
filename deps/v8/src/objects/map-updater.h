@@ -64,6 +64,12 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // Prepares for reconfiguring elements kind and performs the steps 1-6.
   DirectHandle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
 
+  // Change instance type.
+  enum class InstanceTypeChange {
+    kTypedArrayDetaching,
+  };
+  DirectHandle<Map> ChangeInstanceType(InstanceTypeChange instance_type_change);
+
   // Prepares for an UpdatePrototype. Similar to reconfigure elements kind,
   // prototype transitions are put first. I.e., a prototype transition for
   // `{__proto__: foo, a: 1}.__proto__ = bar` produces the following graph:
@@ -236,6 +242,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
 
   State state_ = kInitialized;
   ElementsKind new_elements_kind_;
+  InstanceType new_instance_type_;
   bool is_transitionable_fast_elements_kind_;
 
   DirectHandle<JSPrototype> new_prototype_;

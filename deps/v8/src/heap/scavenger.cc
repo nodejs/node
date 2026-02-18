@@ -10,6 +10,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include "absl/container/flat_hash_set.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -31,15 +32,15 @@
 #include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/mutable-page-metadata-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/pretenuring-handler.h"
@@ -76,8 +77,7 @@ template <RememberedSetType kType>
 void AddToRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
                         Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-  MutablePageMetadata* page =
-      MutablePageMetadata::cast(chunk->Metadata(heap->isolate()));
+  MutablePage* page = SbxCast<MutablePage>(chunk->Metadata(heap->isolate()));
   RememberedSet<kType>::template Insert<AccessMode::ATOMIC>(
       page, chunk->Offset(slot));
 }
@@ -90,8 +90,7 @@ bool HeapObjectWillBeOld(const Heap* heap, Tagged<HeapObject> object) {
     return true;
   }
   if (HeapLayout::IsSelfForwarded(object) &&
-      MemoryChunkMetadata::FromHeapObject(heap->isolate(), object)
-          ->will_be_promoted()) {
+      BasePage::FromHeapObject(heap->isolate(), object)->will_be_promoted()) {
     DCHECK(Heap::InFromPage(object));
     return true;
   }
@@ -299,7 +298,7 @@ class Scavenger {
       ::heap::base::Worklist<ScavengedObjectListEntry,
                              kScavengedObjectListSegmentSize>;
 
-  using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
+  using EmptyChunksList = ::heap::base::Worklist<MutablePage*, 64>;
 
   Scavenger(Heap* heap, bool is_logging, EmptyChunksList* empty_chunks,
             ScavengedObjectList* copied_list,
@@ -311,7 +310,7 @@ class Scavenger {
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
-  void ScavengePage(MutablePageMetadata* page);
+  void ScavengePage(MutablePage* page);
 
   // Processes remaining work (=objects) after single objects have been
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
@@ -327,8 +326,8 @@ class Scavenger {
   // Returns true if the object is a large young object, and false otherwise.
   bool PromoteIfLargeObject(Tagged<HeapObject> object);
 
-  void PinAndPushObject(MutablePageMetadata* metadata,
-                        Tagged<HeapObject> object, MapWord map_word);
+  void PinAndPushObject(MutablePage* metadata, Tagged<HeapObject> object,
+                        MapWord map_word);
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
@@ -344,7 +343,7 @@ class Scavenger {
 
   inline void SynchronizePageAccess(Tagged<MaybeObject> object) const;
 
-  void AddPageToSweeperIfNecessary(MutablePageMetadata* page);
+  void AddPageToSweeperIfNecessary(MutablePage* page);
 
   // Potentially scavenges an object referenced from |slot| if it is
   // indeed a HeapObject and resides in from space.
@@ -353,10 +352,9 @@ class Scavenger {
 
   template <typename TSlot>
   inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                MutablePageMetadata* page,
-                                                TSlot slot);
+                                                MutablePage* page, TSlot slot);
   inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                              MutablePageMetadata* page,
+                                              MutablePage* page,
                                               SlotType slot_type,
                                               Address slot_address,
                                               Tagged<MaybeObject> new_target);
@@ -522,6 +520,11 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
+    ArrayBufferExtension* array_buffer_extension =
+        slot.tag_range() == kArrayBufferExtensionTag
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  table.Get(handle, kArrayBufferExtensionTag))
+            : nullptr;
     if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
@@ -537,20 +540,21 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
                      heap->old_external_pointer_space(), handle, slot.address(),
                      ExternalPointerTable::EvacuateMarkMode::kTransferMark);
     }
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object,
-                                      MaybeObjectSize) {
-    if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
-      object->YoungMarkExtension();
-    } else {
-      object->YoungMarkExtensionPromoted();
+#else   // !V8_COMPRESS_POINTERS
+    ArrayBufferExtension* array_buffer_extension =
+        slot.tag_range() == kArrayBufferExtensionTag
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  slot.load(scavenger_->heap()->isolate()))
+            : nullptr;
+#endif  // !V8_COMPRESS_POINTERS
+    if (array_buffer_extension) {
+      array_buffer_extension->InitializationBarrier();
+      if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+        array_buffer_extension->YoungMark();
+      } else {
+        array_buffer_extension->YoungMarkPromoted();
+      }
     }
-    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
   }
 
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
@@ -704,8 +708,7 @@ class ScavengerJobTask : public v8::JobTask {
  public:
   ScavengerJobTask(
       Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
-      std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-          old_to_new_chunks,
+      std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks,
       const Scavenger::ScavengedObjectList& copied_list,
       const Scavenger::ScavengedObjectList& promoted_list,
       std::atomic<size_t>& estimate_concurrency);
@@ -722,8 +725,7 @@ class ScavengerJobTask : public v8::JobTask {
   Heap* const heap_;
 
   std::vector<std::unique_ptr<Scavenger>>* scavengers_;
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      old_to_new_chunks_;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks_;
   std::atomic<size_t> remaining_memory_chunks_{0};
   IndexGenerator generator_;
 
@@ -736,8 +738,7 @@ class ScavengerJobTask : public v8::JobTask {
 
 ScavengerJobTask::ScavengerJobTask(
     Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
-    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-        old_to_new_chunks,
+    std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks,
     const Scavenger::ScavengedObjectList& copied_list,
     const Scavenger::ScavengedObjectList& promoted_list,
     std::atomic<size_t>& estimate_concurrency)
@@ -749,7 +750,7 @@ ScavengerJobTask::ScavengerJobTask(
       copied_list_(copied_list),
       promoted_list_(promoted_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       estimate_concurrency_(estimate_concurrency) {}
 
 void ScavengerJobTask::Run(JobDelegate* delegate) {
@@ -829,7 +830,7 @@ struct PinnedObjectEntry {
   Address address;
   MapWord map_word;
   SafeHeapObjectSize size;
-  MutablePageMetadata* metadata;
+  MutablePage* metadata;
 };
 using PinnedObjects = std::vector<PinnedObjectEntry>;
 
@@ -882,8 +883,7 @@ class ScavengerCollector::QuarantinedPageSweeper {
                                               size_t size, bool should_zap);
 
     size_t SweepPage(FreeSpaceHandler free_space_handler, MemoryChunk* chunk,
-                     PageMetadata* page,
-                     ObjectsAndSizes& pinned_objects_on_page);
+                     NormalPage* page, ObjectsAndSizes& pinned_objects_on_page);
     void CreateFillerFreeHandler(Address address, size_t size);
 
     Heap* const heap_;
@@ -943,10 +943,9 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     CHECK(first_word.IsForwardingAddress());
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
     if (heap_object == dest) {
-      DCHECK(
-          HeapLayout::InAnyLargeSpace(heap_object) ||
-          MemoryChunkMetadata::FromHeapObject(Isolate::Current(), heap_object)
-              ->is_quarantined());
+      DCHECK(HeapLayout::InAnyLargeSpace(heap_object) ||
+             BasePage::FromHeapObject(Isolate::Current(), heap_object)
+                 ->is_quarantined());
       return;
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
@@ -995,13 +994,13 @@ class YoungGenerationConservativeStackVisitor
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->to_space().begin(),
         isolate_->heap()->semi_space_new_space()->to_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->from_space().begin(),
         isolate_->heap()->semi_space_new_space()->from_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
   }
@@ -1010,10 +1009,10 @@ class YoungGenerationConservativeStackVisitor
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->to_space().begin(),
         isolate_->heap()->semi_space_new_space()->to_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
-    for (PageMetadata* page :
+    for (NormalPage* page :
          isolate_->heap()->semi_space_new_space()->from_space()) {
       page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
     }
@@ -1050,7 +1049,7 @@ class YoungGenerationConservativeStackVisitor
     DCHECK_EQ(object_size, object->Size());
     Address object_address = object->address();
     if (object_address + object_size <
-        PageMetadata::FromHeapObject(object)->area_end()) {
+        NormalPage::FromHeapObject(object)->area_end()) {
       MarkingBitmap::MarkBitFromAddress(bitmap, object_address + object_size)
           .Set<AccessMode::NON_ATOMIC>();
     }
@@ -1102,8 +1101,8 @@ class ObjectPinningVisitorBase : public RootVisitor {
       return;
     }
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    MutablePageMetadata* metadata =
-        MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
+    MutablePage* metadata =
+        SbxCast<MutablePage>(chunk->Metadata(heap_->isolate()));
     DCHECK(!metadata->is_large());
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));
@@ -1218,6 +1217,38 @@ class TreatConservativelyVisitor final : public RootVisitor {
   double stressing_threshold_;
 };
 
+void PinObjectsConservative(Heap* heap, Scavenger& scavenger,
+                            PinnedObjects& pinned_objects,
+                            Heap::StackScanMode stack_scan_mode) {
+  Isolate* isolate = heap->isolate();
+  TRACE_GC(heap->tracer(),
+           GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_CONSERVATIVE);
+  ConservativeObjectPinningVisitor conservative_pinning_visitor(heap, scavenger,
+                                                                pinned_objects);
+  // Scavenger reuses the page's marking bitmap as a temporary object
+  // start bitmap. Stack scanning will incrementally build the map as it
+  // searches through pages.
+  YoungGenerationConservativeStackVisitor stack_visitor(
+      isolate, &conservative_pinning_visitor);
+  // Marker was already set by Heap::CollectGarbage.
+  heap->IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
+  if (V8_UNLIKELY(v8_flags.stress_scavenger_conservative_object_pinning)) {
+    TreatConservativelyVisitor handles_visitor(&stack_visitor, heap);
+    heap->IterateRootsForPrecisePinning(&handles_visitor);
+  }
+}
+
+void PinObjectsPrecise(Heap* heap, Scavenger& scavenger,
+                       PinnedObjects& pinned_objects) {
+  TRACE_GC(heap->tracer(),
+           GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_PRECISE);
+  PreciseObjectPinningVisitor precise_pinning_visitor(heap, scavenger,
+                                                      pinned_objects);
+  ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
+      heap, &precise_pinning_visitor);
+  heap->IterateRootsForPrecisePinning(&left_trim_visitor);
+}
+
 void RestorePinnedObjects(SemiSpaceNewSpace& new_space,
                           const PinnedObjects& pinned_objects) {
   // Restore the maps of quarantined objects. We use the iteration over
@@ -1242,9 +1273,9 @@ void RestorePinnedObjects(SemiSpaceNewSpace& new_space,
 }
 
 void QuarantinePinnedPages(SemiSpaceNewSpace& new_space) {
-  PageMetadata* next_page = new_space.from_space().first_page();
+  NormalPage* next_page = new_space.from_space().first_page();
   while (next_page) {
-    PageMetadata* current_page = next_page;
+    NormalPage* current_page = next_page;
     next_page = current_page->next_page();
 #ifdef DEBUG
     MemoryChunk* chunk = current_page->Chunk();
@@ -1277,7 +1308,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
     Heap* heap, const PinnedObjects&& pinned_objects)
     : heap_(heap),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       should_zap_(heap::ShouldZapGarbage()),
       pinned_objects_(std::move(pinned_objects)) {
   DCHECK(!pinned_objects.empty());
@@ -1285,9 +1316,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_IMPLIES(
       delegate->IsJoiningThread(),
       heap_->IsMainThread() ||
@@ -1327,8 +1356,8 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
       return;
     }
     MemoryChunk* chunk = next_page_iterator_->first;
-    PageMetadata* page =
-        static_cast<PageMetadata*>(chunk->Metadata(heap_->isolate()));
+    NormalPage* page =
+        static_cast<NormalPage*>(chunk->Metadata(heap_->isolate()));
     DCHECK(!chunk->IsFromPage());
     if (chunk->IsToPage()) {
       SweepPage(CreateFillerFreeSpaceHandler, chunk, page,
@@ -1348,6 +1377,7 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     }
     next_page_iterator_++;
   }
+  TRACE_GC_NOTE("Quarantined page sweeping finished");
   is_done_.store(true, std::memory_order_relaxed);
   pinned_object_per_page_.clear();
   pinned_objects_.clear();
@@ -1372,14 +1402,14 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::
   }
   DCHECK_EQ(
       OLD_SPACE,
-      PageMetadata::FromAddress(heap->isolate(), address)->owner()->identity());
-  DCHECK(PageMetadata::FromAddress(heap->isolate(), address)->SweepingDone());
+      NormalPage::FromAddress(heap->isolate(), address)->owner()->identity());
+  DCHECK(NormalPage::FromAddress(heap->isolate(), address)->SweepingDone());
   OldSpace* const old_space = heap->old_space();
   old_space->FreeDuringSweep(address, size);
 }
 
 size_t ScavengerCollector::QuarantinedPageSweeper::JobTask::SweepPage(
-    FreeSpaceHandler free_space_handler, MemoryChunk* chunk, PageMetadata* page,
+    FreeSpaceHandler free_space_handler, MemoryChunk* chunk, NormalPage* page,
     ObjectsAndSizes& pinned_objects_on_page) {
   DCHECK_EQ(page, chunk->Metadata(heap_->isolate()));
   DCHECK(!pinned_objects_on_page.empty());
@@ -1462,7 +1492,8 @@ class ScavengerEphemeronProcessor final {
         // Checking whether an object is a hole without static roots requires a
         // valid MapWord which is not guaranteed here in case we are looking at
         // a forward pointer.
-        DCHECK_IMPLIES(v8_flags.unmap_holes, !IsAnyHole(key));
+        DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL && v8_flags.unmap_holes,
+                       !IsAnyHole(key));
         MapWord map_word = key->map_word(kRelaxedLoad);
         if (!map_word.IsForwardingAddress()) {
           // If the key is not forwarded, then it's dead.
@@ -1492,21 +1523,22 @@ class ScavengerEphemeronProcessor final {
         Tagged<HeapObject> key = key_slot.ToHeapObject();
         // If the key is not young, we don't need it in the remembered set.
         if (!HeapLayout::InYoungGeneration(key)) {
-          iti = indices.erase(iti);
+          indices.erase(iti++);
         }
         // If the key is not in the from page, it's not being scavenged.
         if (!Heap::InFromPage(key)) continue;
         // Checking whether an object is a hole without static roots requires a
         // valid MapWord which is not guaranteed here in case we are looking at
         // a forward pointer.
-        DCHECK_IMPLIES(v8_flags.unmap_holes, !IsAnyHole(key));
+        DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL && v8_flags.unmap_holes,
+                       !IsAnyHole(key));
         MapWord map_word = key->map_word(kRelaxedLoad);
         DCHECK_IMPLIES(Heap::InToPage(key), !map_word.IsForwardingAddress());
         if (!map_word.IsForwardingAddress()) {
           // If the key is not forwarded, then it's dead.
           DCHECK(IsUnscavengedHeapObject(key));
           table->RemoveEntry(InternalIndex(*iti));
-          iti = indices.erase(iti);
+          indices.erase(iti++);
         } else {
           // Otherwise, we need to update the key slot to the forwarded address.
           DCHECK(!IsUnscavengedHeapObject(key));
@@ -1515,7 +1547,7 @@ class ScavengerEphemeronProcessor final {
           if (!HeapLayout::InYoungGeneration(forwarded)) {
             // If the key was promoted out of new space, we don't need to keep
             // it in the remembered set.
-            iti = indices.erase(iti);
+            indices.erase(iti++);
           } else {
             ++iti;
           }
@@ -1559,7 +1591,7 @@ int NumberOfScavengeTasks(Heap* heap) {
   int tasks = std::max(
       1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));
   if (!heap->CanPromoteYoungAndExpandOldGeneration(
-          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
+          static_cast<size_t>(tasks * NormalPage::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
   }
@@ -1580,8 +1612,7 @@ void HandleSurvivingNewLargeObjects(
       // to meta-data like size during page promotion.
       object->set_map_word(map, kRelaxedStore);
 
-      LargePageMetadata* page =
-          LargePageMetadata::FromHeapObject(heap->isolate(), object);
+      LargePage* page = LargePage::FromHeapObject(heap->isolate(), object);
       SBXCHECK(page->is_large());
       SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
       heap->lo_space()->PromoteNewLargeObject(page);
@@ -1629,17 +1660,26 @@ void ScavengerCollector::CollectGarbage() {
       !is_using_conservative_stack_scanning && !is_using_precise_pinning;
 
   const int num_scavenge_tasks = NumberOfScavengeTasks(heap_);
+  const bool is_logging = isolate->log_object_relocation();
+
+  // Create a separate scavenger for the main thread to use during root
+  // iteration. This runs in parallel with background threads, so it needs
+  // its own scavenger to avoid conflicts.
+  Scavenger main_thread_scavenger(
+      heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
+      &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list,
+      should_handle_weak_objects_weakly);
+
+  // Create scavengers for the parallel job (background threads + joining
+  // thread).
   std::vector<std::unique_ptr<Scavenger>> scavengers;
   scavengers.reserve(num_scavenge_tasks);
-
-  const bool is_logging = isolate->log_object_relocation();
   for (int i = 0; i < num_scavenge_tasks; ++i) {
     scavengers.emplace_back(std::make_unique<Scavenger>(
         heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
         &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list,
         should_handle_weak_objects_weakly));
   }
-  Scavenger& main_thread_scavenger = *scavengers[0].get();
 
   {
     // Identify weak unmodified handles. Requires an unmodified graph.
@@ -1648,75 +1688,42 @@ void ScavengerCollector::CollectGarbage() {
     isolate->traced_handles()->ComputeWeaknessForYoungObjects();
   }
 
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      old_to_new_chunks;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks;
   {
-    // Copy roots.
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-
     // We must collect old-to-new pages before starting Scavenge because
     // pages could be removed from the old generation for allocation which
     // hides them from the iteration.
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES);
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [&old_to_new_chunks](MutablePageMetadata* chunk) {
+        heap_, [&old_to_new_chunks](MutablePage* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
             old_to_new_chunks.emplace_back(ParallelWorkItem{}, chunk);
           }
         });
-
-    if (is_using_conservative_stack_scanning) {
-      // Pinning objects must be the first step and must happen before
-      // scavenging any objects. Specifically we must all pin all objects
-      // before visiting other pinned objects. If we scavenge some object X
-      // and move it before all stack-reachable objects are pinned, and we
-      // later find that we need to pin X, it will be too late to undo the
-      // moving.
-      TRACE_GC(heap_->tracer(),
-               GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
-      ConservativeObjectPinningVisitor conservative_pinning_visitor(
-          heap_, main_thread_scavenger, pinned_objects);
-      // Scavenger reuses the page's marking bitmap as a temporary object
-      // start bitmap. Stack scanning will incrementally build the map as it
-      // searches through pages.
-      YoungGenerationConservativeStackVisitor stack_visitor(
-          isolate, &conservative_pinning_visitor);
-      // Marker was already set by Heap::CollectGarbage.
-      heap_->IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
-      if (V8_UNLIKELY(v8_flags.stress_scavenger_conservative_object_pinning)) {
-        TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
-        heap_->IterateRootsForPrecisePinning(&handles_visitor);
-      }
-    }
-
-    if (is_using_precise_pinning) {
-      PreciseObjectPinningVisitor precise_pinning_visitor(
-          heap_, main_thread_scavenger, pinned_objects);
-      ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
-          heap_, &precise_pinning_visitor);
-      heap_->IterateRootsForPrecisePinning(&left_trim_visitor);
-    }
-
-    // Scavenger treats all weak roots except for global handles as strong.
-    // That is why we don't set skip_weak = true here and instead visit
-    // global handles separately.
-    base::EnumSet<SkipRoot> options(
-        {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
-         SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
-         SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
-    if (is_using_precise_pinning) {
-      options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
-    }
-    RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
-
-    heap_->IterateRoots(&root_scavenge_visitor, options);
-    isolate->global_handles()->IterateYoungStrongAndDependentRoots(
-        &root_scavenge_visitor);
-    isolate->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
   }
+
+  // Pinning objects must be the first step and must happen before
+  // scavenging any objects. If we scavenge some object X
+  // and move it before all stack-reachable objects are pinned, and we
+  // later find that we need to pin X, it will be too late to undo the
+  // moving.
+
+  if (is_using_conservative_stack_scanning) [[unlikely]] {
+    PinObjectsConservative(heap_, main_thread_scavenger, pinned_objects,
+                           stack_scan_mode);
+  }
+
+  if (is_using_precise_pinning) [[unlikely]] {
+    PinObjectsPrecise(heap_, main_thread_scavenger, pinned_objects);
+  }
+
   {
-    // Parallel phase scavenging all copied and promoted objects.
+    // Start the parallel scavenger job before iterating roots. This allows
+    // background threads to start processing old_to_new pages while the main
+    // thread iterates roots in parallel.
     TRACE_GC_ARG1(heap_->tracer(),
                   GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
                   "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
@@ -1726,9 +1733,43 @@ void ScavengerCollector::CollectGarbage() {
         promoted_list, estimate_concurrency);
     TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);
-    V8::GetCurrentPlatform()
-        ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
-        ->Join();
+    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->PostJob(
+        v8::TaskPriority::kUserBlocking, std::move(job));
+
+    // Iterate roots on the main thread while background threads scavenge pages.
+    {
+      // Copy roots.
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
+      RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
+
+      // Scavenger treats all weak roots except for global handles as strong.
+      // That is why we don't set skip_weak = true here and instead visit
+      // global handles separately.
+      base::EnumSet<SkipRoot> options(
+          {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
+           SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
+           SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
+      if (is_using_precise_pinning) {
+        options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
+      }
+
+      heap_->IterateRoots(&root_scavenge_visitor, options);
+      isolate->global_handles()->IterateYoungStrongAndDependentRoots(
+          &root_scavenge_visitor);
+      isolate->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
+    }
+    // The destructor of RootScavengeVisitor calls Publish(), which publishes
+    // the main thread scavenger's local copied and promoted lists to the global
+    // worklists, making them available for processing by any worker thread.
+    // main_thread_scavenger is not used from this point forward anymore.
+
+    // Notify the job system that more work is available now that root scanning
+    // is finished.
+    job_handle->NotifyConcurrencyIncrease();
+
+    // Join the parallel job: participate in remaining work and wait for
+    // completion.
+    job_handle->Join();
     DCHECK(copied_list.IsEmpty());
     DCHECK(promoted_list.IsEmpty());
 
@@ -1754,6 +1795,7 @@ void ScavengerCollector::CollectGarbage() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
 
     std::vector<SurvivingNewLargeObjectsMap> surviving_new_large_objects;
+    main_thread_scavenger.Finalize(surviving_new_large_objects);
     for (auto& scavenger : scavengers) {
       scavenger->Finalize(surviving_new_large_objects);
     }
@@ -1771,15 +1813,9 @@ void ScavengerCollector::CollectGarbage() {
                                    std::move(surviving_new_large_objects));
   }
 
-  {
-    // Update references into new space
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
-    heap_->UpdateYoungReferencesInExternalStringTable(
-        &Heap::UpdateYoungReferenceInExternalStringTableEntry);
-
-    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
-    }
+  // Update references into new space
+  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
+    isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
   }
 
   ScavengerEphemeronProcessor::Process(heap_, &ephemeron_table_list);
@@ -1823,7 +1859,7 @@ void ScavengerCollector::CollectGarbage() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
     Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
-    MutablePageMetadata* chunk;
+    MutablePage* chunk;
     while (empty_chunks_local.Pop(&chunk)) {
       RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
       RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckPossiblyEmptyBuckets(chunk);
@@ -1831,7 +1867,7 @@ void ScavengerCollector::CollectGarbage() {
 
 #ifdef DEBUG
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [](MutablePageMetadata* chunk) {
+        heap_, [](MutablePage* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
@@ -2027,9 +2063,9 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
     return false;
   }
 
-  DCHECK_EQ(NEW_LO_SPACE,
-            MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
-                ->owner_identity());
+  DCHECK_EQ(
+      NEW_LO_SPACE,
+      MutablePage::FromHeapObject(heap_->isolate(), object)->owner_identity());
   if (object->relaxed_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
                                                           object)) {
     local_surviving_new_large_objects_.insert({object, map});
@@ -2062,7 +2098,7 @@ SlotCallbackResult RememberedSetEntryNeeded(Heap* heap, THeapObjectSlot slot) {
   const bool should_keep_slot =
       Heap::InToPage(heap_object) ||
       (Heap::InFromPage(heap_object) &&
-       !MemoryChunkMetadata::FromHeapObject(heap->isolate(), heap_object)
+       !BasePage::FromHeapObject(heap->isolate(), heap_object)
             ->will_be_promoted());
   return should_keep_slot ? KEEP_SLOT : REMOVE_SLOT;
 }
@@ -2264,8 +2300,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     // copied, it is unfortunately not safe to access `dest` to check whether it
     // is pinned or not.
 #ifdef DEBUG
-    const auto* metadata =
-        MemoryChunkMetadata::FromHeapObject(heap()->isolate(), dest);
+    const auto* metadata = BasePage::FromHeapObject(heap()->isolate(), dest);
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
                    Heap::InToPage(dest) || metadata->is_large() ||
                        metadata->is_quarantined());
@@ -2298,13 +2333,13 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
-    DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
-                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
-                           ->IsLargePage() ||
-                       MemoryChunkMetadata::FromHeapObject(
-                           heap->isolate(), (*slot).GetHeapObject())
-                           ->will_be_promoted());
+    DCHECK_IMPLIES(
+        result == REMOVE_SLOT,
+        !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
+            MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                ->IsLargePage() ||
+            BasePage::FromHeapObject(heap->isolate(), (*slot).GetHeapObject())
+                ->will_be_promoted());
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen e.g. when a slot is found in both
@@ -2390,8 +2425,8 @@ void Scavenger::RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell) {
 
 void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
                                           int index) {
-  auto indices = local_ephemeron_remembered_set_.insert(
-      {table, std::unordered_set<int>()});
+  auto indices = local_ephemeron_remembered_set_.emplace(
+      table, absl::flat_hash_set<int>());
   indices.first->second.insert(index);
 }
 
@@ -2406,7 +2441,7 @@ bool IsObjectInSlotShared(SlotType slot) {
 #endif  // DEBUG
 }  // namespace
 
-void Scavenger::ScavengePage(MutablePageMetadata* page) {
+void Scavenger::ScavengePage(MutablePage* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   MemoryChunk* chunk = page->Chunk();
@@ -2511,7 +2546,7 @@ void Scavenger::Process(JobDelegate* delegate) {
       copied_object_visitor.Visit(entry.map, entry.heap_object, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
-        if (!local_copied_list_.IsLocalEmpty()) {
+        if (!local_copied_list_.IsGlobalEmpty()) {
           delegate->NotifyConcurrencyIncrease();
         }
       }
@@ -2571,7 +2606,7 @@ void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
 
 template <typename TSlot>
 void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                  MutablePageMetadata* page,
+                                                  MutablePage* page,
                                                   TSlot slot) {
   Tagged<MaybeObject> object = *slot;
   Tagged<HeapObject> heap_object;
@@ -2584,7 +2619,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
 }
 
 void Scavenger::CheckOldToNewSlotForSharedTyped(
-    MemoryChunk* chunk, MutablePageMetadata* page, SlotType slot_type,
+    MemoryChunk* chunk, MutablePage* page, SlotType slot_type,
     Address slot_address, Tagged<MaybeObject> new_target) {
   Tagged<HeapObject> heap_object;
 
@@ -2605,7 +2640,7 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
                            Map::ObjectFieldsFrom(map->visitor_id()));
 }
 
-void Scavenger::PinAndPushObject(MutablePageMetadata* metadata,
+void Scavenger::PinAndPushObject(MutablePage* metadata,
                                  Tagged<HeapObject> object, MapWord map_word) {
   DCHECK(metadata->Contains(object->address()));
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
@@ -2626,8 +2661,8 @@ void Scavenger::PinAndPushObject(MutablePageMetadata* metadata,
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                  SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(!MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
-              ->will_be_promoted());
+  DCHECK(
+      !BasePage::FromHeapObject(heap_->isolate(), object)->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_copied_list_.Push({object, map, object_size});
   copied_size_ += object_size.value();
@@ -2637,8 +2672,8 @@ void Scavenger::PushPinnedPromotedObject(Tagged<HeapObject> object,
                                          Tagged<Map> map,
                                          SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
-             ->will_be_promoted());
+  DCHECK(
+      BasePage::FromHeapObject(heap_->isolate(), object)->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_promoted_list_.Push({object, map, object_size});
   promoted_size_ += object_size.value();

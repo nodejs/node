@@ -12,6 +12,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-tracer.h"
 
 namespace v8::internal::maglev {
 
@@ -35,16 +36,17 @@ class ReturnedValueRepresentationSelector {
 
 class MaglevInliner {
  public:
-  explicit MaglevInliner(Graph* graph) : graph_(graph) {}
+  explicit MaglevInliner(Graph* graph)
+      : graph_(graph),
+        tracer_(graph->compilation_info()),
+        flags_(graph->compilation_info()->flags()) {}
 
   bool Run();
 
  private:
   Graph* graph_;
-
-  int max_inlined_bytecode_size_cumulative() const;
-  int max_inlined_bytecode_size_small_total() const;
-  int max_inlined_bytecode_size_small_with_heapnum_in_out() const;
+  Tracer tracer_;
+  const CompilationFlags flags_;
 
   bool IsSmallWithHeapNumberInputsOutputs(MaglevCallSiteInfo* call_site) const;
 
@@ -83,6 +85,10 @@ class MaglevInliner {
     }
     return v8_flags.print_maglev_graphs && is_tracing_enabled();
   }
+
+  CodeTracer* GetCodeTracer() const;
+  void PrintMaglevGraph(const char* msg,
+                        compiler::OptionalSharedFunctionInfoRef ref = {});
 
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);

@@ -32,6 +32,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/types/span.h"
 
 namespace absl {

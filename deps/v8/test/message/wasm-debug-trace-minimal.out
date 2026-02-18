@@ -1,0 +1,7 @@
+js_function in *%(basename)s*
+wasm[1] in wasm://wasm/*
+wasm[2] in =:*
+wasm[3] in =:*
+3 in =
+<none> in *%(basename)s*
+$

@@ -1,0 +1,127 @@
+# Copyright 2026 The Abseil Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+# Internal extend utilities and implementation details.
+package(
+    default_visibility = [
+        "//absl/extend:__subpackages__",
+    ],
+    features = ["header_modules"],
+)
+
+cc_library(
+    name = "tuple",
+    hdrs = ["tuple.h"],
+    deps = ["//absl/base:config"],
+)
+
+cc_library(
+    name = "is_tuple_hashable",
+    hdrs = ["is_tuple_hashable.h"],
+    deps = [
+        "//absl/base:config",
+        "//absl/hash",
+    ],
+)
+
+cc_library(
+    name = "reflection",
+    srcs = ["reflection.cc"],
+    hdrs = ["reflection.h"],
+    deps = [
+        "//absl/base:config",
+        "//absl/strings",
+        "//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "aggregate",
+    hdrs = ["aggregate.h"],
+    deps = [
+        ":num_bases",
+        ":num_initializers",
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "aggregate_test",
+    srcs = ["aggregate_test.cc"],
+    deps = [
+        ":aggregate",
+        "//absl/base:config",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "num_bases",
+    hdrs = ["num_bases.h"],
+    deps = [
+        ":num_initializers",
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "num_bases_test",
+    srcs = ["num_bases_test.cc"],
+    deps = [
+        ":num_bases",
+        "//absl/base:config",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "num_initializers",
+    hdrs = ["num_initializers.h"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "num_initializers_test",
+    srcs = ["num_initializers_test.cc"],
+    tags = [
+        "no_test_ios_arm64",
+    ],
+    deps = [
+        ":num_initializers",
+        "//absl/base:config",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "dependencies",
+    hdrs = ["dependencies.h"],
+    deps = ["//absl/base:config"],
+)
+
+cc_test(
+    name = "dependencies_test",
+    srcs = ["dependencies_test.cc"],
+    deps = [
+        ":dependencies",
+        "//absl/base:config",
+        "@googletest//:gtest_main",
+    ],
+)

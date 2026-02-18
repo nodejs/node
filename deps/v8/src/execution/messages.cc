@@ -204,11 +204,11 @@ namespace {
 // a JSArray of JSCallSite objects.
 MaybeDirectHandle<JSArray> GetStackFrames(Isolate* isolate,
                                           DirectHandle<FixedArray> frames) {
-  int frame_count = frames->length();
+  uint32_t frame_count = frames->ulength().value();
   DirectHandle<JSFunction> constructor = isolate->callsite_function();
   DirectHandle<FixedArray> sites =
       isolate->factory()->NewFixedArray(frame_count);
-  for (int i = 0; i < frame_count; ++i) {
+  for (uint32_t i = 0; i < frame_count; ++i) {
     DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)),
                                      isolate);
     DirectHandle<JSObject> site;
@@ -359,7 +359,8 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder));
 
-  for (int i = 0; i < elems->length(); ++i) {
+  uint32_t elems_len = elems->ulength().value();
+  for (uint32_t i = 0; i < elems_len; ++i) {
     builder.AppendCStringLiteral("\n    at ");
 
     DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(elems->get(i)),
@@ -433,7 +434,7 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
     case MessageTemplate::kMessageCount:
       UNREACHABLE();
   }
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 MaybeHandle<String> MessageFormatter::TryFormat(

@@ -67,8 +67,7 @@ static bool SpecializeToFunctionContext(
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, IndirectHandle<JSFunction> function,
     BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,
-    std::optional<bool> specialize_to_function_context,
-    bool for_turboshaft_frontend)
+    std::optional<bool> specialize_to_function_context, bool is_turbolev)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(js_broker.has_value()
                   ? js_broker.value()
@@ -77,12 +76,13 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
       osr_offset_(osr_offset),
+      trace_id_(static_cast<uint16_t>(
+          reinterpret_cast<uint64_t>(this) ^ function.address() ^
+          function->shared()->function_literal_id(kRelaxedLoad))),
       owns_broker_(!js_broker.has_value()),
-      is_turbolev_(for_turboshaft_frontend)
-#define V(Name) , Name##_(v8_flags.Name)
-          MAGLEV_COMPILATION_FLAG_LIST(V)
-#undef V
-      ,
+      is_turbolev_(is_turbolev),
+      flags_(is_turbolev ? CompilationFlags::ForTurbolev()
+                         : CompilationFlags::ForMaglev()),
       specialize_to_function_context_(SpecializeToFunctionContext(
           isolate, osr_offset, function, specialize_to_function_context)) {
   if (owns_broker_) {
@@ -182,7 +182,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context()->IsDetached(Isolate::Current());
+  return toplevel_function_->native_context()->IsDetached();
 }
 
 std::unique_ptr<CanonicalHandlesMap>

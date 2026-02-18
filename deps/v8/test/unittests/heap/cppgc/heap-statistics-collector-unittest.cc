@@ -167,7 +167,7 @@ TEST_F(HeapStatisticsCollectorTest,
   internal::Heap::From(GetHeap())->CollectGarbage(
       {CollectionType::kMinor, Heap::StackState::kNoHeapPointers,
        cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
-       GCConfig::FreeMemoryHandling::kDoNotDiscard});
+       GCConfig::FreeMemoryHandling::kRetainMemory});
 
   HeapStatistics brief_stats = Heap::From(GetHeap())->CollectStatistics(
       HeapStatistics::DetailLevel::kBrief);
@@ -186,7 +186,7 @@ TEST_F(HeapStatisticsCollectorTest,
   internal::Heap::From(GetHeap())->CollectGarbage(
       {CollectionType::kMinor, Heap::StackState::kMayContainHeapPointers,
        cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
-       GCConfig::FreeMemoryHandling::kDiscardWherePossible});
+       GCConfig::FreeMemoryHandling::kReleaseMemory});
   brief_stats = Heap::From(GetHeap())->CollectStatistics(
       HeapStatistics::DetailLevel::kBrief);
   EXPECT_EQ(0u, brief_stats.pooled_memory_size_bytes);

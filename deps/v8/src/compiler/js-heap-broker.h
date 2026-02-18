@@ -199,11 +199,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
   }
 
-  // Check if {object} is any native context's %ArrayPrototype% or
-  // %ObjectPrototype%.
-  bool IsArrayOrObjectPrototype(JSObjectRef object) const;
-  bool IsArrayOrObjectPrototype(Handle<JSObject> object) const;
-
   bool HasFeedback(FeedbackSource const& source) const;
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);

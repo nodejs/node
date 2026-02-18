@@ -210,7 +210,7 @@ MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
   DirectHandle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(
           debug_info->GetBreakPointCount(isolate_));
-  int break_points_hit_count = 0;
+  uint32_t break_points_hit_count = 0;
   bool has_break_points_at_all = false;
   for (size_t i = 0; i < break_locations.size(); i++) {
     bool location_has_break_points;
@@ -220,8 +220,8 @@ MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
     if (!check_result.is_null()) {
       DirectHandle<FixedArray> break_points_current_hit =
           check_result.ToHandleChecked();
-      int num_objects = break_points_current_hit->length();
-      for (int j = 0; j < num_objects; ++j) {
+      uint32_t num_objects = break_points_current_hit->ulength().value();
+      for (uint32_t j = 0; j < num_objects; ++j) {
         break_points_hit->set(break_points_hit_count++,
                               break_points_current_hit->get(j));
       }
@@ -830,7 +830,8 @@ bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
   }
 
   DirectHandle<FixedArray> array(Cast<FixedArray>(*break_points), isolate_);
-  for (int i = 0; i < array->length(); ++i) {
+  uint32_t array_len = array->ulength().value();
+  for (uint32_t i = 0; i < array_len; ++i) {
     const auto break_point =
         Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     if (break_point->id() == kInstrumentationId) {
@@ -1052,7 +1053,8 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
     Tagged<FixedArray> break_points = debug_info->break_points();
-    for (int i = 0; i < break_points->length(); i++) {
+    uint32_t break_points_len = break_points->ulength().value();
+    for (uint32_t i = 0; i < break_points_len; i++) {
       if (IsUndefined(break_points->get(i), isolate_)) continue;
       Tagged<BreakPointInfo> info = Cast<BreakPointInfo>(break_points->get(i));
       if (info->GetBreakPointCount(isolate_) == 0) continue;
@@ -1289,12 +1291,12 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(
   }
 
   DirectHandle<FixedArray> array(Cast<FixedArray>(*break_points), isolate_);
-  int num_objects = array->length();
+  uint32_t num_objects = array->ulength().value();
   Handle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(num_objects);
-  int break_points_hit_count = 0;
+  uint32_t break_points_hit_count = 0;
   *has_break_points = false;
-  for (int i = 0; i < num_objects; ++i) {
+  for (uint32_t i = 0; i < num_objects; ++i) {
     const auto break_point =
         Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     *has_break_points |= break_point->id() != kInstrumentationId;
@@ -1539,7 +1541,7 @@ void Debug::PrepareStep(StepAction step_action) {
               isolate_->factory()->promise_awaited_by_symbol());
           if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
             auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
-            if (weak_fixed_array->length() == 1 &&
+            if (weak_fixed_array->ulength().value() == 1 &&
                 weak_fixed_array->get(0).IsWeak()) {
               DirectHandle<HeapObject> awaited_by(
                   weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
@@ -1627,14 +1629,15 @@ DirectHandle<Object> Debug::GetSourceBreakLocations(
   }
   DirectHandle<FixedArray> locations = isolate->factory()->NewFixedArray(
       debug_info->GetBreakPointCount(isolate));
-  int count = 0;
-  for (int i = 0; i < debug_info->break_points()->length(); ++i) {
+  uint32_t count = 0;
+  uint32_t break_points_len = debug_info->break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; ++i) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(debug_info->break_points()->get(i));
-      int break_points = break_point_info->GetBreakPointCount(isolate);
+      uint32_t break_points = break_point_info->GetBreakPointCount(isolate);
       if (break_points == 0) continue;
-      for (int j = 0; j < break_points; ++j) {
+      for (uint32_t j = 0; j < break_points; ++j) {
         locations->set(count++,
                        Smi::FromInt(break_point_info->source_position()));
       }
@@ -1735,8 +1738,8 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
           frame->LookupCode()->SetMarkedForDeoptimization(
               isolate, LazyDeoptimizeReason::kDebugger);
         } else {
-          PointerAuthentication::ReplacePC(pc_addr, advance,
-                                           kSystemPointerSize);
+          PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize,
+                                           it.frame()->iteration_depth());
         }
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);
@@ -2180,7 +2183,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     }
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->infos()->length() > 0) {
+        script->infos()->ulength().value() > 0) {
       MaybeDirectHandle<SharedFunctionInfo> shared =
           GetTopLevelWithRecompile(script, &triedTopLevelCompile);
       if (shared.is_null()) return false;
@@ -2215,7 +2218,8 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
 
 MaybeDirectHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
     Handle<Script> script, bool* did_compile) {
-  DCHECK_LE(kFunctionLiteralIdTopLevel, script->infos()->length());
+  DCHECK_LE(static_cast<uint32_t>(kFunctionLiteralIdTopLevel),
+            script->infos()->ulength().value());
   Tagged<MaybeObject> maybeToplevel =
       script->infos()->get(kFunctionLiteralIdTopLevel);
   Tagged<HeapObject> heap_object;
@@ -2643,7 +2647,8 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
 
   std::vector<int> inspector_break_points_hit;
   // This array contains breakpoints installed using JS debug API.
-  for (int i = 0; i < break_points_hit->length(); ++i) {
+  uint32_t break_points_hit_count = break_points_hit->ulength().value();
+  for (uint32_t i = 0; i < break_points_hit_count; ++i) {
     Tagged<BreakPoint> break_point = Cast<BreakPoint>(break_points_hit->get(i));
     inspector_break_points_hit.push_back(break_point->id());
   }
@@ -2870,8 +2875,10 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   MaybeHandle<FixedArray> break_points;
   {
     DebuggableStackFrameIterator it(isolate_);
-    DCHECK(!it.done());
-    JavaScriptFrame* frame = it.frame()->is_javascript()
+    // We can get here when the early steps of processing microtasks find
+    // a pending interrupt request for an OOM callback; in that case there
+    // is no debuggable frame on the stack.
+    JavaScriptFrame* frame = !it.done() && it.frame()->is_javascript()
                                  ? JavaScriptFrame::cast(it.frame())
                                  : nullptr;
     if (frame && IsJSFunction(frame->function())) {
@@ -2976,7 +2983,6 @@ DebugScope::DebugScope(Debug* debug)
       prev_(reinterpret_cast<DebugScope*>(
           base::Relaxed_Load(&debug->thread_local_.current_debug_scope_))),
       no_interrupts_(debug_->isolate_) {
-  timer_.Start();
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
@@ -2994,10 +3000,6 @@ DebugScope::DebugScope(Debug* debug)
 }
 
 void DebugScope::set_terminate_on_resume() { terminate_on_resume_ = true; }
-
-base::TimeDelta DebugScope::ElapsedTimeSinceCreation() {
-  return timer_.Elapsed();
-}
 
 DebugScope::~DebugScope() {
   // Terminate on resume must have been handled by retrieving it, if this is
@@ -3218,7 +3220,7 @@ void Debug::PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id) {
 }
 
 bool Debug::PerformSideEffectCheckForAccessor(
-    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
+    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> holder,
     AccessorComponent component) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
@@ -3238,15 +3240,20 @@ bool Debug::PerformSideEffectCheckForAccessor(
       return true;
 
     case SideEffectType::kHasSideEffectToReceiver:
-      DCHECK(!receiver.is_null());
-      if (PerformSideEffectCheckForObject(receiver)) return true;
+      // For the setter case receiver is the holder but for the getter case
+      // the actual receiver is not available. So, for getters we treat this
+      // side effect type as "has side effect to holder".
+      DCHECK(!holder.is_null());
+      if (PerformSideEffectCheckForObject(holder)) return true;
       return false;
 
     case SideEffectType::kHasSideEffect:
       break;
   }
   if (v8_flags.trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API Callback '");
+    PrintF(
+        "[debug-evaluate] API Native Accessor Callback (%s) '",
+        component == AccessorComponent::ACCESSOR_GETTER ? "getter" : "setter");
     ShortPrint(accessor_info->name());
     PrintF("' may cause side effect.\n");
   }
@@ -3399,14 +3406,6 @@ void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
   // necessary bits out of PrepareSTep into a separate method or fold them
   // into Debug::PrepareRestartFrame.
   PrepareStep(StepInto);
-}
-
-void Debug::NotifyDebuggerPausedEventSent() {
-  DebugScope* scope = reinterpret_cast<DebugScope*>(
-      base::Relaxed_Load(&thread_local_.current_debug_scope_));
-  CHECK(scope);
-  isolate_->counters()->debug_pause_to_paused_event()->AddTimedSample(
-      scope->ElapsedTimeSinceCreation());
 }
 
 }  // namespace internal

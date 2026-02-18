@@ -30,10 +30,6 @@ transitioning macro RegExpReplaceCallableNoExplicitCaptures(
   let matchStart: Smi = 0;
   for (let i: intptr = 0; i < matchesCapacity; i++) {
     typeswitch (matchesElements.objects[i]) {
-      case (TheHole): deferred {
-        // No more elements.
-        return i;
-      }
       // Element represents a slice.
       case (elSmi: Smi): {
         // The slice's match start and end is either encoded as one or two
@@ -61,6 +57,10 @@ transitioning macro RegExpReplaceCallableNoExplicitCaptures(
         const replacement: String = ToString_Inline(replacementObj);
         matchesElements.objects[i] = replacement;
         matchStart += elString.length_smi;
+      }
+      case (TheHole): deferred {
+        // No more elements.
+        return i;
       }
       case (Object): deferred {
         unreachable;

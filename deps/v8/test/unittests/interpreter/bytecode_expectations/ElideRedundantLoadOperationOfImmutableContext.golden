@@ -20,10 +20,10 @@ frame size: 1
 parameter count: 1
 bytecode array length: 13
 bytecodes: [
-  /*   67 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+  /*   67 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
                 B(Star0),
-  /*   75 E> */ B(GetNamedProperty), R(0), U8(0), U8(0),
-  /*   71 E> */ B(SetNamedProperty), R(0), U8(1), U8(2),
+  /*   75 E> */ B(GetNamedProperty), R(0), U8(0:"c"), FBV(0),
+  /*   71 E> */ B(SetNamedProperty), R(0), U8(1:"b"), FBV(2),
                 B(LdaUndefined),
   /*   77 S> */ B(Return),
 ]

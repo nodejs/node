@@ -261,18 +261,18 @@ class StandardRunnerTest(TestRunnerTest):
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "
-        "dict_property_const_tracking=False, disassembler=False, "
+        "dict_property_const_tracking=False, disassembler=False, dumpling=False, "
         "endurance_fuzzer=False, full_debug=False, gc_fuzzer=False, "
         "gc_stress=False, gdbjit=False, has_jitless=False, has_maglev=False, "
         "has_turbofan=False, has_webassembly=True, i18n=True, "
         "interrupt_fuzzer=False, is_android=False, is_ios=False, "
-        "isolates=False, lite_mode=False, mode=debug, msan=True, "
-        "no_harness=False, no_simd_hardware=False, novfp3=False, "
-        "optimize_for_size=False, sandbox_hardware_support=True, "
-        "simulator_run=False, slow_dchecks=False, "
+        "isolates=False, lite_mode=False, memory_corruption_api=False, "
+        "mode=debug, msan=True, no_harness=False, no_simd_hardware=False, "
+        "novfp3=False, optimize_for_size=False, sandbox_hardware_support=True, "
+        "simulator_run=False, single_generation=False, slow_dchecks=False, "
         "system=linux, target_cpu=x86, tsan=True, ubsan=True, "
-        "use_sanitizer=True, v8_target_cpu=x86, verify_heap=False, "
-        "verify_predictable=False")
+        "use_sanitizer=True, v8_target_cpu=x86, "
+        "verify_heap=False, verify_predictable=False")
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected

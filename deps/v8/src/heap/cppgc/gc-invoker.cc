@@ -140,7 +140,7 @@ bool GCInvoker::GCInvokerImpl::RetryAllocate(
     CollectGarbage({CollectionType::kMajor, StackState::kMayContainHeapPointers,
                     GCConfig::MarkingType::kAtomic,
                     GCConfig::SweepingType::kIncrementalAndConcurrent,
-                    GCConfig::FreeMemoryHandling::kDiscardWherePossible});
+                    GCConfig::FreeMemoryHandling::kReleaseMemory});
     bool result = allocate();
     if (result) {
       return true;

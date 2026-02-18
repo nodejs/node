@@ -23,7 +23,6 @@
 
 #include "absl/algorithm/algorithm.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {

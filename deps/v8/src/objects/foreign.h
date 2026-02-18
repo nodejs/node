@@ -53,10 +53,7 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   static_assert(IsAligned(kForeignAddressOffset, kExternalPointerSlotSize));
 #endif
 
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<Foreign>,
-      WithExternalPointer<kForeignAddressOffset,
-                          kAnyForeignExternalPointerTagRange>>;
+  class BodyDescriptor;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(Foreign)
