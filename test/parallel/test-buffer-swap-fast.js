@@ -5,18 +5,30 @@ const common = require('../common');
 const assert = require('assert');
 
 function testFastSwap16() {
-  const buf = Buffer.alloc(256);
-  buf.swap16();
+  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+  const expected = Buffer.from([0x02, 0x01, 0x04, 0x03]);
+  const padded = Buffer.alloc(256);
+  buf.copy(padded);
+  padded.swap16();
+  assert.deepStrictEqual(padded.subarray(0, 4), expected);
 }
 
 function testFastSwap32() {
-  const buf = Buffer.alloc(256);
-  buf.swap32();
+  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+  const expected = Buffer.from([0x04, 0x03, 0x02, 0x01]);
+  const padded = Buffer.alloc(256);
+  buf.copy(padded);
+  padded.swap32();
+  assert.deepStrictEqual(padded.subarray(0, 4), expected);
 }
 
 function testFastSwap64() {
-  const buf = Buffer.alloc(256);
-  buf.swap64();
+  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+  const expected = Buffer.from([0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]);
+  const padded = Buffer.alloc(256);
+  buf.copy(padded);
+  padded.swap64();
+  assert.deepStrictEqual(padded.subarray(0, 8), expected);
 }
 
 eval('%PrepareFunctionForOptimization(Buffer.prototype.swap16)');
