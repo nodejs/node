@@ -49,8 +49,15 @@ void Foreign::init_foreign_address(IsolateForSandbox isolate,
 }
 
 Address Foreign::foreign_address_unchecked(IsolateForSandbox isolate) const {
-  return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
-      kForeignAddressOffset, isolate);
+  if (HeapLayout::InAnySharedSpace(*this)) {
+    // We differentiate this case because we have to look in the isolate's
+    // shared external pointer table.
+    return ReadExternalPointerField<kAnySharedManagedExternalPointerTagRange>(
+        kForeignAddressOffset, isolate);
+  } else {
+    return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
+        kForeignAddressOffset, isolate);
+  }
 }
 
 Address Foreign::foreign_address_unchecked() const {

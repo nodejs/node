@@ -102,7 +102,7 @@ InspectorIsolateData::~InspectorIsolateData() {
     session_ids_for_cleanup_.insert(pair.first);
   }
 
-  context_group_by_session_.clear();
+  context_group_by_session_id_.clear();
   sessions_.clear();
 
   for (int session_id : session_ids_for_cleanup_) {
@@ -216,26 +216,9 @@ std::optional<int> InspectorIsolateData::ConnectSession(
       waiting_for_debugger_
           ? v8_inspector::V8Inspector::kWaitingForDebugger
           : v8_inspector::V8Inspector::kNotWaitingForDebugger);
-  context_group_by_session_[sessions_[session_id].get()] = context_group_id;
+  context_group_by_session_id_[session_id] = context_group_id;
   return session_id;
 }
-
-namespace {
-
-class RemoveChannelTask : public TaskRunner::Task {
- public:
-  explicit RemoveChannelTask(int session_id) : session_id_(session_id) {}
-  ~RemoveChannelTask() override = default;
-  bool is_priority_task() final { return false; }
-
- private:
-  void Run(InspectorIsolateData* data) override {
-    ChannelHolder::RemoveChannel(session_id_);
-  }
-  int session_id_;
-};
-
-}  // namespace
 
 std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
     int session_id, TaskRunner* context_task_runner) {
@@ -246,20 +229,13 @@ std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
     return {};
   }
 
-  context_group_by_session_.erase(it->second.get());
+  context_group_by_session_id_.erase(session_id);
   std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
 
-  // The InspectorSession destructor does cleanup work like disabling agents.
-  // This could send some more notifications. We'll delay removing the channel
-  // so notification tasks have time to get sent.
-  // Note: This only works for tasks scheduled immediately by the desctructor.
-  //       Any task scheduled in turn by one of the "cleanup tasks" will run
-  //       AFTER the channel was removed.
-  context_task_runner->Append(std::make_unique<RemoveChannelTask>(session_id));
-
-  // In case we shutdown the test runner before the above task can run, we
-  // let the desctructor clean up the channel.
+  // Record the session so we can cleanup the channel later.
+  // We can't delete the channel now as we might be on the nested run loop and
+  // (debugger pause) and the session could be alive for a little while longer.
   session_ids_for_cleanup_.insert(session_id);
   return result;
 }
@@ -473,7 +449,7 @@ void InspectorIsolateData::FreeContext(v8::Local<v8::Context> context) {
 std::vector<int> InspectorIsolateData::GetSessionIds(int context_group_id) {
   std::vector<int> result;
   for (auto& it : sessions_) {
-    if (context_group_by_session_[it.second.get()] == context_group_id)
+    if (context_group_by_session_id_[it.first] == context_group_id)
       result.push_back(it.first);
   }
   return result;

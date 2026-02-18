@@ -127,13 +127,17 @@ struct FlatHashMapPolicy;
 //   if (result != ducks.end()) {
 //     std::cout << "Result: " << result->second << std::endl;
 //   }
-template <class K, class V, class Hash = DefaultHashContainerHash<K>,
-          class Eq = DefaultHashContainerEq<K>,
-          class Allocator = std::allocator<std::pair<const K, V>>>
+template <
+    class K, class V,
+    class Hash =
+        typename container_internal::FlatHashMapPolicy<K, V>::DefaultHash,
+    class Eq = typename container_internal::FlatHashMapPolicy<K, V>::DefaultEq,
+    class Allocator =
+        typename container_internal::FlatHashMapPolicy<K, V>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER flat_hash_map
-    : public absl::container_internal::raw_hash_map<
+    : public absl::container_internal::InstantiateRawHashMap<
           absl::container_internal::FlatHashMapPolicy<K, V>, Hash, Eq,
-          Allocator> {
+          Allocator>::type {
   using Base = typename flat_hash_map::raw_hash_map;
 
  public:
@@ -177,6 +181,11 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::flat_hash_map<int, std::string> map7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
+  //   absl::flat_hash_map<int, std::string> map8(std::from_range, v);
   flat_hash_map() {}
   using Base::Base;
 
@@ -636,6 +645,10 @@ struct FlatHashMapPolicy {
   using key_type = K;
   using mapped_type = V;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
+
+  using DefaultHash = DefaultHashContainerHash<K>;
+  using DefaultEq = DefaultHashContainerEq<K>;
+  using DefaultAlloc = std::allocator<std::pair<const K, V>>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {

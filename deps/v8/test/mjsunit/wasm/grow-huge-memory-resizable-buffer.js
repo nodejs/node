@@ -23,6 +23,7 @@ function GetMemoryPages(memory) {
 (function TestGrowFromJSSAB() {
   let mem = new WebAssembly.Memory({initial: 200, maximum: 50000});
   let buf = mem.toResizableBuffer();
+  assertEquals(true, buf.resizable);
   buf.resize(buf.byteLength + 40000 * kPageSize);
   assertEquals(40200, GetMemoryPages(mem));
 })();

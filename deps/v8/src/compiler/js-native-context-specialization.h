@@ -159,13 +159,11 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
       Node* frame_state, Node* effect, Node* control, NameRef name,
       ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info);
 
-  ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
-                                        Node* context, Node* frame_state,
-                                        Node* effect, Node* control,
-                                        NameRef name,
-                                        ZoneVector<Node*>* if_exceptions,
-                                        PropertyAccessInfo const& access_info,
-                                        AccessMode access_mode);
+  std::optional<ValueEffectControl> BuildPropertyStore(
+      Node* receiver, Node* value, Node* context, Node* frame_state,
+      Node* effect, Node* control, NameRef name,
+      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
+      AccessMode access_mode);
 
   ValueEffectControl BuildPropertyTest(Node* effect, Node* control,
                                        PropertyAccessInfo const& access_info);

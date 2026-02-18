@@ -538,6 +538,13 @@ void AstTraversalVisitor<Subclass>::VisitInitializeClassStaticElementsStatement(
           RECURSE(Visit(prop->key()));
         }
         RECURSE(Visit(prop->value()));
+        if (prop->is_auto_accessor()) {
+          // The generated getter and setter are created after the
+          // ClassLiteralProperty value is created, so we visit them in
+          // the same order.
+          RECURSE(Visit(prop->auto_accessor_info()->generated_getter()));
+          RECURSE(Visit(prop->auto_accessor_info()->generated_setter()));
+        }
         break;
       }
       case ClassLiteral::StaticElement::STATIC_BLOCK:

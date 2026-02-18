@@ -96,7 +96,7 @@ void SmiStringCache::Set(Isolate* isolate, InternalIndex entry,
 // static
 template <class IsolateT>
 DirectHandle<SmiStringCache> SmiStringCache::New(IsolateT* isolate,
-                                                 int capacity) {
+                                                 uint32_t capacity) {
   std::optional<DisallowGarbageCollection> no_gc;
   DirectHandle<SmiStringCache> result = Cast<SmiStringCache>(
       Allocate(isolate, capacity * kEntrySize, &no_gc, AllocationType::kOld));

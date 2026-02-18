@@ -9,7 +9,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/object-access.h"
@@ -57,6 +57,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->mov(dst.gp(), src);
       break;
     case kI64:
@@ -91,6 +92,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->mov(dst, src.gp());
       break;
     case kI64:
@@ -121,6 +123,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kRef:
     case kRefNull:
+    case kWaitQueue:
       assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;
@@ -415,11 +418,12 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   if (!v8_flags.experimental_wasm_growable_stacks) {
     return ebp;
   }
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   j(equal, &call_runtime);
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
   mov(old_fp.gp(), ebp);
   jmp(&done);
 
@@ -775,9 +779,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */,
                                   bool /* i64_offset */,
                                   Endianness /* endianness */) {
+  // x86 loads are suitable for both acquire and seqcst loads.
   if (type.value() != LoadType::kI64Load) {
     Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
     return;
@@ -796,8 +802,11 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool /* i64_offset */,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = liftoff::MemOperand(dst_addr, offset_reg, offset_imm);
 
@@ -808,9 +817,11 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     movd(scratch2, src.high().gp());
     Punpckldq(liftoff::kScratchDoubleReg, scratch2);
     movsd(dst_op, liftoff::kScratchDoubleReg);
-    // This lock+or is needed to achieve sequential consistency.
-    lock();
-    or_(Operand(esp, 0), Immediate(0));
+    if (memory_order == AtomicMemoryOrder::kSeqCst) {
+      // This lock+or is needed to achieve sequential consistency.
+      lock();
+      or_(Operand(esp, 0), Immediate(0));
+    }
     return;
   }
 
@@ -840,21 +851,41 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     }
   }
 
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      xchg_b(src_gp, dst_op);
-      return;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      xchg_w(src_gp, dst_op);
-      return;
-    case StoreType::kI64Store32:
-    case StoreType::kI32Store:
-      xchg(src_gp, dst_op);
-      return;
-    default:
-      UNREACHABLE();
+  if (memory_order == AtomicMemoryOrder::kSeqCst) {
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        xchg_b(src_gp, dst_op);
+        return;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        xchg_w(src_gp, dst_op);
+        return;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        xchg(src_gp, dst_op);
+        return;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(memory_order, AtomicMemoryOrder::kAcqRel);
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        mov_b(dst_op, src.gp());
+        return;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        mov_w(dst_op, src.gp());
+        return;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        mov(dst_op, src.gp());
+        return;
+      default:
+        UNREACHABLE();
+    }
   }
 }
 
@@ -1641,6 +1672,8 @@ void LiftoffAssembler::emit_i32_muli(Register dst, Register lhs, int32_t imm) {
   }
 }
 
+void LiftoffAssembler::SpillDivRegisters() { SpillRegisters(eax, edx); }
+
 namespace liftoff {
 enum class DivOrRem : uint8_t { kDiv, kRem };
 template <bool is_signed, DivOrRem div_or_rem>
@@ -1653,15 +1686,15 @@ void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
       is_signed && div_or_rem == DivOrRem::kRem;
   DCHECK_EQ(needs_unrepresentable_check, trap_div_unrepresentable != nullptr);
 
-  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
-  // these registers are unused. If {rhs} is stored in one of them, move it to
-  // another temporary register.
-  // Do all this before any branch, such that the code is executed
-  // unconditionally, as the cache state will also be modified unconditionally.
-  assm->SpillRegisters(eax, edx);
+  // For division, the lhs is always taken from {edx:eax}. Callers need to
+  // make sure these registers are unused. If {rhs} is stored in one of them,
+  // move it to another temporary register.
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(eax)));
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(edx)));
+  LiftoffRegList unavailable{eax, edx, lhs};
+  CacheStatePreservingTempRegisters temps{assm, unavailable};
   if (rhs == eax || rhs == edx) {
-    LiftoffRegList unavailable{eax, edx, lhs};
-    Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
+    Register tmp = temps.Acquire();
     assm->mov(tmp, rhs);
     rhs = tmp;
   }
@@ -3969,7 +4002,12 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
                                                     LiftoffRegister lhs,
                                                     LiftoffRegister rhs) {
-  I16x8DotI8x16I7x16S(dst.fp(), lhs.fp(), rhs.fp());
+  DoubleRegister lhs_src = lhs.fp();
+  if (!CpuFeatures::IsSupported(AVX) && dst == lhs && dst != rhs) {
+    movdqa(kScratchDoubleReg, lhs.fp());
+    lhs_src = kScratchDoubleReg;
+  }
+  I16x8DotI8x16I7x16S(dst.fp(), lhs_src, rhs.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,

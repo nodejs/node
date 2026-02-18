@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
 #include "src/bigint/util.h"
 
@@ -234,8 +235,8 @@ class Runner {
   void TestKaratsuba(int* count) {
     // Calling {MultiplyKaratsuba} directly is only valid if
     // left_size >= right_size and right_size >= kKaratsubaThreshold.
-    constexpr uint32_t kMin = kKaratsubaThreshold;
-    constexpr uint32_t kMax = 3 * kKaratsubaThreshold;
+    constexpr uint32_t kMin = config::kKaratsubaThreshold;
+    constexpr uint32_t kMax = 3 * config::kKaratsubaThreshold;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
@@ -246,7 +247,7 @@ class Runner {
         GenerateRandom(A);
         GenerateRandom(B);
         processor()->MultiplyKaratsuba(result, A, B);
-        processor()->MultiplySchoolbook(result_schoolbook, A, B);
+        MultiplySchoolbook(result_schoolbook, A, B);
         AssertEquals(A, B, result_schoolbook, result);
         if (error_) return;
         (*count)++;
@@ -258,8 +259,8 @@ class Runner {
 #if V8_ADVANCED_BIGINT_ALGORITHMS
     // {MultiplyToomCook} works fine even below the threshold, so we can
     // save some time by starting small.
-    constexpr uint32_t kMin = kToomThreshold - 60;
-    constexpr uint32_t kMax = kToomThreshold + 10;
+    constexpr uint32_t kMin = config::kToomThreshold - 60;
+    constexpr uint32_t kMax = config::kToomThreshold + 10;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
@@ -286,9 +287,11 @@ class Runner {
     // we test a few random samples. With build bots running 24/7, we'll
     // get decent coverage over time.
     uint64_t random_bits = rng_.NextUint64();
-    uint32_t min = kFftThreshold - static_cast<uint32_t>(random_bits & 1023);
+    uint32_t min =
+        config::kFftThreshold - static_cast<uint32_t>(random_bits & 1023);
     random_bits >>= 10;
-    uint32_t max = kFftThreshold + static_cast<uint32_t>(random_bits & 1023);
+    uint32_t max =
+        config::kFftThreshold + static_cast<uint32_t>(random_bits & 1023);
     random_bits >>= 10;
     // If delta is too small, then this run gets too slow. If it happened
     // to be zero, we'd even loop forever!
@@ -317,8 +320,8 @@ class Runner {
 
   void TestBurnikel(int* count) {
     // Start small to save test execution time.
-    constexpr uint32_t kMin = kBurnikelThreshold / 2;
-    constexpr uint32_t kMax = 2 * kBurnikelThreshold;
+    constexpr uint32_t kMin = config::kBurnikelThreshold / 2;
+    constexpr uint32_t kMax = 2 * config::kBurnikelThreshold;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
@@ -352,7 +355,7 @@ class Runner {
     // {DivideResultLength} doesn't expect to be called for sizes below
     // {kBarrettThreshold} (which we do here to save time), so we have to
     // manually adjust the allocated result length.
-    if (B.len() < kBarrettThreshold) quotient_len++;
+    if (B.len() < config::kBarrettThreshold) quotient_len++;
     uint32_t remainder_len = right_size;
     ScratchDigits quotient(quotient_len);
     ScratchDigits quotient_burnikel(quotient_len);
@@ -368,8 +371,8 @@ class Runner {
   void TestBarrett(int* count) {
     // We pick a range around kBurnikelThreshold (instead of kBarrettThreshold)
     // to save test execution time.
-    constexpr uint32_t kMin = kBurnikelThreshold / 2;
-    constexpr uint32_t kMax = 2 * kBurnikelThreshold;
+    constexpr uint32_t kMin = config::kBurnikelThreshold / 2;
+    constexpr uint32_t kMax = 2 * config::kBurnikelThreshold;
     // {DivideBarrett(A, B)} requires that A.len > B.len!
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size + 1; left_size <= kMax;
@@ -382,7 +385,7 @@ class Runner {
     // We also test one random large case.
     uint64_t random_bits = rng_.NextUint64();
     uint32_t right_size =
-        kBarrettThreshold + static_cast<uint32_t>(random_bits & 0x3FF);
+        config::kBarrettThreshold + static_cast<uint32_t>(random_bits & 0x3FF);
     random_bits >>= 10;
     uint32_t left_size =
         right_size + 1 + static_cast<uint32_t>(random_bits & 0x3FFF);
@@ -396,8 +399,8 @@ class Runner {
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
 
   void TestToString(int* count) {
-    constexpr uint32_t kMin = kToStringFastThreshold / 2;
-    constexpr uint32_t kMax = kToStringFastThreshold * 2;
+    constexpr uint32_t kMin = config::kToStringFastThreshold / 2;
+    constexpr uint32_t kMax = config::kToStringFastThreshold * 2;
     for (uint32_t size = kMin; size < kMax; size++) {
       ScratchDigits X(size);
       GenerateRandom(X);
@@ -421,8 +424,8 @@ class Runner {
 
   void TestFromString(int* count) {
     constexpr uint32_t kMaxDigits = 1 << 20;  // Any large-enough value will do.
-    constexpr uint32_t kMin = kFromStringLargeThreshold / 2;
-    constexpr uint32_t kMax = kFromStringLargeThreshold * 2;
+    constexpr uint32_t kMin = config::kFromStringLargeThreshold / 2;
+    constexpr uint32_t kMax = config::kFromStringLargeThreshold * 2;
     for (uint32_t size = kMin; size < kMax; size++) {
       // To keep test execution times low, test one random radix every time.
       // Generally, radixes 2 through 36 (inclusive) are supported; however

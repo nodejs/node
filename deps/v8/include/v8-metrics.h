@@ -53,6 +53,7 @@ struct GarbageCollectionFullCycle {
   std::optional<v8::Isolate::Priority> priority = std::nullopt;
   bool reduce_memory = false;
   bool is_loading = false;
+  bool is_input_handling = false;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;

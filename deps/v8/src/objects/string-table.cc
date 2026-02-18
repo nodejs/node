@@ -104,6 +104,10 @@ class StringTable::Data {
     table_.IterateElements(Root::kStringTable, visitor);
   }
 
+  void IterateElementsRange(RootVisitor* visitor, int start, int end) {
+    table_.IterateElementsRange(Root::kStringTable, visitor, start, end);
+  }
+
   Data* PreviousData() { return previous_data_.get(); }
   void DropPreviousData() { previous_data_.reset(); }
 
@@ -752,6 +756,15 @@ void StringTable::IterateElements(RootVisitor* visitor) {
   // are paused, so the load can be relaxed.
   isolate_->heap()->safepoint()->AssertActive();
   data_.load(std::memory_order_relaxed)->IterateElements(visitor);
+}
+
+void StringTable::IterateElementsRange(RootVisitor* visitor, int start,
+                                       int end) {
+  // This should only happen during garbage collection when background threads
+  // are paused, so the load can be relaxed.
+  isolate_->heap()->safepoint()->AssertActive();
+  data_.load(std::memory_order_relaxed)
+      ->IterateElementsRange(visitor, start, end);
 }
 
 void StringTable::DropOldData() {

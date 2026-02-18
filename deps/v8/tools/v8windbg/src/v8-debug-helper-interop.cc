@@ -141,6 +141,50 @@ HRESULT GetMetadataPointerTableAddress(WRL::ComPtr<IDebugHostContext> context,
   return S_OK;
 }
 
+HRESULT GetIsolateHeapMemberOffset(WRL::ComPtr<IDebugHostContext> context,
+                                   uintptr_t* result) {
+  // Use debug symbols to find the offset of the isolate_ field within the
+  // Heap class. This is necessary because the offset can vary between builds
+  // due to compilation differences.
+  *result = 0;
+
+  // Get the current isolate to access its heap_ member, then query the type.
+  WRL::ComPtr<IModelObject> isolate_ptr;
+  RETURN_IF_FAIL(GetCurrentIsolate(isolate_ptr));
+
+  WRL::ComPtr<IModelObject> isolate;
+  RETURN_IF_FAIL(isolate_ptr->Dereference(&isolate));
+
+  // Access the heap_ field to get a Heap object.
+  WRL::ComPtr<IModelObject> heap_obj;
+  RETURN_IF_FAIL(isolate->GetRawValue(SymbolKind::SymbolField, L"heap_",
+                                      RawSearchNone, &heap_obj));
+
+  // Get the type of the heap_ field.
+  WRL::ComPtr<IDebugHostType> heap_type;
+  RETURN_IF_FAIL(heap_obj->GetTypeInfo(&heap_type));
+
+  // Enumerate fields to find isolate_.
+  WRL::ComPtr<IDebugHostSymbolEnumerator> field_enumerator;
+  RETURN_IF_FAIL(heap_type->EnumerateChildren(SymbolField, L"isolate_",
+                                              &field_enumerator));
+
+  WRL::ComPtr<IDebugHostSymbol> isolate_symbol;
+  RETURN_IF_FAIL(field_enumerator->GetNext(&isolate_symbol));
+  if (!isolate_symbol) {
+    return E_FAIL;
+  }
+
+  // Get the field offset.
+  WRL::ComPtr<IDebugHostField> isolate_field;
+  RETURN_IF_FAIL(isolate_symbol.As(&isolate_field));
+
+  ULONG64 offset;
+  RETURN_IF_FAIL(isolate_field->GetOffset(&offset));
+  *result = static_cast<uintptr_t>(offset);
+  return S_OK;
+}
+
 V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
                            uint64_t tagged_ptr, uint64_t referring_pointer,
                            const char* type_name, bool is_compressed) {
@@ -149,7 +193,7 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   V8HeapObject obj;
   MemReaderScope reader_scope(sp_context);
 
-  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0};
+  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0, 0};
   // TODO ideally we'd provide real heap page pointers. For now, just testing
   // decompression based on the pointer to wherever we found this value,
   // which is likely (though not guaranteed) to be a heap pointer itself.
@@ -159,6 +203,12 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   // failure.
   GetMetadataPointerTableAddress(sp_context,
                                  &heap_addresses.metadata_pointer_table);
+
+  // Get the offset of Isolate::heap_ from PDB symbols. This is critical for
+  // accessing external strings correctly, as the offset can differ between
+  // builds.
+  GetIsolateHeapMemberOffset(sp_context,
+                             &heap_addresses.isolate_heap_member_offset);
 
   auto props = d::GetObjectProperties(tagged_ptr, reader_scope.GetReader(),
                                       heap_addresses, type_name);

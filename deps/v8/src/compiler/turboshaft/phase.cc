@@ -36,16 +36,17 @@ AccountingAllocator* PipelineData::allocator() const {
   return nullptr;
 }
 
-void PrintTurboshaftGraph(PipelineData* data, Zone* temp_zone,
-                          CodeTracer* code_tracer, const char* phase_name) {
+void PrintTurboshaftGraph(PipelineData* data, CodeTracer* code_tracer,
+                          const char* phase_name) {
   if (data->info()->trace_turbo_json()) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     turboshaft::Graph& graph = data->graph();
 
     TurboJsonFile json_of(data->info(), std::ios_base::app);
+    Zone temp_zone{data->allocator(), "PrintTurboshaftGraph"};
     PrintTurboshaftGraphForTurbolizer(json_of, graph, phase_name,
-                                      data->node_origins(), temp_zone);
+                                      data->node_origins(), &temp_zone);
   }
 
   if (data->info()->trace_turbo_graph()) {

@@ -308,9 +308,6 @@ class Code : public ExposedTrustedObject {
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   // Support for short builtin calls END.
 
-  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
-
   void SetMarkedForDeoptimization(Isolate* isolate,
                                   LazyDeoptimizeReason reason);
   void TraceMarkForDeoptimization(Isolate* isolate,

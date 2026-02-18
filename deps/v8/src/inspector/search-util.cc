@@ -141,12 +141,11 @@ std::unique_ptr<V8Regex> createSearchRegex(V8InspectorImpl* inspector,
 }  // namespace
 
 std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>>
-searchInTextByLinesImpl(V8InspectorSession* session, const String16& text,
+searchInTextByLinesImpl(V8InspectorImpl* inspector, const String16& text,
                         const String16& query, const bool caseSensitive,
                         const bool isRegex) {
-  std::unique_ptr<V8Regex> regex = createSearchRegex(
-      static_cast<V8InspectorSessionImpl*>(session)->inspector(), query,
-      caseSensitive, isRegex);
+  std::unique_ptr<V8Regex> regex =
+      createSearchRegex(inspector, query, caseSensitive, isRegex);
   std::vector<std::pair<int, String16>> matches =
       scriptRegexpMatchesByLines(*regex, text);
 

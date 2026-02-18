@@ -10,6 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/string.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -34,10 +35,9 @@ CallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
 
 // static
 ObjectAccess ObjectAccessForGCStores(wasm::ValueType type) {
-  return ObjectAccess(
-      MachineType::TypeForRepresentation(type.machine_representation(),
-                                         !type.is_packed()),
-      type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier);
+  return ObjectAccess(MachineType::TypeForRepresentation(
+                          type.machine_representation(), !type.is_packed()),
+                      type.is_ref() ? kFullWriteBarrier : kNoWriteBarrier);
 }
 
 // Sets {true_node} and {false_node} to their corresponding Branch outputs.
@@ -207,11 +207,11 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
         Load(MachineType::Pointer(), isolate_root,
              IsolateData::shared_external_pointer_table_offset());
     table = Load(MachineType::Pointer(), table_address,
-                 Internals::kExternalPointerTableBasePointerOffset);
+                 Internals::kExternalEntityTableBasePointerOffset);
   } else {
     table = Load(MachineType::Pointer(), isolate_root,
                  IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBasePointerOffset);
+                     Internals::kExternalEntityTableBasePointerOffset);
   }
 
   // We don't expect to see empty fields here. If this is ever needed, consider
@@ -230,6 +230,7 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
     auto ok = MakeLabel();
     GotoIf(Word32Equal(actual_tag, expected_tag), &ok, BranchHint::kTrue);
     RuntimeAbort(AbortReason::kExternalPointerTagMismatch);
+    Goto(&ok);  // Unreachable, but needed for graph coherency.
     Bind(&ok);
     return pointer;
   } else {
@@ -242,19 +243,46 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-Node* WasmGraphAssembler::BuildDecodeTrustedPointer(Node* handle,
-                                                    IndirectPointerTag tag) {
+Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
+    Node* handle, IndirectPointerTagRange tag_range) {
 #if V8_ENABLE_SANDBOX
   Node* index = Word32Shr(handle, Int32Constant(kTrustedPointerHandleShift));
   Node* offset = ChangeUint32ToUint64(
       Word32Shl(index, Int32Constant(kTrustedPointerTableEntrySizeLog2)));
   Node* table = Load(MachineType::Pointer(), LoadRootRegister(),
                      IsolateData::trusted_pointer_table_offset() +
-                         Internals::kTrustedPointerTableBasePointerOffset);
+                         Internals::kExternalEntityTableBasePointerOffset);
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
-  // Untag the pointer and remove the marking bit in one operation.
-  decoded_ptr = WordAnd(decoded_ptr,
-                        IntPtrConstant(~(tag | kTrustedPointerTableMarkBit)));
+
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(mask));
+  } else {
+    Node* tag =
+        WordShr(decoded_ptr, IntPtrConstant(kTrustedPointerTableTagShift));
+
+    auto ok = MakeLabel();
+    if (tag_range.Size() == 1) {
+      // The common and simple case: we expect exactly one tag.
+      Node* expected_tag = IntPtrConstant(tag_range.first);
+      GotoIf(WordEqual(tag, expected_tag), &ok, BranchHint::kTrue);
+      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      Goto(&ok);  // Unreachable, but needed for graph coherency.
+    } else {
+      // Range check.
+      Node* diff = IntPtrSub(tag, IntPtrConstant(tag_range.first));
+      GotoIf(Uint64LessThanOrEqual(
+                 diff, IntPtrConstant(tag_range.last - tag_range.first)),
+             &ok, BranchHint::kTrue);
+      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      Goto(&ok);  // Unreachable, but needed for graph coherency.
+    }
+
+    Bind(&ok);
+    decoded_ptr =
+        WordAnd(decoded_ptr, IntPtrConstant(kTrustedPointerTablePayloadMask));
+  }
+
   // We have to change the type of the result value to Tagged, so if the value
   // gets spilled on the stack, it will get processed by the GC.
   decoded_ptr = BitcastWordToTagged(decoded_ptr);
@@ -386,7 +414,7 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
 }
 
 Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTag tag) {
+    Node* object, int field_offset, IndirectPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadImmutableFromObject(MachineType::Uint32(), object, offset);
@@ -396,9 +424,8 @@ Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
 #endif
 }
 
-Node* WasmGraphAssembler::LoadTrustedPointerFromObject(Node* object,
-                                                       int field_offset,
-                                                       IndirectPointerTag tag) {
+Node* WasmGraphAssembler::LoadTrustedPointerFromObject(
+    Node* object, int field_offset, IndirectPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadFromObject(MachineType::Uint32(), object, offset);
@@ -410,7 +437,7 @@ Node* WasmGraphAssembler::LoadTrustedPointerFromObject(Node* object,
 
 std::pair<Node*, Node*>
 WasmGraphAssembler::LoadTrustedPointerFromObjectTrapOnNull(
-    Node* object, int field_offset, IndirectPointerTag tag) {
+    Node* object, int field_offset, IndirectPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadTrapOnNull(MachineType::Uint32(), object, offset);
@@ -447,7 +474,7 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
       shared,
       wasm::ObjectAccess::ToTagged(
           SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kWasmFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataIndirectPointerTag);
 }
 
 Node* WasmGraphAssembler::LoadExportedFunctionIndexAsSmi(

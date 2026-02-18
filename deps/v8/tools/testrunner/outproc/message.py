@@ -24,7 +24,7 @@ class OutProc(base.ExpectedOutProc):
 
     expected_lines = []
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(self._basepath.with_suffix('.out')) as f:
+    with open(self._basepath.with_suffix('.out'), encoding="utf-8") as f:
       for line in f:
         if line.startswith("#") or not line.strip():
           continue

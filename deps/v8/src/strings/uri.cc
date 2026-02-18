@@ -4,8 +4,13 @@
 
 #include "src/strings/uri.h"
 
+#include <algorithm>
+#include <cstring>
+#include <limits>
+#include <new>
 #include <vector>
 
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-search.h"
@@ -208,7 +213,61 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
   return result;
 }
 
-namespace {  // anonymous namespace for EncodeURI helper functions
+namespace {
+
+template <typename T>
+class ResizableBuffer {
+ public:
+  explicit ResizableBuffer(size_t initial_capacity, size_t max_capacity)
+      : data_(new T[initial_capacity]),
+        capacity_(initial_capacity),
+        size_(0),
+        max_capacity_(max_capacity) {
+    DCHECK_LE(capacity_, max_capacity_);
+    // Check that `max_capacity_` is not so large that `capacity_ * 2`
+    // could overflow.
+    DCHECK_LE(max_capacity_, std::numeric_limits<size_t>::max() / 2);
+  }
+
+  ~ResizableBuffer() { delete[] data_; }
+
+  ResizableBuffer(const ResizableBuffer&) = delete;
+  ResizableBuffer& operator=(const ResizableBuffer&) = delete;
+
+  template <typename... Args>
+  bool TryPushBack(Args... args) {
+    constexpr size_t arg_count = sizeof...(args);
+    if (V8_UNLIKELY(size_ + arg_count > capacity_)) {
+      if (!TryExpand(arg_count)) return false;
+    }
+    ((data_[size_++] = args), ...);
+    return true;
+  }
+
+  const T* data() const { return data_; }
+  size_t size() const { return size_; }
+
+ private:
+  V8_PRESERVE_MOST bool TryExpand(size_t required_size) {
+    size_t minimum_capacity = size_ + required_size;
+    size_t new_capacity =
+        std::min(capacity_ * 2 + required_size, max_capacity_);
+    if (new_capacity < minimum_capacity) return false;
+
+    T* new_data = new T[new_capacity];
+    std::memcpy(new_data, data_, size_ * sizeof(T));
+    delete[] data_;
+    data_ = new_data;
+    capacity_ = new_capacity;
+    return true;
+  }
+
+  T* data_;
+  size_t capacity_;
+  size_t size_;
+  const size_t max_capacity_;
+};
+
 bool IsUnescapePredicateInUriComponent(base::uc16 c) {
   if (IsAlphaNumeric(c)) {
     return true;
@@ -249,30 +308,90 @@ bool IsUriSeparator(base::uc16 c) {
   }
 }
 
-void AddEncodedOctetToBuffer(uint8_t octet, std::vector<uint8_t>* buffer) {
-  buffer->push_back('%');
-  buffer->push_back(base::HexCharOfValue(octet >> 4));
-  buffer->push_back(base::HexCharOfValue(octet & 0x0F));
+bool AddEncodedOctetToBuffer(uint8_t octet, ResizableBuffer<uint8_t>* buffer) {
+  return buffer->TryPushBack('%', base::HexCharOfValue(octet >> 4),
+                             base::HexCharOfValue(octet & 0x0F));
 }
 
-void EncodeSingle(base::uc16 c, std::vector<uint8_t>* buffer) {
-  char s[4] = {};
-  int number_of_bytes;
-  number_of_bytes =
-      unibrow::Utf8::Encode(s, c, unibrow::Utf16::kNoPreviousCharacter, false);
-  for (int k = 0; k < number_of_bytes; k++) {
-    AddEncodedOctetToBuffer(s[k], buffer);
-  }
-}
-
-void EncodePair(base::uc16 cc1, base::uc16 cc2, std::vector<uint8_t>* buffer) {
+bool Encode(unibrow::uchar c, ResizableBuffer<uint8_t>* buffer) {
   char s[4] = {};
   int number_of_bytes =
-      unibrow::Utf8::Encode(s, unibrow::Utf16::CombineSurrogatePair(cc1, cc2),
-                            unibrow::Utf16::kNoPreviousCharacter, false);
+      unibrow::Utf8::Encode(s, c, unibrow::Utf16::kNoPreviousCharacter, false);
   for (int k = 0; k < number_of_bytes; k++) {
-    AddEncodedOctetToBuffer(s[k], buffer);
+    if (!AddEncodedOctetToBuffer(s[k], buffer)) return false;
   }
+  return true;
+}
+
+enum class EncodeStatus { kSuccess, kUriError, kAllocationFailure };
+
+V8_NODISCARD EncodeStatus
+EncodeHelperOneByte(base::Vector<const uint8_t> uri_content, bool is_uri,
+                    ResizableBuffer<uint8_t>* buffer) {
+  for (uint8_t c : uri_content) {
+    if (IsUnescapePredicateInUriComponent(c) || (is_uri && IsUriSeparator(c))) {
+      if (!buffer->TryPushBack(c)) {
+        return EncodeStatus::kAllocationFailure;
+      }
+    } else {
+      if (!Encode(c, buffer)) {
+        return EncodeStatus::kAllocationFailure;
+      }
+    }
+  }
+  return EncodeStatus::kSuccess;
+}
+
+V8_NODISCARD EncodeStatus
+EncodeHelperTwoByte(base::Vector<const base::uc16> uri_content, bool is_uri,
+                    ResizableBuffer<uint8_t>* buffer) {
+  for (int k = 0; k < uri_content.length(); k++) {
+    base::uc16 cc1 = uri_content[k];
+    if (unibrow::Utf16::IsLeadSurrogate(cc1)) {
+      k++;
+      if (k >= uri_content.length()) {
+        // A lead surrogate was found without a tail surrogate.
+        return EncodeStatus::kUriError;
+      }
+      base::uc16 cc2 = uri_content[k];
+      if (!unibrow::Utf16::IsTrailSurrogate(cc2)) {
+        // A lead surrogate was found without a tail surrogate.
+        return EncodeStatus::kUriError;
+      }
+
+      if (!Encode(unibrow::Utf16::CombineSurrogatePair(cc1, cc2), buffer)) {
+        return EncodeStatus::kAllocationFailure;
+      }
+      continue;
+    }
+
+    if (unibrow::Utf16::IsTrailSurrogate(cc1)) {
+      // A tail surrogate was found without a preceding lead surrogate.
+      return EncodeStatus::kUriError;
+    }
+
+    if (IsUnescapePredicateInUriComponent(cc1) ||
+        (is_uri && IsUriSeparator(cc1))) {
+      if (!buffer->TryPushBack(cc1)) {
+        return EncodeStatus::kAllocationFailure;
+      }
+    } else {
+      if (!Encode(cc1, buffer)) {
+        return EncodeStatus::kAllocationFailure;
+      }
+    }
+  }
+  return EncodeStatus::kSuccess;
+}
+
+V8_NODISCARD EncodeStatus EncodeHelper(DirectHandle<String> uri, bool is_uri,
+                                       ResizableBuffer<uint8_t>* buffer) {
+  DisallowGarbageCollection no_gc;
+  String::FlatContent uri_content = uri->GetFlatContent(no_gc);
+  if (uri_content.IsOneByte()) {
+    return EncodeHelperOneByte(uri_content.ToOneByteVector(), is_uri, buffer);
+  }
+  return EncodeHelperTwoByte(uri_content.ToUC16Vector(), is_uri, buffer);
 }
 
 }  // anonymous namespace
@@ -280,49 +399,18 @@ void EncodePair(base::uc16 cc1, base::uc16 cc2, std::vector<uint8_t>* buffer) {
 MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
                                       DirectHandle<String> uri, bool is_uri) {
   uri = String::Flatten(isolate, uri);
-  int uri_length = uri->length();
-  std::vector<uint8_t> buffer;
-  buffer.reserve(uri_length);
+  ResizableBuffer<uint8_t> buffer(uri->length(), v8::String::kMaxLength);
 
-  bool throw_error = false;
-  {
-    DisallowGarbageCollection no_gc;
-    String::FlatContent uri_content = uri->GetFlatContent(no_gc);
+  EncodeStatus status = EncodeHelper(uri, is_uri, &buffer);
 
-    for (int k = 0; k < uri_length; k++) {
-      base::uc16 cc1 = uri_content.Get(k);
-      if (unibrow::Utf16::IsLeadSurrogate(cc1)) {
-        k++;
-        if (k < uri_length) {
-          base::uc16 cc2 = uri->Get(k);
-          if (unibrow::Utf16::IsTrailSurrogate(cc2)) {
-            EncodePair(cc1, cc2, &buffer);
-            continue;
-          }
-        }
-      } else if (!unibrow::Utf16::IsTrailSurrogate(cc1)) {
-        if (IsUnescapePredicateInUriComponent(cc1) ||
-            (is_uri && IsUriSeparator(cc1))) {
-          buffer.push_back(cc1);
-        } else {
-          EncodeSingle(cc1, &buffer);
-        }
-        continue;
-      }
-
-      // String::FlatContent DCHECKs its contents did not change during its
-      // lifetime. Throwing the error inside the loop may cause GC and move the
-      // string contents.
-      throw_error = true;
-      break;
-    }
+  switch (status) {
+    case EncodeStatus::kSuccess:
+      return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
+    case EncodeStatus::kUriError:
+      THROW_NEW_ERROR(isolate, NewURIError());
+    case EncodeStatus::kAllocationFailure:
+      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
   }
-
-  if (throw_error) THROW_NEW_ERROR(isolate, NewURIError());
-  if (buffer.size() > v8::String::kMaxLength) {
-    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
-  }
-  return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
 }
 
 namespace {  // Anonymous namespace for Escape and Unescape

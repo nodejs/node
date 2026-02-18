@@ -59,6 +59,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -411,10 +412,10 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     CHECK_NOT_NULL(v8_flags.perf_basic_prof_path);
     const char* base_dir = v8_flags.perf_basic_prof_path;
     // Open the perf JIT dump file.
-    base::ScopedVector<char> perf_dump_name(strlen(base_dir) +
-                                            kFilenameBufferPadding);
-    int size =
-        SNPrintF(perf_dump_name, "%s/perf-%d.map", base_dir, process_id_);
+    auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(
+        strlen(base_dir) + kFilenameBufferPadding);
+    int size = SNPrintF(perf_dump_name.as_vector(), "%s/perf-%d.map", base_dir,
+                        process_id_);
     CHECK_NE(size, -1);
     perf_output_handle_ =
         base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
@@ -732,7 +733,8 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
     : CodeEventLogger(isolate), ll_output_handle_(nullptr) {
   // Open the low-level log file.
   size_t len = strlen(name);
-  base::ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
+  auto ll_name =
+      base::OwnedVector<char>::NewForOverwrite(len + sizeof(kLogExt));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
@@ -1583,11 +1585,6 @@ void V8FileLogger::FeedbackVectorEvent(Tagged<FeedbackVector> vector,
   msg << kNext << reinterpret_cast<void*>(vector.address()) << kNext
       << vector->length();
   msg << kNext << reinterpret_cast<void*>(code->InstructionStart(cage_base));
-#ifndef V8_ENABLE_LEAPTIERING
-  msg << kNext << vector->tiering_state();
-  msg << kNext << vector->maybe_has_maglev_code();
-  msg << kNext << vector->maybe_has_turbofan_code();
-#endif  // !V8_ENABLE_LEAPTIERING
   msg << kNext << vector->invocation_count();
 
 #ifdef OBJECT_PRINT
@@ -1760,7 +1757,7 @@ void V8FileLogger::CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                                   Address pc, int fp_to_sp_delta) {
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+  Deoptimizer::DeoptInfo info = Deoptimizer::ComputeDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
@@ -2141,18 +2138,14 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
+      // We have to skip over a special case here: Wasm functions created by
+      // instantiation attempts that failed to complete have inaccessible
+      // WasmFunctionData. They are also unreachable, but since we're walking
+      // the entire heap here, we may still find them if no GC has cleaned them
+      // up yet. See crbug.com/385341243 and the associated fix for context.
+      if (sfi->HasUnpublishedTrustedData(isolate)) continue;
+
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
-#if V8_ENABLE_WEBASSEMBLY
-        // We have to skip over a special case here: Wasm functions created
-        // by instantiation attempts that failed to complete have inaccessible
-        // WasmFunctionData. They are also unreachable, but since we're walking
-        // the entire heap here, we may still find them if no GC has cleaned
-        // them up yet.
-        if (sfi->HasWasmFunctionData(isolate) &&
-            sfi->HasUnpublishedTrustedData(isolate)) {
-          continue;
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
       }
     } else if (IsJSFunction(obj)) {
@@ -2277,7 +2270,7 @@ void V8FileLogger::LogAllMaps() {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsAnyHole(obj) || !IsMap(obj)) continue;
+    if (!IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     MapCreate(map);
     MapDetails(map);
@@ -2685,6 +2678,7 @@ void ExistingCodeLogger::LogCompiledFunctions(
                                                  module_object->script());
   }
   wasm::GetWasmImportWrapperCache()->LogForIsolate(isolate_);
+  wasm::GetWasmStackEntryWrapperCache()->LogForIsolate(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

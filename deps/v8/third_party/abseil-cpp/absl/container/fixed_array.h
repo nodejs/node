@@ -45,10 +45,10 @@
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/iterator_traits.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
@@ -84,11 +84,9 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   static constexpr size_t kInlineBytesDefault = 256;
 
   using AllocatorTraits = std::allocator_traits<A>;
-  // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
-  // but this seems to be mostly pedantic.
   template <typename Iterator>
-  using EnableIfForwardIterator = std::enable_if_t<
-      base_internal::IsAtLeastForwardIterator<Iterator>::value>;
+  using EnableIfInputIterator =
+      std::enable_if_t<base_internal::IsAtLeastInputIterator<Iterator>::value>;
   static constexpr bool NoexceptCopyable() {
     return std::is_nothrow_copy_constructible<StorageElement>::value &&
            absl::allocator_is_nothrow<allocator_type>::value;
@@ -161,8 +159,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
 
   // Creates an array initialized with the elements from the input
   // range. The array's size will always be `std::distance(first, last)`.
-  // REQUIRES: Iterator must be a forward_iterator or better.
-  template <typename Iterator, EnableIfForwardIterator<Iterator>* = nullptr>
+  // REQUIRES: Iterator must be a input_iterator or better.
+  template <typename Iterator, EnableIfInputIterator<Iterator>* = nullptr>
   FixedArray(Iterator first, Iterator last,
              const allocator_type& a = allocator_type())
       : storage_(std::distance(first, last), a) {
@@ -242,7 +240,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // array, or throws std::out_of_range
   reference at(size_type i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }
@@ -251,7 +249,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // of the fixed array.
   const_reference at(size_type i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }

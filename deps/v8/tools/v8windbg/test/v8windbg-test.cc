@@ -259,6 +259,13 @@ void RunTests() {
                     {"\"a\"", "SeqOneByteString"}, &output,
                     p_debug_control.Get());
 
+  // Ensure script metadata is readable (script name/source strings surfaced).
+  RunAndCheckOutput("js stack script_name", "dx @$jsstack()[0].script_name",
+                    {"script.js"}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack script_source", "dx @$jsstack()[0].script_source",
+                    {"externalizeString"}, &output, p_debug_control.Get());
+
   RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
                     {"\"b\"", "SeqOneByteString"}, &output,
                     p_debug_control.Get());

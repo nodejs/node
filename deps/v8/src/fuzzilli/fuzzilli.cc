@@ -8,8 +8,10 @@
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
+#include "src/codegen/external-reference.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/execution/simulator.h"
 #include "src/fuzzilli/cov.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
@@ -120,6 +122,27 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
         // there are some integrity checks behind DEBUG.
 #ifdef DEBUG
         IMMEDIATE_CRASH();
+#endif
+        break;
+      }
+      case 9: {
+        abort_with_sandbox_violation();
+        break;
+      }
+      case 10: {  // SIGILL triggered by ud2
+#ifdef V8_HOST_ARCH_X64
+        __asm__ volatile("ud2\n");
+#else
+        fprintf(stderr, "Unsupported architecture for crash SIGILL crash\n");
+#endif
+        break;
+      }
+      case 11: {  // SIGILL triggered by non-ud2 invalid instruction
+#ifdef V8_HOST_ARCH_X64
+        // This instruction (0xFF 0xFF) is invalid on x64.
+        __asm__ volatile(".byte 0xFF, 0xFF\n");
+#else
+        fprintf(stderr, "Unsupported architecture for crash SIGILL crash\n");
 #endif
         break;
       }

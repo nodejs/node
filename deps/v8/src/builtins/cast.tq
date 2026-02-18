@@ -309,10 +309,10 @@ Cast<JSAny>(o: Object): JSAny labels CastError {
 
 Cast<JSAny|TheHole>(o: Object): JSAny|TheHole labels CastError {
   typeswitch (o) {
-    case (o: TheHole): {
+    case (o: JSAny): {
       return o;
     }
-    case (o: JSAny): {
+    case (o: TheHole): {
       return o;
     }
     case (Object): {
@@ -323,10 +323,10 @@ Cast<JSAny|TheHole>(o: Object): JSAny|TheHole labels CastError {
 
 Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   typeswitch (o) {
-    case (o: TheHole): {
+    case (o: Number): {
       return o;
     }
-    case (o: Number): {
+    case (o: TheHole): {
       return o;
     }
     case (Object): {
@@ -339,13 +339,13 @@ Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   Cast<Number|Undefined|TheHole>(o: Object): Number|Undefined|
       TheHole labels CastError {
     typeswitch (o) {
-      case (o: TheHole): {
-        return o;
-      }
       case (o: Number): {
         return o;
       }
       case (o: Undefined): {
+        return o;
+      }
+      case (o: TheHole): {
         return o;
       }
       case (Object): {
@@ -437,11 +437,15 @@ Cast<Undefined|JSFunction>(o: HeapObject): Undefined|JSFunction
 
 macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
 Cast<PublicSymbol>(s: Symbol): PublicSymbol labels CastError {
-  if (s.flags.is_private) goto CastError;
+  if (s.flags.private_symbol_kind != PrivateSymbolKind::kPublic) {
+    goto CastError;
+  }
   return %RawDownCast<PublicSymbol>(s);
 }
 Cast<PrivateSymbol>(s: Symbol): PrivateSymbol labels CastError {
-  if (s.flags.is_private) return %RawDownCast<PrivateSymbol>(s);
+  if (s.flags.private_symbol_kind != PrivateSymbolKind::kPublic) {
+    return %RawDownCast<PrivateSymbol>(s);
+  }
   goto CastError;
 }
 Cast<PublicSymbol>(o: HeapObject): PublicSymbol labels CastError {
@@ -620,6 +624,7 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
+// LINT.IfChange
 Cast<JSArrayForFastToString>(
     implicit context: Context)(o: HeapObject): JSArrayForFastToString
     labels CastError {
@@ -671,6 +676,7 @@ Cast<JSArrayForFastToString>(
 
   return %RawDownCast<JSArrayForFastToString>(o);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 Cast<JSSetWithNoCustomIteration>(
     implicit context: Context)(o: HeapObject): JSSetWithNoCustomIteration
@@ -829,6 +835,20 @@ Cast<JSReceiver|Symbol>(implicit context: Context)(o: Object): JSReceiver|
       return o;
     }
     case (o: Symbol): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+Cast<Undefined|JSPromise>(o: Object): Undefined|JSPromise labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: JSPromise): {
       return o;
     }
     case (Object): {

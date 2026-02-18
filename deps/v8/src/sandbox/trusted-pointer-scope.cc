@@ -21,10 +21,10 @@ TrustedPointerPublishingScope::TrustedPointerPublishingScope(
 TrustedPointerPublishingScope::~TrustedPointerPublishingScope() {
   if (state_ == State::kFailure) {
     if (storage_ == Storage::kSingleton) {
-      singleton_->OverwriteTag(kUnpublishedIndirectPointerTag);
+      singleton_->Unpublish();
     } else if (storage_ == Storage::kVector) {
       for (TrustedPointerTableEntry* entry : *vector_) {
-        entry->OverwriteTag(kUnpublishedIndirectPointerTag);
+        entry->Unpublish();
       }
     }
   } else {

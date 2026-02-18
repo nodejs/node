@@ -218,16 +218,19 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
-  int length = shared->feedback_metadata()->create_closure_slot_count();
-  if (length == 0) {
+  const int int_length =
+      shared->feedback_metadata()->create_closure_slot_count();
+  if (int_length == 0) {
     return isolate->factory()->empty_closure_feedback_cell_array();
   }
+  DCHECK_GE(int_length, 0);
+  const uint32_t length = static_cast<uint32_t>(int_length);
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
@@ -240,7 +243,7 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   std::optional<DisallowGarbageCollection> no_gc;
   auto result = Allocate(isolate, length, &no_gc, allocation);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     result->set(i, *cells[i]);
   }
 
@@ -518,7 +521,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
-DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
+DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(uint32_t length) {
   DCHECK(config()->can_write());
   DirectHandle<WeakFixedArray> array =
       config()->isolate()->factory()->NewWeakFixedArray(length);
@@ -851,6 +854,52 @@ InlineCacheState FeedbackNexus::ic_state() const {
   return InlineCacheState::UNINITIALIZED;
 }
 
+Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
+                                  FeedbackSlotKind kind) {
+  if (kind != FeedbackSlotKind::kLoadProperty) return Builtin::kIllegal;
+
+  if (IsSmi(feedback_extra)) {
+    int handler = feedback_extra.ToSmi().value();
+    LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
+    // LoadField.
+    if (handler_kind == LoadHandler::Kind::kField) {
+      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+    }
+  } else {
+    Tagged<HeapObject> heap_object;
+    // LoadConstantFromPrototype.
+    if (feedback_extra.GetHeapObjectIfStrong(&heap_object)) {
+      if (IsDataHandler(heap_object)) {
+        Tagged<DataHandler> handler = Cast<DataHandler>(heap_object);
+        Tagged<UnionOf<Smi, Code>> smi_handler = handler->smi_handler();
+        if (IsSmi(smi_handler)) {
+          int value = smi_handler.ToSmi().value();
+          if (value == LoadHandler::KindBits::encode(
+                           LoadHandler::Kind::kConstantFromPrototype)) {
+            return Builtin::kLoadICConstantFromPrototypeBaseline;
+          }
+        }
+      } else if (IsCode(heap_object)) {
+        Tagged<Code> handler = UncheckedCast<Code>(heap_object);
+        if (handler->builtin_id() == Builtin::kLoadIC_StringLength) {
+          return Builtin::kLoadICStringLengthBaseline;
+        }
+      }
+    }
+  }
+
+  // ICs that are not specialized for a specific handler are considered generic.
+  return Builtin::kLoadICGenericBaseline;
+}
+
+Builtin FeedbackNexus::ic_handler() const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind());
+}
+
 void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
   DCHECK(IsGlobalICKind(kind()));
   SetFeedback(MakeWeak(*cell), UPDATE_WRITE_BARRIER, UninitializedSentinel(),
@@ -944,11 +993,12 @@ void FeedbackNexus::ConfigureCloneObject(
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
-                               kCloneObjectPolymorphicEntrySize;
+      const uint32_t kMaxElements = v8_flags.max_valid_polymorphic_map_count *
+                                    kCloneObjectPolymorphicEntrySize;
       DirectHandle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
-      int i = 0;
-      for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
+      const uint32_t array_len = array->ulength().value();
+      uint32_t i = 0;
+      for (; i < array_len; i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
         DirectHandle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
@@ -958,7 +1008,7 @@ void FeedbackNexus::ConfigureCloneObject(
           break;
       }
 
-      if (i >= array->length()) {
+      if (i >= array_len) {
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
@@ -967,9 +1017,9 @@ void FeedbackNexus::ConfigureCloneObject(
         }
 
         // Grow polymorphic feedback array.
-        DirectHandle<WeakFixedArray> new_array = CreateArrayOfSize(
-            array->length() + kCloneObjectPolymorphicEntrySize);
-        for (int j = 0; j < array->length(); ++j) {
+        DirectHandle<WeakFixedArray> new_array =
+            CreateArrayOfSize(array_len + kCloneObjectPolymorphicEntrySize);
+        for (uint32_t j = 0; j < array_len; ++j) {
           new_array->set(j, array->get(j));
         }
         SetFeedback(*new_array);
@@ -1067,11 +1117,12 @@ void FeedbackNexus::ConfigureMonomorphic(
 
 void FeedbackNexus::ConfigurePolymorphic(
     DirectHandle<Name> name, MapsAndHandlers const& maps_and_handlers) {
-  int receiver_count = static_cast<int>(maps_and_handlers.size());
+  const uint32_t receiver_count =
+      static_cast<uint32_t>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  int current = 0;
+  uint32_t current = 0;
 
   for (; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];

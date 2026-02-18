@@ -19,7 +19,6 @@ let __v_0 = {
   b: 2
 };
 const __v_1 = 29234234234234;
-__prettyPrintExtra(__v_1);
 function __f_0(__v_2) {
   let __v_3 = __v_2 + 5;
   let __v_4 = dummy;
@@ -27,13 +26,16 @@ function __f_0(__v_2) {
   try {
     __v_2++;
     __v_4 = __v_5;
+    __prettyPrintExtra(__v_4);
     __v_5.prop = {};
     __v_5.prop = {};
     __v_5.prop = {};
     __v_5.prop = {};
     __v_5.prop = {};
+    __prettyPrintExtra(__v_5);
   } catch (__v_6) {
     __v_2 = __v_3;
+    __prettyPrintExtra(__v_2);
   }
   return {
     a: __v_2,

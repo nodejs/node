@@ -3,12 +3,14 @@
 // found in the LICENSE file
 
 #include "src/objects/objects-inl.h"
-#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
+#include "test/unittests/compiler/backend/turboshaft-instruction-selector-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace turboshaft {
 
+#if 0
 namespace {
 template <typename T>
 struct MachInst {
@@ -1588,6 +1590,199 @@ TEST_F(InstructionSelectorTest, Word64ReverseBytes) {
   }
 }
 
+#endif
+
+// -----------------------------------------------------------------------------
+// Branch-if-overflow fusion
+struct OverflowBinopOp {
+  TSBinop op;
+  const char* constructor_name;
+  ArchOpcode arch_opcode;
+  bool is_64_bits;
+};
+
+std::ostream& operator<<(std::ostream& os, const OverflowBinopOp& bop) {
+  return os << bop.constructor_name;
+}
+
+// Note that multiplication isn't tested because multiplication doesn't set
+// flags on Arm64, and thus BranchIfOverflow fusion cannot happen.
+const OverflowBinopOp kOverflowBinaryOperationsForBranchFusion[] = {
+    {TSBinop::kInt32AddCheckOverflow, "Int32AddCheckOverflow", kLoong64Add_d,
+     false},
+    {TSBinop::kInt64AddCheckOverflow, "Int64AddCheckOverflow", kLoong64AddOvf_d,
+     true},
+    {TSBinop::kInt32SubCheckOverflow, "kInt32SubCheckOverflow", kLoong64Sub_d,
+     false},
+    {TSBinop::kInt64SubCheckOverflow, "kInt64SubCheckOverflow",
+     kLoong64SubOvf_d, true},
+    {TSBinop::kInt32MulCheckOverflow, "Int32MulCheckOverflow", kLoong64MulOvf_w,
+     false},
+    {TSBinop::kInt64MulCheckOverflow, "Int64MulCheckOverflow", kLoong64MulOvf_d,
+     true}};
+
+using TurboshaftInstructionSelectorBranchIfOverflowTest =
+    TurboshaftInstructionSelectorTestWithParam<OverflowBinopOp>;
+
+TEST_P(TurboshaftInstructionSelectorBranchIfOverflowTest,
+       BranchIfZeroWithParameters) {
+  const OverflowBinopOp ovf_binop = GetParam();
+  MachineType in_out_type =
+      ovf_binop.is_64_bits ? MachineType::Int64() : MachineType::Int32();
+  StreamBuilder m(this, in_out_type, in_out_type, in_out_type);
+  Block *a = m.NewBlock(), *b = m.NewBlock();
+  OpIndex n = m.Emit(ovf_binop.op, m.Parameter(0), m.Parameter(1));
+  m.Branch(m.Word32Equal(m.Projection(n, 1), m.Int32Constant(0)), a, b);
+  m.Bind(a);
+  m.Return(m.Projection(n, 0));
+  m.Bind(b);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(ovf_binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kNotOverflow, s[0]->flags_condition());
+}
+
+TEST_P(TurboshaftInstructionSelectorBranchIfOverflowTest,
+       BranchIfNotZeroWithParameters) {
+  const OverflowBinopOp ovf_binop = GetParam();
+  MachineType in_out_type =
+      ovf_binop.is_64_bits ? MachineType::Int64() : MachineType::Int32();
+  StreamBuilder m(this, in_out_type, in_out_type, in_out_type);
+  Block *a = m.NewBlock(), *b = m.NewBlock();
+  OpIndex n = m.Emit(ovf_binop.op, m.Parameter(0), m.Parameter(1));
+  m.Branch(m.Word32NotEqual(m.Projection(n, 1), m.Int32Constant(0)), a, b);
+  m.Bind(a);
+  m.Return(m.Projection(n, 0));
+  m.Bind(b);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(ovf_binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kOverflow, s[0]->flags_condition());
+}
+
+TEST_P(TurboshaftInstructionSelectorBranchIfOverflowTest,
+       BranchIfOverflowWithLoop) {
+  const OverflowBinopOp ovf_binop = GetParam();
+  MachineType in_out_type =
+      ovf_binop.is_64_bits ? MachineType::Int64() : MachineType::Int32();
+  StreamBuilder m(this, in_out_type, in_out_type, in_out_type);
+
+  WordRepresentation phi_repr = ovf_binop.is_64_bits
+                                    ? WordRepresentation::Word64()
+                                    : WordRepresentation::Word32();
+
+  Block* loop_header = m.NewLoopHeader();
+  Block *b1 = m.NewBlock(), *b2 = m.NewBlock();
+
+  OpIndex v1 = m.Parameter(0);
+  OpIndex v2 = m.Parameter(0);
+
+  m.Goto(loop_header);
+  m.Bind(loop_header);
+  OpIndex phi = m.PendingLoopPhi(v1, phi_repr);
+  OpIndex binop = m.Emit(ovf_binop.op, v1, v2);
+  m.Branch(m.Word32Equal(m.Projection(binop, 1), m.Word32Constant(0)), b1, b2);
+  m.Bind(b2);
+  m.Goto(loop_header);
+  m.Bind(b1);
+  m.Return(v1);
+
+  m.output_graph().Replace<PhiOp>(
+      phi, base::VectorOf<OpIndex>({v1, m.Projection(binop, 0)}), phi_repr);
+
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(ovf_binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kNotOverflow, s[0]->flags_condition());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TurboshaftInstructionSelectorTest,
+    TurboshaftInstructionSelectorBranchIfOverflowTest,
+    ::testing::ValuesIn(kOverflowBinaryOperationsForBranchFusion));
+
+TEST_F(TurboshaftInstructionSelectorTest, wasmSimdOrnTest) {
+  // NOT node on the left
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, l);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, not_op, r);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the ((not L) or R) is correctly optimized to (R orn L)
+    EXPECT_EQ(kLoong64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(0)));
+  }
+  // NOT node on the right
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, l, not_op);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the (L or (not R)) is correctly optimized to (L orn R)
+    EXPECT_EQ(kLoong64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(1)));
+  }
+  // NOT node used elsewhere too (should not optimise)
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op1 = m.Emit(TSBinop::kS128Or, l, not_op);
+    // Use the not_op elsewhere, blocking CanCover()
+    OpIndex or_op2 = m.Emit(TSBinop::kS128Or, r, not_op);
+    // Combine ops together, to one parent.
+    OpIndex combining_op = m.Emit(TSBinop::kS128Or, or_op1, or_op2);
+    m.Return(combining_op);
+    Stream s = m.Build();
+
+    EXPECT_EQ(4U, s.size());
+    // Test that or_op1 has not been optimised.
+    EXPECT_EQ(kLoong64S128Or, s[1]->arch_opcode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[1]->InputAt(1)));
+    // Test that or_op2 has not been optimised.
+    EXPECT_EQ(kLoong64S128Or, s[2]->arch_opcode());
+    EXPECT_EQ(2U, s[2]->InputCount());
+    EXPECT_EQ(1U, s[2]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[2]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[2]->InputAt(1)));
+  }
+}
+
+}  // namespace turboshaft
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

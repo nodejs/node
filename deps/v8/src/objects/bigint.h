@@ -26,7 +26,6 @@ namespace internal {
 
 void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
-int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr);
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
 int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
@@ -108,11 +107,15 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
-  static const uint32_t kLengthFieldBits = 30;
-  static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  // We intentionally use all available bits, so that decoding the length
+  // field is just a "shr" instruction (and needs no bit mask).
+  static const uint32_t kLengthFieldBits = 31;
+  static_assert(kMaxLength <= ((1u << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
   using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
+
+  void BigIntBaseShortPrint(std::ostream& os);
 
   DECL_VERIFIER(BigIntBase)
   DECL_PRINTER(BigIntBase)
@@ -246,8 +249,6 @@ V8_OBJECT class BigInt : public BigIntBase {
   uint64_t AsUint64(bool* lossless = nullptr);
   uint32_t Words64Count();
   void ToWordsArray64(int* sign_bit, uint32_t* words64_count, uint64_t* words);
-
-  void BigIntShortPrint(std::ostream& os);
 
   inline static uint32_t SizeFor(uint32_t length) {
     return sizeof(BigInt) + length * kDigitSize;

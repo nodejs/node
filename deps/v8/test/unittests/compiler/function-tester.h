@@ -55,6 +55,7 @@ class FunctionTester {
 
   void CheckThrows(Handle<Object> a);
   void CheckThrows(Handle<Object> a, Handle<Object> b);
+  v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a);
   v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                   Handle<Object> b);
   void CheckCall(DirectHandle<Object> expected, Handle<Object> a,

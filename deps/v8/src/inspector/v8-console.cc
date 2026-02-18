@@ -750,7 +750,8 @@ void V8Console::lastEvaluationResultCallback(
 
 static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
                         v8::Local<v8::Value> value, int sessionId,
-                        InspectRequest request, V8InspectorImpl* inspector) {
+                        InspectRequest request, V8InspectorImpl* inspector,
+                        bool omitFocus = false) {
   if (request == kRegular) info.GetReturnValue().Set(value);
 
   v8::debug::ConsoleCallArguments args(info);
@@ -769,6 +770,9 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   } else if (request == kQueryObjects) {
     hints->setBoolean("queryObjects", true);
   }
+  if (omitFocus) {
+    hints->setBoolean("omitFocus", true);
+  }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     session->runtimeAgent()->inspect(std::move(wrappedObject), std::move(hints),
                                      helper.contextId());
@@ -778,7 +782,19 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                                 int sessionId) {
   if (info.Length() < 1) return;
-  inspectImpl(info, info[0], sessionId, kRegular, m_inspector);
+  bool omitFocus = false;
+  if (info.Length() >= 2 && info[1]->IsObject()) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::Object> options = info[1].As<v8::Object>();
+    v8::Local<v8::Value> focusValue;
+    if (options->Get(context, toV8StringInternalized(isolate, "focus"))
+            .ToLocal(&focusValue) &&
+        focusValue->IsFalse()) {
+      omitFocus = true;
+    }
+  }
+  inspectImpl(info, info[0], sessionId, kRegular, m_inspector, omitFocus);
 }
 
 void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,

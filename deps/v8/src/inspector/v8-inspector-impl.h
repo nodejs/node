@@ -90,6 +90,9 @@ class V8InspectorImpl : public V8Inspector {
                                                     StringView state,
                                                     ClientTrustLevel,
                                                     SessionPauseState) override;
+  std::shared_ptr<V8InspectorSession> connectShared(
+      int contextGroupId, V8Inspector::ManagedChannel*, StringView state,
+      ClientTrustLevel, SessionPauseState) override;
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
@@ -164,7 +167,8 @@ class V8InspectorImpl : public V8Inspector {
   };
 
  private:
-  V8InspectorSessionImpl* connectImpl(int contextGroupId, V8Inspector::Channel*,
+  V8InspectorSessionImpl* connectImpl(int contextGroupId,
+                                      V8Inspector::ManagedChannel*,
                                       StringView state, ClientTrustLevel,
                                       SessionPauseState);
 

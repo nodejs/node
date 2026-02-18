@@ -5,9 +5,10 @@
 #ifndef V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_INL_H_
 #define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_INL_H_
 
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/linkage.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -734,6 +735,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList pinned, bool i64_offset,
                                   Endianness /* endianness */) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -786,12 +788,10 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   if (protected_load_pc) *protected_load_pc = pc_offset() - kInstrSize * 2;
 }
 
-void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
-                                               Register offset_reg,
-                                               int32_t offset_imm,
-                                               AtomicMemoryOrder memory_order,
-                                               uint32_t* protected_load_pc,
-                                               bool needs_shift) {
+void LiftoffAssembler::AtomicLoadTaggedPointer(
+    Register dst, Register src_addr, Register offset_reg, int32_t offset_imm,
+    AtomicMemoryOrder /* memory_order */, uint32_t* protected_load_pc,
+    bool needs_shift) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   uint32_t pc_offset_of_load = 0;
@@ -811,8 +811,11 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool i64_offset,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   MemOperand dst_op =
@@ -844,6 +847,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+  if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
 
   // protected_store_pc should be the address of the store instruction.
   // The MacroAssembler store may contain some instructions for adjusting
@@ -856,7 +860,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
   AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
-              StoreType::kI32Store, protected_store_pc, pinned, false);
+              StoreType::kI32Store, protected_store_pc, memory_order, pinned,
+              false);
 }
 
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr) \

@@ -135,7 +135,8 @@ void DecodeEntry(base::Vector<const uint8_t> bytes, int* index,
 
 base::Vector<const uint8_t> VectorFromByteArray(
     Tagged<TrustedByteArray> byte_array) {
-  return base::Vector<const uint8_t>(byte_array->begin(), byte_array->length());
+  return base::Vector<const uint8_t>(byte_array->begin(),
+                                     byte_array->ulength().value());
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

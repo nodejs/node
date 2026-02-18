@@ -339,6 +339,8 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
       }
     }
   }
+  std::replace(filename.begin(), filename.begin() + filename.length(), '/',
+               '_');
   std::replace(filename.begin(), filename.begin() + filename.length(), ' ',
                '_');
   std::replace(filename.begin(), filename.begin() + filename.length(), ':',

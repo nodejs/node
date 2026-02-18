@@ -161,7 +161,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   template <typename IsolateT>
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
-#ifdef V8_ENABLE_LEAPTIERING
   static inline JSDispatchHandle AllocateDispatchHandle(
       Handle<JSFunction> function, Isolate* isolate, uint16_t parameter_count,
       DirectHandle<Code> code,
@@ -172,7 +171,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline void set_dispatch_handle(
       JSDispatchHandle handle,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -221,9 +219,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // kinds, e.g. TURBOFAN, ignore the tiering state).
   inline bool ChecksTieringState(IsolateForSandbox isolate);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  inline TieringState tiering_state() const;
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Tiering up a function happens as follows:
   // 1. RequestOptimization is called
@@ -254,12 +249,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   inline bool tiering_in_progress() const;
   // NB: Tiering includes Optimization and Logging requests.
-  inline bool IsTieringRequestedOrInProgress() const;
+  inline bool IsTieringRequestedOrInProgress(Isolate* isolate) const;
 
   inline void SetTieringInProgress(
       Isolate* isolate, bool in_progress,
       BytecodeOffset osr_offset = BytecodeOffset::None());
-  inline void ResetTieringRequests();
+  inline void ResetTieringRequests(Isolate* isolate);
 
   inline bool osr_tiering_in_progress();
 
@@ -454,19 +449,16 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;
 
-#ifndef V8_ENABLE_LEAPTIERING
-  inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
 
   // Updates the Code in this function's dispatch table entry.
   inline void UpdateDispatchEntry(
-      Tagged<Code> new_code,
+      Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateDispatchEntryKeepTieringRequest(
-      Tagged<Code> new_code,
+      Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Hide generated accessors; custom accessors are called "shared".

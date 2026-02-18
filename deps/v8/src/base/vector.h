@@ -12,6 +12,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/base/algorithm.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -50,13 +51,13 @@ class Vector {
   template <class U>
   void OverwriteWith(Vector<U> other) {
     DCHECK_EQ(size(), other.size());
-    std::copy(other.begin(), other.end(), begin());
+    base::Copy(other.begin(), other.end(), begin());
   }
 
   template <class U, size_t n>
   void OverwriteWith(const std::array<U, n>& other) {
     DCHECK_EQ(size(), other.size());
-    std::copy(other.begin(), other.end(), begin());
+    base::Copy(other.begin(), other.end(), begin());
   }
 
   // Returns the length of the vector. Only use this if you really need an
@@ -108,13 +109,6 @@ class Vector {
   }
   constexpr std::reverse_iterator<T*> rend() const {
     return std::make_reverse_iterator(begin());
-  }
-
-  // Returns a clone of this vector with a new backing store.
-  Vector<T> Clone() const {
-    T* result = new T[length_];
-    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
-    return Vector<T>(result, length_);
   }
 
   void Truncate(size_t length) {
@@ -184,16 +178,6 @@ template <typename T>
 V8_INLINE size_t hash_value(base::Vector<T> v) {
   return hash_range(v.begin(), v.end());
 }
-
-template <typename T>
-class V8_NODISCARD ScopedVector : public Vector<T> {
- public:
-  explicit ScopedVector(size_t length) : Vector<T>(new T[length], length) {}
-  ~ScopedVector() { delete[] this->begin(); }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
-};
 
 template <typename T>
 class OwnedVector {
@@ -300,7 +284,7 @@ class OwnedVector {
   template <typename U>
   static OwnedVector<U> NewByCopying(const U* data, size_t size) {
     auto result = OwnedVector<U>::NewForOverwrite(size);
-    std::copy(data, data + size, result.begin());
+    base::Copy(data, data + size, result.begin());
     return result;
   }
 

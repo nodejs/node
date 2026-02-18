@@ -182,10 +182,11 @@ DirectHandle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
 }
 
 // Get the total number of break points.
-int DebugInfo::GetBreakPointCount(Isolate* isolate) {
+uint32_t DebugInfo::GetBreakPointCount(Isolate* isolate) {
   DCHECK(HasBreakInfo());
-  int count = 0;
-  for (int i = 0; i < break_points()->length(); i++) {
+  uint32_t count = 0;
+  uint32_t break_points_len = break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(break_points()->get(i));
@@ -363,13 +364,13 @@ MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
 }
 
 // Get the number of break points.
-int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
+uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   // No break point.
   if (IsUndefined(break_points(), isolate)) return 0;
   // Single break point.
   if (!IsFixedArray(break_points())) return 1;
   // Multiple break points.
-  return Cast<FixedArray>(break_points())->length();
+  return Cast<FixedArray>(break_points())->ulength().value();
 }
 
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {

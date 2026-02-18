@@ -35,12 +35,15 @@
 #include "absl/meta/type_traits.h"
 #include "absl/types/any.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
-using ::absl::container_internal::hash_internal::Enum;
-using ::absl::container_internal::hash_internal::EnumClass;
+
 using ::testing::_;
 using ::testing::IsEmpty;
 using ::testing::Pair;
@@ -445,6 +448,36 @@ TEST(Iterator, InconsistentHashEqFunctorsValidation) {
 #endif
   EXPECT_DEATH_IF_SUPPORTED(insert_conflicting_elems(), crash_message);
 }
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+TEST(FlatHashMap, FromRange) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::flat_hash_map<int, int> m(std::from_range, v);
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+
+TEST(FlatHashMap, FromRangeWithAllocator) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::flat_hash_map<int, int,
+                      absl::container_internal::hash_default_hash<int>,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<std::pair<const int, int>>>
+      m(std::from_range, v, 0, Alloc<std::pair<const int, int>>());
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+
+TEST(FlatHashMap, FromRangeWithHasherAndAllocator) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  using TestingHash = absl::container_internal::StatefulTestingHash;
+  absl::flat_hash_map<int, int, TestingHash,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<std::pair<const int, int>>>
+      m(std::from_range, v, 0, TestingHash{},
+        Alloc<std::pair<const int, int>>());
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

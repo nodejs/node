@@ -28,14 +28,6 @@ namespace ieee754 {
 
 namespace {
 
-/* Disable "potential divide by 0" warning in Visual Studio compiler. */
-
-#if V8_CC_MSVC
-
-#pragma warning(disable : 4723)
-
-#endif
-
 /*
  * The original fdlibm code used statements like:
  *  n0 = ((*(int*)&one)>>29)^1;   * index of high word *

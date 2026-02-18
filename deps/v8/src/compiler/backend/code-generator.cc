@@ -247,13 +247,11 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Check that {kJavaScriptCallDispatchHandleRegister} has been set correctly.
   if (v8_flags.debug_code && call_descriptor->IsJSFunctionCall()) {
     masm()->RecordComment("-- Prologue: check dispatch handle register --");
     AssembleDispatchHandleRegisterCheck();
   }
-#endif
 
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
@@ -261,7 +259,9 @@ void CodeGenerator::AssembleCode() {
   if (info->IsOptimizing()) {
     DCHECK(call_descriptor->IsJSFunctionCall());
     masm()->RecordComment("-- Prologue: check for deoptimization --");
-    BailoutIfDeoptimized();
+    if (v8_flags.debug_code) {
+      AssertNotDeoptimized();
+    }
   }
 
   // Define deoptimization literals for all inlined functions.
@@ -577,9 +577,7 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
   auto safepoint = safepoints()->DefineSafepoint(masm(), pc_offset);
 
-  for (int tagged : frame()->tagged_slots()) {
-    safepoint.DefineTaggedStackSlot(tagged);
-  }
+  safepoint.DefineTaggedStackSlots(frame()->tagged_slots());
 
   int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
@@ -860,6 +858,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());
+#ifdef V8_DUMPLING
+      if (v8_flags.turbofan_dumping) {
+        FrameStateDescriptor* descriptor =
+            GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+        if (descriptor->type() == FrameStateType::kUnoptimizedFunction &&
+            !isolate()->dumpling_manager()->IsIsolateDumpDisabled()) {
+          AssembleDumpFrame();
+        }
+      }
+#endif  // V8_DUMPLING
       break;
     }
     case kFlags_set: {
@@ -1022,10 +1030,12 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetWrappedSharedFunctionInfo(Smi::zero());
   }
 
+  const uint32_t protected_deopt_literals_len =
+      static_cast<uint32_t>(protected_deoptimization_literals_.size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       isolate()->factory()->NewProtectedFixedArray(
-          static_cast<int>(protected_deoptimization_literals_.size()));
-  for (unsigned i = 0; i < protected_deoptimization_literals_.size(); i++) {
+          protected_deopt_literals_len);
+  for (uint32_t i = 0; i < protected_deopt_literals_len; i++) {
     IndirectHandle<TrustedObject> object =
         protected_deoptimization_literals_[i];
     CHECK(!object.is_null());
@@ -1033,10 +1043,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetProtectedLiteralArray(*protected_literals);
 
+  const uint32_t deopt_literals_len =
+      static_cast<uint32_t>(deoptimization_literals_.size());
   DirectHandle<DeoptimizationLiteralArray> literals =
-      isolate()->factory()->NewDeoptimizationLiteralArray(
-          static_cast<int>(deoptimization_literals_.size()));
-  for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
+      isolate()->factory()->NewDeoptimizationLiteralArray(deopt_literals_len);
+  for (uint32_t i = 0; i < deopt_literals_len; i++) {
     DirectHandle<Object> object = deoptimization_literals_[i].Reify(isolate());
     CHECK(!object.is_null());
     literals->set(i, *object);

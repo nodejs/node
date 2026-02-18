@@ -18,6 +18,6 @@ assertEquals(128, foo(ta));
 assertOptimized(foo);
 
 ta.buffer.transfer();
-assertUnoptimized(foo);
 
 assertEquals(0, foo(ta));
+assertUnoptimized(foo);

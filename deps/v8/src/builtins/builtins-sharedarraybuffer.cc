@@ -55,9 +55,10 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                                isolate->factory()->NewStringFromAsciiChecked(
-                                    method_name)));
+          isolate,
+          NewTypeError(
+              MessageTemplate::kTypedArrayValidateErrorOperation,
+              isolate->factory()->NewStringFromAsciiChecked(method_name)));
     }
 
     if (only_int32_and_big_int64) {

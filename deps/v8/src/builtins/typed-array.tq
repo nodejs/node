@@ -53,10 +53,6 @@ struct TypedArrayElementsInfo {
 }
 extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
     void;
-extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
-    Context, JSAny, constexpr string): JSTypedArray;
-extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
-    Context, JSAny, constexpr string): uintptr;
 
 extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(RawPtr, RawPtr, uintptr):
     void;
@@ -86,8 +82,8 @@ extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     Context, JSTypedArray, uintptr, JSAny,
     constexpr ElementsKind): void labels IfDetached;
 
-extern macro LoadJSTypedArrayLengthAndCheckDetached(JSTypedArray): uintptr
-    labels IfDetached;
+extern macro LoadJSTypedArrayLengthAndValidate(
+    JSTypedArray, constexpr TypedArrayAccessMode): uintptr labels Fail;
 
 type LoadNumericFn = builtin(JSTypedArray, uintptr) => Numeric;
 type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) => Smi;
@@ -95,7 +91,7 @@ type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
 
 // The result codes returned by StoreNumericFn and StoreJSAnyFn builtins.
 const kStoreSucceded: Smi = 0;
-const kStoreFailureArrayDetachedOrOutOfBounds: Smi = 1;
+const kStoreFailureArrayDetachedOrImmutableOrOutOfBounds: Smi = 1;
 
 struct TypedArrayAccessor {
   macro LoadNumeric(array: JSTypedArray, index: uintptr): Numeric {
@@ -130,7 +126,7 @@ struct TypedArrayAccessor {
     // underlying ArrayBuffer is a no-op.
     dcheck(
         result == kStoreSucceded ||
-        result == kStoreFailureArrayDetachedOrOutOfBounds);
+        result == kStoreFailureArrayDetachedOrImmutableOrOutOfBounds);
   }
 
   loadNumericFn: LoadNumericFn;
@@ -191,6 +187,9 @@ extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     JSTypedArray, ByteArray, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     JSTypedArray, RawPtr, uintptr): void;
+extern macro IsJSArrayBufferViewValid(
+    JSArrayBufferView, constexpr TypedArrayAccessMode): never labels Valid,
+    Fail;
 extern macro IsJSArrayBufferViewDetachedOrOutOfBounds(JSArrayBufferView):
     never labels DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
 extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
@@ -199,27 +198,33 @@ extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
 // AttachedJSTypedArray guards that the array's buffer is not detached.
 transient type AttachedJSTypedArray extends JSTypedArray;
 
-macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
-    labels DetachedOrOutOfBounds {
+macro EnsureValid(array: JSTypedArray, mode: constexpr TypedArrayAccessMode):
+    AttachedJSTypedArray
+    labels Fail {
   try {
-    IsJSArrayBufferViewDetachedOrOutOfBounds(array)
-        otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
-  } label NotDetachedNorOutOfBounds {
+    IsJSArrayBufferViewValid(array, mode) otherwise Valid, Fail;
+  } label Valid {
     return %RawDownCast<AttachedJSTypedArray>(array);
   }
 }
 
-struct AttachedJSTypedArrayAndLength {
+struct ValidJSTypedArrayAndLength {
   array: AttachedJSTypedArray;
   length: uintptr;
 }
 
-macro EnsureAttachedAndReadLength(array: JSTypedArray):
-    AttachedJSTypedArrayAndLength
-    labels DetachedOrOutOfBounds {
-  const length = LoadJSTypedArrayLengthAndCheckDetached(array)
-      otherwise DetachedOrOutOfBounds;
-  return AttachedJSTypedArrayAndLength{
+extern macro TypedArrayBuiltinsAssembler::PartiallyValidateTypedArrayMaybeOOB(
+    Context, JSAny, constexpr string,
+    constexpr TypedArrayAccessMode): JSTypedArray;
+extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    Context, JSAny, constexpr string, constexpr TypedArrayAccessMode): uintptr;
+
+macro EnsureValidAndReadLength(
+    array: JSTypedArray,
+    mode: constexpr TypedArrayAccessMode): ValidJSTypedArrayAndLength
+    labels Fail {
+  const length = LoadJSTypedArrayLengthAndValidate(array, mode) otherwise Fail;
+  return ValidJSTypedArrayAndLength{
     array: %RawDownCast<AttachedJSTypedArray>(array),
     length: length
   };
@@ -231,7 +236,8 @@ struct AttachedJSTypedArrayWitness {
   }
 
   macro RecheckIndex(index: uintptr): void labels DetachedOrOutOfBounds {
-    const length = LoadJSTypedArrayLengthAndCheckDetached(this.stable)
+    const length = LoadJSTypedArrayLengthAndValidate(
+        this.stable, TypedArrayAccessMode::kRead)
         otherwise DetachedOrOutOfBounds;
     if (index >= length) {
       goto DetachedOrOutOfBounds;
@@ -308,21 +314,22 @@ builtin LoadTypedElement<T : type extends ElementsKind>(
 builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
     context: Context, typedArray: JSTypedArray, index: uintptr,
     value: Numeric): Smi {
+  dcheck(
+      !(IsImmutableArrayBuffer(UnsafeCast<JSArrayBuffer>(typedArray.buffer))));
   StoreJSTypedArrayElementFromNumeric(
       context, typedArray, index, value, KindForArrayType<T>());
   return kStoreSucceded;
 }
 
-// Returns True on success or False if the typedArrays was detached.
 builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
     context: Context, typedArray: JSTypedArray, index: uintptr,
     value: JSAny): Smi {
   try {
     StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>())
-        otherwise IfDetachedOrOutOfBounds;
-  } label IfDetachedOrOutOfBounds {
-    return kStoreFailureArrayDetachedOrOutOfBounds;
+        otherwise IfDetachedOrImmutableOrOutOfBounds;
+  } label IfDetachedOrImmutableOrOutOfBounds {
+    return kStoreFailureArrayDetachedOrImmutableOrOutOfBounds;
   }
   return kStoreSucceded;
 }

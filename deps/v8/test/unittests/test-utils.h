@@ -250,6 +250,10 @@ class WithIsolateScopeMixin : public TMixin {
     return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
   }
 
+  v8::Local<v8::Number> NewNumber(double value) {
+    return v8::Number::New(this->v8_isolate(), value);
+  }
+
   void EmptyMessageQueues() {
     while (v8::platform::PumpMessageLoop(internal::V8::GetCurrentPlatform(),
                                          this->v8_isolate())) {
@@ -633,6 +637,45 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
   void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                          size_t length) override {}
 #endif  // V8_ENABLE_WEBASSEMBLY
+};
+
+class CrashKeyStore {
+ public:
+  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
+    InstallCallbacks();
+  }
+
+  CrashKeyStore(const CrashKeyStore&) = delete;
+  CrashKeyStore& operator=(const CrashKeyStore&) = delete;
+
+  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
+
+  const std::string& ValueForKey(const std::string& name) const {
+    auto it = entries_.find(name);
+    CHECK(it != entries_.end());
+    CHECK_NOT_NULL(it->second.get());
+    return it->second->value;
+  }
+
+  bool HasKey(const std::string& name) const {
+    return entries_.find(name) != entries_.end();
+  }
+
+  size_t size() const { return entries_.size(); }
+  std::unordered_set<std::string> KeyNames() const;
+
+ private:
+  struct Entry {
+    CrashKeySize size;
+    std::string value;
+  };
+
+  void InstallCallbacks();
+  CrashKey AllocateKey(const char key[], CrashKeySize size);
+  void SetValue(CrashKey crash_key, const std::string_view value);
+
+  Isolate* isolate_;
+  std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
 };
 
 #ifdef V8_CC_GNU

@@ -12,11 +12,12 @@ namespace v8::internal {
 DirectHandle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
                                                    int capture_count,
                                                    AllocationType allocation) {
+  // TODO(375937549): Convert to uint32_t.
   int capacity = JSRegExp::RegistersForCaptureCount(capture_count);
   DCHECK_GE(capacity, kMinCapacity);
   std::optional<DisallowGarbageCollection> no_gc;
   DirectHandle<RegExpMatchInfo> result =
-      Allocate(isolate, capacity, &no_gc, allocation);
+      Allocate(isolate, static_cast<uint32_t>(capacity), &no_gc, allocation);
 
   ReadOnlyRoots roots{isolate};
   MemsetTagged(result->RawFieldOfFirstElement(), Smi::zero(), capacity);

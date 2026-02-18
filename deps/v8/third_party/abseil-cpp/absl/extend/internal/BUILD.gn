@@ -1,0 +1,97 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/abseil-cpp/absl.gni")
+
+absl_source_set("tuple") {
+  public = [ "tuple.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_source_set("is_tuple_hashable") {
+  public = [ "is_tuple_hashable.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/hash",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_source_set("reflection") {
+  public = [ "reflection.h" ]
+  sources = [ "reflection.cc" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/types:span",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_source_set("aggregate") {
+  public = [ "aggregate.h" ]
+  deps = [
+    ":num_bases",
+    ":num_initializers",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_test("aggregate_test") {
+  sources = [ "aggregate_test.cc" ]
+  deps = [
+    ":aggregate",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
+absl_source_set("num_bases") {
+  public = [ "num_bases.h" ]
+  deps = [
+    ":num_initializers",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_test("num_bases_test") {
+  sources = [ "num_bases_test.cc" ]
+  deps = [
+    ":num_bases",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
+absl_source_set("num_initializers") {
+  public = [ "num_initializers.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_test("num_initializers_test") {
+  sources = [ "num_initializers_test.cc" ]
+  deps = [
+    ":num_initializers",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
+absl_source_set("dependencies") {
+  public = [ "dependencies.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+  visibility = [ "//third_party/abseil-cpp/absl/extend/*" ]
+}
+
+absl_test("dependencies_test") {
+  public = [ "dependencies_test.cc" ]
+  deps = [
+    ":dependencies",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}

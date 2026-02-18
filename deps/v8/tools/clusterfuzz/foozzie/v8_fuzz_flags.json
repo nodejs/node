@@ -51,7 +51,7 @@
   [0.25, "--experimental-wasm-revectorize"],
   [0.1, "--no-additive-safe-int-feedback"],
   [0.1, "--hashes-collide"],
-  [0.1, "--handle-weak-ref-weakly-in-minor-gc"],
-  [0.5, "--proto-assign-seq-opt"],
+  [0.1, "--proto-assign-seq-opt"],
+  [0.5, "--proto-assign-seq-opt --proto-assign-seq-opt-count=1"],
   [0.1, "--scavenger-chaos-mode"]
 ]

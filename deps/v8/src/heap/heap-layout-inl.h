@@ -18,15 +18,6 @@ namespace v8::internal {
 
 // static
 bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-#ifdef DEBUG
-  // See `kContiguousReadOnlySpaceMask` definition for explanation.
-  const bool ro_via_address =
-      (object.ptr() & kContiguousReadOnlySpaceMask) == 0;
-  DCHECK_EQ(ro_via_address,
-            MemoryChunk::FromHeapObject(object)->InReadOnlySpace());
-#endif  // DEBUG
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 
@@ -85,12 +76,6 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
   return HeapLayout::InWritableSharedSpace(object);
 }
 
-bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
-  DCHECK(v8_flags.black_allocated_pages);
-  return MemoryChunk::FromHeapObject(object)->GetFlags() &
-         MemoryChunk::BLACK_ALLOCATED;
-}
-
 // static
 bool HeapLayout::InAnyLargeSpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->IsLargePage();
@@ -113,6 +98,11 @@ bool TrustedHeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
 // static
 bool TrustedHeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
+}
+
+// static
+bool TrustedHeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->Metadata()->is_black_allocated();
 }
 
 }  // namespace v8::internal

@@ -6,6 +6,8 @@
 #include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -39,10 +41,11 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  v8::base::ScopedVector<char> source(1024);
+  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(
-      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
-      name, name, name);
+      source.as_vector(),
+      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,
+      name);
   CHECK(CompileRun(source.begin())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
@@ -171,7 +174,7 @@ TEST(ArrayBuffer_MaxSize) {
 
   {
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    int gc_count = heap->gc_count();
+    i::GCEpoch gc_count = heap->gc_count();
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
 
@@ -252,7 +255,7 @@ TEST(ArrayBuffer_TotalSize) {
 
   {
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    int gc_count = heap->gc_count();
+    i::GCEpoch gc_count = heap->gc_count();
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
     // When some allocation below fails, we need to invoke GC without stack,
@@ -1274,4 +1277,28 @@ TEST(ArrayBufferView_GetContentsOutOfBounds) {
       "ab.resize(1); "
       "ta";
   TestArrayBufferViewGetContent(source, nullptr);
+}
+
+TEST(ArrayBuffer_ImmutableBackingStore) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 100);
+  CHECK(backing_store);
+
+  v8::internal::BackingStore* i_backing_store =
+      reinterpret_cast<v8::internal::BackingStore*>(backing_store.get());
+
+  i_backing_store->set_is_immutable(true);
+  CHECK(i_backing_store->is_immutable());
+
+  std::shared_ptr<v8::BackingStore> shared_backing_store =
+      std::move(backing_store);
+
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, shared_backing_store);
+
+  CHECK(ab->IsImmutable());
 }

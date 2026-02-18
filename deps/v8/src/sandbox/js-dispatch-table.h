@@ -12,8 +12,6 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-entity-table.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 namespace v8 {
 namespace internal {
 
@@ -58,7 +56,7 @@ struct JSDispatchEntry {
   // called even when the entry is not a freelist entry. However, the result
   // is only valid if this is a freelist entry. This behaviour is required
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
-  inline uint32_t GetNextFreelistEntryIndex() const;
+  inline std::optional<uint32_t> GetNextFreelistEntryIndex() const;
 
   // Mark this entry as alive during garbage collection.
   inline void Mark();
@@ -90,22 +88,7 @@ struct JSDispatchEntry {
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
-#ifdef __illumos__
-  // In illumos 64-bit apps, pointers are allocated both the bottom 2^47 range
-  // AND the top 2^47 range in the 64-bit space. Instead of 47 bits of VA space
-  // we have 48 bits. This means, however, the top 16-bits may be 0xffff. We
-  // therefore pick a different value for the kFreeEntryTag.  If/when we go to
-  // VA57, aka 5-level paging, we'll need to revisit this again, as will node
-  // by default, since the fixed-bits on the high end will shrink from top
-  // 16-bits to top 8-bits.
-  //
-  // Unless illumos ships an Oracle-Solaris-like VA47 link-time options to
-  // restrict pointers from allocating from above the Virtual Address hole,
-  // we need to be mindful of this.
-  static constexpr Address kFreeEntryTag = 0xfeed000000000000ull;
-#else
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
-#endif /* __illumos__ */
 #ifdef V8_TARGET_BIG_ENDIAN
   // 2-byte parameter count is on the least significant side of encoded_word_.
   static constexpr int kBigEndianParamCountOffset =
@@ -259,14 +242,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   inline std::optional<JSDispatchHandle> TryAllocateAndInitializeEntry(
       Space* space, uint16_t parameter_count, Tagged<Code> code);
 
-  // The following methods are used to pre allocate entries and then initialize
-  // them later.
-  void PreAllocateEntries(Space* space, int num);
-  bool PreAllocatedEntryNeedsInitialization(Space* space,
-                                            JSDispatchHandle handle);
-  void InitializePreAllocatedEntry(Space* space, JSDispatchHandle handle,
-                                   Tagged<Code> code, uint16_t parameter_count);
-
   // Can be used to statically predict the handles if the pre allocated entries
   // are in the overall first read only segment of the whole table.
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
@@ -346,12 +321,16 @@ class V8_EXPORT_PRIVATE JSDispatchTable
     return handle;
   }
 
+  friend class Isolate;
   friend class MarkCompactCollector;
+
+  // Using `ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable)` in the
+  // macro assembler to get the table's base address relies the offset being 0.
+  static_assert(Internals::kExternalEntityTableBasePointerOffset == 0);
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_LEAPTIERING
 
 #endif  // V8_SANDBOX_JS_DISPATCH_TABLE_H_

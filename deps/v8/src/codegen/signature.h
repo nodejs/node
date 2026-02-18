@@ -11,13 +11,18 @@
 #include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+namespace wasm {
+class WasmModuleSignatureStorage;
+}
 
 template <typename SigT, typename T>
 class SignatureBuilder {
  public:
-  SignatureBuilder(Zone* zone, size_t return_count, size_t parameter_count)
+  template <typename SignatureStorageOrZone>
+  SignatureBuilder(SignatureStorageOrZone* storage, size_t return_count,
+                   size_t parameter_count)
       : return_count_(return_count),
         parameter_count_(parameter_count),
         rcursor_(0),
@@ -28,7 +33,14 @@ class SignatureBuilder {
     using AllocationTypeTag = SignatureBuilder;
     const size_t allocated_bytes =
         sizeof(SigT) + padding + sizeof(T) * (return_count + parameter_count);
-    void* memory = zone->Allocate<AllocationTypeTag>(allocated_bytes);
+    void* memory;
+    if constexpr (std::is_same_v<Zone, SignatureStorageOrZone>) {
+      memory = storage->template Allocate<AllocationTypeTag>(allocated_bytes);
+    } else {
+      static_assert(std::is_same_v<wasm::WasmModuleSignatureStorage,
+                                   SignatureStorageOrZone>);
+      memory = storage->Allocate(allocated_bytes, alignof(SigT));
+    }
     uint8_t* rep_buffer =
         reinterpret_cast<uint8_t*>(memory) + sizeof(SigT) + padding;
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(rep_buffer), alignof(T)));
@@ -129,9 +141,11 @@ class Signature : public ZoneObject {
   // For incrementally building signatures.
   using Builder = SignatureBuilder<Signature<T>, T>;
 
-  static Signature<T>* Build(Zone* zone, std::initializer_list<T> returns,
+  template <typename SignatureStorageOrZone>
+  static Signature<T>* Build(SignatureStorageOrZone* storage,
+                             std::initializer_list<T> returns,
                              std::initializer_list<T> params) {
-    Builder builder(zone, returns.size(), params.size());
+    Builder builder(storage, returns.size(), params.size());
     for (T ret : returns) builder.AddReturn(ret);
     for (T param : params) builder.AddParam(param);
     return builder.Get();
@@ -212,7 +226,6 @@ class FixedSizeSignature<T, 0, 0> : public Signature<T> {
   }
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_CODEGEN_SIGNATURE_H_

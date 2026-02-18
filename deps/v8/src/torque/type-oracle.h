@@ -249,12 +249,6 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(STRONG_TAGGED_TYPE_STRING);
   }
 
-  static const Type* GetHoleType() { return Get().GetBuiltinType("Hole"); }
-
-  static const Type* GetTheHoleType() {
-    return Get().GetBuiltinType("TheHole");
-  }
-
   static const Type* GetUninitializedHeapObjectType() {
     return Get().GetBuiltinType(
         QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},

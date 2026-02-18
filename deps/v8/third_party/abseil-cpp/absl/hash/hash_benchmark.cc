@@ -338,6 +338,16 @@ ABSL_ATTRIBUTE_UNUSED static const bool kInitialized = [] {
 }();
 }  // namespace
 
+struct PodPairInt64 {
+  int64_t a;
+  int64_t b;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const PodPairInt64& p) {
+    return H::combine(std::move(h), p.a, p.b);
+  }
+};
+
 template <class T>
 struct PodRand {
   static_assert(std::is_pod<T>::value, "");
@@ -378,6 +388,7 @@ struct StringRand {
 
 MAKE_LATENCY_BENCHMARK(AbslHash, Int32, PodRand<int32_t>)
 MAKE_LATENCY_BENCHMARK(AbslHash, Int64, PodRand<int64_t>)
+MAKE_LATENCY_BENCHMARK(AbslHash, PairInt64, PodRand<PodPairInt64>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String3, StringRand<3>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String5, StringRand<5>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String9, StringRand<9>)

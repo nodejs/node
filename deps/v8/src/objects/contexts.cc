@@ -28,9 +28,8 @@ namespace v8::internal {
 
 // static
 Handle<ScriptContextTable> ScriptContextTable::New(Isolate* isolate,
-                                                   int capacity,
+                                                   uint32_t capacity,
                                                    AllocationType allocation) {
-  DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
 
   auto names = NameToIndexHashTable::New(isolate, 16);
@@ -85,11 +84,13 @@ Handle<ScriptContextTable> ScriptContextTable::Add(
   DCHECK_LE(0, old_length);
 
   Handle<ScriptContextTable> result = table;
+  // TODO(375937549): Convert to uint32_t.
   int old_capacity = table->capacity();
   DCHECK_LE(old_length, old_capacity);
   if (old_length == old_capacity) {
     int new_capacity = NewCapacityForIndex(old_length, old_capacity);
-    auto new_table = New(isolate, new_capacity);
+    DCHECK_GE(new_capacity, 0);
+    auto new_table = New(isolate, static_cast<uint32_t>(new_capacity));
     new_table->set_length(old_length, kReleaseStore);
     new_table->set_names_to_context_index(table->names_to_context_index());
     CopyElements(isolate, *new_table, 0, *table, 0, old_length);
@@ -187,20 +188,12 @@ Tagged<SourceTextModule> Context::module() const {
   return Cast<SourceTextModule>(current->extension());
 }
 
-Tagged<JSGlobalObject> Context::global_object() const {
-  return Cast<JSGlobalObject>(native_context()->extension());
-}
-
 Tagged<Context> Context::script_context() const {
   Tagged<Context> current = *this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }
   return current;
-}
-
-Tagged<JSGlobalProxy> Context::global_proxy() const {
-  return native_context()->global_proxy_object();
 }
 
 /**

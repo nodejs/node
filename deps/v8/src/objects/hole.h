@@ -13,16 +13,25 @@
 namespace v8 {
 namespace internal {
 
+
 V8_OBJECT class Hole : public HeapObjectLayout {
  public:
   DECL_VERIFIER(Hole)
   DECL_PRINTER(Hole)
-} V8_OBJECT_END;
 
-template <>
-struct ObjectTraits<Hole> {
-  using BodyDescriptor = FixedBodyDescriptor<0, 0, sizeof(Hole)>;
-};
+  class BodyDescriptor;
+
+ private:
+  friend class Heap;
+  friend class Isolate;
+
+  // TODO(leszeks): Make it smaller if able and needed.
+  static constexpr int kPayloadSize = 64 * KB;
+  // Payload should be a multiple of page size.
+  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
+
+  char payload_[kPayloadSize];
+} V8_OBJECT_END;
 
 #define DEFINE_HOLE_TYPE(Name, name, Root) \
   V8_OBJECT class Name : public Hole {     \

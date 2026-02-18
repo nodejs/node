@@ -36,6 +36,11 @@ MemOperand ExitFrameCallerStackSlotOperand(int index) {
                             kSystemPointerSize);
 }
 
+MemOperand MacroAssembler::AsMemOperand(IsolateFieldId id) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister, IsolateData::GetOffset(id));
+}
+
 void MacroAssembler::And(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
@@ -464,12 +469,14 @@ void MacroAssembler::BindJumpOrCallTarget(Label* label) {
 #endif
 }
 
-void MacroAssembler::Bl(Label* label) {
+void MacroAssembler::Call(Label* label) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   bl(label);
 }
 
-void MacroAssembler::Blr(const Register& xn) {
+void MacroAssembler::Call(const Register& xn) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   blr(xn);
@@ -800,13 +807,7 @@ void MacroAssembler::Fminnm(const VRegister& fd, const VRegister& fn,
 
 void MacroAssembler::Fmov(VRegister fd, VRegister fn) {
   DCHECK(allow_macro_instructions());
-  // Only emit an instruction if fd and fn are different, and they are both D
-  // registers. fmov(s0, s0) is not a no-op because it clears the top word of
-  // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
-  // top of q0, but VRegister does not currently support Q registers.
-  if (fd != fn || !fd.Is64Bits()) {
-    fmov(fd, fn);
-  }
+  fmov(fd, fn);
 }
 
 void MacroAssembler::Fmov(VRegister fd, Register rn) {

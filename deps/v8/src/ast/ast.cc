@@ -170,11 +170,13 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
   raw_name_ = copy_from->raw_name_;
 }
 
-void VariableProxy::BindTo(Variable* var) {
+void VariableProxy::BindTo(Variable* var, BindingMode mode) {
   DCHECK_EQ(raw_name(), var->raw_name());
   set_var(var);
   set_is_resolved();
-  var->set_is_used();
+  if (mode == BindingMode::kMarkUse) {
+    var->set_is_used();
+  }
   if (is_assigned()) var->SetMaybeAssigned();
 }
 
@@ -816,8 +818,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> raw_strings = *raw_strings_handle;
-
-    for (int i = 0; i < raw_strings->length(); ++i) {
+    uint32_t raw_strings_len = raw_strings->ulength().value();
+    for (uint32_t i = 0; i < raw_strings_len; ++i) {
       if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
         // If the AstRawStrings don't match, then neither should the allocated
         // Strings, since the AstValueFactory should have deduplicated them
@@ -837,8 +839,9 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
         this->cooked_strings()->length(), AllocationType::kOld);
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> cooked_strings = *cooked_strings_handle;
+    uint32_t cooked_strings_len = cooked_strings->ulength().value();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < cooked_strings->length(); ++i) {
+    for (uint32_t i = 0; i < cooked_strings_len; ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {

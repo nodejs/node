@@ -1,4 +1,4 @@
-// Copyright 2020-2024 Junekey Jeon
+// Copyright 2020-2025 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -18,180 +18,197 @@
 #ifndef JKJ_HEADER_DRAGONBOX_TO_CHARS
 #define JKJ_HEADER_DRAGONBOX_TO_CHARS
 
+#define JKJ_DRAGONBOX_LEAK_MACROS
 #include "dragonbox.h"
 
-////////////////////////////////////////////////////////////////////////////////////////
-// Language feature detections.
-////////////////////////////////////////////////////////////////////////////////////////
-
-// C++14 constexpr
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif __cplusplus >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1910 && _MSVC_LANG >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#else
-    #define JKJ_HAS_CONSTEXPR14 0
-#endif
-
-#if JKJ_HAS_CONSTEXPR14
-    #define JKJ_CONSTEXPR14 constexpr
-#else
-    #define JKJ_CONSTEXPR14
-#endif
-
-// C++17 constexpr lambdas
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#else
-    #define JKJ_HAS_CONSTEXPR17 0
-#endif
-
-// C++17 inline variables
-#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#else
-    #define JKJ_HAS_INLINE_VARIABLE 0
-#endif
-
-#if JKJ_HAS_INLINE_VARIABLE
-    #define JKJ_INLINE_VARIABLE inline constexpr
-#else
-    #define JKJ_INLINE_VARIABLE static constexpr
-#endif
-
-// C++17 if constexpr
-#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#else
-    #define JKJ_HAS_IF_CONSTEXPR 0
-#endif
-
-#if JKJ_HAS_IF_CONSTEXPR
-    #define JKJ_IF_CONSTEXPR if constexpr
-#else
-    #define JKJ_IF_CONSTEXPR if
-#endif
-
-// C++20 std::bit_cast
-#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
-        #define JKJ_HAS_BIT_CAST 1
-    #else
-        #define JKJ_HAS_BIT_CAST 0
-    #endif
-#elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
-    #include <bit>
-    #define JKJ_HAS_BIT_CAST 1
-#else
-    #define JKJ_HAS_BIT_CAST 0
-#endif
-
-// C++23 if consteval or C++20 std::is_constant_evaluated
-#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
-    #define JKJ_IF_CONSTEVAL if consteval
-    #define JKJ_IF_NOT_CONSTEVAL if !consteval
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-    #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-#elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #endif
-#else
-    #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #endif
-#endif
-
-#if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
-    #define JKJ_CONSTEXPR20 constexpr
-#else
-    #define JKJ_CONSTEXPR20
-#endif
-
-namespace jkj {
+namespace JKJ_NAMESPACE {
     namespace dragonbox {
         namespace detail {
             template <class FloatFormat, class CarrierUInt>
             extern char* to_chars(CarrierUInt significand, int exponent, char* buffer) noexcept;
 
-            template <stdr::size_t max_digits, class UInt>
-            JKJ_CONSTEXPR14 char* print_integer_naive(UInt n, char* buffer) noexcept {
-                char temp[max_digits]{};
-                auto ptr = temp + sizeof(temp) - 1;
-                do {
-                    *ptr = char('0' + n % 10);
-                    n /= 10;
-                    --ptr;
-                } while (n != 0);
-                while (++ptr != temp + sizeof(temp)) {
-                    *buffer = *ptr;
-                    ++buffer;
+            // Implementation detail of to_chars_naive, which gets called in constexpr context or when
+            // the digit_generation policy is set to be "compact". Unlike to_chars above, to_chars_naive
+            // simply repeats division-by-10 until the input becomes zero. To improve codegen, we
+            // manually convert this division-by-10 into multiply-shift. Similarly to the log
+            // computations, again we try to minimize the size of types and the magic numbers depending
+            // on the range of input, using the same "tier system" trick. But unlike the case of log
+            // computations, we simply fallback to the plain division/remainder if none of the provided
+            // tiers cover the requested range of input, rather than to generate a compile-error.
+            namespace to_chars_impl {
+                template <class UInt>
+                struct div_result {
+                    UInt quot;
+                    UInt rem;
+                };
+
+                enum class tier_selector { current_tier, next_tier, fallback };
+
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier,
+                          stdr::uint_least64_t supported_max_number = Info<current_tier>::max_number>
+                constexpr tier_selector is_in_range(int) noexcept {
+                    return max_number <= supported_max_number ? tier_selector::current_tier
+                                                              : tier_selector::next_tier;
                 }
-                return buffer;
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier>
+                constexpr tier_selector is_in_range(...) noexcept {
+                    return tier_selector::fallback;
+                }
+
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier = 0,
+                          tier_selector = is_in_range<Info, max_number, current_tier>(0)>
+                struct div_by_10_impl;
+
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier>
+                struct div_by_10_impl<Info, max_number, current_tier, tier_selector::current_tier> {
+                    using info = Info<current_tier>;
+                    template <class UInt>
+                    static constexpr div_result<UInt> compute(UInt n) noexcept {
+#if JKJ_HAS_CONSTEXPR14
+                        assert(n <= max_number);
+#endif
+                        // This "wide_type" is supposed to be 2x larger than UInt.
+                        using wide_type = typename info::wide_type;
+                        static_assert(info::additional_shift_amount < value_bits<wide_type>::value, "");
+
+                        // The upper-half and the lower-half of this multiplication result is used for
+                        // computing the quotient and the remainder, respectively.
+                        auto const mul_result = info::magic_number * n;
+                        auto const high = info::high(mul_result) >> info::additional_shift_amount;
+                        auto const low =
+                            info::additional_shift_amount == 0
+                                ? info::low(mul_result)
+                                : ((info::high(mul_result)
+                                    << (value_bits<wide_type>::value - info::additional_shift_amount)) |
+                                   (info::low(mul_result) >> info::additional_shift_amount));
+
+                        return div_result<UInt>{
+                            static_cast<UInt>(high),                           // quotient
+                            static_cast<UInt>(info::high(low * wide_type(10))) // remainder
+                        };
+                    }
+                };
+
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier>
+                struct div_by_10_impl<Info, max_number, current_tier, tier_selector::next_tier> {
+                    using next_tier = div_by_10_impl<Info, max_number, current_tier + 1>;
+                    template <class UInt>
+                    static constexpr div_result<UInt> compute(UInt n) noexcept {
+                        return next_tier::compute(n);
+                    }
+                };
+
+                template <template <stdr::size_t> class Info, stdr::uint_least64_t max_number,
+                          stdr::size_t current_tier>
+                struct div_by_10_impl<Info, max_number, current_tier, tier_selector::fallback> {
+                    using next_tier = div_by_10_impl<Info, max_number, current_tier + 1>;
+                    template <class UInt>
+                    static constexpr div_result<UInt> compute(UInt n) noexcept {
+                        return div_result<UInt>{n / 10, n % 10};
+                    }
+                };
+
+                template <stdr::size_t tier>
+                struct div_by_10_info;
+                template <>
+                struct div_by_10_info<0> {
+                    using wide_type = stdr::uint_fast16_t;
+                    static constexpr wide_type magic_number = 26;
+                    static constexpr stdr::size_t additional_shift_amount = 0;
+                    static constexpr stdr::uint_least64_t max_number = 63;
+                    static constexpr stdr::uint_fast8_t high(wide_type n) noexcept {
+                        return stdr::uint_fast8_t(n >> 8);
+                    }
+                    static constexpr stdr::uint_fast8_t low(wide_type n) noexcept {
+                        return stdr::uint_fast8_t(n);
+                    }
+                };
+                template <>
+                struct div_by_10_info<1> {
+                    using wide_type = stdr::uint_fast32_t;
+                    static constexpr wide_type magic_number = 6573;
+                    static constexpr stdr::size_t additional_shift_amount = 0;
+                    static constexpr stdr::uint_least64_t max_number = 16383;
+                    static constexpr stdr::uint_fast16_t high(wide_type n) noexcept {
+                        return stdr::uint_fast16_t(n >> 16);
+                    }
+                    static constexpr stdr::uint_fast16_t low(wide_type n) noexcept {
+                        return stdr::uint_fast16_t(n);
+                    }
+                };
+                template <>
+                struct div_by_10_info<2> {
+                    using wide_type = stdr::uint_fast64_t;
+                    static constexpr wide_type magic_number = UINT64_C(429496730);
+                    static constexpr stdr::size_t additional_shift_amount = 0;
+                    static constexpr stdr::uint_least64_t max_number = UINT64_C(1073741823);
+                    static constexpr stdr::uint_fast32_t high(wide_type n) noexcept {
+                        return stdr::uint_fast32_t(n >> 32);
+                    }
+                    static constexpr stdr::uint_fast32_t low(wide_type n) noexcept {
+                        return stdr::uint_fast32_t(n);
+                    }
+                };
+                template <stdr::uint_least64_t max_number, class UInt>
+                constexpr div_result<UInt> div_by_10(UInt n) noexcept {
+                    return div_by_10_impl<div_by_10_info, max_number>::compute(n);
+                }
+
+                template <class UInt, UInt threshold, stdr::uint_least64_t max_number>
+                JKJ_CONSTEXPR14 char* print_integer_backward(UInt& n, char* ptr) noexcept {
+                    while (true) {
+                        auto div_res = div_by_10<max_number>(n);
+                        *ptr = char('0' + div_res.rem);
+                        n = div_res.quot;
+                        if (n < threshold) {
+                            break;
+                        }
+                        --ptr;
+                    }
+                    return ptr;
+                }
             }
 
-            template <class FloatFormat, class CarrierUInt>
-            JKJ_CONSTEXPR14 char* to_chars_naive(CarrierUInt significand, int exponent,
+            template <class FloatFormat, class CarrierUInt, class ExponentType>
+            JKJ_CONSTEXPR20 char* to_chars_naive(CarrierUInt significand, ExponentType exponent,
                                                  char* buffer) noexcept {
-                // Print significand.
-                {
-                    auto ptr = print_integer_naive<FloatFormat::decimal_significand_digits>(significand,
-                                                                                            buffer);
+                static_assert(value_bits<CarrierUInt>::value <= 64,
+                              "jkj::dragonbox: integer type too large");
+                // This is probably a too generous upper bound, but unless a tighter upper bound does
+                // lead to better codegen, there is no point of optimizing this further.
+                constexpr auto max_decimal_significand =
+                    20 * ((stdr::uint_least64_t(1) << (FloatFormat::significand_bits + 1)) - 1) - 1;
 
-                    // Insert decimal dot.
-                    if (ptr > buffer + 1) {
-                        auto next = *++buffer;
-                        ++exponent;
-                        *buffer = '.';
-                        while (++buffer != ptr) {
-                            auto const temp = *buffer;
-                            *buffer = next;
-                            next = temp;
-                            ++exponent;
-                        }
-                        *buffer = next;
-                    }
+                // Print significand.
+                // For the single-digit case, just print that number directly into the buffer.
+                if (significand < 10) {
+                    *buffer = char('0' + significand);
                     ++buffer;
+                }
+                // For the multiple-digits case, print the digits into a temporary buffer and copy it
+                // into the given buffer. GCC seems to be able to turn the last loop into memcpy.
+                else {
+                    char temp[FloatFormat::decimal_significand_digits];
+                    auto ptr =
+                        to_chars_impl::print_integer_backward<CarrierUInt, 10, max_decimal_significand>(
+                            significand, temp + FloatFormat::decimal_significand_digits - 1);
+
+                    buffer[0] = char('0' + significand);
+                    buffer[1] = '.';
+                    buffer += 2;
+                    exponent +=
+                        static_cast<ExponentType>(temp + FloatFormat::decimal_significand_digits - ptr);
+
+                    do {
+                        *buffer = *ptr;
+                        ++buffer;
+                        ++ptr;
+                    } while (ptr != temp + FloatFormat::decimal_significand_digits);
                 }
 
                 // Print exponent.
@@ -202,8 +219,21 @@ namespace jkj {
                     ++buffer;
                     exponent = -exponent;
                 }
-                return print_integer_naive<FloatFormat::decimal_exponent_digits>(unsigned(exponent),
-                                                                                 buffer);
+                auto exponent_unsigned =
+                    static_cast<typename stdr::make_unsigned<ExponentType>::type>(exponent);
+
+                char temp[FloatFormat::decimal_exponent_digits];
+                auto ptr = to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
+                                                                 FloatFormat::max_abs_decimal_exponent>(
+                    exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
+
+                do {
+                    *buffer = *ptr;
+                    ++buffer;
+                    ++ptr;
+                } while (ptr != temp + FloatFormat::decimal_exponent_digits);
+
+                return buffer;
             }
         }
 
@@ -362,27 +392,26 @@ namespace jkj {
             return ptr;
         }
 
-        // Maximum required buffer size (excluding null-terminator)
+        // Maximum size of the output of to_chars_n (excluding null-terminator).
+        template <class FloatFormat>
+        struct max_output_string_length_holder {
+            static constexpr detail::stdr::size_t value =
+                // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
+                1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
+                FloatFormat::decimal_exponent_digits;
+        };
+#if JKJ_HAS_VARIABLE_TEMPLATES
         template <class FloatFormat>
         JKJ_INLINE_VARIABLE detail::stdr::size_t max_output_string_length =
-            // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
-            1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
-            FloatFormat::decimal_exponent_digits;
+            max_output_string_length_holder<FloatFormat>::value;
+#endif
     }
 }
 
-#undef JKJ_CONSTEXPR20
-#undef JKJ_USE_IS_CONSTANT_EVALUATED
-#undef JKJ_CAN_BRANCH_ON_CONSTEVAL
-#undef JKJ_IF_NOT_CONSTEVAL
-#undef JKJ_IF_CONSTEVAL
-#undef JKJ_HAS_BIT_CAST
-#undef JKJ_IF_CONSTEXPR
-#undef JKJ_HAS_IF_CONSTEXPR
-#undef JKJ_INLINE_VARIABLE
-#undef JKJ_HAS_INLINE_VARIABLE
-#undef JKJ_HAS_CONSTEXPR17
-#undef JKJ_CONSTEXPR14
-#undef JKJ_HAS_CONSTEXPR14
+#ifndef JKJ_DRAGONBOX_TO_CHARS_LEAK_MACROS
+    // This will clean up all leaked macros.
+    #undef JKJ_DRAGONBOX_LEAK_MACROS
+    #include "dragonbox.h"
+#endif
 
 #endif

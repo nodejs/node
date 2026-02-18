@@ -4,6 +4,7 @@
 
 #include "src/interpreter/handler-table-builder.h"
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/bytecode-register.h"
@@ -18,12 +19,12 @@ HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 template <typename IsolateT>
 DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
     IsolateT* isolate) {
-  int handler_table_size = static_cast<int>(entries_.size());
+  uint32_t handler_table_size = base::checked_cast<uint32_t>(entries_.size());
   DirectHandle<TrustedByteArray> table_byte_array =
       isolate->factory()->NewTrustedByteArray(
           HandlerTable::LengthForRange(handler_table_size));
   HandlerTable table(*table_byte_array);
-  for (int i = 0; i < handler_table_size; ++i) {
+  for (uint32_t i = 0; i < handler_table_size; ++i) {
     Entry& entry = entries_[i];
     HandlerTable::CatchPrediction pred = entry.catch_prediction_;
     table.SetRangeStart(i, static_cast<int>(entry.offset_start));

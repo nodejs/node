@@ -645,13 +645,13 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   unsetenv(*var);
 }
 
-char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
+base::OwnedVector<char> Shell::ReadCharsFromTcpPort(const char* name) {
   DCHECK_GE(Shell::options.read_from_tcp_port, 0);
 
   int sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     fprintf(stderr, "Failed to create IPv4 socket\n");
-    return nullptr;
+    return {};
   }
 
   // Create an address for localhost:PORT where PORT is specified by the shell
@@ -667,7 +667,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Failed to connect to localhost:%d\n",
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
 
   // The file server follows the simple protocol for requesting and receiving
@@ -695,7 +695,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
       fprintf(stderr, "Failed to send %s to localhost:%d\n", name,
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
-      return nullptr;
+      return {};
     }
     sent_len += sent_now;
   }
@@ -712,7 +712,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Failed to receive %s's length from localhost:%d\n", name,
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
   // Reinterpretet the received file length as a signed big-endian integer.
   int32_t file_length = base::bit_cast<int32_t>(htonl(big_endian_file_length));
@@ -721,7 +721,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",
             file_length, name, Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
 
   // Allocate the output array.
@@ -737,14 +737,13 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
       delete[] chars;
-      return nullptr;
+      return {};
     }
     total_received += received;
   }
 
   close(sockfd);
-  *size_out = file_length;
-  return chars;
+  return base::OwnedVector<char>(std::unique_ptr<char[]>(chars), file_length);
 }
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {

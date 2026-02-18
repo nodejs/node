@@ -22,12 +22,10 @@ const kLengthDescriptorIndex: constexpr int32
     generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex'
     ;
 const kNameDescriptorIndex: constexpr int32
-    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex'
-    ;
+    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex';
 const kMinDescriptorsForFastBindAndWrap: constexpr int31
     generates 'JSFunction::kMinDescriptorsForFastBindAndWrap';
-const kCodeMaxArguments:
-    constexpr intptr generates 'Code::kMaxArguments';
+const kCodeMaxArguments: constexpr intptr generates 'Code::kMaxArguments';
 
 macro CheckAccessor(
     implicit context: Context)(array: DescriptorArray, index: constexpr int32,

@@ -108,17 +108,18 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   int64_t initial_seed() const { return initial_seed_; }
 
   // Static and exposed for external use.
-  static inline double ToDouble(uint64_t state0) {
+  static inline double ToDouble(uint64_t random) {
     // Get a random [0,2**53) integer value (up to MAX_SAFE_INTEGER) by dropping
     // 11 bits of the state.
-    double random_0_to_2_53 = static_cast<double>(state0 >> 11);
+    double random_0_to_2_53 = static_cast<double>(random >> 11);
     // Map this to [0,1) by division with 2**53.
     constexpr double k2_53{static_cast<uint64_t>(1) << 53};
     return random_0_to_2_53 / k2_53;
   }
 
   // Static and exposed for external use.
-  static inline void XorShift128(uint64_t* state0, uint64_t* state1) {
+  // Generate random numbers using xorshift128+.
+  static inline uint64_t XorShift128(uint64_t* state0, uint64_t* state1) {
     uint64_t s1 = *state0;
     uint64_t s0 = *state1;
     *state0 = s0;
@@ -127,6 +128,7 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
     s1 ^= s0;
     s1 ^= s0 >> 26;
     *state1 = s1;
+    return s0 + s1;
   }
 
   static uint64_t MurmurHash3(uint64_t);

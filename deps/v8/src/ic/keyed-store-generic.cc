@@ -1094,7 +1094,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         CSA_DCHECK(this, IsPrivateSymbol(name));
         // For private names, we miss to the runtime which will throw.
         // For private symbols, we extend and store an own property.
-        Branch(IsPrivateName(CAST(name)), slow, &extensible);
+        Branch(IsAnyPrivateName(CAST(name)), slow, &extensible);
       }
 
       BIND(&extensible);
@@ -1191,8 +1191,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TVARIABLE(MaybeObject, var_handler);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
 
-    TryProbeStubCache(p->stub_cache(isolate()), receiver, name, &found_handler,
-                      &var_handler, &stub_cache_miss);
+    TryProbeStubCache(p->stub_cache(isolate()), receiver, receiver_map, name,
+                      &found_handler, &var_handler, &stub_cache_miss);
 
     BIND(&found_handler);
     {
@@ -1242,9 +1242,9 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value,
-                        std::nullopt, slot, maybe_vector,
-                        StoreICMode::kDefault);
+    StoreICParameters p = MakeStoreICParameters(
+        context, receiver, receiver_map, var_unique.value(), value,
+        std::nullopt, slot, maybe_vector, StoreICMode::kDefault);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, instance_type, &p,
                              &direct_exit, &slow, language_mode,
@@ -1339,10 +1339,11 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
-      StoreICParameters p(context, receiver, name, value, std::nullopt, {},
-                          UndefinedConstant(),
-                          IsDefineNamedOwn() ? StoreICMode::kDefineNamedOwn
-                                             : StoreICMode::kDefault);
+      StoreICParameters p = MakeStoreICParameters(
+          context, receiver, receiver_map, name, value, std::nullopt, {},
+          UndefinedConstant(),
+          IsDefineNamedOwn() ? StoreICMode::kDefineNamedOwn
+                             : StoreICMode::kDefault);
       EmitGenericPropertyStore(CAST(receiver), receiver_map, instance_type, &p,
                                &miss);
     }
@@ -1365,20 +1366,22 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
                                                TNode<Name> unique_name,
                                                TNode<Object> value,
                                                LanguageMode language_mode) {
-  StoreICParameters p(context, receiver, unique_name, value, std::nullopt, {},
-                      UndefinedConstant(), StoreICMode::kDefault);
+  TNode<Map> receiver_map = LoadMap(receiver);
+  StoreICParameters p = MakeStoreICParameters(
+      context, receiver, receiver_map, unique_name, value, std::nullopt, {},
+      UndefinedConstant(), StoreICMode::kDefault);
 
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](TNode<Object> result) { Goto(&done); });
 
-  CSA_DCHECK(this, Word32Equal(is_simple_receiver,
-                               IsSimpleObjectMap(LoadMap(receiver))));
+  CSA_DCHECK(this,
+             Word32Equal(is_simple_receiver, IsSimpleObjectMap(receiver_map)));
   GotoIfNot(is_simple_receiver, &slow);
 
-  TNode<Map> map = LoadMap(receiver);
-  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
-  EmitGenericPropertyStore(receiver, map, instance_type, &p, &exit_point, &slow,
-                           Just(language_mode), kDontUseStubCache);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
+  EmitGenericPropertyStore(receiver, receiver_map, instance_type, &p,
+                           &exit_point, &slow, Just(language_mode),
+                           kDontUseStubCache);
 
   BIND(&slow);
   {

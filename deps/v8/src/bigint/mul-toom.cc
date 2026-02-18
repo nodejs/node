@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {

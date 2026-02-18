@@ -32,10 +32,9 @@ class ModifiersTest : public ::testing::Test {};
 TYPED_TEST_SUITE_P(ModifiersTest);
 
 TYPED_TEST_P(ModifiersTest, Clear) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m(values.begin(), values.end());
   ASSERT_THAT(items(m), ::testing::UnorderedElementsAreArray(values));
   m.clear();
@@ -44,63 +43,61 @@ TYPED_TEST_P(ModifiersTest, Clear) {
 }
 
 TYPED_TEST_P(ModifiersTest, Insert) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   auto p = m.insert(val);
   EXPECT_TRUE(p.second);
   EXPECT_EQ(val, *p.first);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   p = m.insert(val2);
   EXPECT_FALSE(p.second);
   EXPECT_EQ(val, *p.first);
 }
 
 TYPED_TEST_P(ModifiersTest, InsertHint) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   auto it = m.insert(m.end(), val);
   EXPECT_TRUE(it != m.end());
   EXPECT_EQ(val, *it);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   it = m.insert(it, val2);
   EXPECT_TRUE(it != m.end());
   EXPECT_EQ(val, *it);
 }
 
 TYPED_TEST_P(ModifiersTest, InsertRange) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   m.insert(values.begin(), values.end());
   ASSERT_THAT(items(m), ::testing::UnorderedElementsAreArray(values));
 }
 
 TYPED_TEST_P(ModifiersTest, InsertWithinCapacity) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   m.reserve(10);
   const size_t original_capacity = m.bucket_count();
   m.insert(val);
   EXPECT_EQ(m.bucket_count(), original_capacity);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   m.insert(val2);
   EXPECT_EQ(m.bucket_count(), original_capacity);
 }
 
 TYPED_TEST_P(ModifiersTest, InsertRangeWithinCapacity) {
 #if !defined(__GLIBCXX__)
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> base_values;
-  std::generate_n(std::back_inserter(base_values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(base_values), 10, Generator<T>());
   std::vector<T> values;
   while (values.size() != 100) {
     std::copy_n(base_values.begin(), 10, std::back_inserter(values));
@@ -114,106 +111,98 @@ TYPED_TEST_P(ModifiersTest, InsertRangeWithinCapacity) {
 }
 
 TYPED_TEST_P(ModifiersTest, InsertOrAssign) {
-#ifdef UNORDERED_MAP_CXX17
   using std::get;
   using K = typename TypeParam::key_type;
   using V = typename TypeParam::mapped_type;
-  K k = hash_internal::Generator<K>()();
-  V val = hash_internal::Generator<V>()();
+  K k = Generator<K>()();
+  V val = Generator<V>()();
   TypeParam m;
   auto p = m.insert_or_assign(k, val);
   EXPECT_TRUE(p.second);
   EXPECT_EQ(k, get<0>(*p.first));
   EXPECT_EQ(val, get<1>(*p.first));
-  V val2 = hash_internal::Generator<V>()();
+  V val2 = Generator<V>()();
   p = m.insert_or_assign(k, val2);
   EXPECT_FALSE(p.second);
   EXPECT_EQ(k, get<0>(*p.first));
   EXPECT_EQ(val2, get<1>(*p.first));
-#endif
 }
 
 TYPED_TEST_P(ModifiersTest, InsertOrAssignHint) {
-#ifdef UNORDERED_MAP_CXX17
   using std::get;
   using K = typename TypeParam::key_type;
   using V = typename TypeParam::mapped_type;
-  K k = hash_internal::Generator<K>()();
-  V val = hash_internal::Generator<V>()();
+  K k = Generator<K>()();
+  V val = Generator<V>()();
   TypeParam m;
   auto it = m.insert_or_assign(m.end(), k, val);
   EXPECT_TRUE(it != m.end());
   EXPECT_EQ(k, get<0>(*it));
   EXPECT_EQ(val, get<1>(*it));
-  V val2 = hash_internal::Generator<V>()();
+  V val2 = Generator<V>()();
   it = m.insert_or_assign(it, k, val2);
   EXPECT_EQ(k, get<0>(*it));
   EXPECT_EQ(val2, get<1>(*it));
-#endif
 }
 
 TYPED_TEST_P(ModifiersTest, Emplace) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   // TODO(alkis): We need a way to run emplace in a more meaningful way. Perhaps
   // with test traits/policy.
   auto p = m.emplace(val);
   EXPECT_TRUE(p.second);
   EXPECT_EQ(val, *p.first);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   p = m.emplace(val2);
   EXPECT_FALSE(p.second);
   EXPECT_EQ(val, *p.first);
 }
 
 TYPED_TEST_P(ModifiersTest, EmplaceHint) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   // TODO(alkis): We need a way to run emplace in a more meaningful way. Perhaps
   // with test traits/policy.
   auto it = m.emplace_hint(m.end(), val);
   EXPECT_EQ(val, *it);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   it = m.emplace_hint(it, val2);
   EXPECT_EQ(val, *it);
 }
 
 TYPED_TEST_P(ModifiersTest, TryEmplace) {
-#ifdef UNORDERED_MAP_CXX17
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   // TODO(alkis): We need a way to run emplace in a more meaningful way. Perhaps
   // with test traits/policy.
   auto p = m.try_emplace(val.first, val.second);
   EXPECT_TRUE(p.second);
   EXPECT_EQ(val, *p.first);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   p = m.try_emplace(val2.first, val2.second);
   EXPECT_FALSE(p.second);
   EXPECT_EQ(val, *p.first);
-#endif
 }
 
 TYPED_TEST_P(ModifiersTest, TryEmplaceHint) {
-#ifdef UNORDERED_MAP_CXX17
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   // TODO(alkis): We need a way to run emplace in a more meaningful way. Perhaps
   // with test traits/policy.
   auto it = m.try_emplace(m.end(), val.first, val.second);
   EXPECT_EQ(val, *it);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   it = m.try_emplace(it, val2.first, val2.second);
   EXPECT_EQ(val, *it);
-#endif
 }
 
 template <class V>
@@ -236,11 +225,10 @@ struct EraseFirst {
 };
 
 TYPED_TEST_P(ModifiersTest, Erase) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using std::get;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m(values.begin(), values.end());
   ASSERT_THAT(items(m), ::testing::UnorderedElementsAreArray(values));
   auto& first = *m.begin();
@@ -255,10 +243,9 @@ TYPED_TEST_P(ModifiersTest, Erase) {
 }
 
 TYPED_TEST_P(ModifiersTest, EraseRange) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m(values.begin(), values.end());
   ASSERT_THAT(items(m), ::testing::UnorderedElementsAreArray(values));
   auto it = m.erase(m.begin(), m.end());
@@ -267,10 +254,9 @@ TYPED_TEST_P(ModifiersTest, EraseRange) {
 }
 
 TYPED_TEST_P(ModifiersTest, EraseKey) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m(values.begin(), values.end());
   ASSERT_THAT(items(m), ::testing::UnorderedElementsAreArray(values));
   EXPECT_EQ(1, m.erase(values[0].first));
@@ -280,11 +266,11 @@ TYPED_TEST_P(ModifiersTest, EraseKey) {
 }
 
 TYPED_TEST_P(ModifiersTest, Swap) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> v1;
   std::vector<T> v2;
-  std::generate_n(std::back_inserter(v1), 5, hash_internal::Generator<T>());
-  std::generate_n(std::back_inserter(v2), 5, hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(v1), 5, Generator<T>());
+  std::generate_n(std::back_inserter(v2), 5, Generator<T>());
   TypeParam m1(v1.begin(), v1.end());
   TypeParam m2(v2.begin(), v2.end());
   EXPECT_THAT(items(m1), ::testing::UnorderedElementsAreArray(v1));
@@ -327,20 +313,18 @@ TYPED_TEST_SUITE_P(UniquePtrModifiersTest);
 // Test that we do not move from rvalue arguments if an insertion does not
 // happen.
 TYPED_TEST_P(UniquePtrModifiersTest, TryEmplace) {
-#ifdef UNORDERED_MAP_CXX17
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
-  T val = hash_internal::Generator<T>()();
+  T val = Generator<T>()();
   TypeParam m;
   auto p = m.try_emplace(val.first, std::move(val.second));
   EXPECT_TRUE(p.second);
   // A moved from std::unique_ptr is guaranteed to be nullptr.
   EXPECT_EQ(val.second, nullptr);
-  T val2 = {val.first, hash_internal::Generator<V>()()};
+  T val2 = {val.first, Generator<V>()()};
   p = m.try_emplace(val2.first, std::move(val2.second));
   EXPECT_FALSE(p.second);
   EXPECT_NE(val2.second, nullptr);
-#endif
 }
 
 REGISTER_TYPED_TEST_SUITE_P(UniquePtrModifiersTest, TryEmplace);

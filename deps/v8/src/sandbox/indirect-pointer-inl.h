@@ -10,6 +10,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
@@ -22,7 +23,7 @@ V8_INLINE void InitSelfIndirectPointerField(
     IndirectPointerTag tag,
     TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kUnknownIndirectPointerTag);
+  DCHECK_NE(tag, kIndirectPointerNullTag);
   // TODO(saelo): in the future, we might want to CHECK here or in
   // AllocateAndInitializeEntry that the host lives in trusted space.
 
@@ -52,13 +53,13 @@ V8_INLINE void InitSelfIndirectPointerField(
 #endif
 }
 
-namespace {
 #ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
-  return Tagged<Object>(table.Get(handle, tag));
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(tag_range);
+  return Tagged<Object>(table.Get(handle, tag_range));
 }
 
 V8_INLINE Tagged<Object> ResolveCodePointerHandle(
@@ -66,10 +67,33 @@ V8_INLINE Tagged<Object> ResolveCodePointerHandle(
   CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
   return Tagged<Object>(table->GetCodeObject(handle));
 }
-#endif  // V8_ENABLE_SANDBOX
-}  // namespace
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
+                                                   IsolateForSandbox isolate) {
+  // Resolve the handle. The tag implies the pointer table to use.
+  if constexpr (tag_range == kCodeIndirectPointerTag) {
+    return ResolveCodePointerHandle(handle);
+  } else {
+    // In this case we need to check if the handle is a code pointer handle and
+    // select the appropriate table based on that.
+    if (tag_range.Contains(kCodeIndirectPointerTag) &&
+        (handle & kCodePointerHandleMarker)) {
+      return ResolveCodePointerHandle(handle);
+    } else {
+      DCHECK(!(handle & kCodePointerHandleMarker));
+      // TODO(saelo): once we have type tagging for entries in the trusted
+      // pointer table, we could ASSUME that the top bits of the tag match the
+      // instance type, which might allow the compiler to optimize subsequent
+      // instance type checks.
+      return ResolveTrustedPointerHandle<tag_range>(handle, isolate);
+    }
+  }
+}
+
+#endif  // V8_ENABLE_SANDBOX
+
+template <IndirectPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   IsolateForSandbox isolate,
                                                   AcquireLoadTag) {
@@ -79,36 +103,19 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
   // dependent, but that appears to be deprecated in favor of acquire ordering.
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   IndirectPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
-
-  // Resolve the handle. The tag implies the pointer table to use.
-  if constexpr (tag == kUnknownIndirectPointerTag) {
-    // In this case we need to check if the handle is a code pointer handle and
-    // select the appropriate table based on that.
-    if (handle & kCodePointerHandleMarker) {
-      return ResolveCodePointerHandle(handle);
-    } else {
-      // TODO(saelo): once we have type tagging for entries in the trusted
-      // pointer table, we could ASSUME that the top bits of the tag match the
-      // instance type, which might allow the compiler to optimize subsequent
-      // instance type checks.
-      return ResolveTrustedPointerHandle<tag>(handle, isolate);
-    }
-  } else if constexpr (tag == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    return ResolveTrustedPointerHandle<tag>(handle, isolate);
-  }
+  if (handle == kNullIndirectPointerHandle) return Smi::zero();
+  return ReadIndirectPointerHandle<tag_range>(handle, isolate);
 #else
-  UNREACHABLE();
+  return Tagged<Object>(*reinterpret_cast<Address*>(field_address));
 #endif
 }
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE void WriteIndirectPointerField(Address field_address,
                                          Tagged<ExposedTrustedObject> value,
                                          ReleaseStoreTag) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kIndirectPointerNullTag);
+  static_assert(!tag_range.IsEmpty());
   IndirectPointerHandle handle = value->self_indirect_pointer_handle();
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);

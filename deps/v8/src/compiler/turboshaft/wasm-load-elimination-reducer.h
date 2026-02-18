@@ -679,6 +679,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
+      case Opcode::kWasmFXArgBuffer:
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;

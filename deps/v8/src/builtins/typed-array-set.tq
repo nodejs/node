@@ -69,8 +69,8 @@ transitioning javascript builtin TypedArrayPrototypeSet(
     // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
     // 8. If IsDetachedBuffer(targetBuffer) is true, throw a TypeError
     //   exception.
-    const attachedTargetAndLength = EnsureAttachedAndReadLength(target)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedTargetAndLength = EnsureValidAndReadLength(
+        target, TypedArrayAccessMode::kWrite) otherwise Fail;
 
     const overloadedArg = arguments[0];
     try {
@@ -85,8 +85,9 @@ transitioning javascript builtin TypedArrayPrototypeSet(
       // 4. Let srcBuffer be typedArray.[[ViewedArrayBuffer]].
       // 5. If IsDetachedBuffer(srcBuffer) is true, throw a TypeError
       //   exception.
-      const attachedSourceAndLength = EnsureAttachedAndReadLength(typedArray)
-          otherwise IsDetachedOrOutOfBounds;
+      const attachedSourceAndLength =
+          EnsureValidAndReadLength(typedArray, TypedArrayAccessMode::kWrite)
+          otherwise Fail;
       TypedArrayPrototypeSetTypedArray(
           attachedTargetAndLength, attachedSourceAndLength, targetOffset,
           targetOffsetOverflowed)
@@ -101,8 +102,10 @@ transitioning javascript builtin TypedArrayPrototypeSet(
     }
   } label OffsetOutOfBounds deferred {
     ThrowRangeError(MessageTemplate::kTypedArraySetOffsetOutOfBounds);
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSet);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateWriteErrorOperation,
+        kBuiltinNameSet);
   }
 }
 
@@ -153,7 +156,8 @@ transitioning macro TypedArrayPrototypeSetArray(
       // If the source is a JSArray (no custom length getter or elements
       // getter), there's nothing that could detach or resize the target, so
       // it's always non-detached here. Also we don't need to reload the length.
-      const utarget = typed_array::EnsureAttached(target) otherwise unreachable;
+      const utarget = typed_array::EnsureValid(
+          target, TypedArrayAccessMode::kWrite) otherwise unreachable;
       CallCCopyFastNumberJSArrayElementsToTypedArray(
           context, fastSrc, utarget, srcLength, targetOffset);
 
@@ -170,9 +174,8 @@ transitioning macro TypedArrayPrototypeSetArray(
 // https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
 transitioning macro TypedArrayPrototypeSetTypedArray(
     implicit context: Context, receiver: JSAny)(
-    attachedTargetAndLength: AttachedJSTypedArrayAndLength,
-    attachedSourceAndLength: AttachedJSTypedArrayAndLength,
-    targetOffset: uintptr,
+    attachedTargetAndLength: ValidJSTypedArrayAndLength,
+    attachedSourceAndLength: ValidJSTypedArrayAndLength, targetOffset: uintptr,
     targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds {
   // Steps 6-14 are not observable, so we can handle offset overflow
   // at step 15 here.

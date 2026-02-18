@@ -245,6 +245,7 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   }
 #endif
 
+  const size_t page_size = static_cast<size_t>(getpagesize());
   const uintptr_t old_fp_u = reinterpret_cast<uintptr_t>(old_fp);
   const uintptr_t new_fp_u = reinterpret_cast<uintptr_t>(new_fp);
 
@@ -273,8 +274,7 @@ static void **NextStackFrame(void **old_fp, const void *uc,
     // so we assume the large frame is legit if we know the real stack bounds
     // and are within the stack.
     if (new_fp_u <= old_fp_u || new_fp_u - old_fp_u > kMaxFrameBytes) {
-      if (stack_high < kUnknownStackEnd &&
-          static_cast<size_t>(getpagesize()) < stack_low) {
+      if (stack_high < kUnknownStackEnd && page_size < stack_low) {
         // Stack bounds are known.
         if (!(stack_low < new_fp_u && new_fp_u <= stack_high)) {
           // new_fp_u is not within the known stack.
@@ -311,7 +311,12 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   if (new_fp_u >= 0xffffe000) return nullptr;
 #endif
 #if !defined(_WIN32)
-  if (!STRICT_UNWINDING) {
+  const uintptr_t old_fp_page = old_fp_u & ~(page_size - 1);
+  const uintptr_t new_fp_page = new_fp_u & ~(page_size - 1);
+  if (old_fp_page == new_fp_page && (new_fp_u & (sizeof(void*) - 1)) == 0) {
+    // We dereferenced the old_fp above, so it is safe to dereference
+    // new_fp if it's on the same page as the old_fp and is aligned.
+  } else if (!STRICT_UNWINDING) {
     // Lax sanity checks cause a crash in 32-bit tcmalloc/crash_reason_test
     // on AMD-based machines with VDSO-enabled kernels.
     // Make an extra sanity check to insure new_fp is readable.

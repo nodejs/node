@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/float16.h"
 #include "src/base/ieee754.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
@@ -19,7 +20,6 @@
 #include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
-#include "src/wasm/float16.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -717,7 +717,7 @@ V ReadAndIncrementOffset(Address data, size_t* offset) {
   return result;
 }
 
-constexpr int32_t kSuccess = 1;
+constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
@@ -738,7 +738,7 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
       trusted_data->data_segment_starts()->get(seg_index));
   std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), seg_start + src,
               size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
@@ -757,7 +757,7 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(trusted_data, dst_mem_index, dst),
                EffectiveAddress(trusted_data, src_mem_index, src), size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
@@ -771,7 +771,7 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(trusted_data, mem_index, dst), value, size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 namespace {
@@ -800,7 +800,7 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
                              : src_index + length > dst_index);
   wasm::CanonicalValueType element_type =
       src_array->map()->wasm_type_info()->element_type();
-  if (element_type.is_reference()) {
+  if (element_type.is_ref()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
     Heap* heap = Isolate::Current()->heap();
@@ -909,6 +909,8 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       DCHECK_EQ(base::ReadUnalignedValue<int64_t>(initial_value_addr), 0);
       std::memset(initial_element_address, 0, bytes_to_set);
       return;
+    case kWaitQueue:
+      UNIMPLEMENTED();
     case kVoid:
     case kTop:
     case kBottom:
@@ -929,7 +931,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   }
 
   if (emit_write_barrier) {
-    DCHECK(type.is_reference());
+    DCHECK(type.is_ref());
     Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
     Isolate* isolate = Isolate::Current();
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
@@ -1004,6 +1006,8 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   to->set_current_continuation({});
+  // We must not visit bound arguments after the stack has been resumed.
+  to->clear_bound_args();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
@@ -1013,14 +1017,18 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
 
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw) {
+                             Address cont_raw, Address arg_buffer,
+                             const CanonicalSig* sig) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
   Tagged<Object> cont_obj(cont_raw);
   auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
-  cont->set_stack(isolate, from);
+  DCHECK(from->Contains(arg_buffer));
+  from->set_arg_buffer(arg_buffer);
+  cont->init_stack(isolate, from);
   from->set_current_continuation(cont);
+  from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
   bool found = false;
   // Search the innermost effect handler with a matching tag.
@@ -1079,6 +1087,10 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
       from, to, kNullAddress, kNullAddress, kNullAddress);
   isolate->RetireWasmStack(from);
+}
+
+void retire_stack(Isolate* isolate, wasm::StackMemory* stack) {
+  isolate->RetireWasmStack(stack);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {

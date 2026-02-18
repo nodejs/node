@@ -82,6 +82,11 @@ function main() {
     // V8 supports running the raw d8 executable, the inspector fuzzer or
     // the differential fuzzing harness 'foozzie'.
     settings.engine = 'v8';
+
+    // Infer settings from V8's GN config.
+    const buildConfig = scriptMutator.loadJSONFromBuild(
+        'v8_build_config.json');
+    settings.is_sandbox_fuzzing = buildConfig.memory_corruption_api;
   } else if (app_name === 'ch') {
     settings.engine = 'chakra';
   } else if (app_name === 'js') {

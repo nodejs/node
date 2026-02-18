@@ -47,8 +47,6 @@ extern macro BigIntBuiltinsAssembler::CppRightShiftResultLength(
     BigIntBase, uint32, intptr): uint32;
 extern macro BigIntBuiltinsAssembler::CppRightShiftAndCanonicalize(
     MutableBigInt, BigIntBase, intptr, uint32): void;
-extern macro BigIntBuiltinsAssembler::CppAbsoluteCompare(
-    BigIntBase, BigIntBase): int32;
 
 extern macro BigIntBuiltinsAssembler::ReadBigIntSign(BigIntBase): uint32;
 extern macro BigIntBuiltinsAssembler::ReadBigIntLength(BigIntBase): intptr;
@@ -96,8 +94,25 @@ macro AllocateEmptyBigInt(
   }
 }
 
-macro MutableBigIntAbsoluteCompare(x: BigIntBase, y: BigIntBase): int32 {
-  return CppAbsoluteCompare(x, y);
+// Returns r such that r < 0 if |x| < |y|; r > 0 if |x| > |y|;
+// r == 0 if |x| == |y|.
+macro BigIntCompareAbsolute(x: BigInt, y: BigInt): intptr {
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+  const diff = xlength - ylength;
+  if (diff != 0) {
+    return diff;
+  }
+
+  // case: {xlength} == {ylength}
+  for (let i: intptr = xlength - 1; i >= 0; --i) {
+    const xdigit = LoadBigIntDigit(x, i);
+    const ydigit = LoadBigIntDigit(y, i);
+    if (xdigit != ydigit) {
+      return (xdigit > ydigit) ? kGreaterThan : kLessThan;
+    }
+  }
+  return 0;
 }
 
 macro MutableBigIntAbsoluteSub(
@@ -107,7 +122,7 @@ macro MutableBigIntAbsoluteSub(
   const ylength = ReadBigIntLength(y);
   const xsign = ReadBigIntSign(x);
 
-  dcheck(MutableBigIntAbsoluteCompare(x, y) >= 0);
+  dcheck(BigIntCompareAbsolute(x, y) >= 0);
   if (xlength == 0) {
     dcheck(ylength == 0);
     return x;
@@ -169,7 +184,7 @@ macro BigIntAddImpl(implicit context: Context)(x: BigInt, y: BigInt): BigInt
 
   // x + -y == x - y == -(y - x)
   // -x + y == y - x == -(x - y)
-  if (MutableBigIntAbsoluteCompare(x, y) >= 0) {
+  if (BigIntCompareAbsolute(x, y) >= 0) {
     return MutableBigIntAbsoluteSub(x, y, xsign);
   }
   return MutableBigIntAbsoluteSub(y, x, InvertSign(xsign));
@@ -211,7 +226,7 @@ macro BigIntSubtractImpl(implicit context: Context)(x: BigInt,
 
   // x - y == -(y - x)
   // (-x) - (-y) == y - x == -(x - y)
-  if (MutableBigIntAbsoluteCompare(x, y) >= 0) {
+  if (BigIntCompareAbsolute(x, y) >= 0) {
     return MutableBigIntAbsoluteSub(x, y, xsign);
   }
   return MutableBigIntAbsoluteSub(y, x, InvertSign(xsign));
@@ -263,7 +278,11 @@ macro BigIntMultiplyImpl(implicit context: Context)(x: BigInt, y: BigInt):
   const result = AllocateEmptyBigIntNoThrow(resultSign, xlength + ylength)
       otherwise BigIntTooBig;
 
-  if (CppAbsoluteMulAndCanonicalize(result, x, y) == 1) {
+  // Ordering the bigger input first is faster to do here than on the C++ side.
+  const status = xlength < ylength ?
+      CppAbsoluteMulAndCanonicalize(result, y, x) :
+      CppAbsoluteMulAndCanonicalize(result, x, y);
+  if (status == 1) {
     goto TerminationRequested;
   }
 
@@ -312,7 +331,7 @@ macro BigIntDivideImpl(implicit context: Context)(x: BigInt, y: BigInt):
   }
 
   // case: x / y, where x < y
-  if (MutableBigIntAbsoluteCompare(x, y) < 0) {
+  if (BigIntCompareAbsolute(x, y) < 0) {
     const zero = AllocateEmptyBigInt(kPositiveSign, 0);
     return Convert<BigInt>(zero);
   }
@@ -378,7 +397,7 @@ macro BigIntModulusImpl(implicit context: Context)(x: BigInt, y: BigInt):
   }
 
   // case: x % y, where x < y
-  if (MutableBigIntAbsoluteCompare(x, y) < 0) {
+  if (BigIntCompareAbsolute(x, y) < 0) {
     return x;
   }
 
@@ -803,28 +822,6 @@ builtin BigIntEqual(implicit context: Context)(x: BigInt,
   }
 
   return True;
-}
-
-// Returns r such that r < 0 if |x| < |y|; r > 0 if |x| > |y|;
-// r == 0 if |x| == |y|.
-macro BigIntCompareAbsolute(
-    implicit context: Context)(x: BigInt, y: BigInt): intptr {
-  const xlength = ReadBigIntLength(x);
-  const ylength = ReadBigIntLength(y);
-  const diff = xlength - ylength;
-  if (diff != 0) {
-    return diff;
-  }
-
-  // case: {xlength} == {ylength}
-  for (let i: intptr = xlength - 1; i >= 0; --i) {
-    const xdigit = LoadBigIntDigit(x, i);
-    const ydigit = LoadBigIntDigit(y, i);
-    if (xdigit != ydigit) {
-      return (xdigit > ydigit) ? kGreaterThan : kLessThan;
-    }
-  }
-  return 0;
 }
 
 // Returns r such that r < 0 if x < y; r > 0 if x > y; r == 0 if x == y.

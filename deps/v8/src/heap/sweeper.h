@@ -25,10 +25,10 @@
 namespace v8 {
 namespace internal {
 
-class MutablePageMetadata;
+class MutablePage;
 class NonAtomicMarkingState;
-class PageMetadata;
-class LargePageMetadata;
+class NormalPage;
+class LargePage;
 class PagedSpaceBase;
 class Space;
 
@@ -49,8 +49,8 @@ class Sweeper {
     const bool resume_on_exit_;
   };
 
-  using SweepingList = std::vector<PageMetadata*>;
-  using SweptList = std::vector<PageMetadata*>;
+  using SweepingList = std::vector<NormalPage*>;
+  using SweptList = std::vector<NormalPage*>;
 
   enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
 
@@ -83,12 +83,12 @@ class Sweeper {
     bool ContributeAndWaitForPromotedPagesIteration();
 
    private:
-    void ParallelSweepPage(PageMetadata* page, AllocationSpace identity,
+    void ParallelSweepPage(NormalPage* page, AllocationSpace identity,
                            SweepingMode sweeping_mode);
 
     bool ParallelIteratePromotedPages(JobDelegate* delegate);
     bool ParallelIteratePromotedPages();
-    void ParallelIteratePromotedPage(MutablePageMetadata* page);
+    void ParallelIteratePromotedPage(MutablePage* page);
 
     template <typename ShouldYieldCallback>
     bool ContributeAndWaitForPromotedPagesIterationImpl(
@@ -121,17 +121,17 @@ class Sweeper {
 
   void TearDown();
 
-  void AddPage(AllocationSpace space, PageMetadata* page);
-  void AddNewSpacePage(PageMetadata* page);
-  void AddPromotedPage(MutablePageMetadata* chunk);
+  void AddPage(AllocationSpace space, NormalPage* page);
+  void AddNewSpacePage(NormalPage* page);
+  void AddPromotedPage(MutablePage* chunk);
 
   // Returns true if any swept pages can be allocated on.
   bool ParallelSweepSpace(
       AllocationSpace identity, SweepingMode sweeping_mode,
       uint32_t max_pages = std::numeric_limits<uint32_t>::max());
 
-  void EnsurePageIsSwept(PageMetadata* page);
-  void WaitForPageToBeSwept(PageMetadata* page);
+  void EnsurePageIsSwept(NormalPage* page);
+  void WaitForPageToBeSwept(NormalPage* page);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -160,7 +160,7 @@ class Sweeper {
 
   bool UsingMajorSweeperTasks() const;
 
-  PageMetadata* GetSweptPageSafe(PagedSpaceBase* space);
+  NormalPage* GetSweptPageSafe(PagedSpaceBase* space);
   SweptList GetAllSweptPagesSafe(PagedSpaceBase* space);
 
   bool IsSweepingDoneForSpace(AllocationSpace space) const;
@@ -173,7 +173,7 @@ class Sweeper {
 
   bool ShouldRefillFreelistForSpace(AllocationSpace space) const;
 
-  void SweepEmptyNewSpacePage(PageMetadata* page);
+  void SweepEmptyNewSpacePage(NormalPage* page);
 
   uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
 
@@ -189,13 +189,12 @@ class Sweeper {
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
-  void RawSweep(PageMetadata* p,
-                FreeSpaceTreatmentMode free_space_treatment_mode,
+  void RawSweep(NormalPage* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                 SweepingMode sweeping_mode, bool should_reduce_memory);
 
-  void ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr, size_t size);
+  void ZeroOrDiscardUnusedMemory(NormalPage* page, Address addr, size_t size);
 
-  void AddPageImpl(AllocationSpace space, PageMetadata* page);
+  void AddPageImpl(AllocationSpace space, NormalPage* page);
 
   class ConcurrentMajorSweeper;
   class ConcurrentMinorSweeper;
@@ -223,38 +222,38 @@ class Sweeper {
   // list, make the memory iterable, clear it, and return the free memory to
   // the operating system.
   size_t FreeAndProcessFreedMemory(
-      Address free_start, Address free_end, PageMetadata* page, Space* space,
+      Address free_start, Address free_end, NormalPage* page, Space* space,
       FreeSpaceTreatmentMode free_space_treatment_mode,
       bool should_reduce_memory);
 
   // Helper function for RawSweep. Handle remembered set entries in the freed
   // memory which require clearing.
   void CleanupRememberedSetEntriesForFreedMemory(
-      Address free_start, Address free_end, PageMetadata* page,
+      Address free_start, Address free_end, NormalPage* page,
       bool record_free_ranges, TypedSlotSet::FreeRangesMap* free_ranges_map,
       SweepingMode sweeping_mode);
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.
   void CleanupTypedSlotsInFreeMemory(
-      PageMetadata* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
+      NormalPage* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
       SweepingMode sweeping_mode);
 
   // Helper function for RawSweep. Clears the mark bits and ensures consistency
   // of live bytes.
-  void ClearMarkBitsAndHandleLivenessStatistics(PageMetadata* page,
+  void ClearMarkBitsAndHandleLivenessStatistics(NormalPage* page,
                                                 size_t live_bytes);
 
   size_t ConcurrentMinorSweepingPageCount();
   size_t ConcurrentMajorSweepingPageCount();
 
-  PageMetadata* GetSweepingPageSafe(AllocationSpace space);
-  MutablePageMetadata* GetPromotedPageSafe();
-  bool TryRemoveSweepingPageSafe(AllocationSpace space, PageMetadata* page);
-  bool TryRemovePromotedPageSafe(MutablePageMetadata* chunk);
+  NormalPage* GetSweepingPageSafe(AllocationSpace space);
+  MutablePage* GetPromotedPageSafe();
+  bool TryRemoveSweepingPageSafe(AllocationSpace space, NormalPage* page);
+  bool TryRemovePromotedPageSafe(MutablePage* chunk);
 
-  void PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page);
-  void PrepareToBeIteratedPromotedPage(PageMetadata* page);
+  void PrepareToBeSweptPage(AllocationSpace space, NormalPage* page);
+  void PrepareToBeIteratedPromotedPage(NormalPage* page);
 
   static bool IsValidSweepingSpace(AllocationSpace space) {
     return space >= FIRST_SWEEPABLE_SPACE && space <= LAST_SWEEPABLE_SPACE;
@@ -265,10 +264,10 @@ class Sweeper {
     return space - FIRST_SWEEPABLE_SPACE;
   }
 
-  void NotifyPromotedPageIterationFinished(MutablePageMetadata* chunk);
+  void NotifyPromotedPageIterationFinished(MutablePage* chunk);
   void NotifyPromotedPagesIterationFinished();
 
-  void AddSweptPage(PageMetadata* page, AllocationSpace identity);
+  void AddSweptPage(NormalPage* page, AllocationSpace identity);
 
   enum class SweepingScope { kMinor, kMajor };
   template <SweepingScope scope>
@@ -326,7 +325,7 @@ class Sweeper {
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
   std::atomic<bool> has_sweeping_work_[kNumberOfSweepingSpaces]{false};
   std::atomic<bool> has_swept_pages_[kNumberOfSweepingSpaces]{false};
-  std::vector<MutablePageMetadata*> sweeping_list_for_promoted_page_iteration_;
+  std::vector<MutablePage*> sweeping_list_for_promoted_page_iteration_;
   LocalSweeper main_thread_local_sweeper_;
   SweepingState<SweepingScope::kMajor> major_sweeping_state_{this};
   SweepingState<SweepingScope::kMinor> minor_sweeping_state_{this};
@@ -351,10 +350,13 @@ bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIterationImpl(
   // Check again that iteration is not yet finished.
   if (!sweeper_->IsIteratingPromotedPages()) return true;
   if (should_yield_callback()) {
+    TRACE_GC_NOTE(
+        "Sweeper::ContributeAndWaitForPromotedPagesIteration Preempted");
     return false;
   }
   sweeper_->promoted_pages_iteration_notification_variable_.Wait(
       &sweeper_->promoted_pages_iteration_notification_mutex_);
+  TRACE_GC_NOTE("Sweeper::ContributeAndWaitForPromotedPagesIteration Finished");
   return true;
 }
 
@@ -362,10 +364,14 @@ template <typename ShouldYieldCallback>
 bool Sweeper::LocalSweeper::ParallelIteratePromotedPagesImpl(
     ShouldYieldCallback should_yield_callback) {
   while (!should_yield_callback()) {
-    MutablePageMetadata* chunk = sweeper_->GetPromotedPageSafe();
-    if (chunk == nullptr) return true;
+    MutablePage* chunk = sweeper_->GetPromotedPageSafe();
+    if (chunk == nullptr) {
+      TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Finished");
+      return true;
+    }
     ParallelIteratePromotedPage(chunk);
   }
+  TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Preempted");
   return false;
 }
 

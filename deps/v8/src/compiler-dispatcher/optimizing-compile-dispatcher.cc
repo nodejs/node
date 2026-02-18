@@ -349,7 +349,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
     }
     // Discard code compiled for a discarded native context without
     // finalization.
-    if (function->native_context()->global_object()->IsDetached(isolate_)) {
+    if (function->native_context()->IsDetached()) {
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
       continue;
     }

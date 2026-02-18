@@ -532,6 +532,37 @@ RUNTIME_FUNCTION(Runtime_StringMaxLength) {
   return Smi::FromInt(String::kMaxLength);
 }
 
+namespace {
+
+template <const char* replacement, typename Char, typename IndicesT>
+void CopyEscapedRaw(Char* dst, const Char* src, int src_length,
+                    const IndicesT& indices,
+                    const DisallowGarbageCollection& no_gc) {
+  constexpr size_t replacement_length =
+      std::char_traits<char>::length(replacement);
+  int prev_index = -1;  // Start at -1 to avoid special-casing the first match.
+  int dst_index = 0;
+  for (int index : indices) {
+    const int slice_start = prev_index + 1;
+    const int slice_end = index;
+    if (slice_end > slice_start) {
+      const int slice_length = slice_end - slice_start;
+      CopyChars(dst + dst_index, src + slice_start, slice_length);
+      dst_index += slice_length;
+    }
+    CopyChars(dst + dst_index, replacement, replacement_length);
+    dst_index += replacement_length;
+    prev_index = index;
+  }
+
+  if (prev_index < src_length - 1) {
+    const int remaining_length = src_length - prev_index - 1;
+    CopyChars(dst + dst_index, src + prev_index + 1, remaining_length);
+  }
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -544,43 +575,55 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   DirectHandle<String> quotes =
       isolate->factory()->LookupSingleCharacterStringFromCode('"');
 
+  string = String::Flatten(isolate, string);
   int quote_index = String::IndexOf(isolate, string, quotes, 0);
 
   // No quotes, nothing to do.
   if (quote_index == -1) return *string;
 
   // Find all quotes.
-  std::vector<int> indices = {quote_index};
+  base::SmallVector<int, 2> indices = {quote_index};
   while (quote_index + 1 < string_length) {
     quote_index = String::IndexOf(isolate, string, quotes, quote_index + 1);
     if (quote_index == -1) break;
     indices.emplace_back(quote_index);
   }
 
-  // Build the replacement string.
-  DirectHandle<String> replacement =
-      isolate->factory()->NewStringFromAsciiChecked("&quot;");
-  const int estimated_part_count = static_cast<int>(indices.size()) * 2 + 1;
-  ReplacementStringBuilder builder(isolate->heap(), string,
-                                   estimated_part_count);
-
-  int prev_index = -1;  // Start at -1 to avoid special-casing the first match.
-  for (int index : indices) {
-    const int slice_start = prev_index + 1;
-    const int slice_end = index;
-    if (slice_end > slice_start) {
-      builder.AddSubjectSlice(slice_start, slice_end);
-    }
-    builder.AddString(replacement);
-    prev_index = index;
-  }
-
-  if (prev_index < string_length - 1) {
-    builder.AddSubjectSlice(prev_index + 1, string_length);
-  }
+  static constexpr char replacement[] = "&quot;";
+  constexpr size_t replacement_length =
+      std::char_traits<char>::length(replacement);
+  constexpr size_t replace_length_factor =
+      replacement_length - 1 /* original '"' */;
+  static_assert(replace_length_factor == 5);
+  uint32_t result_length =
+      string_length +
+      static_cast<uint32_t>(indices.size()) * replace_length_factor;
+  const bool is_one_byte = String::IsOneByteRepresentationUnderneath(*string);
 
   DirectHandle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.ToString());
+  if (is_one_byte) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewRawOneByteString(result_length));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewRawTwoByteString(result_length));
+  }
+  DisallowGarbageCollection no_gc;
+  String::FlatContent flat_string = string->GetFlatContent(no_gc);
+  if (is_one_byte) {
+    base::Vector<const uint8_t> string_vec = flat_string.ToOneByteVector();
+    uint8_t* dst = Cast<SeqOneByteString>(result)->GetChars(no_gc);
+    CopyEscapedRaw<replacement>(dst, string_vec.data(), string_vec.length(),
+                                indices, no_gc);
+  } else {
+    base::Vector<const base::uc16> string_vec = flat_string.ToUC16Vector();
+    base::uc16* dst = Cast<SeqTwoByteString>(result)->GetChars(no_gc);
+    CopyEscapedRaw<replacement>(dst, string_vec.data(), string_vec.length(),
+                                indices, no_gc);
+  }
+
   return *result;
 }
 

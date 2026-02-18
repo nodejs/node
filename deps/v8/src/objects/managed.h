@@ -68,14 +68,16 @@ struct ManagedPtrDestructor
   ManagedPtrDestructor* next_ = nullptr;
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
+  bool shared_ = false;
   Address* global_handle_location_ = nullptr;
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 
   ManagedPtrDestructor(size_t estimated_size, void* shared_ptr_ptr,
-                       void (*destructor)(void*))
+                       void (*destructor)(void*), bool shared)
       : estimated_size_(estimated_size),
         shared_ptr_ptr_(shared_ptr_ptr),
-        destructor_(destructor) {}
+        destructor_(destructor),
+        shared_(shared) {}
 };
 
 // The GC finalizer of a managed object, which does not depend on
@@ -111,6 +113,12 @@ class Managed : public Foreign {
 
   // Read back the memory estimate that was provided when creating this Managed.
   size_t estimated_size() const { return GetDestructor()->estimated_size_; }
+
+  // Set a new managed object, dropping the old reference.
+  // TODO(clemensb): Add an `UpdateEstimatedSize(size_t)` method.
+  void SetManagedObject(std::shared_ptr<CppType> new_managed) {
+    *GetSharedPtrPtr() = std::move(new_managed);
+  }
 
   // Create a {Managed>} from an existing {std::shared_ptr} or {std::unique_ptr}
   // (which will automatically convert to a {std::shared_ptr}).

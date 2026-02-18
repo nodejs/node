@@ -812,7 +812,7 @@ class ArrayConcatVisitor {
     }
 
     if (fast_elements()) {
-      if (index < static_cast<uint32_t>(storage_fixed_array()->length())) {
+      if (index < storage_fixed_array()->ulength().value()) {
         storage_fixed_array()->set(index, *elm);
         return true;
       }
@@ -851,8 +851,7 @@ class ArrayConcatVisitor {
     // but the array blowing the limit didn't contain elements beyond the
     // provided-for index range, go to dictionary mode now.
     if (fast_elements() &&
-        index_offset_ >
-            static_cast<uint32_t>(Cast<FixedArrayBase>(*storage_)->length())) {
+        index_offset_ > Cast<FixedArrayBase>(*storage_)->ulength().value()) {
       SetDictionaryMode();
     }
   }
@@ -900,9 +899,9 @@ class ArrayConcatVisitor {
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
     DirectHandle<FixedArray> current_storage = storage_fixed_array();
+    uint32_t current_length = current_storage->ulength().value();
     DirectHandle<NumberDictionary> slow_storage =
-        NumberDictionary::New(isolate_, current_storage->length());
-    uint32_t current_length = static_cast<uint32_t>(current_storage->length());
+        NumberDictionary::New(isolate_, current_length);
     FOR_WITH_HANDLE_SCOPE(isolate_, uint32_t i = 0, i, i < current_length,
                           i++) {
       DirectHandle<Object> element(current_storage->get(i), isolate_);
@@ -990,7 +989,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
       static_assert(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
       if (IsFixedArray(array->elements())) {
-        DCHECK_EQ(Cast<FixedArray>(array->elements())->length(), 0);
+        DCHECK_EQ(Cast<FixedArray>(array->elements())->ulength().value(), 0);
         break;
       }
       Tagged<FixedDoubleArray> elements =
@@ -1051,7 +1050,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
     case HOLEY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
       Tagged<FixedArray> elements = Cast<FixedArray>(object->elements());
-      uint32_t length = static_cast<uint32_t>(elements->length());
+      uint32_t length = elements->ulength().value();
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!IsTheHole(elements->get(i), isolate)) {
@@ -1063,12 +1062,12 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       if (IsFixedArray(object->elements())) {
-        DCHECK_EQ(object->elements()->length(), 0);
+        DCHECK_EQ(object->elements()->ulength().value(), 0);
         break;
       }
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(object->elements()), isolate);
-      uint32_t length = static_cast<uint32_t>(elements->length());
+      uint32_t length = elements->ulength().value();
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) {
@@ -1152,7 +1151,8 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
       // TODO(ishell): implement
       UNIMPLEMENTED();
     case SHARED_ARRAY_ELEMENTS: {
-      uint32_t length = Cast<JSSharedArray>(object)->elements()->length();
+      uint32_t length =
+          Cast<JSSharedArray>(object)->elements()->ulength().value();
       if (range <= length) {
         length = range;
         indices->clear();
@@ -1255,9 +1255,8 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       // to check the prototype for missing elements.
       DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
                                         isolate);
-      int fast_length = static_cast<int>(length);
-      DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
+      DCHECK_LE(length, elements->ulength().value());
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < length, j++) {
         DirectHandle<Object> element_value(elements->get(j), isolate);
         if (!IsTheHole(*element_value, isolate)) {
           if (!visitor->visit(j, element_value)) return false;
@@ -1286,14 +1285,13 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       if (IsFixedArray(array->elements())) {
-        DCHECK_EQ(array->elements()->length(), 0);
+        DCHECK_EQ(array->elements()->ulength().value(), 0);
         break;
       }
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(array->elements()), isolate);
-      int fast_length = static_cast<int>(length);
-      DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
+      DCHECK_LE(length, elements->ulength().value());
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < length, j++) {
         if (elements->is_the_hole(j)) {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;

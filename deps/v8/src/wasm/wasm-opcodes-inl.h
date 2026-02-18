@@ -144,6 +144,13 @@ constexpr bool WasmOpcodes::IsFP16SimdOpcode(WasmOpcode opcode) {
          (opcode >= kExprF16x8Abs && opcode <= kExprF16x8Qfms);
 }
 
+constexpr bool WasmOpcodes::IsAtomicRmwOpcode(WasmOpcode opcode) {
+  // Read-modify-write operations are the atomic binary operations
+  // (add, sub, and, or, xor, xchg) and compare-exchange.
+  return opcode >= kExprI32AtomicAdd &&
+         opcode <= kExprI64AtomicCompareExchange32U;
+}
+
 #if DEBUG
 // static
 constexpr bool WasmOpcodes::IsMemoryAccessOpcode(WasmOpcode opcode) {

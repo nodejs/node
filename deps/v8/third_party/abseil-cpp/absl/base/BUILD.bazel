@@ -254,6 +254,7 @@ cc_library(
 cc_library(
     name = "base",
     srcs = [
+        "casts.cc",
         "internal/cycleclock.cc",
         "internal/spinlock.cc",
         "internal/sysinfo.cc",
@@ -293,8 +294,6 @@ cc_library(
         ":config",
         ":core_headers",
         ":cycleclock_internal",
-        ":dynamic_annotations",
-        ":log_severity",
         ":nullability",
         ":raw_logging_internal",
         ":spinlock_wait",
@@ -375,13 +374,14 @@ cc_test(
 
 cc_library(
     name = "throw_delegate",
-    srcs = ["internal/throw_delegate.cc"],
-    hdrs = ["internal/throw_delegate.h"],
+    srcs = [
+        "throw_delegate.cc",
+    ],
+    hdrs = [
+        "throw_delegate.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl:__subpackages__",
-    ],
     deps = [
         ":config",
         ":raw_logging_internal",
@@ -609,7 +609,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
-        ":core_headers",
+        ":config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -961,6 +961,9 @@ cc_library(
     hdrs = ["internal/iterator_traits.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":config",
         "//absl/meta:type_traits",

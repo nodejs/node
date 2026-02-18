@@ -3262,3 +3262,164 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   arr.forEach(instance.exports.fn1);
 })();
+
+(function TestWebAssemblyPromisingWithInterpreter() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let k_sig_r_r = builder.addType(kSig_r_r);
+
+  let imported_func = builder.addImport("mod", "func", kSig_r_v);
+
+  builder.addFunction("main", k_sig_r_r)
+    .addBody([kExprCallFunction, imported_func]).exportFunc();
+  let instance = builder.instantiate({ mod: { func: () => {} } });
+
+  // WebAssembly.promising is not available when running with the wasm-interpreter,
+  // so we need to handle the TypeError gracefully.
+  try {
+    let promise = WebAssembly.promising(instance.exports.main);
+    promise();
+
+  } catch (e) {
+
+    if (e instanceof TypeError &&
+        e.message.includes("WebAssembly.promising is not a function")) {
+    } else {
+      throw e;
+    }
+  }
+})();
+
+(function TestFloatNaNSelect() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addFunction("select_nan", kSig_i_i)
+    .addBody([
+      kExprF32Const, 0x11, 0x00, 0xc0, 0xff,
+      kExprF32Const, 0x22, 0x00, 0xc0, 0xff,
+      kExprLocalGet, 0,
+      kExprSelect,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00022, instance.exports.select_nan(0) >>> 0);
+  assertEquals(0xffc00011, instance.exports.select_nan(1) >>> 0);
+})();
+
+(function TestFloatNaNGlobalGetSet() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addGlobal(kWasmF32, true);
+
+  builder.addFunction("set_get_nan", kSig_i_v)
+    .addBody([
+      kExprF32Const, 0x33, 0x00, 0xc0, 0xff,
+      kExprGlobalSet, 0,
+      kExprGlobalGet, 0,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00033, instance.exports.set_get_nan() >>> 0);
+})();
+
+(function TestFloatNaNChainedOps() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+
+  builder.addFunction("chained_nan_ops", kSig_i_v)
+    .addLocals(kWasmF32, 1)
+    .addBody([
+      kExprF32Const, 0x44, 0x00, 0xc0, 0xff,
+      kExprLocalSet, 0,
+      kExprI32Const, 0,
+      kExprLocalGet, 0,
+      kExprF32StoreMem, 2, 0,
+      kExprI32Const, 0,
+      kExprF32LoadMem, 2, 0,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00044, instance.exports.chained_nan_ops() >>> 0);
+})();
+
+(function TestFloatNaNFromArithmetic() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addFunction("arithmetic_nan", kSig_i_v)
+    .addBody([
+      ...wasmF32Const(0),
+      ...wasmF32ConstSignalingNaN(),
+      kExprF32Div,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  const result = instance.exports.arithmetic_nan();
+  const ArithmeticNaNBitMask = 0x7fc00000;
+  assertTrue((result & ArithmeticNaNBitMask) === ArithmeticNaNBitMask);
+})();
+
+// Test that ref slot preservation works when a ref local is read multiple
+// times and then updated with local.tee.
+(function testRefSlotPreservationWithLocalTee() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+
+  // Simple struct with an i32 value field
+  let structType = builder.addStruct([makeField(kWasmI32, true)]);
+
+  // Test: push a ref local twice, update it with local.tee, verify old value preserved
+  builder.addFunction("test", kSig_i_v)
+    .addLocals(wasmRefNullType(structType), 2)
+    .addBody([
+      // Create node1 and store in local0.
+      kExprI32Const, 11,
+      kGCPrefix, kExprStructNew, structType,
+      kExprLocalSet, 0,
+      // stack: [local0:ref=node11]
+
+      // Create node2 and store in local1.
+      kExprI32Const, 22,
+      kGCPrefix, kExprStructNew, structType,
+      kExprLocalSet, 1,
+      // stack: [local0:ref=node11, local1:ref=node22]
+
+      // Push local0, this will share the slot.
+      kExprLocalGet, 0,
+      // [local0:ref=node11, local1:ref=node22, ref:node11]
+
+      // Update local0 to point to node22; the ref to node11 should be preserved on the stack.
+      kExprLocalGet, 1,
+      // [local0:ref=node11, local1:ref=node22, ref:node11, ref:node22]
+      kExprLocalTee, 0,
+      // [local0:ref=node22, local1:ref=node22, ref:node11, ref:node22]
+
+      kExprDrop,
+      // [local0:ref=node22, local1:ref=node22, ref:node11]
+
+      // Access the ref that was pushed before the local.tee. It should still be node11.
+      kGCPrefix, kExprStructGet, structType, 0,
+    ])
+    .exportAs("test");
+
+  let instance = builder.instantiate();
+  let result = instance.exports.test();
+  assertEquals(11, result);
+})();
