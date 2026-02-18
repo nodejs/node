@@ -792,21 +792,22 @@ logger.info('User action', {
 
 ```mjs
 import { LogConsumer } from 'node:logger';
+import { styleText } from 'node:util';
+
+const levelStyles = {
+  trace: 'gray',
+  debug: 'cyan',
+  info: 'green',
+  warn: 'yellow',
+  error: 'red',
+  fatal: 'magenta',
+};
 
 class ConsoleColorConsumer extends LogConsumer {
   handle(record) {
-    const colors = {
-      trace: '\x1b[90m',
-      debug: '\x1b[36m',
-      info: '\x1b[32m',
-      warn: '\x1b[33m',
-      error: '\x1b[31m',
-      fatal: '\x1b[35m',
-    };
-    const reset = '\x1b[0m';
-    const color = colors[record.level] || reset;
-
-    console.log(`${color}[${record.level.toUpperCase()}]${reset} ${record.msg}`);
+    const style = levelStyles[record.level] ?? 'white';
+    const label = styleText(style, `[${record.level.toUpperCase()}]`);
+    console.log(`${label} ${record.msg}`);
   }
 }
 
