@@ -35,14 +35,15 @@ assert.ok(entries.includes('config.json'), 'Should include config.json');
 assert.ok(entries.includes('data'), 'Should include data directory');
 console.log('readdirSync tests passed, entries:', entries);
 
-// Test requiring a module from SEA VFS using direct require()
-const mathModule = require('/sea/modules/math.js');
+// Test relative require from main script - __filename is /sea/sea.js so
+// relative paths resolve under /sea/ via module hooks
+const mathModule = require('./modules/math.js');
 assert.strictEqual(mathModule.add(2, 3), 5, 'math.add should work');
 assert.strictEqual(mathModule.multiply(4, 5), 20, 'math.multiply should work');
-console.log('direct require from VFS tests passed');
+console.log('relative require from main script passed');
 
 // Test transitive requires: calculator.js requires ./math.js internally
-const calculator = require('/sea/modules/calculator.js');
+const calculator = require('./modules/calculator.js');
 assert.strictEqual(calculator.sum(10, 20), 30, 'calculator.sum should work');
 assert.strictEqual(calculator.product(3, 7), 21, 'calculator.product should work');
 console.log('transitive require from VFS tests passed');
