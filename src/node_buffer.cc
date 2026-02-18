@@ -1050,7 +1050,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
         needle_length,
         offset,
         is_forward);
-  } else if (enc == LATIN1) {
+  } else if (enc == ASCII || enc == LATIN1) {
     MaybeStackBuffer<uint8_t> needle_data(needle_length);
     StringBytes::Write(isolate,
                        reinterpret_cast<char*>(needle_data.out()),
