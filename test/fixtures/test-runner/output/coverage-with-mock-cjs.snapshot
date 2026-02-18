@@ -1,0 +1,38 @@
+TAP version 13
+# Subtest: coverage with mocked CJS module in ESM
+    # Subtest: uses mocked CJS exports
+    ok 1 - uses mocked CJS exports
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    1..1
+ok 1 - coverage with mocked CJS module in ESM
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..1
+# tests 1
+# suites 1
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *
+# start of coverage report
+# -------------------------------------------------------------------------------
+# file                           | line % | branch % | funcs % | uncovered lines
+# -------------------------------------------------------------------------------
+# test                           |        |          |         |
+#  fixtures                      |        |          |         |
+#   test-runner                  |        |          |         |
+#    coverage-with-mock-cjs      |        |          |         |
+#     subject.mjs                | 100.00 |   100.00 |  100.00 |
+#    output                      |        |          |         |
+#     coverage-with-mock-cjs.mjs | 100.00 |   100.00 |  100.00 |
+# -------------------------------------------------------------------------------
+# all files                      | 100.00 |   100.00 |  100.00 |
+# -------------------------------------------------------------------------------
+# end of coverage report
