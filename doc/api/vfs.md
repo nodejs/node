@@ -164,9 +164,9 @@ files exist only in memory.
 ### Code caching in SEA
 
 When using VFS with Single Executable Applications, the `useCodeCache` option
-in the SEA configuration does not apply to modules loaded from the VFS. Code
-caching requires executing modules during the SEA build process, but VFS
-modules are only available at runtime.
+in the SEA configuration does not apply to modules loaded from the VFS.
+Consider bundling the application to enable code caching and do not rely on
+module loading in VFS.
 
 ## `vfs.create([provider][, options])`
 
@@ -464,26 +464,19 @@ before VFS operations.
 
 #### Synchronous Methods
 
-* `vfs.accessSync(path[, mode])` - Check file accessibility
-* `vfs.appendFileSync(path, data[, options])` - Append to a file
-* `vfs.closeSync(fd)` - Close a file descriptor
-* `vfs.copyFileSync(src, dest[, mode])` - Copy a file
-* `vfs.existsSync(path)` - Check if path exists
-* `vfs.lstatSync(path[, options])` - Get file stats (no symlink follow)
-* `vfs.mkdirSync(path[, options])` - Create a directory
-* `vfs.openSync(path, flags[, mode])` - Open a file
-* `vfs.readdirSync(path[, options])` - Read directory contents
-* `vfs.readFileSync(path[, options])` - Read a file
-* `vfs.readlinkSync(path[, options])` - Read symlink target
-* `vfs.readSync(fd, buffer, offset, length, position)` - Read from fd
-* `vfs.realpathSync(path[, options])` - Resolve symlinks
-* `vfs.renameSync(oldPath, newPath)` - Rename a file or directory
-* `vfs.rmdirSync(path)` - Remove a directory
-* `vfs.statSync(path[, options])` - Get file stats
-* `vfs.symlinkSync(target, path[, type])` - Create a symlink
-* `vfs.unlinkSync(path)` - Remove a file
-* `vfs.writeFileSync(path, data[, options])` - Write a file
-* `vfs.writeSync(fd, buffer, offset, length, position)` - Write to fd
+The `VirtualFileSystem` class supports all common synchronous `fs` methods
+for reading, writing, and managing files and directories. Methods mirror the
+`fs` module API.
+
+The following `fs` sync methods have **no** VFS equivalent:
+
+* `chmodSync()` / `fchmodSync()` - VFS does not support permission changes
+* `chownSync()` / `fchownSync()` - VFS does not support ownership changes
+* `truncateSync()` / `ftruncateSync()` - Use `writeFileSync()` instead
+* `utimesSync()` / `futimesSync()` / `lutimesSync()` - VFS does not support
+  changing timestamps
+* `linkSync()` - VFS does not support hard links (use `symlinkSync()`)
+* `fdatasyncSync()` / `fsyncSync()` - Not applicable to in-memory storage
 
 #### Promise Methods
 
@@ -790,8 +783,9 @@ operations without file descriptor collisions.
 
 ## Use with Single Executable Applications
 
-When running as a Single Executable Application (SEA), bundled assets are
-automatically mounted at `/sea`. No additional setup is required:
+When running as a Single Executable Application (SEA) with `"useVfs": true` in
+the SEA configuration, bundled assets are automatically mounted at `/sea`. No
+additional setup is required:
 
 ```cjs
 // In your SEA entry script

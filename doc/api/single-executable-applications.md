@@ -115,6 +115,7 @@ The configuration currently reads the following top-level fields:
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
+  "useVfs": true, // Default: false
   "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
@@ -180,9 +181,10 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 
 Instead of using the `node:sea` API to access individual assets, you can use
 the Virtual File System (VFS) to access bundled assets through standard `fs`
-APIs. When running as a Single Executable Application, the VFS is automatically
-initialized and mounted at `/sea`. All assets defined in the SEA configuration
-are accessible through this virtual path.
+APIs. To enable VFS, set `"useVfs": true` in the SEA configuration. When
+enabled, the VFS is automatically initialized and mounted at `/sea`. All
+assets defined in the SEA configuration are accessible through this virtual
+path.
 
 ```cjs
 const fs = require('node:fs');
@@ -224,16 +226,27 @@ const myModule = require('/sea/lib/mymodule.js');
 const utils = require('/sea/utils/helpers.js');
 ```
 
-The SEA's `require()` function automatically detects VFS paths (paths starting
-with `/sea/`) and loads modules from the virtual file system.
+When `useVfs` is enabled, `require()` in the injected main script uses the
+registered module hooks to load modules from the virtual file system. This
+supports both absolute VFS paths and relative requires (e.g.,
+`require('./helper.js')` from a VFS module).
+
+When `useVfs` is enabled, `__filename` and `__dirname` in the injected main
+script reflect VFS paths (e.g., `/sea/main.js`) instead of
+[`process.execPath`][].
 
 #### Code caching limitations
 
 The `useCodeCache` option in the SEA configuration does not apply to modules
-loaded from the VFS. Code caching requires executing modules during the SEA
-build process to generate cached code, but VFS modules are only available at
-runtime after the SEA is built. If performance is critical, consider using
-`useCodeCache` for your main entry point and `useSnapshot` for initialization.
+loaded from the VFS. Consider bundling the application to enable code caching
+and do not rely on module loading in VFS.
+
+#### Native addon limitations
+
+Native addons (`.node` files) cannot be loaded directly from the VFS because
+`process.dlopen()` requires files on the real file system. To use native
+addons in a SEA with VFS, write the asset to a temporary file first. See
+[Using native addons in the injected main script][] for an example.
 
 ### Startup snapshot support
 
@@ -665,6 +678,7 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
