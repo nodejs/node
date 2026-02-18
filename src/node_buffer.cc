@@ -1210,8 +1210,8 @@ void FastSwap16(Local<Value> receiver,
                 FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.swap16");
   HandleScope scope(options.isolate);
-  ArrayBufferViewContents<char> buffer(buffer_obj);
-  CHECK(nbytes::SwapBytes16(const_cast<char*>(buffer.data()), buffer.length()));
+  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
+  CHECK(nbytes::SwapBytes16(ts_obj_data, ts_obj_length));
 }
 
 static CFunction fast_swap16(CFunction::Make(FastSwap16));
@@ -1227,8 +1227,8 @@ void FastSwap32(Local<Value> receiver,
                 FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.swap32");
   HandleScope scope(options.isolate);
-  ArrayBufferViewContents<char> buffer(buffer_obj);
-  CHECK(nbytes::SwapBytes32(const_cast<char*>(buffer.data()), buffer.length()));
+  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
+  CHECK(nbytes::SwapBytes32(ts_obj_data, ts_obj_length));
 }
 
 static CFunction fast_swap32(CFunction::Make(FastSwap32));
@@ -1244,8 +1244,8 @@ void FastSwap64(Local<Value> receiver,
                 FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.swap64");
   HandleScope scope(options.isolate);
-  ArrayBufferViewContents<char> buffer(buffer_obj);
-  CHECK(nbytes::SwapBytes64(const_cast<char*>(buffer.data()), buffer.length()));
+  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
+  CHECK(nbytes::SwapBytes64(ts_obj_data, ts_obj_length));
 }
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
