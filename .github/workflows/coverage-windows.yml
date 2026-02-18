@@ -3,31 +3,55 @@ name: Coverage Windows
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
       - main
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
