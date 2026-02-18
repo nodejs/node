@@ -2544,6 +2544,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
+  stmt->reset_generation_++;
   int r = sqlite3_reset(stmt->statement_);
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -2570,6 +2571,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  stmt->reset_generation_++;
   int r = sqlite3_reset(stmt->statement_);
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -2593,6 +2595,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  stmt->reset_generation_++;
   int r = sqlite3_reset(stmt->statement_);
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -2617,6 +2620,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  stmt->reset_generation_++;
   int r = sqlite3_reset(stmt->statement_);
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3162,6 +3166,7 @@ StatementSyncIterator::StatementSyncIterator(Environment* env,
     : BaseObject(env, object), stmt_(std::move(stmt)) {
   MakeWeak();
   done_ = false;
+  statement_reset_generation_ = stmt_->reset_generation_;
 }
 
 StatementSyncIterator::~StatementSyncIterator() {}
@@ -3219,6 +3224,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
     }
     return;
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
+      "iterator was invalidated");
 
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
