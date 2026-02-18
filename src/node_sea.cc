@@ -265,6 +265,16 @@ void IsSea(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(IsSingleExecutable());
 }
 
+void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
+  if (!IsSingleExecutable()) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+  SeaResource sea_resource = FindSingleExecutableResource();
+  args.GetReturnValue().Set(
+      static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs));
+}
+
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   bool is_building_sea =
       !per_process::cli_options->experimental_sea_config.empty();
@@ -493,6 +503,17 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       if (!exec_argv.empty()) {
         result.flags |= SeaFlags::kIncludeExecArgv;
         result.exec_argv = std::move(exec_argv);
+      }
+    } else if (key == "useVfs") {
+      bool use_vfs;
+      if (field.value().get_bool().get(use_vfs)) {
+        FPrintF(stderr,
+                "\"useVfs\" field of %s is not a Boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (use_vfs) {
+        result.flags |= SeaFlags::kEnableVfs;
       }
     } else if (key == "execArgvExtension") {
       std::string_view extension_str;
@@ -918,6 +939,7 @@ void Initialize(Local<Object> target,
             target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
+  SetMethod(context, target, "isVfsEnabled", IsVfsEnabled);
   SetMethod(context, target, "getAsset", GetAsset);
   SetMethod(context, target, "getAssetKeys", GetAssetKeys);
 }
@@ -925,6 +947,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
+  registry->Register(IsVfsEnabled);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
 }
