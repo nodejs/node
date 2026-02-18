@@ -435,13 +435,15 @@ If you want to use this library in a CMake project as a static library, you can 
 FetchContent_Declare(llhttp
   URL "https://github.com/nodejs/llhttp/archive/refs/tags/release/v8.1.0.tar.gz")
 
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
+set(LLHTTP_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(LLHTTP_BUILD_STATIC_LIBS ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(llhttp)
 
 # Link with the llhttp_static target
 target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp_static ${PROJECT_NAME})
 ```
+
+If using a version prior to 9.3.0, the `LLHTTP_BUILD_SHARED_LIBS` and `LLHTTP_BUILD_STATIC_LIBS` options are known as `BUILD_SHARED_LIBS` and `BUILD_STATIC_LIBS` and should be used instead.
 
 _Note that using the git repo directly (e.g., via a git repo url and tag) will not work with FetchContent_Declare because [CMakeLists.txt](./CMakeLists.txt) requires string replacements (e.g., `_RELEASE_`) before it will build._
 
