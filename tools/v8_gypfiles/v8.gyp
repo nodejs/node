@@ -1429,6 +1429,41 @@
       ],
 
       'conditions': [
+        ['v8_target_arch=="ia32" or v8_target_arch=="x64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-x86.cc',
+          ],
+        }],
+        ['v8_target_arch=="arm" or v8_target_arch=="arm64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-arm.cc',
+          ],
+        }],
+        ['v8_target_arch=="riscv64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-riscv.cc',
+          ],
+        }],
+        ['v8_target_arch=="loong64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-loong64.cc',
+          ],
+        }],
+        ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-mips64.cc',
+          ],
+        }],
+        ['v8_target_arch=="ppc64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-ppc.cc',
+          ],
+        }],
+        ['v8_target_arch=="s390x"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-s390.cc',
+          ],
+        }],
         ['is_component_build', {
           'defines': ["BUILDING_V8_BASE_SHARED"],
         }],
@@ -2012,7 +2047,7 @@
       'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_cluster_source_set.\\"cppgc_base.*?sources = ")',
         ],
       },
     },  # cppgc_base
@@ -2209,6 +2244,10 @@
           '<(V8_ROOT)/src/objects/casting-inl.h',
           '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-external-object.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-external-object-inl.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-object-wrapper.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-object-wrapper-inl.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
           '<(V8_ROOT)/src/objects/data-handler-inl.h',
           '<(V8_ROOT)/src/objects/deoptimization-data.h',
@@ -2263,6 +2302,7 @@
           '<(V8_ROOT)/src/objects/primitive-heap-object-inl.h',
           '<(V8_ROOT)/src/objects/scope-info.h',
           '<(V8_ROOT)/src/objects/scope-info-inl.h',
+          '<(V8_ROOT)/src/objects/script.cc',
           '<(V8_ROOT)/src/objects/script.h',
           '<(V8_ROOT)/src/objects/script-inl.h',
           '<(V8_ROOT)/src/objects/shared-function-info.cc',
@@ -2276,6 +2316,7 @@
           '<(V8_ROOT)/src/objects/struct.h',
           '<(V8_ROOT)/src/objects/struct-inl.h',
           '<(V8_ROOT)/src/objects/tagged.h',
+          '<(V8_ROOT)/src/objects/union.h',
         ],
       },
       'actions': [
