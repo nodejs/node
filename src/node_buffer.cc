@@ -1050,7 +1050,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
         needle_length,
         offset,
         is_forward);
-  } else if (enc == LATIN1) {
+  } else if (enc == ASCII || enc == LATIN1) {
     uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
