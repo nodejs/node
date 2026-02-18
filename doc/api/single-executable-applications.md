@@ -677,8 +677,8 @@ to help us document them.
 [Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
-[Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
+[Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module

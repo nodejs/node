@@ -493,9 +493,8 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     } else if (key == "useVfs") {
       bool use_vfs;
       if (field.value().get_bool().get(use_vfs)) {
-        FPrintF(stderr,
-                "\"useVfs\" field of %s is not a Boolean\n",
-                config_path);
+        FPrintF(
+            stderr, "\"useVfs\" field of %s is not a Boolean\n", config_path);
         return std::nullopt;
       }
       if (use_vfs) {
