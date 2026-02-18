@@ -19,8 +19,8 @@ const kTests = [
 
 if (!process.features.openssl_is_boringssl) {
   kTests.push(
-    [{ name: 'cSHAKE128', length: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
-    [{ name: 'cSHAKE256', length: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
+    [{ name: 'cSHAKE128', outputLength: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
+    [{ name: 'cSHAKE256', outputLength: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
     ['SHA3-256', ['sha3-256'], 256],
     ['SHA3-384', ['sha3-384'], 384],
     ['SHA3-512', ['sha3-512'], 512],
@@ -223,10 +223,10 @@ async function testDigest(size, alg) {
 
 function applyXOF(name) {
   if (name.match(/cshake128/i)) {
-    return { name, length: 256 };
+    return { name, outputLength: 256 };
   }
   if (name.match(/cshake256/i)) {
-    return { name, length: 512 };
+    return { name, outputLength: 512 };
   }
   return name;
 
@@ -259,13 +259,13 @@ function applyXOF(name) {
 if (getHashes().includes('shake128')) {
   (async () => {
     assert.deepStrictEqual(
-      new Uint8Array(await subtle.digest({ name: 'cSHAKE128', length: 0 }, Buffer.alloc(1))),
+      new Uint8Array(await subtle.digest({ name: 'cSHAKE128', outputLength: 0 }, Buffer.alloc(1))),
       new Uint8Array(0),
     );
 
-    await assert.rejects(subtle.digest({ name: 'cSHAKE128', length: 7 }, Buffer.alloc(1)), {
+    await assert.rejects(subtle.digest({ name: 'cSHAKE128', outputLength: 7 }, Buffer.alloc(1)), {
       name: 'NotSupportedError',
-      message: 'Unsupported CShakeParams length',
+      message: 'Unsupported CShakeParams outputLength',
     });
   })().then(common.mustCall());
 }
