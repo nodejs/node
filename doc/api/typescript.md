@@ -146,11 +146,10 @@ The most prominent features that require transformation are:
 
 * `Enum` declarations
 * `namespace` with runtime code
-* legacy `module` with runtime code
 * parameter properties
 * import aliases
 
-`namespaces` and `module` that do not contain runtime code are supported.
+`namespace`s that do not contain runtime code are supported.
 This example will work correctly:
 
 ```ts
