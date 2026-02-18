@@ -1211,7 +1211,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active Development
 
 Enable the experimental `node:logger` module for structured logging.
 See the [Logger][] documentation for more details.
