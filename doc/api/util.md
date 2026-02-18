@@ -2529,6 +2529,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61556
+    description: add hex colors support
   - version:
       - v24.2.0
       - v22.17.0
