@@ -4,48 +4,22 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execSync } = require('child_process');
 
-tmpdir.refresh(); // Prepare a clean temporary directory
+tmpdir.refresh();
 
-const dirPath = path.join(tmpdir.path, '速速速_dir');
-const filePath = path.join(dirPath, 'test_file.txt');
+const file = path.join(tmpdir.path, '速_file');
+fs.writeFileSync(file, 'x');
 
-// Create a directory and a file within it
-fs.mkdirSync(dirPath, { recursive: true });
-fs.writeFileSync(filePath, 'This is a test file.');
-
-// Set permissions to simulate a permission denied scenario
-if (process.platform === 'win32') {
-  // Windows: Deny delete permissions
-  execSync(`icacls "${filePath}" /deny Everyone:(D)`);
-} else {
-  // Unix/Linux: Remove write permissions from the directory
-  fs.chmodSync(dirPath, 0o555); // Read and execute permissions only
-}
+// Treat that file as if it were a directory so the error message
+// includes the path treated as a directory, not the file.
+const badPath = path.join(file, 'child');
 
 // Attempt to delete the directory which should now fail
 try {
-  fs.rmSync(dirPath, { recursive: true });
+  fs.rmSync(badPath, { recursive: true });
 } catch (err) {
-  if (process.platform === 'win32') {
-    assert.strictEqual(err.code, 'EPERM');
-  } else {
-    // POSIX: rmSync may surface different errors
-    assert(['EACCES', 'EPERM', 'ENOTEMPTY'].includes(err.code), err.code);
-  }
-  assert.strictEqual(err.path, dirPath);
-  assert(err.message.includes(dirPath), 'Error message should include the path treated as a directory');
+  // Verify that the error is due to the path being treated as a directory
+  assert.strictEqual(err.code, 'ENOTDIR');
+  assert.strictEqual(err.path, badPath);
+  assert(err.message.includes(badPath), 'Error message should include the path treated as a directory');
 }
-
-// Cleanup - resetting permissions and removing the directory safely
-if (process.platform === 'win32') {
-  // Remove the explicit permissions before attempting to delete
-  execSync(`icacls "${filePath}" /remove:d Everyone`);
-} else {
-  // Reset permissions to allow deletion
-  fs.chmodSync(dirPath, 0o755); // Restore full permissions to the directory
-}
-
-// Attempt to clean up
-fs.rmSync(dirPath, { recursive: true }); // This should now succeed
