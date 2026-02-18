@@ -13,6 +13,8 @@ def DoMain(args):
 
   scraper_re = re.compile(pattern + r'\[([^\]]+)', re.DOTALL)
   matches = scraper_re.search(gn_content)
+  if not matches:
+    raise Exception('Pattern "%s" not found in %s' % (pattern, gn_filename))
   match = matches.group(1)
   files = []
   for l in match.splitlines():
