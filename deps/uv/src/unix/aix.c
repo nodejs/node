@@ -1120,6 +1120,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifreq *ifr, *p, flg;
   struct in6_ifreq if6;
   struct sockaddr_dl* sa_addr;
+  size_t namelen;
+  char* name;
 
   ifc.ifc_req = NULL;
   sock6fd = -1;
@@ -1156,6 +1158,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 #define ADDR_SIZE(p) MAX((p).sa_len, sizeof(p))
 
   /* Count all up and running ipv4/ipv6 addresses */
+  namelen = 0;
   ifr = ifc.ifc_req;
   while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
     p = ifr;
@@ -1175,6 +1178,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
       continue;
 
+    namelen += strlen(p->ifr_name) + 1;
     (*count)++;
   }
 
@@ -1182,11 +1186,12 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     goto cleanup;
 
   /* Alloc the return interface structs */
-  *addresses = uv__calloc(*count, sizeof(**addresses));
-  if (!(*addresses)) {
+  *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
+  if (*addresses == NULL) {
     r = UV_ENOMEM;
     goto cleanup;
   }
+  name = (char*) &(*addresses)[*count];
   address = *addresses;
 
   ifr = ifc.ifc_req;
@@ -1210,7 +1215,9 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
     /* All conditions above must match count loop */
 
-    address->name = uv__strdup(p->ifr_name);
+    namelen = strlen(p->ifr_name) + 1;
+    address->name = memcpy(name, p->ifr_name, namelen);
+    name += namelen;
 
     if (inet6)
       address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
@@ -1282,13 +1289,7 @@ cleanup:
 
 
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
-
-  for (i = 0; i < count; ++i) {
-    uv__free(addresses[i].name);
-  }
-
+                                 int count) {
   uv__free(addresses);
 }
 

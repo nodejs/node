@@ -40,7 +40,7 @@ Data types
     will indicate the exit status and the signal that caused the process to
     terminate, if any.
 
-.. c:type:: uv_process_flags
+.. c:enum:: uv_process_flags
 
     Flags to be set on the flags field of :c:type:`uv_process_options_t`.
 
@@ -85,7 +85,14 @@ Data types
             * option is only meaningful on Windows systems. On Unix it is silently
             * ignored.
             */
-            UV_PROCESS_WINDOWS_HIDE_GUI = (1 << 6)
+            UV_PROCESS_WINDOWS_HIDE_GUI = (1 << 6),
+            /*
+             * On Windows, if the path to the program to execute, specified in
+             * uv_process_options_t's file field, has a directory component,
+             * search for the exact file name before trying variants with
+             * extensions like '.exe' or '.cmd'.
+             */
+            UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7)
         };
 
 .. c:type:: uv_stdio_container_t
@@ -183,7 +190,7 @@ Public members
     Command line arguments. args[0] should be the path to the program. On
     Windows this uses `CreateProcess` which concatenates the arguments into a
     string this can cause some strange errors. See the
-    ``UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS`` flag on :c:type:`uv_process_flags`.
+    ``UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS`` flag on :c:enum:`uv_process_flags`.
 
 .. c:member:: char** uv_process_options_t.env
 
@@ -196,7 +203,7 @@ Public members
 .. c:member:: unsigned int uv_process_options_t.flags
 
     Various flags that control how :c:func:`uv_spawn` behaves. See
-    :c:type:`uv_process_flags`.
+    :c:enum:`uv_process_flags`.
 
 .. c:member:: int uv_process_options_t.stdio_count
 .. c:member:: uv_stdio_container_t* uv_process_options_t.stdio
@@ -261,6 +268,9 @@ API
 
     .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
                         `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
+
+    .. versionchanged:: 1.48.0 Added the
+                        `UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME` flag.
 
 .. c:function:: int uv_process_kill(uv_process_t* handle, int signum)
 

@@ -271,7 +271,10 @@ typedef struct {
 
 #define UV_UDP_SEND_PRIVATE_FIELDS                                            \
   struct uv__queue queue;                                                     \
-  struct sockaddr_storage addr;                                               \
+  union {                                                                     \
+    struct sockaddr addr;                                                     \
+    struct sockaddr_storage storage;                                          \
+  } u;                                                                        \
   unsigned int nbufs;                                                         \
   uv_buf_t* bufs;                                                             \
   ssize_t status;                                                             \
@@ -328,7 +331,10 @@ typedef struct {
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
   uv_timer_cb timer_cb;                                                       \
-  void* heap_node[3];                                                         \
+  union {                                                                     \
+    void* heap[3];                                                            \
+    struct uv__queue queue;                                                   \
+  } node;                                                                     \
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
   uint64_t start_id;
