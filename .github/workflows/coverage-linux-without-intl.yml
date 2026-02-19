@@ -37,9 +37,9 @@ env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
   CLANG_VERSION: '19'
-  CC: sccache clang-19
-  CXX: sccache clang++-19
-  SCCACHE_GHA_ENABLED: 'true'
+  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+  SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
   SCCACHE_IDLE_TIMEOUT: '0'
 
 permissions:
@@ -63,6 +63,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0
