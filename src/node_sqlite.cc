@@ -130,6 +130,23 @@ using v8::Value;
   } while (0)
 
 namespace {
+
+inline void SetSideEffectFreeGetter(Isolate* isolate,
+                                    Local<FunctionTemplate> class_template,
+                                    Local<String> name,
+                                    FunctionCallback fn) {
+  Local<FunctionTemplate> getter =
+      FunctionTemplate::New(isolate,
+                            fn,
+                            Local<Value>(),
+                            v8::Signature::New(isolate, class_template),
+                            /* length */ 0,
+                            ConstructorBehavior::kThrow,
+                            SideEffectType::kHasNoSideEffect);
+  class_template->InstanceTemplate()->SetAccessorProperty(
+      name, getter, Local<FunctionTemplate>(), DontDelete);
+}
+
 Local<DictionaryTemplate> getLazyIterTemplate(Environment* env) {
   auto iter_template = env->iter_template();
   if (iter_template.IsEmpty()) {
@@ -237,8 +254,6 @@ void JSValueToSQLiteResult(Isolate* isolate,
         -1);
   }
 }
-
-class DatabaseSync;
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   if (db->ShouldIgnoreSQLiteError()) {
@@ -905,6 +920,56 @@ void DatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize(
       "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
 }
+
+namespace {
+v8::Local<v8::FunctionTemplate> CreateDatabaseSyncConstructorTemplate(
+    Environment* env) {
+  Isolate* isolate = env->isolate();
+
+  Local<FunctionTemplate> tmpl =
+      NewFunctionTemplate(isolate, DatabaseSync::New);
+  tmpl->InstanceTemplate()->SetInternalFieldCount(
+      DatabaseSync::kInternalFieldCount);
+
+  SetProtoMethod(isolate, tmpl, "open", DatabaseSync::Open);
+  SetProtoMethod(isolate, tmpl, "close", DatabaseSync::Close);
+  SetProtoDispose(isolate, tmpl, DatabaseSync::Dispose);
+  SetProtoMethod(isolate, tmpl, "prepare", DatabaseSync::Prepare);
+  SetProtoMethod(isolate, tmpl, "exec", DatabaseSync::Exec);
+  SetProtoMethod(isolate, tmpl, "function", DatabaseSync::CustomFunction);
+  SetProtoMethod(isolate, tmpl, "createTagStore", DatabaseSync::CreateTagStore);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "location", DatabaseSync::Location);
+  SetProtoMethod(isolate, tmpl, "aggregate", DatabaseSync::AggregateFunction);
+  SetProtoMethod(isolate, tmpl, "createSession", DatabaseSync::CreateSession);
+  SetProtoMethod(isolate, tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
+  SetProtoMethod(
+      isolate, tmpl, "enableLoadExtension", DatabaseSync::EnableLoadExtension);
+  SetProtoMethod(
+      isolate, tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
+  SetProtoMethod(isolate, tmpl, "loadExtension", DatabaseSync::LoadExtension);
+  SetProtoMethod(isolate, tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                          DatabaseSync::IsOpenGetter);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
+                          DatabaseSync::IsTransactionGetter);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "limits"),
+                          DatabaseSync::LimitsGetter);
+  Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
+  Local<v8::Symbol> sqlite_type_symbol =
+      v8::Symbol::For(isolate, sqlite_type_key);
+  Local<String> database_sync_string =
+      FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
+  tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
+
+  return tmpl;
+}
+}  // namespace
 
 bool DatabaseSync::Open() {
   if (IsOpen()) {
@@ -3060,23 +3125,6 @@ SQLTagStore::SQLTagStore(Environment* env,
   MakeWeak();
 }
 
-static inline void SetSideEffectFreeGetter(
-    Isolate* isolate,
-    Local<FunctionTemplate> class_template,
-    Local<String> name,
-    FunctionCallback fn) {
-  Local<FunctionTemplate> getter =
-      FunctionTemplate::New(isolate,
-                            fn,
-                            Local<Value>(),
-                            v8::Signature::New(isolate, class_template),
-                            /* length */ 0,
-                            ConstructorBehavior::kThrow,
-                            SideEffectType::kHasNoSideEffect);
-  class_template->InstanceTemplate()->SetAccessorProperty(
-      name, getter, Local<FunctionTemplate>(), DontDelete);
-}
-
 SQLTagStore::~SQLTagStore() {}
 
 Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
@@ -3722,60 +3770,15 @@ static void Initialize(Local<Object> target,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  Local<FunctionTemplate> db_tmpl =
-      NewFunctionTemplate(isolate, DatabaseSync::New);
-  db_tmpl->InstanceTemplate()->SetInternalFieldCount(
-      DatabaseSync::kInternalFieldCount);
+
   Local<Object> constants = Object::New(isolate);
 
   DefineConstants(constants);
 
-  SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
-  SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
-  SetProtoDispose(isolate, db_tmpl, DatabaseSync::Dispose);
-  SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
-  SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
-  SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
-  SetProtoMethod(
-      isolate, db_tmpl, "createTagStore", DatabaseSync::CreateTagStore);
-  SetProtoMethodNoSideEffect(
-      isolate, db_tmpl, "location", DatabaseSync::Location);
-  SetProtoMethod(
-      isolate, db_tmpl, "aggregate", DatabaseSync::AggregateFunction);
-  SetProtoMethod(
-      isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
-  SetProtoMethod(
-      isolate, db_tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
-  SetProtoMethod(isolate,
-                 db_tmpl,
-                 "enableLoadExtension",
-                 DatabaseSync::EnableLoadExtension);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
-  SetProtoMethod(
-      isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
-  SetProtoMethod(
-      isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
-                          DatabaseSync::IsOpenGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
-                          DatabaseSync::IsTransactionGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "limits"),
-                          DatabaseSync::LimitsGetter);
-  Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
-  Local<v8::Symbol> sqlite_type_symbol =
-      v8::Symbol::For(isolate, sqlite_type_key);
-  Local<String> database_sync_string =
-      FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
-  db_tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
-
-  SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
+  SetConstructorFunction(context,
+                         target,
+                         "DatabaseSync",
+                         CreateDatabaseSyncConstructorTemplate(env));
   SetConstructorFunction(context,
                          target,
                          "StatementSync",
