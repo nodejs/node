@@ -23,6 +23,7 @@ using node::ExitCode;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::Data;
 using v8::Function;
@@ -903,7 +904,8 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   // Set boolean flags as properties (computed once, avoids repeated calls).
   bool is_sea = IsSingleExecutable();
@@ -915,8 +917,8 @@ void Initialize(Local<Object> target,
     SeaResource sea_resource = FindSingleExecutableResource();
     is_vfs_enabled =
         static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
-    if (!static_cast<bool>(
-            sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning)) {
+    if (!static_cast<bool>(sea_resource.flags &
+                           SeaFlags::kDisableExperimentalSeaWarning)) {
       is_experimental_warning_needed = true;
     }
   }
