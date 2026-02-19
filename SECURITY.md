@@ -335,6 +335,21 @@ the community they pose.
   proper security boundaries between trusted application logic and untrusted
   user input.
 
+#### Build System Attacks Requiring Control of the Build Environment (CWE-78, CWE-114, CWE-276)
+
+* The Node.js build system (e.g., `configure`, `configure.py`, `Makefile`,
+  `vcbuild.bat`) is designed to run in a trusted build environment.
+  The build environment, including environment variables, the file system,
+  and locally installed tools, is a trusted element in the Node.js threat model.
+* Reports about command injection via environment variables in build scripts
+  (e.g., `CC`, `CXX`, `PKG_CONFIG`, `RUSTC`), path hijacking in build output
+  directories, or file permissions of build artifacts are **not** considered
+  vulnerabilities. These scenarios require the attacker to already have control
+  over the build environment, which means the system is already compromised.
+* Build scripts are not a security boundary. They are expected to execute
+  tools and scripts specified by the environment, and to trust the
+  file system they operate on.
+
 #### Unhandled 'error' Events on EventEmitters (CWE-248)
 
 * EventEmitters that can emit `'error'` events require the application to
