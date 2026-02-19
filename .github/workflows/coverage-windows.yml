@@ -79,10 +79,14 @@ jobs:
           allow-prereleases: true
       - name: Install deps
         run: choco install nasm
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat clang-cl
+        run: ./vcbuild.bat clang-cl v8temporal
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
