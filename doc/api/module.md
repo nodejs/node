@@ -66,6 +66,58 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.clearCache(specifier[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `specifier` {string|URL} The module specifier or URL to resolve. The resolved URL/filename
+  is cleared from the load cache; the specifier (with `parentURL`) is cleared from the
+  resolve cache.
+* `options` {Object}
+  * `parentURL` {string|URL} The parent URL used to resolve non-URL specifiers.
+    For CommonJS, pass `pathToFileURL(__filename)`. For ES modules, pass `import.meta.url`.
+* Returns: {Object} An object with `{ require: boolean, import: boolean }` indicating whether entries
+  were removed from each cache.
+
+Clears the CommonJS `require` cache and the ESM module cache for a module. This enables
+reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
+Resolution failures for one module system do not throw; check the returned flags to see what
+was cleared.
+This does not clear resolution cache entries for that specifier. Clearing a module does not
+clear cached entries for its dependencies, and other specifiers that resolve to the same target
+may remain.
+When a `file:` URL is resolved, cached module jobs for the same file path are cleared even if
+they differ by search or hash.
+If the same file is loaded via multiple specifiers (for example `require('./x')` alongside
+`import('./x.js?t=1')` and `import('./x.js?t=2')`), resolution cache entries for each specifier
+remain. Use consistent specifiers, or call `clearCache()` for each specifier you want to
+re-execute.
+
+```mjs
+import { clearCache } from 'node:module';
+
+const url = new URL('./mod.mjs', import.meta.url);
+await import(url.href);
+
+clearCache(url);
+await import(url.href); // re-executes the module
+```
+
+```cjs
+const { clearCache } = require('node:module');
+const path = require('node:path');
+
+const file = path.join(__dirname, 'mod.js');
+require(file);
+
+clearCache(file);
+require(file); // re-executes the module
+```
+
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
