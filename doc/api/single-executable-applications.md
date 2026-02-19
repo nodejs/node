@@ -179,7 +179,7 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 
 > Stability: 1 - Experimental
 
-Instead of using the `node:sea` API to access individual assets, you can use
+In addition to using the `node:sea` API to access individual assets, you can use
 the Virtual File System (VFS) to access bundled assets through standard `fs`
 APIs. To enable VFS, set `"useVfs": true` in the SEA configuration. When
 enabled, the VFS is automatically initialized and mounted at `/sea`. All
@@ -204,32 +204,26 @@ if (fs.existsSync('/sea/optional.json')) {
 }
 ```
 
-The VFS supports the following `fs` operations on bundled assets:
-
-* `readFileSync()` / `readFile()` / `promises.readFile()`
-* `statSync()` / `stat()` / `promises.stat()`
-* `lstatSync()` / `lstat()` / `promises.lstat()`
-* `readdirSync()` / `readdir()` / `promises.readdir()`
-* `existsSync()`
-* `realpathSync()` / `realpath()` / `promises.realpath()`
-* `accessSync()` / `access()` / `promises.access()`
-* `openSync()` / `open()` - for reading
-* `createReadStream()`
+The VFS supports all common `fs` operations for reading files and directories.
+Since the SEA VFS is read-only, write operations are not supported. See the
+[VFS documentation][] for the full list of supported and unsupported operations.
 
 #### Loading modules from VFS in SEA
-
-You can use `require()` directly with absolute VFS paths:
-
-```cjs
-// Require bundled modules directly
-const myModule = require('/sea/lib/mymodule.js');
-const utils = require('/sea/utils/helpers.js');
-```
 
 When `useVfs` is enabled, `require()` in the injected main script uses the
 registered module hooks to load modules from the virtual file system. This
 supports both absolute VFS paths and relative requires (e.g.,
-`require('./helper.js')` from a VFS module).
+`require('./helper.js')` from a VFS module), as well as `node_modules` package
+lookups.
+
+```cjs
+// Require bundled modules using relative paths
+const myModule = require('./lib/mymodule.js');
+const utils = require('./utils/helpers.js');
+
+// Absolute VFS paths also work
+const config = require('/sea/config.json');
+```
 
 When `useVfs` is enabled, `__filename` and `__dirname` in the injected main
 script reflect VFS paths (e.g., `/sea/main.js`) instead of
@@ -237,9 +231,10 @@ script reflect VFS paths (e.g., `/sea/main.js`) instead of
 
 #### Code caching limitations
 
-The `useCodeCache` option in the SEA configuration does not apply to modules
-loaded from the VFS. Consider bundling the application to enable code caching
-and do not rely on module loading in VFS.
+The `useCodeCache` option in the SEA configuration does not currently apply to
+modules loaded from the VFS. This is a current limitation due to incomplete
+implementation, not a technical impossibility. Consider bundling the application
+to enable code caching and do not rely on module loading in VFS.
 
 #### Native addon limitations
 
@@ -678,6 +673,7 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
+[VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid

@@ -164,9 +164,10 @@ files exist only in memory.
 ### Code caching in SEA
 
 When using VFS with Single Executable Applications, the `useCodeCache` option
-in the SEA configuration does not apply to modules loaded from the VFS.
-Consider bundling the application to enable code caching and do not rely on
-module loading in VFS.
+in the SEA configuration does not currently apply to modules loaded from the
+VFS. This is a current limitation due to incomplete implementation, not a
+technical impossibility. Consider bundling the application to enable code
+caching and do not rely on module loading in VFS.
 
 ## `vfs.create([provider][, options])`
 
