@@ -255,16 +255,19 @@ void JSValueToSQLiteResult(Isolate* isolate,
   }
 }
 
+inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, sqlite3* db) {
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, db).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
+}
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   if (db->ShouldIgnoreSQLiteError()) {
     db->SetIgnoreNextSQLiteError(false);
     return;
   }
 
-  Local<Object> e;
-  if (CreateSQLiteError(isolate, db->Connection()).ToLocal(&e)) {
-    isolate->ThrowException(e);
-  }
+  THROW_ERR_SQLITE_ERROR(isolate, db->Connection());
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
@@ -298,6 +301,28 @@ inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
   return String::NewFromUtf8(isolate, str, NewStringType::kInternalized)
       .As<Value>();
 }
+
+DatabaseCommon::DatabaseCommon(Environment* env,
+                               Local<Object> object,
+                               DatabaseOpenConfiguration&& open_config,
+                               bool allow_load_extension)
+    : BaseObject(env, object),
+      open_config_(std::move(open_config)),
+      allow_load_extension_(allow_load_extension),
+      enable_load_extension_(allow_load_extension) {
+  MakeWeak();
+}
+
+namespace {
+void AddDatabaseCommonMethodsToTemplate(Isolate* isolate,
+                                        Local<FunctionTemplate> tmpl) {
+  SetProtoMethod(isolate, tmpl, "open", DatabaseCommon::Open);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                          DatabaseCommon::IsOpenGetter);
+}
+}  // namespace
 
 class CustomAggregate {
  public:
@@ -875,11 +900,9 @@ DatabaseSync::DatabaseSync(Environment* env,
                            DatabaseOpenConfiguration&& open_config,
                            bool open,
                            bool allow_load_extension)
-    : BaseObject(env, object), open_config_(std::move(open_config)) {
+    : DatabaseCommon(
+          env, object, std::move(open_config), allow_load_extension) {
   MakeWeak();
-  connection_ = nullptr;
-  allow_load_extension_ = allow_load_extension;
-  enable_load_extension_ = allow_load_extension;
   ignore_next_sqlite_error_ = false;
 
   if (open) {
@@ -931,7 +954,8 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseSyncConstructorTemplate(
   tmpl->InstanceTemplate()->SetInternalFieldCount(
       DatabaseSync::kInternalFieldCount);
 
-  SetProtoMethod(isolate, tmpl, "open", DatabaseSync::Open);
+  AddDatabaseCommonMethodsToTemplate(isolate, tmpl);
+
   SetProtoMethod(isolate, tmpl, "close", DatabaseSync::Close);
   SetProtoDispose(isolate, tmpl, DatabaseSync::Dispose);
   SetProtoMethod(isolate, tmpl, "prepare", DatabaseSync::Prepare);
@@ -948,10 +972,6 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseSyncConstructorTemplate(
       isolate, tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
   SetProtoMethod(isolate, tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(isolate, tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
-  SetSideEffectFreeGetter(isolate,
-                          tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
-                          DatabaseSync::IsOpenGetter);
   SetSideEffectFreeGetter(isolate,
                           tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
@@ -971,7 +991,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseSyncConstructorTemplate(
 }
 }  // namespace
 
-bool DatabaseSync::Open() {
+bool DatabaseCommon::Open() {
   if (IsOpen()) {
     THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
@@ -986,18 +1006,18 @@ bool DatabaseSync::Open() {
                           &connection_,
                           flags | default_flags,
                           nullptr);
-  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   r = sqlite3_db_config(connection_,
                         SQLITE_DBCONFIG_DQS_DML,
                         static_cast<int>(open_config_.get_enable_dqs()),
                         nullptr);
-  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
   r = sqlite3_db_config(connection_,
                         SQLITE_DBCONFIG_DQS_DDL,
                         static_cast<int>(open_config_.get_enable_dqs()),
                         nullptr);
-  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   int foreign_keys_enabled;
   r = sqlite3_db_config(
@@ -1005,7 +1025,7 @@ bool DatabaseSync::Open() {
       SQLITE_DBCONFIG_ENABLE_FKEY,
       static_cast<int>(open_config_.get_enable_foreign_keys()),
       &foreign_keys_enabled);
-  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
   CHECK_EQ(foreign_keys_enabled, open_config_.get_enable_foreign_keys());
 
   int defensive_enabled;
@@ -1013,7 +1033,7 @@ bool DatabaseSync::Open() {
                         SQLITE_DBCONFIG_DEFENSIVE,
                         static_cast<int>(open_config_.get_enable_defensive()),
                         &defensive_enabled);
-  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
   CHECK_EQ(defensive_enabled, open_config_.get_enable_defensive());
 
   sqlite3_busy_timeout(connection_, open_config_.get_timeout());
@@ -1036,7 +1056,7 @@ bool DatabaseSync::Open() {
     const int load_extension_ret = sqlite3_db_config(
         connection_, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, 1, nullptr);
     CHECK_ERROR_OR_THROW(
-        env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
+        env()->isolate(), connection_, load_extension_ret, SQLITE_OK, false);
   }
 
   return true;
@@ -1065,11 +1085,11 @@ void DatabaseSync::UntrackStatement(StatementSync* statement) {
   }
 }
 
-inline bool DatabaseSync::IsOpen() {
+inline bool DatabaseCommon::IsOpen() {
   return connection_ != nullptr;
 }
 
-inline sqlite3* DatabaseSync::Connection() {
+inline sqlite3* DatabaseCommon::Connection() {
   return connection_;
 }
 
@@ -1410,13 +1430,13 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       env, args.This(), std::move(open_config), open, allow_load_extension);
 }
 
-void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
+void DatabaseCommon::Open(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   db->Open();
 }
 
-void DatabaseSync::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
+void DatabaseCommon::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   args.GetReturnValue().Set(db->IsOpen());

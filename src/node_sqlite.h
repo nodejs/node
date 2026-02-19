@@ -160,10 +160,39 @@ class StatementExecutionHelper {
                                        bool use_big_ints);
 };
 
-class DatabaseSync : public BaseObject {
+class DatabaseCommon : public BaseObject {
+ public:
+  DatabaseCommon(Environment* env,
+                 v8::Local<v8::Object> object,
+                 DatabaseOpenConfiguration&& open_config,
+                 bool allow_load_extension);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool IsOpen();
+  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool return_arrays() const { return open_config_.get_return_arrays(); }
+  bool allow_bare_named_params() const {
+    return open_config_.get_allow_bare_named_params();
+  }
+  bool allow_unknown_named_params() const {
+    return open_config_.get_allow_unknown_named_params();
+  }
+  sqlite3* Connection();
+
+ protected:
+  ~DatabaseCommon() override = default;
+  bool Open();
+
+  DatabaseOpenConfiguration open_config_;
+  sqlite3* connection_ = nullptr;
+  bool allow_load_extension_;
+  bool enable_load_extension_;
+};
+
+class DatabaseSync : public DatabaseCommon {
  public:
   enum InternalFields {
-    kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kAuthorizerCallback = DatabaseCommon::kInternalFieldCount,
     kLimitsObject,
     kInternalFieldCount
   };
@@ -175,8 +204,6 @@ class DatabaseSync : public BaseObject {
                bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTransactionGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -207,16 +234,6 @@ class DatabaseSync : public BaseObject {
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
-  bool IsOpen();
-  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
-  bool return_arrays() const { return open_config_.get_return_arrays(); }
-  bool allow_bare_named_params() const {
-    return open_config_.get_allow_bare_named_params();
-  }
-  bool allow_unknown_named_params() const {
-    return open_config_.get_allow_unknown_named_params();
-  }
-  sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
@@ -229,14 +246,9 @@ class DatabaseSync : public BaseObject {
   SET_SELF_SIZE(DatabaseSync)
 
  private:
-  bool Open();
   void DeleteSessions();
 
   ~DatabaseSync() override;
-  DatabaseOpenConfiguration open_config_;
-  bool allow_load_extension_;
-  bool enable_load_extension_;
-  sqlite3* connection_;
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
