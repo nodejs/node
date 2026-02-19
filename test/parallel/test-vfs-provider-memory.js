@@ -363,6 +363,28 @@ const vfs = require('node:vfs');
   }, { code: 'EISDIR' });
 }
 
+// Test that readFileSync returns independent buffer copies
+{
+  const myVfs = vfs.create();
+
+  myVfs.writeFileSync('/independent.txt', 'original content');
+
+  const buf1 = myVfs.readFileSync('/independent.txt');
+  const buf2 = myVfs.readFileSync('/independent.txt');
+
+  // Both should have the same content
+  assert.deepStrictEqual(buf1, buf2);
+
+  // Mutating one should not affect the other
+  buf1[0] = 0xFF;
+  assert.notDeepStrictEqual(buf1, buf2);
+  assert.strictEqual(buf2.toString(), 'original content');
+
+  // A third read should still return the original content
+  const buf3 = myVfs.readFileSync('/independent.txt');
+  assert.strictEqual(buf3.toString(), 'original content');
+}
+
 // ==================== Async Operations ====================
 
 // Test async read and write operations
