@@ -88,6 +88,7 @@ MaybeLocal<Value> ToV8Value(
     const EVPKeyPointer::AsymmetricKeyEncodingConfig& config) {
   if (!bio) return {};
   BUF_MEM* bptr = bio;
+  if (!bptr) return {};
   if (config.format == EVPKeyPointer::PKFormatType::PEM) {
     // PEM is an ASCII format, so we will return it as a string.
     return String::NewFromUtf8(
@@ -106,7 +107,12 @@ MaybeLocal<Value> WritePrivateKey(
     const EVPKeyPointer::PrivateKeyEncodingConfig& config) {
   if (!pkey) return {};
   auto res = pkey.writePrivateKey(config);
-  if (res) return ToV8Value(env, std::move(res.value), config);
+  if (res) {
+    auto value = ToV8Value(env, std::move(res.value), config);
+    if (!value.IsEmpty()) {
+      return value;
+    }
+  }
 
   ThrowCryptoError(
       env, res.openssl_error.value_or(0), "Failed to encode private key");
@@ -119,7 +125,12 @@ MaybeLocal<Value> WritePublicKey(
     const EVPKeyPointer::PublicKeyEncodingConfig& config) {
   if (!pkey) return {};
   auto res = pkey.writePublicKey(config);
-  if (res) return ToV8Value(env, res.value, config);
+  if (res) {
+    auto value = ToV8Value(env, res.value, config);
+    if (!value.IsEmpty()) {
+      return value;
+    }
+  }
 
   ThrowCryptoError(
       env, res.openssl_error.value_or(0), "Failed to encode public key");
