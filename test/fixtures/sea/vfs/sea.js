@@ -48,4 +48,17 @@ assert.strictEqual(calculator.sum(10, 20), 30, 'calculator.sum should work');
 assert.strictEqual(calculator.product(3, 7), 21, 'calculator.product should work');
 console.log('transitive require from VFS tests passed');
 
+// Test that node:sea API and VFS can load the same asset
+const sea = require('node:sea');
+const seaAsset = sea.getAsset('data/greeting.txt', 'utf8');
+const vfsAsset = fs.readFileSync('/sea/data/greeting.txt', 'utf8');
+assert.strictEqual(seaAsset, vfsAsset, 'node:sea and VFS should return the same content');
+console.log('node:sea API and VFS coexistence test passed');
+
+// Test node_modules package lookup via VFS
+const testPkg = require('test-pkg');
+assert.strictEqual(testPkg.name, 'test-pkg', 'package name should match');
+assert.strictEqual(testPkg.greet('World'), 'Hello, World!', 'package function should work');
+console.log('node_modules package lookup test passed');
+
 console.log('All SEA VFS tests passed!');
