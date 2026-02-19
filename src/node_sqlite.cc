@@ -3128,24 +3128,27 @@ SQLTagStore::SQLTagStore(Environment* env,
 SQLTagStore::~SQLTagStore() {}
 
 Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
-  Isolate* isolate = env->isolate();
   Local<FunctionTemplate> tmpl =
-      NewFunctionTemplate(isolate, IllegalConstructor);
-  tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SQLTagStore"));
-  tmpl->InstanceTemplate()->SetInternalFieldCount(
-      SQLTagStore::kInternalFieldCount);
-  SetProtoMethod(isolate, tmpl, "get", Get);
-  SetProtoMethod(isolate, tmpl, "all", All);
-  SetProtoMethod(isolate, tmpl, "iterate", Iterate);
-  SetProtoMethod(isolate, tmpl, "run", Run);
-  SetProtoMethod(isolate, tmpl, "clear", Clear);
-  SetSideEffectFreeGetter(isolate,
-                          tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "capacity"),
-                          CapacityGetter);
-  SetSideEffectFreeGetter(
-      isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
-  SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
+      env->sqlite_sql_tag_store_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SQLTagStore"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        SQLTagStore::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "get", Get);
+    SetProtoMethod(isolate, tmpl, "all", All);
+    SetProtoMethod(isolate, tmpl, "iterate", Iterate);
+    SetProtoMethod(isolate, tmpl, "run", Run);
+    SetProtoMethod(isolate, tmpl, "clear", Clear);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "capacity"),
+                            CapacityGetter);
+    SetSideEffectFreeGetter(
+        isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
+    SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
+  }
   return tmpl;
 }
 
