@@ -7,7 +7,7 @@ const assert = require('node:assert');
 
 const bench = common.createBenchmark(main, {
   messageType: ['string', 'number', 'boolean', 'invalid'],
-  format: ['red', 'italic', 'invalid'],
+  format: ['red', 'italic', 'invalid', '#ff0000'],
   validateStream: [1, 0],
   n: [1e3],
 });
