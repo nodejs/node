@@ -1,6 +1,6 @@
-.TH "NPMRC" "5" "February 2026" "NPM@11.9.0" ""
+.TH ".NPMRC" "5" "February 2026" "NPM@11.10.1" ""
 .SH "NAME"
-\fBnpmrc\fR - The npm config files
+\fB.npmrc\fR - The npm config files
 .SS "Description"
 .P
 npm gets its config settings from the command line, environment variables, and \fBnpmrc\fR files.
@@ -99,6 +99,43 @@ The full list is:
 
 .P
 In order to scope these values, they must be prefixed by a URI fragment. If the credential is meant for any request to a registry on a single host, the scope may look like \fB//registry.npmjs.org/:\fR. If it must be scoped to a specific path on the host that path may also be provided, such as \fB//my-custom-registry.org/unique/path:\fR.
+.SS "Unsupported Custom Configuration Keys"
+.P
+Starting in npm v11.2.0, npm warns when unknown configuration keys are defined in \fB.npmrc\fR. In a future major version of npm, these unknown keys may no longer be accepted.
+.P
+Only configuration keys that npm officially supports are recognized. Custom keys intended for third-party tools (for example, \fBelectron-builder\fR) should not be placed in \fB.npmrc\fR.
+.P
+If you need package-level configuration for use in scripts, use the \fBconfig\fR field in your \fBpackage.json\fR instead:
+.P
+.RS 2
+.nf
+{
+  "name": "my-package",
+  "config": {
+    "mirror": "https://example.com/"
+  }
+}
+
+.fi
+.RE
+.P
+Values defined in \fBpackage.json#config\fR are exposed to scripts as environment variables prefixed with \fBnpm_package_config_\fR. For example:
+.P
+.RS 2
+.nf
+npm_package_config_mirror
+.fi
+.RE
+.P
+If you need to pass arguments to a script command, use \fB--\fR to separate npm arguments from script arguments:
+.P
+.RS 2
+.nf
+npm run build -- --customFlag
+.fi
+.RE
+.P
+Using environment variables is also recommended for cross-platform configuration instead of defining unsupported keys in \fB.npmrc\fR.
 .P
 .RS 2
 .nf
@@ -120,6 +157,29 @@ _authToken=MYTOKEN
 //somewhere-else.com/another/:_authToken=MYTOKEN2
 .fi
 .RE
+.SS "Custom / third-party config keys"
+.P
+npm only recognizes its own npm help "configuration options". If your \fB.npmrc\fR contains keys that are not part of npm's config definitions (for example, \fBelectron_mirror\fR or \fBsass_binary_site\fR), npm will emit a warning:
+.P
+.RS 2
+.nf
+warn Unknown user config "electron_mirror".
+This will stop working in the next major version of npm.
+.fi
+.RE
+.P
+These keys were historically tolerated but are not officially supported. A future major version of npm will treat unknown top-level keys as errors.
+.P
+Some tools (such as \fB@electron/get\fR or \fBnode-sass\fR) read their own configuration from environment variables or from \fB.npmrc\fR by convention. You can set these values as environment variables instead:
+.P
+.RS 2
+.nf
+export ELECTRON_MIRROR="https://mirrorexample.npmjs.org/mirrors/electron/"
+export ELECTRON_CUSTOM_DIR="{{ version }}"
+.fi
+.RE
+.P
+Environment variables are the most portable approach and work regardless of \fB.npmrc\fR format.
 .SS "See also"
 .RS 0
 .IP \(bu 4

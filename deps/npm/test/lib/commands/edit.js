@@ -3,6 +3,20 @@ const path = require('node:path')
 const tspawk = require('../../fixtures/tspawk')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
+t.test('completion', async t => {
+  const { edit } = await loadMockNpm(t, {
+    command: 'edit',
+    prefixDir: {
+      node_modules: {
+        foo: {},
+        bar: {},
+      },
+    },
+  })
+  const res = await edit.completion({ conf: { argv: { remain: ['npm', 'edit'] } } })
+  t.match(res, ['bar', 'foo'])
+})
+
 const spawk = tspawk(t)
 
 const npmConfig = {

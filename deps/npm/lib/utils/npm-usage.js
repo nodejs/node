@@ -62,7 +62,7 @@ const cmdUsages = (Npm) => {
   let maxLen = 0
   const set = []
   for (const c of commands) {
-    set.push([c, Npm.cmd(c).describeUsage.split('\n')])
+    set.push([c, Npm.cmd(c).getUsage(null, false).split('\n')])
     maxLen = Math.max(maxLen, c.length)
   }
 

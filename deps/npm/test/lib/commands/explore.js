@@ -2,6 +2,20 @@ const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm')
 const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
+t.test('completion', async t => {
+  const { explore } = await mockNpm(t, {
+    command: 'explore',
+    prefixDir: {
+      node_modules: {
+        foo: {},
+        bar: {},
+      },
+    },
+  })
+  const res = await explore.completion({ conf: { argv: { remain: ['npm', 'explore'] } } })
+  t.match(res, ['bar', 'foo'])
+})
+
 const mockExplore = async (t, exec, {
   PJ_ERROR = null,
   RUN_SCRIPT_ERROR = null,
