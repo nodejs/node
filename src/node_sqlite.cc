@@ -1124,6 +1124,7 @@ void DatabaseSync::CreateTagStore(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(session->object());
 }
 
+namespace {
 std::optional<std::string> ValidateDatabasePath(Environment* env,
                                                 Local<Value> path,
                                                 const std::string& field_name) {
@@ -1171,6 +1172,240 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   return std::nullopt;
 }
 
+bool ParseCommonDatabaseOptions(Environment* env,
+                                Local<Object> options,
+                                DatabaseOpenConfiguration& open_config,
+                                bool& open,
+                                bool& allow_load_extension) {
+  Local<String> open_string = FIXED_ONE_BYTE_STRING(env->isolate(), "open");
+  Local<Value> open_v;
+  if (!options->Get(env->context(), open_string).ToLocal(&open_v)) {
+    return false;
+  }
+  if (!open_v->IsUndefined()) {
+    if (!open_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The \"options.open\" argument must be a boolean.");
+      return false;
+    }
+    open = open_v.As<Boolean>()->Value();
+  }
+
+  Local<String> read_only_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "readOnly");
+  Local<Value> read_only_v;
+  if (!options->Get(env->context(), read_only_string).ToLocal(&read_only_v)) {
+    return false;
+  }
+  if (!read_only_v->IsUndefined()) {
+    if (!read_only_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.readOnly\" argument must be a boolean.");
+      return false;
+    }
+    open_config.set_read_only(read_only_v.As<Boolean>()->Value());
+  }
+
+  Local<String> enable_foreign_keys_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "enableForeignKeyConstraints");
+  Local<Value> enable_foreign_keys_v;
+  if (!options->Get(env->context(), enable_foreign_keys_string)
+           .ToLocal(&enable_foreign_keys_v)) {
+    return false;
+  }
+  if (!enable_foreign_keys_v->IsUndefined()) {
+    if (!enable_foreign_keys_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.enableForeignKeyConstraints\" argument must be a "
+          "boolean.");
+      return false;
+    }
+    open_config.set_enable_foreign_keys(
+        enable_foreign_keys_v.As<Boolean>()->Value());
+  }
+
+  Local<String> enable_dqs_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "enableDoubleQuotedStringLiterals");
+  Local<Value> enable_dqs_v;
+  if (!options->Get(env->context(), enable_dqs_string).ToLocal(&enable_dqs_v)) {
+    return false;
+  }
+  if (!enable_dqs_v->IsUndefined()) {
+    if (!enable_dqs_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.enableDoubleQuotedStringLiterals\" argument must be "
+          "a boolean.");
+      return false;
+    }
+    open_config.set_enable_dqs(enable_dqs_v.As<Boolean>()->Value());
+  }
+
+  Local<String> allow_extension_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "allowExtension");
+  Local<Value> allow_extension_v;
+  if (!options->Get(env->context(), allow_extension_string)
+           .ToLocal(&allow_extension_v)) {
+    return false;
+  }
+
+  if (!allow_extension_v->IsUndefined()) {
+    if (!allow_extension_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.allowExtension\" argument must be a boolean.");
+      return false;
+    }
+    allow_load_extension = allow_extension_v.As<Boolean>()->Value();
+  }
+
+  Local<Value> timeout_v;
+  if (!options->Get(env->context(), env->timeout_string())
+           .ToLocal(&timeout_v)) {
+    return false;
+  }
+
+  if (!timeout_v->IsUndefined()) {
+    if (!timeout_v->IsInt32()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.timeout\" argument must be an integer.");
+      return false;
+    }
+
+    open_config.set_timeout(timeout_v.As<Int32>()->Value());
+  }
+
+  Local<Value> read_bigints_v;
+  if (options->Get(env->context(), env->read_bigints_string())
+          .ToLocal(&read_bigints_v)) {
+    if (!read_bigints_v->IsUndefined()) {
+      if (!read_bigints_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.readBigInts" argument must be a boolean.)");
+        return false;
+      }
+      open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
+    }
+  }
+
+  Local<Value> return_arrays_v;
+  if (options->Get(env->context(), env->return_arrays_string())
+          .ToLocal(&return_arrays_v)) {
+    if (!return_arrays_v->IsUndefined()) {
+      if (!return_arrays_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.returnArrays" argument must be a boolean.)");
+        return false;
+      }
+      open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
+    }
+  }
+
+  Local<Value> allow_bare_named_params_v;
+  if (options->Get(env->context(), env->allow_bare_named_params_string())
+          .ToLocal(&allow_bare_named_params_v)) {
+    if (!allow_bare_named_params_v->IsUndefined()) {
+      if (!allow_bare_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                   R"(The "options.allowBareNamedParameters" )"
+                                   "argument must be a boolean.");
+        return false;
+      }
+      open_config.set_allow_bare_named_params(
+          allow_bare_named_params_v.As<Boolean>()->Value());
+    }
+  }
+
+  Local<Value> allow_unknown_named_params_v;
+  if (options->Get(env->context(), env->allow_unknown_named_params_string())
+          .ToLocal(&allow_unknown_named_params_v)) {
+    if (!allow_unknown_named_params_v->IsUndefined()) {
+      if (!allow_unknown_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.allowUnknownNamedParameters" )"
+            "argument must be a boolean.");
+        return false;
+      }
+      open_config.set_allow_unknown_named_params(
+          allow_unknown_named_params_v.As<Boolean>()->Value());
+    }
+  }
+
+  Local<Value> defensive_v;
+  if (!options->Get(env->context(), env->defensive_string())
+           .ToLocal(&defensive_v)) {
+    return false;
+  }
+  if (!defensive_v->IsUndefined()) {
+    if (!defensive_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.defensive\" argument must be a boolean.");
+      return false;
+    }
+    open_config.set_enable_defensive(defensive_v.As<Boolean>()->Value());
+  }
+
+  // Parse limits option
+  Local<Value> limits_v;
+  if (!options->Get(env->context(), env->limits_string()).ToLocal(&limits_v)) {
+    return false;
+  }
+  if (!limits_v->IsUndefined()) {
+    if (!limits_v->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The \"options.limits\" argument must be an object.");
+      return false;
+    }
+
+    Local<Object> limits_obj = limits_v.As<Object>();
+
+    // Iterate through known limit names and extract values
+    for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
+      Local<String> key;
+      if (!String::NewFromUtf8(env->isolate(),
+                               js_name.data(),
+                               NewStringType::kNormal,
+                               js_name.size())
+               .ToLocal(&key)) {
+        return false;
+      }
+
+      Local<Value> val;
+      if (!limits_obj->Get(env->context(), key).ToLocal(&val)) {
+        return false;
+      }
+
+      if (!val->IsUndefined()) {
+        if (!val->IsInt32()) {
+          std::string msg = "The \"options.limits." + std::string(js_name) +
+                            "\" argument must be an integer.";
+          THROW_ERR_INVALID_ARG_TYPE(env->isolate(), msg);
+          return false;
+        }
+
+        int limit_val = val.As<Int32>()->Value();
+        if (limit_val < 0) {
+          std::string msg = "The \"options.limits." + std::string(js_name) +
+                            "\" argument must be non-negative.";
+          THROW_ERR_OUT_OF_RANGE(env->isolate(), msg);
+          return false;
+        }
+
+        open_config.set_initial_limit(sqlite_limit_id, limit_val);
+      }
+    }
+  }
+  return true;
+}
+}  // namespace
+
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args.IsConstructCall()) {
@@ -1195,234 +1430,9 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[1].As<Object>();
-    Local<String> open_string = FIXED_ONE_BYTE_STRING(env->isolate(), "open");
-    Local<Value> open_v;
-    if (!options->Get(env->context(), open_string).ToLocal(&open_v)) {
+    if (!ParseCommonDatabaseOptions(
+            env, options, open_config, open, allow_load_extension)) {
       return;
-    }
-    if (!open_v->IsUndefined()) {
-      if (!open_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(), "The \"options.open\" argument must be a boolean.");
-        return;
-      }
-      open = open_v.As<Boolean>()->Value();
-    }
-
-    Local<String> read_only_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "readOnly");
-    Local<Value> read_only_v;
-    if (!options->Get(env->context(), read_only_string).ToLocal(&read_only_v)) {
-      return;
-    }
-    if (!read_only_v->IsUndefined()) {
-      if (!read_only_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.readOnly\" argument must be a boolean.");
-        return;
-      }
-      open_config.set_read_only(read_only_v.As<Boolean>()->Value());
-    }
-
-    Local<String> enable_foreign_keys_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "enableForeignKeyConstraints");
-    Local<Value> enable_foreign_keys_v;
-    if (!options->Get(env->context(), enable_foreign_keys_string)
-             .ToLocal(&enable_foreign_keys_v)) {
-      return;
-    }
-    if (!enable_foreign_keys_v->IsUndefined()) {
-      if (!enable_foreign_keys_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.enableForeignKeyConstraints\" argument must be a "
-            "boolean.");
-        return;
-      }
-      open_config.set_enable_foreign_keys(
-          enable_foreign_keys_v.As<Boolean>()->Value());
-    }
-
-    Local<String> enable_dqs_string = FIXED_ONE_BYTE_STRING(
-        env->isolate(), "enableDoubleQuotedStringLiterals");
-    Local<Value> enable_dqs_v;
-    if (!options->Get(env->context(), enable_dqs_string)
-             .ToLocal(&enable_dqs_v)) {
-      return;
-    }
-    if (!enable_dqs_v->IsUndefined()) {
-      if (!enable_dqs_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.enableDoubleQuotedStringLiterals\" argument must be "
-            "a boolean.");
-        return;
-      }
-      open_config.set_enable_dqs(enable_dqs_v.As<Boolean>()->Value());
-    }
-
-    Local<String> allow_extension_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "allowExtension");
-    Local<Value> allow_extension_v;
-    if (!options->Get(env->context(), allow_extension_string)
-             .ToLocal(&allow_extension_v)) {
-      return;
-    }
-
-    if (!allow_extension_v->IsUndefined()) {
-      if (!allow_extension_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.allowExtension\" argument must be a boolean.");
-        return;
-      }
-      allow_load_extension = allow_extension_v.As<Boolean>()->Value();
-    }
-
-    Local<Value> timeout_v;
-    if (!options->Get(env->context(), env->timeout_string())
-             .ToLocal(&timeout_v)) {
-      return;
-    }
-
-    if (!timeout_v->IsUndefined()) {
-      if (!timeout_v->IsInt32()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.timeout\" argument must be an integer.");
-        return;
-      }
-
-      open_config.set_timeout(timeout_v.As<Int32>()->Value());
-    }
-
-    Local<Value> read_bigints_v;
-    if (options->Get(env->context(), env->read_bigints_string())
-            .ToLocal(&read_bigints_v)) {
-      if (!read_bigints_v->IsUndefined()) {
-        if (!read_bigints_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.readBigInts" argument must be a boolean.)");
-          return;
-        }
-        open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
-      }
-    }
-
-    Local<Value> return_arrays_v;
-    if (options->Get(env->context(), env->return_arrays_string())
-            .ToLocal(&return_arrays_v)) {
-      if (!return_arrays_v->IsUndefined()) {
-        if (!return_arrays_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.returnArrays" argument must be a boolean.)");
-          return;
-        }
-        open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
-      }
-    }
-
-    Local<Value> allow_bare_named_params_v;
-    if (options->Get(env->context(), env->allow_bare_named_params_string())
-            .ToLocal(&allow_bare_named_params_v)) {
-      if (!allow_bare_named_params_v->IsUndefined()) {
-        if (!allow_bare_named_params_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.allowBareNamedParameters" )"
-              "argument must be a boolean.");
-          return;
-        }
-        open_config.set_allow_bare_named_params(
-            allow_bare_named_params_v.As<Boolean>()->Value());
-      }
-    }
-
-    Local<Value> allow_unknown_named_params_v;
-    if (options->Get(env->context(), env->allow_unknown_named_params_string())
-            .ToLocal(&allow_unknown_named_params_v)) {
-      if (!allow_unknown_named_params_v->IsUndefined()) {
-        if (!allow_unknown_named_params_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.allowUnknownNamedParameters" )"
-              "argument must be a boolean.");
-          return;
-        }
-        open_config.set_allow_unknown_named_params(
-            allow_unknown_named_params_v.As<Boolean>()->Value());
-      }
-    }
-
-    Local<Value> defensive_v;
-    if (!options->Get(env->context(), env->defensive_string())
-             .ToLocal(&defensive_v)) {
-      return;
-    }
-    if (!defensive_v->IsUndefined()) {
-      if (!defensive_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.defensive\" argument must be a boolean.");
-        return;
-      }
-      open_config.set_enable_defensive(defensive_v.As<Boolean>()->Value());
-    }
-
-    // Parse limits option
-    Local<Value> limits_v;
-    if (!options->Get(env->context(), env->limits_string())
-             .ToLocal(&limits_v)) {
-      return;
-    }
-    if (!limits_v->IsUndefined()) {
-      if (!limits_v->IsObject()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.limits\" argument must be an object.");
-        return;
-      }
-
-      Local<Object> limits_obj = limits_v.As<Object>();
-
-      // Iterate through known limit names and extract values
-      for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
-        Local<String> key;
-        if (!String::NewFromUtf8(env->isolate(),
-                                 js_name.data(),
-                                 NewStringType::kNormal,
-                                 js_name.size())
-                 .ToLocal(&key)) {
-          return;
-        }
-
-        Local<Value> val;
-        if (!limits_obj->Get(env->context(), key).ToLocal(&val)) {
-          return;
-        }
-
-        if (!val->IsUndefined()) {
-          if (!val->IsInt32()) {
-            std::string msg = "The \"options.limits." + std::string(js_name) +
-                              "\" argument must be an integer.";
-            THROW_ERR_INVALID_ARG_TYPE(env->isolate(), msg);
-            return;
-          }
-
-          int limit_val = val.As<Int32>()->Value();
-          if (limit_val < 0) {
-            std::string msg = "The \"options.limits." + std::string(js_name) +
-                              "\" argument must be non-negative.";
-            THROW_ERR_OUT_OF_RANGE(env->isolate(), msg);
-            return;
-          }
-
-          open_config.set_initial_limit(sqlite_limit_id, limit_val);
-        }
-      }
     }
   }
 
