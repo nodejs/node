@@ -247,37 +247,7 @@ SeaResource FindSingleExecutableResource() {
   return sea_resource;
 }
 
-void IsSea(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(IsSingleExecutable());
-}
-
-void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
-  if (!IsSingleExecutable()) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-  SeaResource sea_resource = FindSingleExecutableResource();
-  args.GetReturnValue().Set(
-      static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs));
-}
-
-void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
-  bool is_building_sea =
-      !per_process::cli_options->experimental_sea_config.empty();
-  if (is_building_sea) {
-    args.GetReturnValue().Set(true);
-    return;
-  }
-
-  if (!IsSingleExecutable()) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-
-  SeaResource sea_resource = FindSingleExecutableResource();
-  args.GetReturnValue().Set(!static_cast<bool>(
-      sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
-}
+// Boolean flag getters removed - flags are set as properties in Initialize().
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
@@ -856,20 +826,45 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  SetMethod(context, target, "isSea", IsSea);
-  SetMethod(context,
-            target,
-            "isExperimentalSeaWarningNeeded",
-            IsExperimentalSeaWarningNeeded);
-  SetMethod(context, target, "isVfsEnabled", IsVfsEnabled);
+  Isolate* isolate = context->GetIsolate();
+
+  // Set boolean flags as properties (computed once, avoids repeated calls).
+  bool is_sea = IsSingleExecutable();
+  bool is_vfs_enabled = false;
+  bool is_experimental_warning_needed =
+      !per_process::cli_options->experimental_sea_config.empty();
+
+  if (is_sea) {
+    SeaResource sea_resource = FindSingleExecutableResource();
+    is_vfs_enabled =
+        static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
+    if (!static_cast<bool>(
+            sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning)) {
+      is_experimental_warning_needed = true;
+    }
+  }
+
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "isSea"),
+            Boolean::New(isolate, is_sea))
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "isVfsEnabled"),
+            Boolean::New(isolate, is_vfs_enabled))
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "isExperimentalSeaWarningNeeded"),
+            Boolean::New(isolate, is_experimental_warning_needed))
+      .Check();
+
   SetMethod(context, target, "getAsset", GetAsset);
   SetMethod(context, target, "getAssetKeys", GetAssetKeys);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(IsSea);
-  registry->Register(IsExperimentalSeaWarningNeeded);
-  registry->Register(IsVfsEnabled);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
 }
