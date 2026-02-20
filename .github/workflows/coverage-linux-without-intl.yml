@@ -72,7 +72,7 @@ jobs:
       - name: Install gcovr
         run: pip install gcovr==7.2
       - name: Configure
-        run: ./configure -v --error-on-warn --coverage --without-intl
+        run: ./configure --verbose --error-on-warn --coverage --without-intl
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Build and test
