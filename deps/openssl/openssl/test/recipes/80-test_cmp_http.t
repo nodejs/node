@@ -274,12 +274,18 @@ sub start_mock_server {
     print "Pid is: $pid\n";
     if ($server_port == 0) {
         # Find out the actual server port
+        my $pid0 = $pid;
         while (<$server_fh>) {
             print "Server output: $_";
             next if m/using section/;
             s/\R$//;                # Better chomp
             ($server_port, $pid) = ($1, $2) if /^ACCEPT\s.*:(\d+) PID=(\d+)$/;
             last; # Do not loop further to prevent hangs on server misbehavior
+        }
+        if ($pid0 != $pid) {
+            # kill the shell process
+            kill('KILL', $pid0);
+            waitpid($pid0, 0);
         }
     }
     unless ($server_port > 0) {

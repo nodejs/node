@@ -19,7 +19,7 @@
 #include "testutil.h"
 #include "filterprov.h"
 
-#define MAX_FILTERS     10
+#define MAX_FILTERS 10
 #define MAX_ALG_FILTERS 5
 
 struct filter_prov_globals_st {
@@ -68,7 +68,7 @@ static int filter_get_params(void *provctx, OSSL_PARAM params[])
 }
 
 static int filter_get_capabilities(void *provctx, const char *capability,
-                                   OSSL_CALLBACK *cb, void *arg)
+    OSSL_CALLBACK *cb, void *arg)
 {
     struct filter_prov_globals_st *globs = get_globals();
 
@@ -76,8 +76,8 @@ static int filter_get_capabilities(void *provctx, const char *capability,
 }
 
 static const OSSL_ALGORITHM *filter_query(void *provctx,
-                                          int operation_id,
-                                          int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     struct filter_prov_globals_st *globs = get_globals();
     int i;
@@ -95,7 +95,7 @@ static const OSSL_ALGORITHM *filter_query(void *provctx,
 }
 
 static void filter_unquery(void *provctx, int operation_id,
-                           const OSSL_ALGORITHM *algs)
+    const OSSL_ALGORITHM *algs)
 {
     struct filter_prov_globals_st *globs = get_globals();
     int i;
@@ -132,9 +132,9 @@ static const OSSL_DISPATCH filter_dispatch_table[] = {
 };
 
 int filter_provider_init(const OSSL_CORE_HANDLE *handle,
-                         const OSSL_DISPATCH *in,
-                         const OSSL_DISPATCH **out,
-                         void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     memset(&ourglobals, 0, sizeof(ourglobals));
     ourglobals.libctx = OSSL_LIB_CTX_new();
@@ -149,7 +149,7 @@ int filter_provider_init(const OSSL_CORE_HANDLE *handle,
     *out = filter_dispatch_table;
     return 1;
 
- err:
+err:
     OSSL_PROVIDER_unload(ourglobals.deflt);
     OSSL_LIB_CTX_free(ourglobals.libctx);
     return 0;
@@ -170,8 +170,8 @@ int filter_provider_set_filter(int operation, const char *filterstr)
     char *filterstrtmp = OPENSSL_strdup(filterstr);
     char *name, *sep;
     const OSSL_ALGORITHM *provalgs = OSSL_PROVIDER_query_operation(globs->deflt,
-                                                                   operation,
-                                                                   &no_cache);
+        operation,
+        &no_cache);
     const OSSL_ALGORITHM *algs;
 
     if (filterstrtmp == NULL)
@@ -220,7 +220,7 @@ int filter_provider_set_filter(int operation, const char *filterstr)
     globs->num_dispatch++;
 
     ret = 1;
- err:
+err:
     OSSL_PROVIDER_unquery_operation(globs->deflt, operation, provalgs);
     OPENSSL_free(filterstrtmp);
     return ret;

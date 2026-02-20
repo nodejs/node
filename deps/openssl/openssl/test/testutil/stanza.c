@@ -30,7 +30,7 @@ int test_start_file(STANZA *s, const char *testfile)
 int test_end_file(STANZA *s)
 {
     TEST_info("Completed %d tests with %d errors and %d skipped",
-              s->numtests, s->errors, s->numskip);
+        s->numtests, s->errors, s->numskip);
     BIO_free(s->fp);
     return 1;
 }
@@ -61,7 +61,6 @@ static int read_key(STANZA *s)
     return 0;
 }
 
-
 /*
  * Delete leading and trailing spaces from a string
  */
@@ -75,7 +74,7 @@ static char *strip_spaces(char *p)
     if (*p == '\0')
         return NULL;
 
-    for (q = p + strlen(p) - 1; q != p && isspace((unsigned char)*q); )
+    for (q = p + strlen(p) - 1; q != p && isspace((unsigned char)*q);)
         *q-- = '\0';
     return *p ? p : NULL;
 }
@@ -89,7 +88,7 @@ int test_readstanza(STANZA *s)
     char *p, *equals, *key;
     const char *value;
 
-    for (s->numpairs = 0; BIO_gets(s->fp, s->buff, sizeof(s->buff)); ) {
+    for (s->numpairs = 0; BIO_gets(s->fp, s->buff, sizeof(s->buff));) {
         s->curr++;
         if (!TEST_ptr(p = strchr(s->buff, '\n'))) {
             TEST_info("Line %d too long", s->curr);
@@ -136,8 +135,8 @@ int test_readstanza(STANZA *s)
         }
 
         if (!TEST_int_lt(s->numpairs++, TESTMAXPAIRS)
-                || !TEST_ptr(pp->key = OPENSSL_strdup(key))
-                || !TEST_ptr(pp->value = OPENSSL_strdup(value)))
+            || !TEST_ptr(pp->key = OPENSSL_strdup(key))
+            || !TEST_ptr(pp->value = OPENSSL_strdup(value)))
             return 0;
         pp++;
     }
@@ -151,7 +150,7 @@ void test_clearstanza(STANZA *s)
     PAIR *pp = s->pairs;
     int i = s->numpairs;
 
-    for ( ; --i >= 0; pp++) {
+    for (; --i >= 0; pp++) {
         OPENSSL_free(pp->key);
         OPENSSL_free(pp->value);
     }

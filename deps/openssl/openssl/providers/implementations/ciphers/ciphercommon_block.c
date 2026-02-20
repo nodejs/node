@@ -17,21 +17,21 @@
 
 /* Functions defined in ssl/tls_pad.c */
 int ssl3_cbc_remove_padding_and_mac(size_t *reclen,
-                                    size_t origreclen,
-                                    unsigned char *recdata,
-                                    unsigned char **mac,
-                                    int *alloced,
-                                    size_t block_size, size_t mac_size,
-                                    OSSL_LIB_CTX *libctx);
+    size_t origreclen,
+    unsigned char *recdata,
+    unsigned char **mac,
+    int *alloced,
+    size_t block_size, size_t mac_size,
+    OSSL_LIB_CTX *libctx);
 
 int tls1_cbc_remove_padding_and_mac(size_t *reclen,
-                                    size_t origreclen,
-                                    unsigned char *recdata,
-                                    unsigned char **mac,
-                                    int *alloced,
-                                    size_t block_size, size_t mac_size,
-                                    int aead,
-                                    OSSL_LIB_CTX *libctx);
+    size_t origreclen,
+    unsigned char *recdata,
+    unsigned char **mac,
+    int *alloced,
+    size_t block_size, size_t mac_size,
+    int aead,
+    OSSL_LIB_CTX *libctx);
 
 /*
  * Fills a single block of buffered data from the input, and returns the amount
@@ -54,8 +54,8 @@ int tls1_cbc_remove_padding_and_mac(size_t *reclen,
  * which is a multiple of the blocksize.
  */
 size_t ossl_cipher_fillblock(unsigned char *buf, size_t *buflen,
-                             size_t blocksize,
-                             const unsigned char **in, size_t *inlen)
+    size_t blocksize,
+    const unsigned char **in, size_t *inlen)
 {
     size_t blockmask = ~(blocksize - 1);
     size_t bufremain = blocksize - *buflen;
@@ -78,7 +78,7 @@ size_t ossl_cipher_fillblock(unsigned char *buf, size_t *buflen,
  * fit into a full block.
  */
 int ossl_cipher_trailingdata(unsigned char *buf, size_t *buflen, size_t blocksize,
-                             const unsigned char **in, size_t *inlen)
+    const unsigned char **in, size_t *inlen)
 {
     if (*inlen == 0)
         return 1;
@@ -110,7 +110,7 @@ int ossl_cipher_unpadblock(unsigned char *buf, size_t *buflen, size_t blocksize)
     size_t pad, i;
     size_t len = *buflen;
 
-    if(len != blocksize) {
+    if (len != blocksize) {
         ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
         return 0;
     }
@@ -156,18 +156,18 @@ int ossl_cipher_unpadblock(unsigned char *buf, size_t *buflen, size_t blocksize)
  *      the mac is random
  */
 int ossl_cipher_tlsunpadblock(OSSL_LIB_CTX *libctx, unsigned int tlsversion,
-                              unsigned char *buf, size_t *buflen,
-                              size_t blocksize,
-                              unsigned char **mac, int *alloced, size_t macsize,
-                              int aead)
+    unsigned char *buf, size_t *buflen,
+    size_t blocksize,
+    unsigned char **mac, int *alloced, size_t macsize,
+    int aead)
 {
     int ret;
 
     switch (tlsversion) {
     case SSL3_VERSION:
         return ssl3_cbc_remove_padding_and_mac(buflen, *buflen, buf, mac,
-                                               alloced, blocksize, macsize,
-                                               libctx);
+            alloced, blocksize, macsize,
+            libctx);
 
     case TLS1_2_VERSION:
     case DTLS1_2_VERSION:
@@ -180,8 +180,8 @@ int ossl_cipher_tlsunpadblock(OSSL_LIB_CTX *libctx, unsigned int tlsversion,
         /* Fall through */
     case TLS1_VERSION:
         ret = tls1_cbc_remove_padding_and_mac(buflen, *buflen, buf, mac,
-                                              alloced, blocksize, macsize,
-                                              aead, libctx);
+            alloced, blocksize, macsize,
+            aead, libctx);
         return ret;
 
     default:

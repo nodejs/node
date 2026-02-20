@@ -70,19 +70,19 @@ static int pkcs7_verify_test(void)
 
     if (!TEST_ptr(bio = BIO_new(BIO_s_mem())))
         goto end;
-    for  (i = 0; i < OSSL_NELEM(sig); ++i)
+    for (i = 0; i < OSSL_NELEM(sig); ++i)
         BIO_puts(bio, sig[i]);
 
     ret = TEST_ptr(msg_bio = BIO_new_mem_buf(signed_data, strlen(signed_data)))
-          && TEST_ptr(x509_bio = BIO_new_mem_buf(cert_der, sizeof(cert_der)))
-          && TEST_ptr(cert = d2i_X509_bio(x509_bio, NULL))
-          && TEST_int_eq(ERR_peek_error(), 0)
-          && TEST_ptr(store = X509_STORE_new())
-          && TEST_true(X509_STORE_add_cert(store, cert))
-          && TEST_ptr(p7 = SMIME_read_PKCS7(bio, NULL))
-          && TEST_int_eq(ERR_peek_error(), 0)
-          && TEST_true(PKCS7_verify(p7, NULL, store, msg_bio, NULL, PKCS7_TEXT))
-          && TEST_int_eq(ERR_peek_error(), 0);
+        && TEST_ptr(x509_bio = BIO_new_mem_buf(cert_der, sizeof(cert_der)))
+        && TEST_ptr(cert = d2i_X509_bio(x509_bio, NULL))
+        && TEST_int_eq(ERR_peek_error(), 0)
+        && TEST_ptr(store = X509_STORE_new())
+        && TEST_true(X509_STORE_add_cert(store, cert))
+        && TEST_ptr(p7 = SMIME_read_PKCS7(bio, NULL))
+        && TEST_int_eq(ERR_peek_error(), 0)
+        && TEST_true(PKCS7_verify(p7, NULL, store, msg_bio, NULL, PKCS7_TEXT))
+        && TEST_int_eq(ERR_peek_error(), 0);
 end:
     X509_STORE_free(store);
     X509_free(cert);

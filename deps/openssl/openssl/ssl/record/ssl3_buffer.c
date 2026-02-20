@@ -47,7 +47,7 @@ int ssl3_setup_read_buffer(SSL *s)
     else
         headerlen = SSL3_RT_HEADER_LENGTH;
 
-#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD != 0
     align = (-SSL3_RT_HEADER_LENGTH) & (SSL3_ALIGN_PAYLOAD - 1);
 #endif
 
@@ -96,7 +96,7 @@ int ssl3_setup_write_buffer(SSL *s, size_t numwpipes, size_t len)
         else
             headerlen = SSL3_RT_HEADER_LENGTH;
 
-#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD != 0
         align = SSL3_ALIGN_PAYLOAD - 1;
 #endif
 
@@ -121,7 +121,7 @@ int ssl3_setup_write_buffer(SSL *s, size_t numwpipes, size_t len)
 
         if (thiswb->len != len) {
             OPENSSL_free(thiswb->buf);
-            thiswb->buf = NULL;         /* force reallocation */
+            thiswb->buf = NULL; /* force reallocation */
         }
 
         if (thiswb->buf == NULL) {

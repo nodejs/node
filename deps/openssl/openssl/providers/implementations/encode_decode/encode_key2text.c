@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,32 +22,32 @@
 #include <openssl/safestack.h>
 #include <openssl/proverr.h>
 #include "internal/ffc.h"
-#include "crypto/bn.h"           /* bn_get_words() */
-#include "crypto/dh.h"           /* ossl_dh_get0_params() */
-#include "crypto/dsa.h"          /* ossl_dsa_get0_params() */
-#include "crypto/ec.h"           /* ossl_ec_key_get_libctx */
-#include "crypto/ecx.h"          /* ECX_KEY, etc... */
-#include "crypto/rsa.h"          /* RSA_PSS_PARAMS_30, etc... */
+#include "crypto/bn.h" /* bn_get_words() */
+#include "crypto/dh.h" /* ossl_dh_get0_params() */
+#include "crypto/dsa.h" /* ossl_dsa_get0_params() */
+#include "crypto/ec.h" /* ossl_ec_key_get_libctx */
+#include "crypto/ecx.h" /* ECX_KEY, etc... */
+#include "crypto/rsa.h" /* RSA_PSS_PARAMS_30, etc... */
 #include "prov/bio.h"
 #include "prov/implementations.h"
 #include "endecoder_local.h"
 
 DEFINE_SPECIAL_STACK_OF_CONST(BIGNUM_const, BIGNUM)
 
-# ifdef SIXTY_FOUR_BIT_LONG
-#  define BN_FMTu "%lu"
-#  define BN_FMTx "%lx"
-# endif
+#ifdef SIXTY_FOUR_BIT_LONG
+#define BN_FMTu "%lu"
+#define BN_FMTx "%lx"
+#endif
 
-# ifdef SIXTY_FOUR_BIT
-#  define BN_FMTu "%llu"
-#  define BN_FMTx "%llx"
-# endif
+#ifdef SIXTY_FOUR_BIT
+#define BN_FMTu "%llu"
+#define BN_FMTx "%llx"
+#endif
 
-# ifdef THIRTY_TWO_BIT
-#  define BN_FMTu "%u"
-#  define BN_FMTx "%x"
-# endif
+#ifdef THIRTY_TWO_BIT
+#define BN_FMTu "%u"
+#define BN_FMTx "%x"
+#endif
 
 static int print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
 {
@@ -76,7 +76,7 @@ static int print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
             neg = "-";
 
         return BIO_printf(out, "%s%s%s" BN_FMTu " (%s0x" BN_FMTx ")\n",
-                          label, post_label_spc, neg, words[0], neg, words[0]);
+            label, post_label_spc, neg, words[0], neg, words[0]);
     }
 
     hex_str = BN_bn2hex(bn);
@@ -109,11 +109,12 @@ static int print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
         if ((bytes % 15) == 0 && bytes > 0) {
             if (BIO_printf(out, ":\n%s", spaces) <= 0)
                 goto err;
-            use_sep = 0; /* The first byte on the next line doesnt have a : */
+            use_sep = 0; /* The first byte on the next line doesn't have a : */
         }
         if (BIO_printf(out, "%s%c%c", use_sep ? ":" : "",
-                       tolower((unsigned char)p[0]),
-                       tolower((unsigned char)p[1])) <= 0)
+                tolower((unsigned char)p[0]),
+                tolower((unsigned char)p[1]))
+            <= 0)
             goto err;
         ++bytes;
         p += 2;
@@ -128,11 +129,11 @@ err:
 }
 
 /* Number of octets per line */
-#define LABELED_BUF_PRINT_WIDTH    15
+#define LABELED_BUF_PRINT_WIDTH 15
 
 #if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_EC)
 static int print_labeled_buf(BIO *out, const char *label,
-                             const unsigned char *buf, size_t buflen)
+    const unsigned char *buf, size_t buflen)
 {
     size_t i;
 
@@ -148,7 +149,8 @@ static int print_labeled_buf(BIO *out, const char *label,
         }
 
         if (BIO_printf(out, "%02x%s", buf[i],
-                                 (i == buflen - 1) ? "" : ":") <= 0)
+                (i == buflen - 1) ? "" : ":")
+            <= 0)
             return 0;
     }
     if (BIO_printf(out, "\n") <= 0)
@@ -277,14 +279,15 @@ static int dh_to_text(BIO *out, const void *key, int selection)
     length = DH_get_length(dh);
     if (length > 0
         && BIO_printf(out, "recommended-private-length: %ld bits\n",
-                      length) <= 0)
+               length)
+            <= 0)
         return 0;
 
     return 1;
 }
 
-# define dh_input_type          "DH"
-# define dhx_input_type         "DHX"
+#define dh_input_type "DH"
+#define dhx_input_type "DHX"
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -353,14 +356,14 @@ static int dsa_to_text(BIO *out, const void *key, int selection)
     return 1;
 }
 
-# define dsa_input_type         "DSA"
+#define dsa_input_type "DSA"
 #endif
 
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_EC
 static int ec_param_explicit_curve_to_text(BIO *out, const EC_GROUP *group,
-                                           BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     const char *plabel = "Prime:";
     BIGNUM *p = NULL, *a = NULL, *b = NULL;
@@ -387,7 +390,7 @@ static int ec_param_explicit_curve_to_text(BIO *out, const EC_GROUP *group,
 }
 
 static int ec_param_explicit_gen_to_text(BIO *out, const EC_GROUP *group,
-                                         BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     int ret;
     size_t buflen;
@@ -404,8 +407,8 @@ static int ec_param_explicit_gen_to_text(BIO *out, const EC_GROUP *group,
 
     switch (form) {
     case POINT_CONVERSION_COMPRESSED:
-       glabel = "Generator (compressed):";
-       break;
+        glabel = "Generator (compressed):";
+        break;
     case POINT_CONVERSION_UNCOMPRESSED:
         glabel = "Generator (uncompressed):";
         break;
@@ -427,7 +430,7 @@ static int ec_param_explicit_gen_to_text(BIO *out, const EC_GROUP *group,
 
 /* Print explicit parameters */
 static int ec_param_explicit_to_text(BIO *out, const EC_GROUP *group,
-                                     OSSL_LIB_CTX *libctx)
+    OSSL_LIB_CTX *libctx)
 {
     int ret = 0, tmp_nid;
     BN_CTX *ctx = NULL;
@@ -468,7 +471,7 @@ err:
 }
 
 static int ec_param_to_text(BIO *out, const EC_GROUP *group,
-                            OSSL_LIB_CTX *libctx)
+    OSSL_LIB_CTX *libctx)
 {
     if (EC_GROUP_get_asn1_flag(group) & OPENSSL_EC_NAMED_CURVE) {
         const char *curve_name;
@@ -483,7 +486,7 @@ static int ec_param_to_text(BIO *out, const EC_GROUP *group,
 
         curve_name = EC_curve_nid2nist(curve_nid);
         return (curve_name == NULL
-                || BIO_printf(out, "%s: %s\n", "NIST CURVE", curve_name) > 0);
+            || BIO_printf(out, "%s: %s\n", "NIST CURVE", curve_name) > 0);
     } else {
         return ec_param_explicit_to_text(out, group, libctx);
     }
@@ -513,7 +516,8 @@ static int ec_to_text(BIO *out, const void *key, int selection)
     else if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
         type_label = "Public-Key";
     else if ((selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) != 0)
-        type_label = "EC-Parameters";
+        if (EC_GROUP_get_curve_name(group) != NID_sm2)
+            type_label = "EC-Parameters";
 
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
         const BIGNUM *priv_key = EC_KEY_get0_private_key(ec);
@@ -539,8 +543,10 @@ static int ec_to_text(BIO *out, const void *key, int selection)
             goto err;
     }
 
-    if (BIO_printf(out, "%s: (%d bit)\n", type_label,
-                   EC_GROUP_order_bits(group)) <= 0)
+    if (type_label != NULL
+        && BIO_printf(out, "%s: (%d bit)\n", type_label,
+               EC_GROUP_order_bits(group))
+            <= 0)
         goto err;
     if (priv != NULL
         && !print_labeled_buf(out, "priv:", priv, priv_len))
@@ -556,11 +562,11 @@ err:
     return ret;
 }
 
-# define ec_input_type          "EC"
+#define ec_input_type "EC"
 
-# ifndef OPENSSL_NO_SM2
-#  define sm2_input_type        "SM2"
-# endif
+#ifndef OPENSSL_NO_SM2
+#define sm2_input_type "SM2"
+#endif
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -618,10 +624,10 @@ static int ecx_to_text(BIO *out, const void *key, int selection)
     return 1;
 }
 
-# define ed25519_input_type     "ED25519"
-# define ed448_input_type       "ED448"
-# define x25519_input_type      "X25519"
-# define x448_input_type        "X448"
+#define ed25519_input_type "ED25519"
+#define ed448_input_type "ED448"
+#define x25519_input_type "X25519"
+#define x448_input_type "X448"
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -670,11 +676,13 @@ static int rsa_to_text(BIO *out, const void *key, int selection)
 
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
         if (BIO_printf(out, "%s: (%d bit, %d primes)\n",
-                       type_label, BN_num_bits(rsa_n), primes) <= 0)
+                type_label, BN_num_bits(rsa_n), primes)
+            <= 0)
             goto err;
     } else {
         if (BIO_printf(out, "%s: (%d bit)\n",
-                       type_label, BN_num_bits(rsa_n)) <= 0)
+                type_label, BN_num_bits(rsa_n))
+            <= 0)
             goto err;
     }
 
@@ -688,35 +696,35 @@ static int rsa_to_text(BIO *out, const void *key, int selection)
         if (!print_labeled_bignum(out, "privateExponent:", rsa_d))
             goto err;
         if (!print_labeled_bignum(out, "prime1:",
-                                  sk_BIGNUM_const_value(factors, 0)))
+                sk_BIGNUM_const_value(factors, 0)))
             goto err;
         if (!print_labeled_bignum(out, "prime2:",
-                                  sk_BIGNUM_const_value(factors, 1)))
+                sk_BIGNUM_const_value(factors, 1)))
             goto err;
         if (!print_labeled_bignum(out, "exponent1:",
-                                  sk_BIGNUM_const_value(exps, 0)))
+                sk_BIGNUM_const_value(exps, 0)))
             goto err;
         if (!print_labeled_bignum(out, "exponent2:",
-                                  sk_BIGNUM_const_value(exps, 1)))
+                sk_BIGNUM_const_value(exps, 1)))
             goto err;
         if (!print_labeled_bignum(out, "coefficient:",
-                                  sk_BIGNUM_const_value(coeffs, 0)))
+                sk_BIGNUM_const_value(coeffs, 0)))
             goto err;
         for (i = 2; i < sk_BIGNUM_const_num(factors); i++) {
             if (BIO_printf(out, "prime%d:", i + 1) <= 0)
                 goto err;
             if (!print_labeled_bignum(out, NULL,
-                                      sk_BIGNUM_const_value(factors, i)))
+                    sk_BIGNUM_const_value(factors, i)))
                 goto err;
             if (BIO_printf(out, "exponent%d:", i + 1) <= 0)
                 goto err;
             if (!print_labeled_bignum(out, NULL,
-                                      sk_BIGNUM_const_value(exps, i)))
+                    sk_BIGNUM_const_value(exps, i)))
                 goto err;
             if (BIO_printf(out, "coefficient%d:", i + 1) <= 0)
                 goto err;
             if (!print_labeled_bignum(out, NULL,
-                                      sk_BIGNUM_const_value(coeffs, i - 1)))
+                    sk_BIGNUM_const_value(coeffs, i - 1)))
                 goto err;
         }
     }
@@ -735,35 +743,38 @@ static int rsa_to_text(BIO *out, const void *key, int selection)
                     goto err;
             } else {
                 int hashalg_nid = ossl_rsa_pss_params_30_hashalg(pss_params);
-                int maskgenalg_nid =
-                    ossl_rsa_pss_params_30_maskgenalg(pss_params);
-                int maskgenhashalg_nid =
-                    ossl_rsa_pss_params_30_maskgenhashalg(pss_params);
+                int maskgenalg_nid = ossl_rsa_pss_params_30_maskgenalg(pss_params);
+                int maskgenhashalg_nid = ossl_rsa_pss_params_30_maskgenhashalg(pss_params);
                 int saltlen = ossl_rsa_pss_params_30_saltlen(pss_params);
-                int trailerfield =
-                    ossl_rsa_pss_params_30_trailerfield(pss_params);
+                int trailerfield = ossl_rsa_pss_params_30_trailerfield(pss_params);
 
                 if (BIO_printf(out, "PSS parameter restrictions:\n") <= 0)
                     goto err;
                 if (BIO_printf(out, "  Hash Algorithm: %s%s\n",
-                               ossl_rsa_oaeppss_nid2name(hashalg_nid),
-                               (hashalg_nid == NID_sha1
-                                ? " (default)" : "")) <= 0)
+                        ossl_rsa_oaeppss_nid2name(hashalg_nid),
+                        (hashalg_nid == NID_sha1
+                                ? " (default)"
+                                : ""))
+                    <= 0)
                     goto err;
                 if (BIO_printf(out, "  Mask Algorithm: %s with %s%s\n",
-                               ossl_rsa_mgf_nid2name(maskgenalg_nid),
-                               ossl_rsa_oaeppss_nid2name(maskgenhashalg_nid),
-                               (maskgenalg_nid == NID_mgf1
-                                && maskgenhashalg_nid == NID_sha1
-                                ? " (default)" : "")) <= 0)
+                        ossl_rsa_mgf_nid2name(maskgenalg_nid),
+                        ossl_rsa_oaeppss_nid2name(maskgenhashalg_nid),
+                        (maskgenalg_nid == NID_mgf1
+                                    && maskgenhashalg_nid == NID_sha1
+                                ? " (default)"
+                                : ""))
+                    <= 0)
                     goto err;
                 if (BIO_printf(out, "  Minimum Salt Length: %d%s\n",
-                               saltlen,
-                               (saltlen == 20 ? " (default)" : "")) <= 0)
+                        saltlen,
+                        (saltlen == 20 ? " (default)" : ""))
+                    <= 0)
                     goto err;
                 if (BIO_printf(out, "  Trailer Field: 0x%x%s\n",
-                               trailerfield,
-                               (trailerfield == 1 ? " (default)" : "")) <= 0)
+                        trailerfield,
+                        (trailerfield == 1 ? " (default)" : ""))
+                    <= 0)
                     goto err;
             }
             break;
@@ -771,15 +782,15 @@ static int rsa_to_text(BIO *out, const void *key, int selection)
     }
 
     ret = 1;
- err:
+err:
     sk_BIGNUM_const_free(factors);
     sk_BIGNUM_const_free(exps);
     sk_BIGNUM_const_free(coeffs);
     return ret;
 }
 
-#define rsa_input_type          "RSA"
-#define rsapss_input_type       "RSA-PSS"
+#define rsa_input_type "RSA"
+#define rsapss_input_type "RSA-PSS"
 
 /* ---------------------------------------------------------------------- */
 
@@ -793,10 +804,10 @@ static void key2text_freectx(ossl_unused void *vctx)
 }
 
 static int key2text_encode(void *vctx, const void *key, int selection,
-                           OSSL_CORE_BIO *cout,
-                           int (*key2text)(BIO *out, const void *key,
-                                           int selection),
-                           OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+    OSSL_CORE_BIO *cout,
+    int (*key2text)(BIO *out, const void *key,
+        int selection),
+    OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
 {
     BIO *out = ossl_bio_new_from_core_bio(vctx, cout);
     int ret;
@@ -810,50 +821,50 @@ static int key2text_encode(void *vctx, const void *key, int selection,
     return ret;
 }
 
-#define MAKE_TEXT_ENCODER(impl, type)                                   \
-    static OSSL_FUNC_encoder_import_object_fn                           \
-    impl##2text_import_object;                                          \
-    static OSSL_FUNC_encoder_free_object_fn                             \
-    impl##2text_free_object;                                            \
-    static OSSL_FUNC_encoder_encode_fn impl##2text_encode;              \
-                                                                        \
-    static void *impl##2text_import_object(void *ctx, int selection,    \
-                                           const OSSL_PARAM params[])   \
-    {                                                                   \
-        return ossl_prov_import_key(ossl_##impl##_keymgmt_functions,    \
-                                    ctx, selection, params);            \
-    }                                                                   \
-    static void impl##2text_free_object(void *key)                      \
-    {                                                                   \
-        ossl_prov_free_key(ossl_##impl##_keymgmt_functions, key);       \
-    }                                                                   \
-    static int impl##2text_encode(void *vctx, OSSL_CORE_BIO *cout,      \
-                                  const void *key,                      \
-                                  const OSSL_PARAM key_abstract[],      \
-                                  int selection,                        \
-                                  OSSL_PASSPHRASE_CALLBACK *cb,         \
-                                  void *cbarg)                          \
-    {                                                                   \
-        /* We don't deal with abstract objects */                       \
-        if (key_abstract != NULL) {                                     \
-            ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);     \
-            return 0;                                                   \
-        }                                                               \
-        return key2text_encode(vctx, key, selection, cout,              \
-                               type##_to_text, cb, cbarg);              \
-    }                                                                   \
-    const OSSL_DISPATCH ossl_##impl##_to_text_encoder_functions[] = {   \
-        { OSSL_FUNC_ENCODER_NEWCTX,                                     \
-          (void (*)(void))key2text_newctx },                            \
-        { OSSL_FUNC_ENCODER_FREECTX,                                    \
-          (void (*)(void))key2text_freectx },                           \
-        { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                              \
-          (void (*)(void))impl##2text_import_object },                  \
-        { OSSL_FUNC_ENCODER_FREE_OBJECT,                                \
-          (void (*)(void))impl##2text_free_object },                    \
-        { OSSL_FUNC_ENCODER_ENCODE,                                     \
-          (void (*)(void))impl##2text_encode },                         \
-        { 0, NULL }                                                     \
+#define MAKE_TEXT_ENCODER(impl, type)                                 \
+    static OSSL_FUNC_encoder_import_object_fn                         \
+        impl##2text_import_object;                                    \
+    static OSSL_FUNC_encoder_free_object_fn                           \
+        impl##2text_free_object;                                      \
+    static OSSL_FUNC_encoder_encode_fn impl##2text_encode;            \
+                                                                      \
+    static void *impl##2text_import_object(void *ctx, int selection,  \
+        const OSSL_PARAM params[])                                    \
+    {                                                                 \
+        return ossl_prov_import_key(ossl_##impl##_keymgmt_functions,  \
+            ctx, selection, params);                                  \
+    }                                                                 \
+    static void impl##2text_free_object(void *key)                    \
+    {                                                                 \
+        ossl_prov_free_key(ossl_##impl##_keymgmt_functions, key);     \
+    }                                                                 \
+    static int impl##2text_encode(void *vctx, OSSL_CORE_BIO *cout,    \
+        const void *key,                                              \
+        const OSSL_PARAM key_abstract[],                              \
+        int selection,                                                \
+        OSSL_PASSPHRASE_CALLBACK *cb,                                 \
+        void *cbarg)                                                  \
+    {                                                                 \
+        /* We don't deal with abstract objects */                     \
+        if (key_abstract != NULL) {                                   \
+            ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);   \
+            return 0;                                                 \
+        }                                                             \
+        return key2text_encode(vctx, key, selection, cout,            \
+            type##_to_text, cb, cbarg);                               \
+    }                                                                 \
+    const OSSL_DISPATCH ossl_##impl##_to_text_encoder_functions[] = { \
+        { OSSL_FUNC_ENCODER_NEWCTX,                                   \
+            (void (*)(void))key2text_newctx },                        \
+        { OSSL_FUNC_ENCODER_FREECTX,                                  \
+            (void (*)(void))key2text_freectx },                       \
+        { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                            \
+            (void (*)(void))impl##2text_import_object },              \
+        { OSSL_FUNC_ENCODER_FREE_OBJECT,                              \
+            (void (*)(void))impl##2text_free_object },                \
+        { OSSL_FUNC_ENCODER_ENCODE,                                   \
+            (void (*)(void))impl##2text_encode },                     \
+        { 0, NULL }                                                   \
     }
 
 #ifndef OPENSSL_NO_DH
@@ -865,9 +876,9 @@ MAKE_TEXT_ENCODER(dsa, dsa);
 #endif
 #ifndef OPENSSL_NO_EC
 MAKE_TEXT_ENCODER(ec, ec);
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 MAKE_TEXT_ENCODER(sm2, ec);
-# endif
+#endif
 MAKE_TEXT_ENCODER(ed25519, ecx);
 MAKE_TEXT_ENCODER(ed448, ecx);
 MAKE_TEXT_ENCODER(x25519, ecx);

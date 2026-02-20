@@ -18,7 +18,7 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #ifndef FIPS_MODULE
-# include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
@@ -77,17 +77,17 @@ static void *mac_newctx(void *provctx, const char *propq, const char *macname)
 
     return pmacctx;
 
- err:
+err:
     OPENSSL_free(pmacctx->propq);
     OPENSSL_free(pmacctx);
     EVP_MAC_free(mac);
     return NULL;
 }
 
-#define MAC_NEWCTX(funcname, macname) \
+#define MAC_NEWCTX(funcname, macname)                                      \
     static void *mac_##funcname##_newctx(void *provctx, const char *propq) \
-    { \
-        return mac_newctx(provctx, propq, macname); \
+    {                                                                      \
+        return mac_newctx(provctx, propq, macname);                        \
     }
 
 MAC_NEWCTX(hmac, "HMAC")
@@ -96,7 +96,7 @@ MAC_NEWCTX(poly1305, "POLY1305")
 MAC_NEWCTX(cmac, "CMAC")
 
 static int mac_digest_sign_init(void *vpmacctx, const char *mdname, void *vkey,
-                                const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     PROV_MAC_CTX *pmacctx = (PROV_MAC_CTX *)vpmacctx;
     const char *ciphername = NULL, *engine = NULL;
@@ -125,22 +125,22 @@ static int mac_digest_sign_init(void *vpmacctx, const char *mdname, void *vkey,
 #endif
 
     if (!ossl_prov_set_macctx(pmacctx->macctx, NULL,
-                              (char *)ciphername,
-                              (char *)mdname,
-                              (char *)engine,
-                              pmacctx->key->properties,
-                              NULL, 0))
+            (char *)ciphername,
+            (char *)mdname,
+            (char *)engine,
+            pmacctx->key->properties,
+            NULL, 0))
         return 0;
 
     if (!EVP_MAC_init(pmacctx->macctx, pmacctx->key->priv_key,
-                      pmacctx->key->priv_key_len, params))
+            pmacctx->key->priv_key_len, params))
         return 0;
 
     return 1;
 }
 
 int mac_digest_sign_update(void *vpmacctx, const unsigned char *data,
-                           size_t datalen)
+    size_t datalen)
 {
     PROV_MAC_CTX *pmacctx = (PROV_MAC_CTX *)vpmacctx;
 
@@ -151,7 +151,7 @@ int mac_digest_sign_update(void *vpmacctx, const unsigned char *data,
 }
 
 int mac_digest_sign_final(void *vpmacctx, unsigned char *mac, size_t *maclen,
-                          size_t macsize)
+    size_t macsize)
 {
     PROV_MAC_CTX *pmacctx = (PROV_MAC_CTX *)vpmacctx;
 
@@ -202,7 +202,7 @@ static void *mac_dupctx(void *vpmacctx)
     }
 
     return dstctx;
- err:
+err:
     mac_freectx(dstctx);
     return NULL;
 }
@@ -215,11 +215,11 @@ static int mac_set_ctx_params(void *vpmacctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *mac_settable_ctx_params(ossl_unused void *ctx,
-                                                 void *provctx,
-                                                 const char *macname)
+    void *provctx,
+    const char *macname)
 {
     EVP_MAC *mac = EVP_MAC_fetch(PROV_LIBCTX_OF(provctx), macname,
-                                 NULL);
+        NULL);
     const OSSL_PARAM *params;
 
     if (mac == NULL)
@@ -231,11 +231,11 @@ static const OSSL_PARAM *mac_settable_ctx_params(ossl_unused void *ctx,
     return params;
 }
 
-#define MAC_SETTABLE_CTX_PARAMS(funcname, macname) \
+#define MAC_SETTABLE_CTX_PARAMS(funcname, macname)                           \
     static const OSSL_PARAM *mac_##funcname##_settable_ctx_params(void *ctx, \
-                                                                  void *provctx) \
-    { \
-        return mac_settable_ctx_params(ctx, provctx, macname); \
+        void *provctx)                                                       \
+    {                                                                        \
+        return mac_settable_ctx_params(ctx, provctx, macname);               \
     }
 
 MAC_SETTABLE_CTX_PARAMS(hmac, "HMAC")
@@ -243,22 +243,22 @@ MAC_SETTABLE_CTX_PARAMS(siphash, "SIPHASH")
 MAC_SETTABLE_CTX_PARAMS(poly1305, "POLY1305")
 MAC_SETTABLE_CTX_PARAMS(cmac, "CMAC")
 
-#define MAC_SIGNATURE_FUNCTIONS(funcname) \
-    const OSSL_DISPATCH ossl_mac_legacy_##funcname##_signature_functions[] = { \
+#define MAC_SIGNATURE_FUNCTIONS(funcname)                                        \
+    const OSSL_DISPATCH ossl_mac_legacy_##funcname##_signature_functions[] = {   \
         { OSSL_FUNC_SIGNATURE_NEWCTX, (void (*)(void))mac_##funcname##_newctx }, \
-        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, \
-        (void (*)(void))mac_digest_sign_init }, \
-        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, \
-        (void (*)(void))mac_digest_sign_update }, \
-        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL, \
-        (void (*)(void))mac_digest_sign_final }, \
-        { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))mac_freectx }, \
-        { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))mac_dupctx }, \
-        { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS, \
-          (void (*)(void))mac_set_ctx_params }, \
-        { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS, \
-          (void (*)(void))mac_##funcname##_settable_ctx_params }, \
-        { 0, NULL } \
+        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT,                                  \
+            (void (*)(void))mac_digest_sign_init },                              \
+        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE,                                \
+            (void (*)(void))mac_digest_sign_update },                            \
+        { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL,                                 \
+            (void (*)(void))mac_digest_sign_final },                             \
+        { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))mac_freectx },            \
+        { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))mac_dupctx },              \
+        { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS,                                    \
+            (void (*)(void))mac_set_ctx_params },                                \
+        { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS,                               \
+            (void (*)(void))mac_##funcname##_settable_ctx_params },              \
+        { 0, NULL }                                                              \
     };
 
 MAC_SIGNATURE_FUNCTIONS(hmac)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ static int has_selection;
 static int imptypes_selection;
 static int exptypes_selection;
 static int query_id;
+
+unsigned fake_rsa_query_operation_name = 0;
 
 struct fake_rsa_keydata {
     int selection;
@@ -65,17 +67,16 @@ static int fake_rsa_keymgmt_has(const void *key, int selection)
     return 1;
 }
 
-
 static const char *fake_rsa_keymgmt_query(int id)
 {
     /* record global for checking */
     query_id = id;
 
-    return "RSA";
+    return fake_rsa_query_operation_name ? NULL : "RSA";
 }
 
 static int fake_rsa_keymgmt_import(void *keydata, int selection,
-                                   const OSSL_PARAM *p)
+    const OSSL_PARAM *p)
 {
     struct fake_rsa_keydata *fake_rsa_key = keydata;
 
@@ -85,73 +86,66 @@ static int fake_rsa_keymgmt_import(void *keydata, int selection,
     return 1;
 }
 
-static unsigned char fake_rsa_n[] =
-   "\x00\xAA\x36\xAB\xCE\x88\xAC\xFD\xFF\x55\x52\x3C\x7F\xC4\x52\x3F"
-   "\x90\xEF\xA0\x0D\xF3\x77\x4A\x25\x9F\x2E\x62\xB4\xC5\xD9\x9C\xB5"
-   "\xAD\xB3\x00\xA0\x28\x5E\x53\x01\x93\x0E\x0C\x70\xFB\x68\x76\x93"
-   "\x9C\xE6\x16\xCE\x62\x4A\x11\xE0\x08\x6D\x34\x1E\xBC\xAC\xA0\xA1"
-   "\xF5";
+static unsigned char fake_rsa_n[] = "\x00\xAA\x36\xAB\xCE\x88\xAC\xFD\xFF\x55\x52\x3C\x7F\xC4\x52\x3F"
+                                    "\x90\xEF\xA0\x0D\xF3\x77\x4A\x25\x9F\x2E\x62\xB4\xC5\xD9\x9C\xB5"
+                                    "\xAD\xB3\x00\xA0\x28\x5E\x53\x01\x93\x0E\x0C\x70\xFB\x68\x76\x93"
+                                    "\x9C\xE6\x16\xCE\x62\x4A\x11\xE0\x08\x6D\x34\x1E\xBC\xAC\xA0\xA1"
+                                    "\xF5";
 
 static unsigned char fake_rsa_e[] = "\x11";
 
-static unsigned char fake_rsa_d[] =
-    "\x0A\x03\x37\x48\x62\x64\x87\x69\x5F\x5F\x30\xBC\x38\xB9\x8B\x44"
-    "\xC2\xCD\x2D\xFF\x43\x40\x98\xCD\x20\xD8\xA1\x38\xD0\x90\xBF\x64"
-    "\x79\x7C\x3F\xA7\xA2\xCD\xCB\x3C\xD1\xE0\xBD\xBA\x26\x54\xB4\xF9"
-    "\xDF\x8E\x8A\xE5\x9D\x73\x3D\x9F\x33\xB3\x01\x62\x4A\xFD\x1D\x51";
+static unsigned char fake_rsa_d[] = "\x0A\x03\x37\x48\x62\x64\x87\x69\x5F\x5F\x30\xBC\x38\xB9\x8B\x44"
+                                    "\xC2\xCD\x2D\xFF\x43\x40\x98\xCD\x20\xD8\xA1\x38\xD0\x90\xBF\x64"
+                                    "\x79\x7C\x3F\xA7\xA2\xCD\xCB\x3C\xD1\xE0\xBD\xBA\x26\x54\xB4\xF9"
+                                    "\xDF\x8E\x8A\xE5\x9D\x73\x3D\x9F\x33\xB3\x01\x62\x4A\xFD\x1D\x51";
 
-static unsigned char fake_rsa_p[] =
-    "\x00\xD8\x40\xB4\x16\x66\xB4\x2E\x92\xEA\x0D\xA3\xB4\x32\x04\xB5"
-    "\xCF\xCE\x33\x52\x52\x4D\x04\x16\xA5\xA4\x41\xE7\x00\xAF\x46\x12"
-    "\x0D";
+static unsigned char fake_rsa_p[] = "\x00\xD8\x40\xB4\x16\x66\xB4\x2E\x92\xEA\x0D\xA3\xB4\x32\x04\xB5"
+                                    "\xCF\xCE\x33\x52\x52\x4D\x04\x16\xA5\xA4\x41\xE7\x00\xAF\x46\x12"
+                                    "\x0D";
 
-static unsigned char fake_rsa_q[] =
-    "\x00\xC9\x7F\xB1\xF0\x27\xF4\x53\xF6\x34\x12\x33\xEA\xAA\xD1\xD9"
-    "\x35\x3F\x6C\x42\xD0\x88\x66\xB1\xD0\x5A\x0F\x20\x35\x02\x8B\x9D"
-    "\x89";
+static unsigned char fake_rsa_q[] = "\x00\xC9\x7F\xB1\xF0\x27\xF4\x53\xF6\x34\x12\x33\xEA\xAA\xD1\xD9"
+                                    "\x35\x3F\x6C\x42\xD0\x88\x66\xB1\xD0\x5A\x0F\x20\x35\x02\x8B\x9D"
+                                    "\x89";
 
-static unsigned char fake_rsa_dmp1[] =
-    "\x59\x0B\x95\x72\xA2\xC2\xA9\xC4\x06\x05\x9D\xC2\xAB\x2F\x1D\xAF"
-    "\xEB\x7E\x8B\x4F\x10\xA7\x54\x9E\x8E\xED\xF5\xB4\xFC\xE0\x9E\x05";
+static unsigned char fake_rsa_dmp1[] = "\x59\x0B\x95\x72\xA2\xC2\xA9\xC4\x06\x05\x9D\xC2\xAB\x2F\x1D\xAF"
+                                       "\xEB\x7E\x8B\x4F\x10\xA7\x54\x9E\x8E\xED\xF5\xB4\xFC\xE0\x9E\x05";
 
-static unsigned char fake_rsa_dmq1[] =
-    "\x00\x8E\x3C\x05\x21\xFE\x15\xE0\xEA\x06\xA3\x6F\xF0\xF1\x0C\x99"
-    "\x52\xC3\x5B\x7A\x75\x14\xFD\x32\x38\xB8\x0A\xAD\x52\x98\x62\x8D"
-    "\x51";
+static unsigned char fake_rsa_dmq1[] = "\x00\x8E\x3C\x05\x21\xFE\x15\xE0\xEA\x06\xA3\x6F\xF0\xF1\x0C\x99"
+                                       "\x52\xC3\x5B\x7A\x75\x14\xFD\x32\x38\xB8\x0A\xAD\x52\x98\x62\x8D"
+                                       "\x51";
 
-static unsigned char fake_rsa_iqmp[] =
-    "\x36\x3F\xF7\x18\x9D\xA8\xE9\x0B\x1D\x34\x1F\x71\xD0\x9B\x76\xA8"
-    "\xA9\x43\xE1\x1D\x10\xB2\x4D\x24\x9F\x2D\xEA\xFE\xF8\x0C\x18\x26";
+static unsigned char fake_rsa_iqmp[] = "\x36\x3F\xF7\x18\x9D\xA8\xE9\x0B\x1D\x34\x1F\x71\xD0\x9B\x76\xA8"
+                                       "\xA9\x43\xE1\x1D\x10\xB2\x4D\x24\x9F\x2D\xEA\xFE\xF8\x0C\x18\x26";
 
 OSSL_PARAM *fake_rsa_key_params(int priv)
 {
     if (priv) {
         OSSL_PARAM params[] = {
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, fake_rsa_n,
-                          sizeof(fake_rsa_n) -1),
+                sizeof(fake_rsa_n) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, fake_rsa_e,
-                          sizeof(fake_rsa_e) -1),
+                sizeof(fake_rsa_e) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_D, fake_rsa_d,
-                          sizeof(fake_rsa_d) -1),
+                sizeof(fake_rsa_d) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_FACTOR1, fake_rsa_p,
-                          sizeof(fake_rsa_p) -1),
+                sizeof(fake_rsa_p) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_FACTOR2, fake_rsa_q,
-                          sizeof(fake_rsa_q) -1),
+                sizeof(fake_rsa_q) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1, fake_rsa_dmp1,
-                          sizeof(fake_rsa_dmp1) -1),
+                sizeof(fake_rsa_dmp1) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2, fake_rsa_dmq1,
-                          sizeof(fake_rsa_dmq1) -1),
+                sizeof(fake_rsa_dmq1) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, fake_rsa_iqmp,
-                          sizeof(fake_rsa_iqmp) -1),
+                sizeof(fake_rsa_iqmp) - 1),
             OSSL_PARAM_END
         };
         return OSSL_PARAM_dup(params);
     } else {
         OSSL_PARAM params[] = {
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, fake_rsa_n,
-                          sizeof(fake_rsa_n) -1),
+                sizeof(fake_rsa_n) - 1),
             OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, fake_rsa_e,
-                          sizeof(fake_rsa_e) -1),
+                sizeof(fake_rsa_e) - 1),
             OSSL_PARAM_END
         };
         return OSSL_PARAM_dup(params);
@@ -159,7 +153,7 @@ OSSL_PARAM *fake_rsa_key_params(int priv)
 }
 
 static int fake_rsa_keymgmt_export(void *keydata, int selection,
-                                   OSSL_CALLBACK *param_callback, void *cbarg)
+    OSSL_CALLBACK *param_callback, void *cbarg)
 {
     OSSL_PARAM *params = NULL;
     int ret;
@@ -221,13 +215,13 @@ static void *fake_rsa_keymgmt_load(const void *reference, size_t reference_sz)
         return NULL;
 
     /* detach the reference */
-    *(struct fake_rsa_keydata  **)reference = NULL;
+    *(struct fake_rsa_keydata **)reference = NULL;
 
     return key;
 }
 
 static void *fake_rsa_gen_init(void *provctx, int selection,
-                               const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     unsigned char *gctx = NULL;
 
@@ -258,12 +252,12 @@ static void *fake_rsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 
 static void fake_rsa_gen_cleanup(void *genctx)
 {
-   OPENSSL_free(genctx);
+    OPENSSL_free(genctx);
 }
 
 static const OSSL_DISPATCH fake_rsa_keymgmt_funcs[] = {
     { OSSL_FUNC_KEYMGMT_NEW, (void (*)(void))fake_rsa_keymgmt_new },
-    { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))fake_rsa_keymgmt_free} ,
+    { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))fake_rsa_keymgmt_free },
     { OSSL_FUNC_KEYMGMT_HAS, (void (*)(void))fake_rsa_keymgmt_has },
     { OSSL_FUNC_KEYMGMT_QUERY_OPERATION_NAME,
         (void (*)(void))fake_rsa_keymgmt_query },
@@ -305,7 +299,7 @@ static void fake_rsa_sig_freectx(void *sigctx)
 }
 
 static int fake_rsa_sig_sign_init(void *ctx, void *provkey,
-                                  const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     unsigned char *sigctx = ctx;
     struct fake_rsa_keydata *keydata = provkey;
@@ -324,8 +318,8 @@ static int fake_rsa_sig_sign_init(void *ctx, void *provkey,
 }
 
 static int fake_rsa_sig_sign(void *ctx, unsigned char *sig,
-                             size_t *siglen, size_t sigsize,
-                             const unsigned char *tbs, size_t tbslen)
+    size_t *siglen, size_t sigsize,
+    const unsigned char *tbs, size_t tbslen)
 {
     unsigned char *sigctx = ctx;
 
@@ -394,14 +388,14 @@ static const OSSL_PARAM *fake_rsa_st_settable_ctx_params(void *provctx)
 }
 
 static int fake_rsa_st_set_ctx_params(void *loaderctx,
-                                      const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return 1;
 }
 
 static int fake_rsa_st_load(void *loaderctx,
-                            OSSL_CALLBACK *object_cb, void *object_cbarg,
-                            OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *object_cb, void *object_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     unsigned char *storectx = loaderctx;
     OSSL_PARAM params[4];
@@ -416,15 +410,12 @@ static int fake_rsa_st_load(void *loaderctx,
             break;
         if (!TEST_int_gt(fake_rsa_keymgmt_import(key, 0, NULL), 0))
             break;
-        params[0] =
-            OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
-        params[1] =
-            OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                             "RSA", 0);
+        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+        params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+            "RSA", 0);
         /* The address of the key becomes the octet string */
-        params[2] =
-            OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
-                                              &key, sizeof(*key));
+        params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
+            &key, sizeof(*key));
         params[3] = OSSL_PARAM_construct_end();
         rv = object_cb(params, object_cbarg);
         *storectx = 1;
@@ -465,7 +456,7 @@ static int fake_rsa_st_close(void *loaderctx)
 static const OSSL_DISPATCH fake_rsa_store_funcs[] = {
     { OSSL_FUNC_STORE_OPEN, (void (*)(void))fake_rsa_st_open },
     { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS,
-      (void (*)(void))fake_rsa_st_settable_ctx_params },
+        (void (*)(void))fake_rsa_st_settable_ctx_params },
     { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void (*)(void))fake_rsa_st_set_ctx_params },
     { OSSL_FUNC_STORE_LOAD, (void (*)(void))fake_rsa_st_load },
     { OSSL_FUNC_STORE_EOF, (void (*)(void))fake_rsa_st_eof },
@@ -479,8 +470,8 @@ static const OSSL_ALGORITHM fake_rsa_store_algs[] = {
 };
 
 static const OSSL_ALGORITHM *fake_rsa_query(void *provctx,
-                                            int operation_id,
-                                            int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     *no_cache = 0;
     switch (operation_id) {
@@ -504,8 +495,8 @@ static const OSSL_DISPATCH fake_rsa_method[] = {
 };
 
 static int fake_rsa_provider_init(const OSSL_CORE_HANDLE *handle,
-                                  const OSSL_DISPATCH *in,
-                                  const OSSL_DISPATCH **out, void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out, void **provctx)
 {
     if (!TEST_ptr(*provctx = OSSL_LIB_CTX_new()))
         return 0;
@@ -518,8 +509,8 @@ OSSL_PROVIDER *fake_rsa_start(OSSL_LIB_CTX *libctx)
     OSSL_PROVIDER *p;
 
     if (!TEST_true(OSSL_PROVIDER_add_builtin(libctx, "fake-rsa",
-                                             fake_rsa_provider_init))
-            || !TEST_ptr(p = OSSL_PROVIDER_try_load(libctx, "fake-rsa", 1)))
+            fake_rsa_provider_init))
+        || !TEST_ptr(p = OSSL_PROVIDER_try_load(libctx, "fake-rsa", 1)))
         return NULL;
 
     return p;

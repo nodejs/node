@@ -26,7 +26,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
     int ret = 0;
 
 #ifdef CHARSET_EBCDIC
-    c = os_toascii[c];          /* 'A' in ASCII */
+    c = os_toascii[c]; /* 'A' in ASCII */
 #endif
     k = 0;
     md5 = ssl_evp_md_fetch(s->ctx->libctx, NID_md5, s->ctx->propq);
@@ -50,13 +50,13 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
         if (!EVP_DigestInit_ex(s1, sha1, NULL)
             || !EVP_DigestUpdate(s1, buf, k)
             || !EVP_DigestUpdate(s1, s->session->master_key,
-                                 s->session->master_key_length)
+                s->session->master_key_length)
             || !EVP_DigestUpdate(s1, s->s3.server_random, SSL3_RANDOM_SIZE)
             || !EVP_DigestUpdate(s1, s->s3.client_random, SSL3_RANDOM_SIZE)
             || !EVP_DigestFinal_ex(s1, smd, NULL)
             || !EVP_DigestInit_ex(m5, md5, NULL)
             || !EVP_DigestUpdate(m5, s->session->master_key,
-                                 s->session->master_key_length)
+                s->session->master_key_length)
             || !EVP_DigestUpdate(m5, smd, SHA_DIGEST_LENGTH)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             goto err;
@@ -78,7 +78,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
     }
     OPENSSL_cleanse(smd, sizeof(smd));
     ret = 1;
- err:
+err:
     EVP_MD_CTX_free(m5);
     EVP_MD_CTX_free(s1);
     ssl_evp_md_free(md5);
@@ -140,7 +140,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
             s->expand = COMP_CTX_new(comp);
             if (s->expand == NULL) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                         SSL_R_COMPRESSION_LIBRARY_ERROR);
+                    SSL_R_COMPRESSION_LIBRARY_ERROR);
                 goto err;
             }
         }
@@ -173,7 +173,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
             s->compress = COMP_CTX_new(comp);
             if (s->compress == NULL) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                         SSL_R_COMPRESSION_LIBRARY_ERROR);
+                    SSL_R_COMPRESSION_LIBRARY_ERROR);
                 goto err;
             }
         }
@@ -195,8 +195,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
     cl = EVP_CIPHER_get_key_length(c);
     j = cl;
     k = EVP_CIPHER_get_iv_length(c);
-    if ((which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
-        (which == SSL3_CHANGE_CIPHER_SERVER_READ)) {
+    if ((which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) || (which == SSL3_CHANGE_CIPHER_SERVER_READ)) {
         ms = &(p[0]);
         n = i + i;
         key = &(p[n]);
@@ -230,14 +229,14 @@ int ssl3_change_cipher_state(SSL *s, int which)
      * different to that in c if we have an ENGINE in use
      */
     if (EVP_CIPHER_get0_provider(EVP_CIPHER_CTX_get0_cipher(dd)) != NULL
-            && !tls_provider_set_tls_params(s, dd, c, m)) {
+        && !tls_provider_set_tls_params(s, dd, c, m)) {
         /* SSLfatal already called */
         goto err;
     }
 
     s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
     return 1;
- err:
+err:
     return 0;
 }
 
@@ -254,7 +253,7 @@ int ssl3_setup_key_block(SSL *s)
         return 1;
 
     if (!ssl_cipher_get_evp(s->ctx, s->session, &c, &hash, NULL, NULL, &comp,
-                            0)) {
+            0)) {
         /* Error is already recorded */
         SSLfatal_alert(s, SSL_AD_INTERNAL_ERROR);
         return 0;
@@ -390,7 +389,7 @@ int ssl3_digest_cached_records(SSL *s, int keep)
         md = ssl_handshake_md(s);
         if (md == NULL) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                     SSL_R_NO_SUITABLE_DIGEST_ALGORITHM);
+                SSL_R_NO_SUITABLE_DIGEST_ALGORITHM);
             return 0;
         }
         if (!EVP_DigestInit_ex(s->s3.handshake_dgst, md, NULL)
@@ -408,17 +407,17 @@ int ssl3_digest_cached_records(SSL *s, int keep)
 }
 
 void ssl3_digest_master_key_set_params(const SSL_SESSION *session,
-                                       OSSL_PARAM params[])
+    OSSL_PARAM params[])
 {
     int n = 0;
     params[n++] = OSSL_PARAM_construct_octet_string(OSSL_DIGEST_PARAM_SSL3_MS,
-                                                    (void *)session->master_key,
-                                                    session->master_key_length);
+        (void *)session->master_key,
+        session->master_key_length);
     params[n++] = OSSL_PARAM_construct_end();
 }
 
 size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
-                             unsigned char *p)
+    unsigned char *p)
 {
     int ret;
     EVP_MD_CTX *ctx = NULL;
@@ -459,19 +458,19 @@ size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
         if (EVP_DigestUpdate(ctx, sender, len) <= 0
             || EVP_MD_CTX_set_params(ctx, digest_cmd_params) <= 0
             || EVP_DigestFinal_ex(ctx, p, NULL) <= 0) {
-                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-                ret = 0;
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+            ret = 0;
         }
     }
 
- err:
+err:
     EVP_MD_CTX_free(ctx);
 
     return ret;
 }
 
 int ssl3_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
-                                size_t len, size_t *secret_size)
+    size_t len, size_t *secret_size)
 {
     static const unsigned char *salt[3] = {
 #ifndef CHARSET_EBCDIC
@@ -497,12 +496,15 @@ int ssl3_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
     for (i = 0; i < 3; i++) {
         if (EVP_DigestInit_ex(ctx, s->ctx->sha1, NULL) <= 0
             || EVP_DigestUpdate(ctx, salt[i],
-                                strlen((const char *)salt[i])) <= 0
+                   strlen((const char *)salt[i]))
+                <= 0
             || EVP_DigestUpdate(ctx, p, len) <= 0
             || EVP_DigestUpdate(ctx, &(s->s3.client_random[0]),
-                                SSL3_RANDOM_SIZE) <= 0
+                   SSL3_RANDOM_SIZE)
+                <= 0
             || EVP_DigestUpdate(ctx, &(s->s3.server_random[0]),
-                                SSL3_RANDOM_SIZE) <= 0
+                   SSL3_RANDOM_SIZE)
+                <= 0
             || EVP_DigestFinal_ex(ctx, buf, &n) <= 0
             || EVP_DigestInit_ex(ctx, s->ctx->md5, NULL) <= 0
             || EVP_DigestUpdate(ctx, p, len) <= 0
@@ -573,7 +575,7 @@ int ssl3_alert_code(int code)
     case SSL_AD_USER_CANCELLED:
         return SSL3_AD_HANDSHAKE_FAILURE;
     case SSL_AD_NO_RENEGOTIATION:
-        return -1;            /* Don't send it :-) */
+        return -1; /* Don't send it :-) */
     case SSL_AD_UNSUPPORTED_EXTENSION:
         return SSL3_AD_HANDSHAKE_FAILURE;
     case SSL_AD_CERTIFICATE_UNOBTAINABLE:

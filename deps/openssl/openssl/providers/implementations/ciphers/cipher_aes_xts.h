@@ -18,16 +18,16 @@
 extern const int ossl_aes_xts_allow_insecure_decrypt;
 
 PROV_CIPHER_FUNC(void, xts_stream,
-                 (const unsigned char *in, unsigned char *out, size_t len,
-                  const AES_KEY *key1, const AES_KEY *key2,
-                  const unsigned char iv[16]));
+    (const unsigned char *in, unsigned char *out, size_t len,
+        const AES_KEY *key1, const AES_KEY *key2,
+        const unsigned char iv[16]));
 
 typedef struct prov_aes_xts_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         AES_KEY ks;
-    } ks1, ks2;                /* AES key schedules to use */
+    } ks1, ks2; /* AES key schedules to use */
     XTS128_CONTEXT xts;
     OSSL_xts_stream_fn stream;
 } PROV_AES_XTS_CTX;

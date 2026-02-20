@@ -14,26 +14,26 @@
 #include "testutil.h"
 
 #ifdef _WIN32
-# include <direct.h>
-# define DIRSEP "/\\"
-# ifndef __BORLANDC__
-#  define chdir _chdir
-# endif
-# define DIRSEP_PRESERVE 0
+#include <direct.h>
+#define DIRSEP "/\\"
+#ifndef __BORLANDC__
+#define chdir _chdir
+#endif
+#define DIRSEP_PRESERVE 0
 #elif !defined(OPENSSL_NO_POSIX_IO)
-# include <unistd.h>
-# ifndef OPENSSL_SYS_VMS
-#  define DIRSEP "/"
-#  define DIRSEP_PRESERVE 0
-# else
-#  define DIRSEP "/]:"
-#  define DIRSEP_PRESERVE 1
-# endif
+#include <unistd.h>
+#ifndef OPENSSL_SYS_VMS
+#define DIRSEP "/"
+#define DIRSEP_PRESERVE 0
+#else
+#define DIRSEP "/]:"
+#define DIRSEP_PRESERVE 1
+#endif
 #else
 /* the test does not work without chdir() */
-# define chdir(x) (-1);
-# define DIRSEP "/"
-#  define DIRSEP_PRESERVE 0
+#define chdir(x) (-1);
+#define DIRSEP "/"
+#define DIRSEP_PRESERVE 0
 #endif
 
 /* changes path to that of the filename */
@@ -56,7 +56,7 @@ static int change_path(const char *file)
 
     TEST_note("changing path to %s", s);
     ret = chdir(s);
- err:
+err:
     OPENSSL_free(s);
     return ret;
 }
@@ -121,17 +121,17 @@ static int test_load_config(void)
 
 static int test_check_null_numbers(void)
 {
-#if defined(_BSD_SOURCE) \
-        || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
-        || (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600)
+#if defined(_BSD_SOURCE)                                        \
+    || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
+    || (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600)
     long val = 0;
 
     /* Verify that a NULL config with a present environment variable returns
      * success and the value.
      */
     if (!TEST_int_eq(setenv("FNORD", "123", 1), 0)
-            || !TEST_true(NCONF_get_number(NULL, "missing", "FNORD", &val))
-            || !TEST_long_eq(val, 123)) {
+        || !TEST_true(NCONF_get_number(NULL, "missing", "FNORD", &val))
+        || !TEST_long_eq(val, 123)) {
         TEST_note("environment variable with NULL conf failed");
         return 0;
     }
@@ -141,7 +141,7 @@ static int test_check_null_numbers(void)
      * a failure code.
      */
     if (!TEST_int_eq(unsetenv("FNORD"), 0)
-            || !TEST_false(NCONF_get_number(NULL, "missing", "FNORD", &val))) {
+        || !TEST_false(NCONF_get_number(NULL, "missing", "FNORD", &val))) {
         TEST_note("missing environment variable with NULL conf failed");
         return 0;
     }
@@ -151,9 +151,9 @@ static int test_check_null_numbers(void)
 
 static int test_check_overflow(void)
 {
-#if defined(_BSD_SOURCE) \
-        || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
-        || (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600)
+#if defined(_BSD_SOURCE)                                        \
+    || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
+    || (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600)
     long val = 0;
     char max[(sizeof(long) * 8) / 3 + 3];
     char *p;
@@ -161,7 +161,7 @@ static int test_check_overflow(void)
     p = max + BIO_snprintf(max, sizeof(max), "0%ld", LONG_MAX) - 1;
     setenv("FNORD", max, 1);
     if (!TEST_true(NCONF_get_number(NULL, "missing", "FNORD", &val))
-            || !TEST_long_eq(val, LONG_MAX))
+        || !TEST_long_eq(val, LONG_MAX))
         return 0;
 
     while (++*p > '9')

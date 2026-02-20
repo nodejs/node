@@ -55,7 +55,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 }
 
 ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
-                               int offset_day, long offset_sec)
+    int offset_day, long offset_sec)
 {
     struct tm *ts;
     struct tm data;

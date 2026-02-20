@@ -49,8 +49,8 @@ static void spki2typespki_freectx(void *vctx)
 }
 
 static int spki2typespki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
-                                OSSL_CALLBACK *data_cb, void *data_cbarg,
-                                OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct spki2typespki_ctx_st *ctx = vctx;
     unsigned char *der, *derp;
@@ -67,8 +67,7 @@ static int spki2typespki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         return 1;
     derp = der;
     xpub = ossl_d2i_X509_PUBKEY_INTERNAL((const unsigned char **)&derp, len,
-                                         PROV_LIBCTX_OF(ctx->provctx));
-
+        PROV_LIBCTX_OF(ctx->provctx));
 
     if (xpub == NULL) {
         /* We return "empty handed".  This is not an error. */
@@ -83,34 +82,30 @@ static int spki2typespki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
 #ifndef OPENSSL_NO_EC
     /* SM2 abuses the EC oid, so this could actually be SM2 */
     if (OBJ_obj2nid(oid) == NID_X9_62_id_ecPublicKey
-            && ossl_x509_algor_is_sm2(algor))
+        && ossl_x509_algor_is_sm2(algor))
         strcpy(dataname, "SM2");
     else
 #endif
-    if (OBJ_obj2txt(dataname, sizeof(dataname), oid, 0) <= 0)
+        if (OBJ_obj2txt(dataname, sizeof(dataname), oid, 0) <= 0)
         goto end;
 
     ossl_X509_PUBKEY_INTERNAL_free(xpub);
     xpub = NULL;
 
-    *p++ =
-        OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                            dataname, 0);
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+        dataname, 0);
 
-    *p++ =
-        OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
-                                            "SubjectPublicKeyInfo",
-                                            0);
-    *p++ =
-        OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA, der, len);
-    *p++ =
-        OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
+        "SubjectPublicKeyInfo",
+        0);
+    *p++ = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA, der, len);
+    *p++ = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
 
     *p = OSSL_PARAM_construct_end();
 
     ok = data_cb(params, data_cbarg);
 
- end:
+end:
     ossl_X509_PUBKEY_INTERNAL_free(xpub);
     OPENSSL_free(der);
     return ok;

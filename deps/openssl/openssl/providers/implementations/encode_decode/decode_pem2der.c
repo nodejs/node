@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -29,8 +29,8 @@
 #include "endecoder_local.h"
 
 static int read_pem(PROV_CTX *provctx, OSSL_CORE_BIO *cin,
-                    char **pem_name, char **pem_header,
-                    unsigned char **data, long *len)
+    char **pem_name, char **pem_header,
+    unsigned char **data, long *len)
 {
     BIO *in = ossl_bio_new_from_core_bio(provctx, cin);
     int ok;
@@ -93,8 +93,8 @@ static int pem2der_pass_helper(char *buf, int num, int w, void *data)
  * because it's not relevant just to decode PEM to DER.
  */
 static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
-                          OSSL_CALLBACK *data_cb, void *data_cbarg,
-                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     /*
      * PEM names we recognise.  Other PEM names should be recognised by
@@ -119,6 +119,8 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         { PEM_STRING_DSAPARAMS, OSSL_OBJECT_PKEY, "DSA", "type-specific" },
         { PEM_STRING_ECPRIVATEKEY, OSSL_OBJECT_PKEY, "EC", "type-specific" },
         { PEM_STRING_ECPARAMETERS, OSSL_OBJECT_PKEY, "EC", "type-specific" },
+        { PEM_STRING_SM2PRIVATEKEY, OSSL_OBJECT_PKEY, "SM2", "type-specific" },
+        { PEM_STRING_SM2PARAMETERS, OSSL_OBJECT_PKEY, "SM2", "type-specific" },
         { PEM_STRING_RSA, OSSL_OBJECT_PKEY, "RSA", "type-specific" },
         { PEM_STRING_RSA_PUBLIC, OSSL_OBJECT_PKEY, "RSA", "type-specific" },
 
@@ -141,7 +143,8 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     int objtype = OSSL_OBJECT_UNKNOWN;
 
     ok = read_pem(ctx->provctx, cin, &pem_name, &pem_header,
-                  &der, &der_len) > 0;
+             &der, &der_len)
+        > 0;
     /* We return "empty handed".  This is not an error. */
     if (!ok)
         return 1;
@@ -156,12 +159,12 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         EVP_CIPHER_INFO cipher;
         struct pem2der_pass_data_st pass_data;
 
-        ok = 0;                  /* Assume that we fail */
+        ok = 0; /* Assume that we fail */
         pass_data.cb = pw_cb;
         pass_data.cbarg = pw_cbarg;
         if (!PEM_get_EVP_CIPHER_INFO(pem_header, &cipher)
             || !PEM_do_header(&cipher, der, &der_len,
-                              pem2der_pass_helper, &pass_data))
+                pem2der_pass_helper, &pass_data))
             goto end;
     }
 
@@ -184,27 +187,23 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
 
         objtype = pem_name_map[i].object_type;
         if (data_type != NULL)
-            *p++ =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                 data_type, 0);
+            *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                data_type, 0);
 
         /* We expect this to be read only so casting away the const is ok */
         if (data_structure != NULL)
-            *p++ =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
-                                                 data_structure, 0);
-        *p++ =
-            OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                              der, der_len);
-        *p++ =
-            OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
+            *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
+                data_structure, 0);
+        *p++ = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+            der, der_len);
+        *p++ = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
 
         *p = OSSL_PARAM_construct_end();
 
         ok = data_cb(params, data_cbarg);
     }
 
- end:
+end:
     OPENSSL_free(pem_name);
     OPENSSL_free(pem_header);
     OPENSSL_free(der);

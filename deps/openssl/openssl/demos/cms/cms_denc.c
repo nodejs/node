@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 
     dout = BIO_new_file("smencr.out", "wb");
 
-    if (!in)
+    if (in == NULL || dout == NULL)
         goto err;
 
     /* encrypt content */
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 
     ret = 0;
 
- err:
+err:
 
     if (ret) {
         fprintf(stderr, "Error Encrypting Data\n");

@@ -21,7 +21,7 @@
  *    1: if the record encryption/decryption was successful.
  */
 int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
-              ossl_unused SSL_MAC_BUF *mac, ossl_unused size_t macsize)
+    ossl_unused SSL_MAC_BUF *mac, ossl_unused size_t macsize)
 {
     EVP_CIPHER_CTX *ctx;
     unsigned char iv[EVP_MAX_IV_LENGTH], recheader[SSL3_RT_HEADER_LENGTH];
@@ -69,12 +69,12 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
     }
 
     if (s->early_data_state == SSL_EARLY_DATA_WRITING
-            || s->early_data_state == SSL_EARLY_DATA_WRITE_RETRY) {
+        || s->early_data_state == SSL_EARLY_DATA_WRITE_RETRY) {
         if (s->session != NULL && s->session->ext.max_early_data > 0) {
             alg_enc = s->session->cipher->algorithm_enc;
         } else {
             if (!ossl_assert(s->psksession != NULL
-                             && s->psksession->ext.max_early_data > 0)) {
+                    && s->psksession->ext.max_early_data > 0)) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
                 return 0;
             }
@@ -95,10 +95,9 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
     if (alg_enc & SSL_AESCCM) {
         if (alg_enc & (SSL_AES128CCM8 | SSL_AES256CCM8))
             taglen = EVP_CCM8_TLS_TAG_LEN;
-         else
+        else
             taglen = EVP_CCM_TLS_TAG_LEN;
-         if (sending && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen,
-                                         NULL) <= 0) {
+        if (sending && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, NULL) <= 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
@@ -144,21 +143,19 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
     }
 
     if (EVP_CipherInit_ex(ctx, NULL, NULL, NULL, iv, sending) <= 0
-            || (!sending && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
-                                             taglen,
-                                             rec->data + rec->length) <= 0)) {
+        || (!sending && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, rec->data + rec->length) <= 0)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
     }
 
     /* Set up the AAD */
     if (!WPACKET_init_static_len(&wpkt, recheader, sizeof(recheader), 0)
-            || !WPACKET_put_bytes_u8(&wpkt, rec->type)
-            || !WPACKET_put_bytes_u16(&wpkt, rec->rec_version)
-            || !WPACKET_put_bytes_u16(&wpkt, rec->length + taglen)
-            || !WPACKET_get_total_written(&wpkt, &hdrlen)
-            || hdrlen != SSL3_RT_HEADER_LENGTH
-            || !WPACKET_finish(&wpkt)) {
+        || !WPACKET_put_bytes_u8(&wpkt, rec->type)
+        || !WPACKET_put_bytes_u16(&wpkt, rec->rec_version)
+        || !WPACKET_put_bytes_u16(&wpkt, rec->length + taglen)
+        || !WPACKET_get_total_written(&wpkt, &hdrlen)
+        || hdrlen != SSL3_RT_HEADER_LENGTH
+        || !WPACKET_finish(&wpkt)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         WPACKET_cleanup(&wpkt);
         return 0;
@@ -169,20 +166,24 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
      * any AAD.
      */
     if (((alg_enc & SSL_AESCCM) != 0
-                 && EVP_CipherUpdate(ctx, NULL, &lenu, NULL,
-                                     (unsigned int)rec->length) <= 0)
-            || EVP_CipherUpdate(ctx, NULL, &lenu, recheader,
-                                sizeof(recheader)) <= 0
-            || EVP_CipherUpdate(ctx, rec->data, &lenu, rec->input,
-                                (unsigned int)rec->length) <= 0
-            || EVP_CipherFinal_ex(ctx, rec->data + lenu, &lenf) <= 0
-            || (size_t)(lenu + lenf) != rec->length) {
+            && EVP_CipherUpdate(ctx, NULL, &lenu, NULL,
+                   (unsigned int)rec->length)
+                <= 0)
+        || EVP_CipherUpdate(ctx, NULL, &lenu, recheader,
+               sizeof(recheader))
+            <= 0
+        || EVP_CipherUpdate(ctx, rec->data, &lenu, rec->input,
+               (unsigned int)rec->length)
+            <= 0
+        || EVP_CipherFinal_ex(ctx, rec->data + lenu, &lenf) <= 0
+        || (size_t)(lenu + lenf) != rec->length) {
         return 0;
     }
     if (sending) {
         /* Add the tag */
         if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen,
-                                rec->data + rec->length) <= 0) {
+                rec->data + rec->length)
+            <= 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }

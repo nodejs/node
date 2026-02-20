@@ -8,11 +8,11 @@
  */
 
 #ifndef OSSL_CRYPTO_BN_H
-# define OSSL_CRYPTO_BN_H
-# pragma once
+#define OSSL_CRYPTO_BN_H
+#pragma once
 
-# include <openssl/bn.h>
-# include <limits.h>
+#include <openssl/bn.h>
+#include <limits.h>
 
 BIGNUM *bn_wexpand(BIGNUM *a, int words);
 BIGNUM *bn_expand2(BIGNUM *a, int words);
@@ -72,54 +72,54 @@ int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words);
  * code...
  */
 int bn_mul_mont_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
-                          BN_MONT_CTX *mont, BN_CTX *ctx);
+    BN_MONT_CTX *mont, BN_CTX *ctx);
 int bn_mod_exp_mont_fixed_top(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
-                              const BIGNUM *m, BN_CTX *ctx,
-                              BN_MONT_CTX *in_mont);
+    const BIGNUM *m, BN_CTX *ctx,
+    BN_MONT_CTX *in_mont);
 int bn_to_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
-                         BN_CTX *ctx);
+    BN_CTX *ctx);
 int bn_from_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
-                           BN_CTX *ctx);
+    BN_CTX *ctx);
 int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
-                         const BIGNUM *m);
+    const BIGNUM *m);
 int bn_mod_sub_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
-                         const BIGNUM *m);
+    const BIGNUM *m);
 int bn_mul_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx);
 int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
 int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
 int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
-                     const BIGNUM *d, BN_CTX *ctx);
+    const BIGNUM *d, BN_CTX *ctx);
 int ossl_bn_mask_bits_fixed_top(BIGNUM *a, int n);
 int ossl_bn_is_word_fixed_top(const BIGNUM *a, const BN_ULONG w);
 int ossl_bn_priv_rand_range_fixed_top(BIGNUM *r, const BIGNUM *range,
-                                      unsigned int strength, BN_CTX *ctx);
+    unsigned int strength, BN_CTX *ctx);
 int ossl_bn_gen_dsa_nonce_fixed_top(BIGNUM *out, const BIGNUM *range,
-                                    const BIGNUM *priv,
-                                    const unsigned char *message,
-                                    size_t message_len, BN_CTX *ctx);
+    const BIGNUM *priv,
+    const unsigned char *message,
+    size_t message_len, BN_CTX *ctx);
 
-#define BN_PRIMETEST_COMPOSITE                    0
-#define BN_PRIMETEST_COMPOSITE_WITH_FACTOR        1
+#define BN_PRIMETEST_COMPOSITE 0
+#define BN_PRIMETEST_COMPOSITE_WITH_FACTOR 1
 #define BN_PRIMETEST_COMPOSITE_NOT_POWER_OF_PRIME 2
-#define BN_PRIMETEST_PROBABLY_PRIME               3
+#define BN_PRIMETEST_PROBABLY_PRIME 3
 
 int ossl_bn_miller_rabin_is_prime(const BIGNUM *w, int iterations, BN_CTX *ctx,
-                                  BN_GENCB *cb, int enhanced, int *status);
+    BN_GENCB *cb, int enhanced, int *status);
 
 const BIGNUM *ossl_bn_get0_small_factors(void);
 
 int ossl_bn_rsa_fips186_4_gen_prob_primes(BIGNUM *p, BIGNUM *Xpout,
-                                          BIGNUM *p1, BIGNUM *p2,
-                                          const BIGNUM *Xp, const BIGNUM *Xp1,
-                                          const BIGNUM *Xp2, int nlen,
-                                          const BIGNUM *e, BN_CTX *ctx,
-                                          BN_GENCB *cb);
+    BIGNUM *p1, BIGNUM *p2,
+    const BIGNUM *Xp, const BIGNUM *Xp1,
+    const BIGNUM *Xp2, int nlen,
+    const BIGNUM *e, BN_CTX *ctx,
+    BN_GENCB *cb);
 
 int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
-                                       const BIGNUM *r1, const BIGNUM *r2,
-                                       int nlen, const BIGNUM *e, BN_CTX *ctx,
-                                       BN_GENCB *cb);
+    const BIGNUM *r1, const BIGNUM *r2,
+    int nlen, const BIGNUM *e, BN_CTX *ctx,
+    BN_GENCB *cb);
 
 OSSL_LIB_CTX *ossl_bn_get_libctx(BN_CTX *ctx);
 

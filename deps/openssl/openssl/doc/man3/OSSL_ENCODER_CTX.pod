@@ -130,6 +130,13 @@ passed to the constructor every time it's called.
 OSSL_ENCODER_CTX_set_cleanup() sets the constructor data I<cleanup>
 function.  This is called by L<OSSL_ENCODER_CTX_free(3)>.
 
+Note that functions OSSL_ENCODER_CTX_set_selection(),
+OSSL_ENCODER_CTX_set_output_type(), OSSL_ENCODER_CTX_set_output_structure(),
+OSSL_ENCODER_CTX_add_encoder(), OSSL_ENCODER_CTX_add_extra(),
+OSSL_ENCODER_CTX_set_construct(), OSSL_ENCODER_CTX_set_construct_data(), and
+OSSL_ENCODER_CTX_set_cleanup() shouldn't be used after the context is finalised,
+in particular after calling the function OSSL_ENCODER_CTX_new_for_pkey().
+
 =head2 Constructor
 
 A B<OSSL_ENCODER_CONSTRUCT> gets the following arguments:
@@ -201,6 +208,12 @@ output type.
 
 OSSL_ENCODER_INSTANCE_get_output_structure() returns a string with the name
 of the output structure.
+
+=head1 NOTES AND BUGS
+
+The chain mechanism in ENCODE is not yet completely implemented.
+It affects functions such as OSSL_ENCODER_CTX_add_extra and the
+inner processing loop.
 
 =head1 SEE ALSO
 

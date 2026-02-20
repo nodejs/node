@@ -61,8 +61,7 @@ static int test_context(OSSL_LIB_CTX *ctx)
 static int test_app_context(void)
 {
     OSSL_LIB_CTX *ctx = NULL;
-    int result =
-        TEST_ptr(ctx = OSSL_LIB_CTX_new())
+    int result = TEST_ptr(ctx = OSSL_LIB_CTX_new())
         && test_context(ctx);
 
     OSSL_LIB_CTX_free(ctx);
@@ -83,9 +82,9 @@ static int test_set0_default(void)
     FOO *data = NULL;
 
     if (!TEST_ptr(global)
-            || !TEST_ptr(local)
-            || !TEST_ptr_eq(global, OSSL_LIB_CTX_set0_default(NULL))
-            || !TEST_ptr(data = ossl_lib_ctx_get_data(local, 0, &foo_method)))
+        || !TEST_ptr(local)
+        || !TEST_ptr_eq(global, OSSL_LIB_CTX_set0_default(NULL))
+        || !TEST_ptr(data = ossl_lib_ctx_get_data(local, 0, &foo_method)))
         goto err;
 
     /* Set local "i" value to 43. Global "i" should be 42 */
@@ -95,20 +94,20 @@ static int test_set0_default(void)
 
     /* The default context should still be the "global" default */
     if (!TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
-            || !TEST_int_eq(data->i, 42))
+        || !TEST_int_eq(data->i, 42))
         goto err;
 
     /* Check we can change the local default context */
     if (!TEST_ptr(prev = OSSL_LIB_CTX_set0_default(local))
-            || !TEST_ptr_eq(global, prev)
-            || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
-            || !TEST_int_eq(data->i, 43))
+        || !TEST_ptr_eq(global, prev)
+        || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
+        || !TEST_int_eq(data->i, 43))
         goto err;
 
     /* Calling OSSL_LIB_CTX_set0_default() with a NULL should be a no-op */
     if (!TEST_ptr_eq(local, OSSL_LIB_CTX_set0_default(NULL))
-            || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
-            || !TEST_int_eq(data->i, 43))
+        || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
+        || !TEST_int_eq(data->i, 43))
         goto err;
 
     /* Global default should be unchanged */
@@ -116,14 +115,14 @@ static int test_set0_default(void)
         goto err;
 
     /* Check we can swap back to the global default */
-   if (!TEST_ptr(prev = OSSL_LIB_CTX_set0_default(global))
-            || !TEST_ptr_eq(local, prev)
-            || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
-            || !TEST_int_eq(data->i, 42))
+    if (!TEST_ptr(prev = OSSL_LIB_CTX_set0_default(global))
+        || !TEST_ptr_eq(local, prev)
+        || !TEST_ptr(data = ossl_lib_ctx_get_data(NULL, 0, &foo_method))
+        || !TEST_int_eq(data->i, 42))
         goto err;
 
     testresult = 1;
- err:
+err:
     OSSL_LIB_CTX_free(local);
     return testresult;
 }

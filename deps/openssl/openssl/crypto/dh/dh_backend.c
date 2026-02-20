@@ -16,7 +16,7 @@
 #include <openssl/err.h>
 #include <openssl/core_names.h>
 #ifndef FIPS_MODULE
-# include <openssl/x509.h>
+#include <openssl/x509.h>
 #endif
 #include "internal/param_build_set.h"
 #include "crypto/dh.h"
@@ -53,8 +53,7 @@ int ossl_dh_params_fromdata(DH *dh, const OSSL_PARAM params[])
     if (!dh_ffc_params_fromdata(dh, params))
         return 0;
 
-    param_priv_len =
-        OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_DH_PRIV_LEN);
+    param_priv_len = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_DH_PRIV_LEN);
     if (param_priv_len != NULL
         && (!OSSL_PARAM_get_long(param_priv_len, &priv_len)
             || !DH_set_length(dh, priv_len)))
@@ -88,7 +87,7 @@ int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[], int include_private)
 
     return 1;
 
- err:
+err:
     BN_clear_free(priv_key);
     BN_free(pub_key);
     return 0;
@@ -107,7 +106,7 @@ int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
 }
 
 int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
-                       int include_private)
+    int include_private)
 {
     const BIGNUM *priv = NULL, *pub = NULL;
 
@@ -172,20 +171,20 @@ DH *ossl_dh_dup(const DH *dh, int selection)
 
 #ifndef FIPS_MODULE
     if (!CRYPTO_dup_ex_data(CRYPTO_EX_INDEX_DH,
-                            &dupkey->ex_data, &dh->ex_data))
+            &dupkey->ex_data, &dh->ex_data))
         goto err;
 #endif
 
     return dupkey;
 
- err:
+err:
     DH_free(dupkey);
     return NULL;
 }
 
 #ifndef FIPS_MODULE
 DH *ossl_dh_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
-                           OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     const unsigned char *p, *pm;
     int pklen, pmlen;
@@ -238,12 +237,12 @@ DH *ossl_dh_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
 
     goto done;
 
- decerr:
+decerr:
     ERR_raise(ERR_LIB_DH, EVP_R_DECODE_ERROR);
- dherr:
+dherr:
     DH_free(dh);
     dh = NULL;
- done:
+done:
     ASN1_STRING_clear_free(privkey);
     return dh;
 }

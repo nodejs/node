@@ -31,10 +31,10 @@
 #include "pbkdf2.h"
 
 /* Constants specified in SP800-132 */
-#define KDF_PBKDF2_MIN_KEY_LEN_BITS  112
+#define KDF_PBKDF2_MIN_KEY_LEN_BITS 112
 #define KDF_PBKDF2_MAX_KEY_LEN_DIGEST_RATIO 0xFFFFFFFF
 #define KDF_PBKDF2_MIN_ITERATIONS 1000
-#define KDF_PBKDF2_MIN_SALT_LEN   (128 / 8)
+#define KDF_PBKDF2_MIN_SALT_LEN (128 / 8)
 
 static OSSL_FUNC_kdf_newctx_fn kdf_pbkdf2_new;
 static OSSL_FUNC_kdf_freectx_fn kdf_pbkdf2_free;
@@ -45,10 +45,10 @@ static OSSL_FUNC_kdf_set_ctx_params_fn kdf_pbkdf2_set_ctx_params;
 static OSSL_FUNC_kdf_gettable_ctx_params_fn kdf_pbkdf2_gettable_ctx_params;
 static OSSL_FUNC_kdf_get_ctx_params_fn kdf_pbkdf2_get_ctx_params;
 
-static int  pbkdf2_derive(const char *pass, size_t passlen,
-                          const unsigned char *salt, int saltlen, uint64_t iter,
-                          const EVP_MD *digest, unsigned char *key,
-                          size_t keylen, int extra_checks);
+static int pbkdf2_derive(const char *pass, size_t passlen,
+    const unsigned char *salt, int saltlen, uint64_t iter,
+    const EVP_MD *digest, unsigned char *key,
+    size_t keylen, int extra_checks);
 
 typedef struct {
     void *provctx;
@@ -114,7 +114,7 @@ static void kdf_pbkdf2_init(KDF_PBKDF2 *ctx)
     OSSL_LIB_CTX *provctx = PROV_LIBCTX_OF(ctx->provctx);
 
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                                 SN_sha1, 0);
+        SN_sha1, 0);
     if (!ossl_prov_digest_load_from_params(&ctx->digest, params, provctx))
         /* This is an error, but there is no way to indicate such directly */
         ossl_prov_digest_reset(&ctx->digest);
@@ -123,7 +123,7 @@ static void kdf_pbkdf2_init(KDF_PBKDF2 *ctx)
 }
 
 static int pbkdf2_set_membuf(unsigned char **buffer, size_t *buflen,
-                             const OSSL_PARAM *p)
+    const OSSL_PARAM *p)
 {
     OPENSSL_clear_free(*buffer, *buflen);
     *buffer = NULL;
@@ -142,7 +142,7 @@ static int pbkdf2_set_membuf(unsigned char **buffer, size_t *buflen,
 }
 
 static int kdf_pbkdf2_derive(void *vctx, unsigned char *key, size_t keylen,
-                             const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     KDF_PBKDF2 *ctx = (KDF_PBKDF2 *)vctx;
     const EVP_MD *md;
@@ -162,8 +162,8 @@ static int kdf_pbkdf2_derive(void *vctx, unsigned char *key, size_t keylen,
 
     md = ossl_prov_digest_md(&ctx->digest);
     return pbkdf2_derive((char *)ctx->pass, ctx->pass_len,
-                         ctx->salt, ctx->salt_len, ctx->iter,
-                         md, key, keylen, ctx->lower_bound_checks);
+        ctx->salt, ctx->salt_len, ctx->iter,
+        md, key, keylen, ctx->lower_bound_checks);
 }
 
 static int kdf_pbkdf2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
@@ -196,7 +196,7 @@ static int kdf_pbkdf2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_SALT_LENGTH);
             return 0;
         }
-        if (!pbkdf2_set_membuf(&ctx->salt, &ctx->salt_len,p))
+        if (!pbkdf2_set_membuf(&ctx->salt, &ctx->salt_len, p))
             return 0;
     }
 
@@ -214,7 +214,7 @@ static int kdf_pbkdf2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pbkdf2_settable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
@@ -238,7 +238,7 @@ static int kdf_pbkdf2_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pbkdf2_gettable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
@@ -248,16 +248,16 @@ static const OSSL_PARAM *kdf_pbkdf2_gettable_ctx_params(ossl_unused void *ctx,
 }
 
 const OSSL_DISPATCH ossl_kdf_pbkdf2_functions[] = {
-    { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))kdf_pbkdf2_new },
-    { OSSL_FUNC_KDF_FREECTX, (void(*)(void))kdf_pbkdf2_free },
-    { OSSL_FUNC_KDF_RESET, (void(*)(void))kdf_pbkdf2_reset },
-    { OSSL_FUNC_KDF_DERIVE, (void(*)(void))kdf_pbkdf2_derive },
+    { OSSL_FUNC_KDF_NEWCTX, (void (*)(void))kdf_pbkdf2_new },
+    { OSSL_FUNC_KDF_FREECTX, (void (*)(void))kdf_pbkdf2_free },
+    { OSSL_FUNC_KDF_RESET, (void (*)(void))kdf_pbkdf2_reset },
+    { OSSL_FUNC_KDF_DERIVE, (void (*)(void))kdf_pbkdf2_derive },
     { OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pbkdf2_settable_ctx_params },
-    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))kdf_pbkdf2_set_ctx_params },
+        (void (*)(void))kdf_pbkdf2_settable_ctx_params },
+    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void (*)(void))kdf_pbkdf2_set_ctx_params },
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pbkdf2_gettable_ctx_params },
-    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))kdf_pbkdf2_get_ctx_params },
+        (void (*)(void))kdf_pbkdf2_gettable_ctx_params },
+    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void (*)(void))kdf_pbkdf2_get_ctx_params },
     { 0, NULL }
 };
 
@@ -272,9 +272,9 @@ const OSSL_DISPATCH ossl_kdf_pbkdf2_functions[] = {
  *  - Randomly-generated portion of the salt shall be at least 128 bits.
  */
 static int pbkdf2_derive(const char *pass, size_t passlen,
-                         const unsigned char *salt, int saltlen, uint64_t iter,
-                         const EVP_MD *digest, unsigned char *key,
-                         size_t keylen, int lower_bound_checks)
+    const unsigned char *salt, int saltlen, uint64_t iter,
+    const EVP_MD *digest, unsigned char *key,
+    size_t keylen, int lower_bound_checks)
 {
     int ret = 0;
     unsigned char digtmp[EVP_MAX_MD_SIZE], *p, itmp[4];
@@ -337,15 +337,15 @@ static int pbkdf2_derive(const char *pass, size_t passlen,
         if (!HMAC_CTX_copy(hctx, hctx_tpl))
             goto err;
         if (!HMAC_Update(hctx, salt, saltlen)
-                || !HMAC_Update(hctx, itmp, 4)
-                || !HMAC_Final(hctx, digtmp, NULL))
+            || !HMAC_Update(hctx, itmp, 4)
+            || !HMAC_Final(hctx, digtmp, NULL))
             goto err;
         memcpy(p, digtmp, cplen);
         for (j = 1; j < iter; j++) {
             if (!HMAC_CTX_copy(hctx, hctx_tpl))
                 goto err;
             if (!HMAC_Update(hctx, digtmp, mdlen)
-                    || !HMAC_Final(hctx, digtmp, NULL))
+                || !HMAC_Final(hctx, digtmp, NULL))
                 goto err;
             for (k = 0; k < cplen; k++)
                 p[k] ^= digtmp[k];

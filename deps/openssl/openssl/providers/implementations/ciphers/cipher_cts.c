@@ -68,8 +68,7 @@ typedef struct cts_mode_name2id_st {
     const char *name;
 } CTS_MODE_NAME2ID;
 
-static CTS_MODE_NAME2ID cts_modes[] =
-{
+static CTS_MODE_NAME2ID cts_modes[] = {
     { CTS_CS1, OSSL_CIPHER_CTS_MODE_CS1 },
     { CTS_CS2, OSSL_CIPHER_CTS_MODE_CS2 },
     { CTS_CS3, OSSL_CIPHER_CTS_MODE_CS3 },
@@ -98,7 +97,7 @@ int ossl_cipher_cbc_cts_mode_name2id(const char *name)
 }
 
 static size_t cts128_cs1_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     aligned_16bytes tmp_in;
     size_t residue;
@@ -117,13 +116,13 @@ static size_t cts128_cs1_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
     memset(tmp_in.c, 0, sizeof(tmp_in));
     memcpy(tmp_in.c, in, residue);
     if (!ctx->hw->cipher(ctx, out - CTS_BLOCK_SIZE + residue, tmp_in.c,
-                         CTS_BLOCK_SIZE))
+            CTS_BLOCK_SIZE))
         return 0;
     return len + residue;
 }
 
 static void do_xor(const unsigned char *in1, const unsigned char *in2,
-                   size_t len, unsigned char *out)
+    size_t len, unsigned char *out)
 {
     size_t i;
 
@@ -132,7 +131,7 @@ static void do_xor(const unsigned char *in1, const unsigned char *in2,
 }
 
 static size_t cts128_cs1_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     aligned_16bytes mid_iv, ct_mid, cn, pt_last;
     size_t residue;
@@ -194,12 +193,12 @@ static size_t cts128_cs1_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
 }
 
 static size_t cts128_cs3_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     aligned_16bytes tmp_in;
     size_t residue;
 
-    if (len < CTS_BLOCK_SIZE)  /* CS3 requires at least one block */
+    if (len < CTS_BLOCK_SIZE) /* CS3 requires at least one block */
         return 0;
 
     /* If we only have one block then just process the aligned block */
@@ -234,7 +233,7 @@ static size_t cts128_cs3_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
  *  the last two decoded ciphertext blocks.
  */
 static size_t cts128_cs3_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     aligned_16bytes mid_iv, ct_mid, cn, pt_last;
     size_t residue;
@@ -300,7 +299,7 @@ static size_t cts128_cs3_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
 }
 
 static size_t cts128_cs2_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     if (len % CTS_BLOCK_SIZE == 0) {
         /* If there are no partial blocks then it is the same as CBC mode */
@@ -313,7 +312,7 @@ static size_t cts128_cs2_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
 }
 
 static size_t cts128_cs2_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
-                                 unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     if (len % CTS_BLOCK_SIZE == 0) {
         /* If there are no partial blocks then it is the same as CBC mode */
@@ -326,8 +325,8 @@ static size_t cts128_cs2_decrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,
 }
 
 int ossl_cipher_cbc_cts_block_update(void *vctx, unsigned char *out, size_t *outl,
-                                     size_t outsize, const unsigned char *in,
-                                     size_t inl)
+    size_t outsize, const unsigned char *in,
+    size_t inl)
 {
     PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
     size_t sz = 0;
@@ -371,7 +370,7 @@ int ossl_cipher_cbc_cts_block_update(void *vctx, unsigned char *out, size_t *out
 }
 
 int ossl_cipher_cbc_cts_block_final(void *vctx, unsigned char *out, size_t *outl,
-                                    size_t outsize)
+    size_t outsize)
 {
     *outl = 0;
     return 1;

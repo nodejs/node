@@ -39,8 +39,8 @@ int main(int argc, char **argv)
     if (bld == NULL)
         goto cleanup;
     if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p)
-            || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q)
-            || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q)
+        || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
         goto cleanup;
     params = OSSL_PARAM_BLD_to_param(bld);
     if (params == NULL)
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     }
 
     if (EVP_PKEY_fromdata_init(ctx) <= 0
-            || EVP_PKEY_fromdata(ctx, &dsaparamkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {
+        || EVP_PKEY_fromdata(ctx, &dsaparamkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {
         fprintf(stderr, "EVP_PKEY_fromdata() failed\n");
         goto cleanup;
     }

@@ -1471,7 +1471,7 @@ over the build process.  Typically these should be defined prior to running
 
     PERL
                    The name of the Perl executable to use when building OpenSSL.
-                   Only needed if builing should use a different Perl executable
+                   Only needed if building should use a different Perl executable
                    than what is used to run the Configure script.
 
     RANLIB
@@ -1627,7 +1627,7 @@ working incorrectly. If you think you encountered a bug, please
 Along with a short description of the bug, please provide the complete
 configure command line and the relevant output including the error message.
 
-Note: To make the output readable, pleace add a 'code fence' (three backquotes
+Note: To make the output readable, please add a 'code fence' (three backquotes
 ` ``` ` on a separate line) before and after your output:
 
      ```

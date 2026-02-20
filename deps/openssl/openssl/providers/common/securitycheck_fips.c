@@ -31,7 +31,7 @@ int ossl_securitycheck_enabled(OSSL_LIB_CTX *libctx)
 }
 
 int ossl_digest_rsa_sign_get_md_nid(OSSL_LIB_CTX *ctx, const EVP_MD *md,
-                                    int sha1_allowed)
+    int sha1_allowed)
 {
 #if !defined(OPENSSL_NO_FIPS_SECURITYCHECKS)
     if (ossl_securitycheck_enabled(ctx))

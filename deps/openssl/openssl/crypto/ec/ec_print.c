@@ -15,8 +15,8 @@ static const char *HEX_DIGITS = "0123456789ABCDEF";
 
 /* the return value must be freed (using OPENSSL_free()) */
 char *EC_POINT_point2hex(const EC_GROUP *group,
-                         const EC_POINT *point,
-                         point_conversion_form_t form, BN_CTX *ctx)
+    const EC_POINT *point,
+    point_conversion_form_t form, BN_CTX *ctx)
 {
     char *ret, *p;
     size_t buf_len = 0, i;
@@ -47,7 +47,7 @@ char *EC_POINT_point2hex(const EC_GROUP *group,
 }
 
 EC_POINT *EC_POINT_hex2point(const EC_GROUP *group,
-                             const char *hex, EC_POINT *point, BN_CTX *ctx)
+    const char *hex, EC_POINT *point, BN_CTX *ctx)
 {
     int ok = 0;
     unsigned char *oct_buf = NULL;

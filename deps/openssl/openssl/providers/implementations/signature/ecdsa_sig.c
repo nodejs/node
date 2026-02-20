@@ -77,7 +77,7 @@ typedef struct {
     /* The Algorithm Identifier of the combined signature algorithm */
     unsigned char aid_buf[OSSL_MAX_ALGORITHM_ID_SIZE];
     unsigned char *aid;
-    size_t  aid_len;
+    size_t aid_len;
     size_t mdsize;
     int operation;
 
@@ -126,12 +126,12 @@ static void *ecdsa_newctx(void *provctx, const char *propq)
 }
 
 static int ecdsa_signverify_init(void *vctx, void *ec,
-                                 const OSSL_PARAM params[], int operation)
+    const OSSL_PARAM params[], int operation)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
     if (!ossl_prov_is_running()
-            || ctx == NULL)
+        || ctx == NULL)
         return 0;
 
     if (ec == NULL && ctx->ec == NULL) {
@@ -167,7 +167,7 @@ static int ecdsa_verify_init(void *vctx, void *ec, const OSSL_PARAM params[])
 }
 
 static int ecdsa_sign(void *vctx, unsigned char *sig, size_t *siglen,
-                      size_t sigsize, const unsigned char *tbs, size_t tbslen)
+    size_t sigsize, const unsigned char *tbs, size_t tbslen)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
     int ret;
@@ -202,7 +202,7 @@ static int ecdsa_sign(void *vctx, unsigned char *sig, size_t *siglen,
 }
 
 static int ecdsa_verify(void *vctx, const unsigned char *sig, size_t siglen,
-                        const unsigned char *tbs, size_t tbslen)
+    const unsigned char *tbs, size_t tbslen)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
@@ -213,7 +213,7 @@ static int ecdsa_verify(void *vctx, const unsigned char *sig, size_t siglen,
 }
 
 static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
-                          const char *mdprops)
+    const char *mdprops)
 {
     EVP_MD *md = NULL;
     size_t mdname_len;
@@ -226,7 +226,7 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
     mdname_len = strlen(mdname);
     if (mdname_len >= sizeof(ctx->mdname)) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST,
-                       "%s exceeds name buffer length", mdname);
+            "%s exceeds name buffer length", mdname);
         return 0;
     }
     if (mdprops == NULL)
@@ -234,15 +234,15 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
     md = EVP_MD_fetch(ctx->libctx, mdname, mdprops);
     if (md == NULL) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST,
-                       "%s could not be fetched", mdname);
+            "%s could not be fetched", mdname);
         return 0;
     }
     sha1_allowed = (ctx->operation != EVP_PKEY_OP_SIGN);
     md_nid = ossl_digest_get_approved_nid_with_sha1(ctx->libctx, md,
-                                                    sha1_allowed);
+        sha1_allowed);
     if (md_nid < 0) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
-                       "digest=%s", mdname);
+            "digest=%s", mdname);
         EVP_MD_free(md);
         return 0;
     }
@@ -250,7 +250,7 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
     if (!ctx->flag_allow_md) {
         if (ctx->mdname[0] != '\0' && !EVP_MD_is_a(md, ctx->mdname)) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
-                           "digest %s != %s", mdname, ctx->mdname);
+                "digest %s != %s", mdname, ctx->mdname);
             EVP_MD_free(md);
             return 0;
         }
@@ -264,7 +264,7 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
     ctx->aid_len = 0;
     if (WPACKET_init_der(&pkt, ctx->aid_buf, sizeof(ctx->aid_buf))
         && ossl_DER_w_algorithmIdentifier_ECDSA_with_MD(&pkt, -1, ctx->ec,
-                                                        md_nid)
+            md_nid)
         && WPACKET_finish(&pkt)) {
         WPACKET_get_total_written(&pkt, &ctx->aid_len);
         ctx->aid = WPACKET_get_curr(&pkt);
@@ -279,8 +279,8 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx, const char *mdname,
 }
 
 static int ecdsa_digest_signverify_init(void *vctx, const char *mdname,
-                                        void *ec, const OSSL_PARAM params[],
-                                        int operation)
+    void *ec, const OSSL_PARAM params[],
+    int operation)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
@@ -309,21 +309,21 @@ error:
 }
 
 static int ecdsa_digest_sign_init(void *vctx, const char *mdname, void *ec,
-                                  const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return ecdsa_digest_signverify_init(vctx, mdname, ec, params,
-                                        EVP_PKEY_OP_SIGN);
+        EVP_PKEY_OP_SIGN);
 }
 
 static int ecdsa_digest_verify_init(void *vctx, const char *mdname, void *ec,
-                                    const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return ecdsa_digest_signverify_init(vctx, mdname, ec, params,
-                                        EVP_PKEY_OP_VERIFY);
+        EVP_PKEY_OP_VERIFY);
 }
 
 int ecdsa_digest_signverify_update(void *vctx, const unsigned char *data,
-                                   size_t datalen)
+    size_t datalen)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
@@ -334,7 +334,7 @@ int ecdsa_digest_signverify_update(void *vctx, const unsigned char *data,
 }
 
 int ecdsa_digest_sign_final(void *vctx, unsigned char *sig, size_t *siglen,
-                            size_t sigsize)
+    size_t sigsize)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -355,7 +355,7 @@ int ecdsa_digest_sign_final(void *vctx, unsigned char *sig, size_t *siglen,
 }
 
 int ecdsa_digest_verify_final(void *vctx, const unsigned char *sig,
-                              size_t siglen)
+    size_t siglen)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -419,7 +419,7 @@ static void *ecdsa_dupctx(void *vctx)
     if (srcctx->mdctx != NULL) {
         dstctx->mdctx = EVP_MD_CTX_new();
         if (dstctx->mdctx == NULL
-                || !EVP_MD_CTX_copy_ex(dstctx->mdctx, srcctx->mdctx))
+            || !EVP_MD_CTX_copy_ex(dstctx->mdctx, srcctx->mdctx))
             goto err;
     }
 
@@ -430,7 +430,7 @@ static void *ecdsa_dupctx(void *vctx)
     }
 
     return dstctx;
- err:
+err:
     ecdsa_freectx(dstctx);
     return NULL;
 }
@@ -452,9 +452,7 @@ static int ecdsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
         return 0;
 
     p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_DIGEST);
-    if (p != NULL && !OSSL_PARAM_set_utf8_string(p, ctx->md == NULL
-                                                    ? ctx->mdname
-                                                    : EVP_MD_get0_name(ctx->md)))
+    if (p != NULL && !OSSL_PARAM_set_utf8_string(p, ctx->md == NULL ? ctx->mdname : EVP_MD_get0_name(ctx->md)))
         return 0;
 
     return 1;
@@ -468,7 +466,7 @@ static const OSSL_PARAM known_gettable_ctx_params[] = {
 };
 
 static const OSSL_PARAM *ecdsa_gettable_ctx_params(ossl_unused void *vctx,
-                                                   ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_gettable_ctx_params;
 }
@@ -494,9 +492,8 @@ static int ecdsa_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     if (p != NULL) {
         char mdname[OSSL_MAX_NAME_SIZE] = "", *pmdname = mdname;
         char mdprops[OSSL_MAX_PROPQUERY_SIZE] = "", *pmdprops = mdprops;
-        const OSSL_PARAM *propsp =
-            OSSL_PARAM_locate_const(params,
-                                    OSSL_SIGNATURE_PARAM_PROPERTIES);
+        const OSSL_PARAM *propsp = OSSL_PARAM_locate_const(params,
+            OSSL_SIGNATURE_PARAM_PROPERTIES);
 
         if (!OSSL_PARAM_get_utf8_string(p, &pmdname, sizeof(mdname)))
             return 0;
@@ -532,7 +529,7 @@ static const OSSL_PARAM settable_ctx_params_no_digest[] = {
 };
 
 static const OSSL_PARAM *ecdsa_settable_ctx_params(void *vctx,
-                                                   ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
@@ -588,32 +585,32 @@ const OSSL_DISPATCH ossl_ecdsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_VERIFY_INIT, (void (*)(void))ecdsa_verify_init },
     { OSSL_FUNC_SIGNATURE_VERIFY, (void (*)(void))ecdsa_verify },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT,
-      (void (*)(void))ecdsa_digest_sign_init },
+        (void (*)(void))ecdsa_digest_sign_init },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE,
-      (void (*)(void))ecdsa_digest_signverify_update },
+        (void (*)(void))ecdsa_digest_signverify_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL,
-      (void (*)(void))ecdsa_digest_sign_final },
+        (void (*)(void))ecdsa_digest_sign_final },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_INIT,
-      (void (*)(void))ecdsa_digest_verify_init },
+        (void (*)(void))ecdsa_digest_verify_init },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_UPDATE,
-      (void (*)(void))ecdsa_digest_signverify_update },
+        (void (*)(void))ecdsa_digest_signverify_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_FINAL,
-      (void (*)(void))ecdsa_digest_verify_final },
+        (void (*)(void))ecdsa_digest_verify_final },
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))ecdsa_freectx },
     { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))ecdsa_dupctx },
     { OSSL_FUNC_SIGNATURE_GET_CTX_PARAMS, (void (*)(void))ecdsa_get_ctx_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_PARAMS,
-      (void (*)(void))ecdsa_gettable_ctx_params },
+        (void (*)(void))ecdsa_gettable_ctx_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS, (void (*)(void))ecdsa_set_ctx_params },
     { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS,
-      (void (*)(void))ecdsa_settable_ctx_params },
+        (void (*)(void))ecdsa_settable_ctx_params },
     { OSSL_FUNC_SIGNATURE_GET_CTX_MD_PARAMS,
-      (void (*)(void))ecdsa_get_ctx_md_params },
+        (void (*)(void))ecdsa_get_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_MD_PARAMS,
-      (void (*)(void))ecdsa_gettable_ctx_md_params },
+        (void (*)(void))ecdsa_gettable_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_MD_PARAMS,
-      (void (*)(void))ecdsa_set_ctx_md_params },
+        (void (*)(void))ecdsa_set_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_MD_PARAMS,
-      (void (*)(void))ecdsa_settable_ctx_md_params },
+        (void (*)(void))ecdsa_settable_ctx_md_params },
     { 0, NULL }
 };

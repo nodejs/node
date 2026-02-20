@@ -20,7 +20,6 @@
 
 #include "../testutil.h"
 
-
 /* -------------------------------------------------------------------------
  * PKCS#12 Test structures
  */
@@ -31,12 +30,11 @@ typedef struct pkcs12_attr {
     char *value;
 } PKCS12_ATTR;
 
-
 /* Holds encryption parameters */
 typedef struct pkcs12_enc {
-    int         nid;
+    int nid;
     const char *pass;
-    int         iter;
+    int iter;
 } PKCS12_ENC;
 
 /* Set of variables required for constructing the PKCS#12 structure */
@@ -49,7 +47,6 @@ typedef struct pkcs12_builder {
     STACK_OF(PKCS12_SAFEBAG) *bags;
     int bag_idx;
 } PKCS12_BUILDER;
-
 
 /* -------------------------------------------------------------------------
  * PKCS#12 Test function declarations
@@ -77,11 +74,11 @@ void end_contentinfo(PKCS12_BUILDER *pb);
 void end_contentinfo_encrypted(PKCS12_BUILDER *pb, const PKCS12_ENC *enc);
 
 void add_certbag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
-                 const PKCS12_ATTR *attrs);
+    const PKCS12_ATTR *attrs);
 void add_keybag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
-                const PKCS12_ATTR *attrs, const PKCS12_ENC *enc);
+    const PKCS12_ATTR *attrs, const PKCS12_ENC *enc);
 void add_secretbag(PKCS12_BUILDER *pb, int secret_nid, const char *secret,
-                   const PKCS12_ATTR *attrs);
+    const PKCS12_ATTR *attrs);
 
 /* Decode/check functions */
 void start_check_pkcs12(PKCS12_BUILDER *pb);
@@ -95,9 +92,8 @@ void start_check_contentinfo_encrypted(PKCS12_BUILDER *pb, const PKCS12_ENC *enc
 void end_check_contentinfo(PKCS12_BUILDER *pb);
 
 void check_certbag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
-                   const PKCS12_ATTR *attrs);
+    const PKCS12_ATTR *attrs);
 void check_keybag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
-                  const PKCS12_ATTR *attrs, const PKCS12_ENC *enc);
+    const PKCS12_ATTR *attrs, const PKCS12_ENC *enc);
 void check_secretbag(PKCS12_BUILDER *pb, int secret_nid, const char *secret,
-                     const PKCS12_ATTR *attrs);
-
+    const PKCS12_ATTR *attrs);

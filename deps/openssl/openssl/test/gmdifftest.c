@@ -50,11 +50,11 @@ static int check_time(long offset)
 static int test_gmtime(int offset)
 {
     return check_time(offset)
-           && check_time(-offset)
-           && check_time(offset * 1000L)
-           && check_time(-offset * 1000L)
-           && check_time(offset * 1000000L)
-           && check_time(-offset * 1000000L);
+        && check_time(-offset)
+        && check_time(offset * 1000L)
+        && check_time(-offset * 1000L)
+        && check_time(offset * 1000000L)
+        && check_time(-offset * 1000000L);
 }
 
 int setup_tests(void)

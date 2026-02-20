@@ -13,7 +13,7 @@
 #include "crypto/aes_platform.h"
 
 typedef struct prov_aes_ccm_ctx_st {
-    PROV_CCM_CTX base;         /* Must be first */
+    PROV_CCM_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         /*-
@@ -39,7 +39,7 @@ typedef struct prov_aes_ccm_ctx_st {
                 unsigned char b[AES_BLOCK_SIZE];
             } buf;
             unsigned char dummy_pad[168];
-            unsigned int fc;   /* fc has same offset as ks.ks.rounds */
+            unsigned int fc; /* fc has same offset as ks.ks.rounds */
         } s390x;
 #endif /* defined(OPENSSL_CPUID_OBJ) && defined(__s390__) */
     } ccm;

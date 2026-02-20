@@ -27,26 +27,24 @@
 #include "dsa.inc"
 
 /* The following values were output from the EVP_PKEY_DSA_paramgen demo */
-static const char dsapem[] =
-    "-----BEGIN DSA PARAMETERS-----\n"
-    "MIICLAKCAQEA1pobSR1FJ3+Tvi0J6Tk1PSV2owZey1Nuo847hGw/59VCS6RPQEqr\n"
-    "vp5fhbvBjupBeVGA/AMH6rI4i4h6jlhurrqH1CqUHVcDhJzxV668bMLiP3mIxg5o\n"
-    "9Yq8x6BnSOtH5Je0tpeE0/fEvvLjCwBUbwnwWxzjANcvDUEt9XYeRrtB2v52fr56\n"
-    "hVYz3wMMNog4CEDOLTvx7/84eVPuUeWDRQFH1EaHMdulP34KBcatEEpEZapkepng\n"
-    "nohm9sFSPQhq2utpkH7pNXdG0EILBtRDCvUpF5720a48LYofdggh2VEZfgElAGFk\n"
-    "dW/CkvyBDmGIzil5aTz4MMsdudaVYgzt6wIhAPsSGC42Qa+X0AFGvonb5nmfUVm/\n"
-    "8aC+tHk7Nb2AYLHXAoIBADx5C0H1+QHsmGKvuOaY+WKUt7aWUrEivD1zBMJAQ6bL\n"
-    "Wv9lbCq1CFHvVzojeOVpn872NqDEpkx4HTpvqhxWL5CkbN/HaGItsQzkD59AQg3v\n"
-    "4YsLlkesq9Jq6x/aWetJXWO36fszFv1gpD3NY3wliBvMYHx62jfc5suh9D3ZZvu7\n"
-    "PLGH4X4kcfzK/R2b0oVbEBjVTe5GMRYZRqnvfSW2f2fA7BzI1OL83UxDDe58cL2M\n"
-    "GcAoUYXOBAfZ37qLMm2juf+o5gCrT4CXfRPu6kbapt7V/YIc1nsNgeAOKKoFBHBQ\n"
-    "gc5u5G6G/j79FVoSDq9DYwTJcHPsU+eHj1uWHso1AjQ=\n"
-    "-----END DSA PARAMETERS-----\n";
+static const char dsapem[] = "-----BEGIN DSA PARAMETERS-----\n"
+                             "MIICLAKCAQEA1pobSR1FJ3+Tvi0J6Tk1PSV2owZey1Nuo847hGw/59VCS6RPQEqr\n"
+                             "vp5fhbvBjupBeVGA/AMH6rI4i4h6jlhurrqH1CqUHVcDhJzxV668bMLiP3mIxg5o\n"
+                             "9Yq8x6BnSOtH5Je0tpeE0/fEvvLjCwBUbwnwWxzjANcvDUEt9XYeRrtB2v52fr56\n"
+                             "hVYz3wMMNog4CEDOLTvx7/84eVPuUeWDRQFH1EaHMdulP34KBcatEEpEZapkepng\n"
+                             "nohm9sFSPQhq2utpkH7pNXdG0EILBtRDCvUpF5720a48LYofdggh2VEZfgElAGFk\n"
+                             "dW/CkvyBDmGIzil5aTz4MMsdudaVYgzt6wIhAPsSGC42Qa+X0AFGvonb5nmfUVm/\n"
+                             "8aC+tHk7Nb2AYLHXAoIBADx5C0H1+QHsmGKvuOaY+WKUt7aWUrEivD1zBMJAQ6bL\n"
+                             "Wv9lbCq1CFHvVzojeOVpn872NqDEpkx4HTpvqhxWL5CkbN/HaGItsQzkD59AQg3v\n"
+                             "4YsLlkesq9Jq6x/aWetJXWO36fszFv1gpD3NY3wliBvMYHx62jfc5suh9D3ZZvu7\n"
+                             "PLGH4X4kcfzK/R2b0oVbEBjVTe5GMRYZRqnvfSW2f2fA7BzI1OL83UxDDe58cL2M\n"
+                             "GcAoUYXOBAfZ37qLMm2juf+o5gCrT4CXfRPu6kbapt7V/YIc1nsNgeAOKKoFBHBQ\n"
+                             "gc5u5G6G/j79FVoSDq9DYwTJcHPsU+eHj1uWHso1AjQ=\n"
+                             "-----END DSA PARAMETERS-----\n";
 
-static const char hexseed[] =
-    "cba30ccd905aa7675a0b81769704bf3c"
-    "ccf2ca1892b2eaf6b9e2b38d9bf6affc"
-    "42ada55986d8a1772b442770954d0b65";
+static const char hexseed[] = "cba30ccd905aa7675a0b81769704bf3c"
+                              "ccf2ca1892b2eaf6b9e2b38d9bf6affc"
+                              "42ada55986d8a1772b442770954d0b65";
 const int gindex = 42;
 const int pcounter = 363;
 static const char digest[] = "SHA384";
@@ -56,7 +54,7 @@ static const char digest[] = "SHA384";
  * plus extra parameters.
  */
 EVP_PKEY_CTX *create_merged_key(EVP_PKEY *dsaparams, const OSSL_PARAM *newparams,
-                                OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY_CTX *out = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -81,8 +79,9 @@ EVP_PKEY_CTX *create_merged_key(EVP_PKEY *dsaparams, const OSSL_PARAM *newparams
         goto cleanup;
     }
     if (EVP_PKEY_fromdata_init(ctx) <= 0
-            || EVP_PKEY_fromdata(ctx, &pkey,
-                                 EVP_PKEY_KEY_PARAMETERS, mergedparams) <= 0) {
+        || EVP_PKEY_fromdata(ctx, &pkey,
+               EVP_PKEY_KEY_PARAMETERS, mergedparams)
+            <= 0) {
         fprintf(stderr, "EVP_PKEY_fromdata() failed\n");
         goto cleanup;
     }
@@ -154,10 +153,10 @@ int main(int argc, char **argv)
      * For illustration purposes it deliberately omits a required parameter.
      */
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_TYPE,
-                                                "fips186_4", 0);
+        "fips186_4", 0);
     /* Force it to do a proper validation by setting the seed */
     params[1] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_FFC_SEED,
-                                                  (void *)seed, seedlen);
+        (void *)seed, seedlen);
     params[2] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_FFC_GINDEX, (int *)&gindex);
     params[3] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_FFC_PCOUNTER, (int *)&pcounter);
     params[4] = OSSL_PARAM_construct_end();
@@ -178,7 +177,7 @@ int main(int argc, char **argv)
      * needed
      */
     params[4] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST,
-                                                 (char *)digest, 0);
+        (char *)digest, 0);
     params[5] = OSSL_PARAM_construct_end();
     ctx2 = create_merged_key(dsaparamskey, params, libctx, propq);
     if (ctx2 == NULL)

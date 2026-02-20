@@ -82,10 +82,10 @@ static GLOBAL_TEVENT_REGISTER *get_global_tevent_register(void)
 #endif
 
 #ifndef FIPS_MODULE
-static int  init_thread_push_handlers(THREAD_EVENT_HANDLER **hands);
+static int init_thread_push_handlers(THREAD_EVENT_HANDLER **hands);
 static void init_thread_remove_handlers(THREAD_EVENT_HANDLER **handsin);
 static void init_thread_destructor(void *hands);
-static int  init_thread_deregister(void *arg, int all);
+static int init_thread_deregister(void *arg, int all);
 #endif
 static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands);
 
@@ -201,7 +201,7 @@ static void init_thread_destructor(void *hands)
 int ossl_init_thread(void)
 {
     if (!CRYPTO_THREAD_init_local(&destructor_key.value,
-                                  init_thread_destructor))
+            init_thread_destructor))
         return 0;
 
     return 1;
@@ -256,7 +256,7 @@ static void *thread_event_ossl_ctx_new(OSSL_LIB_CTX *libctx)
     if (tlocal == NULL)
         return NULL;
 
-    if (!CRYPTO_THREAD_init_local(tlocal,  NULL)) {
+    if (!CRYPTO_THREAD_init_local(tlocal, NULL)) {
         goto err;
     }
 
@@ -268,7 +268,7 @@ static void *thread_event_ossl_ctx_new(OSSL_LIB_CTX *libctx)
         goto err;
 
     return tlocal;
- err:
+err:
     OPENSSL_free(hands);
     OPENSSL_free(tlocal);
     return NULL;
@@ -295,7 +295,7 @@ void ossl_ctx_thread_stop(OSSL_LIB_CTX *ctx)
     THREAD_EVENT_HANDLER **hands;
     CRYPTO_THREAD_LOCAL *local
         = ossl_lib_ctx_get_data(ctx, OSSL_LIB_CTX_THREAD_EVENT_HANDLER_INDEX,
-                                &thread_event_ossl_ctx_method);
+            &thread_event_ossl_ctx_method);
 
     if (local == NULL)
         return;
@@ -304,7 +304,6 @@ void ossl_ctx_thread_stop(OSSL_LIB_CTX *ctx)
     OPENSSL_free(hands);
 }
 #endif /* FIPS_MODULE */
-
 
 static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 {
@@ -350,7 +349,7 @@ static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 }
 
 int ossl_init_thread_start(const void *index, void *arg,
-                           OSSL_thread_stop_handler_fn handfn)
+    OSSL_thread_stop_handler_fn handfn)
 {
     THREAD_EVENT_HANDLER **hands;
     THREAD_EVENT_HANDLER *hand;
@@ -364,7 +363,7 @@ int ossl_init_thread_start(const void *index, void *arg,
      */
     CRYPTO_THREAD_LOCAL *local
         = ossl_lib_ctx_get_data(ctx, OSSL_LIB_CTX_THREAD_EVENT_HANDLER_INDEX,
-                                &thread_event_ossl_ctx_method);
+            &thread_event_ossl_ctx_method);
 #else
     /*
      * Outside of FIPS mode the list of THREAD_EVENT_HANDLERs is unique per
@@ -387,7 +386,7 @@ int ossl_init_thread_start(const void *index, void *arg,
          * is a callback to libcrypto defined in fipsprov.c
          */
         if (!c_thread_start(FIPS_get_core_handle(ctx), ossl_arg_thread_stop,
-                            ctx))
+                ctx))
             return 0;
     }
 #endif

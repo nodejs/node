@@ -25,10 +25,10 @@ DECLARE_OBJ_BSEARCH_CMP_FN(const ASN1_OBJECT *, unsigned int, sn);
 DECLARE_OBJ_BSEARCH_CMP_FN(const ASN1_OBJECT *, unsigned int, ln);
 DECLARE_OBJ_BSEARCH_CMP_FN(const ASN1_OBJECT *, unsigned int, obj);
 
-#define ADDED_DATA      0
-#define ADDED_SNAME     1
-#define ADDED_LNAME     2
-#define ADDED_NID       3
+#define ADDED_DATA 0
+#define ADDED_SNAME 1
+#define ADDED_LNAME 2
+#define ADDED_NID 3
 
 struct added_obj_st {
     int type;
@@ -134,8 +134,7 @@ static int init_added(void)
 static void cleanup1_doall(ADDED_OBJ *a)
 {
     a->obj->nid = 0;
-    a->obj->flags |= ASN1_OBJECT_FLAG_DYNAMIC |
-        ASN1_OBJECT_FLAG_DYNAMIC_STRINGS | ASN1_OBJECT_FLAG_DYNAMIC_DATA;
+    a->obj->flags |= ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS | ASN1_OBJECT_FLAG_DYNAMIC_DATA;
 }
 
 static void cleanup2_doall(ADDED_OBJ *a)
@@ -203,14 +202,12 @@ int OBJ_add_object(const ASN1_OBJECT *obj)
             OPENSSL_free(aop);
         }
     }
-    o->flags &=
-        ~(ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS |
-          ASN1_OBJECT_FLAG_DYNAMIC_DATA);
+    o->flags &= ~(ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS | ASN1_OBJECT_FLAG_DYNAMIC_DATA);
 
     return o->nid;
- err2:
+err2:
     ERR_raise(ERR_LIB_OBJ, ERR_R_MALLOC_FAILURE);
- err:
+err:
     for (i = ADDED_DATA; i <= ADDED_NID; i++)
         OPENSSL_free(ao[i]);
     ASN1_OBJECT_free(o);
@@ -369,8 +366,7 @@ ASN1_OBJECT *OBJ_txt2obj(const char *s, int no_name)
     int i, j;
 
     if (!no_name) {
-        if (((nid = OBJ_sn2nid(s)) != NID_undef) ||
-            ((nid = OBJ_ln2nid(s)) != NID_undef))
+        if (((nid = OBJ_sn2nid(s)) != NID_undef) || ((nid = OBJ_ln2nid(s)) != NID_undef))
             return OBJ_nid2obj(nid);
         if (!ossl_isdigit(*s)) {
             ERR_raise(ERR_LIB_OBJ, OBJ_R_UNKNOWN_OBJECT_NAME);
@@ -557,7 +553,7 @@ int OBJ_obj2txt(char *buf, int buf_len, const ASN1_OBJECT *a, int no_name)
     BN_free(bl);
     return n;
 
- err:
+err:
     BN_free(bl);
     return -1;
 }
@@ -621,15 +617,15 @@ int OBJ_sn2nid(const char *s)
 }
 
 const void *OBJ_bsearch_(const void *key, const void *base, int num, int size,
-                         int (*cmp) (const void *, const void *))
+    int (*cmp)(const void *, const void *))
 {
     return OBJ_bsearch_ex_(key, base, num, size, cmp, 0);
 }
 
 const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
-                            int size,
-                            int (*cmp) (const void *, const void *),
-                            int flags)
+    int size,
+    int (*cmp)(const void *, const void *),
+    int flags)
 {
     const char *p = ossl_bsearch(key, base, num, size, cmp, flags);
 
@@ -646,7 +642,7 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
 
         for (i = 0; i < num; ++i) {
             p1 = &(base_[i * size]);
-            c = (*cmp) (key, p1);
+            c = (*cmp)(key, p1);
             if (c == 0
                 || (c < 0 && (flags & OBJ_BSEARCH_VALUE_ON_NOMATCH)))
                 return p1;
@@ -716,7 +712,7 @@ int OBJ_create(const char *oid, const char *sn, const char *ln)
 
     /* Check to see if short or long name already present */
     if ((sn != NULL && OBJ_sn2nid(sn) != NID_undef)
-            || (ln != NULL && OBJ_ln2nid(ln) != NID_undef)) {
+        || (ln != NULL && OBJ_ln2nid(ln) != NID_undef)) {
         ERR_raise(ERR_LIB_OBJ, OBJ_R_OID_EXISTS);
         return 0;
     }
@@ -744,7 +740,7 @@ int OBJ_create(const char *oid, const char *sn, const char *ln)
     tmpoid->sn = NULL;
     tmpoid->ln = NULL;
 
- err:
+err:
     ASN1_OBJECT_free(tmpoid);
     return ok;
 }

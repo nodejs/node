@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -43,8 +43,8 @@ static OSSL_FUNC_kem_settable_ctx_params_fn rsakem_settable_ctx_params;
  * Only the KEM for RSASVE as defined in SP800-56b r2 is implemented
  * currently.
  */
-#define KEM_OP_UNDEFINED   -1
-#define KEM_OP_RSASVE       0
+#define KEM_OP_UNDEFINED -1
+#define KEM_OP_RSASVE 0
 
 /*
  * What's passed as an actual key is defined by the KEYMGMT interface.
@@ -82,7 +82,7 @@ static int rsakem_opname2id(const char *name)
 
 static void *rsakem_newctx(void *provctx)
 {
-    PROV_RSA_CTX *prsactx =  OPENSSL_zalloc(sizeof(PROV_RSA_CTX));
+    PROV_RSA_CTX *prsactx = OPENSSL_zalloc(sizeof(PROV_RSA_CTX));
 
     if (prsactx == NULL)
         return NULL;
@@ -118,7 +118,7 @@ static void *rsakem_dupctx(void *vprsactx)
 }
 
 static int rsakem_init(void *vprsactx, void *vrsa,
-                       const OSSL_PARAM params[], int operation)
+    const OSSL_PARAM params[], int operation)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
 
@@ -137,13 +137,13 @@ static int rsakem_init(void *vprsactx, void *vrsa,
 }
 
 static int rsakem_encapsulate_init(void *vprsactx, void *vrsa,
-                                   const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_ENCAPSULATE);
 }
 
 static int rsakem_decapsulate_init(void *vprsactx, void *vrsa,
-                                   const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_DECAPSULATE);
 }
@@ -160,7 +160,7 @@ static const OSSL_PARAM known_gettable_rsakem_ctx_params[] = {
 };
 
 static const OSSL_PARAM *rsakem_gettable_ctx_params(ossl_unused void *vprsactx,
-                                                    ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_gettable_rsakem_ctx_params;
 }
@@ -175,7 +175,6 @@ static int rsakem_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
         return 0;
     if (params == NULL)
         return 1;
-
 
     p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_OPERATION);
     if (p != NULL) {
@@ -195,7 +194,7 @@ static const OSSL_PARAM known_settable_rsakem_ctx_params[] = {
 };
 
 static const OSSL_PARAM *rsakem_settable_ctx_params(ossl_unused void *vprsactx,
-                                                    ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_settable_rsakem_ctx_params;
 }
@@ -207,7 +206,7 @@ static const OSSL_PARAM *rsakem_settable_ctx_params(ossl_unused void *vprsactx,
  * Generate a random in the range 1 < z < (n – 1)
  */
 static int rsasve_gen_rand_bytes(RSA *rsa_pub,
-                                 unsigned char *out, int outlen)
+    unsigned char *out, int outlen)
 {
     int ret = 0;
     BN_CTX *bnctx;
@@ -227,11 +226,11 @@ static int rsasve_gen_rand_bytes(RSA *rsa_pub,
     nminus3 = BN_CTX_get(bnctx);
     z = BN_CTX_get(bnctx);
     ret = (z != NULL
-           && (BN_copy(nminus3, RSA_get0_n(rsa_pub)) != NULL)
-           && BN_sub_word(nminus3, 3)
-           && BN_priv_rand_range_ex(z, nminus3, 0, bnctx)
-           && BN_add_word(z, 2)
-           && (BN_bn2binpad(z, out, outlen) == outlen));
+        && (BN_copy(nminus3, RSA_get0_n(rsa_pub)) != NULL)
+        && BN_sub_word(nminus3, 3)
+        && BN_priv_rand_range_ex(z, nminus3, 0, bnctx)
+        && BN_add_word(z, 2)
+        && (BN_bn2binpad(z, out, outlen) == outlen));
     BN_CTX_end(bnctx);
     BN_CTX_free(bnctx);
     return ret;
@@ -242,8 +241,8 @@ static int rsasve_gen_rand_bytes(RSA *rsa_pub,
  * 7.2.1.2 RSASVE Generate Operation (RSASVE.GENERATE).
  */
 static int rsasve_generate(PROV_RSA_CTX *prsactx,
-                           unsigned char *out, size_t *outlen,
-                           unsigned char *secret, size_t *secretlen)
+    unsigned char *out, size_t *outlen,
+    unsigned char *secret, size_t *secretlen)
 {
     int ret;
     size_t nlen;
@@ -268,7 +267,7 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     /*
      * If outlen is specified, then it must report the length
      * of the out buffer on input so that we can confirm
-     * its size is sufficent for encapsulation
+     * its size is sufficient for encapsulation
      */
     if (outlen != NULL && *outlen < nlen) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
@@ -299,8 +298,7 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
 /**
  * rsasve_recover - Recovers a secret value from ciphertext using an RSA
  * private key.  Once, recovered, the secret value is considered to be a
- * shared secret.  Algorithm is preformed as per
- * NIST SP 800-56B Rev 2
+ * shared secret.  Algorithm is performed as per NIST SP 800-56B Rev 2
  * 7.2.1.3 RSASVE Recovery Operation (RSASVE.RECOVER).
  *
  * This function performs RSA decryption using the private key from the
@@ -318,8 +316,8 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
  * error messages are raised using the ERR_raise function.
  */
 static int rsasve_recover(PROV_RSA_CTX *prsactx,
-                          unsigned char *out, size_t *outlen,
-                          const unsigned char *in, size_t inlen)
+    unsigned char *out, size_t *outlen,
+    const unsigned char *in, size_t inlen)
 {
     size_t nlen;
     int ret;
@@ -363,48 +361,48 @@ static int rsasve_recover(PROV_RSA_CTX *prsactx,
 }
 
 static int rsakem_generate(void *vprsactx, unsigned char *out, size_t *outlen,
-                           unsigned char *secret, size_t *secretlen)
+    unsigned char *secret, size_t *secretlen)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
 
     switch (prsactx->op) {
-        case KEM_OP_RSASVE:
-            return rsasve_generate(prsactx, out, outlen, secret, secretlen);
-        default:
-            return -2;
+    case KEM_OP_RSASVE:
+        return rsasve_generate(prsactx, out, outlen, secret, secretlen);
+    default:
+        return -2;
     }
 }
 
 static int rsakem_recover(void *vprsactx, unsigned char *out, size_t *outlen,
-                          const unsigned char *in, size_t inlen)
+    const unsigned char *in, size_t inlen)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
 
     switch (prsactx->op) {
-        case KEM_OP_RSASVE:
-            return rsasve_recover(prsactx, out, outlen, in, inlen);
-        default:
-            return -2;
+    case KEM_OP_RSASVE:
+        return rsasve_recover(prsactx, out, outlen, in, inlen);
+    default:
+        return -2;
     }
 }
 
 const OSSL_DISPATCH ossl_rsa_asym_kem_functions[] = {
     { OSSL_FUNC_KEM_NEWCTX, (void (*)(void))rsakem_newctx },
     { OSSL_FUNC_KEM_ENCAPSULATE_INIT,
-      (void (*)(void))rsakem_encapsulate_init },
+        (void (*)(void))rsakem_encapsulate_init },
     { OSSL_FUNC_KEM_ENCAPSULATE, (void (*)(void))rsakem_generate },
     { OSSL_FUNC_KEM_DECAPSULATE_INIT,
-      (void (*)(void))rsakem_decapsulate_init },
+        (void (*)(void))rsakem_decapsulate_init },
     { OSSL_FUNC_KEM_DECAPSULATE, (void (*)(void))rsakem_recover },
     { OSSL_FUNC_KEM_FREECTX, (void (*)(void))rsakem_freectx },
     { OSSL_FUNC_KEM_DUPCTX, (void (*)(void))rsakem_dupctx },
     { OSSL_FUNC_KEM_GET_CTX_PARAMS,
-      (void (*)(void))rsakem_get_ctx_params },
+        (void (*)(void))rsakem_get_ctx_params },
     { OSSL_FUNC_KEM_GETTABLE_CTX_PARAMS,
-      (void (*)(void))rsakem_gettable_ctx_params },
+        (void (*)(void))rsakem_gettable_ctx_params },
     { OSSL_FUNC_KEM_SET_CTX_PARAMS,
-      (void (*)(void))rsakem_set_ctx_params },
+        (void (*)(void))rsakem_set_ctx_params },
     { OSSL_FUNC_KEM_SETTABLE_CTX_PARAMS,
-      (void (*)(void))rsakem_settable_ctx_params },
+        (void (*)(void))rsakem_settable_ctx_params },
     { 0, NULL }
 };

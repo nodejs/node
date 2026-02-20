@@ -107,7 +107,7 @@ failed:
 }
 
 static const char *file; /* path of a cert/CRL/key file in PEM format */
-static const char *num;  /* expected number of certs/CRLs/keys included */
+static const char *num; /* expected number of certs/CRLs/keys included */
 
 static int test_PEM_X509_INFO_read_bio(void)
 {
@@ -161,16 +161,16 @@ int setup_tests(void)
 
     if (test_get_argument_count() == 2) {
         if (!TEST_ptr(file = test_get_argument(0))
-                || !TEST_ptr(num = test_get_argument(1)))
+            || !TEST_ptr(num = test_get_argument(1)))
             return 0;
         ADD_TEST(test_PEM_X509_INFO_read_bio);
         return 1;
     }
 
     if (!TEST_ptr(c = test_get_argument(0))
-            || !TEST_ptr(k = test_get_argument(1))
-            || !TEST_ptr(t = test_get_argument(2))
-            || !TEST_ptr(e = test_get_argument(3))) {
+        || !TEST_ptr(k = test_get_argument(1))
+        || !TEST_ptr(t = test_get_argument(2))
+        || !TEST_ptr(e = test_get_argument(3))) {
         return 0;
     }
 

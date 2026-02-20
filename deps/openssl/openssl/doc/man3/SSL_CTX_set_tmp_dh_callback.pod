@@ -58,9 +58,11 @@ the actual key is newly generated during the negotiation.
 Typically applications should use well known DH parameters that have built-in
 support in OpenSSL. The macros SSL_CTX_set_dh_auto() and SSL_set_dh_auto()
 configure OpenSSL to use the default built-in DH parameters for the B<SSL_CTX>
-and B<SSL> objects respectively. Passing a value of 1 in the I<onoff> parameter
-switches the feature on, and passing a value of 0 switches it off. The default
-setting is off.
+and B<SSL> objects respectively. Passing a value of 2 or 1 in the I<onoff>
+parameter switches it on. If the I<onoff> parameter is set to 2, it will force
+the DH key size to 1024 if the B<SSL_CTX> or B<SSL> security level
+L<SSL_CTX_set_security_level(3)> is 0 or 1. Passing a value of 0 switches
+it off. The default setting is off.
 
 If "auto" DH parameters are switched on then the parameters will be selected to
 be consistent with the size of the key associated with the server's certificate.
@@ -112,7 +114,7 @@ L<openssl-ciphers(1)>, L<openssl-dhparam(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

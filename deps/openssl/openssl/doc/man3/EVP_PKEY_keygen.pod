@@ -86,10 +86,12 @@ If the callback returns 0 then the key generation operation is aborted and an
 error occurs. This might occur during a time consuming operation where
 a user clicks on a "cancel" button.
 
-The functions EVP_PKEY_CTX_set_app_data() and EVP_PKEY_CTX_get_app_data() set
-and retrieve an opaque pointer. This can be used to set some application
-defined value which can be retrieved in the callback: for example a handle
-which is used to update a "progress dialog".
+The functions EVP_PKEY_CTX_set_app_data() and EVP_PKEY_CTX_get_app_data()
+associate an opaque, application-defined pointer with an EVP_PKEY_CTX object.
+
+This pointer is not interpreted by the library and is reserved entirely for use
+by the application. It may be used to store arbitrary context or state that
+needs to be accessible wherever the corresponding EVP_PKEY_CTX is available.
 
 EVP_PKEY_Q_keygen() abstracts from the explicit use of B<EVP_PKEY_CTX> while
 providing a 'quick' but limited way of generating a new asymmetric key pair.
@@ -226,7 +228,7 @@ EVP_PKEY_Q_keygen() and EVP_PKEY_generate() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

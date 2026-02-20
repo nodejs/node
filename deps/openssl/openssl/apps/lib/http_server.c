@@ -14,7 +14,7 @@
  * On VMS, you need to define this to get the declaration of fileno().  The
  * value 2 is to make sure no function defined in POSIX-2 is left undefined.
  */
-# define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 2
 #endif
 
 #include <string.h>
@@ -26,22 +26,22 @@
 #include "s_apps.h"
 
 #if defined(__TANDEM)
-# if defined(OPENSSL_TANDEM_FLOSS)
-#  include <floss.h(floss_fork)>
-# endif
+#if defined(OPENSSL_TANDEM_FLOSS)
+#include <floss.h(floss_fork)>
+#endif
 #endif
 
 static int verbosity = LOG_INFO;
 
 #define HTTP_PREFIX "HTTP/"
 #define HTTP_VERSION_PATT "1." /* allow 1.x */
-#define HTTP_PREFIX_VERSION HTTP_PREFIX""HTTP_VERSION_PATT
-#define HTTP_1_0 HTTP_PREFIX_VERSION"0" /* "HTTP/1.0" */
+#define HTTP_PREFIX_VERSION HTTP_PREFIX "" HTTP_VERSION_PATT
+#define HTTP_1_0 HTTP_PREFIX_VERSION "0" /* "HTTP/1.0" */
 
 #ifdef HTTP_DAEMON
 
 int multi = 0; /* run multiple responder processes */
-int acfd = (int) INVALID_SOCKET;
+int acfd = (int)INVALID_SOCKET;
 
 static int print_syslog(const char *str, size_t len, void *levPtr)
 {
@@ -123,7 +123,7 @@ void spawn_loop(const char *prog)
 
     if (setpgid(0, 0)) {
         syslog(LOG_ERR, "fatal: error detaching from parent process group: %s",
-               strerror(errno));
+            strerror(errno));
         exit(1);
     }
     kidpids = app_malloc(multi * sizeof(*kidpids), "child PID array");
@@ -151,21 +151,21 @@ void spawn_loop(const char *prog)
                 }
                 if (i >= multi) {
                     syslog(LOG_ERR, "fatal: internal error: "
-                           "no matching child slot for pid: %ld",
-                           (long) fpid);
+                                    "no matching child slot for pid: %ld",
+                        (long)fpid);
                     killall(1, kidpids);
                 }
                 if (status != 0) {
                     if (WIFEXITED(status))
                         syslog(LOG_WARNING, "child process: %ld, exit status: %d",
-                               (long)fpid, WEXITSTATUS(status));
+                            (long)fpid, WEXITSTATUS(status));
                     else if (WIFSIGNALED(status))
                         syslog(LOG_WARNING, "child process: %ld, term signal %d%s",
-                               (long)fpid, WTERMSIG(status),
-# ifdef WCOREDUMP
-                               WCOREDUMP(status) ? " (core dumped)" :
-# endif
-                               "");
+                            (long)fpid, WTERMSIG(status),
+#ifdef WCOREDUMP
+                            WCOREDUMP(status) ? " (core dumped)" :
+#endif
+                                              "");
                     ossl_sleep(1000);
                 }
                 break;
@@ -193,7 +193,7 @@ void spawn_loop(const char *prog)
                 _exit(1);
             }
             return;
-        default:            /* parent */
+        default: /* parent */
             for (i = 0; i < multi; ++i) {
                 if (kidpids[i] == 0) {
                     kidpids[i] = fpid;
@@ -251,7 +251,7 @@ BIO *http_server_init_bio(const char *prog, const char *port)
 
     return acbio;
 
- err:
+err:
     BIO_free_all(acbio);
     BIO_free(bufbio);
     return NULL;
@@ -284,10 +284,10 @@ static int urldecode(char *p)
 /* if *pcbio != NULL, continue given connected session, else accept new */
 /* if found_keep_alive != NULL, return this way connection persistence state */
 int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
-                             char **ppath, BIO **pcbio, BIO *acbio,
-                             int *found_keep_alive,
-                             const char *prog, const char *port,
-                             int accept_get, int timeout)
+    char **ppath, BIO **pcbio, BIO *acbio,
+    int *found_keep_alive,
+    const char *prog, const char *port,
+    int accept_get, int timeout)
 {
     BIO *cbio = *pcbio, *getbio = NULL, *b64 = NULL;
     int len;
@@ -302,7 +302,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
 
     if (cbio == NULL) {
         log_message(prog, LOG_DEBUG,
-                    "Awaiting new connection on port %s...", port);
+            "Awaiting new connection on port %s...", port);
         if (BIO_do_accept(acbio) <= 0)
             /* Connection loss before accept() is routine, ignore silently */
             return ret;
@@ -317,12 +317,12 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         goto out;
     }
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     if (timeout > 0) {
         (void)BIO_get_fd(cbio, &acfd);
         alarm(timeout);
     }
-# endif
+#endif
 
     /* Read the request line. */
     len = BIO_gets(cbio, reqbuf, sizeof(reqbuf));
@@ -335,15 +335,15 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         goto out;
     }
     if ((end = strchr(reqbuf, '\r')) != NULL
-            || (end = strchr(reqbuf, '\n')) != NULL)
+        || (end = strchr(reqbuf, '\n')) != NULL)
         *end = '\0';
     log_message(prog, LOG_INFO, "Received request, 1st line: %s", reqbuf);
 
     meth = reqbuf;
     url = meth + 3;
     if ((accept_get && strncmp(meth, "GET ", 4) == 0)
-            || (url++, strncmp(meth, "POST ", 5) == 0)) {
-        static const char http_version_str[] = " "HTTP_PREFIX_VERSION;
+        || (url++, strncmp(meth, "POST ", 5) == 0)) {
+        static const char http_version_str[] = " " HTTP_PREFIX_VERSION;
         static const size_t http_version_str_len = sizeof(http_version_str) - 1;
 
         /* Expecting (GET|POST) {sp} /URL {sp} HTTP/1.x */
@@ -352,8 +352,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             url++;
         if (*url != '/') {
             log_message(prog, LOG_WARNING,
-                        "Invalid %s -- URL does not begin with '/': %s",
-                        meth, url);
+                "Invalid %s -- URL does not begin with '/': %s",
+                meth, url);
             (void)http_server_send_status(cbio, 400, "Bad Request");
             goto out;
         }
@@ -365,8 +365,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
                 break;
         if (strncmp(end, http_version_str, http_version_str_len) != 0) {
             log_message(prog, LOG_WARNING,
-                        "Invalid %s -- bad HTTP/version string: %s",
-                        meth, end + 1);
+                "Invalid %s -- bad HTTP/version string: %s",
+                meth, end + 1);
             (void)http_server_send_status(cbio, 400, "Bad Request");
             goto out;
         }
@@ -388,8 +388,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         len = urldecode(url);
         if (len < 0) {
             log_message(prog, LOG_WARNING,
-                        "Invalid %s request -- bad URL encoding: %s",
-                        meth, url);
+                "Invalid %s request -- bad URL encoding: %s",
+                meth, url);
             (void)http_server_send_status(cbio, 400, "Bad Request");
             goto out;
         }
@@ -397,8 +397,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             if ((getbio = BIO_new_mem_buf(url, len)) == NULL
                 || (b64 = BIO_new(BIO_f_base64())) == NULL) {
                 log_message(prog, LOG_ERR,
-                            "Could not allocate base64 bio with size = %d",
-                            len);
+                    "Could not allocate base64 bio with size = %d",
+                    len);
                 goto fatal;
             }
             BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -406,8 +406,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         }
     } else {
         log_message(prog, LOG_WARNING,
-                    "HTTP request does not begin with %sPOST: %s",
-                    accept_get ? "GET or " : "", reqbuf);
+            "HTTP request does not begin with %sPOST: %s",
+            accept_get ? "GET or " : "", reqbuf);
         (void)http_server_send_status(cbio, 400, "Bad Request");
         goto out;
     }
@@ -437,7 +437,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         value = strchr(key, ':');
         if (value == NULL) {
             log_message(prog, LOG_WARNING,
-                        "Error parsing HTTP header: missing ':'");
+                "Error parsing HTTP header: missing ':'");
             (void)http_server_send_status(cbio, 400, "Bad Request");
             goto out;
         }
@@ -449,7 +449,7 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
             line_end = strchr(value, '\n');
             if (line_end == NULL) {
                 log_message(prog, LOG_WARNING,
-                            "Error parsing HTTP header: missing end of line");
+                    "Error parsing HTTP header: missing end of line");
                 (void)http_server_send_status(cbio, 400, "Bad Request");
                 goto out;
             }
@@ -465,37 +465,37 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         }
     }
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     /* Clear alarm before we close the client socket */
     alarm(0);
     timeout = 0;
-# endif
+#endif
 
     /* Try to read and parse request */
     req = ASN1_item_d2i_bio(it, getbio != NULL ? getbio : cbio, NULL);
     if (req == NULL) {
         log_message(prog, LOG_WARNING,
-                    "Error parsing DER-encoded request content");
+            "Error parsing DER-encoded request content");
         (void)http_server_send_status(cbio, 400, "Bad Request");
     } else if (ppath != NULL && (*ppath = OPENSSL_strdup(url)) == NULL) {
         log_message(prog, LOG_ERR,
-                    "Out of memory allocating %zu bytes", strlen(url) + 1);
+            "Out of memory allocating %zu bytes", strlen(url) + 1);
         ASN1_item_free(req, it);
         goto fatal;
     }
 
     *preq = req;
 
- out:
+out:
     BIO_free_all(getbio);
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
     if (timeout > 0)
         alarm(0);
     acfd = (int)INVALID_SOCKET;
-# endif
+#endif
     return ret;
 
- fatal:
+fatal:
     (void)http_server_send_status(cbio, 500, "Internal Server Error");
     if (ppath != NULL) {
         OPENSSL_free(*ppath);
@@ -509,16 +509,17 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
 
 /* assumes that cbio does not do an encoding that changes the output length */
 int http_server_send_asn1_resp(BIO *cbio, int keep_alive,
-                               const char *content_type,
-                               const ASN1_ITEM *it, const ASN1_VALUE *resp)
+    const char *content_type,
+    const ASN1_ITEM *it, const ASN1_VALUE *resp)
 {
-    int ret = BIO_printf(cbio, HTTP_1_0" 200 OK\r\n%s"
-                         "Content-type: %s\r\n"
-                         "Content-Length: %d\r\n\r\n",
-                         keep_alive ? "Connection: keep-alive\r\n" : "",
-                         content_type,
-                         ASN1_item_i2d(resp, NULL, it)) > 0
-            && ASN1_item_i2d_bio(it, cbio, resp) > 0;
+    int ret = BIO_printf(cbio, HTTP_1_0 " 200 OK\r\n%s"
+                                        "Content-type: %s\r\n"
+                                        "Content-Length: %d\r\n\r\n",
+                  keep_alive ? "Connection: keep-alive\r\n" : "",
+                  content_type,
+                  ASN1_item_i2d(resp, NULL, it))
+            > 0
+        && ASN1_item_i2d_bio(it, cbio, resp) > 0;
 
     (void)BIO_flush(cbio);
     return ret;
@@ -526,9 +527,10 @@ int http_server_send_asn1_resp(BIO *cbio, int keep_alive,
 
 int http_server_send_status(BIO *cbio, int status, const char *reason)
 {
-    int ret = BIO_printf(cbio, HTTP_1_0" %d %s\r\n\r\n",
-                         /* This implicitly cancels keep-alive */
-                         status, reason) > 0;
+    int ret = BIO_printf(cbio, HTTP_1_0 " %d %s\r\n\r\n",
+                  /* This implicitly cancels keep-alive */
+                  status, reason)
+        > 0;
 
     (void)BIO_flush(cbio);
     return ret;

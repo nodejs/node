@@ -19,7 +19,11 @@ RAND_load_file, RAND_write_file, RAND_file_name - PRNG seed file
 RAND_load_file() reads a number of bytes from file B<filename> and
 adds them to the PRNG. If B<max_bytes> is nonnegative,
 up to B<max_bytes> are read;
-if B<max_bytes> is -1, the complete file is read.
+if B<max_bytes> is -1, the complete file is read (unless the file
+is not a regular file, in that case a fixed number of bytes,
+256 in the current implementation, is attempted to be read).
+RAND_load_file() can read less than the complete file or the requested number
+of bytes if it doesn't fit in the return value type.
 Do not load the same file multiple times unless its contents have
 been updated by RAND_write_file() between reads.
 Also, note that B<filename> should be adequately protected so that an
@@ -77,7 +81,7 @@ L<RAND(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -49,7 +49,7 @@ int ossl_dsa_check_params(const DSA *dsa, int checktype, int *ret)
 
     if (checktype == OSSL_KEYMGMT_VALIDATE_QUICK_CHECK)
         return ossl_ffc_params_simple_validate(dsa->libctx, &dsa->params,
-                                               FFC_PARAM_TYPE_DSA, ret);
+            FFC_PARAM_TYPE_DSA, ret);
     else
         /*
          * Do full FFC domain params validation according to FIPS-186-4
@@ -57,7 +57,7 @@ int ossl_dsa_check_params(const DSA *dsa, int checktype, int *ret)
          *  - only if possible (i.e., seed is set) in default provider
          */
         return ossl_ffc_params_full_validate(dsa->libctx, &dsa->params,
-                                             FFC_PARAM_TYPE_DSA, ret);
+            FFC_PARAM_TYPE_DSA, ret);
 }
 
 /*
@@ -69,7 +69,7 @@ int ossl_dsa_check_pub_key(const DSA *dsa, const BIGNUM *pub_key, int *ret)
         return 0;
 
     return ossl_ffc_validate_public_key(&dsa->params, pub_key, ret)
-           && *ret == 0;
+        && *ret == 0;
 }
 
 /*
@@ -83,7 +83,7 @@ int ossl_dsa_check_pub_key_partial(const DSA *dsa, const BIGNUM *pub_key, int *r
         return 0;
 
     return ossl_ffc_validate_public_key_partial(&dsa->params, pub_key, ret)
-           && *ret == 0;
+        && *ret == 0;
 }
 
 int ossl_dsa_check_priv_key(const DSA *dsa, const BIGNUM *priv_key, int *ret)

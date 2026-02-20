@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -24,6 +24,10 @@ plan skip_all => "EC or EC2M isn't supported in this build"
 my @valid = glob(data_file("valid", "*.pem"));
 my @noncanon = glob(data_file("noncanon", "*.pem"));
 my @invalid = glob(data_file("invalid", "*.pem"));
+
+if (disabled("sm2")) {
+    @valid = grep { !/sm2-.*\.pem/} @valid;
+}
 
 plan tests => 12;
 

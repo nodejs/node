@@ -16,10 +16,10 @@ CMS_EncryptedData_decrypt
 =head1 DESCRIPTION
 
 CMS_EncryptedData_decrypt() decrypts a I<cms> EncryptedData object using the
-symmetric I<key> of size I<keylen> bytes. I<out> is a BIO to write the content
-to and I<flags> is an optional set of flags.
-I<dcont> is used in the rare case where the encrypted content is detached. It
-will normally be set to NULL.
+symmetric I<key> of size I<keylen> bytes. AEAD cipher algorithms are not
+supported. I<out> is a BIO to write the content to and I<flags> is an optional
+set of flags. I<dcont> is used in the rare case where the encrypted content is
+detached. It will normally be set to NULL.
 
 The following flags can be passed in the I<flags> parameter.
 

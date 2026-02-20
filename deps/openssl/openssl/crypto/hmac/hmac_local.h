@@ -8,10 +8,10 @@
  */
 
 #ifndef OSSL_CRYPTO_HMAC_LOCAL_H
-# define OSSL_CRYPTO_HMAC_LOCAL_H
+#define OSSL_CRYPTO_HMAC_LOCAL_H
 
 /* The current largest case is for SHA3-224 */
-#define HMAC_MAX_MD_CBLOCK_SIZE     144
+#define HMAC_MAX_MD_CBLOCK_SIZE 144
 
 struct hmac_ctx_st {
     const EVP_MD *md;

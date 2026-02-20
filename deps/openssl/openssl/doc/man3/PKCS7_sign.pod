@@ -80,7 +80,7 @@ can be performed by obtaining the streaming ASN1 B<BIO> directly using
 BIO_new_PKCS7().
 
 If a signer is specified it will use the default digest for the signing
-algorithm. This is B<SHA1> for both RSA and DSA keys.
+algorithm. This is B<SHA256> for both RSA and DSA keys.
 
 The I<certs>, I<signcert> and I<pkey> parameters can all be
 NULL if the B<PKCS7_PARTIAL> flag is set. One or more signers can be added
@@ -122,7 +122,7 @@ The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

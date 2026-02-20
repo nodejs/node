@@ -37,7 +37,7 @@ static int tmpmd_get_params(OSSL_PARAM params[])
 }
 
 static int tmpmd_digest(void *provctx, const unsigned char *in, size_t inl,
-                 unsigned char *out, size_t *outl, size_t outsz)
+    unsigned char *out, size_t *outl, size_t outsz)
 {
     return 0;
 }
@@ -54,8 +54,8 @@ static const OSSL_ALGORITHM testprov_digests[] = {
 };
 
 static const OSSL_ALGORITHM *testprov_query(void *provctx,
-                                          int operation_id,
-                                          int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     *no_cache = 0;
     return operation_id == OSSL_OP_DIGEST ? testprov_digests : NULL;
@@ -67,9 +67,9 @@ static const OSSL_DISPATCH testprov_dispatch_table[] = {
 };
 
 static int testprov_provider_init(const OSSL_CORE_HANDLE *handle,
-                                  const OSSL_DISPATCH *in,
-                                  const OSSL_DISPATCH **out,
-                                  void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     *provctx = (void *)handle;
     *out = testprov_dispatch_table;
@@ -91,19 +91,19 @@ static int test_default_props_and_providers(int propsorder)
     int res = 0;
 
     if (!TEST_ptr(libctx = OSSL_LIB_CTX_new())
-            || !TEST_true(OSSL_PROVIDER_add_builtin(libctx, "testprov",
-                                                    testprov_provider_init)))
+        || !TEST_true(OSSL_PROVIDER_add_builtin(libctx, "testprov",
+            testprov_provider_init)))
         goto err;
 
     if (propsorder == DEFAULT_PROPS_FIRST
-            && !TEST_true(EVP_set_default_properties(libctx, MYPROPERTIES)))
+        && !TEST_true(EVP_set_default_properties(libctx, MYPROPERTIES)))
         goto err;
 
     if (!TEST_ptr(testprov = OSSL_PROVIDER_load(libctx, "testprov")))
         goto err;
 
     if (propsorder == DEFAULT_PROPS_AFTER_LOAD
-            && !TEST_true(EVP_set_default_properties(libctx, MYPROPERTIES)))
+        && !TEST_true(EVP_set_default_properties(libctx, MYPROPERTIES)))
         goto err;
 
     if (!TEST_ptr(testprovmd = EVP_MD_fetch(libctx, "testprovmd", NULL)))
@@ -118,7 +118,7 @@ static int test_default_props_and_providers(int propsorder)
     }
 
     res = 1;
- err:
+err:
     EVP_MD_free(testprovmd);
     OSSL_PROVIDER_unload(testprov);
     OSSL_LIB_CTX_free(libctx);

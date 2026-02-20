@@ -8,28 +8,28 @@
  */
 
 #ifndef OSSL_TESTUTIL_OUTPUT_H
-# define OSSL_TESTUTIL_OUTPUT_H
+#define OSSL_TESTUTIL_OUTPUT_H
 
-# include <stdarg.h>
+#include <stdarg.h>
 
-# define ossl_test__attr__(x)
-# if defined(__GNUC__) && defined(__STDC_VERSION__) \
+#define ossl_test__attr__(x)
+#if defined(__GNUC__) && defined(__STDC_VERSION__)    \
     && !defined(__MINGW32__) && !defined(__MINGW64__) \
     && !defined(__APPLE__)
-    /*
-     * Because we support the 'z' modifier, which made its appearance in C99,
-     * we can't use __attribute__ with pre C99 dialects.
-     */
-#  if __STDC_VERSION__ >= 199901L
-#   undef ossl_test__attr__
-#   define ossl_test__attr__ __attribute__
-#   if __GNUC__*10 + __GNUC_MINOR__ >= 44
-#    define ossl_test__printf__ __gnu_printf__
-#   else
-#    define ossl_test__printf__ __printf__
-#   endif
-#  endif
-# endif
+/*
+ * Because we support the 'z' modifier, which made its appearance in C99,
+ * we can't use __attribute__ with pre C99 dialects.
+ */
+#if __STDC_VERSION__ >= 199901L
+#undef ossl_test__attr__
+#define ossl_test__attr__ __attribute__
+#if __GNUC__ * 10 + __GNUC_MINOR__ >= 44
+#define ossl_test__printf__ __gnu_printf__
+#else
+#define ossl_test__printf__ __printf__
+#endif
+#endif
+#endif
 /*
  * The basic I/O functions used internally by the test framework.  These
  * can be overridden when needed. Note that if one is, then all must be.
@@ -62,7 +62,7 @@ int test_printf_stderr(const char *fmt, ...)
 int test_printf_taperr(const char *fmt, ...)
     ossl_test__attr__((__format__(ossl_test__printf__, 1, 2)));
 
-# undef ossl_test__printf__
-# undef ossl_test__attr__
+#undef ossl_test__printf__
+#undef ossl_test__attr__
 
-#endif                          /* OSSL_TESTUTIL_OUTPUT_H */
+#endif /* OSSL_TESTUTIL_OUTPUT_H */

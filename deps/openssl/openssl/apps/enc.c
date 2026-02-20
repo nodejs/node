@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,16 +21,16 @@
 #include <openssl/rand.h>
 #include <openssl/pem.h>
 #ifndef OPENSSL_NO_COMP
-# include <openssl/comp.h>
+#include <openssl/comp.h>
 #endif
 #include <ctype.h>
 
 #undef SIZE
 #undef BSIZE
-#define SIZE    (512)
-#define BSIZE   (8*1024)
+#define SIZE (512)
+#define BSIZE (8 * 1024)
 
-#define PBKDF2_ITER_DEFAULT     10000
+#define PBKDF2_ITER_DEFAULT 10000
 #define STR(a) XSTR(a)
 #define XSTR(a) #a
 
@@ -45,69 +45,93 @@ struct doall_enc_ciphers {
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_LIST,
-    OPT_E, OPT_IN, OPT_OUT, OPT_PASS, OPT_ENGINE, OPT_D, OPT_P, OPT_V,
-    OPT_NOPAD, OPT_SALT, OPT_NOSALT, OPT_DEBUG, OPT_UPPER_P, OPT_UPPER_A,
-    OPT_A, OPT_Z, OPT_BUFSIZE, OPT_K, OPT_KFILE, OPT_UPPER_K, OPT_NONE,
-    OPT_UPPER_S, OPT_IV, OPT_MD, OPT_ITER, OPT_PBKDF2, OPT_CIPHER,
-    OPT_R_ENUM, OPT_PROV_ENUM
+    OPT_E,
+    OPT_IN,
+    OPT_OUT,
+    OPT_PASS,
+    OPT_ENGINE,
+    OPT_D,
+    OPT_P,
+    OPT_V,
+    OPT_NOPAD,
+    OPT_SALT,
+    OPT_NOSALT,
+    OPT_DEBUG,
+    OPT_UPPER_P,
+    OPT_UPPER_A,
+    OPT_A,
+    OPT_Z,
+    OPT_BUFSIZE,
+    OPT_K,
+    OPT_KFILE,
+    OPT_UPPER_K,
+    OPT_NONE,
+    OPT_UPPER_S,
+    OPT_IV,
+    OPT_MD,
+    OPT_ITER,
+    OPT_PBKDF2,
+    OPT_CIPHER,
+    OPT_R_ENUM,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS enc_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"list", OPT_LIST, '-', "List ciphers"},
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "list", OPT_LIST, '-', "List ciphers" },
 #ifndef OPENSSL_NO_DEPRECATED_3_0
-    {"ciphers", OPT_LIST, '-', "Alias for -list"},
+    { "ciphers", OPT_LIST, '-', "Alias for -list" },
 #endif
-    {"e", OPT_E, '-', "Encrypt"},
-    {"d", OPT_D, '-', "Decrypt"},
-    {"p", OPT_P, '-', "Print the iv/key"},
-    {"P", OPT_UPPER_P, '-', "Print the iv/key and exit"},
+    { "e", OPT_E, '-', "Encrypt" },
+    { "d", OPT_D, '-', "Decrypt" },
+    { "p", OPT_P, '-', "Print the iv/key" },
+    { "P", OPT_UPPER_P, '-', "Print the iv/key and exit" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
-    {"k", OPT_K, 's', "Passphrase"},
-    {"kfile", OPT_KFILE, '<', "Read passphrase from file"},
+    { "in", OPT_IN, '<', "Input file" },
+    { "k", OPT_K, 's', "Passphrase" },
+    { "kfile", OPT_KFILE, '<', "Read passphrase from file" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"pass", OPT_PASS, 's', "Passphrase source"},
-    {"v", OPT_V, '-', "Verbose output"},
-    {"a", OPT_A, '-', "Base64 encode/decode, depending on encryption flag"},
-    {"base64", OPT_A, '-', "Same as option -a"},
-    {"A", OPT_UPPER_A, '-',
-     "Used with -[base64|a] to specify base64 buffer as a single line"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "pass", OPT_PASS, 's', "Passphrase source" },
+    { "v", OPT_V, '-', "Verbose output" },
+    { "a", OPT_A, '-', "Base64 encode/decode, depending on encryption flag" },
+    { "base64", OPT_A, '-', "Same as option -a" },
+    { "A", OPT_UPPER_A, '-',
+        "Used with -[base64|a] to specify base64 buffer as a single line" },
 
     OPT_SECTION("Encryption"),
-    {"nopad", OPT_NOPAD, '-', "Disable standard block padding"},
-    {"salt", OPT_SALT, '-', "Use salt in the KDF (default)"},
-    {"nosalt", OPT_NOSALT, '-', "Do not use salt in the KDF"},
-    {"debug", OPT_DEBUG, '-', "Print debug info"},
+    { "nopad", OPT_NOPAD, '-', "Disable standard block padding" },
+    { "salt", OPT_SALT, '-', "Use salt in the KDF (default)" },
+    { "nosalt", OPT_NOSALT, '-', "Do not use salt in the KDF" },
+    { "debug", OPT_DEBUG, '-', "Print debug info" },
 
-    {"bufsize", OPT_BUFSIZE, 's', "Buffer size"},
-    {"K", OPT_UPPER_K, 's', "Raw key, in hex"},
-    {"S", OPT_UPPER_S, 's', "Salt, in hex"},
-    {"iv", OPT_IV, 's', "IV in hex"},
-    {"md", OPT_MD, 's', "Use specified digest to create a key from the passphrase"},
-    {"iter", OPT_ITER, 'p',
-     "Specify the iteration count and force the use of PBKDF2"},
-    {OPT_MORE_STR, 0, 0, "Default: " STR(PBKDF2_ITER_DEFAULT)},
-    {"pbkdf2", OPT_PBKDF2, '-',
-     "Use password-based key derivation function 2 (PBKDF2)"},
-    {OPT_MORE_STR, 0, 0,
-     "Use -iter to change the iteration count from " STR(PBKDF2_ITER_DEFAULT)},
-    {"none", OPT_NONE, '-', "Don't encrypt"},
+    { "bufsize", OPT_BUFSIZE, 's', "Buffer size" },
+    { "K", OPT_UPPER_K, 's', "Raw key, in hex" },
+    { "S", OPT_UPPER_S, 's', "Salt, in hex" },
+    { "iv", OPT_IV, 's', "IV in hex" },
+    { "md", OPT_MD, 's', "Use specified digest to create a key from the passphrase" },
+    { "iter", OPT_ITER, 'p',
+        "Specify the iteration count and force the use of PBKDF2" },
+    { OPT_MORE_STR, 0, 0, "Default: " STR(PBKDF2_ITER_DEFAULT) },
+    { "pbkdf2", OPT_PBKDF2, '-',
+        "Use password-based key derivation function 2 (PBKDF2)" },
+    { OPT_MORE_STR, 0, 0,
+        "Use -iter to change the iteration count from " STR(PBKDF2_ITER_DEFAULT) },
+    { "none", OPT_NONE, '-', "Don't encrypt" },
 #ifdef ZLIB
-    {"z", OPT_Z, '-', "Compress or decompress encrypted data using zlib"},
+    { "z", OPT_Z, '-', "Compress or decompress encrypted data using zlib" },
 #endif
-    {"", OPT_CIPHER, '-', "Any supported cipher"},
+    { "", OPT_CIPHER, '-', "Any supported cipher" },
 
     OPT_R_OPTIONS,
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int enc_main(int argc, char **argv)
@@ -115,8 +139,7 @@ int enc_main(int argc, char **argv)
     static char buf[128];
     static const char magic[] = "Salted__";
     ENGINE *e = NULL;
-    BIO *in = NULL, *out = NULL, *b64 = NULL, *benc = NULL, *rbio =
-        NULL, *wbio = NULL;
+    BIO *in = NULL, *out = NULL, *b64 = NULL, *benc = NULL, *rbio = NULL, *wbio = NULL;
     EVP_CIPHER_CTX *ctx = NULL;
     EVP_CIPHER *cipher = NULL;
     EVP_MD *dgst = NULL;
@@ -157,7 +180,7 @@ int enc_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -169,7 +192,7 @@ int enc_main(int argc, char **argv)
             dec.bio = bio_out;
             dec.n = 0;
             OBJ_NAME_do_all_sorted(OBJ_NAME_TYPE_CIPHER_METH,
-                                   show_ciphers, &dec);
+                show_ciphers, &dec);
             BIO_printf(bio_out, "\n");
             ret = 0;
             goto end;
@@ -230,10 +253,12 @@ int enc_main(int argc, char **argv)
             if (k)
                 p[i] = '\0';
             if (!opt_long(opt_arg(), &n)
-                    || n < 0 || (k && n >= LONG_MAX / 1024))
+                || n < 0 || (k && n >= LONG_MAX / 1024))
                 goto opthelp;
             if (k)
                 n *= 1024;
+            if (n > INT_MAX)
+                goto opthelp;
             bsize = (int)n;
             break;
         case OPT_K:
@@ -248,7 +273,7 @@ int enc_main(int argc, char **argv)
             in = NULL;
             if (i <= 0) {
                 BIO_printf(bio_err,
-                           "%s Can't read key from %s\n", prog, opt_arg());
+                    "%s Can't read key from %s\n", prog, opt_arg());
                 goto opthelp;
             }
             while (--i > 0 && (buf[i] == '\r' || buf[i] == '\n'))
@@ -280,7 +305,7 @@ int enc_main(int argc, char **argv)
             break;
         case OPT_PBKDF2:
             pbkdf2 = 1;
-            if (iter == 0)    /* do not overwrite a chosen value */
+            if (iter == 0) /* do not overwrite a chosen value */
                 iter = PBKDF2_ITER_DEFAULT;
             break;
         case OPT_NONE:
@@ -361,8 +386,8 @@ int enc_main(int argc, char **argv)
                 char prompt[200];
 
                 BIO_snprintf(prompt, sizeof(prompt), "enter %s %s password:",
-                        EVP_CIPHER_get0_name(cipher),
-                        (enc) ? "encryption" : "decryption");
+                    EVP_CIPHER_get0_name(cipher),
+                    (enc) ? "encryption" : "decryption");
                 strbuf[0] = '\0';
                 i = EVP_read_pw_string((char *)strbuf, SIZE, prompt, enc);
                 if (i == 0) {
@@ -446,7 +471,7 @@ int enc_main(int argc, char **argv)
                     BIO_printf(bio_err, "invalid hex salt value\n");
                     goto end;
                 }
-                if (enc) {  /* encryption */
+                if (enc) { /* encryption */
                     if (hsalt == NULL) {
                         if (RAND_bytes(salt, sizeof(salt)) <= 0) {
                             BIO_printf(bio_err, "RAND_bytes failed\n");
@@ -458,15 +483,17 @@ int enc_main(int argc, char **argv)
                          */
                         if ((printkey != 2)
                             && (BIO_write(wbio, magic,
-                                          sizeof(magic) - 1) != sizeof(magic) - 1
+                                    sizeof(magic) - 1)
+                                    != sizeof(magic) - 1
                                 || BIO_write(wbio,
-                                             (char *)salt,
-                                             sizeof(salt)) != sizeof(salt))) {
+                                       (char *)salt,
+                                       sizeof(salt))
+                                    != sizeof(salt))) {
                             BIO_printf(bio_err, "error writing output file\n");
                             goto end;
                         }
                     }
-                } else {    /* decryption */
+                } else { /* decryption */
                     if (hsalt == NULL) {
                         if (BIO_read(rbio, mbuf, sizeof(mbuf)) != sizeof(mbuf)) {
                             BIO_printf(bio_err, "error reading input file\n");
@@ -474,7 +501,8 @@ int enc_main(int argc, char **argv)
                         }
                         if (memcmp(mbuf, magic, sizeof(mbuf)) == 0) { /* file IS salted */
                             if (BIO_read(rbio, salt,
-                                         sizeof(salt)) != sizeof(salt)) {
+                                    sizeof(salt))
+                                != sizeof(salt)) {
                                 BIO_printf(bio_err, "error reading input file\n");
                                 goto end;
                             }
@@ -489,29 +517,29 @@ int enc_main(int argc, char **argv)
 
             if (pbkdf2 == 1) {
                 /*
-                * derive key and default iv
-                * concatenated into a temporary buffer
-                */
+                 * derive key and default iv
+                 * concatenated into a temporary buffer
+                 */
                 unsigned char tmpkeyiv[EVP_MAX_KEY_LENGTH + EVP_MAX_IV_LENGTH];
                 int iklen = EVP_CIPHER_get_key_length(cipher);
                 int ivlen = EVP_CIPHER_get_iv_length(cipher);
                 /* not needed if HASH_UPDATE() is fixed : */
                 int islen = (sptr != NULL ? sizeof(salt) : 0);
                 if (!PKCS5_PBKDF2_HMAC(str, str_len, sptr, islen,
-                                       iter, dgst, iklen+ivlen, tmpkeyiv)) {
+                        iter, dgst, iklen + ivlen, tmpkeyiv)) {
                     BIO_printf(bio_err, "PKCS5_PBKDF2_HMAC failed\n");
                     goto end;
                 }
                 /* split and move data back to global buffer */
                 memcpy(key, tmpkeyiv, iklen);
-                memcpy(iv, tmpkeyiv+iklen, ivlen);
+                memcpy(iv, tmpkeyiv + iklen, ivlen);
             } else {
                 BIO_printf(bio_err, "*** WARNING : "
                                     "deprecated key derivation used.\n"
                                     "Using -iter or -pbkdf2 would be better.\n");
                 if (!EVP_BytesToKey(cipher, dgst, sptr,
-                                    (unsigned char *)str, str_len,
-                                    1, key, iv)) {
+                        (unsigned char *)str, str_len,
+                        1, key, iv)) {
                     BIO_printf(bio_err, "EVP_BytesToKey failed\n");
                     goto end;
                 }
@@ -564,7 +592,7 @@ int enc_main(int argc, char **argv)
 
         if (!EVP_CipherInit_ex(ctx, cipher, e, NULL, NULL, enc)) {
             BIO_printf(bio_err, "Error setting cipher %s\n",
-                       EVP_CIPHER_get0_name(cipher));
+                EVP_CIPHER_get0_name(cipher));
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -574,7 +602,7 @@ int enc_main(int argc, char **argv)
 
         if (!EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc)) {
             BIO_printf(bio_err, "Error setting cipher %s\n",
-                       EVP_CIPHER_get0_name(cipher));
+                EVP_CIPHER_get0_name(cipher));
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -636,7 +664,7 @@ int enc_main(int argc, char **argv)
         BIO_printf(bio_err, "bytes read   : %8ju\n", BIO_number_read(in));
         BIO_printf(bio_err, "bytes written: %8ju\n", BIO_number_written(out));
     }
- end:
+end:
     ERR_print_errors(bio_err);
     OPENSSL_free(strbuf);
     OPENSSL_free(buff);
@@ -665,8 +693,8 @@ static void show_ciphers(const OBJ_NAME *name, void *arg)
     /* Filter out ciphers that we cannot use */
     cipher = EVP_get_cipherbyname(name->name);
     if (cipher == NULL
-            || (EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) != 0
-            || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_XTS_MODE)
+        || (EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) != 0
+        || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_XTS_MODE)
         return;
 
     BIO_printf(dec->bio, "-%-25s", name->name);

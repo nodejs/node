@@ -27,7 +27,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
 {
 #ifndef OPENSSL_NO_COMP
     OSSL_TRACE(INIT, "ossl_init_ssl_base: "
-               "SSL_COMP_get_compression_methods()\n");
+                     "SSL_COMP_get_compression_methods()\n");
     /*
      * This will initialise the built-in compression algorithms. The value
      * returned is a STACK_OF(SSL_COMP), but that can be discarded safely
@@ -35,7 +35,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
     SSL_COMP_get_compression_methods();
 #endif
     ssl_sort_cipher_list();
-    OSSL_TRACE(INIT,"ossl_init_ssl_base: SSL_add_ssl_module()\n");
+    OSSL_TRACE(INIT, "ossl_init_ssl_base: SSL_add_ssl_module()\n");
     /*
      * We ignore an error return here. Not much we can do - but not that bad
      * either. We can still safely continue.
@@ -61,7 +61,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_ssl_strings)
 }
 
 DEFINE_RUN_ONCE_STATIC_ALT(ossl_init_no_load_ssl_strings,
-                           ossl_init_load_ssl_strings)
+    ossl_init_load_ssl_strings)
 {
     /* Do nothing in this case */
     return 1;
@@ -77,7 +77,7 @@ static void ssl_library_stop(void)
     if (ssl_base_inited) {
 #ifndef OPENSSL_NO_COMP
         OSSL_TRACE(INIT, "ssl_library_stop: "
-                   "ssl_comp_free_compression_methods_int()\n");
+                         "ssl_comp_free_compression_methods_int()\n");
         ssl_comp_free_compression_methods_int();
 #endif
     }
@@ -88,7 +88,7 @@ static void ssl_library_stop(void)
  * called prior to any threads making calls to any OpenSSL functions,
  * i.e. passing a non-null settings value is assumed to be single-threaded.
  */
-int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
+int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
 {
     static int stoperrset = 0;
 
@@ -106,7 +106,7 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
     }
 
     opts |= OPENSSL_INIT_ADD_ALL_CIPHERS
-         |  OPENSSL_INIT_ADD_ALL_DIGESTS;
+        | OPENSSL_INIT_ADD_ALL_DIGESTS;
 #ifndef OPENSSL_NO_AUTOLOAD_CONFIG
     if ((opts & OPENSSL_INIT_NO_LOAD_CONFIG) == 0)
         opts |= OPENSSL_INIT_LOAD_CONFIG;
@@ -120,7 +120,7 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
 
     if ((opts & OPENSSL_INIT_NO_LOAD_SSL_STRINGS)
         && !RUN_ONCE_ALT(&ssl_strings, ossl_init_no_load_ssl_strings,
-                         ossl_init_load_ssl_strings))
+            ossl_init_load_ssl_strings))
         return 0;
 
     if ((opts & OPENSSL_INIT_LOAD_SSL_STRINGS)

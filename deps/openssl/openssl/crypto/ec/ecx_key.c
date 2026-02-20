@@ -12,7 +12,7 @@
 #include "crypto/ecx.h"
 
 ECX_KEY *ossl_ecx_key_new(OSSL_LIB_CTX *libctx, ECX_KEY_TYPE type, int haspubkey,
-                          const char *propq)
+    const char *propq)
 {
     ECX_KEY *ret = OPENSSL_zalloc(sizeof(*ret));
 

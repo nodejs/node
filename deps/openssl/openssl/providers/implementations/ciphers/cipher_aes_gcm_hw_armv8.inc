@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
  */
 
 /*
- * Crypto extention support for AES GCM.
+ * Crypto extension support for AES GCM.
  * This file is included by cipher_aes_gcm_hw.c
  */
 

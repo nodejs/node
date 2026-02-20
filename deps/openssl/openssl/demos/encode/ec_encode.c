@@ -44,8 +44,8 @@ static EVP_PKEY *load_key(OSSL_LIB_CTX *libctx, FILE *f, const char *passphrase)
      * if set to EVP_PKEY_PUBLIC_KEY, a public key will be required.
      */
     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL, "EC",
-                                         selection,
-                                         libctx, propq);
+        selection,
+        libctx, propq);
     if (dctx == NULL) {
         fprintf(stderr, "OSSL_DECODER_CTX_new_for_pkey() failed\n");
         goto cleanup;
@@ -62,8 +62,9 @@ static EVP_PKEY *load_key(OSSL_LIB_CTX *libctx, FILE *f, const char *passphrase)
      */
     if (passphrase != NULL) {
         if (OSSL_DECODER_CTX_set_passphrase(dctx,
-                                            (const unsigned char *)passphrase,
-                                            strlen(passphrase)) == 0) {
+                (const unsigned char *)passphrase,
+                strlen(passphrase))
+            == 0) {
             fprintf(stderr, "OSSL_DECODER_CTX_set_passphrase() failed\n");
             goto cleanup;
         }
@@ -152,8 +153,9 @@ static int store_key(EVP_PKEY *pkey, FILE *f, const char *passphrase)
 
         /* Set passphrase. */
         if (OSSL_ENCODER_CTX_set_passphrase(ectx,
-                                            (const unsigned char *)passphrase,
-                                            strlen(passphrase)) == 0) {
+                (const unsigned char *)passphrase,
+                strlen(passphrase))
+            == 0) {
             fprintf(stderr, "OSSL_ENCODER_CTX_set_passphrase() failed\n");
             goto cleanup;
         }

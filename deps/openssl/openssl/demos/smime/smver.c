@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
     ret = 0;
 
- err:
+err:
     if (ret) {
         fprintf(stderr, "Error Verifying Data\n");
         ERR_print_errors_fp(stderr);

@@ -1,0 +1,5 @@
+asn1=SEQUENCE:seq
+
+[seq]
+impl=IMPLICIT:1,BOOL:true
+expl=EXPLICIT:2,BITWRAP,OCT:X

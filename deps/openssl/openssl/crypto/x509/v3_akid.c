@@ -17,28 +17,28 @@
 #include "ext_dat.h"
 
 static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
-                                                 AUTHORITY_KEYID *akeyid,
-                                                 STACK_OF(CONF_VALUE)
-                                                 *extlist);
+    AUTHORITY_KEYID *akeyid,
+    STACK_OF(CONF_VALUE)
+        *extlist);
 static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
-                                            X509V3_CTX *ctx,
-                                            STACK_OF(CONF_VALUE) *values);
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *values);
 
 const X509V3_EXT_METHOD ossl_v3_akey_id = {
     NID_authority_key_identifier,
     X509V3_EXT_MULTILINE, ASN1_ITEM_ref(AUTHORITY_KEYID),
     0, 0, 0, 0,
     0, 0,
-    (X509V3_EXT_I2V) i2v_AUTHORITY_KEYID,
+    (X509V3_EXT_I2V)i2v_AUTHORITY_KEYID,
     (X509V3_EXT_V2I)v2i_AUTHORITY_KEYID,
     0, 0,
     NULL
 };
 
 static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
-                                                 AUTHORITY_KEYID *akeyid,
-                                                 STACK_OF(CONF_VALUE)
-                                                 *extlist)
+    AUTHORITY_KEYID *akeyid,
+    STACK_OF(CONF_VALUE)
+        *extlist)
 {
     char *tmp = NULL;
     STACK_OF(CONF_VALUE) *origextlist = extlist, *tmpextlist;
@@ -50,7 +50,7 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
             return NULL;
         }
         if (!X509V3_add_value((akeyid->issuer || akeyid->serial) ? "keyid" : NULL,
-                              tmp, &extlist)) {
+                tmp, &extlist)) {
             OPENSSL_free(tmp);
             ERR_raise(ERR_LIB_X509V3, ERR_R_X509_LIB);
             goto err;
@@ -78,7 +78,7 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
         OPENSSL_free(tmp);
     }
     return extlist;
- err:
+err:
     if (origextlist == NULL)
         sk_CONF_VALUE_pop_free(extlist, X509V3_conf_free);
     return NULL;
@@ -94,8 +94,8 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
  */
 
 static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
-                                            X509V3_CTX *ctx,
-                                            STACK_OF(CONF_VALUE) *values)
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *values)
 {
     char keyid = 0, issuer = 0;
     int i, n = sk_CONF_VALUE_num(values);
@@ -129,7 +129,7 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
                 issuer = 2;
         } else {
             ERR_raise_data(ERR_LIB_X509V3, X509V3_R_UNKNOWN_OPTION,
-                           "name=%s", cnf->name);
+                "name=%s", cnf->name);
             goto err;
         }
     }
@@ -207,7 +207,7 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
 
     return akeyid;
 
- err:
+err:
     sk_GENERAL_NAME_free(gens);
     GENERAL_NAME_free(gen);
     X509_NAME_free(isname);

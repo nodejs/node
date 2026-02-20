@@ -581,7 +581,7 @@ keyCertSign bit set if the keyUsage extension is present.
 
 The extKeyUsage (EKU) extension places additional restrictions on
 certificate use. If this extension is present (whether critical or not)
-in an end-entity certficiate, the key is allowed only for the uses specified,
+in an end-entity certificate, the key is allowed only for the uses specified,
 while the special EKU B<anyExtendedKeyUsage> allows for all uses.
 
 Note that according to RFC 5280 section 4.2.1.12,
@@ -639,7 +639,7 @@ This is used as a workaround if the basicConstraints extension is absent.
 =item B<Netscape SSL Server> (C<nssslserver>)
 
 In addition to what has been described for B<sslserver>, for a Netscape
-SSL client to connect to an SSL server, its EE certficate must have the
+SSL client to connect to an SSL server, its EE certificate must have the
 B<keyEncipherment> bit set if the keyUsage extension is present. This isn't
 always valid because some cipher suites use the key for digital signing.
 Otherwise it is the same as a normal SSL server.
@@ -660,19 +660,19 @@ This is used as a workaround if the basicConstraints extension is absent.
 
 =item B<S/MIME Signing> (C<smimesign>)
 
-In addition to the common S/MIME checks, for target certficiates
+In addition to the common S/MIME checks, for target certificates
 the key usage must allow for C<digitalSignature> and/or B<nonRepudiation>.
 
 =item B<S/MIME Encryption> (C<smimeencrypt>)
 
-In addition to the common S/MIME checks, for target certficiates
+In addition to the common S/MIME checks, for target certificates
 the key usage must allow for C<keyEncipherment>.
 
 =item B<CRL Signing> (C<crlsign>)
 
 For target certificates, the key usage must allow for C<cRLSign>.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 Except in this case the basicConstraints extension must be present.
 
 =item B<OCSP Helper> (C<ocsphelper>)
@@ -680,7 +680,7 @@ Except in this case the basicConstraints extension must be present.
 For target certificates, no checks are performed at this stage,
 but special checks apply; see L<OCSP_basic_verify(3)>.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 
 =item B<Timestamp Signing> (C<timestampsign>)
 
@@ -689,7 +689,7 @@ C<digitalSignature> and/or C<nonRepudiation> and must not include other bits.
 The EKU extension must be present and contain C<timeStamping> only.
 Moreover, it must be marked as critical.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 
 =back
 
@@ -722,7 +722,7 @@ The checks enabled by B<-x509_strict> have been extended in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

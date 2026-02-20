@@ -1,5 +1,5 @@
 /*-
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -254,7 +254,7 @@ int main(int argc, char **argv)
 
     if (argc > 1) {
         bits_i = atoi(argv[1]);
-        if (bits < 512) {
+        if (bits_i < 512) {
             fprintf(stderr, "Invalid RSA key size\n");
             return 1;
         }

@@ -8,14 +8,14 @@
  */
 
 #ifndef OSSL_CRYPTO_DECODER_H
-# define OSSL_CRYPTO_DECODER_H
-# pragma once
+#define OSSL_CRYPTO_DECODER_H
+#pragma once
 
-# include <openssl/decoder.h>
+#include <openssl/decoder.h>
 
 OSSL_DECODER *ossl_decoder_fetch_by_number(OSSL_LIB_CTX *libctx,
-                                                     int id,
-                                                     const char *properties);
+    int id,
+    const char *properties);
 
 /*
  * These are specially made for the 'file:' provider-native loader, which
@@ -24,18 +24,18 @@ OSSL_DECODER *ossl_decoder_fetch_by_number(OSSL_LIB_CTX *libctx,
  * (provider-object(7)).
  */
 void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
-                                  OSSL_PROVIDER *prov);
+    OSSL_PROVIDER *prov);
 
 OSSL_DECODER_INSTANCE *
 ossl_decoder_instance_new(OSSL_DECODER *decoder, void *decoderctx);
 void ossl_decoder_instance_free(OSSL_DECODER_INSTANCE *decoder_inst);
 int ossl_decoder_ctx_add_decoder_inst(OSSL_DECODER_CTX *ctx,
-                                      OSSL_DECODER_INSTANCE *di);
+    OSSL_DECODER_INSTANCE *di);
 
 int ossl_decoder_ctx_setup_for_pkey(OSSL_DECODER_CTX *ctx,
-                                    EVP_PKEY **pkey, const char *keytype,
-                                    OSSL_LIB_CTX *libctx,
-                                    const char *propquery);
+    EVP_PKEY **pkey, const char *keytype,
+    OSSL_LIB_CTX *libctx,
+    const char *propquery);
 
 int ossl_decoder_get_number(const OSSL_DECODER *encoder);
 int ossl_decoder_store_cache_flush(OSSL_LIB_CTX *libctx);

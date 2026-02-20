@@ -21,11 +21,11 @@ typedef struct {
 
 static const version_test version_testdata[] = {
     /* min           max             ok    expected min    expected max */
-    {0,              0,              1, 1, 0,              0},
-    {TLS1_VERSION,   TLS1_2_VERSION, 1, 1, TLS1_VERSION,   TLS1_2_VERSION},
-    {TLS1_2_VERSION, TLS1_2_VERSION, 1, 1, TLS1_2_VERSION, TLS1_2_VERSION},
-    {TLS1_2_VERSION, TLS1_1_VERSION, 1, 1, TLS1_2_VERSION, TLS1_1_VERSION},
-    {7,              42,             0, 0, 0,              0},
+    { 0, 0, 1, 1, 0, 0 },
+    { TLS1_VERSION, TLS1_2_VERSION, 1, 1, TLS1_VERSION, TLS1_2_VERSION },
+    { TLS1_2_VERSION, TLS1_2_VERSION, 1, 1, TLS1_2_VERSION, TLS1_2_VERSION },
+    { TLS1_2_VERSION, TLS1_1_VERSION, 1, 1, TLS1_2_VERSION, TLS1_1_VERSION },
+    { 7, 42, 0, 0, 0, 0 },
 };
 
 static int test_set_min_max_version(int idx_tst)
@@ -63,7 +63,7 @@ static int test_set_min_max_version(int idx_tst)
 
     testresult = 1;
 
-  end:
+end:
     SSL_free(ssl);
     SSL_CTX_free(ctx);
     return testresult;

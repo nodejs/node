@@ -29,7 +29,8 @@ X509 object cache. The cache contains B<X509> and B<X509_CRL> objects. The
 returned pointer must not be freed by the calling application.
 
 X509_STORE_get1_all_certs() returns a list of all certificates in the store.
-The caller is responsible for freeing the returned list.
+The caller is responsible for freeing the returned list
+with sk_X509_pop_free(sk, X509_free).
 
 =head1 RETURN VALUES
 
@@ -45,6 +46,7 @@ certificates on success, else NULL.
 
 =head1 SEE ALSO
 
+L<DEFINE_STACK_OF(3)>,
 L<X509_STORE_new(3)>
 
 =head1 HISTORY

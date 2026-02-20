@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -129,3 +129,11 @@ Ctrl.cipher = cipher:DES-EDE3-CBC
 Ctrl.hexkey = hexkey:dce06b1f64c857a11c3db57c51899b2cc1791008ce973b92
 Ctrl.hexconstant = hexconstant:0000000155
 Output = 935079d14490a75c3093c4a6e8c3b049c71e6ee705
+
+#Erroneous key size for the cipher as XTS has double key size
+KDF = KRB5KDF
+Ctrl.cipher = cipher:AES-256-XTS
+Ctrl.hexkey = hexkey:FE697B52BC0D3CE14432BA036A92E65BBB52280990A2FA27883998D72AF30161
+Ctrl.hexconstant = hexconstant:0000000255
+Output = 97151B4C76945063E2EB0529DC067D97D7BBA90776D8126D91F34F3101AEA8BA
+Result = KDF_DERIVE_ERROR

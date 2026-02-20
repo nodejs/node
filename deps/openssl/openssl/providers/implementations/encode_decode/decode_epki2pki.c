@@ -56,8 +56,8 @@ static void epki2pki_freectx(void *vctx)
  * PrivateKeyInfo.
  */
 static int epki2pki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
-                           OSSL_CALLBACK *data_cb, void *data_cbarg,
-                           OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct epki2pki_ctx_st *ctx = vctx;
     BUF_MEM *mem = NULL;
@@ -84,7 +84,7 @@ static int epki2pki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     der_len = (long)mem->length;
     OPENSSL_free(mem);
 
-    ok = 1;                      /* Assume good */
+    ok = 1; /* Assume good */
     ERR_set_mark();
     if ((p8 = d2i_X509_SIG(NULL, &pder, der_len)) != NULL) {
         char pbuf[1024];
@@ -102,9 +102,9 @@ static int epki2pki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
 
             X509_SIG_get0(p8, &alg, &oct);
             if (!PKCS12_pbe_crypt_ex(alg, pbuf, plen,
-                                     oct->data, oct->length,
-                                     &new_der, &new_der_len, 0,
-                                     PROV_LIBCTX_OF(ctx->provctx), NULL)) {
+                    oct->data, oct->length,
+                    &new_der, &new_der_len, 0,
+                    PROV_LIBCTX_OF(ctx->provctx), NULL)) {
                 ok = 0;
             } else {
                 OPENSSL_free(der);
@@ -135,11 +135,11 @@ static int epki2pki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         OBJ_obj2txt(keytype, sizeof(keytype), alg->algorithm, 0);
 
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                keytype, 0);
+            keytype, 0);
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
-                                                "PrivateKeyInfo", 0);
+            "PrivateKeyInfo", 0);
         *p++ = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                                 der, der_len);
+            der, der_len);
         *p++ = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
         *p = OSSL_PARAM_construct_end();
 

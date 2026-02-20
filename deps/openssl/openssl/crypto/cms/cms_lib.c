@@ -20,21 +20,22 @@
 #include "cms_local.h"
 
 static STACK_OF(CMS_CertificateChoices)
-**cms_get0_certificate_choices(CMS_ContentInfo *cms);
+    **
+    cms_get0_certificate_choices(CMS_ContentInfo *cms);
 
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(CMS_ContentInfo)
 IMPLEMENT_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 
 CMS_ContentInfo *d2i_CMS_ContentInfo(CMS_ContentInfo **a,
-                                     const unsigned char **in, long len)
+    const unsigned char **in, long len)
 {
     CMS_ContentInfo *ci;
     const CMS_CTX *ctx = ossl_cms_get0_cmsctx(a == NULL ? NULL : *a);
 
     ci = (CMS_ContentInfo *)ASN1_item_d2i_ex((ASN1_VALUE **)a, in, len,
-                                          (CMS_ContentInfo_it()),
-                                          ossl_cms_ctx_get0_libctx(ctx),
-                                          ossl_cms_ctx_get0_propq(ctx));
+        (CMS_ContentInfo_it()),
+        ossl_cms_ctx_get0_libctx(ctx),
+        ossl_cms_ctx_get0_propq(ctx));
     if (ci != NULL) {
         ERR_set_mark();
         ossl_cms_resolve_libctx(ci);
@@ -53,7 +54,7 @@ CMS_ContentInfo *CMS_ContentInfo_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
     CMS_ContentInfo *ci;
 
     ci = (CMS_ContentInfo *)ASN1_item_new_ex(ASN1_ITEM_rptr(CMS_ContentInfo),
-                                             libctx, propq);
+        libctx, propq);
     if (ci != NULL) {
         ci->ctx.libctx = libctx;
         ci->ctx.propq = NULL;
@@ -193,7 +194,6 @@ err:
     if (!icont)
         BIO_free(cont);
     return NULL;
-
 }
 
 /* unfortunately cannot constify SMIME_write_ASN1() due to this function */
@@ -273,7 +273,7 @@ ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms)
 
     case NID_id_smime_ct_authEnvelopedData:
         return &cms->d.authEnvelopedData->authEncryptedContentInfo
-                                        ->encryptedContent;
+                    ->encryptedContent;
 
     case NID_id_smime_ct_authData:
         return &cms->d.authenticatedData->encapContentInfo->eContent;
@@ -286,7 +286,6 @@ ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms)
             return &cms->d.other->value.octet_string;
         ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_TYPE);
         return NULL;
-
     }
 }
 
@@ -313,7 +312,7 @@ static ASN1_OBJECT **cms_get0_econtent_type(CMS_ContentInfo *cms)
 
     case NID_id_smime_ct_authEnvelopedData:
         return &cms->d.authEnvelopedData->authEncryptedContentInfo
-                                        ->contentType;
+                    ->contentType;
     case NID_id_smime_ct_authData:
         return &cms->d.authenticatedData->encapContentInfo->eContentType;
 
@@ -323,7 +322,6 @@ static ASN1_OBJECT **cms_get0_econtent_type(CMS_ContentInfo *cms)
     default:
         ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_TYPE);
         return NULL;
-
     }
 }
 
@@ -393,7 +391,7 @@ int CMS_set_detached(CMS_ContentInfo *cms, int detached)
 /* Create a digest BIO from an X509_ALGOR structure */
 
 BIO *ossl_cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm,
-                                       const CMS_CTX *ctx)
+    const CMS_CTX *ctx)
 {
     BIO *mdbio = NULL;
     const ASN1_OBJECT *digestoid;
@@ -406,7 +404,7 @@ BIO *ossl_cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm,
 
     (void)ERR_set_mark();
     fetched_digest = EVP_MD_fetch(ossl_cms_ctx_get0_libctx(ctx), alg,
-                                  ossl_cms_ctx_get0_propq(ctx));
+        ossl_cms_ctx_get0_propq(ctx));
 
     if (fetched_digest != NULL)
         digest = fetched_digest;
@@ -426,7 +424,7 @@ BIO *ossl_cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm,
     }
     EVP_MD_free(fetched_digest);
     return mdbio;
- err:
+err:
     EVP_MD_free(fetched_digest);
     BIO_free(mdbio);
     return NULL;
@@ -435,7 +433,7 @@ BIO *ossl_cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm,
 /* Locate a message digest content from a BIO chain based on SignerInfo */
 
 int ossl_cms_DigestAlgorithm_find_ctx(EVP_MD_CTX *mctx, BIO *chain,
-                                      X509_ALGOR *mdalg)
+    X509_ALGOR *mdalg)
 {
     int nid;
     const ASN1_OBJECT *mdoid;
@@ -462,7 +460,8 @@ int ossl_cms_DigestAlgorithm_find_ctx(EVP_MD_CTX *mctx, BIO *chain,
 }
 
 static STACK_OF(CMS_CertificateChoices)
-**cms_get0_certificate_choices(CMS_ContentInfo *cms)
+    **
+    cms_get0_certificate_choices(CMS_ContentInfo *cms)
 {
     switch (OBJ_obj2nid(cms->contentType)) {
 
@@ -482,7 +481,6 @@ static STACK_OF(CMS_CertificateChoices)
     default:
         ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_TYPE);
         return NULL;
-
     }
 }
 
@@ -544,7 +542,8 @@ int CMS_add1_cert(CMS_ContentInfo *cms, X509 *cert)
 }
 
 static STACK_OF(CMS_RevocationInfoChoice)
-**cms_get0_revocation_choices(CMS_ContentInfo *cms)
+    **
+    cms_get0_revocation_choices(CMS_ContentInfo *cms)
 {
     switch (OBJ_obj2nid(cms->contentType)) {
 
@@ -564,7 +563,6 @@ static STACK_OF(CMS_RevocationInfoChoice)
     default:
         ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_TYPE);
         return NULL;
-
     }
 }
 
@@ -625,14 +623,13 @@ STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms)
         cch = sk_CMS_CertificateChoices_value(*pcerts, i);
         if (cch->type == 0) {
             if (!ossl_x509_add_cert_new(&certs, cch->d.certificate,
-                                        X509_ADD_FLAG_UP_REF)) {
+                    X509_ADD_FLAG_UP_REF)) {
                 sk_X509_pop_free(certs, X509_free);
                 return NULL;
             }
         }
     }
     return certs;
-
 }
 
 STACK_OF(X509_CRL) *CMS_get1_crls(CMS_ContentInfo *cms)
@@ -694,7 +691,7 @@ int ossl_cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert)
     M_ASN1_free_of(*pias, CMS_IssuerAndSerialNumber);
     *pias = ias;
     return 1;
- err:
+err:
     M_ASN1_free_of(ias, CMS_IssuerAndSerialNumber);
     ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
     return 0;

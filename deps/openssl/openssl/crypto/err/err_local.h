@@ -37,17 +37,16 @@ static ossl_inline void err_clear_data(ERR_STATE *es, size_t i, int deall)
 }
 
 static ossl_inline void err_set_error(ERR_STATE *es, size_t i,
-                                      int lib, int reason)
+    int lib, int reason)
 {
-    es->err_buffer[i] =
-        lib == ERR_LIB_SYS
-        ? (unsigned int)(ERR_SYSTEM_FLAG |  reason)
+    es->err_buffer[i] = lib == ERR_LIB_SYS
+        ? (unsigned int)(ERR_SYSTEM_FLAG | reason)
         : ERR_PACK(lib, 0, reason);
 }
 
 static ossl_inline void err_set_debug(ERR_STATE *es, size_t i,
-                                      const char *file, int line,
-                                      const char *fn)
+    const char *file, int line,
+    const char *fn)
 {
     /*
      * We dup the file and fn strings because they may be provider owned. If the
@@ -67,7 +66,7 @@ static ossl_inline void err_set_debug(ERR_STATE *es, size_t i,
 }
 
 static ossl_inline void err_set_data(ERR_STATE *es, size_t i,
-                                     void *data, size_t datasz, int flags)
+    void *data, size_t datasz, int flags)
 {
     if ((es->err_data_flags[i] & ERR_TXT_MALLOCED) != 0)
         OPENSSL_free(es->err_data[i]);
@@ -91,4 +90,4 @@ static ossl_inline void err_clear(ERR_STATE *es, size_t i, int deall)
 
 ERR_STATE *ossl_err_get_state_int(void);
 void ossl_err_string_int(unsigned long e, const char *func,
-                         char *buf, size_t len);
+    char *buf, size_t len);

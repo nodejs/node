@@ -32,7 +32,7 @@ CONF_VALUE *_CONF_get_section(const CONF *conf, const char *section)
 }
 
 STACK_OF(CONF_VALUE) *_CONF_get_section_values(const CONF *conf,
-                                               const char *section)
+    const char *section)
 {
     CONF_VALUE *v;
 
@@ -64,7 +64,7 @@ int _CONF_add_string(CONF *conf, CONF_VALUE *section, CONF_VALUE *value)
 }
 
 char *_CONF_get_string(const CONF *conf, const char *section,
-                       const char *name)
+    const char *name)
 {
     CONF_VALUE *v, vv;
     char *p;
@@ -205,7 +205,7 @@ CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
         goto err;
     return v;
 
- err:
+err:
     sk_CONF_VALUE_free(sk);
     if (v != NULL)
         OPENSSL_free(v->section);

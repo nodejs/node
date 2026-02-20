@@ -23,8 +23,13 @@ int ossl_prov_seeding_from_dispatch(const OSSL_DISPATCH *fns)
          * multiple versions of libcrypto (e.g. one static and one dynamic), but
          * sharing a single fips.so. We do a simple sanity check here.
          */
-#define set_func(c, f) \
-    do { if (c == NULL) c = f; else if (c != f) return 0; } while (0)
+#define set_func(c, f)   \
+    do {                 \
+        if (c == NULL)   \
+            c = f;       \
+        else if (c != f) \
+            return 0;    \
+    } while (0)
         switch (fns->function_id) {
         case OSSL_FUNC_GET_ENTROPY:
             set_func(c_get_entropy, OSSL_FUNC_get_entropy(fns));
@@ -45,29 +50,29 @@ int ossl_prov_seeding_from_dispatch(const OSSL_DISPATCH *fns)
 }
 
 size_t ossl_prov_get_entropy(PROV_CTX *prov_ctx, unsigned char **pout,
-                             int entropy, size_t min_len, size_t max_len)
+    int entropy, size_t min_len, size_t max_len)
 {
     if (c_get_entropy == NULL)
         return 0;
     return c_get_entropy(ossl_prov_ctx_get0_handle(prov_ctx),
-                         pout, entropy, min_len, max_len);
+        pout, entropy, min_len, max_len);
 }
 
 void ossl_prov_cleanup_entropy(PROV_CTX *prov_ctx, unsigned char *buf,
-                               size_t len)
+    size_t len)
 {
     if (c_cleanup_entropy != NULL)
         c_cleanup_entropy(ossl_prov_ctx_get0_handle(prov_ctx), buf, len);
 }
 
 size_t ossl_prov_get_nonce(PROV_CTX *prov_ctx, unsigned char **pout,
-                           size_t min_len, size_t max_len,
-                           const void *salt,size_t salt_len)
+    size_t min_len, size_t max_len,
+    const void *salt, size_t salt_len)
 {
     if (c_get_nonce == NULL)
         return 0;
     return c_get_nonce(ossl_prov_ctx_get0_handle(prov_ctx), pout,
-                       min_len, max_len, salt, salt_len);
+        min_len, max_len, salt, salt_len);
 }
 
 void ossl_prov_cleanup_nonce(PROV_CTX *prov_ctx, unsigned char *buf, size_t len)

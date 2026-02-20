@@ -58,7 +58,7 @@ int ossl_i2c_ASN1_BIT_STRING(ASN1_BIT_STRING *a, unsigned char **pp)
                 else if (j & 0x80)
                     bits = 7;
                 else
-                    bits = 0;       /* should not happen */
+                    bits = 0; /* should not happen */
             }
         }
     } else
@@ -82,7 +82,7 @@ int ossl_i2c_ASN1_BIT_STRING(ASN1_BIT_STRING *a, unsigned char **pp)
 }
 
 ASN1_BIT_STRING *ossl_c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
-                                          const unsigned char **pp, long len)
+    const unsigned char **pp, long len)
 {
     ASN1_BIT_STRING *ret = NULL;
     const unsigned char *p;
@@ -118,7 +118,7 @@ ASN1_BIT_STRING *ossl_c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
     ret->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07); /* clear */
     ret->flags |= (ASN1_STRING_FLAG_BITS_LEFT | i); /* set */
 
-    if (len-- > 1) {            /* using one because of the bits left byte */
+    if (len-- > 1) { /* using one because of the bits left byte */
         s = OPENSSL_malloc((int)len);
         if (s == NULL) {
             i = ERR_R_MALLOC_FAILURE;
@@ -138,7 +138,7 @@ ASN1_BIT_STRING *ossl_c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
         (*a) = ret;
     *pp = p;
     return ret;
- err:
+err:
     ERR_raise(ERR_LIB_ASN1, i);
     if ((a == NULL) || (*a != ret))
         ASN1_BIT_STRING_free(ret);
@@ -169,7 +169,7 @@ int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value)
 
     if ((a->length < (w + 1)) || (a->data == NULL)) {
         if (!value)
-            return 1;         /* Don't need to set */
+            return 1; /* Don't need to set */
         c = OPENSSL_clear_realloc(a->data, a->length, w + 1);
         if (c == NULL) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
@@ -207,7 +207,7 @@ int ASN1_BIT_STRING_get_bit(const ASN1_BIT_STRING *a, int n)
  * 'len' is the length of 'flags'.
  */
 int ASN1_BIT_STRING_check(const ASN1_BIT_STRING *a,
-                          const unsigned char *flags, int flags_len)
+    const unsigned char *flags, int flags_len)
 {
     int i, ok;
     /* Check if there is one bit set at all. */

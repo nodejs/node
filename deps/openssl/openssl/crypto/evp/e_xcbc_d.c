@@ -18,24 +18,24 @@
 
 #ifndef OPENSSL_NO_DES
 
-# include <openssl/evp.h>
-# include <openssl/objects.h>
-# include "crypto/evp.h"
-# include <openssl/des.h>
-# include "evp_local.h"
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include "crypto/evp.h"
+#include <openssl/des.h>
+#include "evp_local.h"
 
 static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc);
+    const unsigned char *iv, int enc);
 static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                           const unsigned char *in, size_t inl);
+    const unsigned char *in, size_t inl);
 
 typedef struct {
-    DES_key_schedule ks;        /* key schedule */
+    DES_key_schedule ks; /* key schedule */
     DES_cblock inw;
     DES_cblock outw;
 } DESX_CBC_KEY;
 
-# define data(ctx) EVP_C_DATA(DESX_CBC_KEY,ctx)
+#define data(ctx) EVP_C_DATA(DESX_CBC_KEY, ctx)
 
 static const EVP_CIPHER d_xcbc_cipher = {
     NID_desx_cbc,
@@ -58,7 +58,7 @@ const EVP_CIPHER *EVP_desx_cbc(void)
 }
 
 static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc)
+    const unsigned char *iv, int enc)
 {
     DES_cblock *deskey = (DES_cblock *)key;
 
@@ -70,22 +70,22 @@ static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 }
 
 static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                           const unsigned char *in, size_t inl)
+    const unsigned char *in, size_t inl)
 {
     while (inl >= EVP_MAXCHUNK) {
         DES_xcbc_encrypt(in, out, (long)EVP_MAXCHUNK, &data(ctx)->ks,
-                         (DES_cblock *)ctx->iv,
-                         &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_is_encrypting(ctx));
+            (DES_cblock *)ctx->iv,
+            &data(ctx)->inw, &data(ctx)->outw,
+            EVP_CIPHER_CTX_is_encrypting(ctx));
         inl -= EVP_MAXCHUNK;
         in += EVP_MAXCHUNK;
         out += EVP_MAXCHUNK;
     }
     if (inl)
         DES_xcbc_encrypt(in, out, (long)inl, &data(ctx)->ks,
-                         (DES_cblock *)ctx->iv,
-                         &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_is_encrypting(ctx));
+            (DES_cblock *)ctx->iv,
+            &data(ctx)->inw, &data(ctx)->outw,
+            EVP_CIPHER_CTX_is_encrypting(ctx));
     return 1;
 }
 #endif

@@ -20,14 +20,14 @@ typedef struct {
     char *path;
     OSSL_provider_init_fn *init;
     STACK_OF(INFOPAIR) *parameters;
-    unsigned int is_fallback:1;
+    unsigned int is_fallback : 1;
 } OSSL_PROVIDER_INFO;
 
 extern const OSSL_PROVIDER_INFO ossl_predefined_providers[];
 
 void ossl_provider_info_clear(OSSL_PROVIDER_INFO *info);
 int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
-                                    OSSL_PROVIDER_INFO *entry);
+    OSSL_PROVIDER_INFO *entry);
 int ossl_provider_info_add_parameter(OSSL_PROVIDER_INFO *provinfo,
-                                     const char *name,
-                                     const char *value);
+    const char *name,
+    const char *value);

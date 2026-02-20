@@ -393,6 +393,29 @@ could fill in the parameters like this:
     if ((p = OSSL_PARAM_locate(params, "cookie")) != NULL)
         OSSL_PARAM_set_utf8_ptr(p, "cookie value");
 
+=head2 Example 3
+
+This example shows a special case where
+I<-Wincompatible-pointer-types-discards-qualifiers> may be set during
+compilation. The value for I<buf> cannot be a I<const char *> type string. An
+alternative in this case would be to use B<OSSL_PARAM> macro abbreviated calls
+rather than the specific callers which allows you to define the sha1 argument
+as a standard character array (I<char[]>).
+
+For example, this code:
+
+    OSSL_PARAM params[2];
+    params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
+    params[1] = OSSL_PARAM_construct_end();
+
+Can be made compatible with the following version:
+
+    char sha1[] = "SHA1"; /* sha1 is defined as char[] in this case */
+    OSSL_PARAM params[2];
+
+    params[0] = OSSL_PARAM_construct_utf8_string("digest", sha1, 0);
+    params[1] = OSSL_PARAM_construct_end();
+
 =head1 SEE ALSO
 
 L<openssl-core.h(7)>, L<OSSL_PARAM(3)>
@@ -403,7 +426,7 @@ These APIs were introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

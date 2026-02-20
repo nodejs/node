@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,8 @@ int main(int argc, char *argv[])
 {
     char *port = "*:4433";
     BIO *in = NULL;
-    BIO *ssl_bio, *tmp;
+    BIO *ssl_bio = NULL;
+    BIO *tmp;
     SSL_CTX *ctx;
     SSL_CONF_CTX *cctx = NULL;
     CONF *conf = NULL;
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
             continue;
         if (rv != -2) {
             fprintf(stderr, "Error processing %s = %s\n",
-                    cnf->name, cnf->value);
+                cnf->name, cnf->value);
             ERR_print_errors_fp(stderr);
             goto err;
         }
@@ -97,8 +98,9 @@ int main(int argc, char *argv[])
      * Basically it means the SSL BIO will be automatically setup
      */
     BIO_set_accept_bios(in, ssl_bio);
+    ssl_bio = NULL;
 
- again:
+again:
     /*
      * The first call will setup the accept socket, and the second will get a
      * socket.  In this loop, the first actual accept will occur in the
@@ -131,9 +133,10 @@ int main(int argc, char *argv[])
     }
 
     ret = EXIT_SUCCESS;
- err:
+err:
     if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
     BIO_free(in);
+    BIO_free_all(ssl_bio);
     return ret;
 }

@@ -47,7 +47,7 @@ static void aria_ccm_freectx(void *vctx)
 {
     PROV_ARIA_CCM_CTX *ctx = (PROV_ARIA_CCM_CTX *)vctx;
 
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 /* aria128ccm functions */
@@ -56,4 +56,3 @@ IMPLEMENT_aead_cipher(aria, ccm, CCM, AEAD_FLAGS, 128, 8, 96);
 IMPLEMENT_aead_cipher(aria, ccm, CCM, AEAD_FLAGS, 192, 8, 96);
 /* aria256ccm functions */
 IMPLEMENT_aead_cipher(aria, ccm, CCM, AEAD_FLAGS, 256, 8, 96);
-

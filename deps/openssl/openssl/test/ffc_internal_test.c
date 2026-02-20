@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019-2020, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -181,14 +181,14 @@ static int ffc_params_validate_g_unverified_test(void)
     ossl_ffc_params_init(&params);
 
     if (!TEST_ptr(p = BN_bin2bn(dsa_2048_224_sha256_p,
-                                sizeof(dsa_2048_224_sha256_p), NULL)))
+                      sizeof(dsa_2048_224_sha256_p), NULL)))
         goto err;
     p1 = p;
     if (!TEST_ptr(q = BN_bin2bn(dsa_2048_224_sha256_q,
-                                sizeof(dsa_2048_224_sha256_q), NULL)))
+                      sizeof(dsa_2048_224_sha256_q), NULL)))
         goto err;
     if (!TEST_ptr(g = BN_bin2bn(dsa_2048_224_sha256_g,
-                                sizeof(dsa_2048_224_sha256_g), NULL)))
+                      sizeof(dsa_2048_224_sha256_g), NULL)))
         goto err;
     g1 = g;
 
@@ -200,36 +200,36 @@ static int ffc_params_validate_g_unverified_test(void)
     ossl_ffc_set_digest(&params, "SHA256", NULL);
 
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     ossl_ffc_params_set0_pqg(&params, p, q, g);
     g = NULL;
     if (!TEST_true(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DSA,
-                                                      &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* incorrect g */
     BN_add_word(g1, 1);
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* fail if g < 2 */
     BN_set_word(g1, 1);
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     BN_copy(g1, p1);
     /* Fail if g >= p */
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     ret = 1;
@@ -249,12 +249,12 @@ static int ffc_params_validate_pq_test(void)
 
     ossl_ffc_params_init(&params);
     if (!TEST_ptr(p = BN_bin2bn(dsa_2048_224_sha224_p,
-                                   sizeof(dsa_2048_224_sha224_p),
-                                   NULL)))
+                      sizeof(dsa_2048_224_sha224_p),
+                      NULL)))
         goto err;
     if (!TEST_ptr(q = BN_bin2bn(dsa_2048_224_sha224_q,
-                                   sizeof(dsa_2048_224_sha224_q),
-                                   NULL)))
+                      sizeof(dsa_2048_224_sha224_q),
+                      NULL)))
         goto err;
 
     /* No p */
@@ -264,73 +264,72 @@ static int ffc_params_validate_pq_test(void)
     ossl_ffc_set_digest(&params, "SHA224", NULL);
 
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* Test valid case */
     ossl_ffc_params_set0_pqg(&params, p, NULL, NULL);
     p = NULL;
     ossl_ffc_params_set_validate_params(&params, dsa_2048_224_sha224_seed,
-                                        sizeof(dsa_2048_224_sha224_seed),
-                                        dsa_2048_224_sha224_counter);
+        sizeof(dsa_2048_224_sha224_seed),
+        dsa_2048_224_sha224_counter);
     if (!TEST_true(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DSA,
-                                                      &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* Bad counter - so p is not prime */
     ossl_ffc_params_set_validate_params(&params, dsa_2048_224_sha224_seed,
-                                        sizeof(dsa_2048_224_sha224_seed),
-                                        1);
+        sizeof(dsa_2048_224_sha224_seed),
+        1);
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* seedlen smaller than N */
     ossl_ffc_params_set_validate_params(&params, dsa_2048_224_sha224_seed,
-                                        sizeof(dsa_2048_224_sha224_seed)-1,
-                                        dsa_2048_224_sha224_counter);
+        sizeof(dsa_2048_224_sha224_seed) - 1,
+        dsa_2048_224_sha224_counter);
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
-    /* Provided seed doesnt produce a valid prime q */
+    /* Provided seed doesn't produce a valid prime q */
     ossl_ffc_params_set_validate_params(&params, dsa_2048_224_sha224_bad_seed,
-                                        sizeof(dsa_2048_224_sha224_bad_seed),
-                                        dsa_2048_224_sha224_counter);
+        sizeof(dsa_2048_224_sha224_bad_seed),
+        dsa_2048_224_sha224_counter);
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     if (!TEST_ptr(p = BN_bin2bn(dsa_3072_256_sha512_p,
-                                sizeof(dsa_3072_256_sha512_p), NULL)))
+                      sizeof(dsa_3072_256_sha512_p), NULL)))
         goto err;
     if (!TEST_ptr(q = BN_bin2bn(dsa_3072_256_sha512_q,
-                                sizeof(dsa_3072_256_sha512_q),
-                                NULL)))
+                      sizeof(dsa_3072_256_sha512_q),
+                      NULL)))
         goto err;
 
-
     ossl_ffc_params_set0_pqg(&params, p, q, NULL);
-    p = q  = NULL;
+    p = q = NULL;
     ossl_ffc_set_digest(&params, "SHA512", NULL);
     ossl_ffc_params_set_validate_params(&params, dsa_3072_256_sha512_seed,
-                                        sizeof(dsa_3072_256_sha512_seed),
-                                        dsa_3072_256_sha512_counter);
+        sizeof(dsa_3072_256_sha512_seed),
+        dsa_3072_256_sha512_counter);
     /* Q doesn't div P-1 */
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
 
     /* Bad L/N for FIPS DH */
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DH,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            &res, NULL)))
         goto err;
 
     ret = 1;
@@ -350,12 +349,12 @@ static int ffc_params_gen_test(void)
 
     ossl_ffc_params_init(&params);
     if (!TEST_true(ossl_ffc_params_FIPS186_4_generate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      2048, 256, &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            2048, 256, &res, NULL)))
         goto err;
     if (!TEST_true(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            &res, NULL)))
         goto err;
 
     ret = 1;
@@ -372,12 +371,12 @@ static int ffc_params_gen_canonicalg_test(void)
     ossl_ffc_params_init(&params);
     params.gindex = 1;
     if (!TEST_true(ossl_ffc_params_FIPS186_4_generate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      2048, 256, &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            2048, 256, &res, NULL)))
         goto err;
     if (!TEST_true(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            &res, NULL)))
         goto err;
 
     if (!TEST_true(ossl_ffc_params_print(bio_out, &params, 4)))
@@ -399,12 +398,12 @@ static int ffc_params_fips186_2_gen_validate_test(void)
     if (!TEST_ptr(bn = BN_new()))
         goto err;
     if (!TEST_true(ossl_ffc_params_FIPS186_2_generate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      1024, 160, &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            1024, 160, &res, NULL)))
         goto err;
     if (!TEST_true(ossl_ffc_params_FIPS186_2_validate(NULL, &params,
-                                                      FFC_PARAM_TYPE_DH,
-                                                      &res, NULL)))
+            FFC_PARAM_TYPE_DH,
+            &res, NULL)))
         goto err;
 
     /*
@@ -412,8 +411,8 @@ static int ffc_params_fips186_2_gen_validate_test(void)
      * fips 186-4 given the same seed value. So validation of q will fail.
      */
     if (!TEST_false(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                       FFC_PARAM_TYPE_DSA,
-                                                       &res, NULL)))
+            FFC_PARAM_TYPE_DSA,
+            &res, NULL)))
         goto err;
     /* As the params are randomly generated the error is one of the following */
     if (!TEST_true(res == FFC_CHECK_Q_MISMATCH || res == FFC_CHECK_Q_NOT_PRIME))
@@ -422,8 +421,9 @@ static int ffc_params_fips186_2_gen_validate_test(void)
     ossl_ffc_params_set_flags(&params, FFC_PARAM_FLAG_VALIDATE_G);
     /* Partially valid g test will still pass */
     if (!TEST_int_eq(ossl_ffc_params_FIPS186_4_validate(NULL, &params,
-                                                        FFC_PARAM_TYPE_DSA,
-                                                        &res, NULL), 2))
+                         FFC_PARAM_TYPE_DSA,
+                         &res, NULL),
+            2))
         goto err;
 
     if (!TEST_true(ossl_ffc_params_print(bio_out, &params, 4)))
@@ -569,7 +569,7 @@ static int ffc_private_validate_test(void)
 
     /* Pass if priv key >= 1 */
     if (!TEST_true(ossl_ffc_validate_private_key(params->q, BN_value_one(),
-                                                 &res)))
+            &res)))
         goto err;
 
     if (!TEST_ptr(BN_copy(priv, params->q)))
@@ -644,8 +644,8 @@ static int ffc_private_gen_test(int index)
         goto err;
     /* N is ignored in this case */
     if (!TEST_true(ossl_ffc_generate_private_key(ctx, params, 0,
-                                                 ossl_ifc_ffc_compute_security_bits(BN_num_bits(params->p)),
-                                                 priv)))
+            ossl_ifc_ffc_compute_security_bits(BN_num_bits(params->p)),
+            priv)))
         goto err;
     if (!TEST_int_le(BN_num_bits(priv), 225))
         goto err;

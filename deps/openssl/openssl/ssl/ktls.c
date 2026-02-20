@@ -11,7 +11,7 @@
 #include "internal/ktls.h"
 
 #if defined(__FreeBSD__)
-# include "crypto/cryptodev.h"
+#include "crypto/cryptodev.h"
 
 /*-
  * Check if a given cipher is supported by the KTLS interface.
@@ -20,7 +20,7 @@
  * supports the cipher suite used at all.
  */
 int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
-                                const EVP_CIPHER_CTX *dd)
+    const EVP_CIPHER_CTX *dd)
 {
 
     switch (s->version) {
@@ -56,10 +56,10 @@ int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
 
 /* Function to configure kernel TLS structure */
 int ktls_configure_crypto(const SSL *s, const EVP_CIPHER *c, EVP_CIPHER_CTX *dd,
-                          void *rl_sequence, ktls_crypto_info_t *crypto_info,
-                          unsigned char **rec_seq, unsigned char *iv,
-                          unsigned char *key, unsigned char *mac_key,
-                          size_t mac_secret_size)
+    void *rl_sequence, ktls_crypto_info_t *crypto_info,
+    unsigned char **rec_seq, unsigned char *iv,
+    unsigned char *key, unsigned char *mac_key,
+    size_t mac_secret_size)
 {
     memset(crypto_info, 0, sizeof(*crypto_info));
     switch (s->s3.tmp.new_cipher->algorithm_enc) {
@@ -70,8 +70,7 @@ int ktls_configure_crypto(const SSL *s, const EVP_CIPHER *c, EVP_CIPHER_CTX *dd,
             crypto_info->iv_len = EVP_CIPHER_CTX_get_iv_length(dd);
             if (crypto_info->iv_len < 0)
                 return 0;
-        }
-        else
+        } else
             crypto_info->iv_len = EVP_GCM_TLS_FIXED_IV_LEN;
         break;
     case SSL_AES128:
@@ -102,24 +101,24 @@ int ktls_configure_crypto(const SSL *s, const EVP_CIPHER *c, EVP_CIPHER_CTX *dd,
     crypto_info->iv = iv;
     crypto_info->tls_vmajor = (s->version >> 8) & 0x000000ff;
     crypto_info->tls_vminor = (s->version & 0x000000ff);
-# ifdef TCP_RXTLS_ENABLE
+#ifdef TCP_RXTLS_ENABLE
     memcpy(crypto_info->rec_seq, rl_sequence, sizeof(crypto_info->rec_seq));
     if (rec_seq != NULL)
         *rec_seq = crypto_info->rec_seq;
-# else
+#else
     if (rec_seq != NULL)
         *rec_seq = NULL;
-# endif
+#endif
     return 1;
 };
 
-#endif                         /* __FreeBSD__ */
+#endif /* __FreeBSD__ */
 
 #if defined(OPENSSL_SYS_LINUX)
 
 /* Function to check supported ciphers in Linux */
 int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
-                                const EVP_CIPHER_CTX *dd)
+    const EVP_CIPHER_CTX *dd)
 {
     switch (s->version) {
     case TLS1_2_VERSION:
@@ -129,27 +128,27 @@ int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
         return 0;
     }
 
-    /* check that cipher is AES_GCM_128, AES_GCM_256, AES_CCM_128 
+    /* check that cipher is AES_GCM_128, AES_GCM_256, AES_CCM_128
      * or Chacha20-Poly1305
      */
-# ifdef OPENSSL_KTLS_AES_CCM_128
+#ifdef OPENSSL_KTLS_AES_CCM_128
     if (EVP_CIPHER_is_a(c, "AES-128-CCM")) {
         if (s->version == TLS_1_3_VERSION /* broken on 5.x kernels */
             || EVP_CIPHER_CTX_get_tag_length(dd) != EVP_CCM_TLS_TAG_LEN)
             return 0;
         return 1;
     } else
-# endif
-    if (0
-# ifdef OPENSSL_KTLS_AES_GCM_128
-        || EVP_CIPHER_is_a(c, "AES-128-GCM")
-# endif
-# ifdef OPENSSL_KTLS_AES_GCM_256
-        || EVP_CIPHER_is_a(c, "AES-256-GCM")
-# endif
-# ifdef OPENSSL_KTLS_CHACHA20_POLY1305
-        || EVP_CIPHER_is_a(c, "ChaCha20-Poly1305")
-# endif
+#endif
+        if (0
+#ifdef OPENSSL_KTLS_AES_GCM_128
+            || EVP_CIPHER_is_a(c, "AES-128-GCM")
+#endif
+#ifdef OPENSSL_KTLS_AES_GCM_256
+            || EVP_CIPHER_is_a(c, "AES-256-GCM")
+#endif
+#ifdef OPENSSL_KTLS_CHACHA20_POLY1305
+            || EVP_CIPHER_is_a(c, "ChaCha20-Poly1305")
+#endif
         ) {
         return 1;
     }
@@ -158,90 +157,87 @@ int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
 
 /* Function to configure kernel TLS structure */
 int ktls_configure_crypto(const SSL *s, const EVP_CIPHER *c, EVP_CIPHER_CTX *dd,
-                          void *rl_sequence, ktls_crypto_info_t *crypto_info,
-                          unsigned char **rec_seq, unsigned char *iv,
-                          unsigned char *key, unsigned char *mac_key,
-                          size_t mac_secret_size)
+    void *rl_sequence, ktls_crypto_info_t *crypto_info,
+    unsigned char **rec_seq, unsigned char *iv,
+    unsigned char *key, unsigned char *mac_key,
+    size_t mac_secret_size)
 {
     unsigned char geniv[12];
     unsigned char *iiv = iv;
 
-    if (s->version == TLS1_2_VERSION &&
-        EVP_CIPHER_get_mode(c) == EVP_CIPH_GCM_MODE) {
+    if (s->version == TLS1_2_VERSION && EVP_CIPHER_get_mode(c) == EVP_CIPH_GCM_MODE) {
         if (!EVP_CIPHER_CTX_get_updated_iv(dd, geniv,
-                                           EVP_GCM_TLS_FIXED_IV_LEN
-                                           + EVP_GCM_TLS_EXPLICIT_IV_LEN))
+                EVP_GCM_TLS_FIXED_IV_LEN
+                    + EVP_GCM_TLS_EXPLICIT_IV_LEN))
             return 0;
         iiv = geniv;
     }
 
     memset(crypto_info, 0, sizeof(*crypto_info));
-    switch (EVP_CIPHER_get_nid(c))
-    {
-# ifdef OPENSSL_KTLS_AES_GCM_128
+    switch (EVP_CIPHER_get_nid(c)) {
+#ifdef OPENSSL_KTLS_AES_GCM_128
     case NID_aes_128_gcm:
         crypto_info->gcm128.info.cipher_type = TLS_CIPHER_AES_GCM_128;
         crypto_info->gcm128.info.version = s->version;
         crypto_info->tls_crypto_info_len = sizeof(crypto_info->gcm128);
         memcpy(crypto_info->gcm128.iv, iiv + EVP_GCM_TLS_FIXED_IV_LEN,
-               TLS_CIPHER_AES_GCM_128_IV_SIZE);
+            TLS_CIPHER_AES_GCM_128_IV_SIZE);
         memcpy(crypto_info->gcm128.salt, iiv, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
         memcpy(crypto_info->gcm128.key, key, EVP_CIPHER_get_key_length(c));
         memcpy(crypto_info->gcm128.rec_seq, rl_sequence,
-               TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
+            TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
         if (rec_seq != NULL)
             *rec_seq = crypto_info->gcm128.rec_seq;
         return 1;
-# endif
-# ifdef OPENSSL_KTLS_AES_GCM_256
+#endif
+#ifdef OPENSSL_KTLS_AES_GCM_256
     case NID_aes_256_gcm:
         crypto_info->gcm256.info.cipher_type = TLS_CIPHER_AES_GCM_256;
         crypto_info->gcm256.info.version = s->version;
         crypto_info->tls_crypto_info_len = sizeof(crypto_info->gcm256);
         memcpy(crypto_info->gcm256.iv, iiv + EVP_GCM_TLS_FIXED_IV_LEN,
-               TLS_CIPHER_AES_GCM_256_IV_SIZE);
+            TLS_CIPHER_AES_GCM_256_IV_SIZE);
         memcpy(crypto_info->gcm256.salt, iiv, TLS_CIPHER_AES_GCM_256_SALT_SIZE);
         memcpy(crypto_info->gcm256.key, key, EVP_CIPHER_get_key_length(c));
         memcpy(crypto_info->gcm256.rec_seq, rl_sequence,
-               TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
+            TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
         if (rec_seq != NULL)
             *rec_seq = crypto_info->gcm256.rec_seq;
         return 1;
-# endif
-# ifdef OPENSSL_KTLS_AES_CCM_128
+#endif
+#ifdef OPENSSL_KTLS_AES_CCM_128
     case NID_aes_128_ccm:
         crypto_info->ccm128.info.cipher_type = TLS_CIPHER_AES_CCM_128;
         crypto_info->ccm128.info.version = s->version;
         crypto_info->tls_crypto_info_len = sizeof(crypto_info->ccm128);
         memcpy(crypto_info->ccm128.iv, iiv + EVP_CCM_TLS_FIXED_IV_LEN,
-               TLS_CIPHER_AES_CCM_128_IV_SIZE);
+            TLS_CIPHER_AES_CCM_128_IV_SIZE);
         memcpy(crypto_info->ccm128.salt, iiv, TLS_CIPHER_AES_CCM_128_SALT_SIZE);
         memcpy(crypto_info->ccm128.key, key, EVP_CIPHER_get_key_length(c));
         memcpy(crypto_info->ccm128.rec_seq, rl_sequence,
-               TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE);
+            TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE);
         if (rec_seq != NULL)
             *rec_seq = crypto_info->ccm128.rec_seq;
         return 1;
-# endif
-# ifdef OPENSSL_KTLS_CHACHA20_POLY1305
+#endif
+#ifdef OPENSSL_KTLS_CHACHA20_POLY1305
     case NID_chacha20_poly1305:
         crypto_info->chacha20poly1305.info.cipher_type = TLS_CIPHER_CHACHA20_POLY1305;
         crypto_info->chacha20poly1305.info.version = s->version;
         crypto_info->tls_crypto_info_len = sizeof(crypto_info->chacha20poly1305);
         memcpy(crypto_info->chacha20poly1305.iv, iiv,
-               TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE);
+            TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE);
         memcpy(crypto_info->chacha20poly1305.key, key,
-               EVP_CIPHER_get_key_length(c));
+            EVP_CIPHER_get_key_length(c));
         memcpy(crypto_info->chacha20poly1305.rec_seq, rl_sequence,
-               TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE);
+            TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE);
         if (rec_seq != NULL)
             *rec_seq = crypto_info->chacha20poly1305.rec_seq;
         return 1;
-# endif
+#endif
     default:
         return 0;
     }
-
 }
 
 #endif /* OPENSSL_SYS_LINUX */

@@ -151,7 +151,7 @@ int main(int argc, char **argv)
      * computation below.
      */
     if (!EVP_EncryptUpdate(aesctx, composite_key + 16, &aes_len,
-                           test_n, sizeof(test_n))) {
+            test_n, sizeof(test_n))) {
         fprintf(stderr, "EVP_EncryptUpdate() failed\n");
         goto end;
     }

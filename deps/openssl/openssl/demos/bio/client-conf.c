@@ -55,7 +55,7 @@ int main(int argc, char **argv)
             continue;
         if (rv != -2) {
             fprintf(stderr, "Error processing %s = %s\n",
-                    cnf->name, cnf->value);
+                cnf->name, cnf->value);
             ERR_print_errors_fp(stderr);
             goto end;
         }
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
             break;
         BIO_write(out, tmpbuf, len);
     }
- end:
+end:
     SSL_CONF_CTX_free(cctx);
     BIO_free_all(sbio);
     BIO_free(out);

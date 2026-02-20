@@ -26,7 +26,7 @@ const OPTIONS *test_get_options(void)
     static const OPTIONS test_options[] = {
         OPT_TEST_OPTIONS_DEFAULT_USAGE,
         { "config", OPT_CONFIG_FILE, '<',
-          "The configuration file to use for the libctx" },
+            "The configuration file to use for the libctx" },
         { NULL }
     };
     return test_options;
@@ -53,7 +53,7 @@ int setup_tests(void)
             config_file = opt_arg();
             break;
         case OPT_TEST_CASES:
-           break;
+            break;
         default:
         case OPT_ERR:
             return 0;

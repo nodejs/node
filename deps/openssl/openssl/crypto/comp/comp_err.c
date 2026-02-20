@@ -14,26 +14,26 @@
 
 #ifndef OPENSSL_NO_COMP
 
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA COMP_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_DEFLATE_ERROR),
-    "zlib deflate error"},
-    {ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_INFLATE_ERROR),
-    "zlib inflate error"},
-    {ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_NOT_SUPPORTED),
-    "zlib not supported"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_DEFLATE_ERROR),
+        "zlib deflate error" },
+    { ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_INFLATE_ERROR),
+        "zlib inflate error" },
+    { ERR_PACK(ERR_LIB_COMP, 0, COMP_R_ZLIB_NOT_SUPPORTED),
+        "zlib not supported" },
+    { 0, NULL }
 };
 
-# endif
+#endif
 
 int ossl_err_load_COMP_strings(void)
 {
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(COMP_str_reasons[0].error) == NULL)
         ERR_load_strings_const(COMP_str_reasons);
-# endif
+#endif
     return 1;
 }
 #else

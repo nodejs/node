@@ -15,16 +15,16 @@
 #include <stdlib.h>
 #include <openssl/e_os2.h>
 
-# include "testutil.h"
+#include "testutil.h"
 
 #ifndef OPENSSL_NO_ENGINE
-# include <openssl/buffer.h>
-# include <openssl/crypto.h>
-# include <openssl/engine.h>
-# include <openssl/rsa.h>
-# include <openssl/err.h>
-# include <openssl/x509.h>
-# include <openssl/pem.h>
+#include <openssl/buffer.h>
+#include <openssl/crypto.h>
+#include <openssl/engine.h>
+#include <openssl/rsa.h>
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 static void display_engine_list(void)
 {
@@ -34,7 +34,7 @@ static void display_engine_list(void)
     loop = 0;
     for (h = ENGINE_get_first(); h != NULL; h = ENGINE_get_next(h)) {
         TEST_info("#%d: id = \"%s\", name = \"%s\"",
-               loop++, ENGINE_get_id(h), ENGINE_get_name(h));
+            loop++, ENGINE_get_id(h), ENGINE_get_name(h));
     }
 
     /*
@@ -62,17 +62,17 @@ static int test_engines(void)
 
     memset(block, 0, sizeof(block));
     if (!TEST_ptr(new_h1 = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(new_h1, "test_id0"))
-            || !TEST_true(ENGINE_set_name(new_h1, "First test item"))
-            || !TEST_ptr(new_h2 = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(new_h2, "test_id1"))
-            || !TEST_true(ENGINE_set_name(new_h2, "Second test item"))
-            || !TEST_ptr(new_h3 = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(new_h3, "test_id2"))
-            || !TEST_true(ENGINE_set_name(new_h3, "Third test item"))
-            || !TEST_ptr(new_h4 = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(new_h4, "test_id3"))
-            || !TEST_true(ENGINE_set_name(new_h4, "Fourth test item")))
+        || !TEST_true(ENGINE_set_id(new_h1, "test_id0"))
+        || !TEST_true(ENGINE_set_name(new_h1, "First test item"))
+        || !TEST_ptr(new_h2 = ENGINE_new())
+        || !TEST_true(ENGINE_set_id(new_h2, "test_id1"))
+        || !TEST_true(ENGINE_set_name(new_h2, "Second test item"))
+        || !TEST_ptr(new_h3 = ENGINE_new())
+        || !TEST_true(ENGINE_set_id(new_h3, "test_id2"))
+        || !TEST_true(ENGINE_set_name(new_h3, "Third test item"))
+        || !TEST_ptr(new_h4 = ENGINE_new())
+        || !TEST_true(ENGINE_set_id(new_h4, "test_id3"))
+        || !TEST_true(ENGINE_set_name(new_h4, "Fourth test item")))
         goto end;
     TEST_info("Engines:");
     display_engine_list();
@@ -90,7 +90,7 @@ static int test_engines(void)
     display_engine_list();
 
     if (!TEST_true(ENGINE_add(new_h3))
-            || !TEST_true(ENGINE_add(new_h2)))
+        || !TEST_true(ENGINE_add(new_h2)))
         goto end;
     TEST_info("Engines:");
     display_engine_list();
@@ -142,7 +142,7 @@ static int test_engines(void)
     display_engine_list();
 
     if (!TEST_true(ENGINE_add(new_h1))
-            || !TEST_true(ENGINE_remove(new_h1)))
+        || !TEST_true(ENGINE_remove(new_h1)))
         goto end;
 
     TEST_info("About to beef up the engine-type list");
@@ -152,19 +152,19 @@ static int test_engines(void)
         BIO_snprintf(buf, sizeof(buf), "Fake engine type %d", loop);
         ename[loop] = OPENSSL_strdup(buf);
         if (!TEST_ptr(block[loop] = ENGINE_new())
-                || !TEST_true(ENGINE_set_id(block[loop], eid[loop]))
-                || !TEST_true(ENGINE_set_name(block[loop], ename[loop])))
+            || !TEST_true(ENGINE_set_id(block[loop], eid[loop]))
+            || !TEST_true(ENGINE_set_name(block[loop], ename[loop])))
             goto end;
     }
     for (loop = 0; loop < NUMTOADD; loop++) {
         if (!TEST_true(ENGINE_add(block[loop]))) {
             test_note("Adding stopped at %d, (%s,%s)",
-                      loop, ENGINE_get_id(block[loop]),
-                      ENGINE_get_name(block[loop]));
+                loop, ENGINE_get_id(block[loop]),
+                ENGINE_get_name(block[loop]));
             goto cleanup_loop;
         }
     }
- cleanup_loop:
+cleanup_loop:
     TEST_info("About to empty the engine-type list");
     while ((ptr = ENGINE_get_first()) != NULL) {
         if (!TEST_true(ENGINE_remove(ptr)))
@@ -177,7 +177,7 @@ static int test_engines(void)
     }
     to_return = 1;
 
- end:
+end:
     ENGINE_free(new_h1);
     ENGINE_free(new_h2);
     ENGINE_free(new_h3);
@@ -194,14 +194,14 @@ static int called_encrypt = 0;
 
 /* Test function to check operation has been redirected */
 static int test_encrypt(EVP_PKEY_CTX *ctx, unsigned char *sig,
-                        size_t *siglen, const unsigned char *tbs, size_t tbslen)
+    size_t *siglen, const unsigned char *tbs, size_t tbslen)
 {
     called_encrypt = 1;
     return 1;
 }
 
 static int test_pkey_meths(ENGINE *e, EVP_PKEY_METHOD **pmeth,
-                           const int **pnids, int nid)
+    const int **pnids, int nid)
 {
     static const int rnid = EVP_PKEY_RSA;
     if (pmeth == NULL) {
@@ -222,12 +222,11 @@ static int test_pkey_meths(ENGINE *e, EVP_PKEY_METHOD **pmeth,
 
 static EVP_PKEY *get_test_pkey(void)
 {
-    static unsigned char n[] =
-        "\x00\xAA\x36\xAB\xCE\x88\xAC\xFD\xFF\x55\x52\x3C\x7F\xC4\x52\x3F"
-        "\x90\xEF\xA0\x0D\xF3\x77\x4A\x25\x9F\x2E\x62\xB4\xC5\xD9\x9C\xB5"
-        "\xAD\xB3\x00\xA0\x28\x5E\x53\x01\x93\x0E\x0C\x70\xFB\x68\x76\x93"
-        "\x9C\xE6\x16\xCE\x62\x4A\x11\xE0\x08\x6D\x34\x1E\xBC\xAC\xA0\xA1"
-        "\xF5";
+    static unsigned char n[] = "\x00\xAA\x36\xAB\xCE\x88\xAC\xFD\xFF\x55\x52\x3C\x7F\xC4\x52\x3F"
+                               "\x90\xEF\xA0\x0D\xF3\x77\x4A\x25\x9F\x2E\x62\xB4\xC5\xD9\x9C\xB5"
+                               "\xAD\xB3\x00\xA0\x28\x5E\x53\x01\x93\x0E\x0C\x70\xFB\x68\x76\x93"
+                               "\x9C\xE6\x16\xCE\x62\x4A\x11\xE0\x08\x6D\x34\x1E\xBC\xAC\xA0\xA1"
+                               "\xF5";
     static unsigned char e[] = "\x11";
 
     RSA *rsa = RSA_new();
@@ -239,8 +238,8 @@ static EVP_PKEY *get_test_pkey(void)
         return NULL;
     }
 
-    if (!RSA_set0_key(rsa, BN_bin2bn(n, sizeof(n)-1, NULL),
-                      BN_bin2bn(e, sizeof(e)-1, NULL), NULL)) {
+    if (!RSA_set0_key(rsa, BN_bin2bn(n, sizeof(n) - 1, NULL),
+            BN_bin2bn(e, sizeof(e) - 1, NULL), NULL)) {
         EVP_PKEY_free(pk);
         return NULL;
     }
@@ -271,16 +270,16 @@ static int test_redirect(void)
     TEST_info("EVP_PKEY_encrypt test: no redirection");
     /* Encrypt some data: should succeed but not be redirected */
     if (!TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
-            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
-            || !TEST_false(called_encrypt))
+        || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+        || !TEST_false(called_encrypt))
         goto err;
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
 
     /* Create a test ENGINE */
     if (!TEST_ptr(e = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(e, "Test redirect engine"))
-            || !TEST_true(ENGINE_set_name(e, "Test redirect engine")))
+        || !TEST_true(ENGINE_set_id(e, "Test redirect engine"))
+        || !TEST_true(ENGINE_set_name(e, "Test redirect engine")))
         goto err;
 
     /*
@@ -289,7 +288,7 @@ static int test_redirect(void)
      * engine has no public key methods.
      */
     if (!TEST_ptr_null(ctx = EVP_PKEY_CTX_new(pkey, e))
-            || !TEST_int_le(EVP_PKEY_set1_engine(pkey, e), 0))
+        || !TEST_int_le(EVP_PKEY_set1_engine(pkey, e), 0))
         goto err;
 
     /* Setup an empty test EVP_PKEY_METHOD and set callback to return it */
@@ -314,8 +313,8 @@ static int test_redirect(void)
         goto err;
     /* Encrypt some data: should succeed and be redirected */
     if (!TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
-            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
-            || !TEST_true(called_encrypt))
+        || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+        || !TEST_true(called_encrypt))
         goto err;
 
     EVP_PKEY_CTX_free(ctx);
@@ -324,9 +323,9 @@ static int test_redirect(void)
 
     /* Create context with default engine: should not be redirected */
     if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL))
-            || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
-            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
-            || !TEST_false(called_encrypt))
+        || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+        || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+        || !TEST_false(called_encrypt))
         goto err;
 
     EVP_PKEY_CTX_free(ctx);
@@ -340,14 +339,14 @@ static int test_redirect(void)
 
     /* Create context with default engine: should be redirected now */
     if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL))
-            || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
-            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
-            || !TEST_true(called_encrypt))
+        || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+        || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+        || !TEST_true(called_encrypt))
         goto err;
 
     to_return = 1;
 
- err:
+err:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     ENGINE_free(e);
@@ -388,8 +387,8 @@ static int test_x509_dup_w_engine(void)
 
     /* Create a test ENGINE */
     if (!TEST_ptr(e = ENGINE_new())
-            || !TEST_true(ENGINE_set_id(e, "Test dummy engine"))
-            || !TEST_true(ENGINE_set_name(e, "Test dummy engine")))
+        || !TEST_true(ENGINE_set_id(e, "Test dummy engine"))
+        || !TEST_true(ENGINE_set_name(e, "Test dummy engine")))
         goto err;
 
     if (!TEST_ptr(rsameth = RSA_meth_dup(RSA_get_default_method())))
@@ -416,7 +415,7 @@ static int test_x509_dup_w_engine(void)
 
     ret = 1;
 
- err:
+err:
     X509_free(cert);
     X509_free(dupcert);
     X509_PUBKEY_free(duppubkey);

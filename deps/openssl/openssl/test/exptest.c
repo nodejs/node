@@ -20,7 +20,7 @@
 
 #include "testutil.h"
 
-#define NUM_BITS        (BN_BITS2 * 4)
+#define NUM_BITS (BN_BITS2 * 4)
 
 #define BN_print_var(v) test_output_bignum(#v, v)
 
@@ -29,7 +29,7 @@
  * returns zero and prints debug output otherwise.
  */
 static int a_is_zero_mod_one(const char *method, const BIGNUM *r,
-                             const BIGNUM *a)
+    const BIGNUM *a)
 {
     if (!BN_is_zero(r)) {
         TEST_error("%s failed: a ** 0 mod 1 = r (should be 0)", method);
@@ -137,7 +137,7 @@ static int test_mod_exp_zero(void)
     }
 
     ret = !failed;
- err:
+err:
     BN_free(r);
     BN_free(a);
     BN_free(p);
@@ -177,21 +177,21 @@ static int test_mod_exp(int round)
         goto err;
     c = (c % BN_BITS) - BN_BITS2;
     if (!TEST_true(BN_rand(a, NUM_BITS + c, BN_RAND_TOP_ONE,
-                           BN_RAND_BOTTOM_ANY)))
+            BN_RAND_BOTTOM_ANY)))
         goto err;
 
     if (!TEST_int_gt(RAND_bytes(&c, 1), 0))
         goto err;
     c = (c % BN_BITS) - BN_BITS2;
     if (!TEST_true(BN_rand(b, NUM_BITS + c, BN_RAND_TOP_ONE,
-                           BN_RAND_BOTTOM_ANY)))
+            BN_RAND_BOTTOM_ANY)))
         goto err;
 
     if (!TEST_int_gt(RAND_bytes(&c, 1), 0))
         goto err;
     c = (c % BN_BITS) - BN_BITS2;
     if (!TEST_true(BN_rand(m, NUM_BITS + c, BN_RAND_TOP_ONE,
-                           BN_RAND_BOTTOM_ODD)))
+            BN_RAND_BOTTOM_ODD)))
         goto err;
 
     if (!TEST_true(BN_mod(a, a, m, ctx))
@@ -223,7 +223,7 @@ static int test_mod_exp(int round)
     }
 
     ret = 1;
- err:
+err:
     BN_free(r_mont);
     BN_free(r_mont_const);
     BN_free(r_recp);
@@ -287,8 +287,8 @@ static int test_mod_exp_x2(int idx)
         || !TEST_true(BN_mod_exp_simple(r_simple1, a1, b1, m1, ctx))
         || !TEST_true(BN_mod_exp_simple(r_simple2, a2, b2, m2, ctx))
         || !TEST_true(BN_mod_exp_mont_consttime_x2(r_mont_const_x2_1, a1, b1, m1, NULL,
-                                                   r_mont_const_x2_2, a2, b2, m2, NULL,
-                                                   ctx)))
+            r_mont_const_x2_2, a2, b2, m2, NULL,
+            ctx)))
         goto err;
 
     if (!TEST_BN_eq(r_simple1, r_mont_const_x2_1)
@@ -312,7 +312,7 @@ static int test_mod_exp_x2(int idx)
     }
 
     ret = 1;
- err:
+err:
     BN_free(r_mont_const_x2_1);
     BN_free(r_mont_const_x2_2);
     BN_free(r_simple1);

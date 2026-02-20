@@ -481,16 +481,12 @@ $code.=<<___;
 s390x_kdsa:
 	lr	%r0,$fc
 	l${g}r	%r1,$param
-	lhi	%r2,0
 
 	.long	0xb93a0004	# kdsa %r0,$in
 	brc	1,.-4		# pay attention to "partial completion"
-	brc	7,.Lkdsa_err	# if CC==0 return 0, else return 1
-.Lkdsa_out:
+	ipm	%r2		# load program mask and
+	srl	%r2,28		# extract cc
 	br	$ra
-.Lkdsa_err:
-	lhi	%r2,1
-	j	.Lkdsa_out
 .size	s390x_kdsa,.-s390x_kdsa
 ___
 }

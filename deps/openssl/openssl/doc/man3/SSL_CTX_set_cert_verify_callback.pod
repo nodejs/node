@@ -63,6 +63,11 @@ on resumption, even though no chain is presented int that case.
 Moreover, the calling application will be informed about the detailed result of
 the verification procedure and may elect to base further decisions on it.
 
+I<callback> may call L<X509_verify_cert(3)> to run the built-in verification
+function. This may be useful if application wishes to dynamically reconfigure
+I<x509_store_ctx> before verification, or postprocess the result. In this case,
+L<X509_verify_cert(3)> will set the B<error> member as described above.
+
 Within I<x509_store_ctx>, I<callback> has access to the I<verify_callback>
 function set using L<SSL_CTX_set_verify(3)>.
 

@@ -14,20 +14,20 @@
 #define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <openssl/opensslconf.h>
-# include "testutil.h"
+#include "testutil.h"
 
 #ifdef OPENSSL_NO_SRP
-# include <stdio.h>
+#include <stdio.h>
 #else
 
-# include <openssl/srp.h>
-# include <openssl/rand.h>
-# include <openssl/err.h>
+#include <openssl/srp.h>
+#include <openssl/rand.h>
+#include <openssl/err.h>
 
-# define RANDOM_SIZE 32         /* use 256 bits on each side */
+#define RANDOM_SIZE 32 /* use 256 bits on each side */
 
 static int run_srp(const char *username, const char *client_pass,
-                   const char *server_pass)
+    const char *server_pass)
 {
     int ret = 0;
     BIGNUM *s = NULL;
@@ -49,7 +49,7 @@ static int run_srp(const char *username, const char *client_pass,
 
     /* Set up server's password entry */
     if (!TEST_true(SRP_create_verifier_BN(username, server_pass,
-                                          &s, &v, GN->N, GN->g)))
+            &s, &v, GN->N, GN->g)))
         goto end;
 
     test_output_bignum("N", GN->N);
@@ -154,16 +154,16 @@ static int run_srp_kat(void)
     BN_hex2bn(&s, "BEB25379D1A8581EB5A727673A2441EE");
     /* Set up server's password entry */
     if (!TEST_true(SRP_create_verifier_BN("alice", "password123", &s, &v, GN->N,
-                                          GN->g)))
+            GN->g)))
         goto err;
 
     TEST_info("checking v");
     if (!TEST_true(check_bn("v", v,
-                 "7E273DE8696FFC4F4E337D05B4B375BEB0DDE1569E8FA00A9886D812"
-                 "9BADA1F1822223CA1A605B530E379BA4729FDC59F105B4787E5186F5"
-                 "C671085A1447B52A48CF1970B4FB6F8400BBF4CEBFBB168152E08AB5"
-                 "EA53D15C1AFF87B2B9DA6E04E058AD51CC72BFC9033B564E26480D78"
-                 "E955A5E29E7AB245DB2BE315E2099AFB")))
+            "7E273DE8696FFC4F4E337D05B4B375BEB0DDE1569E8FA00A9886D812"
+            "9BADA1F1822223CA1A605B530E379BA4729FDC59F105B4787E5186F5"
+            "C671085A1447B52A48CF1970B4FB6F8400BBF4CEBFBB168152E08AB5"
+            "EA53D15C1AFF87B2B9DA6E04E058AD51CC72BFC9033B564E26480D78"
+            "E955A5E29E7AB245DB2BE315E2099AFB")))
         goto err;
     TEST_note("    okay");
 
@@ -178,11 +178,11 @@ static int run_srp_kat(void)
 
     TEST_info("checking B");
     if (!TEST_true(check_bn("B", Bpub,
-                  "BD0C61512C692C0CB6D041FA01BB152D4916A1E77AF46AE105393011"
-                  "BAF38964DC46A0670DD125B95A981652236F99D9B681CBF87837EC99"
-                  "6C6DA04453728610D0C6DDB58B318885D7D82C7F8DEB75CE7BD4FBAA"
-                  "37089E6F9C6059F388838E7A00030B331EB76840910440B1B27AAEAE"
-                  "EB4012B7D7665238A8E3FB004B117B58")))
+            "BD0C61512C692C0CB6D041FA01BB152D4916A1E77AF46AE105393011"
+            "BAF38964DC46A0670DD125B95A981652236F99D9B681CBF87837EC99"
+            "6C6DA04453728610D0C6DDB58B318885D7D82C7F8DEB75CE7BD4FBAA"
+            "37089E6F9C6059F388838E7A00030B331EB76840910440B1B27AAEAE"
+            "EB4012B7D7665238A8E3FB004B117B58")))
         goto err;
     TEST_note("    okay");
 
@@ -197,11 +197,11 @@ static int run_srp_kat(void)
 
     TEST_info("checking A");
     if (!TEST_true(check_bn("A", Apub,
-                  "61D5E490F6F1B79547B0704C436F523DD0E560F0C64115BB72557EC4"
-                  "4352E8903211C04692272D8B2D1A5358A2CF1B6E0BFCF99F921530EC"
-                  "8E39356179EAE45E42BA92AEACED825171E1E8B9AF6D9C03E1327F44"
-                  "BE087EF06530E69F66615261EEF54073CA11CF5858F0EDFDFE15EFEA"
-                  "B349EF5D76988A3672FAC47B0769447B")))
+            "61D5E490F6F1B79547B0704C436F523DD0E560F0C64115BB72557EC4"
+            "4352E8903211C04692272D8B2D1A5358A2CF1B6E0BFCF99F921530EC"
+            "8E39356179EAE45E42BA92AEACED825171E1E8B9AF6D9C03E1327F44"
+            "BE087EF06530E69F66615261EEF54073CA11CF5858F0EDFDFE15EFEA"
+            "B349EF5D76988A3672FAC47B0769447B")))
         goto err;
     TEST_note("    okay");
 
@@ -209,7 +209,7 @@ static int run_srp_kat(void)
     u = SRP_Calc_u(Apub, Bpub, GN->N);
 
     if (!TEST_true(check_bn("u", u,
-                    "CE38B9593487DA98554ED47D70A7AE5F462EF019")))
+            "CE38B9593487DA98554ED47D70A7AE5F462EF019")))
         goto err;
 
     /* Client's key */
@@ -217,11 +217,11 @@ static int run_srp_kat(void)
     Kclient = SRP_Calc_client_key(GN->N, Bpub, GN->g, x, a, u);
     TEST_info("checking client's key");
     if (!TEST_true(check_bn("Client's key", Kclient,
-                  "B0DC82BABCF30674AE450C0287745E7990A3381F63B387AAF271A10D"
-                  "233861E359B48220F7C4693C9AE12B0A6F67809F0876E2D013800D6C"
-                  "41BB59B6D5979B5C00A172B4A2A5903A0BDCAF8A709585EB2AFAFA8F"
-                  "3499B200210DCC1F10EB33943CD67FC88A2F39A4BE5BEC4EC0A3212D"
-                  "C346D7E474B29EDE8A469FFECA686E5A")))
+            "B0DC82BABCF30674AE450C0287745E7990A3381F63B387AAF271A10D"
+            "233861E359B48220F7C4693C9AE12B0A6F67809F0876E2D013800D6C"
+            "41BB59B6D5979B5C00A172B4A2A5903A0BDCAF8A709585EB2AFAFA8F"
+            "3499B200210DCC1F10EB33943CD67FC88A2F39A4BE5BEC4EC0A3212D"
+            "C346D7E474B29EDE8A469FFECA686E5A")))
         goto err;
     TEST_note("    okay");
 
@@ -229,11 +229,11 @@ static int run_srp_kat(void)
     Kserver = SRP_Calc_server_key(Apub, v, u, b, GN->N);
     TEST_info("checking server's key");
     if (!TEST_true(check_bn("Server's key", Kserver,
-                  "B0DC82BABCF30674AE450C0287745E7990A3381F63B387AAF271A10D"
-                  "233861E359B48220F7C4693C9AE12B0A6F67809F0876E2D013800D6C"
-                  "41BB59B6D5979B5C00A172B4A2A5903A0BDCAF8A709585EB2AFAFA8F"
-                  "3499B200210DCC1F10EB33943CD67FC88A2F39A4BE5BEC4EC0A3212D"
-                  "C346D7E474B29EDE8A469FFECA686E5A")))
+            "B0DC82BABCF30674AE450C0287745E7990A3381F63B387AAF271A10D"
+            "233861E359B48220F7C4693C9AE12B0A6F67809F0876E2D013800D6C"
+            "41BB59B6D5979B5C00A172B4A2A5903A0BDCAF8A709585EB2AFAFA8F"
+            "3499B200210DCC1F10EB33943CD67FC88A2F39A4BE5BEC4EC0A3212D"
+            "C346D7E474B29EDE8A469FFECA686E5A")))
         goto err;
     TEST_note("    okay");
 

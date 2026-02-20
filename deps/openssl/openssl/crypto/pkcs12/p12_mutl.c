@@ -27,10 +27,10 @@ int PKCS12_mac_present(const PKCS12 *p12)
 }
 
 void PKCS12_get0_mac(const ASN1_OCTET_STRING **pmac,
-                     const X509_ALGOR **pmacalg,
-                     const ASN1_OCTET_STRING **psalt,
-                     const ASN1_INTEGER **piter,
-                     const PKCS12 *p12)
+    const X509_ALGOR **pmacalg,
+    const ASN1_OCTET_STRING **psalt,
+    const ASN1_INTEGER **piter,
+    const PKCS12 *p12)
 {
     if (p12->mac) {
         X509_SIG_get0(p12->mac->dinfo, pmacalg, pmac);
@@ -53,9 +53,9 @@ void PKCS12_get0_mac(const ASN1_OCTET_STRING **pmac,
 #define TK26_MAC_KEY_LEN 32
 
 static int pkcs12_gen_gost_mac_key(const char *pass, int passlen,
-                                   const unsigned char *salt, int saltlen,
-                                   int iter, int keylen, unsigned char *key,
-                                   const EVP_MD *digest)
+    const unsigned char *salt, int saltlen,
+    int iter, int keylen, unsigned char *key,
+    const EVP_MD *digest)
 {
     unsigned char out[96];
 
@@ -64,7 +64,7 @@ static int pkcs12_gen_gost_mac_key(const char *pass, int passlen,
     }
 
     if (!PKCS5_PBKDF2_HMAC(pass, passlen, salt, saltlen, iter,
-                           digest, sizeof(out), out)) {
+            digest, sizeof(out), out)) {
         return 0;
     }
     memcpy(key, out + sizeof(out) - TK26_MAC_KEY_LEN, TK26_MAC_KEY_LEN);
@@ -74,12 +74,12 @@ static int pkcs12_gen_gost_mac_key(const char *pass, int passlen,
 
 /* Generate a MAC */
 static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
-                          unsigned char *mac, unsigned int *maclen,
-                          int (*pkcs12_key_gen)(const char *pass, int passlen,
-                                                unsigned char *salt, int slen,
-                                                int id, int iter, int n,
-                                                unsigned char *out,
-                                                const EVP_MD *md_type))
+    unsigned char *mac, unsigned int *maclen,
+    int (*pkcs12_key_gen)(const char *pass, int passlen,
+        unsigned char *salt, int slen,
+        int id, int iter, int n,
+        unsigned char *out,
+        const EVP_MD *md_type))
 {
     int ret = 0;
     const EVP_MD *md;
@@ -116,7 +116,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 
     (void)ERR_set_mark();
     md = md_fetch = EVP_MD_fetch(p12->authsafes->ctx.libctx, md_name,
-                                 p12->authsafes->ctx.propq);
+        p12->authsafes->ctx.propq);
     if (md == NULL)
         md = EVP_get_digestbynid(OBJ_obj2nid(macoid));
 
@@ -132,28 +132,28 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     if (md_size < 0)
         goto err;
     if ((md_nid == NID_id_GostR3411_94
-         || md_nid == NID_id_GostR3411_2012_256
-         || md_nid == NID_id_GostR3411_2012_512)
+            || md_nid == NID_id_GostR3411_2012_256
+            || md_nid == NID_id_GostR3411_2012_512)
         && ossl_safe_getenv("LEGACY_GOST_PKCS12") == NULL) {
         md_size = TK26_MAC_KEY_LEN;
         if (!pkcs12_gen_gost_mac_key(pass, passlen, salt, saltlen, iter,
-                                     md_size, key, md)) {
+                md_size, key, md)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
             goto err;
         }
     } else {
         if (pkcs12_key_gen != NULL) {
             if (!(*pkcs12_key_gen)(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
-                                   iter, md_size, key, md)) {
+                    iter, md_size, key, md)) {
                 ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
                 goto err;
             }
         } else {
             /* Default to UTF-8 password */
             if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
-                                       iter, md_size, key, md,
-                                       p12->authsafes->ctx.libctx,
-                                       p12->authsafes->ctx.propq)) {
+                    iter, md_size, key, md,
+                    p12->authsafes->ctx.libctx,
+                    p12->authsafes->ctx.propq)) {
                 ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
                 goto err;
             }
@@ -162,7 +162,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     if ((hmac = HMAC_CTX_new()) == NULL
         || !HMAC_Init_ex(hmac, key, md_size, md, NULL)
         || !HMAC_Update(hmac, p12->authsafes->d.data->data,
-                        p12->authsafes->d.data->length)
+            p12->authsafes->d.data->length)
         || !HMAC_Final(hmac, mac, maclen)) {
         goto err;
     }
@@ -176,7 +176,7 @@ err:
 }
 
 int PKCS12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
-                   unsigned char *mac, unsigned int *maclen)
+    unsigned char *mac, unsigned int *maclen)
 {
     return pkcs12_gen_mac(p12, pass, passlen, mac, maclen, NULL);
 }
@@ -207,8 +207,8 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
 /* Set a mac */
 
 int PKCS12_set_mac(PKCS12 *p12, const char *pass, int passlen,
-                   unsigned char *salt, int saltlen, int iter,
-                   const EVP_MD *md_type)
+    unsigned char *salt, int saltlen, int iter,
+    const EVP_MD *md_type)
 {
     unsigned char mac[EVP_MAX_MD_SIZE];
     unsigned int maclen;
@@ -240,7 +240,7 @@ int PKCS12_set_mac(PKCS12 *p12, const char *pass, int passlen,
 
 /* Set up a mac structure */
 int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
-                     const EVP_MD *md_type)
+    const EVP_MD *md_type)
 {
     X509_ALGOR *macalg;
 
@@ -270,14 +270,15 @@ int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
     p12->mac->salt->length = saltlen;
     if (salt == NULL) {
         if (RAND_bytes_ex(p12->authsafes->ctx.libctx, p12->mac->salt->data,
-                          (size_t)saltlen, 0) <= 0)
+                (size_t)saltlen, 0)
+            <= 0)
             return 0;
     } else {
         memcpy(p12->mac->salt->data, salt, saltlen);
     }
     X509_SIG_getm(p12->mac->dinfo, &macalg, NULL);
     if (!X509_ALGOR_set0(macalg, OBJ_nid2obj(EVP_MD_get_type(md_type)),
-                         V_ASN1_NULL, NULL)) {
+            V_ASN1_NULL, NULL)) {
         ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         return 0;
     }

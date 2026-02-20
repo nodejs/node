@@ -37,7 +37,6 @@ static int test_standard_exts(void)
         if ((*tmp)->ext_nid < prev)
             good = 0;
         prev = (*tmp)->ext_nid;
-
     }
     if (!good) {
         tmp = standard_exts;
@@ -55,28 +54,27 @@ typedef struct {
 } IP_TESTDATA;
 
 static IP_TESTDATA a2i_ipaddress_tests[] = {
-    {"127.0.0.1", "\x7f\x00\x00\x01", 4},
-    {"1.2.3.4", "\x01\x02\x03\x04", 4},
-    {"1.2.3.255", "\x01\x02\x03\xff", 4},
-    {"1.2.3", NULL, 0},
-    {"1.2.3 .4", NULL, 0},
+    { "127.0.0.1", "\x7f\x00\x00\x01", 4 },
+    { "1.2.3.4", "\x01\x02\x03\x04", 4 },
+    { "1.2.3.255", "\x01\x02\x03\xff", 4 },
+    { "1.2.3", NULL, 0 },
+    { "1.2.3 .4", NULL, 0 },
 
-    {"::1", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01", 16},
-    {"1:1:1:1:1:1:1:1", "\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01", 16},
-    {"2001:db8::ff00:42:8329", "\x20\x01\x0d\xb8\x00\x00\x00\x00\x00\x00\xff\x00\x00\x42\x83\x29", 16},
-    {"1:1:1:1:1:1:1:1.test", NULL, 0},
-    {":::1", NULL, 0},
-    {"2001::123g", NULL, 0},
+    { "::1", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01", 16 },
+    { "1:1:1:1:1:1:1:1", "\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01\x00\x01", 16 },
+    { "2001:db8::ff00:42:8329", "\x20\x01\x0d\xb8\x00\x00\x00\x00\x00\x00\xff\x00\x00\x42\x83\x29", 16 },
+    { "1:1:1:1:1:1:1:1.test", NULL, 0 },
+    { ":::1", NULL, 0 },
+    { "2001::123g", NULL, 0 },
 
-    {"example.test", NULL, 0},
-    {"", NULL, 0},
+    { "example.test", NULL, 0 },
+    { "", NULL, 0 },
 
-    {"1.2.3.4 ", "\x01\x02\x03\x04", 4},
-    {" 1.2.3.4", "\x01\x02\x03\x04", 4},
-    {" 1.2.3.4 ", "\x01\x02\x03\x04", 4},
-    {"1.2.3.4.example.test", NULL, 0},
+    { "1.2.3.4 ", "\x01\x02\x03\x04", 4 },
+    { " 1.2.3.4", "\x01\x02\x03\x04", 4 },
+    { " 1.2.3.4 ", "\x01\x02\x03\x04", 4 },
+    { "1.2.3.4.example.test", NULL, 0 },
 };
-
 
 static int test_a2i_ipaddress(int idx)
 {
@@ -94,7 +92,7 @@ static int test_a2i_ipaddress(int idx)
         if (!TEST_ptr(ip)
             || !TEST_int_eq(ASN1_STRING_length(ip), len)
             || !TEST_mem_eq(ASN1_STRING_get0_data(ip), len,
-                            a2i_ipaddress_tests[idx].data, len)) {
+                a2i_ipaddress_tests[idx].data, len)) {
             good = 0;
         }
     }

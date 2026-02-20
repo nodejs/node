@@ -15,29 +15,33 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_HEX, OPT_GENERATE, OPT_BITS, OPT_SAFE, OPT_CHECKS,
+    OPT_HEX,
+    OPT_GENERATE,
+    OPT_BITS,
+    OPT_SAFE,
+    OPT_CHECKS,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS prime_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] [number...]\n"},
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] [number...]\n" },
 
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"bits", OPT_BITS, 'p', "Size of number in bits"},
-    {"checks", OPT_CHECKS, 'p', "Number of checks"},
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "bits", OPT_BITS, 'p', "Size of number in bits" },
+    { "checks", OPT_CHECKS, 'p', "Number of checks" },
 
     OPT_SECTION("Output"),
-    {"hex", OPT_HEX, '-', "Hex output"},
-    {"generate", OPT_GENERATE, '-', "Generate a prime"},
-    {"safe", OPT_SAFE, '-',
-     "When used with -generate, generate a safe prime"},
+    { "hex", OPT_HEX, '-', "Hex output" },
+    { "generate", OPT_GENERATE, '-', "Generate a prime" },
+    { "safe", OPT_SAFE, '-',
+        "When used with -generate, generate a safe prime" },
 
     OPT_PROV_OPTIONS,
 
     OPT_PARAMETERS(),
-    {"number", 0, 0, "Number(s) to check for primality if not generating"},
-    {NULL}
+    { "number", 0, 0, "Number(s) to check for primality if not generating" },
+    { NULL }
 };
 
 int prime_main(int argc, char **argv)
@@ -52,7 +56,7 @@ int prime_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
-opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -116,7 +120,7 @@ opthelp:
         BIO_printf(bio_out, "%s\n", s);
         OPENSSL_free(s);
     } else {
-        for ( ; *argv; argv++) {
+        for (; *argv; argv++) {
             int r;
 
             if (hex)
@@ -131,14 +135,15 @@ opthelp:
 
             BN_print(bio_out, bn);
             BIO_printf(bio_out, " (%s) %s prime\n",
-                       argv[0],
-                       BN_check_prime(bn, NULL, NULL)
-                           ? "is" : "is not");
+                argv[0],
+                BN_check_prime(bn, NULL, NULL)
+                    ? "is"
+                    : "is not");
         }
     }
 
     ret = 0;
- end:
+end:
     BN_free(bn);
     return ret;
 }

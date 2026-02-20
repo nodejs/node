@@ -17,7 +17,7 @@
 #include "testutil.h"
 
 #ifndef OPENSSL_NO_SM4
-# include "crypto/sm4.h"
+#include "crypto/sm4.h"
 
 static int test_sm4_ecb(void)
 {

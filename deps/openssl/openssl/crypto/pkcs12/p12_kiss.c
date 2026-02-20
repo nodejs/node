@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,13 +15,13 @@
 /* Simplified PKCS#12 routines */
 
 static int parse_pk12(PKCS12 *p12, const char *pass, int passlen,
-                      EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
+    EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
 
 static int parse_bags(const STACK_OF(PKCS12_SAFEBAG) *bags, const char *pass,
-                      int passlen, EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
+    int passlen, EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
 
 static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
-                     EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
+    EVP_PKEY **pkey, STACK_OF(X509) *ocerts);
 
 /*
  * Parse and decrypt a PKCS#12 structure returning user key, user cert and
@@ -31,7 +31,7 @@ static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
  */
 
 int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
-                 STACK_OF(X509) **ca)
+    STACK_OF(X509) **ca)
 {
     STACK_OF(X509) *ocerts = NULL;
     X509 *x = NULL;
@@ -74,7 +74,7 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
 
     /* If needed, allocate stack for other certificates */
     if ((cert != NULL || ca != NULL)
-            && (ocerts = sk_X509_new_null()) == NULL) {
+        && (ocerts = sk_X509_new_null()) == NULL) {
         ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -83,7 +83,7 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
         int err = ERR_peek_last_error();
 
         if (ERR_GET_LIB(err) != ERR_LIB_EVP
-                && ERR_GET_REASON(err) != EVP_R_UNSUPPORTED_ALGORITHM)
+            && ERR_GET_REASON(err) != EVP_R_UNSUPPORTED_ALGORITHM)
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_PARSE_ERROR);
         goto err;
     }
@@ -91,7 +91,7 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
     /* Split the certs in ocerts over *cert and *ca as far as requested */
     while ((x = sk_X509_shift(ocerts)) != NULL) {
         if (pkey != NULL && *pkey != NULL
-                && cert != NULL && *cert == NULL) {
+            && cert != NULL && *cert == NULL) {
             int match;
 
             ERR_set_mark();
@@ -114,7 +114,7 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
 
     return 1;
 
- err:
+err:
 
     if (pkey != NULL) {
         EVP_PKEY_free(*pkey);
@@ -127,14 +127,13 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
     X509_free(x);
     sk_X509_pop_free(ocerts, X509_free);
     return 0;
-
 }
 
 /* Parse the outer PKCS#12 structure */
 
 /* pkey and/or ocerts may be NULL */
 static int parse_pk12(PKCS12 *p12, const char *pass, int passlen,
-                      EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
+    EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
 {
     STACK_OF(PKCS7) *asafes;
     STACK_OF(PKCS12_SAFEBAG) *bags;
@@ -169,12 +168,12 @@ static int parse_pk12(PKCS12 *p12, const char *pass, int passlen,
 
 /* pkey and/or ocerts may be NULL */
 static int parse_bags(const STACK_OF(PKCS12_SAFEBAG) *bags, const char *pass,
-                      int passlen, EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
+    int passlen, EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
 {
     int i;
     for (i = 0; i < sk_PKCS12_SAFEBAG_num(bags); i++) {
         if (!parse_bag(sk_PKCS12_SAFEBAG_value(bags, i),
-                       pass, passlen, pkey, ocerts))
+                pass, passlen, pkey, ocerts))
             return 0;
     }
     return 1;
@@ -182,7 +181,7 @@ static int parse_bags(const STACK_OF(PKCS12_SAFEBAG) *bags, const char *pass,
 
 /* pkey and/or ocerts may be NULL */
 static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
-                     EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
+    EVP_PKEY **pkey, STACK_OF(X509) *ocerts)
 {
     PKCS8_PRIV_KEY_INFO *p8;
     X509 *x509;
@@ -190,11 +189,17 @@ static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
     ASN1_BMPSTRING *fname = NULL;
     ASN1_OCTET_STRING *lkid = NULL;
 
-    if ((attrib = PKCS12_SAFEBAG_get0_attr(bag, NID_friendlyName)))
+    if ((attrib = PKCS12_SAFEBAG_get0_attr(bag, NID_friendlyName))) {
+        if (attrib->type != V_ASN1_BMPSTRING)
+            return 0;
         fname = attrib->value.bmpstring;
+    }
 
-    if ((attrib = PKCS12_SAFEBAG_get0_attr(bag, NID_localKeyID)))
+    if ((attrib = PKCS12_SAFEBAG_get0_attr(bag, NID_localKeyID))) {
+        if (attrib->type != V_ASN1_OCTET_STRING)
+            return 0;
         lkid = attrib->value.octet_string;
+    }
 
     switch (PKCS12_SAFEBAG_get_nid(bag)) {
     case NID_keyBag:
@@ -218,7 +223,7 @@ static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
 
     case NID_certBag:
         if (ocerts == NULL
-                || PKCS12_SAFEBAG_get_bag_nid(bag) != NID_x509Certificate)
+            || PKCS12_SAFEBAG_get_bag_nid(bag) != NID_x509Certificate)
             return 1;
         if ((x509 = PKCS12_SAFEBAG_get1_cert(bag)) == NULL)
             return 0;
@@ -250,7 +255,7 @@ static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
 
     case NID_safeContentsBag:
         return parse_bags(PKCS12_SAFEBAG_get0_safes(bag), pass, passlen, pkey,
-                          ocerts);
+            ocerts);
 
     default:
         return 1;

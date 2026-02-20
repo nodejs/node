@@ -1,4 +1,4 @@
-# Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2020, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -98,7 +98,7 @@ ___
 # specified in the original algorithm as according to the paper "Enhanced Montgomery
 # Multiplication" by Shay Gueron (see Lemma 1), the result will be always < 2*2^1024
 # and can be used as a direct input to the next AMM iteration.
-# This post-condition is true, provided the correct parameter |s| is choosen, i.e.
+# This post-condition is true, provided the correct parameter |s| is chosen, i.e.
 # s >= n + 2 * k, which matches our case: 1040 > 1024 + 2 * 1.
 #
 # void ossl_rsaz_amm52x20_x1_256(BN_ULONG *res,

@@ -27,7 +27,7 @@
 typedef struct {
     size_t size;
     const unsigned char *data;
-}  SIZED_DATA;
+} SIZED_DATA;
 
 /**********************************************************************
  *
@@ -37,11 +37,11 @@ typedef struct {
 
 /* cts128 test vectors from RFC 3962 */
 static const unsigned char cts128_test_key[16] = "chicken teriyaki";
-static const unsigned char cts128_test_input[64] =
-    "I would like the" " General Gau's C"
-    "hicken, please, " "and wonton soup.";
-static const unsigned char cts128_test_iv[] =
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const unsigned char cts128_test_input[64] = "I would like the"
+                                                   " General Gau's C"
+                                                   "hicken, please, "
+                                                   "and wonton soup.";
+static const unsigned char cts128_test_iv[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static const unsigned char vector_17[17] = {
     0xc6, 0x35, 0x35, 0x68, 0xf2, 0xbf, 0x8c, 0xb4,
@@ -92,9 +92,9 @@ static const unsigned char vector_64[64] = {
     0x3b, 0xc1, 0x03, 0xe1, 0xa1, 0x94, 0xbb, 0xd8
 };
 
-#define CTS128_TEST_VECTOR(len)                 \
-    {                                           \
-        sizeof(vector_##len), vector_##len      \
+#define CTS128_TEST_VECTOR(len)            \
+    {                                      \
+        sizeof(vector_##len), vector_##len \
     }
 static const SIZED_DATA aes_cts128_vectors[] = {
     CTS128_TEST_VECTOR(17),
@@ -132,25 +132,25 @@ static AES_KEY *cts128_decrypt_key_schedule(void)
 typedef struct {
     const char *case_name;
     size_t (*last_blocks_correction)(const unsigned char *in,
-                                     unsigned char *out, size_t len);
+        unsigned char *out, size_t len);
     size_t (*encrypt_block)(const unsigned char *in,
-                            unsigned char *out, size_t len,
-                            const void *key, unsigned char ivec[16],
-                            block128_f block);
+        unsigned char *out, size_t len,
+        const void *key, unsigned char ivec[16],
+        block128_f block);
     size_t (*encrypt_stream)(const unsigned char *in, unsigned char *out,
-                             size_t len, const void *key,
-                             unsigned char ivec[16], cbc128_f cbc);
+        size_t len, const void *key,
+        unsigned char ivec[16], cbc128_f cbc);
     size_t (*decrypt_block)(const unsigned char *in,
-                            unsigned char *out, size_t len,
-                            const void *key, unsigned char ivec[16],
-                            block128_f block);
+        unsigned char *out, size_t len,
+        const void *key, unsigned char ivec[16],
+        block128_f block);
     size_t (*decrypt_stream)(const unsigned char *in, unsigned char *out,
-                             size_t len, const void *key,
-                             unsigned char ivec[16], cbc128_f cbc);
+        size_t len, const void *key,
+        unsigned char ivec[16], cbc128_f cbc);
 } CTS128_FIXTURE;
 
 static size_t last_blocks_correction(const unsigned char *in,
-                                     unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     size_t tail;
 
@@ -163,7 +163,7 @@ static size_t last_blocks_correction(const unsigned char *in,
 }
 
 static size_t last_blocks_correction_nist(const unsigned char *in,
-                                          unsigned char *out, size_t len)
+    unsigned char *out, size_t len)
 {
     size_t tail;
 
@@ -201,40 +201,41 @@ static int execute_cts128(const CTS128_FIXTURE *fixture, int num)
     /* test block-based encryption */
     memcpy(iv, test_iv, test_iv_len);
     if (!TEST_size_t_eq(fixture->encrypt_block(test_input, ciphertext, len,
-                                               encrypt_key_schedule, iv,
-                                               (block128_f)AES_encrypt), len)
-            || !TEST_mem_eq(ciphertext, len, vector, len)
-            || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
+                            encrypt_key_schedule, iv,
+                            (block128_f)AES_encrypt),
+            len)
+        || !TEST_mem_eq(ciphertext, len, vector, len)
+        || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
         return 0;
 
     /* test block-based decryption */
     memcpy(iv, test_iv, test_iv_len);
     size = fixture->decrypt_block(ciphertext, cleartext, len,
-                                  decrypt_key_schedule, iv,
-                                  (block128_f)AES_decrypt);
+        decrypt_key_schedule, iv,
+        (block128_f)AES_decrypt);
     if (!TEST_true(len == size || len + 16 == size)
-            || !TEST_mem_eq(cleartext, len, test_input, len)
-            || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
+        || !TEST_mem_eq(cleartext, len, test_input, len)
+        || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
         return 0;
 
     /* test streamed encryption */
     memcpy(iv, test_iv, test_iv_len);
     if (!TEST_size_t_eq(fixture->encrypt_stream(test_input, ciphertext, len,
-                                                encrypt_key_schedule, iv,
-                                                (cbc128_f) AES_cbc_encrypt),
-                        len)
-            || !TEST_mem_eq(ciphertext, len, vector, len)
-            || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
+                            encrypt_key_schedule, iv,
+                            (cbc128_f)AES_cbc_encrypt),
+            len)
+        || !TEST_mem_eq(ciphertext, len, vector, len)
+        || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
         return 0;
 
     /* test streamed decryption */
     memcpy(iv, test_iv, test_iv_len);
     if (!TEST_size_t_eq(fixture->decrypt_stream(ciphertext, cleartext, len,
-                                                decrypt_key_schedule, iv,
-                                                (cbc128_f)AES_cbc_encrypt),
-                        len)
-            || !TEST_mem_eq(cleartext, len, test_input, len)
-            || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
+                            decrypt_key_schedule, iv,
+                            (cbc128_f)AES_cbc_encrypt),
+            len)
+        || !TEST_mem_eq(cleartext, len, test_input, len)
+        || !TEST_mem_eq(iv, sizeof(iv), vector + len - tail, sizeof(iv)))
         return 0;
 
     return 1;
@@ -276,9 +277,9 @@ static const u8 T1[] = {
 };
 
 /* Test Case 2 */
-# define K2 K1
-# define A2 A1
-# define IV2 IV1
+#define K2 K1
+#define A2 A1
+#define IV2 IV1
 static const u8 P2[16];
 static const u8 C2[] = {
     0x03, 0x88, 0xda, 0xce, 0x60, 0xb6, 0xa3, 0x92,
@@ -291,7 +292,7 @@ static const u8 T2[] = {
 };
 
 /* Test Case 3 */
-# define A3 A2
+#define A3 A2
 static const u8 K3[] = {
     0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
     0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08
@@ -330,8 +331,8 @@ static const u8 T3[] = {
 };
 
 /* Test Case 4 */
-# define K4 K3
-# define IV4 IV3
+#define K4 K3
+#define IV4 IV3
 static const u8 P4[] = {
     0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
     0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
@@ -366,9 +367,9 @@ static const u8 T4[] = {
 };
 
 /* Test Case 5 */
-# define K5 K4
-# define P5 P4
-# define A5 A4
+#define K5 K4
+#define P5 P4
+#define A5 A4
 static const u8 IV5[] = {
     0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad
 };
@@ -390,9 +391,9 @@ static const u8 T5[] = {
 };
 
 /* Test Case 6 */
-# define K6 K5
-# define P6 P5
-# define A6 A5
+#define K6 K5
+#define P6 P5
+#define A6 A5
 static const u8 IV6[] = {
     0x93, 0x13, 0x22, 0x5d, 0xf8, 0x84, 0x06, 0xe5,
     0x55, 0x90, 0x9c, 0x5a, 0xff, 0x52, 0x69, 0xaa,
@@ -428,9 +429,9 @@ static const u8 T7[] = {
 };
 
 /* Test Case 8 */
-# define K8 K7
-# define IV8 IV7
-# define A8 A7
+#define K8 K7
+#define IV8 IV7
+#define A8 A7
 static const u8 P8[16];
 static const u8 C8[] = {
     0x98, 0xe7, 0x24, 0x7c, 0x07, 0xf0, 0xfe, 0x41,
@@ -443,7 +444,7 @@ static const u8 T8[] = {
 };
 
 /* Test Case 9 */
-# define A9 A8
+#define A9 A8
 static const u8 K9[] = {
     0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
     0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
@@ -483,8 +484,8 @@ static const u8 T9[] = {
 };
 
 /* Test Case 10 */
-# define K10 K9
-# define IV10 IV9
+#define K10 K9
+#define IV10 IV9
 static const u8 P10[] = {
     0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
     0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
@@ -519,9 +520,9 @@ static const u8 T10[] = {
 };
 
 /* Test Case 11 */
-# define K11 K10
-# define P11 P10
-# define A11 A10
+#define K11 K10
+#define P11 P10
+#define A11 A10
 static const u8 IV11[] = { 0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad };
 
 static const u8 C11[] = {
@@ -541,9 +542,9 @@ static const u8 T11[] = {
 };
 
 /* Test Case 12 */
-# define K12 K11
-# define P12 P11
-# define A12 A11
+#define K12 K11
+#define P12 P11
+#define A12 A11
 static const u8 IV12[] = {
     0x93, 0x13, 0x22, 0x5d, 0xf8, 0x84, 0x06, 0xe5,
     0x55, 0x90, 0x9c, 0x5a, 0xff, 0x52, 0x69, 0xaa,
@@ -579,8 +580,8 @@ static const u8 T13[] = {
 };
 
 /* Test Case 14 */
-# define K14 K13
-# define A14 A13
+#define K14 K13
+#define A14 A13
 static const u8 P14[16], IV14[12];
 static const u8 C14[] = {
     0xce, 0xa7, 0x40, 0x3d, 0x4d, 0x60, 0x6b, 0x6e,
@@ -593,7 +594,7 @@ static const u8 T14[] = {
 };
 
 /* Test Case 15 */
-# define A15 A14
+#define A15 A14
 static const u8 K15[] = {
     0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
     0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
@@ -634,8 +635,8 @@ static const u8 T15[] = {
 };
 
 /* Test Case 16 */
-# define K16 K15
-# define IV16 IV15
+#define K16 K15
+#define IV16 IV15
 static const u8 P16[] = {
     0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
     0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
@@ -670,9 +671,9 @@ static const u8 T16[] = {
 };
 
 /* Test Case 17 */
-# define K17 K16
-# define P17 P16
-# define A17 A16
+#define K17 K16
+#define P17 P16
+#define A17 A16
 static const u8 IV17[] = { 0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad };
 
 static const u8 C17[] = {
@@ -692,9 +693,9 @@ static const u8 T17[] = {
 };
 
 /* Test Case 18 */
-# define K18 K17
-# define P18 P17
-# define A18 A17
+#define K18 K17
+#define P18 P17
+#define A18 A17
 static const u8 IV18[] = {
     0x93, 0x13, 0x22, 0x5d, 0xf8, 0x84, 0x06, 0xe5,
     0x55, 0x90, 0x9c, 0x5a, 0xff, 0x52, 0x69, 0xaa,
@@ -723,10 +724,10 @@ static const u8 T18[] = {
 };
 
 /* Test Case 19 */
-# define K19 K1
-# define P19 P1
-# define IV19 IV1
-# define C19 C1
+#define K19 K1
+#define P19 P1
+#define IV19 IV1
+#define C19 C1
 static const u8 A19[] = {
     0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
     0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
@@ -752,8 +753,8 @@ static const u8 T19[] = {
 };
 
 /* Test Case 20 */
-# define K20 K1
-# define A20 A1
+#define K20 K1
+#define A20 A1
 /* this results in 0xff in counter LSB */
 static const u8 IV20[64] = { 0xff, 0xff, 0xff, 0xff };
 
@@ -802,14 +803,16 @@ static const u8 T20[] = {
     0xb0, 0x26, 0xa9, 0xed, 0x3f, 0xe1, 0xe8, 0x5f
 };
 
-#define GCM128_TEST_VECTOR(n)                   \
-    {                                           \
-        {sizeof(K##n), K##n},                   \
-        {sizeof(IV##n), IV##n},                 \
-        {sizeof(A##n), A##n},                   \
-        {sizeof(P##n), P##n},                   \
-        {sizeof(C##n), C##n},                   \
-        {sizeof(T##n), T##n}                    \
+#define GCM128_TEST_VECTOR(n)         \
+    {                                 \
+        { sizeof(K##n), K##n },       \
+            { sizeof(IV##n), IV##n }, \
+            { sizeof(A##n), A##n },   \
+            { sizeof(P##n), P##n },   \
+            { sizeof(C##n), C##n },   \
+        {                             \
+            sizeof(T##n), T##n        \
+        }                             \
     }
 static struct gcm128_data {
     const SIZED_DATA K;
@@ -869,11 +872,11 @@ static int test_gcm128(int idx)
     if (A.data != NULL)
         CRYPTO_gcm128_aad(&ctx, A.data, A.size);
     if (P.data != NULL)
-        if (!TEST_int_ge(CRYPTO_gcm128_encrypt( &ctx, P.data, out, P.size), 0))
+        if (!TEST_int_ge(CRYPTO_gcm128_encrypt(&ctx, P.data, out, P.size), 0))
             return 0;
     if (!TEST_false(CRYPTO_gcm128_finish(&ctx, T.data, 16))
-            || (C.data != NULL
-                    && !TEST_mem_eq(out, P.size, C.data, P.size)))
+        || (C.data != NULL
+            && !TEST_mem_eq(out, P.size, C.data, P.size)))
         return 0;
 
     CRYPTO_gcm128_setiv(&ctx, IV.data, IV.size);
@@ -883,8 +886,8 @@ static int test_gcm128(int idx)
     if (C.data != NULL)
         CRYPTO_gcm128_decrypt(&ctx, C.data, out, P.size);
     if (!TEST_false(CRYPTO_gcm128_finish(&ctx, T.data, 16))
-            || (P.data != NULL
-                    && !TEST_mem_eq(out, P.size, P.data, P.size)))
+        || (P.data != NULL
+            && !TEST_mem_eq(out, P.size, P.data, P.size)))
         return 0;
 
     return 1;

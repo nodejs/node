@@ -8,44 +8,44 @@
  */
 
 #ifndef OSSL_TEST_SIMPLEDYNAMIC_H
-# define OSSL_TEST_SIMPLEDYNAMIC_H
+#define OSSL_TEST_SIMPLEDYNAMIC_H
 
-# include "crypto/dso_conf.h"
+#include "crypto/dso_conf.h"
 
-# if defined(DSO_DLFCN) || defined(DSO_VMS)
+#if defined(DSO_DLFCN) || defined(DSO_VMS)
 
-#  include <dlfcn.h>
+#include <dlfcn.h>
 
-#  define SD_INIT       NULL
-#  ifdef DSO_VMS
-#   define SD_SHLIB     0
-#   define SD_MODULE    0
-#  else
-#   define SD_SHLIB     (RTLD_GLOBAL|RTLD_LAZY)
-#   define SD_MODULE    (RTLD_LOCAL|RTLD_NOW)
-#  endif
+#define SD_INIT NULL
+#ifdef DSO_VMS
+#define SD_SHLIB 0
+#define SD_MODULE 0
+#else
+#define SD_SHLIB (RTLD_GLOBAL | RTLD_LAZY)
+#define SD_MODULE (RTLD_LOCAL | RTLD_NOW)
+#endif
 
 typedef void *SD;
 typedef void *SD_SYM;
 
-# elif defined(DSO_WIN32)
+#elif defined(DSO_WIN32)
 
-#  include <windows.h>
+#include <windows.h>
 
-#  define SD_INIT       0
-#  define SD_SHLIB      0
-#  define SD_MODULE     0
+#define SD_INIT 0
+#define SD_SHLIB 0
+#define SD_MODULE 0
 
 typedef HINSTANCE SD;
 typedef void *SD_SYM;
 
-# endif
+#endif
 
-# if defined(DSO_DLFCN) || defined(DSO_WIN32) || defined(DSO_VMS)
+#if defined(DSO_DLFCN) || defined(DSO_WIN32) || defined(DSO_VMS)
 int sd_load(const char *filename, SD *sd, int type);
 int sd_sym(SD sd, const char *symname, SD_SYM *sym);
 int sd_close(SD lib);
 const char *sd_error(void);
-# endif
+#endif
 
 #endif

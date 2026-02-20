@@ -499,12 +499,12 @@ by some servers.
 =item B<-ign_eof>
 
 Inhibit shutting down the connection when end of file is reached in the
-input.
+input. This implicitly turns on B<-nocommands> as well.
 
 =item B<-quiet>
 
 Inhibit printing of session and certificate information.  This implicitly
-turns on B<-ign_eof> as well.
+turns on B<-ign_eof> and B<-nocommands> as well.
 
 =item B<-no_ign_eof>
 
@@ -971,7 +971,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

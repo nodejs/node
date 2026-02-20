@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -34,7 +34,7 @@ if ($no_fips) {
 }
 
 # Merge the configuration files into one filtering the contents so the failure
-# condition is reproducable.  A working FIPS configuration without the install
+# condition is reproducible.  A working FIPS configuration without the install
 # status is required.
 
 open CFGBASE, '<', $config_path;

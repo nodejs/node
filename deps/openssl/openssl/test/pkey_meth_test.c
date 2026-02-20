@@ -33,7 +33,6 @@ static int test_asn1_meths(void)
         if (pkey_id < prev)
             good = 0;
         prev = pkey_id;
-
     }
     if (!good) {
         TEST_error("EVP_PKEY_ASN1_METHOD table out of order");
@@ -66,7 +65,6 @@ static int test_pkey_meths(void)
         if (pkey_id < prev)
             good = 0;
         prev = pkey_id;
-
     }
     if (!good) {
         TEST_error("EVP_PKEY_METHOD table out of order");

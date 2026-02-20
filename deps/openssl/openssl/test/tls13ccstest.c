@@ -33,7 +33,7 @@ static int watchccs_gets(BIO *bp, char *buf, int size);
 static int watchccs_puts(BIO *bp, const char *str);
 
 /* Choose a sufficiently large type likely to be unused for this custom BIO */
-# define BIO_TYPE_WATCHCCS_FILTER  (0x80 | BIO_TYPE_FILTER)
+#define BIO_TYPE_WATCHCCS_FILTER (0x80 | BIO_TYPE_FILTER)
 
 static BIO_METHOD *method_watchccs = NULL;
 
@@ -41,8 +41,8 @@ static const BIO_METHOD *bio_f_watchccs_filter(void)
 {
     if (method_watchccs == NULL) {
         method_watchccs = BIO_meth_new(BIO_TYPE_WATCHCCS_FILTER,
-                                       "Watch CCS filter");
-        if (   method_watchccs == NULL
+            "Watch CCS filter");
+        if (method_watchccs == NULL
             || !BIO_meth_set_write(method_watchccs, watchccs_write)
             || !BIO_meth_set_read(method_watchccs, watchccs_read)
             || !BIO_meth_set_puts(method_watchccs, watchccs_puts)
@@ -106,15 +106,15 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
     /* We assume that we always write complete records each time */
     while (PACKET_remaining(&pkt)) {
         if (!PACKET_get_1(&pkt, &rectype)
-                || !PACKET_get_net_2(&pkt, &recvers)
-                || !PACKET_get_length_prefixed_2(&pkt, &msg))
+            || !PACKET_get_net_2(&pkt, &recvers)
+            || !PACKET_get_length_prefixed_2(&pkt, &msg))
             return 0;
 
         expectedrecvers = TLS1_2_VERSION;
 
         if (rectype == SSL3_RT_HANDSHAKE) {
             if (!PACKET_get_1(&msg, &msgtype)
-                    || !PACKET_get_length_prefixed_3(&msg, &msgbody))
+                || !PACKET_get_length_prefixed_3(&msg, &msgbody))
                 return 0;
             if (msgtype == SSL3_MT_CLIENT_HELLO) {
                 chseen++;
@@ -124,7 +124,7 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
                  * session_id.
                  */
                 if (!PACKET_forward(&msgbody, 34)
-                        || !PACKET_get_length_prefixed_1(&msgbody, &sessionid))
+                    || !PACKET_get_length_prefixed_1(&msgbody, &sessionid))
                     return 0;
 
                 if (chseen == 1) {
@@ -140,9 +140,10 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
                      * same as the first one.
                      */
                     if (PACKET_remaining(&sessionid) != chsessidlen
-                            || (chsessidlen > 0
-                                && memcmp(chsessid, PACKET_data(&sessionid),
-                                          chsessidlen) != 0))
+                        || (chsessidlen > 0
+                            && memcmp(chsessid, PACKET_data(&sessionid),
+                                   chsessidlen)
+                                != 0))
                         badsessid = 1;
                 }
             } else if (msgtype == SSL3_MT_SERVER_HELLO) {
@@ -152,7 +153,7 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
                  * session_id.
                  */
                 if (!PACKET_forward(&msgbody, 34)
-                        || !PACKET_get_length_prefixed_1(&msgbody, &sessionid))
+                    || !PACKET_get_length_prefixed_1(&msgbody, &sessionid))
                     return 0;
 
                 /*
@@ -160,9 +161,10 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
                  * ClientHello
                  */
                 if (PACKET_remaining(&sessionid) != chsessidlen
-                        || (chsessidlen > 0
-                            && memcmp(chsessid, PACKET_data(&sessionid),
-                                      chsessidlen) != 0))
+                    || (chsessidlen > 0
+                        && memcmp(chsessid, PACKET_data(&sessionid),
+                               chsessidlen)
+                            != 0))
                     badsessid = 1;
             }
         } else if (rectype == SSL3_RT_CHANGE_CIPHER_SPEC) {
@@ -173,9 +175,9 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
                  * ServerHello
                  */
                 if (!sappdataseen
-                        && chseen == 1
-                        && shseen == 1
-                        && !sccsseen)
+                    && chseen == 1
+                    && shseen == 1
+                    && !sccsseen)
                     sccsseen = 1;
                 else
                     badccs = 1;
@@ -193,7 +195,7 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
             } else {
                 badccs = 1;
             }
-        } else if(rectype == SSL3_RT_APPLICATION_DATA) {
+        } else if (rectype == SSL3_RT_APPLICATION_DATA) {
             if (bio == s_to_c_fbio)
                 sappdataseen = 1;
             else
@@ -255,10 +257,10 @@ static int test_tls13ccs(int tst)
     chsessidlen = 0;
 
     if (!TEST_true(create_ssl_ctx_pair(NULL, TLS_server_method(),
-                                       TLS_client_method(), TLS1_VERSION, 0,
-                                       &sctx, &cctx, cert, privkey))
+            TLS_client_method(), TLS1_VERSION, 0,
+            &sctx, &cctx, cert, privkey))
         || !TEST_true(SSL_CTX_set_max_early_data(sctx,
-                                                 SSL3_RT_MAX_PLAIN_LENGTH)))
+            SSL3_RT_MAX_PLAIN_LENGTH)))
         goto err;
 
     /*
@@ -301,7 +303,7 @@ static int test_tls13ccs(int tst)
     if (tst >= 6) {
         /* Get a session suitable for early_data */
         if (!TEST_true(create_ssl_objects(sctx, cctx, &sssl, &cssl, NULL, NULL))
-                || !TEST_true(create_ssl_connection(sssl, cssl, SSL_ERROR_NONE)))
+            || !TEST_true(create_ssl_connection(sssl, cssl, SSL_ERROR_NONE)))
             goto err;
         sess = SSL_get1_session(cssl);
         if (!TEST_ptr(sess))
@@ -316,10 +318,10 @@ static int test_tls13ccs(int tst)
     if ((tst >= 3 && tst <= 5) || tst >= 9) {
         /* HRR handshake */
 #if defined(OPENSSL_NO_EC)
-# if !defined(OPENSSL_NO_DH)
+#if !defined(OPENSSL_NO_DH)
         if (!TEST_true(SSL_CTX_set1_groups_list(sctx, "ffdhe3072")))
             goto err;
-# endif
+#endif
 #else
         if (!TEST_true(SSL_CTX_set1_groups_list(sctx, "P-256")))
             goto err;
@@ -329,7 +331,7 @@ static int test_tls13ccs(int tst)
     s_to_c_fbio = BIO_new(bio_f_watchccs_filter());
     c_to_s_fbio = BIO_new(bio_f_watchccs_filter());
     if (!TEST_ptr(s_to_c_fbio)
-            || !TEST_ptr(c_to_s_fbio)) {
+        || !TEST_ptr(c_to_s_fbio)) {
         BIO_free(s_to_c_fbio);
         BIO_free(c_to_s_fbio);
         goto err;
@@ -337,18 +339,18 @@ static int test_tls13ccs(int tst)
 
     /* BIOs get freed on error */
     if (!TEST_true(create_ssl_objects(sctx, cctx, &sssl, &cssl, s_to_c_fbio,
-                                      c_to_s_fbio)))
+            c_to_s_fbio)))
         goto err;
 
     if (tst >= 6) {
         /* Early data */
         if (!TEST_true(SSL_set_session(cssl, sess))
-                || !TEST_true(SSL_write_early_data(cssl, msg, strlen(msg),
-                                                   &written))
-                || (tst <= 8
-                    && !TEST_int_eq(SSL_read_early_data(sssl, buf,  sizeof(buf),
-                                                &readbytes),
-                                                SSL_READ_EARLY_DATA_SUCCESS)))
+            || !TEST_true(SSL_write_early_data(cssl, msg, strlen(msg),
+                &written))
+            || (tst <= 8
+                && !TEST_int_eq(SSL_read_early_data(sssl, buf, sizeof(buf),
+                                    &readbytes),
+                    SSL_READ_EARLY_DATA_SUCCESS)))
             goto err;
         if (tst <= 8) {
             if (!TEST_int_gt(SSL_connect(cssl), 0))
@@ -357,9 +359,9 @@ static int test_tls13ccs(int tst)
             if (!TEST_int_le(SSL_connect(cssl), 0))
                 goto err;
         }
-        if (!TEST_int_eq(SSL_read_early_data(sssl, buf,  sizeof(buf),
-                                             &readbytes),
-                         SSL_READ_EARLY_DATA_FINISH))
+        if (!TEST_int_eq(SSL_read_early_data(sssl, buf, sizeof(buf),
+                             &readbytes),
+                SSL_READ_EARLY_DATA_FINISH))
             goto err;
     }
 
@@ -378,97 +380,97 @@ static int test_tls13ccs(int tst)
     switch (tst) {
     case 0:
         if (!TEST_true(sccsseen)
-                || !TEST_true(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_true(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 1:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_eq(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_eq(chsessidlen, 0))
             goto err;
         break;
 
     case 2:
         if (!TEST_false(sccsseen)
-                || !TEST_true(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_true(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 3:
         if (!TEST_true(sccsseen)
-                || !TEST_true(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_true(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 4:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_eq(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_eq(chsessidlen, 0))
             goto err;
         break;
 
     case 5:
         if (!TEST_false(sccsseen)
-                || !TEST_true(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_true(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 6:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_true(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_true(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 7:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_eq(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_eq(chsessidlen, 0))
             goto err;
         break;
 
     case 8:
         if (!TEST_false(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_true(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_true(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 9:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_true(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_true(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
     case 10:
         if (!TEST_true(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_false(ccsbeforesh)
-                || !TEST_size_t_eq(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_false(ccsbeforesh)
+            || !TEST_size_t_eq(chsessidlen, 0))
             goto err;
         break;
 
     case 11:
         if (!TEST_false(sccsseen)
-                || !TEST_false(ccsaftersh)
-                || !TEST_true(ccsbeforesh)
-                || !TEST_size_t_gt(chsessidlen, 0))
+            || !TEST_false(ccsaftersh)
+            || !TEST_true(ccsbeforesh)
+            || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
 
@@ -478,7 +480,7 @@ static int test_tls13ccs(int tst)
     }
 
     ret = 1;
- err:
+err:
     SSL_SESSION_free(sess);
     SSL_free(sssl);
     SSL_free(cssl);
@@ -498,7 +500,7 @@ int setup_tests(void)
     }
 
     if (!TEST_ptr(cert = test_get_argument(0))
-            || !TEST_ptr(privkey = test_get_argument(1)))
+        || !TEST_ptr(privkey = test_get_argument(1)))
         return 0;
 
     ADD_ALL_TESTS(test_tls13ccs, 12);

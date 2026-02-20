@@ -11,7 +11,6 @@
 #include "output.h"
 #include "tu_local.h"
 
-
 int main(int argc, char *argv[])
 {
     int ret = EXIT_FAILURE;

@@ -25,19 +25,18 @@
 #include "ssl_cert_table.h"
 #include "internal/thread_once.h"
 #ifndef OPENSSL_NO_POSIX_IO
-# include <sys/stat.h>
-# ifdef _WIN32
-#  define stat _stat
-# endif
-# ifndef S_ISDIR
-#  define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
-# endif
+#include <sys/stat.h>
+#ifdef _WIN32
+#define stat _stat
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
+#endif
 #endif
 
-
 static int ssl_security_default_callback(const SSL *s, const SSL_CTX *ctx,
-                                         int op, int bits, int nid, void *other,
-                                         void *ex);
+    int op, int bits, int nid, void *other,
+    void *ex);
 
 static CRYPTO_ONCE ssl_x509_store_ctx_once = CRYPTO_ONCE_STATIC_INIT;
 static volatile int ssl_x509_store_ctx_idx = -1;
@@ -45,8 +44,8 @@ static volatile int ssl_x509_store_ctx_idx = -1;
 DEFINE_RUN_ONCE_STATIC(ssl_x509_store_ctx_init)
 {
     ssl_x509_store_ctx_idx = X509_STORE_CTX_get_ex_new_index(0,
-                                                             "SSL for verify callback",
-                                                             NULL, NULL, NULL);
+        "SSL for verify callback",
+        NULL, NULL, NULL);
     return ssl_x509_store_ctx_idx >= 0;
 }
 
@@ -131,37 +130,36 @@ CERT *ssl_cert_dup(CERT *cert)
         }
         if (cert->pkeys[i].serverinfo != NULL) {
             /* Just copy everything. */
-            ret->pkeys[i].serverinfo =
-                OPENSSL_malloc(cert->pkeys[i].serverinfo_length);
+            ret->pkeys[i].serverinfo = OPENSSL_malloc(cert->pkeys[i].serverinfo_length);
             if (ret->pkeys[i].serverinfo == NULL) {
                 ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
             ret->pkeys[i].serverinfo_length = cert->pkeys[i].serverinfo_length;
             memcpy(ret->pkeys[i].serverinfo,
-                   cert->pkeys[i].serverinfo, cert->pkeys[i].serverinfo_length);
+                cert->pkeys[i].serverinfo, cert->pkeys[i].serverinfo_length);
         }
     }
 
     /* Configured sigalgs copied across */
     if (cert->conf_sigalgs) {
         ret->conf_sigalgs = OPENSSL_malloc(cert->conf_sigalgslen
-                                           * sizeof(*cert->conf_sigalgs));
+            * sizeof(*cert->conf_sigalgs));
         if (ret->conf_sigalgs == NULL)
             goto err;
         memcpy(ret->conf_sigalgs, cert->conf_sigalgs,
-               cert->conf_sigalgslen * sizeof(*cert->conf_sigalgs));
+            cert->conf_sigalgslen * sizeof(*cert->conf_sigalgs));
         ret->conf_sigalgslen = cert->conf_sigalgslen;
     } else
         ret->conf_sigalgs = NULL;
 
     if (cert->client_sigalgs) {
         ret->client_sigalgs = OPENSSL_malloc(cert->client_sigalgslen
-                                             * sizeof(*cert->client_sigalgs));
+            * sizeof(*cert->client_sigalgs));
         if (ret->client_sigalgs == NULL)
             goto err;
         memcpy(ret->client_sigalgs, cert->client_sigalgs,
-               cert->client_sigalgslen * sizeof(*cert->client_sigalgs));
+            cert->client_sigalgslen * sizeof(*cert->client_sigalgs));
         ret->client_sigalgslen = cert->client_sigalgslen;
     } else
         ret->client_sigalgs = NULL;
@@ -203,7 +201,7 @@ CERT *ssl_cert_dup(CERT *cert)
 #endif
     return ret;
 
- err:
+err:
     ssl_cert_free(ret);
 
     return NULL;
@@ -366,7 +364,7 @@ int ssl_cert_set_current(CERT *c, long op)
     return 0;
 }
 
-void ssl_cert_set_cert_cb(CERT *c, int (*cb) (SSL *ssl, void *arg), void *arg)
+void ssl_cert_set_cert_cb(CERT *c, int (*cb)(SSL *ssl, void *arg), void *arg)
 {
     c->cert_cb = cb;
     c->cert_cb_arg = arg;
@@ -416,8 +414,7 @@ int ssl_verify_cert_chain(SSL *s, STACK_OF(X509) *sk)
 
     /* Set suite B flags if needed */
     X509_STORE_CTX_set_flags(ctx, tls1_suiteb(s));
-    if (!X509_STORE_CTX_set_ex_data
-        (ctx, SSL_get_ex_data_X509_STORE_CTX_idx(), s)) {
+    if (!X509_STORE_CTX_set_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx(), s)) {
         goto end;
     }
 
@@ -463,13 +460,13 @@ int ssl_verify_cert_chain(SSL *s, STACK_OF(X509) *sk)
     /* Move peername from the store context params to the SSL handle's */
     X509_VERIFY_PARAM_move_peername(s->param, param);
 
- end:
+end:
     X509_STORE_CTX_free(ctx);
     return i;
 }
 
 static void set0_CA_list(STACK_OF(X509_NAME) **ca_list,
-                        STACK_OF(X509_NAME) *name_list)
+    STACK_OF(X509_NAME) *name_list)
 {
     sk_X509_NAME_pop_free(*ca_list, X509_NAME_free);
     *ca_list = name_list;
@@ -494,7 +491,7 @@ STACK_OF(X509_NAME) *SSL_dup_CA_list(const STACK_OF(X509_NAME) *sk)
             sk_X509_NAME_pop_free(ret, X509_NAME_free);
             return NULL;
         }
-        sk_X509_NAME_push(ret, name);   /* Cannot fail after reserve call */
+        sk_X509_NAME_push(ret, name); /* Cannot fail after reserve call */
     }
     return ret;
 }
@@ -543,7 +540,7 @@ STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *s)
 {
     if (!s->server)
         return s->s3.tmp.peer_ca_names;
-    return s->client_ca_names != NULL ?  s->client_ca_names
+    return s->client_ca_names != NULL ? s->client_ca_names
                                       : s->ctx->client_ca_names;
 }
 
@@ -626,8 +623,8 @@ static unsigned long xname_hash(const X509_NAME *a)
 }
 
 STACK_OF(X509_NAME) *SSL_load_client_CA_file_ex(const char *file,
-                                                OSSL_LIB_CTX *libctx,
-                                                const char *propq)
+    OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     BIO *in = BIO_new(BIO_s_file());
     X509 *x = NULL;
@@ -679,11 +676,11 @@ STACK_OF(X509_NAME) *SSL_load_client_CA_file_ex(const char *file,
     }
     goto done;
 
- err:
+err:
     X509_NAME_free(xn);
     sk_X509_NAME_pop_free(ret, X509_NAME_free);
     ret = NULL;
- done:
+done:
     /* restore the old libctx */
     OSSL_LIB_CTX_set0_default(prev_libctx);
     BIO_free(in);
@@ -700,13 +697,13 @@ STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file)
 }
 
 int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
-                                        const char *file)
+    const char *file)
 {
     BIO *in;
     X509 *x = NULL;
     X509_NAME *xn = NULL;
     int ret = 1;
-    int (*oldcmp) (const X509_NAME *const *a, const X509_NAME *const *b);
+    int (*oldcmp)(const X509_NAME *const *a, const X509_NAME *const *b);
 
     oldcmp = sk_X509_NAME_set_cmp_func(stack, xname_sk_cmp);
 
@@ -740,9 +737,9 @@ int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
     ERR_clear_error();
     goto done;
 
- err:
+err:
     ret = 0;
- done:
+done:
     BIO_free(in);
     X509_free(x);
     (void)sk_X509_NAME_set_cmp_func(stack, oldcmp);
@@ -750,7 +747,7 @@ int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
 }
 
 int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
-                                       const char *dir)
+    const char *dir)
 {
     OPENSSL_DIR_CTX *d = NULL;
     const char *filename;
@@ -791,14 +788,14 @@ int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
 
     if (errno) {
         ERR_raise_data(ERR_LIB_SYS, get_last_sys_error(),
-                       "calling OPENSSL_dir_read(%s)", dir);
+            "calling OPENSSL_dir_read(%s)", dir);
         ERR_raise(ERR_LIB_SSL, ERR_R_SYS_LIB);
         goto err;
     }
 
     ret = 1;
 
- err:
+err:
     if (d)
         OPENSSL_DIR_end(&d);
 
@@ -806,7 +803,7 @@ int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
 }
 
 static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
-                              const char *uri, int depth)
+    const char *uri, int depth)
 {
     int ok = 1;
     OSSL_STORE_CTX *ctx = NULL;
@@ -831,7 +828,7 @@ static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
              */
             if (depth > 0)
                 ok = add_uris_recursive(stack, OSSL_STORE_INFO_get0_NAME(info),
-                                        depth - 1);
+                    depth - 1);
         } else if (infotype == OSSL_STORE_INFO_CERT) {
             if ((x = OSSL_STORE_INFO_get0_CERT(info)) == NULL
                 || (xn = X509_get_subject_name(x)) == NULL
@@ -853,19 +850,19 @@ static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
     ERR_clear_error();
     goto done;
 
- err:
+err:
     ok = 0;
     OSSL_STORE_INFO_free(info);
- done:
+done:
     OSSL_STORE_close(ctx);
 
     return ok;
 }
 
 int SSL_add_store_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
-                                         const char *store)
+    const char *store)
 {
-    int (*oldcmp) (const X509_NAME *const *a, const X509_NAME *const *b)
+    int (*oldcmp)(const X509_NAME *const *a, const X509_NAME *const *b)
         = sk_X509_NAME_set_cmp_func(stack, xname_sk_cmp);
     int ret = add_uris_recursive(stack, store, 1);
 
@@ -925,7 +922,7 @@ int ssl_build_cert_chain(SSL *s, SSL_CTX *ctx, int flags)
     }
     /* Set suite B flags if needed */
     X509_STORE_CTX_set_flags(xs_ctx,
-                             c->cert_flags & SSL_CERT_FLAG_SUITEB_128_LOS);
+        c->cert_flags & SSL_CERT_FLAG_SUITEB_128_LOS);
 
     i = X509_verify_cert(xs_ctx);
     if (i <= 0 && flags & SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR) {
@@ -939,7 +936,7 @@ int ssl_build_cert_chain(SSL *s, SSL_CTX *ctx, int flags)
     if (i <= 0) {
         i = X509_STORE_CTX_get_error(xs_ctx);
         ERR_raise_data(ERR_LIB_SSL, SSL_R_CERTIFICATE_VERIFY_FAILED,
-                       "Verify error:%s", X509_verify_cert_error_string(i));
+            "Verify error:%s", X509_verify_cert_error_string(i));
 
         goto err;
     }
@@ -974,7 +971,7 @@ int ssl_build_cert_chain(SSL *s, SSL_CTX *ctx, int flags)
     cpk->chain = chain;
     if (rv == 0)
         rv = 1;
- err:
+err:
     if (flags & SSL_BUILD_CHAIN_FLAG_CHECK)
         X509_STORE_free(chain_store);
     X509_STORE_CTX_free(xs_ctx);
@@ -1029,8 +1026,8 @@ int ssl_get_security_level_bits(const SSL *s, const SSL_CTX *ctx, int *levelp)
 }
 
 static int ssl_security_default_callback(const SSL *s, const SSL_CTX *ctx,
-                                         int op, int bits, int nid, void *other,
-                                         void *ex)
+    int op, int bits, int nid, void *other,
+    void *ex)
 {
     int level, minbits, pfs_mask;
 
@@ -1048,31 +1045,29 @@ static int ssl_security_default_callback(const SSL *s, const SSL_CTX *ctx,
     switch (op) {
     case SSL_SECOP_CIPHER_SUPPORTED:
     case SSL_SECOP_CIPHER_SHARED:
-    case SSL_SECOP_CIPHER_CHECK:
-        {
-            const SSL_CIPHER *c = other;
-            /* No ciphers below security level */
-            if (bits < minbits)
-                return 0;
-            /* No unauthenticated ciphersuites */
-            if (c->algorithm_auth & SSL_aNULL)
-                return 0;
-            /* No MD5 mac ciphersuites */
-            if (c->algorithm_mac & SSL_MD5)
-                return 0;
-            /* SHA1 HMAC is 160 bits of security */
-            if (minbits > 160 && c->algorithm_mac & SSL_SHA1)
-                return 0;
-            /* Level 2: no RC4 */
-            if (level >= 2 && c->algorithm_enc == SSL_RC4)
-                return 0;
-            /* Level 3: forward secure ciphersuites only */
-            pfs_mask = SSL_kDHE | SSL_kECDHE | SSL_kDHEPSK | SSL_kECDHEPSK;
-            if (level >= 3 && c->min_tls != TLS1_3_VERSION &&
-                               !(c->algorithm_mkey & pfs_mask))
-                return 0;
-            break;
-        }
+    case SSL_SECOP_CIPHER_CHECK: {
+        const SSL_CIPHER *c = other;
+        /* No ciphers below security level */
+        if (bits < minbits)
+            return 0;
+        /* No unauthenticated ciphersuites */
+        if (c->algorithm_auth & SSL_aNULL)
+            return 0;
+        /* No MD5 mac ciphersuites */
+        if (c->algorithm_mac & SSL_MD5)
+            return 0;
+        /* SHA1 HMAC is 160 bits of security */
+        if (minbits > 160 && c->algorithm_mac & SSL_SHA1)
+            return 0;
+        /* Level 2: no RC4 */
+        if (level >= 2 && c->algorithm_enc == SSL_RC4)
+            return 0;
+        /* Level 3: forward secure ciphersuites only */
+        pfs_mask = SSL_kDHE | SSL_kECDHE | SSL_kDHEPSK | SSL_kECDHEPSK;
+        if (level >= 3 && c->min_tls != TLS1_3_VERSION && !(c->algorithm_mkey & pfs_mask))
+            return 0;
+        break;
+    }
     case SSL_SECOP_VERSION:
         if (!SSL_IS_DTLS(s)) {
             /* SSLv3 not allowed at level 2 */
@@ -1114,7 +1109,7 @@ int ssl_security(const SSL *s, int op, int bits, int nid, void *other)
 int ssl_ctx_security(const SSL_CTX *ctx, int op, int bits, int nid, void *other)
 {
     return ctx->cert->sec_cb(NULL, ctx, op, bits, nid, other,
-                             ctx->cert->sec_ex);
+        ctx->cert->sec_ex);
 }
 
 int ssl_cert_lookup_by_nid(int nid, size_t *pidx)

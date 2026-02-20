@@ -23,7 +23,7 @@
 #ifndef OPENSSL_NO_CT
 
 /* Used when declaring buffers to read text files into */
-# define CT_TEST_MAX_FILE_SIZE 8096
+#define CT_TEST_MAX_FILE_SIZE 8096
 
 static char *certs_dir = NULL;
 static char *ct_dir = NULL;
@@ -33,7 +33,7 @@ typedef struct ct_test_fixture {
     /* The current time in milliseconds */
     uint64_t epoch_time_in_ms;
     /* The CT log store to use during tests */
-    CTLOG_STORE* ctlog_store;
+    CTLOG_STORE *ctlog_store;
     /* Set the following to test handling of SCTs in X509 certificates */
     const char *certs_dir;
     char *certificate_file;
@@ -66,8 +66,8 @@ static CT_TEST_FIXTURE *set_up(const char *const test_case_name)
     fixture->test_case_name = test_case_name;
     fixture->epoch_time_in_ms = 1580335307000ULL; /* Wed 29 Jan 2020 10:01:47 PM UTC */
     if (!TEST_ptr(fixture->ctlog_store = CTLOG_STORE_new())
-            || !TEST_int_eq(
-                    CTLOG_STORE_load_default_file(fixture->ctlog_store), 1))
+        || !TEST_int_eq(
+            CTLOG_STORE_load_default_file(fixture->ctlog_store), 1))
         goto end;
     return fixture;
 
@@ -106,7 +106,7 @@ static X509 *load_pem_cert(const char *dir, const char *file)
 }
 
 static int read_text_file(const char *dir, const char *file,
-                          char *buffer, int buffer_length)
+    char *buffer, int buffer_length)
 {
     int len = -1;
     char *file_path = test_mk_file_path(dir, file);
@@ -124,7 +124,7 @@ static int read_text_file(const char *dir, const char *file,
 }
 
 static int compare_sct_list_printout(STACK_OF(SCT) *sct,
-                                     const char *expected_output)
+    const char *expected_output)
 {
     BIO *text_buffer = NULL;
     char *actual_output = NULL;
@@ -150,15 +150,15 @@ end:
 }
 
 static int compare_extension_printout(X509_EXTENSION *extension,
-                                      const char *expected_output)
+    const char *expected_output)
 {
     BIO *text_buffer = NULL;
     char *actual_output = NULL;
     int result = 0;
 
     if (!TEST_ptr(text_buffer = BIO_new(BIO_s_mem()))
-            || !TEST_true(X509V3_EXT_print(text_buffer, extension,
-                                           X509V3_EXT_DEFAULT, 0)))
+        || !TEST_true(X509V3_EXT_print(text_buffer, extension,
+            X509V3_EXT_DEFAULT, 0)))
         goto end;
 
     /* Append \n because it's easier to create files that end with one. */
@@ -181,7 +181,7 @@ end:
 }
 
 static int assert_validity(CT_TEST_FIXTURE *fixture, STACK_OF(SCT) *scts,
-                           CT_POLICY_EVAL_CTX *policy_ctx)
+    CT_POLICY_EVAL_CTX *policy_ctx)
 {
     int invalid_sct_count = 0;
     int valid_sct_count = 0;
@@ -210,11 +210,10 @@ static int assert_validity(CT_TEST_FIXTURE *fixture, STACK_OF(SCT) *scts,
     }
 
     if (!TEST_int_eq(valid_sct_count, fixture->expected_valid_sct_count)) {
-        int unverified_sct_count = sk_SCT_num(scts) -
-                                        invalid_sct_count - valid_sct_count;
+        int unverified_sct_count = sk_SCT_num(scts) - invalid_sct_count - valid_sct_count;
 
         TEST_info("%d SCTs failed, %d SCTs unverified",
-                  invalid_sct_count, unverified_sct_count);
+            invalid_sct_count, unverified_sct_count);
         return 0;
     }
 
@@ -235,8 +234,8 @@ static int execute_cert_test(CT_TEST_FIXTURE *fixture)
 
     if (fixture->sct_text_file != NULL) {
         sct_text_len = read_text_file(fixture->sct_dir, fixture->sct_text_file,
-                                      expected_sct_text,
-                                      CT_TEST_MAX_FILE_SIZE - 1);
+            expected_sct_text,
+            CT_TEST_MAX_FILE_SIZE - 1);
 
         if (!TEST_int_ge(sct_text_len, 0))
             goto end;
@@ -244,7 +243,7 @@ static int execute_cert_test(CT_TEST_FIXTURE *fixture)
     }
 
     CT_POLICY_EVAL_CTX_set_shared_CTLOG_STORE(
-            ct_policy_ctx, fixture->ctlog_store);
+        ct_policy_ctx, fixture->ctlog_store);
 
     CT_POLICY_EVAL_CTX_set_time(ct_policy_ctx, fixture->epoch_time_in_ms);
 
@@ -254,20 +253,19 @@ static int execute_cert_test(CT_TEST_FIXTURE *fixture)
         X509_EXTENSION *sct_extension = NULL;
 
         if (!TEST_ptr(cert = load_pem_cert(fixture->certs_dir,
-                                           fixture->certificate_file)))
+                          fixture->certificate_file)))
             goto end;
 
         CT_POLICY_EVAL_CTX_set1_cert(ct_policy_ctx, cert);
 
         if (fixture->issuer_file != NULL) {
             if (!TEST_ptr(issuer = load_pem_cert(fixture->certs_dir,
-                                                 fixture->issuer_file)))
+                              fixture->issuer_file)))
                 goto end;
             CT_POLICY_EVAL_CTX_set1_issuer(ct_policy_ctx, issuer);
         }
 
-        sct_extension_index =
-                X509_get_ext_by_NID(cert, NID_ct_precert_scts, -1);
+        sct_extension_index = X509_get_ext_by_NID(cert, NID_ct_precert_scts, -1);
         sct_extension = X509_get_ext(cert, sct_extension_index);
         if (fixture->expected_sct_count > 0) {
             if (!TEST_ptr(sct_extension))
@@ -275,15 +273,15 @@ static int execute_cert_test(CT_TEST_FIXTURE *fixture)
 
             if (fixture->sct_text_file
                 && !compare_extension_printout(sct_extension,
-                                               expected_sct_text))
-                    goto end;
+                    expected_sct_text))
+                goto end;
 
             scts = X509V3_EXT_d2i(sct_extension);
             for (i = 0; i < sk_SCT_num(scts); ++i) {
                 SCT *sct_i = sk_SCT_value(scts, i);
 
                 if (!TEST_int_eq(SCT_get_source(sct_i),
-                                 SCT_SOURCE_X509V3_EXTENSION)) {
+                        SCT_SOURCE_X509V3_EXTENSION)) {
                     goto end;
                 }
             }
@@ -310,12 +308,12 @@ static int execute_cert_test(CT_TEST_FIXTURE *fixture)
 
         if (fixture->sct_text_file
             && !compare_sct_list_printout(scts, expected_sct_text)) {
-                goto end;
+            goto end;
         }
 
         tls_sct_list_len = i2o_SCT_LIST(scts, &tls_sct_list);
         if (!TEST_mem_eq(fixture->tls_sct_list, fixture->tls_sct_list_len,
-                         tls_sct_list, tls_sct_list_len))
+                tls_sct_list, tls_sct_list_len))
             goto end;
     }
     success = 1;
@@ -330,8 +328,8 @@ end:
     return success;
 }
 
-# define SETUP_CT_TEST_FIXTURE() SETUP_TEST_FIXTURE(CT_TEST_FIXTURE, set_up)
-# define EXECUTE_CT_TEST() EXECUTE_TEST(execute_cert_test, tear_down)
+#define SETUP_CT_TEST_FIXTURE() SETUP_TEST_FIXTURE(CT_TEST_FIXTURE, set_up)
+#define EXECUTE_CT_TEST() EXECUTE_TEST(execute_cert_test, tear_down)
 
 static int test_no_scts_in_certificate(void)
 {
@@ -411,22 +409,22 @@ static int test_verify_fails_for_future_sct(void)
 static int test_decode_tls_sct(void)
 {
     const unsigned char tls_sct_list[] = "\x00\x78" /* length of list */
-        "\x00\x76"
-        "\x00" /* version */
-        /* log ID */
-        "\xDF\x1C\x2E\xC1\x15\x00\x94\x52\x47\xA9\x61\x68\x32\x5D\xDC\x5C\x79"
-        "\x59\xE8\xF7\xC6\xD3\x88\xFC\x00\x2E\x0B\xBD\x3F\x74\xD7\x64"
-        "\x00\x00\x01\x3D\xDB\x27\xDF\x93" /* timestamp */
-        "\x00\x00" /* extensions length */
-        "" /* extensions */
-        "\x04\x03" /* hash and signature algorithms */
-        "\x00\x47" /* signature length */
-        /* signature */
-        "\x30\x45\x02\x20\x48\x2F\x67\x51\xAF\x35\xDB\xA6\x54\x36\xBE\x1F\xD6"
-        "\x64\x0F\x3D\xBF\x9A\x41\x42\x94\x95\x92\x45\x30\x28\x8F\xA3\xE5\xE2"
-        "\x3E\x06\x02\x21\x00\xE4\xED\xC0\xDB\x3A\xC5\x72\xB1\xE2\xF5\xE8\xAB"
-        "\x6A\x68\x06\x53\x98\x7D\xCF\x41\x02\x7D\xFE\xFF\xA1\x05\x51\x9D\x89"
-        "\xED\xBF\x08";
+                                         "\x00\x76"
+                                         "\x00" /* version */
+                                         /* log ID */
+                                         "\xDF\x1C\x2E\xC1\x15\x00\x94\x52\x47\xA9\x61\x68\x32\x5D\xDC\x5C\x79"
+                                         "\x59\xE8\xF7\xC6\xD3\x88\xFC\x00\x2E\x0B\xBD\x3F\x74\xD7\x64"
+                                         "\x00\x00\x01\x3D\xDB\x27\xDF\x93" /* timestamp */
+                                         "\x00\x00" /* extensions length */
+                                         "" /* extensions */
+                                         "\x04\x03" /* hash and signature algorithms */
+                                         "\x00\x47" /* signature length */
+                                         /* signature */
+                                         "\x30\x45\x02\x20\x48\x2F\x67\x51\xAF\x35\xDB\xA6\x54\x36\xBE\x1F\xD6"
+                                         "\x64\x0F\x3D\xBF\x9A\x41\x42\x94\x95\x92\x45\x30\x28\x8F\xA3\xE5\xE2"
+                                         "\x3E\x06\x02\x21\x00\xE4\xED\xC0\xDB\x3A\xC5\x72\xB1\xE2\xF5\xE8\xAB"
+                                         "\x6A\x68\x06\x53\x98\x7D\xCF\x41\x02\x7D\xFE\xFF\xA1\x05\x51\x9D\x89"
+                                         "\xED\xBF\x08";
 
     SETUP_CT_TEST_FIXTURE();
     fixture->tls_sct_list = tls_sct_list;
@@ -443,22 +441,20 @@ static int test_encode_tls_sct(void)
     const uint64_t timestamp = 1;
     const char extensions[] = "";
     const char signature[] = "BAMARzBAMiBIL2dRrzXbplQ2vh/WZA89v5pBQpSVkkUwKI+j5"
-            "eI+BgIhAOTtwNs6xXKx4vXoq2poBlOYfc9BAn3+/6EFUZ2J7b8I";
+                             "eI+BgIhAOTtwNs6xXKx4vXoq2poBlOYfc9BAn3+/6EFUZ2J7b8I";
     SCT *sct = NULL;
 
     SETUP_CT_TEST_FIXTURE();
 
     fixture->sct_list = sk_SCT_new_null();
-    if (fixture->sct_list == NULL)
-    {
+    if (fixture->sct_list == NULL) {
         tear_down(fixture);
         return 0;
     }
 
     if (!TEST_ptr(sct = SCT_new_from_base64(SCT_VERSION_V1, log_id,
-                                            CT_LOG_ENTRY_TYPE_X509, timestamp,
-                                            extensions, signature)))
-    {
+                      CT_LOG_ENTRY_TYPE_X509, timestamp,
+                      extensions, signature))) {
         tear_down(fixture);
         return 0;
     }
@@ -478,12 +474,11 @@ static int test_default_ct_policy_eval_ctx_time_is_now(void)
 {
     int success = 0;
     CT_POLICY_EVAL_CTX *ct_policy_ctx = CT_POLICY_EVAL_CTX_new();
-    const time_t default_time =
-        (time_t)(CT_POLICY_EVAL_CTX_get_time(ct_policy_ctx) / 1000);
-    const time_t time_tolerance = 600;  /* 10 minutes */
+    const time_t default_time = (time_t)(CT_POLICY_EVAL_CTX_get_time(ct_policy_ctx) / 1000);
+    const time_t time_tolerance = 600; /* 10 minutes */
 
     if (!TEST_time_t_le(abs((int)difftime(time(NULL), default_time)),
-                        time_tolerance))
+            time_tolerance))
         goto end;
 
     success = 1;
