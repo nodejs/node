@@ -85,10 +85,9 @@ export default [
   js.configs.recommended,
   jsdoc.configs['flat/recommended'],
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.js'],
     languageOptions: {
-      // The default is `commonjs` but it's not supported by the Babel parser.
-      sourceType: 'script',
+      sourceType: 'commonjs',
     },
   },
   {
@@ -256,6 +255,8 @@ export default [
 
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
+      'no-shadow-restricted-names': 'off',
+      'no-useless-assignment': 'off',
 
       // JSDoc rules.
       'jsdoc/require-jsdoc': 'off',
