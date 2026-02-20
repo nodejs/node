@@ -16,7 +16,8 @@
  */
 static uint32_t test_random_state[31];
 
-uint32_t test_random(void) {
+uint32_t test_random(void)
+{
     static unsigned int pos = 3;
 
     if (pos == 31)
@@ -25,7 +26,8 @@ uint32_t test_random(void) {
     return test_random_state[pos++] / 2;
 }
 
-void test_random_seed(uint32_t sd) {
+void test_random_seed(uint32_t sd)
+{
     int i;
     int32_t s;
     const unsigned int mod = (1u << 31) - 1;

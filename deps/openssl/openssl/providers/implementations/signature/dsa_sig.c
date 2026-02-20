@@ -80,14 +80,13 @@ typedef struct {
     /* The Algorithm Identifier of the combined signature algorithm */
     unsigned char aid_buf[OSSL_MAX_ALGORITHM_ID_SIZE];
     unsigned char *aid;
-    size_t  aid_len;
+    size_t aid_len;
 
     /* main digest */
     EVP_MD *md;
     EVP_MD_CTX *mdctx;
     int operation;
 } PROV_DSA_CTX;
-
 
 static size_t dsa_get_md_size(const PROV_DSA_CTX *pdsactx)
 {
@@ -118,7 +117,7 @@ static void *dsa_newctx(void *provctx, const char *propq)
 }
 
 static int dsa_setup_md(PROV_DSA_CTX *ctx,
-                        const char *mdname, const char *mdprops)
+    const char *mdname, const char *mdprops)
 {
     if (mdprops == NULL)
         mdprops = ctx->propq;
@@ -128,19 +127,19 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
         WPACKET pkt;
         EVP_MD *md = EVP_MD_fetch(ctx->libctx, mdname, mdprops);
         int md_nid = ossl_digest_get_approved_nid_with_sha1(ctx->libctx, md,
-                                                            sha1_allowed);
+            sha1_allowed);
         size_t mdname_len = strlen(mdname);
 
         if (md == NULL || md_nid < 0) {
             if (md == NULL)
                 ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST,
-                               "%s could not be fetched", mdname);
+                    "%s could not be fetched", mdname);
             if (md_nid < 0)
                 ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
-                               "digest=%s", mdname);
+                    "digest=%s", mdname);
             if (mdname_len >= sizeof(ctx->mdname))
                 ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST,
-                               "%s exceeds name buffer length", mdname);
+                    "%s exceeds name buffer length", mdname);
             EVP_MD_free(md);
             return 0;
         }
@@ -148,7 +147,7 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
         if (!ctx->flag_allow_md) {
             if (ctx->mdname[0] != '\0' && !EVP_MD_is_a(md, ctx->mdname)) {
                 ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
-                               "digest %s != %s", mdname, ctx->mdname);
+                    "digest %s != %s", mdname, ctx->mdname);
                 EVP_MD_free(md);
                 return 0;
             }
@@ -169,7 +168,7 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
         ctx->aid_len = 0;
         if (WPACKET_init_der(&pkt, ctx->aid_buf, sizeof(ctx->aid_buf))
             && ossl_DER_w_algorithmIdentifier_DSA_with_MD(&pkt, -1, ctx->dsa,
-                                                          md_nid)
+                md_nid)
             && WPACKET_finish(&pkt)) {
             WPACKET_get_total_written(&pkt, &ctx->aid_len);
             ctx->aid = WPACKET_get_curr(&pkt);
@@ -184,12 +183,12 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
 }
 
 static int dsa_signverify_init(void *vpdsactx, void *vdsa,
-                               const OSSL_PARAM params[], int operation)
+    const OSSL_PARAM params[], int operation)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
 
     if (!ossl_prov_is_running()
-            || pdsactx == NULL)
+        || pdsactx == NULL)
         return 0;
 
     if (vdsa == NULL && pdsactx->dsa == NULL) {
@@ -199,7 +198,7 @@ static int dsa_signverify_init(void *vpdsactx, void *vdsa,
 
     if (vdsa != NULL) {
         if (!ossl_dsa_check_key(pdsactx->libctx, vdsa,
-                                operation == EVP_PKEY_OP_SIGN)) {
+                operation == EVP_PKEY_OP_SIGN)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
@@ -223,13 +222,13 @@ static int dsa_sign_init(void *vpdsactx, void *vdsa, const OSSL_PARAM params[])
 }
 
 static int dsa_verify_init(void *vpdsactx, void *vdsa,
-                           const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return dsa_signverify_init(vpdsactx, vdsa, params, EVP_PKEY_OP_VERIFY);
 }
 
 static int dsa_sign(void *vpdsactx, unsigned char *sig, size_t *siglen,
-                    size_t sigsize, const unsigned char *tbs, size_t tbslen)
+    size_t sigsize, const unsigned char *tbs, size_t tbslen)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
     int ret;
@@ -260,7 +259,7 @@ static int dsa_sign(void *vpdsactx, unsigned char *sig, size_t *siglen,
 }
 
 static int dsa_verify(void *vpdsactx, const unsigned char *sig, size_t siglen,
-                      const unsigned char *tbs, size_t tbslen)
+    const unsigned char *tbs, size_t tbslen)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
     size_t mdsize = dsa_get_md_size(pdsactx);
@@ -272,8 +271,8 @@ static int dsa_verify(void *vpdsactx, const unsigned char *sig, size_t siglen,
 }
 
 static int dsa_digest_signverify_init(void *vpdsactx, const char *mdname,
-                                      void *vdsa, const OSSL_PARAM params[],
-                                      int operation)
+    void *vdsa, const OSSL_PARAM params[],
+    int operation)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
 
@@ -299,28 +298,28 @@ static int dsa_digest_signverify_init(void *vpdsactx, const char *mdname,
 
     return 1;
 
- error:
+error:
     EVP_MD_CTX_free(pdsactx->mdctx);
     pdsactx->mdctx = NULL;
     return 0;
 }
 
 static int dsa_digest_sign_init(void *vpdsactx, const char *mdname,
-                                void *vdsa, const OSSL_PARAM params[])
+    void *vdsa, const OSSL_PARAM params[])
 {
     return dsa_digest_signverify_init(vpdsactx, mdname, vdsa, params,
-                                      EVP_PKEY_OP_SIGN);
+        EVP_PKEY_OP_SIGN);
 }
 
 static int dsa_digest_verify_init(void *vpdsactx, const char *mdname,
-                                  void *vdsa, const OSSL_PARAM params[])
+    void *vdsa, const OSSL_PARAM params[])
 {
     return dsa_digest_signverify_init(vpdsactx, mdname, vdsa, params,
-                                      EVP_PKEY_OP_VERIFY);
+        EVP_PKEY_OP_VERIFY);
 }
 
 int dsa_digest_signverify_update(void *vpdsactx, const unsigned char *data,
-                                 size_t datalen)
+    size_t datalen)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
 
@@ -331,7 +330,7 @@ int dsa_digest_signverify_update(void *vpdsactx, const unsigned char *data,
 }
 
 int dsa_digest_sign_final(void *vpdsactx, unsigned char *sig, size_t *siglen,
-                          size_t sigsize)
+    size_t sigsize)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -359,9 +358,8 @@ int dsa_digest_sign_final(void *vpdsactx, unsigned char *sig, size_t *siglen,
     return dsa_sign(vpdsactx, sig, siglen, sigsize, digest, (size_t)dlen);
 }
 
-
 int dsa_digest_verify_final(void *vpdsactx, const unsigned char *sig,
-                            size_t siglen)
+    size_t siglen)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -426,7 +424,7 @@ static void *dsa_dupctx(void *vpdsactx)
     if (srcctx->mdctx != NULL) {
         dstctx->mdctx = EVP_MD_CTX_new();
         if (dstctx->mdctx == NULL
-                || !EVP_MD_CTX_copy_ex(dstctx->mdctx, srcctx->mdctx))
+            || !EVP_MD_CTX_copy_ex(dstctx->mdctx, srcctx->mdctx))
             goto err;
     }
     if (srcctx->propq != NULL) {
@@ -436,7 +434,7 @@ static void *dsa_dupctx(void *vpdsactx)
     }
 
     return dstctx;
- err:
+err:
     dsa_freectx(dstctx);
     return NULL;
 }
@@ -468,7 +466,7 @@ static const OSSL_PARAM known_gettable_ctx_params[] = {
 };
 
 static const OSSL_PARAM *dsa_gettable_ctx_params(ossl_unused void *ctx,
-                                                 ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_gettable_ctx_params;
 }
@@ -487,9 +485,8 @@ static int dsa_set_ctx_params(void *vpdsactx, const OSSL_PARAM params[])
     if (p != NULL) {
         char mdname[OSSL_MAX_NAME_SIZE] = "", *pmdname = mdname;
         char mdprops[OSSL_MAX_PROPQUERY_SIZE] = "", *pmdprops = mdprops;
-        const OSSL_PARAM *propsp =
-            OSSL_PARAM_locate_const(params,
-                                    OSSL_SIGNATURE_PARAM_PROPERTIES);
+        const OSSL_PARAM *propsp = OSSL_PARAM_locate_const(params,
+            OSSL_SIGNATURE_PARAM_PROPERTIES);
 
         if (!OSSL_PARAM_get_utf8_string(p, &pmdname, sizeof(mdname)))
             return 0;
@@ -514,7 +511,7 @@ static const OSSL_PARAM settable_ctx_params_no_digest[] = {
 };
 
 static const OSSL_PARAM *dsa_settable_ctx_params(void *vpdsactx,
-                                                 ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
 
@@ -570,32 +567,32 @@ const OSSL_DISPATCH ossl_dsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_VERIFY_INIT, (void (*)(void))dsa_verify_init },
     { OSSL_FUNC_SIGNATURE_VERIFY, (void (*)(void))dsa_verify },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT,
-      (void (*)(void))dsa_digest_sign_init },
+        (void (*)(void))dsa_digest_sign_init },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE,
-      (void (*)(void))dsa_digest_signverify_update },
+        (void (*)(void))dsa_digest_signverify_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL,
-      (void (*)(void))dsa_digest_sign_final },
+        (void (*)(void))dsa_digest_sign_final },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_INIT,
-      (void (*)(void))dsa_digest_verify_init },
+        (void (*)(void))dsa_digest_verify_init },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_UPDATE,
-      (void (*)(void))dsa_digest_signverify_update },
+        (void (*)(void))dsa_digest_signverify_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_FINAL,
-      (void (*)(void))dsa_digest_verify_final },
+        (void (*)(void))dsa_digest_verify_final },
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))dsa_freectx },
     { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))dsa_dupctx },
     { OSSL_FUNC_SIGNATURE_GET_CTX_PARAMS, (void (*)(void))dsa_get_ctx_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_PARAMS,
-      (void (*)(void))dsa_gettable_ctx_params },
+        (void (*)(void))dsa_gettable_ctx_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS, (void (*)(void))dsa_set_ctx_params },
     { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS,
-      (void (*)(void))dsa_settable_ctx_params },
+        (void (*)(void))dsa_settable_ctx_params },
     { OSSL_FUNC_SIGNATURE_GET_CTX_MD_PARAMS,
-      (void (*)(void))dsa_get_ctx_md_params },
+        (void (*)(void))dsa_get_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_MD_PARAMS,
-      (void (*)(void))dsa_gettable_ctx_md_params },
+        (void (*)(void))dsa_gettable_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_MD_PARAMS,
-      (void (*)(void))dsa_set_ctx_md_params },
+        (void (*)(void))dsa_set_ctx_md_params },
     { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_MD_PARAMS,
-      (void (*)(void))dsa_settable_ctx_md_params },
+        (void (*)(void))dsa_settable_ctx_md_params },
     { 0, NULL }
 };

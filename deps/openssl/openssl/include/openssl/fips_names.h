@@ -8,12 +8,12 @@
  */
 
 #ifndef OPENSSL_FIPS_NAMES_H
-# define OPENSSL_FIPS_NAMES_H
-# pragma once
+#define OPENSSL_FIPS_NAMES_H
+#pragma once
 
-# ifdef __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 /*
  * Parameter names that the FIPS Provider defines
@@ -23,38 +23,38 @@ extern "C" {
  * The calculated MAC of the module file (Used for FIPS Self Testing)
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_MODULE_MAC      "module-mac"
+#define OSSL_PROV_FIPS_PARAM_MODULE_MAC "module-mac"
 /*
  * A version number for the fips install process (Used for FIPS Self Testing)
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_INSTALL_VERSION "install-version"
+#define OSSL_PROV_FIPS_PARAM_INSTALL_VERSION "install-version"
 /*
  * The calculated MAC of the install status indicator (Used for FIPS Self Testing)
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_INSTALL_MAC     "install-mac"
+#define OSSL_PROV_FIPS_PARAM_INSTALL_MAC "install-mac"
 /*
  * The install status indicator (Used for FIPS Self Testing)
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_INSTALL_STATUS  "install-status"
+#define OSSL_PROV_FIPS_PARAM_INSTALL_STATUS "install-status"
 
 /*
  * A boolean that determines if the FIPS conditional test errors result in
  * the module entering an error state.
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_CONDITIONAL_ERRORS "conditional-errors"
+#define OSSL_PROV_FIPS_PARAM_CONDITIONAL_ERRORS "conditional-errors"
 
 /*
  * A boolean that determines if the runtime FIPS security checks are performed.
  * Type: OSSL_PARAM_UTF8_STRING
  */
-# define OSSL_PROV_FIPS_PARAM_SECURITY_CHECKS "security-checks"
+#define OSSL_PROV_FIPS_PARAM_SECURITY_CHECKS "security-checks"
 
-# ifdef __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 
 #endif /* OPENSSL_FIPS_NAMES_H */

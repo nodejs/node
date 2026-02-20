@@ -35,7 +35,7 @@ static int test_is_fips_enabled(void)
      * loading the FIPS provider.
      */
     if (!TEST_int_eq(is_fips || bad_fips, is_fips_enabled)
-            || !TEST_int_eq(is_fips && !bad_fips, is_fips_loaded))
+        || !TEST_int_eq(is_fips && !bad_fips, is_fips_loaded))
         return 0;
 
     /*
@@ -53,7 +53,7 @@ static int test_is_fips_enabled(void)
             return 0;
         if (is_fips
             && !TEST_str_eq(OSSL_PROVIDER_get0_name(EVP_MD_get0_provider(sha256)),
-                            "fips")) {
+                "fips")) {
             EVP_MD_free(sha256);
             return 0;
         }
@@ -79,7 +79,7 @@ int setup_tests(void)
     }
 
     argc = test_get_argument_count();
-    switch(argc) {
+    switch (argc) {
     case 0:
         is_fips = 0;
         bad_fips = 0;

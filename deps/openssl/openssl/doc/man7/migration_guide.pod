@@ -596,13 +596,13 @@ The code needs to be amended to look like this:
 Support for TLSv1.3 has been added.
 
 This has a number of implications for SSL/TLS applications. See the
-L<TLS1.3 page|https://wiki.openssl.org/index.php/TLS1.3> for further details.
+L<TLS1.3 page|https://github.com/openssl/openssl/wiki/TLS1.3> for further details.
 
 =back
 
 More details about the breaking changes between OpenSSL versions 1.0.2 and 1.1.0
 can be found on the
-L<OpenSSL 1.1.0 Changes page|https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes>.
+L<OpenSSL 1.1.0 Changes page|https://github.com/openssl/openssl/wiki/OpenSSL_1.1.0_Changes>.
 
 =head3 Upgrading from the OpenSSL 2.0 FIPS Object Module
 
@@ -2484,7 +2484,7 @@ The migration guide was created for OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

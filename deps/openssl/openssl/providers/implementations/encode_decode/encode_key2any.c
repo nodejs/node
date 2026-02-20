@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,7 +21,7 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
-#include <openssl/pkcs12.h>      /* PKCS8_encrypt() */
+#include <openssl/pkcs12.h> /* PKCS8_encrypt() */
 #include <openssl/dh.h>
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
@@ -37,7 +37,7 @@
 #include "endecoder_local.h"
 
 #if defined(OPENSSL_NO_DH) && defined(OPENSSL_NO_DSA) && defined(OPENSSL_NO_EC)
-# define OPENSSL_NO_KEYPARAMS
+#define OPENSSL_NO_KEYPARAMS
 #endif
 
 struct key2any_ctx_st {
@@ -56,18 +56,17 @@ struct key2any_ctx_st {
 
 typedef int check_key_type_fn(const void *key, int nid);
 typedef int key_to_paramstring_fn(const void *key, int nid, int save,
-                                  void **str, int *strtype);
+    void **str, int *strtype);
 typedef int key_to_der_fn(BIO *out, const void *key,
-                          int key_nid, const char *pemname,
-                          key_to_paramstring_fn *p2s, i2d_of_void *k2d,
-                          struct key2any_ctx_st *ctx);
+    int key_nid, const char *pemname,
+    key_to_paramstring_fn *p2s, i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx);
 typedef int write_bio_of_void_fn(BIO *bp, const void *x);
-
 
 /* Free the blob allocated during key_to_paramstring_fn */
 static void free_asn1_data(int type, void *data)
 {
-    switch(type) {
+    switch (type) {
     case V_ASN1_OBJECT:
         ASN1_OBJECT_free(data);
         break;
@@ -78,8 +77,8 @@ static void free_asn1_data(int type, void *data)
 }
 
 static PKCS8_PRIV_KEY_INFO *key_to_p8info(const void *key, int key_nid,
-                                          void *params, int params_type,
-                                          i2d_of_void *k2d)
+    void *params, int params_type,
+    i2d_of_void *k2d)
 {
     /* der, derlen store the key DER output and its length */
     unsigned char *der = NULL;
@@ -90,7 +89,7 @@ static PKCS8_PRIV_KEY_INFO *key_to_p8info(const void *key, int key_nid,
     if ((p8info = PKCS8_PRIV_KEY_INFO_new()) == NULL
         || (derlen = k2d(key, &der)) <= 0
         || !PKCS8_pkey_set0(p8info, OBJ_nid2obj(key_nid), 0,
-                            params_type, params, der, derlen)) {
+            params_type, params, der, derlen)) {
         ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
         PKCS8_PRIV_KEY_INFO_free(p8info);
         OPENSSL_free(der);
@@ -101,7 +100,7 @@ static PKCS8_PRIV_KEY_INFO *key_to_p8info(const void *key, int key_nid,
 }
 
 static X509_SIG *p8info_to_encp8(PKCS8_PRIV_KEY_INFO *p8info,
-                                 struct key2any_ctx_st *ctx)
+    struct key2any_ctx_st *ctx)
 {
     X509_SIG *p8 = NULL;
     char kstr[PEM_BUFSIZE];
@@ -112,7 +111,7 @@ static X509_SIG *p8info_to_encp8(PKCS8_PRIV_KEY_INFO *p8info,
         return NULL;
 
     if (!ossl_pw_get_passphrase(kstr, sizeof(kstr), &klen, NULL, 1,
-                                &ctx->pwdata)) {
+            &ctx->pwdata)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_UNABLE_TO_GET_PASSPHRASE);
         return NULL;
     }
@@ -123,11 +122,10 @@ static X509_SIG *p8info_to_encp8(PKCS8_PRIV_KEY_INFO *p8info,
 }
 
 static X509_SIG *key_to_encp8(const void *key, int key_nid,
-                              void *params, int params_type,
-                              i2d_of_void *k2d, struct key2any_ctx_st *ctx)
+    void *params, int params_type,
+    i2d_of_void *k2d, struct key2any_ctx_st *ctx)
 {
-    PKCS8_PRIV_KEY_INFO *p8info =
-        key_to_p8info(key, key_nid, params, params_type, k2d);
+    PKCS8_PRIV_KEY_INFO *p8info = key_to_p8info(key, key_nid, params, params_type, k2d);
     X509_SIG *p8 = NULL;
 
     if (p8info == NULL) {
@@ -140,8 +138,8 @@ static X509_SIG *key_to_encp8(const void *key, int key_nid,
 }
 
 static X509_PUBKEY *key_to_pubkey(const void *key, int key_nid,
-                                  void *params, int params_type,
-                                  i2d_of_void k2d)
+    void *params, int params_type,
+    i2d_of_void k2d)
 {
     /* der, derlen store the key DER output and its length */
     unsigned char *der = NULL;
@@ -149,11 +147,10 @@ static X509_PUBKEY *key_to_pubkey(const void *key, int key_nid,
     /* The final X509_PUBKEY */
     X509_PUBKEY *xpk = NULL;
 
-
     if ((xpk = X509_PUBKEY_new()) == NULL
         || (derlen = k2d(key, &der)) <= 0
         || !X509_PUBKEY_set0_param(xpk, OBJ_nid2obj(key_nid),
-                                   params_type, params, der, derlen)) {
+            params_type, params, der, derlen)) {
         ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
         X509_PUBKEY_free(xpk);
         OPENSSL_free(der);
@@ -168,7 +165,7 @@ static X509_PUBKEY *key_to_pubkey(const void *key, int key_nid,
  * EncryptedPrivateKeyInfo structure (defined by PKCS#8).  They require
  * that there's an intent to encrypt, anything else is an error.
  *
- * key_to_pki_* primarly produce encoded output with the private key data
+ * key_to_pki_* primarily produce encoded output with the private key data
  * in a PrivateKeyInfo structure (also defined by PKCS#8).  However, if
  * there is an intent to encrypt the data, the corresponding key_to_epki_*
  * function is used instead.
@@ -183,11 +180,11 @@ static X509_PUBKEY *key_to_pubkey(const void *key, int key_nid,
  */
 
 static int key_to_epki_der_priv_bio(BIO *out, const void *key,
-                                    int key_nid,
-                                    ossl_unused const char *pemname,
-                                    key_to_paramstring_fn *p2s,
-                                    i2d_of_void *k2d,
-                                    struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
@@ -197,8 +194,7 @@ static int key_to_epki_der_priv_bio(BIO *out, const void *key,
     if (!ctx->cipher_intent)
         return 0;
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     p8 = key_to_encp8(key, key_nid, str, strtype, k2d, ctx);
@@ -211,11 +207,11 @@ static int key_to_epki_der_priv_bio(BIO *out, const void *key,
 }
 
 static int key_to_epki_pem_priv_bio(BIO *out, const void *key,
-                                    int key_nid,
-                                    ossl_unused const char *pemname,
-                                    key_to_paramstring_fn *p2s,
-                                    i2d_of_void *k2d,
-                                    struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
@@ -225,8 +221,7 @@ static int key_to_epki_pem_priv_bio(BIO *out, const void *key,
     if (!ctx->cipher_intent)
         return 0;
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     p8 = key_to_encp8(key, key_nid, str, strtype, k2d, ctx);
@@ -239,11 +234,11 @@ static int key_to_epki_pem_priv_bio(BIO *out, const void *key,
 }
 
 static int key_to_pki_der_priv_bio(BIO *out, const void *key,
-                                   int key_nid,
-                                   ossl_unused const char *pemname,
-                                   key_to_paramstring_fn *p2s,
-                                   i2d_of_void *k2d,
-                                   struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
@@ -252,10 +247,9 @@ static int key_to_pki_der_priv_bio(BIO *out, const void *key,
 
     if (ctx->cipher_intent)
         return key_to_epki_der_priv_bio(out, key, key_nid, pemname,
-                                        p2s, k2d, ctx);
+            p2s, k2d, ctx);
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     p8info = key_to_p8info(key, key_nid, str, strtype, k2d);
@@ -271,11 +265,11 @@ static int key_to_pki_der_priv_bio(BIO *out, const void *key,
 }
 
 static int key_to_pki_pem_priv_bio(BIO *out, const void *key,
-                                   int key_nid,
-                                   ossl_unused const char *pemname,
-                                   key_to_paramstring_fn *p2s,
-                                   i2d_of_void *k2d,
-                                   struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
@@ -284,10 +278,9 @@ static int key_to_pki_pem_priv_bio(BIO *out, const void *key,
 
     if (ctx->cipher_intent)
         return key_to_epki_pem_priv_bio(out, key, key_nid, pemname,
-                                        p2s, k2d, ctx);
+            p2s, k2d, ctx);
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     p8info = key_to_p8info(key, key_nid, str, strtype, k2d);
@@ -303,19 +296,18 @@ static int key_to_pki_pem_priv_bio(BIO *out, const void *key,
 }
 
 static int key_to_spki_der_pub_bio(BIO *out, const void *key,
-                                   int key_nid,
-                                   ossl_unused const char *pemname,
-                                   key_to_paramstring_fn *p2s,
-                                   i2d_of_void *k2d,
-                                   struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
     int strtype = V_ASN1_UNDEF;
     X509_PUBKEY *xpk = NULL;
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     xpk = key_to_pubkey(key, key_nid, str, strtype, k2d);
@@ -329,19 +321,18 @@ static int key_to_spki_der_pub_bio(BIO *out, const void *key,
 }
 
 static int key_to_spki_pem_pub_bio(BIO *out, const void *key,
-                                   int key_nid,
-                                   ossl_unused const char *pemname,
-                                   key_to_paramstring_fn *p2s,
-                                   i2d_of_void *k2d,
-                                   struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     int ret = 0;
     void *str = NULL;
     int strtype = V_ASN1_UNDEF;
     X509_PUBKEY *xpk = NULL;
 
-    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters,
-                            &str, &strtype))
+    if (p2s != NULL && !p2s(key, key_nid, ctx->save_parameters, &str, &strtype))
         return 0;
 
     xpk = key_to_pubkey(key, key_nid, str, strtype, k2d);
@@ -369,11 +360,11 @@ static int key_to_spki_pem_pub_bio(BIO *out, const void *key,
  * on k2d to do the complete work.
  */
 static int key_to_type_specific_der_bio(BIO *out, const void *key,
-                                        int key_nid,
-                                        ossl_unused const char *pemname,
-                                        key_to_paramstring_fn *p2s,
-                                        i2d_of_void *k2d,
-                                        struct key2any_ctx_st *ctx)
+    int key_nid,
+    ossl_unused const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     unsigned char *der = NULL;
     int derlen;
@@ -393,47 +384,47 @@ static int key_to_type_specific_der_bio(BIO *out, const void *key,
 #define key_to_type_specific_der_param_bio key_to_type_specific_der_bio
 
 static int key_to_type_specific_pem_bio_cb(BIO *out, const void *key,
-                                           int key_nid, const char *pemname,
-                                           key_to_paramstring_fn *p2s,
-                                           i2d_of_void *k2d,
-                                           struct key2any_ctx_st *ctx,
-                                           pem_password_cb *cb, void *cbarg)
+    int key_nid, const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx,
+    pem_password_cb *cb, void *cbarg)
 {
-    return
-        PEM_ASN1_write_bio(k2d, pemname, out, key, ctx->cipher,
-                           NULL, 0, cb, cbarg) > 0;
+    return PEM_ASN1_write_bio(k2d, pemname, out, key, ctx->cipher,
+               NULL, 0, cb, cbarg)
+        > 0;
 }
 
 static int key_to_type_specific_pem_priv_bio(BIO *out, const void *key,
-                                             int key_nid, const char *pemname,
-                                             key_to_paramstring_fn *p2s,
-                                             i2d_of_void *k2d,
-                                             struct key2any_ctx_st *ctx)
+    int key_nid, const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     return key_to_type_specific_pem_bio_cb(out, key, key_nid, pemname,
-                                           p2s, k2d, ctx,
-                                           ossl_pw_pem_password, &ctx->pwdata);
+        p2s, k2d, ctx,
+        ossl_pw_pem_password, &ctx->pwdata);
 }
 
 static int key_to_type_specific_pem_pub_bio(BIO *out, const void *key,
-                                            int key_nid, const char *pemname,
-                                            key_to_paramstring_fn *p2s,
-                                            i2d_of_void *k2d,
-                                            struct key2any_ctx_st *ctx)
+    int key_nid, const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     return key_to_type_specific_pem_bio_cb(out, key, key_nid, pemname,
-                                           p2s, k2d, ctx, NULL, NULL);
+        p2s, k2d, ctx, NULL, NULL);
 }
 
 #ifndef OPENSSL_NO_KEYPARAMS
 static int key_to_type_specific_pem_param_bio(BIO *out, const void *key,
-                                              int key_nid, const char *pemname,
-                                              key_to_paramstring_fn *p2s,
-                                              i2d_of_void *k2d,
-                                              struct key2any_ctx_st *ctx)
+    int key_nid, const char *pemname,
+    key_to_paramstring_fn *p2s,
+    i2d_of_void *k2d,
+    struct key2any_ctx_st *ctx)
 {
     return key_to_type_specific_pem_bio_cb(out, key, key_nid, pemname,
-                                           p2s, k2d, ctx, NULL, NULL);
+        p2s, k2d, ctx, NULL, NULL);
 }
 #endif
 
@@ -441,7 +432,7 @@ static int key_to_type_specific_pem_param_bio(BIO *out, const void *key,
 
 #ifndef OPENSSL_NO_DH
 static int prepare_dh_params(const void *dh, int nid, int save,
-                             void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     ASN1_STRING *params = ASN1_STRING_new();
 
@@ -509,7 +500,7 @@ static int dh_pki_priv_to_der(const void *dh, unsigned char **pder)
     return ret;
 }
 
-# define dh_epki_priv_to_der dh_pki_priv_to_der
+#define dh_epki_priv_to_der dh_pki_priv_to_der
 
 static int dh_type_specific_params_to_der(const void *dh, unsigned char **pder)
 {
@@ -522,30 +513,29 @@ static int dh_type_specific_params_to_der(const void *dh, unsigned char **pder)
  * DH doesn't have i2d_DHPrivateKey or i2d_DHPublicKey, so we can't make
  * corresponding functions here.
  */
-# define dh_type_specific_priv_to_der   NULL
-# define dh_type_specific_pub_to_der    NULL
+#define dh_type_specific_priv_to_der NULL
+#define dh_type_specific_pub_to_der NULL
 
 static int dh_check_key_type(const void *dh, int expected_type)
 {
-    int type =
-        DH_test_flags(dh, DH_FLAG_TYPE_DHX) ? EVP_PKEY_DHX : EVP_PKEY_DH;
+    int type = DH_test_flags(dh, DH_FLAG_TYPE_DHX) ? EVP_PKEY_DHX : EVP_PKEY_DH;
 
     return type == expected_type;
 }
 
-# define dh_evp_type            EVP_PKEY_DH
-# define dhx_evp_type           EVP_PKEY_DHX
-# define dh_input_type          "DH"
-# define dhx_input_type         "DHX"
-# define dh_pem_type            "DH"
-# define dhx_pem_type           "X9.42 DH"
+#define dh_evp_type EVP_PKEY_DH
+#define dhx_evp_type EVP_PKEY_DHX
+#define dh_input_type "DH"
+#define dhx_input_type "DHX"
+#define dh_pem_type "DH"
+#define dhx_pem_type "X9.42 DH"
 #endif
 
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_DSA
 static int encode_dsa_params(const void *dsa, int nid,
-                             void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     ASN1_STRING *params = ASN1_STRING_new();
 
@@ -568,7 +558,7 @@ static int encode_dsa_params(const void *dsa, int nid,
 }
 
 static int prepare_dsa_params(const void *dsa, int nid, int save,
-                              void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     const BIGNUM *p = DSA_get0_p(dsa);
     const BIGNUM *q = DSA_get0_q(dsa);
@@ -624,23 +614,23 @@ static int dsa_pki_priv_to_der(const void *dsa, unsigned char **pder)
     return ret;
 }
 
-# define dsa_epki_priv_to_der dsa_pki_priv_to_der
+#define dsa_epki_priv_to_der dsa_pki_priv_to_der
 
-# define dsa_type_specific_priv_to_der   (i2d_of_void *)i2d_DSAPrivateKey
-# define dsa_type_specific_pub_to_der    (i2d_of_void *)i2d_DSAPublicKey
-# define dsa_type_specific_params_to_der (i2d_of_void *)i2d_DSAparams
+#define dsa_type_specific_priv_to_der (i2d_of_void *)i2d_DSAPrivateKey
+#define dsa_type_specific_pub_to_der (i2d_of_void *)i2d_DSAPublicKey
+#define dsa_type_specific_params_to_der (i2d_of_void *)i2d_DSAparams
 
-# define dsa_check_key_type     NULL
-# define dsa_evp_type           EVP_PKEY_DSA
-# define dsa_input_type         "DSA"
-# define dsa_pem_type           "DSA"
+#define dsa_check_key_type NULL
+#define dsa_evp_type EVP_PKEY_DSA
+#define dsa_input_type "DSA"
+#define dsa_pem_type "DSA"
 #endif
 
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_EC
 static int prepare_ec_explicit_params(const void *eckey,
-                                      void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     ASN1_STRING *params = ASN1_STRING_new();
 
@@ -666,7 +656,7 @@ static int prepare_ec_explicit_params(const void *eckey,
  * is a curve name (curve nid) to be found or not.  See RFC 3279 for details.
  */
 static int prepare_ec_params(const void *eckey, int nid, int save,
-                             void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     int curve_nid;
     const EC_GROUP *group = EC_KEY_get0_group(eckey);
@@ -728,18 +718,18 @@ static int ec_pki_priv_to_der(const void *veckey, unsigned char **pder)
     return ret; /* return the length of the der encoded data */
 }
 
-# define ec_epki_priv_to_der ec_pki_priv_to_der
+#define ec_epki_priv_to_der ec_pki_priv_to_der
 
-# define ec_type_specific_params_to_der (i2d_of_void *)i2d_ECParameters
+#define ec_type_specific_params_to_der (i2d_of_void *)i2d_ECParameters
 /* No ec_type_specific_pub_to_der, there simply is no such thing */
-# define ec_type_specific_priv_to_der   (i2d_of_void *)i2d_ECPrivateKey
+#define ec_type_specific_priv_to_der (i2d_of_void *)i2d_ECPrivateKey
 
-# define ec_check_key_type      NULL
-# define ec_evp_type            EVP_PKEY_EC
-# define ec_input_type          "EC"
-# define ec_pem_type            "EC"
+#define ec_check_key_type NULL
+#define ec_evp_type EVP_PKEY_EC
+#define ec_input_type "EC"
+#define ec_pem_type "EC"
 
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 /*
  * Albeit SM2 is a slightly different algorithm than ECDSA, the key type
  * encoding (in all places where an AlgorithmIdentifier is produced, such
@@ -748,16 +738,16 @@ static int ec_pki_priv_to_der(const void *veckey, unsigned char **pder)
  * This leaves the distinction of SM2 keys to the EC group (which is found
  * in AlgorithmIdentified.params).
  */
-#  define sm2_evp_type          ec_evp_type
-#  define sm2_input_type        "SM2"
-#  define sm2_pem_type          "SM2"
-# endif
+#define sm2_evp_type ec_evp_type
+#define sm2_input_type "SM2"
+#define sm2_pem_type "SM2"
+#endif
 #endif
 
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_EC
-# define prepare_ecx_params NULL
+#define prepare_ecx_params NULL
 
 static int ecx_spki_pub_to_der(const void *vecxkey, unsigned char **pder)
 {
@@ -803,27 +793,27 @@ static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder)
     return keybloblen;
 }
 
-# define ecx_epki_priv_to_der ecx_pki_priv_to_der
+#define ecx_epki_priv_to_der ecx_pki_priv_to_der
 
 /*
  * ED25519, ED448, X25519 and X448 only has PKCS#8 / SubjectPublicKeyInfo
  * representation, so we don't define ecx_type_specific_[priv,pub,params]_to_der.
  */
 
-# define ecx_check_key_type     NULL
+#define ecx_check_key_type NULL
 
-# define ed25519_evp_type       EVP_PKEY_ED25519
-# define ed448_evp_type         EVP_PKEY_ED448
-# define x25519_evp_type        EVP_PKEY_X25519
-# define x448_evp_type          EVP_PKEY_X448
-# define ed25519_input_type     "ED25519"
-# define ed448_input_type       "ED448"
-# define x25519_input_type      "X25519"
-# define x448_input_type        "X448"
-# define ed25519_pem_type       "ED25519"
-# define ed448_pem_type         "ED448"
-# define x25519_pem_type        "X25519"
-# define x448_pem_type          "X448"
+#define ed25519_evp_type EVP_PKEY_ED25519
+#define ed448_evp_type EVP_PKEY_ED448
+#define x25519_evp_type EVP_PKEY_X25519
+#define x448_evp_type EVP_PKEY_X448
+#define ed25519_input_type "ED25519"
+#define ed448_input_type "ED448"
+#define x25519_input_type "X25519"
+#define x448_input_type "X448"
+#define ed25519_pem_type "ED25519"
+#define ed448_pem_type "ED448"
+#define x25519_pem_type "X25519"
+#define x448_pem_type "X448"
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -835,7 +825,7 @@ static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder)
  */
 
 static int prepare_rsa_params(const void *rsa, int nid, int save,
-                              void **pstr, int *pstrtype)
+    void **pstr, int *pstrtype)
 {
     const RSA_PSS_PARAMS_30 *pss = ossl_rsa_get0_pss_params_30((RSA *)rsa);
 
@@ -896,7 +886,7 @@ static int prepare_rsa_params(const void *rsa, int nid, int save,
             *pstr = astr;
 
             return 1;
-         err:
+        err:
             OPENSSL_free(str);
             return 0;
         }
@@ -910,11 +900,11 @@ static int prepare_rsa_params(const void *rsa, int nid, int save,
  * RSA is extremely simple, as PKCS#1 is used for the PKCS#8 |privateKey|
  * field as well as the SubjectPublicKeyInfo |subjectPublicKey| field.
  */
-#define rsa_pki_priv_to_der             rsa_type_specific_priv_to_der
-#define rsa_epki_priv_to_der            rsa_type_specific_priv_to_der
-#define rsa_spki_pub_to_der             rsa_type_specific_pub_to_der
-#define rsa_type_specific_priv_to_der   (i2d_of_void *)i2d_RSAPrivateKey
-#define rsa_type_specific_pub_to_der    (i2d_of_void *)i2d_RSAPublicKey
+#define rsa_pki_priv_to_der rsa_type_specific_priv_to_der
+#define rsa_epki_priv_to_der rsa_type_specific_priv_to_der
+#define rsa_spki_pub_to_der rsa_type_specific_pub_to_der
+#define rsa_type_specific_priv_to_der (i2d_of_void *)i2d_RSAPrivateKey
+#define rsa_type_specific_pub_to_der (i2d_of_void *)i2d_RSAPublicKey
 #define rsa_type_specific_params_to_der NULL
 
 static int rsa_check_key_type(const void *rsa, int expected_type)
@@ -930,12 +920,12 @@ static int rsa_check_key_type(const void *rsa, int expected_type)
     return EVP_PKEY_NONE;
 }
 
-#define rsa_evp_type            EVP_PKEY_RSA
-#define rsapss_evp_type         EVP_PKEY_RSA_PSS
-#define rsa_input_type          "RSA"
-#define rsapss_input_type       "RSA-PSS"
-#define rsa_pem_type            "RSA"
-#define rsapss_pem_type         "RSA-PSS"
+#define rsa_evp_type EVP_PKEY_RSA
+#define rsapss_evp_type EVP_PKEY_RSA_PSS
+#define rsa_input_type "RSA"
+#define rsapss_input_type "RSA-PSS"
+#define rsa_pem_type "RSA"
+#define rsapss_pem_type "RSA-PSS"
 
 /* ---------------------------------------------------------------------- */
 
@@ -978,12 +968,9 @@ static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     struct key2any_ctx_st *ctx = vctx;
     OSSL_LIB_CTX *libctx = ossl_prov_ctx_get0_libctx(ctx->provctx);
-    const OSSL_PARAM *cipherp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_CIPHER);
-    const OSSL_PARAM *propsp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_PROPERTIES);
-    const OSSL_PARAM *save_paramsp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_SAVE_PARAMETERS);
+    const OSSL_PARAM *cipherp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_CIPHER);
+    const OSSL_PARAM *propsp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_PROPERTIES);
+    const OSSL_PARAM *save_paramsp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_SAVE_PARAMETERS);
 
     if (cipherp != NULL) {
         const char *ciphername = NULL;
@@ -998,8 +985,7 @@ static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
         ctx->cipher = NULL;
         ctx->cipher_intent = ciphername != NULL;
         if (ciphername != NULL
-            && ((ctx->cipher =
-                 EVP_CIPHER_fetch(libctx, ciphername, props)) == NULL))
+            && ((ctx->cipher = EVP_CIPHER_fetch(libctx, ciphername, props)) == NULL))
             return 0;
     }
 
@@ -1044,26 +1030,25 @@ static int key2any_check_selection(int selection, int selection_mask)
 }
 
 static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
-                          const void *key, int type, const char *pemname,
-                          check_key_type_fn *checker,
-                          key_to_der_fn *writer,
-                          OSSL_PASSPHRASE_CALLBACK *pwcb, void *pwcbarg,
-                          key_to_paramstring_fn *key2paramstring,
-                          i2d_of_void *key2der)
+    const void *key, int type, const char *pemname,
+    check_key_type_fn *checker,
+    key_to_der_fn *writer,
+    OSSL_PASSPHRASE_CALLBACK *pwcb, void *pwcbarg,
+    key_to_paramstring_fn *key2paramstring,
+    i2d_of_void *key2der)
 {
     int ret = 0;
 
     if (key == NULL) {
         ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_NULL_PARAMETER);
     } else if (writer != NULL
-               && (checker == NULL || checker(key, type))) {
+        && (checker == NULL || checker(key, type))) {
         BIO *out = ossl_bio_new_from_core_bio(ctx->provctx, cout);
 
         if (out != NULL
             && (pwcb == NULL
                 || ossl_pw_set_ossl_passphrase_cb(&ctx->pwdata, pwcb, pwcbarg)))
-            ret =
-                writer(out, key, type, pemname, key2paramstring, key2der, ctx);
+            ret = writer(out, key, type, pemname, key2paramstring, key2der, ctx);
 
         BIO_free(out);
     } else {
@@ -1073,34 +1058,34 @@ static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
 }
 
 #define DO_PRIVATE_KEY_selection_mask OSSL_KEYMGMT_SELECT_PRIVATE_KEY
-#define DO_PRIVATE_KEY(impl, type, kind, output)                            \
-    if ((selection & DO_PRIVATE_KEY_selection_mask) != 0)                   \
-        return key2any_encode(ctx, cout, key, impl##_evp_type,              \
-                              impl##_pem_type " PRIVATE KEY",               \
-                              type##_check_key_type,                        \
-                              key_to_##kind##_##output##_priv_bio,          \
-                              cb, cbarg, prepare_##type##_params,           \
-                              type##_##kind##_priv_to_der);
+#define DO_PRIVATE_KEY(impl, type, kind, output)               \
+    if ((selection & DO_PRIVATE_KEY_selection_mask) != 0)      \
+        return key2any_encode(ctx, cout, key, impl##_evp_type, \
+            impl##_pem_type " PRIVATE KEY",                    \
+            type##_check_key_type,                             \
+            key_to_##kind##_##output##_priv_bio,               \
+            cb, cbarg, prepare_##type##_params,                \
+            type##_##kind##_priv_to_der);
 
 #define DO_PUBLIC_KEY_selection_mask OSSL_KEYMGMT_SELECT_PUBLIC_KEY
-#define DO_PUBLIC_KEY(impl, type, kind, output)                             \
-    if ((selection & DO_PUBLIC_KEY_selection_mask) != 0)                    \
-        return key2any_encode(ctx, cout, key, impl##_evp_type,              \
-                              impl##_pem_type " PUBLIC KEY",                \
-                              type##_check_key_type,                        \
-                              key_to_##kind##_##output##_pub_bio,           \
-                              cb, cbarg, prepare_##type##_params,           \
-                              type##_##kind##_pub_to_der);
+#define DO_PUBLIC_KEY(impl, type, kind, output)                \
+    if ((selection & DO_PUBLIC_KEY_selection_mask) != 0)       \
+        return key2any_encode(ctx, cout, key, impl##_evp_type, \
+            impl##_pem_type " PUBLIC KEY",                     \
+            type##_check_key_type,                             \
+            key_to_##kind##_##output##_pub_bio,                \
+            cb, cbarg, prepare_##type##_params,                \
+            type##_##kind##_pub_to_der);
 
 #define DO_PARAMETERS_selection_mask OSSL_KEYMGMT_SELECT_ALL_PARAMETERS
-#define DO_PARAMETERS(impl, type, kind, output)                             \
-    if ((selection & DO_PARAMETERS_selection_mask) != 0)                    \
-        return key2any_encode(ctx, cout, key, impl##_evp_type,              \
-                              impl##_pem_type " PARAMETERS",                \
-                              type##_check_key_type,                        \
-                              key_to_##kind##_##output##_param_bio,         \
-                              NULL, NULL, NULL,                             \
-                              type##_##kind##_params_to_der);
+#define DO_PARAMETERS(impl, type, kind, output)                \
+    if ((selection & DO_PARAMETERS_selection_mask) != 0)       \
+        return key2any_encode(ctx, cout, key, impl##_evp_type, \
+            impl##_pem_type " PARAMETERS",                     \
+            type##_check_key_type,                             \
+            key_to_##kind##_##output##_param_bio,              \
+            NULL, NULL, NULL,                                  \
+            type##_##kind##_params_to_der);
 
 /*-
  * Implement the kinds of output structure that can be produced.  They are
@@ -1136,16 +1121,16 @@ static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
  * passphrase callback has been passed to them.
  */
 #define DO_PrivateKeyInfo_selection_mask DO_PRIVATE_KEY_selection_mask
-#define DO_PrivateKeyInfo(impl, type, output)                               \
+#define DO_PrivateKeyInfo(impl, type, output) \
     DO_PRIVATE_KEY(impl, type, pki, output)
 
 #define DO_EncryptedPrivateKeyInfo_selection_mask DO_PRIVATE_KEY_selection_mask
-#define DO_EncryptedPrivateKeyInfo(impl, type, output)                      \
+#define DO_EncryptedPrivateKeyInfo(impl, type, output) \
     DO_PRIVATE_KEY(impl, type, epki, output)
 
 /* SubjectPublicKeyInfo is a structure for public keys only */
 #define DO_SubjectPublicKeyInfo_selection_mask DO_PUBLIC_KEY_selection_mask
-#define DO_SubjectPublicKeyInfo(impl, type, output)                         \
+#define DO_SubjectPublicKeyInfo(impl, type, output) \
     DO_PUBLIC_KEY(impl, type, spki, output)
 
 /*
@@ -1164,23 +1149,23 @@ static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
  *                                      except public key
  */
 #define DO_type_specific_params_selection_mask DO_PARAMETERS_selection_mask
-#define DO_type_specific_params(impl, type, output)                         \
+#define DO_type_specific_params(impl, type, output) \
     DO_PARAMETERS(impl, type, type_specific, output)
-#define DO_type_specific_keypair_selection_mask                             \
-    ( DO_PRIVATE_KEY_selection_mask | DO_PUBLIC_KEY_selection_mask )
-#define DO_type_specific_keypair(impl, type, output)                        \
-    DO_PRIVATE_KEY(impl, type, type_specific, output)                       \
+#define DO_type_specific_keypair_selection_mask \
+    (DO_PRIVATE_KEY_selection_mask | DO_PUBLIC_KEY_selection_mask)
+#define DO_type_specific_keypair(impl, type, output)  \
+    DO_PRIVATE_KEY(impl, type, type_specific, output) \
     DO_PUBLIC_KEY(impl, type, type_specific, output)
-#define DO_type_specific_selection_mask                                     \
-    ( DO_type_specific_keypair_selection_mask                               \
-      | DO_type_specific_params_selection_mask )
-#define DO_type_specific(impl, type, output)                                \
-    DO_type_specific_keypair(impl, type, output)                            \
-    DO_type_specific_params(impl, type, output)
+#define DO_type_specific_selection_mask      \
+    (DO_type_specific_keypair_selection_mask \
+        | DO_type_specific_params_selection_mask)
+#define DO_type_specific(impl, type, output)     \
+    DO_type_specific_keypair(impl, type, output) \
+        DO_type_specific_params(impl, type, output)
 #define DO_type_specific_no_pub_selection_mask \
-    ( DO_PRIVATE_KEY_selection_mask |  DO_PARAMETERS_selection_mask)
-#define DO_type_specific_no_pub(impl, type, output)                         \
-    DO_PRIVATE_KEY(impl, type, type_specific, output)                       \
+    (DO_PRIVATE_KEY_selection_mask | DO_PARAMETERS_selection_mask)
+#define DO_type_specific_no_pub(impl, type, output)   \
+    DO_PRIVATE_KEY(impl, type, type_specific, output) \
     DO_type_specific_params(impl, type, output)
 
 /*
@@ -1243,71 +1228,72 @@ static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
  *
  * ossl_##impl##_to_##kind##_##output##_encoder_functions
  */
-#define MAKE_ENCODER(impl, type, evp_type, kind, output)                    \
-    static OSSL_FUNC_encoder_import_object_fn                               \
-    impl##_to_##kind##_##output##_import_object;                            \
-    static OSSL_FUNC_encoder_free_object_fn                                 \
-    impl##_to_##kind##_##output##_free_object;                              \
-    static OSSL_FUNC_encoder_encode_fn                                      \
-    impl##_to_##kind##_##output##_encode;                                   \
-                                                                            \
-    static void *                                                           \
-    impl##_to_##kind##_##output##_import_object(void *vctx, int selection,  \
-                                                const OSSL_PARAM params[])  \
-    {                                                                       \
-        struct key2any_ctx_st *ctx = vctx;                                  \
-                                                                            \
-        return ossl_prov_import_key(ossl_##impl##_keymgmt_functions,        \
-                                    ctx->provctx, selection, params);       \
-    }                                                                       \
-    static void impl##_to_##kind##_##output##_free_object(void *key)        \
-    {                                                                       \
-        ossl_prov_free_key(ossl_##impl##_keymgmt_functions, key);           \
-    }                                                                       \
-    static int impl##_to_##kind##_##output##_does_selection(void *ctx,      \
-                                                            int selection)  \
-    {                                                                       \
-        return key2any_check_selection(selection,                           \
-                                       DO_##kind##_selection_mask);         \
-    }                                                                       \
-    static int                                                              \
-    impl##_to_##kind##_##output##_encode(void *ctx, OSSL_CORE_BIO *cout,    \
-                                         const void *key,                   \
-                                         const OSSL_PARAM key_abstract[],   \
-                                         int selection,                     \
-                                         OSSL_PASSPHRASE_CALLBACK *cb,      \
-                                         void *cbarg)                       \
-    {                                                                       \
-        /* We don't deal with abstract objects */                           \
-        if (key_abstract != NULL) {                                         \
-            ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);         \
-            return 0;                                                       \
-        }                                                                   \
-        DO_##kind(impl, type, output)                                       \
-                                                                            \
-        ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);             \
-        return 0;                                                           \
-    }                                                                       \
-    const OSSL_DISPATCH                                                     \
-    ossl_##impl##_to_##kind##_##output##_encoder_functions[] = {            \
-        { OSSL_FUNC_ENCODER_NEWCTX,                                         \
-          (void (*)(void))key2any_newctx },                                 \
-        { OSSL_FUNC_ENCODER_FREECTX,                                        \
-          (void (*)(void))key2any_freectx },                                \
-        { OSSL_FUNC_ENCODER_SETTABLE_CTX_PARAMS,                            \
-          (void (*)(void))key2any_settable_ctx_params },                    \
-        { OSSL_FUNC_ENCODER_SET_CTX_PARAMS,                                 \
-          (void (*)(void))key2any_set_ctx_params },                         \
-        { OSSL_FUNC_ENCODER_DOES_SELECTION,                                 \
-          (void (*)(void))impl##_to_##kind##_##output##_does_selection },   \
-        { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                                  \
-          (void (*)(void))impl##_to_##kind##_##output##_import_object },    \
-        { OSSL_FUNC_ENCODER_FREE_OBJECT,                                    \
-          (void (*)(void))impl##_to_##kind##_##output##_free_object },      \
-        { OSSL_FUNC_ENCODER_ENCODE,                                         \
-          (void (*)(void))impl##_to_##kind##_##output##_encode },           \
-        { 0, NULL }                                                         \
-    }
+#define MAKE_ENCODER(impl, type, evp_type, kind, output)                          \
+    static OSSL_FUNC_encoder_import_object_fn                                     \
+        impl##_to_##kind##_##output##_import_object;                              \
+    static OSSL_FUNC_encoder_free_object_fn                                       \
+        impl##_to_##kind##_##output##_free_object;                                \
+    static OSSL_FUNC_encoder_encode_fn                                            \
+        impl##_to_##kind##_##output##_encode;                                     \
+                                                                                  \
+    static void *                                                                 \
+    impl##_to_##kind##_##output##_import_object(void *vctx, int selection,        \
+        const OSSL_PARAM params[])                                                \
+    {                                                                             \
+        struct key2any_ctx_st *ctx = vctx;                                        \
+                                                                                  \
+        return ossl_prov_import_key(ossl_##impl##_keymgmt_functions,              \
+            ctx->provctx, selection, params);                                     \
+    }                                                                             \
+    static void impl##_to_##kind##_##output##_free_object(void *key)              \
+    {                                                                             \
+        ossl_prov_free_key(ossl_##impl##_keymgmt_functions, key);                 \
+    }                                                                             \
+    static int impl##_to_##kind##_##output##_does_selection(void *ctx,            \
+        int selection)                                                            \
+    {                                                                             \
+        return key2any_check_selection(selection,                                 \
+            DO_##kind##_selection_mask);                                          \
+    }                                                                             \
+    static int                                                                    \
+    impl##_to_##kind##_##output##_encode(void *ctx, OSSL_CORE_BIO *cout,          \
+        const void *key,                                                          \
+        const OSSL_PARAM key_abstract[],                                          \
+        int selection,                                                            \
+        OSSL_PASSPHRASE_CALLBACK *cb,                                             \
+        void *cbarg)                                                              \
+    {                                                                             \
+        /* We don't deal with abstract objects */                                 \
+        if (key_abstract != NULL) {                                               \
+            ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);               \
+            return 0;                                                             \
+        }                                                                         \
+        DO_##kind(impl, type, output)                                             \
+                                                                                  \
+            ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);               \
+        return 0;                                                                 \
+    }                                                                             \
+    const OSSL_DISPATCH                                                           \
+        ossl_##impl##_to_##kind##_##output##_encoder_functions[]                  \
+        = {                                                                       \
+              { OSSL_FUNC_ENCODER_NEWCTX,                                         \
+                  (void (*)(void))key2any_newctx },                               \
+              { OSSL_FUNC_ENCODER_FREECTX,                                        \
+                  (void (*)(void))key2any_freectx },                              \
+              { OSSL_FUNC_ENCODER_SETTABLE_CTX_PARAMS,                            \
+                  (void (*)(void))key2any_settable_ctx_params },                  \
+              { OSSL_FUNC_ENCODER_SET_CTX_PARAMS,                                 \
+                  (void (*)(void))key2any_set_ctx_params },                       \
+              { OSSL_FUNC_ENCODER_DOES_SELECTION,                                 \
+                  (void (*)(void))impl##_to_##kind##_##output##_does_selection }, \
+              { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                                  \
+                  (void (*)(void))impl##_to_##kind##_##output##_import_object },  \
+              { OSSL_FUNC_ENCODER_FREE_OBJECT,                                    \
+                  (void (*)(void))impl##_to_##kind##_##output##_free_object },    \
+              { OSSL_FUNC_ENCODER_ENCODE,                                         \
+                  (void (*)(void))impl##_to_##kind##_##output##_encode },         \
+              { 0, NULL }                                                         \
+          }
 
 /*
  * Replacements for i2d_{TYPE}PrivateKey, i2d_{TYPE}PublicKey,
@@ -1323,9 +1309,9 @@ MAKE_ENCODER(dsa, dsa, EVP_PKEY_DSA, type_specific, der);
 #endif
 #ifndef OPENSSL_NO_EC
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, type_specific_no_pub, der);
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, type_specific_no_pub, der);
-# endif
+#endif
 #endif
 
 /*
@@ -1342,9 +1328,9 @@ MAKE_ENCODER(dsa, dsa, EVP_PKEY_DSA, type_specific, pem);
 #endif
 #ifndef OPENSSL_NO_EC
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, type_specific_no_pub, pem);
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, type_specific_no_pub, pem);
-# endif
+#endif
 #endif
 
 /*
@@ -1396,14 +1382,14 @@ MAKE_ENCODER(ec, ec, EVP_PKEY_EC, PrivateKeyInfo, der);
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, PrivateKeyInfo, pem);
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, SubjectPublicKeyInfo, der);
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, SubjectPublicKeyInfo, pem);
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, EncryptedPrivateKeyInfo, der);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, EncryptedPrivateKeyInfo, pem);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, PrivateKeyInfo, der);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, PrivateKeyInfo, pem);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, SubjectPublicKeyInfo, der);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, SubjectPublicKeyInfo, pem);
-# endif
+#endif
 MAKE_ENCODER(ed25519, ecx, EVP_PKEY_ED25519, EncryptedPrivateKeyInfo, der);
 MAKE_ENCODER(ed25519, ecx, EVP_PKEY_ED25519, EncryptedPrivateKeyInfo, pem);
 MAKE_ENCODER(ed25519, ecx, EVP_PKEY_ED25519, PrivateKeyInfo, der);
@@ -1453,10 +1439,10 @@ MAKE_ENCODER(dsa, dsa, EVP_PKEY_DSA, DSA, pem);
 #ifndef OPENSSL_NO_EC
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, EC, der);
 MAKE_ENCODER(ec, ec, EVP_PKEY_EC, EC, pem);
-# ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_SM2
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, SM2, der);
 MAKE_ENCODER(sm2, ec, EVP_PKEY_EC, SM2, pem);
-# endif
+#endif
 #endif
 
 /* Convenience structure names */

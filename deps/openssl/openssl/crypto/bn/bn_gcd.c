@@ -17,10 +17,9 @@
  * This is a static function, we ensure all callers in this file pass valid
  * arguments: all passed pointers here are non-NULL.
  */
-static ossl_inline
-BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
-                                 const BIGNUM *a, const BIGNUM *n,
-                                 BN_CTX *ctx, int *pnoinv)
+static ossl_inline BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
+    const BIGNUM *a, const BIGNUM *n,
+    BN_CTX *ctx, int *pnoinv)
 {
     BIGNUM *A, *B, *X, *Y, *M, *D, *T, *R = NULL;
     BIGNUM *ret = NULL;
@@ -61,7 +60,7 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
          * Turn BN_FLG_CONSTTIME flag on, so that when BN_div is invoked,
          * BN_div_no_branch will be called eventually.
          */
-         {
+        {
             BIGNUM local_B;
             bn_init(&local_B);
             BN_with_flags(&local_B, B, BN_FLG_CONSTTIME);
@@ -110,8 +109,8 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
          * (**)  sign*Y*a  ==  D*B + M   (mod |n|).
          */
 
-        tmp = A;                /* keep the BIGNUM object, the value does not
-                                 * matter */
+        tmp = A; /* keep the BIGNUM object, the value does not
+                  * matter */
 
         /* (A, B) := (B, A mod B) ... */
         A = B;
@@ -143,8 +142,8 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
         if (!BN_add(tmp, tmp, Y))
             goto err;
 
-        M = Y;                  /* keep the BIGNUM object, the value does not
-                                 * matter */
+        M = Y; /* keep the BIGNUM object, the value does not
+                * matter */
         Y = X;
         X = tmp;
         sign = -sign;
@@ -182,7 +181,7 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
     ret = R;
     *pnoinv = 0;
 
- err:
+err:
     if ((ret == NULL) && (in == NULL))
         BN_free(R);
     BN_CTX_end(ctx);
@@ -195,8 +194,8 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
  * all pointers passed here are assumed non-NULL.
  */
 BIGNUM *int_bn_mod_inverse(BIGNUM *in,
-                           const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx,
-                           int *pnoinv)
+    const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx,
+    int *pnoinv)
 {
     BIGNUM *A, *B, *X, *Y, *M, *D, *T, *R = NULL;
     BIGNUM *ret = NULL;
@@ -415,7 +414,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
              * (**)  sign*Y*a  ==  D*B + M   (mod |n|).
              */
 
-            tmp = A;    /* keep the BIGNUM object, the value does not matter */
+            tmp = A; /* keep the BIGNUM object, the value does not matter */
 
             /* (A, B) := (B, A mod B) ... */
             A = B;
@@ -468,7 +467,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
                     goto err;
             }
 
-            M = Y;      /* keep the BIGNUM object, the value does not matter */
+            M = Y; /* keep the BIGNUM object, the value does not matter */
             Y = X;
             X = tmp;
             sign = -sign;
@@ -503,7 +502,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
         goto err;
     }
     ret = R;
- err:
+err:
     if ((ret == NULL) && (in == NULL))
         BN_free(R);
     BN_CTX_end(ctx);
@@ -513,7 +512,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
 
 /* solves ax == 1 (mod n) */
 BIGNUM *BN_mod_inverse(BIGNUM *in,
-                       const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx)
+    const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx)
 {
     BN_CTX *new_ctx = NULL;
     BIGNUM *rv;
@@ -626,7 +625,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
         BN_consttime_swap(g->d[0] & 1 /* g is odd */
                 /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
                 & (~((unsigned int)(g->top - 1) >> (sizeof(g->top) * 8 - 1))),
-                g, temp, top);
+            g, temp, top);
         if (!BN_rshift1(g, g))
             goto err;
     }
@@ -640,7 +639,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
 
     ret = 1;
 
- err:
+err:
     BN_CTX_end(ctx);
     bn_check_top(r);
     return ret;

@@ -77,7 +77,7 @@ If I<ctx> is NULL nothing is done.
 X509_STORE_CTX_init() sets up I<ctx> for a subsequent verification operation.
 
 X509_STORE_CTX_init() initializes the internal state and resources of the
-given I<ctx>. Among others, it sets the verification parameters associcated
+given I<ctx>. Among others, it sets the verification parameters associated
 with the method name C<default>, which includes the C<any> purpose,
 and takes over callback function pointers from I<trust_store> (unless NULL).
 It must be called before each call to L<X509_verify_cert(3)> or
@@ -280,7 +280,7 @@ There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

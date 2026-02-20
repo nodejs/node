@@ -12,7 +12,7 @@
 #include "internal/nelem.h"
 #include "crypto/dh.h"
 
-typedef struct dh_name2id_st{
+typedef struct dh_name2id_st {
     const char *name;
     int id;
     int type;
@@ -21,15 +21,14 @@ typedef struct dh_name2id_st{
 /* Indicates that the paramgen_type can be used for either DH or DHX */
 #define TYPE_ANY -1
 #ifndef OPENSSL_NO_DH
-# define TYPE_DH    DH_FLAG_TYPE_DH
-# define TYPE_DHX   DH_FLAG_TYPE_DHX
+#define TYPE_DH DH_FLAG_TYPE_DH
+#define TYPE_DHX DH_FLAG_TYPE_DHX
 #else
-# define TYPE_DH    0
-# define TYPE_DHX   0
+#define TYPE_DH 0
+#define TYPE_DHX 0
 #endif
 
-static const DH_GENTYPE_NAME2ID dhtype2id[] =
-{
+static const DH_GENTYPE_NAME2ID dhtype2id[] = {
     { "group", DH_PARAMGEN_TYPE_GROUP, TYPE_ANY },
     { "generator", DH_PARAMGEN_TYPE_GENERATOR, TYPE_DH },
     { "fips186_4", DH_PARAMGEN_TYPE_FIPS_186_4, TYPE_DHX },
@@ -54,7 +53,7 @@ int ossl_dh_gen_type_name2id(const char *name, int type)
 
     for (i = 0; i < OSSL_NELEM(dhtype2id); ++i) {
         if ((dhtype2id[i].type == TYPE_ANY
-             || type == dhtype2id[i].type)
+                || type == dhtype2id[i].type)
             && strcmp(dhtype2id[i].name, name) == 0)
             return dhtype2id[i].id;
     }

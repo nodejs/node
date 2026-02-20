@@ -168,7 +168,19 @@ general private key without reference to any particular algorithm.
 The structure returned by EVP_PKEY_new() is empty. To add a private or public
 key to this empty structure use the appropriate functions described in
 L<EVP_PKEY_set1_RSA(3)>, L<EVP_PKEY_set1_DSA(3)>, L<EVP_PKEY_set1_DH(3)> or
-L<EVP_PKEY_set1_EC_KEY(3)>.
+L<EVP_PKEY_set1_EC_KEY(3)> for legacy key types implemented in internal
+OpenSSL providers.
+
+For fully provider-managed key types (see L<provider-keymgmt(7)>),
+possibly implemented in external providers, use functions such as
+L<EVP_PKEY_set1_encoded_public_key(3)> or L<EVP_PKEY_fromdata(3)>
+to populate key data.
+
+Generally caution is advised for using an B<EVP_PKEY> structure across
+different library contexts: In order for an B<EVP_PKEY> to be shared by
+multiple library contexts the providers associated with the library contexts
+must have key managers that support the key type and implement the
+OSSL_FUNC_keymgmt_import() and OSSL_FUNC_keymgmt_export() functions.
 
 =head1 RETURN VALUES
 
@@ -210,7 +222,7 @@ previously implied to be disallowed.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

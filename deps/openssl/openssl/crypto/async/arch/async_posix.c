@@ -12,10 +12,10 @@
 
 #ifdef ASYNC_POSIX
 
-# include <stddef.h>
-# include <unistd.h>
+#include <stddef.h>
+#include <unistd.h>
 
-#define STACKSIZE       32768
+#define STACKSIZE 32768
 
 int ASYNC_is_capable(void)
 {

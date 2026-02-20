@@ -20,7 +20,7 @@
 #include <openssl/lhash.h>
 #include "lhash_local.h"
 
-# ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 void OPENSSL_LH_stats(const OPENSSL_LHASH *lh, FILE *fp)
 {
     BIO *bp;
@@ -57,13 +57,13 @@ void OPENSSL_LH_node_usage_stats(const OPENSSL_LHASH *lh, FILE *fp)
     BIO_free(bp);
 }
 
-# endif
+#endif
 
 void OPENSSL_LH_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
 {
     BIO_printf(out, "num_items             = %lu\n", lh->num_items);
-    BIO_printf(out, "num_nodes             = %u\n",  lh->num_nodes);
-    BIO_printf(out, "num_alloc_nodes       = %u\n",  lh->num_alloc_nodes);
+    BIO_printf(out, "num_nodes             = %u\n", lh->num_nodes);
+    BIO_printf(out, "num_alloc_nodes       = %u\n", lh->num_alloc_nodes);
     BIO_printf(out, "num_expands           = 0\n");
     BIO_printf(out, "num_expand_reallocs   = 0\n");
     BIO_printf(out, "num_contracts         = 0\n");
@@ -111,7 +111,7 @@ void OPENSSL_LH_node_usage_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
     if (n_used == 0)
         return;
     BIO_printf(out, "load %d.%02d  actual load %d.%02d\n",
-               (int)(total / lh->num_nodes),
-               (int)((total % lh->num_nodes) * 100 / lh->num_nodes),
-               (int)(total / n_used), (int)((total % n_used) * 100 / n_used));
+        (int)(total / lh->num_nodes),
+        (int)((total % lh->num_nodes) * 100 / lh->num_nodes),
+        (int)(total / n_used), (int)((total % n_used) * 100 / n_used));
 }

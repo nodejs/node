@@ -12,10 +12,10 @@
 #include "testutil.h"
 
 static int test_static_sha_common(const char *input, size_t length,
-                                  const unsigned char *out,
-                                  unsigned char *(*md)(const unsigned char *d,
-                                                       size_t n,
-                                                       unsigned char *md))
+    const unsigned char *out,
+    unsigned char *(*md)(const unsigned char *d,
+        size_t n,
+        unsigned char *md))
 {
     unsigned char buf[EVP_MAX_MD_SIZE], *sbuf;
     const unsigned char *in = (unsigned char *)input;
@@ -23,13 +23,13 @@ static int test_static_sha_common(const char *input, size_t length,
 
     sbuf = (*md)(in, in_len, buf);
     if (!TEST_ptr(sbuf)
-            || !TEST_ptr_eq(sbuf, buf)
-            || !TEST_mem_eq(sbuf, length, out, length))
+        || !TEST_ptr_eq(sbuf, buf)
+        || !TEST_mem_eq(sbuf, length, out, length))
         return 0;
     sbuf = (*md)(in, in_len, NULL);
     if (!TEST_ptr(sbuf)
-            || !TEST_ptr_ne(sbuf, buf)
-            || !TEST_mem_eq(sbuf, length, out, length))
+        || !TEST_ptr_ne(sbuf, buf)
+        || !TEST_mem_eq(sbuf, length, out, length))
         return 0;
     return 1;
 }

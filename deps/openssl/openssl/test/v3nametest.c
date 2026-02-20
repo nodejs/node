@@ -102,13 +102,13 @@ static int set_cn(X509 *crt, ...)
             break;
         name = va_arg(ap, const char *);
         if (!X509_NAME_add_entry_by_NID(n, nid, MBSTRING_ASC,
-                                        (unsigned char *)name, -1, -1, 1))
+                (unsigned char *)name, -1, -1, 1))
             goto out;
     }
     if (!X509_set_subject_name(crt, n))
         goto out;
     ret = 1;
- out:
+out:
     X509_NAME_free(n);
     va_end(ap);
     return ret;
@@ -163,7 +163,7 @@ static int set_altname(X509 *crt, ...)
     if (!X509_add1_ext_i2d(crt, NID_subject_alt_name, gens, 0, 0))
         goto out;
     ret = 1;
- out:
+out:
     ASN1_IA5STRING_free(ia5);
     GENERAL_NAME_free(gen);
     GENERAL_NAMES_free(gens);
@@ -179,19 +179,19 @@ static int set_cn1(X509 *crt, const char *name)
 static int set_cn_and_email(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_commonName, name,
-                  NID_pkcs9_emailAddress, "dummy@example.com", 0);
+        NID_pkcs9_emailAddress, "dummy@example.com", 0);
 }
 
 static int set_cn2(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_commonName, "dummy value",
-                  NID_commonName, name, 0);
+        NID_commonName, name, 0);
 }
 
 static int set_cn3(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_commonName, name,
-                  NID_commonName, "dummy value", 0);
+        NID_commonName, "dummy value", 0);
 }
 
 static int set_email1(X509 *crt, const char *name)
@@ -202,19 +202,19 @@ static int set_email1(X509 *crt, const char *name)
 static int set_email2(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_pkcs9_emailAddress, "dummy@example.com",
-                  NID_pkcs9_emailAddress, name, 0);
+        NID_pkcs9_emailAddress, name, 0);
 }
 
 static int set_email3(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_pkcs9_emailAddress, name,
-                  NID_pkcs9_emailAddress, "dummy@example.com", 0);
+        NID_pkcs9_emailAddress, "dummy@example.com", 0);
 }
 
 static int set_email_and_cn(X509 *crt, const char *name)
 {
     return set_cn(crt, NID_pkcs9_emailAddress, name,
-                  NID_commonName, "www.example.org", 0);
+        NID_commonName, "www.example.org", 0);
 }
 
 static int set_altname_dns(X509 *crt, const char *name)
@@ -228,23 +228,23 @@ static int set_altname_email(X509 *crt, const char *name)
 }
 
 struct set_name_fn {
-    int (*fn) (X509 *, const char *);
+    int (*fn)(X509 *, const char *);
     const char *name;
     int host;
     int email;
 };
 
 static const struct set_name_fn name_fns[] = {
-    {set_cn1, "set CN", 1, 0},
-    {set_cn2, "set CN", 1, 0},
-    {set_cn3, "set CN", 1, 0},
-    {set_cn_and_email, "set CN", 1, 0},
-    {set_email1, "set emailAddress", 0, 1},
-    {set_email2, "set emailAddress", 0, 1},
-    {set_email3, "set emailAddress", 0, 1},
-    {set_email_and_cn, "set emailAddress", 0, 1},
-    {set_altname_dns, "set dnsName", 1, 0},
-    {set_altname_email, "set rfc822Name", 0, 1},
+    { set_cn1, "set CN", 1, 0 },
+    { set_cn2, "set CN", 1, 0 },
+    { set_cn3, "set CN", 1, 0 },
+    { set_cn_and_email, "set CN", 1, 0 },
+    { set_email1, "set emailAddress", 0, 1 },
+    { set_email2, "set emailAddress", 0, 1 },
+    { set_email3, "set emailAddress", 0, 1 },
+    { set_email_and_cn, "set emailAddress", 0, 1 },
+    { set_altname_dns, "set dnsName", 1, 0 },
+    { set_altname_email, "set rfc822Name", 0, 1 },
 };
 
 static X509 *make_cert(void)
@@ -261,15 +261,15 @@ static X509 *make_cert(void)
 }
 
 static int check_message(const struct set_name_fn *fn, const char *op,
-                         const char *nameincert, int match, const char *name)
+    const char *nameincert, int match, const char *name)
 {
     char msg[1024];
 
     if (match < 0)
         return 1;
     BIO_snprintf(msg, sizeof(msg), "%s: %s: [%s] %s [%s]",
-                 fn->name, op, nameincert,
-                 match ? "matches" : "does not match", name);
+        fn->name, op, nameincert,
+        match ? "matches" : "does not match", name);
     if (is_exception(msg))
         return 1;
     TEST_error("%s", msg);
@@ -277,7 +277,7 @@ static int check_message(const struct set_name_fn *fn, const char *op,
 }
 
 static int run_cert(X509 *crt, const char *nameincert,
-                     const struct set_name_fn *fn)
+    const struct set_name_fn *fn)
 {
     const char *const *pname = names;
     int failed = 0;
@@ -294,7 +294,7 @@ static int run_cert(X509 *crt, const char *nameincert,
 
         match = -1;
         if (!TEST_int_ge(ret = X509_check_host(crt, name, namelen, 0, NULL),
-                         0)) {
+                0)) {
             failed = 1;
         } else if (fn->host) {
             if (ret == 1 && !samename)
@@ -308,8 +308,9 @@ static int run_cert(X509 *crt, const char *nameincert,
 
         match = -1;
         if (!TEST_int_ge(ret = X509_check_host(crt, name, namelen,
-                                               X509_CHECK_FLAG_NO_WILDCARDS,
-                                               NULL), 0)) {
+                             X509_CHECK_FLAG_NO_WILDCARDS,
+                             NULL),
+                0)) {
             failed = 1;
         } else if (fn->host) {
             if (ret == 1 && !samename)
@@ -319,7 +320,7 @@ static int run_cert(X509 *crt, const char *nameincert,
         } else if (ret == 1)
             match = 1;
         if (!TEST_true(check_message(fn, "host-no-wildcards",
-                                     nameincert, match, *pname)))
+                nameincert, match, *pname)))
             failed = 1;
 
         match = -1;
@@ -349,8 +350,8 @@ static int call_run_cert(int i)
     TEST_info("%s", pfn->name);
     for (pname = names; *pname != NULL; pname++) {
         if (!TEST_ptr(crt = make_cert())
-             || !TEST_true(pfn->fn(crt, *pname))
-             || !run_cert(crt, *pname, pfn))
+            || !TEST_true(pfn->fn(crt, *pname))
+            || !run_cert(crt, *pname, pfn))
             failed = 1;
         X509_free(crt);
     }
@@ -361,307 +362,252 @@ static struct gennamedata {
     const unsigned char der[22];
     size_t derlen;
 } gennames[] = {
-    {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     SEQUENCE {}
-        *   }
-        * }
-        */
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     SEQUENCE {}
+       *   }
+       * }
+       */
         {
             0xa0, 0x13, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x02, 0x30, 0x00
-        },
-        21
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     [APPLICATION 0] {}
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x02, 0x30, 0x00 },
+        21 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     [APPLICATION 0] {}
+       *   }
+       * }
+       */
         {
             0xa0, 0x13, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x02, 0x60, 0x00
-        },
-        21
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x02, 0x60, 0x00 },
+        21 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
             0xa0, 0x14, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x0c, 0x01, 0x61
-        },
-        22
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.2 }
-        *   [0] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x0c, 0x01, 0x61 },
+        22 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.2 }
+       *   [0] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
             0xa0, 0x14, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x02, 0xa0, 0x03, 0x0c, 0x01, 0x61
-        },
-        22
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     UTF8String { "b" }
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x02, 0xa0, 0x03, 0x0c, 0x01, 0x61 },
+        22 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     UTF8String { "b" }
+       *   }
+       * }
+       */
         {
             0xa0, 0x14, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x0c, 0x01, 0x62
-        },
-        22
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     BOOLEAN { TRUE }
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x0c, 0x01, 0x62 },
+        22 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     BOOLEAN { TRUE }
+       *   }
+       * }
+       */
         {
             0xa0, 0x14, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x01, 0x01, 0xff
-        },
-        22
-    }, {
-        /*
-        * [0] {
-        *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
-        *   [0] {
-        *     BOOLEAN { FALSE }
-        *   }
-        * }
-        */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x01, 0x01, 0xff },
+        22 },
+    { /*
+       * [0] {
+       *   OBJECT_IDENTIFIER { 1.2.840.113554.4.1.72585.2.1 }
+       *   [0] {
+       *     BOOLEAN { FALSE }
+       *   }
+       * }
+       */
         {
             0xa0, 0x14, 0x06, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04,
-            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x01, 0x01, 0x00
-        },
-        22
-    }, {
-        /* [1 PRIMITIVE] { "a" } */
+            0x01, 0x84, 0xb7, 0x09, 0x02, 0x01, 0xa0, 0x03, 0x01, 0x01, 0x00 },
+        22 },
+    { /* [1 PRIMITIVE] { "a" } */
         {
-            0x81, 0x01, 0x61
-        },
-        3
-    }, {
-        /* [1 PRIMITIVE] { "b" } */
+            0x81, 0x01, 0x61 },
+        3 },
+    { /* [1 PRIMITIVE] { "b" } */
         {
-            0x81, 0x01, 0x62
-        },
-        3
-    }, {
-        /* [2 PRIMITIVE] { "a" } */
+            0x81, 0x01, 0x62 },
+        3 },
+    { /* [2 PRIMITIVE] { "a" } */
         {
-            0x82, 0x01, 0x61
-        },
-        3
-    }, {
-        /* [2 PRIMITIVE] { "b" } */
+            0x82, 0x01, 0x61 },
+        3 },
+    { /* [2 PRIMITIVE] { "b" } */
         {
-            0x82, 0x01, 0x62
-        },
-        3
-    }, {
-        /*
-        * [4] {
-        *   SEQUENCE {
-        *     SET {
-        *       SEQUENCE {
-        *         # commonName
-        *         OBJECT_IDENTIFIER { 2.5.4.3 }
-        *         UTF8String { "a" }
-        *       }
-        *     }
-        *   }
-        * }
-        */
+            0x82, 0x01, 0x62 },
+        3 },
+    { /*
+       * [4] {
+       *   SEQUENCE {
+       *     SET {
+       *       SEQUENCE {
+       *         # commonName
+       *         OBJECT_IDENTIFIER { 2.5.4.3 }
+       *         UTF8String { "a" }
+       *       }
+       *     }
+       *   }
+       * }
+       */
         {
             0xa4, 0x0e, 0x30, 0x0c, 0x31, 0x0a, 0x30, 0x08, 0x06, 0x03, 0x55,
-            0x04, 0x03, 0x0c, 0x01, 0x61
-        },
-        16
-    }, {
-        /*
-        * [4] {
-        *   SEQUENCE {
-        *     SET {
-        *       SEQUENCE {
-        *         # commonName
-        *         OBJECT_IDENTIFIER { 2.5.4.3 }
-        *         UTF8String { "b" }
-        *       }
-        *     }
-        *   }
-        * }
-        */
+            0x04, 0x03, 0x0c, 0x01, 0x61 },
+        16 },
+    { /*
+       * [4] {
+       *   SEQUENCE {
+       *     SET {
+       *       SEQUENCE {
+       *         # commonName
+       *         OBJECT_IDENTIFIER { 2.5.4.3 }
+       *         UTF8String { "b" }
+       *       }
+       *     }
+       *   }
+       * }
+       */
         {
             0xa4, 0x0e, 0x30, 0x0c, 0x31, 0x0a, 0x30, 0x08, 0x06, 0x03, 0x55,
-            0x04, 0x03, 0x0c, 0x01, 0x62
-        },
-        16
-    }, {
-        /*
-        * [5] {
-        *   [1] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0x04, 0x03, 0x0c, 0x01, 0x62 },
+        16 },
+    { /*
+       * [5] {
+       *   [1] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
-            0xa5, 0x05, 0xa1, 0x03, 0x0c, 0x01, 0x61
-        },
-        7
-    }, {
-        /*
-        * [5] {
-        *   [1] {
-        *     UTF8String { "b" }
-        *   }
-        * }
-        */
+            0xa5, 0x05, 0xa1, 0x03, 0x0c, 0x01, 0x61 },
+        7 },
+    { /*
+       * [5] {
+       *   [1] {
+       *     UTF8String { "b" }
+       *   }
+       * }
+       */
         {
-            0xa5, 0x05, 0xa1, 0x03, 0x0c, 0x01, 0x62
-        },
-        7
-    }, {
-        /*
-        * [5] {
-        *   [0] {
-        *     UTF8String {}
-        *   }
-        *   [1] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0xa5, 0x05, 0xa1, 0x03, 0x0c, 0x01, 0x62 },
+        7 },
+    { /*
+       * [5] {
+       *   [0] {
+       *     UTF8String {}
+       *   }
+       *   [1] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
-            0xa5, 0x09, 0xa0, 0x02, 0x0c, 0x00, 0xa1, 0x03, 0x0c, 0x01, 0x61
-        },
-        11
-    }, {
-        /*
-        * [5] {
-        *   [0] {
-        *     UTF8String { "a" }
-        *   }
-        *   [1] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0xa5, 0x09, 0xa0, 0x02, 0x0c, 0x00, 0xa1, 0x03, 0x0c, 0x01, 0x61 },
+        11 },
+    { /*
+       * [5] {
+       *   [0] {
+       *     UTF8String { "a" }
+       *   }
+       *   [1] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
             0xa5, 0x0a, 0xa0, 0x03, 0x0c, 0x01, 0x61, 0xa1, 0x03, 0x0c, 0x01,
-            0x61
-        },
-        12
-    }, {
-        /*
-        * [5] {
-        *   [0] {
-        *     UTF8String { "b" }
-        *   }
-        *   [1] {
-        *     UTF8String { "a" }
-        *   }
-        * }
-        */
+            0x61 },
+        12 },
+    { /*
+       * [5] {
+       *   [0] {
+       *     UTF8String { "b" }
+       *   }
+       *   [1] {
+       *     UTF8String { "a" }
+       *   }
+       * }
+       */
         {
             0xa5, 0x0a, 0xa0, 0x03, 0x0c, 0x01, 0x62, 0xa1, 0x03, 0x0c, 0x01,
-            0x61
-        },
-        12
-    }, {
-        /* [6 PRIMITIVE] { "a" } */
+            0x61 },
+        12 },
+    { /* [6 PRIMITIVE] { "a" } */
         {
-            0x86, 0x01, 0x61
-        },
-        3
-    }, {
-        /* [6 PRIMITIVE] { "b" } */
+            0x86, 0x01, 0x61 },
+        3 },
+    { /* [6 PRIMITIVE] { "b" } */
         {
-            0x86, 0x01, 0x62
-        },
-        3
-    }, {
-        /* [7 PRIMITIVE] { `11111111` } */
+            0x86, 0x01, 0x62 },
+        3 },
+    { /* [7 PRIMITIVE] { `11111111` } */
         {
-            0x87, 0x04, 0x11, 0x11, 0x11, 0x11
-        },
-        6
-    }, {
-        /* [7 PRIMITIVE] { `22222222`} */
+            0x87, 0x04, 0x11, 0x11, 0x11, 0x11 },
+        6 },
+    { /* [7 PRIMITIVE] { `22222222`} */
         {
-            0x87, 0x04, 0x22, 0x22, 0x22, 0x22
-        },
-        6
-    }, {
-        /* [7 PRIMITIVE] { `11111111111111111111111111111111` } */
+            0x87, 0x04, 0x22, 0x22, 0x22, 0x22 },
+        6 },
+    { /* [7 PRIMITIVE] { `11111111111111111111111111111111` } */
         {
             0x87, 0x10, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-            0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-        },
-        18
-    }, {
-        /* [7 PRIMITIVE] { `22222222222222222222222222222222` } */
+            0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 },
+        18 },
+    { /* [7 PRIMITIVE] { `22222222222222222222222222222222` } */
         {
             0x87, 0x10, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
-            0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22
-        },
-        18
-    }, {
-        /* [8 PRIMITIVE] { 1.2.840.113554.4.1.72585.2.1 } */
+            0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22 },
+        18 },
+    { /* [8 PRIMITIVE] { 1.2.840.113554.4.1.72585.2.1 } */
         {
             0x88, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04, 0x01, 0x84,
-            0xb7, 0x09, 0x02, 0x01
-        },
-        15
-    }, {
-        /* [8 PRIMITIVE] { 1.2.840.113554.4.1.72585.2.2 } */
+            0xb7, 0x09, 0x02, 0x01 },
+        15 },
+    { /* [8 PRIMITIVE] { 1.2.840.113554.4.1.72585.2.2 } */
         {
             0x88, 0x0d, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04, 0x01, 0x84,
-            0xb7, 0x09, 0x02, 0x02
-        },
-        15
-    }, {
-        /*
-         * Regression test for CVE-2023-0286.
-         */
+            0xb7, 0x09, 0x02, 0x02 },
+        15 },
+    { /*
+       * Regression test for CVE-2023-0286.
+       */
         {
-            0xa3, 0x00
-        },
-        2
-    }
+            0xa3, 0x00 },
+        2 }
 };
 
 static int test_GENERAL_NAME_cmp(void)
 {
     size_t i, j;
     GENERAL_NAME **namesa = OPENSSL_malloc(sizeof(*namesa)
-                                           * OSSL_NELEM(gennames));
+        * OSSL_NELEM(gennames));
     GENERAL_NAME **namesb = OPENSSL_malloc(sizeof(*namesb)
-                                           * OSSL_NELEM(gennames));
+        * OSSL_NELEM(gennames));
     int testresult = 0;
 
     if (!TEST_ptr(namesa) || !TEST_ptr(namesb))
@@ -695,7 +641,7 @@ static int test_GENERAL_NAME_cmp(void)
     }
     testresult = 1;
 
- end:
+end:
     for (i = 0; i < OSSL_NELEM(gennames); i++) {
         if (namesa != NULL)
             GENERAL_NAME_free(namesa[i]);

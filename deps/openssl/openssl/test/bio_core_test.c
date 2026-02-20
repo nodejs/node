@@ -17,13 +17,13 @@ struct ossl_core_bio_st {
 };
 
 static int tst_bio_core_read_ex(OSSL_CORE_BIO *bio, char *data, size_t data_len,
-                                size_t *bytes_read)
+    size_t *bytes_read)
 {
     return BIO_read_ex(bio->bio, data, data_len, bytes_read);
 }
 
 static int tst_bio_core_write_ex(OSSL_CORE_BIO *bio, const char *data,
-                                 size_t data_len, size_t *written)
+    size_t data_len, size_t *written)
 {
     return BIO_write_ex(bio->bio, data, data_len, written);
 }
@@ -75,31 +75,31 @@ static int test_bio_core(void)
 
     corebio.bio = BIO_new(BIO_s_mem());
     if (!TEST_ptr(corebio.bio)
-            || !TEST_ptr(libctx)
-               /*
-                * Attempting to create a corebio in a libctx that was not
-                * created via OSSL_LIB_CTX_new_from_dispatch() should fail.
-                */
-            || !TEST_ptr_null((cbiobad = BIO_new_from_core_bio(NULL, &corebio)))
-            || !TEST_ptr((cbio = BIO_new_from_core_bio(libctx, &corebio))))
+        || !TEST_ptr(libctx)
+        /*
+         * Attempting to create a corebio in a libctx that was not
+         * created via OSSL_LIB_CTX_new_from_dispatch() should fail.
+         */
+        || !TEST_ptr_null((cbiobad = BIO_new_from_core_bio(NULL, &corebio)))
+        || !TEST_ptr((cbio = BIO_new_from_core_bio(libctx, &corebio))))
         goto err;
 
     if (!TEST_int_gt(BIO_puts(corebio.bio, msg), 0)
-               /* Test a ctrl via BIO_eof */
-            || !TEST_false(BIO_eof(cbio))
-            || !TEST_int_gt(BIO_gets(cbio, buf, sizeof(buf)), 0)
-            || !TEST_true(BIO_eof(cbio))
-            || !TEST_str_eq(buf, msg))
+        /* Test a ctrl via BIO_eof */
+        || !TEST_false(BIO_eof(cbio))
+        || !TEST_int_gt(BIO_gets(cbio, buf, sizeof(buf)), 0)
+        || !TEST_true(BIO_eof(cbio))
+        || !TEST_str_eq(buf, msg))
         goto err;
 
     buf[0] = '\0';
     if (!TEST_int_gt(BIO_write(cbio, msg, strlen(msg) + 1), 0)
-            || !TEST_int_gt(BIO_read(cbio, buf, sizeof(buf)), 0)
-            || !TEST_str_eq(buf, msg))
+        || !TEST_int_gt(BIO_read(cbio, buf, sizeof(buf)), 0)
+        || !TEST_str_eq(buf, msg))
         goto err;
 
     testresult = 1;
- err:
+err:
     BIO_free(cbiobad);
     BIO_free(cbio);
     BIO_free(corebio.bio);

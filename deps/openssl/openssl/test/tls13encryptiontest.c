@@ -39,11 +39,10 @@ typedef struct {
  * Note 2: These are the vectors for the "Simple 1-RTT Handshake"
  */
 static RECORD_DATA refdata[] = {
-    {
-        /*
-         * Server: EncryptedExtensions, Certificate, CertificateVerify and
-         *         Finished
-         */
+    { /*
+       * Server: EncryptedExtensions, Certificate, CertificateVerify and
+       *         Finished
+       */
         {
             "080000240022000a00140012001d00170018001901000101010201030104001c"
             "00024001000000000b0001b9000001b50001b0308201ac30820115a003020102"
@@ -65,16 +64,14 @@ static RECORD_DATA refdata[] = {
             "f642d733be2eb27484ad8a8c8eb3516a7ac57f2625e2b5c0888a8541f4e734f7"
             "3d054761df1dd02f0e3e9a33cfa10b6e3eb4ebf7ac053b01fdabbddfc54133bc"
             "d24c8bbdceb223b2aa03452a2914000020ac86acbc9cd25a45b57ad5b64db15d"
-            "4405cf8c80e314583ebf3283ef9a99310c16"
-        },
-        {
-            "f10b26d8fcaf67b5b828f712122216a1cd14187465b77637cbcd78539128bb93"
-            "246dcca1af56f1eaa271666077455bc54965d85f05f9bd36d6996171eb536aff"
-            "613eeddc42bad5a2d2227c4606f1215f980e7afaf56bd3b85a51be130003101a"
-            "758d077b1c891d8e7a22947e5a229851fd42a9dd422608f868272abf92b3d43f"
-            "b46ac420259346067f66322fd708885680f4b4433c29116f2dfa529e09bba53c"
-            "7cd920121724809eaddcc84307ef46fc51a0b33d99d39db337fcd761ce0f2b02"
-            "dc73dedb6fddb77c4f8099bde93d5bee08bcf2131f29a2a37ff07949e8f8bcdd",
+            "4405cf8c80e314583ebf3283ef9a99310c16" },
+        { "f10b26d8fcaf67b5b828f712122216a1cd14187465b77637cbcd78539128bb93"
+          "246dcca1af56f1eaa271666077455bc54965d85f05f9bd36d6996171eb536aff"
+          "613eeddc42bad5a2d2227c4606f1215f980e7afaf56bd3b85a51be130003101a"
+          "758d077b1c891d8e7a22947e5a229851fd42a9dd422608f868272abf92b3d43f"
+          "b46ac420259346067f66322fd708885680f4b4433c29116f2dfa529e09bba53c"
+          "7cd920121724809eaddcc84307ef46fc51a0b33d99d39db337fcd761ce0f2b02"
+          "dc73dedb6fddb77c4f8099bde93d5bee08bcf2131f29a2a37ff07949e8f8bcdd",
             "3e8310b8bf8b3444c85aaf0d2aeb2d4f36fd14d5cb51fcebff418b3827136ab9"
             "529e9a3d3f35e4c0ae749ea2dbc94982a1281d3e6daab719aa4460889321a008"
             "bf10fa06ac0c61cc122cc90d5e22c0030c986ae84a33a0c47df174bcfbd50bf7"
@@ -89,28 +86,22 @@ static RECORD_DATA refdata[] = {
             "4058399b8db9075f2dcc8216194e503b6652d87d2cb41f99adfdcc5be5ec7e1e"
             "6326ac22d70bd3ba652827532d669aff005173597f8039c3ea4922d3ec757670"
             "222f6ac29b93e90d7ad3f6dd96328e429cfcfd5cca22707fe2d86ad1dcb0be75"
-            "6e8e"
-        },
+            "6e8e" },
         "c66cb1aec519df44c91e10995511ac8b",
         "f7f6884c4981716c2d0d29a4",
-        "0000000000000000"
-    },
-    {
-        /* Client: Finished */
+        "0000000000000000" },
+    { /* Client: Finished */
         {
             "14000020b9027a0204b972b52cdefa58950fa1580d68c9cb124dbe691a7178f2"
-            "5c554b2316", "", ""
-        },
-        {
-            "9539b4ae2f87fd8e616b295628ea953d9e3858db274970d19813ec136cae7d96"
-            "e0417775fcabd3d8858fdc60240912d218f5afb21c", "", ""
-        },
+            "5c554b2316",
+            "", "" },
+        { "9539b4ae2f87fd8e616b295628ea953d9e3858db274970d19813ec136cae7d96"
+          "e0417775fcabd3d8858fdc60240912d218f5afb21c",
+            "", "" },
         "2679a43e1d76784034ea1797d5ad2649",
         "5482405290dd0d2f81c0d942",
-        "0000000000000000"
-    },
-    {
-        /* Server: NewSessionTicket */
+        "0000000000000000" },
+    { /* Server: NewSessionTicket */
         {
             "040000c90000001e2fd3992f02000000b2ff099f9676cdff8b0bf8825d000000"
             "007905a9d28efeef4a47c6f9b06a0cecdb0070d920b898997c75b79636943ed4"
@@ -118,81 +109,64 @@ static RECORD_DATA refdata[] = {
             "769129b740ce38090842b828c27fd729f59737ba98aa7b42e043c5da28f8dca8"
             "590b2df410d5134fd6c4cacad8b30370602afa35d265bf4d127976bb36dbda6a"
             "626f0270e20eebc73d6fcae2b1a0da122ee9042f76be56ebf41aa469c3d2c9da"
-            "9197d80008002a00040000040016", "", ""
-        },
-        {
-            "3680c2b2109d25caa26c3b06eea9fdc5cb31613ba702176596da2e886bf6af93"
-            "507bd68161ad9cb4780653842e1041ecbf0088a65ac4ef438419dd1d95ddd9bd"
-            "2ad4484e7e167d0e6c008448ae58a0418713b6fc6c51e4bb23a537fb75a74f73"
-            "de31fe6aa0bc522515f8b25f8955428b5de5ac06762cec22b0aa78c94385ef8e"
-            "70fa24945b7c1f268510871689bbbbfaf2e7f4a19277024f95f1143ab12a31ec"
-            "63adb128cb390711fd6d06a498df3e98615d8eb102e23353b480efcca5e8e026"
-            "7a6d0fe2441f14c8c9664aefb2cfff6ae9e0442728b6a0940c1e824fda06",
+            "9197d80008002a00040000040016",
+            "", "" },
+        { "3680c2b2109d25caa26c3b06eea9fdc5cb31613ba702176596da2e886bf6af93"
+          "507bd68161ad9cb4780653842e1041ecbf0088a65ac4ef438419dd1d95ddd9bd"
+          "2ad4484e7e167d0e6c008448ae58a0418713b6fc6c51e4bb23a537fb75a74f73"
+          "de31fe6aa0bc522515f8b25f8955428b5de5ac06762cec22b0aa78c94385ef8e"
+          "70fa24945b7c1f268510871689bbbbfaf2e7f4a19277024f95f1143ab12a31ec"
+          "63adb128cb390711fd6d06a498df3e98615d8eb102e23353b480efcca5e8e026"
+          "7a6d0fe2441f14c8c9664aefb2cfff6ae9e0442728b6a0940c1e824fda06",
             "", ""
 
         },
         "a688ebb5ac826d6f42d45c0cc44b9b7d",
         "c1cad4425a438b5de714830a",
-        "0000000000000000"
-    },
-    {
-        /* Client: Application Data */
+        "0000000000000000" },
+    { /* Client: Application Data */
         {
             "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-            "202122232425262728292a2b2c2d2e2f303117", "", ""
-        },
-        {
-            "8c3497da00ae023e53c01b4324b665404c1b49e78fe2bf4d17f6348ae8340551"
-            "e363a0cd05f2179c4fef5ad689b5cae0bae94adc63632e571fb79aa91544c639"
-            "4d28a1", "", ""
+            "202122232425262728292a2b2c2d2e2f303117",
+            "", "" },
+        { "8c3497da00ae023e53c01b4324b665404c1b49e78fe2bf4d17f6348ae8340551"
+          "e363a0cd05f2179c4fef5ad689b5cae0bae94adc63632e571fb79aa91544c639"
+          "4d28a1",
+            "", ""
 
         },
         "88b96ad686c84be55ace18a59cce5c87",
         "b99dc58cd5ff5ab082fdad19",
-        "0000000000000000"
-    },
+        "0000000000000000" },
 
-
-    {
-        /* Server: Application Data */
+    { /* Server: Application Data */
         {
             "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-            "202122232425262728292a2b2c2d2e2f303117", "", ""
-        },
-        {
-            "f65f49fd2df6cd2347c3d30166e3cfddb6308a5906c076112c6a37ff1dbd406b"
-            "5813c0abd734883017a6b2833186b13c14da5d75f33d8760789994e27d82043a"
-            "b88d65", "", ""
-        },
+            "202122232425262728292a2b2c2d2e2f303117",
+            "", "" },
+        { "f65f49fd2df6cd2347c3d30166e3cfddb6308a5906c076112c6a37ff1dbd406b"
+          "5813c0abd734883017a6b2833186b13c14da5d75f33d8760789994e27d82043a"
+          "b88d65",
+            "", "" },
         "a688ebb5ac826d6f42d45c0cc44b9b7d",
         "c1cad4425a438b5de714830a",
-        "0000000000000001"
-    },
-    {
-        /* Client: CloseNotify */
+        "0000000000000001" },
+    { /* Client: CloseNotify */
         {
-            "010015", "", ""
-        },
-        {
-            "2c2148163d7938a35f6acf2a6606f8cbd1d9f2", "", ""
-        },
+            "010015", "", "" },
+        { "2c2148163d7938a35f6acf2a6606f8cbd1d9f2", "", "" },
         "88b96ad686c84be55ace18a59cce5c87",
         "b99dc58cd5ff5ab082fdad19",
-        "0000000000000001"
-    },
-    {
-        /* Server: CloseNotify */
+        "0000000000000001" },
+    { /* Server: CloseNotify */
         {
-            "010015", "", ""
-        },
-        {
-            "f8141ebdb5eda511e0bce639a56ff9ea825a21", "", ""
+            "010015", "", "" },
+        { "f8141ebdb5eda511e0bce639a56ff9ea825a21", "", ""
 
         },
         "a688ebb5ac826d6f42d45c0cc44b9b7d",
         "c1cad4425a438b5de714830a",
-        "0000000000000002"
-    }
+        "0000000000000002" }
 };
 
 /*
@@ -237,7 +211,7 @@ static unsigned char *multihexstr2buf(const char *str[3], size_t *len)
 }
 
 static int load_record(SSL3_RECORD *rec, RECORD_DATA *recd, unsigned char **key,
-                       unsigned char *iv, size_t ivlen, unsigned char *seq)
+    unsigned char *iv, size_t ivlen, unsigned char *seq)
 {
     unsigned char *pt = NULL, *sq = NULL, *ivtmp = NULL;
     size_t ptlen;
@@ -264,7 +238,7 @@ static int load_record(SSL3_RECORD *rec, RECORD_DATA *recd, unsigned char **key,
     OPENSSL_free(ivtmp);
 
     return 1;
- err:
+err:
     OPENSSL_free(*key);
     *key = NULL;
     OPENSSL_free(ivtmp);
@@ -294,12 +268,12 @@ static int test_record(SSL3_RECORD *rec, RECORD_DATA *recd, int enc)
 
     ret = 1;
 
- err:
+err:
     OPENSSL_free(refd);
     return ret;
 }
 
-#define TLS13_AES_128_GCM_SHA256_BYTES  ((const unsigned char *)"\x13\x01")
+#define TLS13_AES_128_GCM_SHA256_BYTES ((const unsigned char *)"\x13\x01")
 
 static int test_tls13_encryption(void)
 {
@@ -349,20 +323,20 @@ static int test_tls13_encryption(void)
         /* Load the record */
         ivlen = EVP_CIPHER_get_iv_length(ciph);
         if (!load_record(&rec, &refdata[ctr], &key, s->read_iv, ivlen,
-                         RECORD_LAYER_get_read_sequence(&s->rlayer))) {
+                RECORD_LAYER_get_read_sequence(&s->rlayer))) {
             TEST_error("Failed loading key into EVP_CIPHER_CTX");
             goto err;
         }
 
         /* Set up the read/write sequences */
         memcpy(RECORD_LAYER_get_write_sequence(&s->rlayer),
-               RECORD_LAYER_get_read_sequence(&s->rlayer), SEQ_NUM_SIZE);
+            RECORD_LAYER_get_read_sequence(&s->rlayer), SEQ_NUM_SIZE);
         memcpy(s->write_iv, s->read_iv, ivlen);
 
         /* Load the key into the EVP_CIPHER_CTXs */
         if (EVP_CipherInit_ex(s->enc_write_ctx, ciph, NULL, key, NULL, 1) <= 0
-                || EVP_CipherInit_ex(s->enc_read_ctx, ciph, NULL, key, NULL, 0)
-                   <= 0) {
+            || EVP_CipherInit_ex(s->enc_read_ctx, ciph, NULL, key, NULL, 0)
+                <= 0) {
             TEST_error("Failed loading key into EVP_CIPHER_CTX\n");
             goto err;
         }
@@ -400,7 +374,7 @@ static int test_tls13_encryption(void)
     TEST_note("PASS: %zu records tested", ctr);
     ret = 1;
 
- err:
+err:
     OPENSSL_free(rec.data);
     OPENSSL_free(key);
     OPENSSL_free(iv);

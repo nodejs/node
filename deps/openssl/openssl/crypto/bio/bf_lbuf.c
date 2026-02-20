@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@ static int linebuffer_free(BIO *data);
 static long linebuffer_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 
 /* A 10k maximum should be enough for most purposes */
-#define DEFAULT_LINEBUFFER_SIZE 1024*10
+#define DEFAULT_LINEBUFFER_SIZE 1024 * 10
 
 /* #define DEBUG */
 
@@ -48,9 +48,9 @@ const BIO_METHOD *BIO_f_linebuffer(void)
 }
 
 typedef struct bio_linebuffer_ctx_struct {
-    char *obuf;                 /* the output char array */
-    int obuf_size;              /* how big is the output buffer */
-    int obuf_len;               /* how many bytes are in it */
+    char *obuf; /* the output char array */
+    int obuf_size; /* how big is the output buffer */
+    int obuf_len; /* how many bytes are in it */
 } BIO_LINEBUFFER_CTX;
 
 static int linebuffer_new(BIO *bi)
@@ -122,7 +122,8 @@ static int linebuffer_write(BIO *b, const char *in, int inl)
         const char *p;
         char c;
 
-        for (p = in, c = '\0'; p < in + inl && (c = *p) != '\n'; p++) ;
+        for (p = in, c = '\0'; p < in + inl && (c = *p) != '\n'; p++)
+            ;
         if (c == '\n') {
             p++;
             foundnl = 1;
@@ -134,7 +135,7 @@ static int linebuffer_write(BIO *b, const char *in, int inl)
          * concatenate them and write
          */
         while ((foundnl || p - in > ctx->obuf_size - ctx->obuf_len)
-               && ctx->obuf_len > 0) {
+            && ctx->obuf_len > 0) {
             int orig_olen = ctx->obuf_len;
 
             i = ctx->obuf_size - ctx->obuf_len;
@@ -185,18 +186,37 @@ static int linebuffer_write(BIO *b, const char *in, int inl)
             in += i;
             inl -= i;
         }
-    }
-    while (foundnl && inl > 0);
+    } while (foundnl && inl > 0);
     /*
      * We've written as much as we can.  The rest of the input buffer, if
-     * any, is text that doesn't and with a NL and therefore needs to be
-     * saved for the next trip.
+     * any, is text that doesn't end with a NL and therefore we need to try
+     * free up some space in our obuf so we can make forward progress.
      */
-    if (inl > 0) {
-        memcpy(&(ctx->obuf[ctx->obuf_len]), in, inl);
-        ctx->obuf_len += inl;
-        num += inl;
+    while (inl > 0) {
+        size_t avail = (size_t)ctx->obuf_size - (size_t)ctx->obuf_len;
+        size_t to_copy;
+
+        if (avail == 0) {
+            /* Flush buffered data to make room */
+            i = BIO_write(b->next_bio, ctx->obuf, ctx->obuf_len);
+            if (i <= 0) {
+                BIO_copy_next_retry(b);
+                return num > 0 ? num : i;
+            }
+            if (i < ctx->obuf_len)
+                memmove(ctx->obuf, ctx->obuf + i, ctx->obuf_len - i);
+            ctx->obuf_len -= i;
+            continue;
+        }
+
+        to_copy = inl > (int)avail ? avail : (size_t)inl;
+        memcpy(&(ctx->obuf[ctx->obuf_len]), in, to_copy);
+        ctx->obuf_len += (int)to_copy;
+        in += to_copy;
+        inl -= (int)to_copy;
+        num += (int)to_copy;
     }
+
     return num;
 }
 
@@ -294,7 +314,7 @@ static long linebuffer_ctrl(BIO *b, int cmd, long num, void *ptr)
         break;
     }
     return ret;
- malloc_error:
+malloc_error:
     ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
     return 0;
 }

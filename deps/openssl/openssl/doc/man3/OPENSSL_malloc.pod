@@ -103,6 +103,10 @@ before ultimately calling OPENSSL_free(). If the argument to OPENSSL_free() is
 NULL, nothing is done.
 
 OPENSSL_cleanse() fills B<ptr> of size B<len> with a string of 0's.
+It is useful in cases when it is needed to ensure that memory (that contains
+sensitive information) is overwritten (for example, before it is reclaimed,
+or when it is stored on stack), and such operation is not optimised out
+by compiler optimisations such as dead store elimination (as memset(3) may be).
 Use OPENSSL_cleanse() with care if the memory is a mapping of a file.
 If the storage controller uses write compression, then it's possible
 that sensitive tail bytes will survive zeroization because the block of

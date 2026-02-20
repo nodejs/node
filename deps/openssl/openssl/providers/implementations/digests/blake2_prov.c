@@ -30,12 +30,12 @@ int ossl_blake2b512_init(void *ctx)
 
 /* ossl_blake2s256_functions */
 IMPLEMENT_digest_functions(blake2s256, BLAKE2S_CTX,
-                           BLAKE2S_BLOCKBYTES, BLAKE2S_DIGEST_LENGTH, 0,
-                           ossl_blake2s256_init, ossl_blake2s_update,
-                           ossl_blake2s_final)
+    BLAKE2S_BLOCKBYTES, BLAKE2S_DIGEST_LENGTH, 0,
+    ossl_blake2s256_init, ossl_blake2s_update,
+    ossl_blake2s_final)
 
 /* ossl_blake2b512_functions */
 IMPLEMENT_digest_functions(blake2b512, BLAKE2B_CTX,
-                           BLAKE2B_BLOCKBYTES, BLAKE2B_DIGEST_LENGTH, 0,
-                           ossl_blake2b512_init, ossl_blake2b_update,
-                           ossl_blake2b_final)
+    BLAKE2B_BLOCKBYTES, BLAKE2B_DIGEST_LENGTH, 0,
+    ossl_blake2b512_init, ossl_blake2b_update,
+    ossl_blake2b_final)

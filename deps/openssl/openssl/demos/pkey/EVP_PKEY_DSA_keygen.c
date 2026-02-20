@@ -34,7 +34,7 @@ EVP_PKEY *dsa_genparams(OSSL_LIB_CTX *libctx, const char *propq)
     }
 
     if (EVP_PKEY_paramgen_init(ctx) <= 0
-            || EVP_PKEY_paramgen(ctx, &dsaparamkey) <= 0) {
+        || EVP_PKEY_paramgen(ctx, &dsaparamkey) <= 0) {
         fprintf(stderr, "DSA paramgen failed\n");
         goto cleanup;
     }
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 
     /* Generate a key using the dsa params */
     if (EVP_PKEY_keygen_init(ctx) <= 0
-            || EVP_PKEY_keygen(ctx, &dsakey) <= 0) {
+        || EVP_PKEY_keygen(ctx, &dsakey) <= 0) {
         fprintf(stderr, "DSA keygen failed\n");
         goto cleanup;
     }

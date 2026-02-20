@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -410,7 +410,7 @@ ___
 # If lsize < 3*16 bytes, treat them as the tail, interleave the
 # two blocks AES instructions.
 # There is one special case, if the original input data size dsize
-# = 16 bytes, we will treat it seperately to improve the
+# = 16 bytes, we will treat it separately to improve the
 # performance: one independent code block without LR, FP load and
 # store, just looks like what the original ECB implementation does.
 
@@ -2210,7 +2210,7 @@ ___
 # will be processed specially, which be integrated into the 5*16 bytes
 # loop to improve the efficiency.
 # There is one special case, if the original input data size dsize
-# = 16 bytes, we will treat it seperately to improve the
+# = 16 bytes, we will treat it separately to improve the
 # performance: one independent code block without LR, FP load and
 # store.
 # Encryption will process the (length -tailcnt) bytes as mentioned
@@ -3543,7 +3543,7 @@ $code.=<<___	if ($flavour =~ /64/);
 	cbnz	x2,.Lxts_dec_1st_done
 	vld1.8	{$dat0},[$inp],#16
 
-	// Decrypt the last secod block to get the last plain text block
+	// Decrypt the last second block to get the last plain text block
 .Lxts_dec_1st_done:
 	eor	$tmpin,$dat0,$iv1
 	ldr	$rounds,[$key1,#240]

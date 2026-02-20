@@ -392,10 +392,10 @@ static int test_long_output(void)
                     "1234567890123456789012345678901234567890123456789012"
                     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    return TEST(0, TEST_str_eq(p,  q))
-           & TEST(0, TEST_str_eq(q, r))
-           & TEST(0, TEST_str_eq(r, s))
-           & TEST(0, TEST_mem_eq(r, strlen(r), s, strlen(s)));
+    return TEST(0, TEST_str_eq(p, q))
+        & TEST(0, TEST_str_eq(q, r))
+        & TEST(0, TEST_str_eq(r, s))
+        & TEST(0, TEST_mem_eq(r, strlen(r), s, strlen(s)));
 }
 
 static int test_long_bignum(void)
@@ -412,11 +412,11 @@ static int test_long_bignum(void)
     const char bs[] = "1234567890123456789012345678901234567890123456789012"
                       "1234567890123456789012345678901234567890123456789013"
                       "987657";
-    const char cs[] = "-"        /* 64 characters plus sign */
+    const char cs[] = "-" /* 64 characters plus sign */
                       "123456789012345678901234567890"
                       "123456789012345678901234567890"
                       "ABCD";
-    const char ds[] = "-"        /* 63 characters plus sign */
+    const char ds[] = "-" /* 63 characters plus sign */
                       "23456789A123456789B123456789C"
                       "123456789D123456789E123456789F"
                       "ABCD";
@@ -455,49 +455,49 @@ static int test_single_eval(void)
     size_t st = 1234;
     char buf[4] = { 0 }, *p = buf;
 
-           /* int */
+    /* int */
     return TEST_int_eq(i++, 4)
-           && TEST_int_eq(i, 5)
-           && TEST_int_gt(++i, 5)
-           && TEST_int_le(5, i++)
-           && TEST_int_ne(--i, 5)
-           && TEST_int_eq(12, i *= 2)
-           /* Long */
-           && TEST_long_eq(l--, -9000L)
-           && TEST_long_eq(++l, -9000L)
-           && TEST_long_ne(-9000L, l /= 2)
-           && TEST_long_lt(--l, -4500L)
-           /* char */
-           && TEST_char_eq(++c, 'e')
-           && TEST_char_eq('e', c--)
-           && TEST_char_ne('d', --c)
-           && TEST_char_le('b', --c)
-           && TEST_char_lt(c++, 'c')
-           /* unsigned char */
-           && TEST_uchar_eq(22, uc++)
-           && TEST_uchar_eq(uc /= 2, 11)
-           && TEST_ulong_eq(ul ^= 1, 501)
-           && TEST_ulong_eq(502, ul ^= 3)
-           && TEST_ulong_eq(ul = ul * 3 - 6, 1500)
-           /* size_t */
-           && TEST_size_t_eq((--i, st++), 1234)
-           && TEST_size_t_eq(st, 1235)
-           && TEST_int_eq(11, i)
-           /* pointers */
-           && TEST_ptr_eq(p++, buf)
-           && TEST_ptr_eq(buf + 2, ++p)
-           && TEST_ptr_eq(buf, p -= 2)
-           && TEST_ptr(++p)
-           && TEST_ptr_eq(p, buf + 1)
-           && TEST_ptr_null(p = NULL)
-           /* strings */
-           && TEST_str_eq(p = &("123456"[1]), "23456")
-           && TEST_str_eq("3456", ++p)
-           && TEST_str_ne(p++, "456")
-           /* memory */
-           && TEST_mem_eq(--p, sizeof("3456"), "3456", sizeof("3456"))
-           && TEST_mem_ne(p++, sizeof("456"), "456", sizeof("456"))
-           && TEST_mem_eq(p--, sizeof("456"), "456", sizeof("456"));
+        && TEST_int_eq(i, 5)
+        && TEST_int_gt(++i, 5)
+        && TEST_int_le(5, i++)
+        && TEST_int_ne(--i, 5)
+        && TEST_int_eq(12, i *= 2)
+        /* Long */
+        && TEST_long_eq(l--, -9000L)
+        && TEST_long_eq(++l, -9000L)
+        && TEST_long_ne(-9000L, l /= 2)
+        && TEST_long_lt(--l, -4500L)
+        /* char */
+        && TEST_char_eq(++c, 'e')
+        && TEST_char_eq('e', c--)
+        && TEST_char_ne('d', --c)
+        && TEST_char_le('b', --c)
+        && TEST_char_lt(c++, 'c')
+        /* unsigned char */
+        && TEST_uchar_eq(22, uc++)
+        && TEST_uchar_eq(uc /= 2, 11)
+        && TEST_ulong_eq(ul ^= 1, 501)
+        && TEST_ulong_eq(502, ul ^= 3)
+        && TEST_ulong_eq(ul = ul * 3 - 6, 1500)
+        /* size_t */
+        && TEST_size_t_eq((--i, st++), 1234)
+        && TEST_size_t_eq(st, 1235)
+        && TEST_int_eq(11, i)
+        /* pointers */
+        && TEST_ptr_eq(p++, buf)
+        && TEST_ptr_eq(buf + 2, ++p)
+        && TEST_ptr_eq(buf, p -= 2)
+        && TEST_ptr(++p)
+        && TEST_ptr_eq(p, buf + 1)
+        && TEST_ptr_null(p = NULL)
+        /* strings */
+        && TEST_str_eq(p = &("123456"[1]), "23456")
+        && TEST_str_eq("3456", ++p)
+        && TEST_str_ne(p++, "456")
+        /* memory */
+        && TEST_mem_eq(--p, sizeof("3456"), "3456", sizeof("3456"))
+        && TEST_mem_ne(p++, sizeof("456"), "456", sizeof("456"))
+        && TEST_mem_eq(p--, sizeof("456"), "456", sizeof("456"));
 }
 
 static int test_output(void)
@@ -524,7 +524,7 @@ static int test_bn_output(int n)
     BIGNUM *b = NULL;
 
     if (bn_output_tests[n] != NULL
-            && !TEST_true(BN_hex2bn(&b, bn_output_tests[n])))
+        && !TEST_true(BN_hex2bn(&b, bn_output_tests[n])))
         return 0;
     test_output_bignum(bn_output_tests[n], b);
     BN_free(b);

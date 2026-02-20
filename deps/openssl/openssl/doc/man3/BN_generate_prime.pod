@@ -130,7 +130,7 @@ or all the tests passed.
 If B<p> passes all these tests, it is considered a probable prime.
 
 The test performed on B<p> are trial division by a number of small primes
-and rounds of the of the Miller-Rabin probabilistic primality test.
+and rounds of the Miller-Rabin probabilistic primality test.
 
 The functions do at least 64 rounds of the Miller-Rabin test giving a maximum
 false positive rate of 2^-128.
@@ -148,7 +148,7 @@ and BN_is_prime_fasttest() are deprecated.
 
 BN_is_prime_fasttest() and BN_is_prime() behave just like
 BN_is_prime_fasttest_ex() and BN_is_prime_ex() respectively, but with the old
-style call back.
+style callback.
 
 B<ctx> is a preallocated B<BN_CTX> (to save the overhead of allocating and
 freeing the structure in a loop), or B<NULL>.
@@ -246,7 +246,7 @@ BN_check_prime() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

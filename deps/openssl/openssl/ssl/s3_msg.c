@@ -76,13 +76,13 @@ int ssl3_dispatch_alert(SSL *s)
 {
     int i, j;
     size_t alertlen;
-    void (*cb) (const SSL *ssl, int type, int val) = NULL;
+    void (*cb)(const SSL *ssl, int type, int val) = NULL;
     size_t written;
 
     s->s3.alert_dispatch = 0;
     alertlen = 2;
     i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3.send_alert[0], &alertlen, 1, 0,
-                      &written);
+        &written);
     if (i <= 0) {
         s->s3.alert_dispatch = 1;
     } else {
@@ -94,7 +94,7 @@ int ssl3_dispatch_alert(SSL *s)
 
         if (s->msg_callback)
             s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3.send_alert,
-                            2, s, s->msg_callback_arg);
+                2, s, s->msg_callback_arg);
 
         if (s->info_callback != NULL)
             cb = s->info_callback;

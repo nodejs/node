@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
     ret = 0;
 
- err:
+err:
     if (ret) {
         fprintf(stderr, "Error Signing Data\n");
         ERR_print_errors_fp(stderr);
@@ -84,5 +84,4 @@ int main(int argc, char **argv)
     BIO_free(tbio);
 
     return ret;
-
 }

@@ -18,11 +18,11 @@
 #include "internal/cryptlib.h"
 
 #ifndef OPENSSL_NO_IDEA
-# include <openssl/evp.h>
-# include <openssl/objects.h>
-# include "crypto/evp.h"
-# include <openssl/idea.h>
-# include "evp_local.h"
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include "crypto/evp.h"
+#include <openssl/idea.h>
+#include "evp_local.h"
 
 /* Can't use IMPLEMENT_BLOCK_CIPHER because IDEA_ecb_encrypt is different */
 
@@ -31,7 +31,7 @@ typedef struct {
 } EVP_IDEA_KEY;
 
 static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                         const unsigned char *iv, int enc);
+    const unsigned char *iv, int enc);
 
 /*
  * NB IDEA_ecb_encrypt doesn't take an 'encrypt' argument so we treat it as a
@@ -39,23 +39,23 @@ static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
  */
 
 static int idea_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                           const unsigned char *in, size_t inl)
+    const unsigned char *in, size_t inl)
 {
     BLOCK_CIPHER_ecb_loop()
-        IDEA_ecb_encrypt(in + i, out + i, &EVP_C_DATA(EVP_IDEA_KEY,ctx)->ks);
+        IDEA_ecb_encrypt(in + i, out + i, &EVP_C_DATA(EVP_IDEA_KEY, ctx)->ks);
     return 1;
 }
 
 BLOCK_CIPHER_func_cbc(idea, IDEA, EVP_IDEA_KEY, ks)
-BLOCK_CIPHER_func_ofb(idea, IDEA, 64, EVP_IDEA_KEY, ks)
-BLOCK_CIPHER_func_cfb(idea, IDEA, 64, EVP_IDEA_KEY, ks)
+    BLOCK_CIPHER_func_ofb(idea, IDEA, 64, EVP_IDEA_KEY, ks)
+        BLOCK_CIPHER_func_cfb(idea, IDEA, 64, EVP_IDEA_KEY, ks)
 
-BLOCK_CIPHER_defs(idea, IDEA_KEY_SCHEDULE, NID_idea, 8, 16, 8, 64,
-                  0, idea_init_key, NULL,
-                  EVP_CIPHER_set_asn1_iv, EVP_CIPHER_get_asn1_iv, NULL)
+            BLOCK_CIPHER_defs(idea, IDEA_KEY_SCHEDULE, NID_idea, 8, 16, 8, 64,
+                0, idea_init_key, NULL,
+                EVP_CIPHER_set_asn1_iv, EVP_CIPHER_get_asn1_iv, NULL)
 
-static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                         const unsigned char *iv, int enc)
+                static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
+                    const unsigned char *iv, int enc)
 {
     if (!enc) {
         if (EVP_CIPHER_CTX_get_mode(ctx) == EVP_CIPH_OFB_MODE)
@@ -64,12 +64,12 @@ static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
             enc = 1;
     }
     if (enc)
-        IDEA_set_encrypt_key(key, &EVP_C_DATA(EVP_IDEA_KEY,ctx)->ks);
+        IDEA_set_encrypt_key(key, &EVP_C_DATA(EVP_IDEA_KEY, ctx)->ks);
     else {
         IDEA_KEY_SCHEDULE tmp;
 
         IDEA_set_encrypt_key(key, &tmp);
-        IDEA_set_decrypt_key(&tmp, &EVP_C_DATA(EVP_IDEA_KEY,ctx)->ks);
+        IDEA_set_decrypt_key(&tmp, &EVP_C_DATA(EVP_IDEA_KEY, ctx)->ks);
         OPENSSL_cleanse((unsigned char *)&tmp, sizeof(IDEA_KEY_SCHEDULE));
     }
     return 1;

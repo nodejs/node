@@ -410,7 +410,7 @@ Currently the AES variants with GCM mode are the only supported AEAD
 algorithms.
 
 If not specified triple DES is used. Only used with B<-encrypt> and
-B<-EncryptedData_create> commands.
+B<-EncryptedData_encrypt> commands.
 
 =item B<-wrap> I<cipher>
 
@@ -437,7 +437,7 @@ with caution: see the notes section below.
 =item B<-md> I<digest>
 
 Digest algorithm to use when signing or resigning. If not present then the
-default digest algorithm for the signing key will be used (usually SHA1).
+default digest algorithm for the signing key will be used (usually SHA-256).
 
 =item B<-signer> I<file>
 
@@ -764,7 +764,7 @@ The use of PSS with B<-sign>.
 
 The use of OAEP or non-RSA keys with B<-encrypt>.
 
-Additionally the B<-EncryptedData_create> and B<-data_create> type cannot
+Additionally the B<-EncryptedData_encrypt> and B<-data_create> type cannot
 be processed by the older L<openssl-smime(1)> command.
 
 =head1 EXAMPLES
@@ -907,7 +907,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

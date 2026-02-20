@@ -421,6 +421,19 @@ validated versions alongside F<libcrypto> and F<libssl> compiled from any
 release within the same major release series.  This flexibility enables
 you to address bug fixes and CVEs that fall outside the FIPS boundary.
 
+You can load the FIPS provider into multiple library contexts as any other
+provider. However the following restriction applies. The FIPS provider cannot
+be used by multiple copies of OpenSSL libcrypto in a single process.
+
+As the provider saves core callbacks to the libcrypto obtained in the
+OSSL_provider_init() call to global data it will fail if subsequent
+invocations of its OSSL_provider_init() function yield different addresses
+of these callbacks than in the initial call. This happens when different
+copies of libcrypto are present in the memory of the process and both try
+to load the same FIPS provider. A workaround is to have a different copy
+of the FIPS provider loaded for each of the libcrypto instances in the
+process.
+
 =head1 SEE ALSO
 
 L<openssl-fipsinstall(1)>,
@@ -439,7 +452,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

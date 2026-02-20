@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
     ret = 0;
 
- err:
+err:
 
     if (ret) {
         fprintf(stderr, "Error Uncompressing Data\n");

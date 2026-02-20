@@ -36,7 +36,7 @@ With an initial counter of 42 (2a in hex) would be expressed as:
 Authenticated encryption with ChaCha20-Poly1305. Like EVP_chacha20(), the key
 is 256 bits and the IV is 96 bits. This supports additional authenticated data
 (AAD) and produces a 128-bit authentication tag. See the
-L<EVP_EncryptInit(3)/AEAD Interface> section for more information.
+L<EVP_EncryptInit(3)/AEAD INTERFACE> section for more information.
 
 =back
 
@@ -64,7 +64,7 @@ L<EVP_CIPHER_meth_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
-#include "internal/numbers.h"   /* includes SIZE_MAX */
+#include "internal/numbers.h" /* includes SIZE_MAX */
 #include "internal/cryptlib.h"
 #include "internal/provider.h"
 #include "internal/core.h"
@@ -41,8 +41,8 @@ static EVP_SIGNATURE *evp_signature_new(OSSL_PROVIDER *prov)
 }
 
 static void *evp_signature_from_algorithm(int name_id,
-                                          const OSSL_ALGORITHM *algodef,
-                                          OSSL_PROVIDER *prov)
+    const OSSL_ALGORITHM *algodef,
+    OSSL_PROVIDER *prov)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_SIGNATURE *signature = NULL;
@@ -272,7 +272,7 @@ static void *evp_signature_from_algorithm(int name_id,
     }
 
     return signature;
- err:
+err:
     EVP_SIGNATURE_free(signature);
     return NULL;
 }
@@ -306,29 +306,29 @@ OSSL_PROVIDER *EVP_SIGNATURE_get0_provider(const EVP_SIGNATURE *signature)
 }
 
 EVP_SIGNATURE *EVP_SIGNATURE_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
-                                   const char *properties)
+    const char *properties)
 {
     return evp_generic_fetch(ctx, OSSL_OP_SIGNATURE, algorithm, properties,
-                             evp_signature_from_algorithm,
-                             (int (*)(void *))EVP_SIGNATURE_up_ref,
-                             (void (*)(void *))EVP_SIGNATURE_free);
+        evp_signature_from_algorithm,
+        (int (*)(void *))EVP_SIGNATURE_up_ref,
+        (void (*)(void *))EVP_SIGNATURE_free);
 }
 
 EVP_SIGNATURE *evp_signature_fetch_from_prov(OSSL_PROVIDER *prov,
-                                             const char *algorithm,
-                                             const char *properties)
+    const char *algorithm,
+    const char *properties)
 {
     return evp_generic_fetch_from_prov(prov, OSSL_OP_SIGNATURE,
-                                       algorithm, properties,
-                                       evp_signature_from_algorithm,
-                                       (int (*)(void *))EVP_SIGNATURE_up_ref,
-                                       (void (*)(void *))EVP_SIGNATURE_free);
+        algorithm, properties,
+        evp_signature_from_algorithm,
+        (int (*)(void *))EVP_SIGNATURE_up_ref,
+        (void (*)(void *))EVP_SIGNATURE_free);
 }
 
 int EVP_SIGNATURE_is_a(const EVP_SIGNATURE *signature, const char *name)
 {
     return signature != NULL
-           && evp_is_a(signature->prov, signature->name_id, NULL, name);
+        && evp_is_a(signature->prov, signature->name_id, NULL, name);
 }
 
 int evp_signature_get_number(const EVP_SIGNATURE *signature)
@@ -347,21 +347,20 @@ const char *EVP_SIGNATURE_get0_description(const EVP_SIGNATURE *signature)
 }
 
 void EVP_SIGNATURE_do_all_provided(OSSL_LIB_CTX *libctx,
-                                   void (*fn)(EVP_SIGNATURE *signature,
-                                              void *arg),
-                                   void *arg)
+    void (*fn)(EVP_SIGNATURE *signature,
+        void *arg),
+    void *arg)
 {
     evp_generic_do_all(libctx, OSSL_OP_SIGNATURE,
-                       (void (*)(void *, void *))fn, arg,
-                       evp_signature_from_algorithm,
-                       (int (*)(void *))EVP_SIGNATURE_up_ref,
-                       (void (*)(void *))EVP_SIGNATURE_free);
+        (void (*)(void *, void *))fn, arg,
+        evp_signature_from_algorithm,
+        (int (*)(void *))EVP_SIGNATURE_up_ref,
+        (void (*)(void *))EVP_SIGNATURE_free);
 }
 
-
 int EVP_SIGNATURE_names_do_all(const EVP_SIGNATURE *signature,
-                               void (*fn)(const char *name, void *data),
-                               void *data)
+    void (*fn)(const char *name, void *data),
+    void *data)
 {
     if (signature->prov != NULL)
         return evp_names_do_all(signature->prov, signature->name_id, fn, data);
@@ -392,7 +391,7 @@ const OSSL_PARAM *EVP_SIGNATURE_settable_ctx_params(const EVP_SIGNATURE *sig)
 }
 
 static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
-                                   const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     int ret = 0;
     void *provkey = NULL;
@@ -425,13 +424,13 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
      * Try to derive the supported signature from |ctx->keymgmt|.
      */
     if (!ossl_assert(ctx->pkey->keymgmt == NULL
-                     || ctx->pkey->keymgmt == ctx->keymgmt)) {
+            || ctx->pkey->keymgmt == ctx->keymgmt)) {
         ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     supported_sig = evp_keymgmt_util_query_operation_name(ctx->keymgmt,
-                                                          OSSL_OP_SIGNATURE);
+        OSSL_OP_SIGNATURE);
     if (supported_sig == NULL) {
         ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
@@ -468,16 +467,14 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
 
         switch (iter) {
         case 1:
-            signature =
-                EVP_SIGNATURE_fetch(ctx->libctx, supported_sig, ctx->propquery);
+            signature = EVP_SIGNATURE_fetch(ctx->libctx, supported_sig, ctx->propquery);
             if (signature != NULL)
                 tmp_prov = EVP_SIGNATURE_get0_provider(signature);
             break;
         case 2:
             tmp_prov = EVP_KEYMGMT_get0_provider(ctx->keymgmt);
-            signature =
-                evp_signature_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
-                                              supported_sig, ctx->propquery);
+            signature = evp_signature_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
+                supported_sig, ctx->propquery);
             if (signature == NULL)
                 goto legacy;
             break;
@@ -495,13 +492,12 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
 
          * export it if |tmp_keymgmt| is different from |ctx->pkey|'s keymgmt)
          */
-        tmp_keymgmt_tofree = tmp_keymgmt =
-            evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
-                                        EVP_KEYMGMT_get0_name(ctx->keymgmt),
-                                        ctx->propquery);
+        tmp_keymgmt_tofree = tmp_keymgmt = evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
+            EVP_KEYMGMT_get0_name(ctx->keymgmt),
+            ctx->propquery);
         if (tmp_keymgmt != NULL)
             provkey = evp_pkey_export_to_provider(ctx->pkey, ctx->libctx,
-                                                  &tmp_keymgmt, ctx->propquery);
+                &tmp_keymgmt, ctx->propquery);
         if (tmp_keymgmt == NULL)
             EVP_KEYMGMT_free(tmp_keymgmt_tofree);
     }
@@ -516,8 +512,7 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     /* No more legacy from here down to legacy: */
 
     ctx->op.sig.signature = signature;
-    ctx->op.sig.algctx =
-        signature->newctx(ossl_provider_ctx(signature->prov), ctx->propquery);
+    ctx->op.sig.algctx = signature->newctx(ossl_provider_ctx(signature->prov), ctx->propquery);
     if (ctx->op.sig.algctx == NULL) {
         /* The provider key can stay in the cache */
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
@@ -548,7 +543,7 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
             goto err;
         }
         ret = signature->verify_recover_init(ctx->op.sig.algctx, provkey,
-                                             params);
+            params);
         break;
     default:
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
@@ -562,7 +557,7 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     }
     goto end;
 
- legacy:
+legacy:
     /*
      * If we don't have the full support we need with provided methods,
      * let's go see if legacy does.
@@ -572,10 +567,10 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     tmp_keymgmt = NULL;
 
     if (ctx->pmeth == NULL
-            || (operation == EVP_PKEY_OP_SIGN && ctx->pmeth->sign == NULL)
-            || (operation == EVP_PKEY_OP_VERIFY && ctx->pmeth->verify == NULL)
-            || (operation == EVP_PKEY_OP_VERIFYRECOVER
-                && ctx->pmeth->verify_recover == NULL)) {
+        || (operation == EVP_PKEY_OP_SIGN && ctx->pmeth->sign == NULL)
+        || (operation == EVP_PKEY_OP_VERIFY && ctx->pmeth->verify == NULL)
+        || (operation == EVP_PKEY_OP_VERIFYRECOVER
+            && ctx->pmeth->verify_recover == NULL)) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
     }
@@ -602,7 +597,7 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     }
     if (ret <= 0)
         goto err;
- end:
+end:
 #ifndef FIPS_MODULE
     if (ret > 0)
         ret = evp_pkey_ctx_use_cached_data(ctx);
@@ -610,7 +605,7 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
 
     EVP_KEYMGMT_free(tmp_keymgmt);
     return ret;
- err:
+err:
     evp_pkey_ctx_free_old_ops(ctx);
     ctx->operation = EVP_PKEY_OP_UNDEFINED;
     EVP_KEYMGMT_free(tmp_keymgmt);
@@ -628,8 +623,8 @@ int EVP_PKEY_sign_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
 }
 
 int EVP_PKEY_sign(EVP_PKEY_CTX *ctx,
-                  unsigned char *sig, size_t *siglen,
-                  const unsigned char *tbs, size_t tbslen)
+    unsigned char *sig, size_t *siglen,
+    const unsigned char *tbs, size_t tbslen)
 {
     int ret;
 
@@ -652,18 +647,17 @@ int EVP_PKEY_sign(EVP_PKEY_CTX *ctx,
     }
 
     ret = ctx->op.sig.signature->sign(ctx->op.sig.algctx, sig, siglen,
-                                      (sig == NULL) ? 0 : *siglen, tbs, tbslen);
+        (sig == NULL) ? 0 : *siglen, tbs, tbslen);
 
     return ret;
- legacy:
+legacy:
 
     if (ctx->pmeth == NULL || ctx->pmeth->sign == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
     }
 
-    M_check_autoarg(ctx, sig, siglen, EVP_F_EVP_PKEY_SIGN)
-        return ctx->pmeth->sign(ctx, sig, siglen, tbs, tbslen);
+    M_check_autoarg(ctx, sig, siglen, EVP_F_EVP_PKEY_SIGN) return ctx->pmeth->sign(ctx, sig, siglen, tbs, tbslen);
 }
 
 int EVP_PKEY_verify_init(EVP_PKEY_CTX *ctx)
@@ -677,8 +671,8 @@ int EVP_PKEY_verify_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
 }
 
 int EVP_PKEY_verify(EVP_PKEY_CTX *ctx,
-                    const unsigned char *sig, size_t siglen,
-                    const unsigned char *tbs, size_t tbslen)
+    const unsigned char *sig, size_t siglen,
+    const unsigned char *tbs, size_t tbslen)
 {
     int ret;
 
@@ -701,10 +695,10 @@ int EVP_PKEY_verify(EVP_PKEY_CTX *ctx,
     }
 
     ret = ctx->op.sig.signature->verify(ctx->op.sig.algctx, sig, siglen,
-                                        tbs, tbslen);
+        tbs, tbslen);
 
     return ret;
- legacy:
+legacy:
     if (ctx->pmeth == NULL || ctx->pmeth->verify == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
@@ -719,14 +713,14 @@ int EVP_PKEY_verify_recover_init(EVP_PKEY_CTX *ctx)
 }
 
 int EVP_PKEY_verify_recover_init_ex(EVP_PKEY_CTX *ctx,
-                                    const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     return evp_pkey_signature_init(ctx, EVP_PKEY_OP_VERIFYRECOVER, params);
 }
 
 int EVP_PKEY_verify_recover(EVP_PKEY_CTX *ctx,
-                            unsigned char *rout, size_t *routlen,
-                            const unsigned char *sig, size_t siglen)
+    unsigned char *rout, size_t *routlen,
+    const unsigned char *sig, size_t siglen)
 {
     int ret;
 
@@ -749,15 +743,14 @@ int EVP_PKEY_verify_recover(EVP_PKEY_CTX *ctx,
     }
 
     ret = ctx->op.sig.signature->verify_recover(ctx->op.sig.algctx, rout,
-                                                routlen,
-                                                (rout == NULL ? 0 : *routlen),
-                                                sig, siglen);
+        routlen,
+        (rout == NULL ? 0 : *routlen),
+        sig, siglen);
     return ret;
- legacy:
+legacy:
     if (ctx->pmeth == NULL || ctx->pmeth->verify_recover == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
     }
-    M_check_autoarg(ctx, rout, routlen, EVP_F_EVP_PKEY_VERIFY_RECOVER)
-        return ctx->pmeth->verify_recover(ctx, rout, routlen, sig, siglen);
+    M_check_autoarg(ctx, rout, routlen, EVP_F_EVP_PKEY_VERIFY_RECOVER) return ctx->pmeth->verify_recover(ctx, rout, routlen, sig, siglen);
 }

@@ -8,7 +8,7 @@ The ENGINE API was introduced in OpenSSL version 0.9.6 as a low level
 interface for adding alternative implementations of cryptographic
 primitives, most notably for integrating hardware crypto devices.
 
-The ENGINE interface has its limitations and it has been superseeded
+The ENGINE interface has its limitations and it has been superseded
 by the [PROVIDER API](README-PROVIDERS.md), it is deprecated in OpenSSL
 version 3.0. The following documentation is retained as an aid for
 users who need to maintain or support existing ENGINE implementations.

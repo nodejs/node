@@ -36,7 +36,7 @@ static const unsigned char gcm_tag[] = {
 };
 
 static int do_encrypt(unsigned char *iv_gen, unsigned char *ct, int *ct_len,
-                      unsigned char *tag, int *tag_len)
+    unsigned char *tag, int *tag_len)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx = NULL;
@@ -45,26 +45,31 @@ static int do_encrypt(unsigned char *iv_gen, unsigned char *ct, int *ct_len,
 
     *tag_len = 16;
     ret = TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-          && TEST_true(EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL,
-                                          NULL) > 0)
-          && TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, gcm_key,
-                                          iv_gen != NULL ? NULL : gcm_iv) > 0)
-          && TEST_true(EVP_EncryptUpdate(ctx, NULL, &outlen, gcm_aad,
-                                         sizeof(gcm_aad)) > 0)
-          && TEST_true(EVP_EncryptUpdate(ctx, ct, ct_len, gcm_pt,
-                                         sizeof(gcm_pt)) > 0)
-          && TEST_true(EVP_EncryptFinal_ex(ctx, outbuf, &outlen) > 0)
-          && TEST_int_eq(EVP_CIPHER_CTX_get_tag_length(ctx), 16)
-          && TEST_true(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16,
-                                           tag) > 0)
-          && TEST_true(iv_gen == NULL
-                  || EVP_CIPHER_CTX_get_original_iv(ctx, iv_gen, 12));
+        && TEST_true(EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL,
+                         NULL)
+            > 0)
+        && TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, gcm_key,
+                         iv_gen != NULL ? NULL : gcm_iv)
+            > 0)
+        && TEST_true(EVP_EncryptUpdate(ctx, NULL, &outlen, gcm_aad,
+                         sizeof(gcm_aad))
+            > 0)
+        && TEST_true(EVP_EncryptUpdate(ctx, ct, ct_len, gcm_pt,
+                         sizeof(gcm_pt))
+            > 0)
+        && TEST_true(EVP_EncryptFinal_ex(ctx, outbuf, &outlen) > 0)
+        && TEST_int_eq(EVP_CIPHER_CTX_get_tag_length(ctx), 16)
+        && TEST_true(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16,
+                         tag)
+            > 0)
+        && TEST_true(iv_gen == NULL
+            || EVP_CIPHER_CTX_get_original_iv(ctx, iv_gen, 12));
     EVP_CIPHER_CTX_free(ctx);
     return ret;
 }
 
 static int do_decrypt(const unsigned char *iv, const unsigned char *ct,
-                      int ct_len, const unsigned char *tag, int tag_len)
+    int ct_len, const unsigned char *tag, int tag_len)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx = NULL;
@@ -73,18 +78,22 @@ static int do_decrypt(const unsigned char *iv, const unsigned char *ct,
     unsigned char outbuf[32];
 
     ret = TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-              && TEST_true(EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL,
-                                              NULL, NULL) > 0)
-              && TEST_true(EVP_DecryptInit_ex(ctx, NULL, NULL, gcm_key, iv) > 0)
-              && TEST_int_eq(EVP_CIPHER_CTX_get_tag_length(ctx), 16)
-              && TEST_true(EVP_DecryptUpdate(ctx, NULL, &outlen, gcm_aad,
-                                             sizeof(gcm_aad)) > 0)
-              && TEST_true(EVP_DecryptUpdate(ctx, pt, &ptlen, ct,
-                                             ct_len) > 0)
-              && TEST_true(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
-                                               tag_len, (void *)tag) > 0)
-              && TEST_true(EVP_DecryptFinal_ex(ctx, outbuf, &outlen) > 0)
-              && TEST_mem_eq(gcm_pt, sizeof(gcm_pt), pt, ptlen);
+        && TEST_true(EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL,
+                         NULL, NULL)
+            > 0)
+        && TEST_true(EVP_DecryptInit_ex(ctx, NULL, NULL, gcm_key, iv) > 0)
+        && TEST_int_eq(EVP_CIPHER_CTX_get_tag_length(ctx), 16)
+        && TEST_true(EVP_DecryptUpdate(ctx, NULL, &outlen, gcm_aad,
+                         sizeof(gcm_aad))
+            > 0)
+        && TEST_true(EVP_DecryptUpdate(ctx, pt, &ptlen, ct,
+                         ct_len)
+            > 0)
+        && TEST_true(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                         tag_len, (void *)tag)
+            > 0)
+        && TEST_true(EVP_DecryptFinal_ex(ctx, outbuf, &outlen) > 0)
+        && TEST_mem_eq(gcm_pt, sizeof(gcm_pt), pt, ptlen);
 
     EVP_CIPHER_CTX_free(ctx);
     return ret;
@@ -97,9 +106,9 @@ static int kat_test(void)
     int ctlen = 0, taglen = 0;
 
     return do_encrypt(NULL, ct, &ctlen, tag, &taglen)
-           && TEST_mem_eq(gcm_ct, sizeof(gcm_ct), ct, ctlen)
-           && TEST_mem_eq(gcm_tag, sizeof(gcm_tag), tag, taglen)
-           && do_decrypt(gcm_iv, ct, ctlen, tag, taglen);
+        && TEST_mem_eq(gcm_ct, sizeof(gcm_ct), ct, ctlen)
+        && TEST_mem_eq(gcm_tag, sizeof(gcm_tag), tag, taglen)
+        && do_decrypt(gcm_iv, ct, ctlen, tag, taglen);
 }
 
 static int badkeylen_test(void)
@@ -109,9 +118,9 @@ static int badkeylen_test(void)
     const EVP_CIPHER *cipher;
 
     ret = TEST_ptr(cipher = EVP_aes_192_gcm())
-          && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-          && TEST_true(EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL))
-          && TEST_int_le(EVP_CIPHER_CTX_set_key_length(ctx, 2), 0);
+        && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+        && TEST_true(EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL))
+        && TEST_int_le(EVP_CIPHER_CTX_set_key_length(ctx, 2), 0);
     EVP_CIPHER_CTX_free(ctx);
     return ret;
 }
@@ -124,7 +133,7 @@ static int ivgen_test(void)
     int ctlen = 0, taglen = 0;
 
     return do_encrypt(iv_gen, ct, &ctlen, tag, &taglen)
-           && do_decrypt(iv_gen, ct, ctlen, tag, taglen);
+        && do_decrypt(iv_gen, ct, ctlen, tag, taglen);
 }
 
 int setup_tests(void)

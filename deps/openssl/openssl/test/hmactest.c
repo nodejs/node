@@ -19,19 +19,19 @@
 
 #include "internal/nelem.h"
 
-# include <openssl/hmac.h>
-# include <openssl/sha.h>
-# ifndef OPENSSL_NO_MD5
-#  include <openssl/md5.h>
-# endif
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
+#ifndef OPENSSL_NO_MD5
+#include <openssl/md5.h>
+#endif
 
-# ifdef CHARSET_EBCDIC
-#  include <openssl/ebcdic.h>
-# endif
+#ifdef CHARSET_EBCDIC
+#include <openssl/ebcdic.h>
+#endif
 
 #include "testutil.h"
 
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
 static struct test_st {
     const char key[16];
     int key_len;
@@ -40,69 +40,69 @@ static struct test_st {
     const char *digest;
 } test[8] = {
     {
-        "", 0, "More text test vectors to stuff up EBCDIC machines :-)", 54,
+        "",
+        0,
+        "More text test vectors to stuff up EBCDIC machines :-)",
+        54,
         "e9139d1e6ee064ef8cf514fc7dc83e86",
     },
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
-        16, "Hi There", 8,
+        16,
+        "Hi There",
+        8,
         "9294727a3638bb1c13f48ef8158bfc9d",
     },
     {
-        "Jefe", 4, "what do ya want for nothing?", 28,
+        "Jefe",
+        4,
+        "what do ya want for nothing?",
+        28,
         "750c783e6ab0b503eaa86e310a5db738",
     },
     {
         "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
-        16, {
+        16,
+        { 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-            0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-            0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd
-        }, 50, "56be34521d144c88dbb8c733f0e8b3f6",
+            0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd },
+        50,
+        "56be34521d144c88dbb8c733f0e8b3f6",
     },
-    {
-        "", 0, "My test data", 12,
-        "61afdecb95429ef494d61fdee15990cabf0826fc"
-    },
-    {
-        "", 0, "My test data", 12,
-        "2274b195d90ce8e03406f4b526a47e0787a88a65479938f1a5baa3ce0f079776"
-    },
-    {
-        "123456", 6, "My test data", 12,
-        "bab53058ae861a7f191abe2d0145cbb123776a6369ee3f9d79ce455667e411dd"
-    },
-    {
-        "12345", 5, "My test data again", 18,
-        "a12396ceddd2a85f4c656bc1e0aa50c78cffde3e"
-    }
+    { "", 0, "My test data", 12,
+        "61afdecb95429ef494d61fdee15990cabf0826fc" },
+    { "", 0, "My test data", 12,
+        "2274b195d90ce8e03406f4b526a47e0787a88a65479938f1a5baa3ce0f079776" },
+    { "123456", 6, "My test data", 12,
+        "bab53058ae861a7f191abe2d0145cbb123776a6369ee3f9d79ce455667e411dd" },
+    { "12345", 5, "My test data again", 18,
+        "a12396ceddd2a85f4c656bc1e0aa50c78cffde3e" }
 };
-# endif
+#endif
 
 static char *pt(unsigned char *md, unsigned int len);
 
-
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
 static int test_hmac_md5(int idx)
 {
     char *p;
-#  ifdef CHARSET_EBCDIC
+#ifdef CHARSET_EBCDIC
     ebcdic2ascii(test[0].data, test[0].data, test[0].data_len);
     ebcdic2ascii(test[1].data, test[1].data, test[1].data_len);
     ebcdic2ascii(test[2].key, test[2].key, test[2].key_len);
     ebcdic2ascii(test[2].data, test[2].data, test[2].data_len);
-#  endif
+#endif
 
     p = pt(HMAC(EVP_md5(),
-                test[idx].key, test[idx].key_len,
-                test[idx].data, test[idx].data_len, NULL, NULL),
-                MD5_DIGEST_LENGTH);
+               test[idx].key, test[idx].key_len,
+               test[idx].data, test[idx].data_len, NULL, NULL),
+        MD5_DIGEST_LENGTH);
 
     return TEST_ptr(p) && TEST_str_eq(p, test[idx].digest);
 }
-# endif
+#endif
 
 static int test_hmac_bad(void)
 {
@@ -200,20 +200,19 @@ err:
     return ret;
 }
 
-
 static int test_hmac_single_shot(void)
 {
     char *p;
 
     /* Test single-shot with NULL key. */
     p = pt(HMAC(EVP_sha1(), NULL, 0, test[4].data, test[4].data_len,
-                NULL, NULL), SHA_DIGEST_LENGTH);
+               NULL, NULL),
+        SHA_DIGEST_LENGTH);
     if (!TEST_ptr(p) || !TEST_str_eq(p, test[4].digest))
         return 0;
 
     return 1;
 }
-
 
 static int test_hmac_copy(void)
 {
@@ -247,19 +246,19 @@ err:
 
 static int test_hmac_copy_uninited(void)
 {
-    const unsigned char key[24] = {0};
-    const unsigned char ct[166] = {0};
+    const unsigned char key[24] = { 0 };
+    const unsigned char ct[166] = { 0 };
     EVP_PKEY *pkey = NULL;
     EVP_MD_CTX *ctx = NULL;
     EVP_MD_CTX *ctx_tmp = NULL;
     int res = 0;
 
     if (!TEST_ptr(ctx = EVP_MD_CTX_new())
-            || !TEST_ptr(pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
-                                                     key, sizeof(key)))
-            || !TEST_true(EVP_DigestSignInit(ctx, NULL, EVP_sha1(), NULL, pkey))
-            || !TEST_ptr(ctx_tmp = EVP_MD_CTX_new())
-            || !TEST_true(EVP_MD_CTX_copy(ctx_tmp, ctx)))
+        || !TEST_ptr(pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                         key, sizeof(key)))
+        || !TEST_true(EVP_DigestSignInit(ctx, NULL, EVP_sha1(), NULL, pkey))
+        || !TEST_ptr(ctx_tmp = EVP_MD_CTX_new())
+        || !TEST_true(EVP_MD_CTX_copy(ctx_tmp, ctx)))
         goto err;
     EVP_MD_CTX_free(ctx);
     ctx = ctx_tmp;
@@ -268,7 +267,7 @@ static int test_hmac_copy_uninited(void)
     if (!TEST_true(EVP_DigestSignUpdate(ctx, ct, sizeof(ct))))
         goto err;
     res = 1;
- err:
+err:
     EVP_MD_CTX_free(ctx);
     EVP_MD_CTX_free(ctx_tmp);
     EVP_PKEY_free(pkey);
@@ -276,7 +275,7 @@ static int test_hmac_copy_uninited(void)
 }
 
 #ifndef OPENSSL_NO_MD5
-# define OSSL_HEX_CHARS_PER_BYTE 2
+#define OSSL_HEX_CHARS_PER_BYTE 2
 static char *pt(unsigned char *md, unsigned int len)
 {
     unsigned int i;
@@ -286,7 +285,7 @@ static char *pt(unsigned char *md, unsigned int len)
         return NULL;
     for (i = 0; i < len && (i + 1) * OSSL_HEX_CHARS_PER_BYTE < sizeof(buf); i++)
         BIO_snprintf(buf + i * OSSL_HEX_CHARS_PER_BYTE,
-                     OSSL_HEX_CHARS_PER_BYTE + 1, "%02x", md[i]);
+            OSSL_HEX_CHARS_PER_BYTE + 1, "%02x", md[i]);
     return buf;
 }
 #endif
@@ -301,4 +300,3 @@ int setup_tests(void)
     ADD_TEST(test_hmac_copy_uninited);
     return 1;
 }
-

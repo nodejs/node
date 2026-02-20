@@ -26,46 +26,156 @@
  * It is done here solely for educational purposes.
  */
 static unsigned char key[] = {
-    0x25, 0xfd, 0x12, 0x99, 0xdf, 0xad, 0x1a, 0x03,
-    0x0a, 0x81, 0x3c, 0x2d, 0xcc, 0x05, 0xd1, 0x5c,
-    0x17, 0x7a, 0x36, 0x73, 0x17, 0xef, 0x41, 0x75,
-    0x71, 0x18, 0xe0, 0x1a, 0xda, 0x99, 0xc3, 0x61,
-    0x38, 0xb5, 0xb1, 0xe0, 0x82, 0x2c, 0x70, 0xa4,
-    0xc0, 0x8e, 0x5e, 0xf9, 0x93, 0x9f, 0xcf, 0xf7,
-    0x32, 0x4d, 0x0c, 0xbd, 0x31, 0x12, 0x0f, 0x9a,
-    0x15, 0xee, 0x82, 0xdb, 0x8d, 0x29, 0x54, 0x14,
+    0x25,
+    0xfd,
+    0x12,
+    0x99,
+    0xdf,
+    0xad,
+    0x1a,
+    0x03,
+    0x0a,
+    0x81,
+    0x3c,
+    0x2d,
+    0xcc,
+    0x05,
+    0xd1,
+    0x5c,
+    0x17,
+    0x7a,
+    0x36,
+    0x73,
+    0x17,
+    0xef,
+    0x41,
+    0x75,
+    0x71,
+    0x18,
+    0xe0,
+    0x1a,
+    0xda,
+    0x99,
+    0xc3,
+    0x61,
+    0x38,
+    0xb5,
+    0xb1,
+    0xe0,
+    0x82,
+    0x2c,
+    0x70,
+    0xa4,
+    0xc0,
+    0x8e,
+    0x5e,
+    0xf9,
+    0x93,
+    0x9f,
+    0xcf,
+    0xf7,
+    0x32,
+    0x4d,
+    0x0c,
+    0xbd,
+    0x31,
+    0x12,
+    0x0f,
+    0x9a,
+    0x15,
+    0xee,
+    0x82,
+    0xdb,
+    0x8d,
+    0x29,
+    0x54,
+    0x14,
 };
 
-static const unsigned char data[] =
-    "To be, or not to be, that is the question,\n"
-    "Whether tis nobler in the minde to suffer\n"
-    "The ſlings and arrowes of outragious fortune,\n"
-    "Or to take Armes again in a sea of troubles,\n"
-    "And by opposing, end them, to die to sleep;\n"
-    "No more, and by a sleep, to say we end\n"
-    "The heart-ache, and the thousand natural shocks\n"
-    "That flesh is heir to? tis a consumation\n"
-    "Devoutly to be wished. To die to sleep,\n"
-    "To sleepe, perchance to dreame, Aye, there's the rub,\n"
-    "For in that sleep of death what dreams may come\n"
-    "When we haue shuffled off this mortal coil\n"
-    "Must give us pause. There's the respect\n"
-    "That makes calamity of so long life:\n"
-    "For who would bear the Ships and Scorns of time,\n"
-    "The oppressor's wrong, the proud man's Contumely,\n"
-    "The pangs of dispised love, the Law's delay,\n"
-;
+static const unsigned char data[] = "To be, or not to be, that is the question,\n"
+                                    "Whether tis nobler in the minde to suffer\n"
+                                    "The ſlings and arrowes of outragious fortune,\n"
+                                    "Or to take Armes again in a sea of troubles,\n"
+                                    "And by opposing, end them, to die to sleep;\n"
+                                    "No more, and by a sleep, to say we end\n"
+                                    "The heart-ache, and the thousand natural shocks\n"
+                                    "That flesh is heir to? tis a consumation\n"
+                                    "Devoutly to be wished. To die to sleep,\n"
+                                    "To sleepe, perchance to dreame, Aye, there's the rub,\n"
+                                    "For in that sleep of death what dreams may come\n"
+                                    "When we haue shuffled off this mortal coil\n"
+                                    "Must give us pause. There's the respect\n"
+                                    "That makes calamity of so long life:\n"
+                                    "For who would bear the Ships and Scorns of time,\n"
+                                    "The oppressor's wrong, the proud man's Contumely,\n"
+                                    "The pangs of dispised love, the Law's delay,\n";
 
 /* The known value of the HMAC/SHA3-512 MAC of the above soliloqy */
 static const unsigned char expected_output[] = {
-    0x3b, 0x77, 0x5f, 0xf1, 0x4f, 0x9e, 0xb9, 0x23,
-    0x8f, 0xdc, 0xa0, 0x68, 0x15, 0x7b, 0x8a, 0xf1,
-    0x96, 0x23, 0xaa, 0x3c, 0x1f, 0xe9, 0xdc, 0x89,
-    0x11, 0x7d, 0x58, 0x07, 0xe7, 0x96, 0x17, 0xe3,
-    0x44, 0x8b, 0x03, 0x37, 0x91, 0xc0, 0x6e, 0x06,
-    0x7c, 0x54, 0xe4, 0xa4, 0xcc, 0xd5, 0x16, 0xbb,
-    0x5e, 0x4d, 0x64, 0x7d, 0x88, 0x23, 0xc9, 0xb7,
-    0x25, 0xda, 0xbe, 0x4b, 0xe4, 0xd5, 0x34, 0x30,
+    0x3b,
+    0x77,
+    0x5f,
+    0xf1,
+    0x4f,
+    0x9e,
+    0xb9,
+    0x23,
+    0x8f,
+    0xdc,
+    0xa0,
+    0x68,
+    0x15,
+    0x7b,
+    0x8a,
+    0xf1,
+    0x96,
+    0x23,
+    0xaa,
+    0x3c,
+    0x1f,
+    0xe9,
+    0xdc,
+    0x89,
+    0x11,
+    0x7d,
+    0x58,
+    0x07,
+    0xe7,
+    0x96,
+    0x17,
+    0xe3,
+    0x44,
+    0x8b,
+    0x03,
+    0x37,
+    0x91,
+    0xc0,
+    0x6e,
+    0x06,
+    0x7c,
+    0x54,
+    0xe4,
+    0xa4,
+    0xcc,
+    0xd5,
+    0x16,
+    0xbb,
+    0x5e,
+    0x4d,
+    0x64,
+    0x7d,
+    0x88,
+    0x23,
+    0xc9,
+    0xb7,
+    0x25,
+    0xda,
+    0xbe,
+    0x4b,
+    0xe4,
+    0xd5,
+    0x34,
+    0x30,
 };
 
 /*
@@ -107,7 +217,7 @@ int main(void)
 
     /* The underlying digest to be used */
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, digest_name,
-                                            sizeof(digest_name));
+        sizeof(digest_name));
     *p = OSSL_PARAM_construct_end();
 
     /* Initialise the HMAC operation */

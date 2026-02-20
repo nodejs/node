@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,16 +22,16 @@ static OSSL_FUNC_keymgmt_export_fn xor_export;
 static OSSL_FUNC_keymgmt_export_types_fn xor_export_types;
 
 int tls_provider_init(const OSSL_CORE_HANDLE *handle,
-                      const OSSL_DISPATCH *in,
-                      const OSSL_DISPATCH **out,
-                      void **provctx);
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx);
 
 #define XOR_KEY_SIZE 32
 
 /*
  * Top secret. This algorithm only works if no one knows what this number is.
  * Please don't tell anyone what it is.
- * 
+ *
  * This algorithm is for testing only - don't really use it!
  */
 static const unsigned char private_constant[XOR_KEY_SIZE] = {
@@ -46,7 +46,6 @@ typedef struct xorkey_st {
     int hasprivkey;
     int haspubkey;
 } XORKEY;
-
 
 /* Key Management for the dummy XOR KEX and KEM algorithms */
 
@@ -89,7 +88,6 @@ static OSSL_FUNC_kem_encapsulate_fn xor_encapsulate;
 static OSSL_FUNC_kem_decapsulate_init_fn xor_init;
 static OSSL_FUNC_kem_decapsulate_fn xor_decapsulate;
 
-
 /*
  * We define 2 dummy TLS groups called "xorgroup" and "xorkemgroup" for test
  * purposes
@@ -107,40 +105,40 @@ struct tls_group_st {
 #define XORGROUP_NAME "xorgroup"
 #define XORGROUP_NAME_INTERNAL "xorgroup-int"
 static struct tls_group_st xor_group = {
-    0,                  /* group_id, set by randomize_tls_group_id() */
-    128,                /* secbits */
-    TLS1_3_VERSION,     /* mintls */
-    0,                  /* maxtls */
-    -1,                 /* mindtls */
-    -1,                 /* maxdtls */
-    0                   /* is_kem */
+    0, /* group_id, set by randomize_tls_group_id() */
+    128, /* secbits */
+    TLS1_3_VERSION, /* mintls */
+    0, /* maxtls */
+    -1, /* mindtls */
+    -1, /* maxdtls */
+    0 /* is_kem */
 };
 
 #define XORKEMGROUP_NAME "xorkemgroup"
 #define XORKEMGROUP_NAME_INTERNAL "xorkemgroup-int"
 static struct tls_group_st xor_kemgroup = {
-    0,                  /* group_id, set by randomize_tls_group_id() */
-    128,                /* secbits */
-    TLS1_3_VERSION,     /* mintls */
-    0,                  /* maxtls */
-    -1,                 /* mindtls */
-    -1,                 /* maxdtls */
-    1                   /* is_kem */
+    0, /* group_id, set by randomize_tls_group_id() */
+    128, /* secbits */
+    TLS1_3_VERSION, /* mintls */
+    0, /* maxtls */
+    -1, /* mindtls */
+    -1, /* maxdtls */
+    1 /* is_kem */
 };
 
 #define ALGORITHM "XOR"
 
 static const OSSL_PARAM xor_group_params[] = {
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_NAME,
-                           XORGROUP_NAME, sizeof(XORGROUP_NAME)),
+        XORGROUP_NAME, sizeof(XORGROUP_NAME)),
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_NAME_INTERNAL,
-                           XORGROUP_NAME_INTERNAL,
-                           sizeof(XORGROUP_NAME_INTERNAL)),
+        XORGROUP_NAME_INTERNAL,
+        sizeof(XORGROUP_NAME_INTERNAL)),
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_ALG, ALGORITHM,
-                           sizeof(ALGORITHM)),
+        sizeof(ALGORITHM)),
     OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_ID, &xor_group.group_id),
     OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_SECURITY_BITS,
-                    &xor_group.secbits),
+        &xor_group.secbits),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_TLS, &xor_group.mintls),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MAX_TLS, &xor_group.maxtls),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_DTLS, &xor_group.mindtls),
@@ -151,15 +149,15 @@ static const OSSL_PARAM xor_group_params[] = {
 
 static const OSSL_PARAM xor_kemgroup_params[] = {
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_NAME,
-                           XORKEMGROUP_NAME, sizeof(XORKEMGROUP_NAME)),
+        XORKEMGROUP_NAME, sizeof(XORKEMGROUP_NAME)),
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_NAME_INTERNAL,
-                           XORKEMGROUP_NAME_INTERNAL,
-                           sizeof(XORKEMGROUP_NAME_INTERNAL)),
+        XORKEMGROUP_NAME_INTERNAL,
+        sizeof(XORKEMGROUP_NAME_INTERNAL)),
     OSSL_PARAM_utf8_string(OSSL_CAPABILITY_TLS_GROUP_ALG, ALGORITHM,
-                           sizeof(ALGORITHM)),
+        sizeof(ALGORITHM)),
     OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_ID, &xor_kemgroup.group_id),
     OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_SECURITY_BITS,
-                    &xor_kemgroup.secbits),
+        &xor_kemgroup.secbits),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_TLS, &xor_kemgroup.mintls),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MAX_TLS, &xor_kemgroup.maxtls),
     OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_DTLS, &xor_kemgroup.mindtls),
@@ -172,7 +170,7 @@ static const OSSL_PARAM xor_kemgroup_params[] = {
 static char *dummy_group_names[NUM_DUMMY_GROUPS];
 
 static int tls_prov_get_capabilities(void *provctx, const char *capability,
-                                     OSSL_CALLBACK *cb, void *arg)
+    OSSL_CALLBACK *cb, void *arg)
 {
     int ret;
     int i;
@@ -186,7 +184,7 @@ static int tls_prov_get_capabilities(void *provctx, const char *capability,
 
     /* Register our 2 groups */
     OPENSSL_assert(xor_group.group_id >= 65024
-                   && xor_group.group_id < 65279 - NUM_DUMMY_GROUPS);
+        && xor_group.group_id < 65279 - NUM_DUMMY_GROUPS);
     ret = cb(xor_group_params, arg);
     ret &= cb(xor_kemgroup_params, arg);
 
@@ -208,14 +206,14 @@ static int tls_prov_get_capabilities(void *provctx, const char *capability,
             if (dummy_group_names[i] == NULL)
                 return 0;
             BIO_snprintf(dummy_group_names[i],
-                         dummy_name_max_size,
-                         "%s%d", dummy_base, i);
+                dummy_name_max_size,
+                "%s%d", dummy_base, i);
         }
         dummygroup[0].data = dummy_group_names[i];
         dummygroup[0].data_size = strlen(dummy_group_names[i]) + 1;
         /* assign unique group IDs also to dummy groups for registration */
         dummygroup_id = 65279 - NUM_DUMMY_GROUPS + i;
-        dummygroup[3].data = (unsigned char*)&dummygroup_id;
+        dummygroup[3].data = (unsigned char *)&dummygroup_id;
         ret &= cb(dummygroup, arg);
     }
 
@@ -246,7 +244,7 @@ static void *xor_newctx(void *provctx)
 }
 
 static int xor_init(void *vpxorctx, void *vkey,
-                    ossl_unused const OSSL_PARAM params[])
+    ossl_unused const OSSL_PARAM params[])
 {
     PROV_XOR_CTX *pxorctx = (PROV_XOR_CTX *)vpxorctx;
 
@@ -267,7 +265,7 @@ static int xor_set_peer(void *vpxorctx, void *vpeerkey)
 }
 
 static int xor_derive(void *vpxorctx, unsigned char *secret, size_t *secretlen,
-                      size_t outlen)
+    size_t outlen)
 {
     PROV_XOR_CTX *pxorctx = (PROV_XOR_CTX *)vpxorctx;
     int i;
@@ -319,7 +317,7 @@ static const OSSL_DISPATCH xor_keyexch_functions[] = {
 
 static const OSSL_ALGORITHM tls_prov_keyexch[] = {
     /*
-     * Obviously this is not FIPS approved, but in order to test in conjuction
+     * Obviously this is not FIPS approved, but in order to test in conjunction
      * with the FIPS provider we pretend that it is.
      */
     { "XOR", "provider=tls-provider,fips=yes", xor_keyexch_functions },
@@ -332,8 +330,8 @@ static const OSSL_ALGORITHM tls_prov_keyexch[] = {
  */
 
 static int xor_encapsulate(void *vpxorctx,
-                           unsigned char *ct, size_t *ctlen,
-                           unsigned char *ss, size_t *sslen)
+    unsigned char *ct, size_t *ctlen,
+    unsigned char *ss, size_t *sslen)
 {
     /*
      * We are building this around a KEX:
@@ -375,14 +373,14 @@ static int xor_encapsulate(void *vpxorctx,
     /* 3. Derive ss via KEX */
     derivectx = xor_newctx(pxorctx->provctx);
     if (derivectx == NULL
-            || !xor_init(derivectx, ourkey, NULL)
-            || !xor_set_peer(derivectx, pxorctx->key)
-            || !xor_derive(derivectx, ss, sslen, XOR_KEY_SIZE))
+        || !xor_init(derivectx, ourkey, NULL)
+        || !xor_set_peer(derivectx, pxorctx->key)
+        || !xor_derive(derivectx, ss, sslen, XOR_KEY_SIZE))
         goto end;
 
     rv = 1;
 
- end:
+end:
     xor_gen_cleanup(genctx);
     xor_freedata(ourkey);
     xor_freectx(derivectx);
@@ -390,8 +388,8 @@ static int xor_encapsulate(void *vpxorctx,
 }
 
 static int xor_decapsulate(void *vpxorctx,
-                           unsigned char *ss, size_t *sslen,
-                           const unsigned char *ct, size_t ctlen)
+    unsigned char *ss, size_t *sslen,
+    const unsigned char *ct, size_t ctlen)
 {
     /*
      * We are building this around a KEX:
@@ -422,14 +420,14 @@ static int xor_decapsulate(void *vpxorctx,
     /* Derive ss via KEX */
     derivectx = xor_newctx(pxorctx->provctx);
     if (derivectx == NULL
-            || !xor_init(derivectx, pxorctx->key, NULL)
-            || !xor_set_peer(derivectx, peerkey)
-            || !xor_derive(derivectx, ss, sslen, XOR_KEY_SIZE))
+        || !xor_init(derivectx, pxorctx->key, NULL)
+        || !xor_set_peer(derivectx, peerkey)
+        || !xor_derive(derivectx, ss, sslen, XOR_KEY_SIZE))
         goto end;
 
     rv = 1;
 
- end:
+end:
     xor_freedata(peerkey);
     xor_freectx(derivectx);
     return rv;
@@ -448,7 +446,7 @@ static const OSSL_DISPATCH xor_kem_functions[] = {
 
 static const OSSL_ALGORITHM tls_prov_kem[] = {
     /*
-     * Obviously this is not FIPS approved, but in order to test in conjuction
+     * Obviously this is not FIPS approved, but in order to test in conjunction
      * with the FIPS provider we pretend that it is.
      */
     { "XOR", "provider=tls-provider,fips=yes", xor_kem_functions },
@@ -530,7 +528,8 @@ static ossl_inline int xor_get_params(void *vkey, OSSL_PARAM params[])
         return 0;
 
     if ((p = OSSL_PARAM_locate(params,
-                               OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY)) != NULL) {
+             OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY))
+        != NULL) {
         if (p->data_type != OSSL_PARAM_OCTET_STRING)
             return 0;
         p->return_size = XOR_KEY_SIZE;
@@ -561,7 +560,7 @@ static int xor_set_params(void *vkey, const OSSL_PARAM params[])
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_OCTET_STRING
-                || p->data_size != XOR_KEY_SIZE)
+            || p->data_size != XOR_KEY_SIZE)
             return 0;
         memcpy(key->pubkey, p->data, XOR_KEY_SIZE);
         key->haspubkey = 1;
@@ -586,17 +585,17 @@ struct xor_gen_ctx {
 };
 
 static void *xor_gen_init(void *provctx, int selection,
-                          const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     struct xor_gen_ctx *gctx = NULL;
 
-    if ((selection & (OSSL_KEYMGMT_SELECT_KEYPAIR
-                      | OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS)) == 0)
+    if ((selection & (OSSL_KEYMGMT_SELECT_KEYPAIR | OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS)) == 0)
         return NULL;
 
-    if ((gctx = OPENSSL_zalloc(sizeof(*gctx))) != NULL)
-        gctx->selection = selection;
+    if ((gctx = OPENSSL_zalloc(sizeof(*gctx))) == NULL)
+        return NULL;
 
+    gctx->selection = selection;
     /* Our provctx is really just an OSSL_LIB_CTX */
     gctx->libctx = (OSSL_LIB_CTX *)provctx;
 
@@ -618,8 +617,8 @@ static int xor_gen_set_params(void *genctx, const OSSL_PARAM params[])
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING
-                || (strcmp(p->data, XORGROUP_NAME_INTERNAL) != 0
-                    &&  strcmp(p->data, XORKEMGROUP_NAME_INTERNAL) != 0))
+            || (strcmp(p->data, XORGROUP_NAME_INTERNAL) != 0
+                && strcmp(p->data, XORKEMGROUP_NAME_INTERNAL) != 0))
             return 0;
     }
 
@@ -627,7 +626,7 @@ static int xor_gen_set_params(void *genctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *xor_gen_settable_params(ossl_unused void *genctx,
-                                                 ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     static OSSL_PARAM settable[] = {
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, NULL, 0),
@@ -680,11 +679,11 @@ static int xor_import(void *vkey, int select, const OSSL_PARAM params[])
     param_pub_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
 
     if ((param_priv_key != NULL
-         && !OSSL_PARAM_get_octet_string(param_priv_key, &pprivkey,
-                                         sizeof(privkey), &priv_len))
+            && !OSSL_PARAM_get_octet_string(param_priv_key, &pprivkey,
+                sizeof(privkey), &priv_len))
         || (param_pub_key != NULL
             && !OSSL_PARAM_get_octet_string(param_pub_key, &ppubkey,
-                                            sizeof(pubkey), &pub_len)))
+                sizeof(pubkey), &pub_len)))
         goto err;
 
     if (priv_len > 0) {
@@ -696,12 +695,12 @@ static int xor_import(void *vkey, int select, const OSSL_PARAM params[])
         key->haspubkey = 1;
     }
     res = 1;
- err:
+err:
     return res;
 }
 
 static int xor_export(void *vkey, int select, OSSL_CALLBACK *param_cb,
-                      void *cbarg)
+    void *cbarg)
 {
     XORKEY *key = vkey;
     OSSL_PARAM params[3], *p = params;
@@ -710,10 +709,10 @@ static int xor_export(void *vkey, int select, OSSL_CALLBACK *param_cb,
         return 0;
 
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PRIV_KEY,
-                                             key->privkey,
-                                             sizeof(key->privkey));
+        key->privkey,
+        sizeof(key->privkey));
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
-                                             key->pubkey, sizeof(key->pubkey));
+        key->pubkey, sizeof(key->pubkey));
     *p++ = OSSL_PARAM_construct_end();
 
     return param_cb(params, cbarg);
@@ -745,13 +744,13 @@ static const OSSL_DISPATCH xor_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_GEN_INIT, (void (*)(void))xor_gen_init },
     { OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS, (void (*)(void))xor_gen_set_params },
     { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,
-      (void (*)(void))xor_gen_settable_params },
+        (void (*)(void))xor_gen_settable_params },
     { OSSL_FUNC_KEYMGMT_GEN, (void (*)(void))xor_gen },
     { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))xor_gen_cleanup },
-    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*) (void))xor_get_params },
-    { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*) (void))xor_gettable_params },
-    { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*) (void))xor_set_params },
-    { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void (*) (void))xor_settable_params },
+    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*)(void))xor_get_params },
+    { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*)(void))xor_gettable_params },
+    { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*)(void))xor_set_params },
+    { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void (*)(void))xor_settable_params },
     { OSSL_FUNC_KEYMGMT_HAS, (void (*)(void))xor_has },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))xor_dup },
     { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))xor_freedata },
@@ -764,7 +763,7 @@ static const OSSL_DISPATCH xor_keymgmt_functions[] = {
 
 static const OSSL_ALGORITHM tls_prov_keymgmt[] = {
     /*
-     * Obviously this is not FIPS approved, but in order to test in conjuction
+     * Obviously this is not FIPS approved, but in order to test in conjunction
      * with the FIPS provider we pretend that it is.
      */
     { "XOR", "provider=tls-provider,fips=yes", xor_keymgmt_functions },
@@ -772,7 +771,7 @@ static const OSSL_ALGORITHM tls_prov_keymgmt[] = {
 };
 
 static const OSSL_ALGORITHM *tls_prov_query(void *provctx, int operation_id,
-                                            int *no_cache)
+    int *no_cache)
 {
     *no_cache = 0;
     switch (operation_id) {
@@ -806,8 +805,7 @@ static const OSSL_DISPATCH tls_prov_dispatch_table[] = {
     { 0, NULL }
 };
 
-static
-unsigned int randomize_tls_group_id(OSSL_LIB_CTX *libctx)
+static unsigned int randomize_tls_group_id(OSSL_LIB_CTX *libctx)
 {
     /*
      * Randomise the group_id we're going to use to ensure we don't interoperate
@@ -818,7 +816,7 @@ unsigned int randomize_tls_group_id(OSSL_LIB_CTX *libctx)
     static int in_mem = 0;
     int i;
 
- retry:
+retry:
     if (RAND_bytes_ex(libctx, (unsigned char *)&group_id, sizeof(group_id), 0) <= 0)
         return 0;
     /*
@@ -841,9 +839,9 @@ unsigned int randomize_tls_group_id(OSSL_LIB_CTX *libctx)
 }
 
 int tls_provider_init(const OSSL_CORE_HANDLE *handle,
-                      const OSSL_DISPATCH *in,
-                      const OSSL_DISPATCH **out,
-                      void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
 

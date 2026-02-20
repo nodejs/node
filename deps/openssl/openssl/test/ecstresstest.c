@@ -22,16 +22,15 @@ static ossl_intmax_t num_repeats;
 static int print_mode = 0;
 
 #ifndef OPENSSL_NO_EC
-# include <openssl/ec.h>
-# include <openssl/err.h>
-# include <openssl/obj_mac.h>
-# include <openssl/objects.h>
-# include <openssl/rand.h>
-# include <openssl/bn.h>
-# include <openssl/opensslconf.h>
+#include <openssl/ec.h>
+#include <openssl/err.h>
+#include <openssl/obj_mac.h>
+#include <openssl/objects.h>
+#include <openssl/rand.h>
+#include <openssl/bn.h>
+#include <openssl/opensslconf.h>
 
-static const char *kP256DefaultResult =
-    "A1E24B223B8E81BC1FFF99BAFB909EDB895FACDE7D6DA5EF5E7B3255FB378E0F";
+static const char *kP256DefaultResult = "A1E24B223B8E81BC1FFF99BAFB909EDB895FACDE7D6DA5EF5E7B3255FB378E0F";
 
 /*
  * Perform a deterministic walk on the curve, by starting from |point| and
@@ -40,21 +39,21 @@ static const char *kP256DefaultResult =
  * Returns the X-coordinate of the end result or NULL on error.
  */
 static BIGNUM *walk_curve(const EC_GROUP *group, EC_POINT *point,
-                          ossl_intmax_t num)
+    ossl_intmax_t num)
 {
     BIGNUM *scalar = NULL;
     ossl_intmax_t i;
 
     if (!TEST_ptr(scalar = BN_new())
-            || !TEST_true(EC_POINT_get_affine_coordinates(group, point, scalar,
-                                                          NULL, NULL)))
+        || !TEST_true(EC_POINT_get_affine_coordinates(group, point, scalar,
+            NULL, NULL)))
         goto err;
 
     for (i = 0; i < num; i++) {
         if (!TEST_true(EC_POINT_mul(group, point, NULL, point, scalar, NULL))
-                || !TEST_true(EC_POINT_get_affine_coordinates(group, point,
-                                                              scalar,
-                                                              NULL, NULL)))
+            || !TEST_true(EC_POINT_get_affine_coordinates(group, point,
+                scalar,
+                NULL, NULL)))
             goto err;
     }
     return scalar;
@@ -76,9 +75,9 @@ static int test_curve(void)
      * would be straightforward.
      */
     if (!TEST_ptr(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1))
-            || !TEST_ptr(point = EC_POINT_dup(EC_GROUP_get0_generator(group),
-                                              group))
-            || !TEST_ptr(result = walk_curve(group, point, num_repeats)))
+        || !TEST_ptr(point = EC_POINT_dup(EC_GROUP_get0_generator(group),
+                         group))
+        || !TEST_ptr(result = walk_curve(group, point, num_repeats)))
         goto err;
 
     if (print_mode) {
@@ -87,8 +86,8 @@ static int test_curve(void)
         ret = 1;
     } else {
         if (!TEST_true(BN_hex2bn(&expected_result, kP256DefaultResult))
-                || !TEST_ptr(expected_result)
-                || !TEST_BN_eq(result, expected_result))
+            || !TEST_ptr(expected_result)
+            || !TEST_BN_eq(result, expected_result))
             goto err;
         ret = 1;
     }
@@ -137,12 +136,12 @@ int setup_tests(void)
         switch (o) {
         case OPT_NUM_REPEATS:
             if (!opt_intmax(opt_arg(), &num_repeats)
-                    || num_repeats < 0)
+                || num_repeats < 0)
                 return 0;
             print_mode = 1;
             break;
         case OPT_TEST_CASES:
-           break;
+            break;
         default:
         case OPT_ERR:
             return 0;

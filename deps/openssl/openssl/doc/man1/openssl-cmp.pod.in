@@ -1086,7 +1086,7 @@ So far this has no effect because the server does not accept any error messages.
 
 =item B<-accept_raverified>
 
-Accept RAVERIFED as proof of possession (POPO).
+Accept RAVERIFIED as proof of possession (POPO).
 
 =back
 

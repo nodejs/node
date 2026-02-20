@@ -11,7 +11,7 @@
 #include "crypto/sm4.h"
 
 typedef struct prov_cast_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         SM4_KEY ks;

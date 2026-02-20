@@ -17,7 +17,7 @@ ASN1_STRING *ASN1_item_pack(void *obj, const ASN1_ITEM *it, ASN1_STRING **oct)
 {
     ASN1_STRING *octmp;
 
-     if (oct == NULL || *oct == NULL) {
+    if (oct == NULL || *oct == NULL) {
         if ((octmp = ASN1_STRING_new()) == NULL) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
             return NULL;
@@ -42,7 +42,7 @@ ASN1_STRING *ASN1_item_pack(void *obj, const ASN1_ITEM *it, ASN1_STRING **oct)
         *oct = octmp;
 
     return octmp;
- err:
+err:
     if (oct == NULL || *oct == NULL)
         ASN1_STRING_free(octmp);
     return NULL;

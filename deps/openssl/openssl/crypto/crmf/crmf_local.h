@@ -12,16 +12,16 @@
  */
 
 #ifndef OSSL_CRYPTO_CRMF_LOCAL_H
-# define OSSL_CRYPTO_CRMF_LOCAL_H
+#define OSSL_CRYPTO_CRMF_LOCAL_H
 
-# include <openssl/crmf.h>
-# include <openssl/err.h>
+#include <openssl/crmf.h>
+#include <openssl/err.h>
 
 /* explicit #includes not strictly needed since implied by the above: */
-# include <openssl/types.h>
-# include <openssl/safestack.h>
-# include <openssl/x509.h>
-# include <openssl/x509v3.h>
+#include <openssl/types.h>
+#include <openssl/safestack.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 /*-
  * EncryptedValue ::= SEQUENCE {
@@ -43,10 +43,10 @@
  * }
  */
 struct ossl_crmf_encryptedvalue_st {
-    X509_ALGOR *intendedAlg;      /* 0 */
-    X509_ALGOR *symmAlg;          /* 1 */
-    ASN1_BIT_STRING *encSymmKey;  /* 2 */
-    X509_ALGOR *keyAlg;           /* 3 */
+    X509_ALGOR *intendedAlg; /* 0 */
+    X509_ALGOR *symmAlg; /* 1 */
+    ASN1_BIT_STRING *encSymmKey; /* 2 */
+    X509_ALGOR *keyAlg; /* 3 */
     ASN1_OCTET_STRING *valueHint; /* 4 */
     ASN1_BIT_STRING *encValue;
 } /* OSSL_CRMF_ENCRYPTEDVALUE */;
@@ -125,7 +125,6 @@ struct ossl_crmf_singlepubinfo_st {
 } /* OSSL_CRMF_SINGLEPUBINFO */;
 DEFINE_STACK_OF(OSSL_CRMF_SINGLEPUBINFO)
 typedef STACK_OF(OSSL_CRMF_SINGLEPUBINFO) OSSL_CRMF_PUBINFOS;
-
 
 /*-
  * PKIPublicationInfo ::= SEQUENCE {
@@ -211,7 +210,7 @@ struct ossl_crmf_pbmparameter_st {
     ASN1_INTEGER *iterationCount;
     X509_ALGOR *mac;
 } /* OSSL_CRMF_PBMPARAMETER */;
-# define OSSL_CRMF_PBM_MAX_ITERATION_COUNT 100000 /* if too large allows DoS */
+#define OSSL_CRMF_PBM_MAX_ITERATION_COUNT 100000 /* if too large allows DoS */
 
 /*-
  * POPOSigningKeyInput ::= SEQUENCE {

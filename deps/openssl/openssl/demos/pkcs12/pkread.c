@@ -30,7 +30,7 @@ static char *find_friendly_name(PKCS12 *p12)
     for (n = 0; n < sk_PKCS7_num(safes) && name == NULL; n++) {
         safe = sk_PKCS7_value(safes, n);
         if (OBJ_obj2nid(safe->type) != NID_pkcs7_data
-                || (bags = PKCS12_unpack_p7data(safe)) == NULL)
+            || (bags = PKCS12_unpack_p7data(safe)) == NULL)
             continue;
 
         for (m = 0; m < sk_PKCS12_SAFEBAG_num(bags) && name == NULL; m++) {
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 
     ret = EXIT_SUCCESS;
 
- err:
+err:
     OPENSSL_free(name);
     X509_free(cert);
     EVP_PKEY_free(pkey);

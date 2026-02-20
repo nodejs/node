@@ -16,9 +16,9 @@
 
 OSSL_provider_init_fn OSSL_provider_init; /* Check the function signature */
 int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
-                       const OSSL_DISPATCH *oin,
-                       const OSSL_DISPATCH **out,
-                       void **provctx)
+    const OSSL_DISPATCH *oin,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     return 1;
 }

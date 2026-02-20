@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,11 +16,11 @@
 #ifndef OPENSSL_NO_TRACE
 typedef struct tracedata_st {
     BIO *bio;
-    unsigned int ingroup:1;
+    unsigned int ingroup : 1;
 } tracedata;
 
 static size_t internal_trace_cb(const char *buf, size_t cnt,
-                                int category, int cmd, void *vdata)
+    int category, int cmd, void *vdata)
 {
     int ret = 0;
     tracedata *trace_data = vdata;
@@ -34,7 +34,7 @@ static size_t internal_trace_cb(const char *buf, size_t cnt,
         tid = CRYPTO_THREAD_get_current_id();
         hex = OPENSSL_buf2hexstr((const unsigned char *)&tid, sizeof(tid));
         BIO_snprintf(buffer, sizeof(buffer), "TRACE[%s]:%s: ",
-                     hex, OSSL_trace_get_category_name(category));
+            hex, OSSL_trace_get_category_name(category));
         OPENSSL_free(hex);
         BIO_set_prefix(trace_data->bio, buffer);
         break;
@@ -78,20 +78,22 @@ static void setup_trace_category(int category)
 
     bio = BIO_new(BIO_f_prefix());
     channel = BIO_push(bio,
-                       BIO_new_fp(stderr, BIO_NOCLOSE | BIO_FP_TEXT));
+        BIO_new_fp(stderr, BIO_NOCLOSE | BIO_FP_TEXT));
     trace_data = OPENSSL_zalloc(sizeof(*trace_data));
 
     if (trace_data == NULL
         || bio == NULL
         || (trace_data->bio = channel) == NULL
         || OSSL_trace_set_callback(category, internal_trace_cb,
-                                   trace_data) == 0
+               trace_data)
+            == 0
         || sk_tracedata_push(trace_data_stack, trace_data) == 0) {
 
         fprintf(stderr,
-                "warning: unable to setup trace callback for category '%s'.\n",
-                OSSL_trace_get_category_name(category));
+            "warning: unable to setup trace callback for category '%s'.\n",
+            OSSL_trace_get_category_name(category));
 
+        OPENSSL_free(trace_data);
         OSSL_trace_set_callback(category, NULL, NULL);
         BIO_free_all(channel);
     }
@@ -126,7 +128,7 @@ static void setup_trace(const char *str)
                 setup_trace_category(category);
             } else {
                 fprintf(stderr,
-                        "warning: unknown trace category: '%s'.\n", item);
+                    "warning: unknown trace category: '%s'.\n", item);
             }
         }
     }

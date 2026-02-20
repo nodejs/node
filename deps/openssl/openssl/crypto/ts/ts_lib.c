@@ -74,7 +74,7 @@ int TS_X509_ALGOR_print_bio(BIO *bio, const X509_ALGOR *alg)
 {
     int i = OBJ_obj2nid(alg->algorithm);
     return BIO_printf(bio, "Hash Algorithm: %s\n",
-                      (i == NID_undef) ? "UNKNOWN" : OBJ_nid2ln(i));
+        (i == NID_undef) ? "UNKNOWN" : OBJ_nid2ln(i));
 }
 
 int TS_MSG_IMPRINT_print_bio(BIO *bio, TS_MSG_IMPRINT *a)
@@ -86,7 +86,7 @@ int TS_MSG_IMPRINT_print_bio(BIO *bio, TS_MSG_IMPRINT *a)
     BIO_printf(bio, "Message data:\n");
     msg = a->hashed_msg;
     BIO_dump_indent(bio, (const char *)ASN1_STRING_get0_data(msg),
-                    ASN1_STRING_length(msg), 4);
+        ASN1_STRING_length(msg), 4);
 
     return 1;
 }

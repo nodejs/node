@@ -102,7 +102,7 @@ static int setup_bio_chain(const char *progname)
         size_t i;
 
         next = bio_out;
-        BIO_up_ref(next);        /* Protection against freeing */
+        BIO_up_ref(next); /* Protection against freeing */
 
         for (i = 0; n > 0; i++, n--) {
             BIO *curr = BIO_new(BIO_f_prefix());
@@ -116,7 +116,7 @@ static int setup_bio_chain(const char *progname)
         }
     }
     return chain != NULL;
- err:
+err:
     /* Free the chain we built up */
     BIO_free_all(next);
     OPENSSL_free(chain);
@@ -156,7 +156,6 @@ static int setup(void)
     OPENSSL_assert(bio_out != NULL);
     OPENSSL_assert(bio_err != NULL);
 
-
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
         case OPT_AMOUNT:
@@ -164,18 +163,18 @@ static int setup(void)
             amount = strtoul(arg, &endptr, 10);
             if (endptr[0] != '\0') {
                 BIO_printf(bio_err,
-                           "%s: -n argument isn't a decimal number: %s",
-                           progname, arg);
+                    "%s: -n argument isn't a decimal number: %s",
+                    progname, arg);
                 return 0;
             }
             if (amount < 1) {
                 BIO_printf(bio_err, "%s: must set up at least one filter",
-                           progname);
+                    progname);
                 return 0;
             }
             if (!setup_bio_chain(progname)) {
                 BIO_printf(bio_err, "%s: failed setting up filter chain",
-                           progname);
+                    progname);
                 return 0;
             }
             break;
@@ -191,8 +190,8 @@ static int setup(void)
                 idx = strtoul(arg, &endptr, 10);
                 if (endptr[0] != ':') {
                     BIO_printf(bio_err,
-                               "%s: -i index isn't a decimal number: %s",
-                               progname, arg);
+                        "%s: -i index isn't a decimal number: %s",
+                        progname, arg);
                     return 0;
                 }
                 colon++;
@@ -202,18 +201,18 @@ static int setup(void)
             indent = strtoul(colon, &endptr, 10);
             if (endptr[0] != '\0') {
                 BIO_printf(bio_err,
-                           "%s: -i value isn't a decimal number: %s",
-                           progname, arg);
+                    "%s: -i value isn't a decimal number: %s",
+                    progname, arg);
                 return 0;
             }
             if (idx >= amount) {
                 BIO_printf(bio_err, "%s: index (%zu) not within range 0..%zu",
-                           progname, idx, amount - 1);
+                    progname, idx, amount - 1);
                 return 0;
             }
             if (BIO_set_indent(chain[idx], (long)indent) <= 0) {
                 BIO_printf(bio_err, "%s: failed setting indentation: %s",
-                           progname, arg);
+                    progname, arg);
                 return 0;
             }
             break;
@@ -229,8 +228,8 @@ static int setup(void)
                 idx = strtoul(arg, &endptr, 10);
                 if (endptr[0] != ':') {
                     BIO_printf(bio_err,
-                               "%s: -p index isn't a decimal number: %s",
-                               progname, arg);
+                        "%s: -p index isn't a decimal number: %s",
+                        progname, arg);
                     return 0;
                 }
                 colon++;
@@ -239,12 +238,12 @@ static int setup(void)
             }
             if (idx >= amount) {
                 BIO_printf(bio_err, "%s: index (%zu) not within range 0..%zu",
-                           progname, idx, amount - 1);
+                    progname, idx, amount - 1);
                 return 0;
             }
             if (BIO_set_prefix(chain[idx], colon) <= 0) {
                 BIO_printf(bio_err, "%s: failed setting prefix: %s",
-                           progname, arg);
+                    progname, arg);
                 return 0;
             }
             break;

@@ -284,7 +284,7 @@ should be written to I<*siglen>. If I<sig> is NULL then the maximum length of
 the signature should be written to I<*siglen>.
 
 OSSL_FUNC_signature_digest_sign() implements a "one shot" digest sign operation
-previously started through OSSL_FUNC_signature_digeset_sign_init(). A previously
+previously started through OSSL_FUNC_signature_digest_sign_init(). A previously
 initialised signature context is passed in the I<ctx> parameter. The data to be
 signed is in I<tbs> which should be I<tbslen> bytes long. Unless I<sig> is NULL,
 the signature should be written to the location pointed to by the I<sig>
@@ -294,7 +294,7 @@ length of the signature should be written to I<*siglen>.
 
 =head2 Digest Verify Functions
 
-OSSL_FUNC_signature_digeset_verify_init() initialises a context for verifying given a
+OSSL_FUNC_signature_digest_verify_init() initialises a context for verifying given a
 provider side verification context in the I<ctx> parameter, and a pointer to a
 provider key object in the I<provkey> parameter.
 The I<params>, if not NULL, should be set on the context in a manner similar to
@@ -318,7 +318,7 @@ verification context is passed in the I<ctx> parameter. The signature to be
 verified is in I<sig> which is I<siglen> bytes long.
 
 OSSL_FUNC_signature_digest_verify() implements a "one shot" digest verify operation
-previously started through OSSL_FUNC_signature_digeset_verify_init(). A previously
+previously started through OSSL_FUNC_signature_digest_verify_init(). A previously
 initialised verification context is passed in the I<ctx> parameter. The data to be
 verified is in I<tbs> which should be I<tbslen> bytes long. The signature to be
 verified is in I<sig> which is I<siglen> bytes long.
@@ -360,8 +360,13 @@ The length of the "digest-size" parameter should not exceed that of a B<size_t>.
 
 =item "algorithm-id" (B<OSSL_SIGNATURE_PARAM_ALGORITHM_ID>) <octet string>
 
-Gets the DER encoded AlgorithmIdentifier that corresponds to the combination of
-signature algorithm and digest algorithm for the signature operation.
+Gets the DER-encoded AlgorithmIdentifier for the signature operation.
+This typically corresponds to the combination of a digest algorithm
+with a purely asymmetric signature algorithm, such as SHA256WithECDSA.
+
+The L<ASN1_item_sign_ctx(3)> relies on this operation and is used by
+many other functions signing ASN.1 structures such as X.509 certificates,
+certificate requests, and CRLs, as well as OCSP, CMP, and CMS messages.
 
 =item "kat" (B<OSSL_SIGNATURE_PARAM_KAT>) <unsigned integer>
 
@@ -421,7 +426,8 @@ All other functions should return 1 for success or 0 on error.
 
 =head1 SEE ALSO
 
-L<provider(7)>
+L<provider(7)>,
+L<ASN1_item_sign_ctx(3)>
 
 =head1 HISTORY
 
@@ -429,7 +435,7 @@ The provider SIGNATURE interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

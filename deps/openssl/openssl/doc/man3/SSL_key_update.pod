@@ -53,7 +53,9 @@ such as SSL_read_ex() or SSL_write_ex() takes place on the connection a check
 will be performed to confirm that it is a suitable time to start a
 renegotiation. If so, then it will be initiated immediately. OpenSSL will not
 attempt to resume any session associated with the connection in the new
-handshake.
+handshake. Note that some servers will respond to reneogitation attempts with
+a "no_renegotiation" alert. An OpenSSL will immediately fail the connection in
+this case.
 
 When called from the client side, SSL_renegotiate_abbreviated() works in the
 same was as SSL_renegotiate() except that OpenSSL will attempt to resume the
@@ -101,7 +103,7 @@ OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

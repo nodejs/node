@@ -24,7 +24,7 @@ static int ssl_new(BIO *h);
 static int ssl_free(BIO *data);
 static long ssl_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 typedef struct bio_ssl_st {
-    SSL *ssl;                   /* The ssl handle :-) */
+    SSL *ssl; /* The ssl handle :-) */
     /* re-negotiate every time the total number of bytes is this size */
     int num_renegotiates;
     unsigned long renegotiate_count;
@@ -37,11 +37,11 @@ static const BIO_METHOD methods_sslp = {
     BIO_TYPE_SSL,
     "ssl",
     ssl_write,
-    NULL,                       /* ssl_write_old, */
+    NULL, /* ssl_write_old, */
     ssl_read,
-    NULL,                       /* ssl_read_old,  */
+    NULL, /* ssl_read_old,  */
     ssl_puts,
-    NULL,                       /* ssl_gets,      */
+    NULL, /* ssl_gets,      */
     ssl_ctrl,
     ssl_new,
     ssl_free,
@@ -258,7 +258,7 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 0;
         break;
     case BIO_C_SSL_MODE:
-        if (num)                /* client mode */
+        if (num) /* client mode */
             SSL_set_connect_state(ssl);
         else
             SSL_set_accept_state(ssl);
@@ -430,7 +430,7 @@ BIO *BIO_new_buffer_ssl_connect(SSL_CTX *ctx)
     if ((ret = BIO_push(buf, ssl)) == NULL)
         goto err;
     return ret;
- err:
+err:
     BIO_free(buf);
     BIO_free(ssl);
 #endif
@@ -449,7 +449,7 @@ BIO *BIO_new_ssl_connect(SSL_CTX *ctx)
     if ((ret = BIO_push(ssl, con)) == NULL)
         goto err;
     return ret;
- err:
+err:
     BIO_free(ssl);
     BIO_free(con);
 #endif

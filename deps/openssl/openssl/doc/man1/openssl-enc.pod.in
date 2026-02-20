@@ -180,9 +180,12 @@ Print out the key and IV used.
 Print out the key and IV used then immediately exit: don't do any encryption
 or decryption.
 
-=item B<-bufsize> I<number>
+=item B<-bufsize> I<number>[B<k>]
 
 Set the buffer size for I/O.
+The maximum size that can be specified is B<2^31-1> (2147483647) bytes.
+The B<k> suffix can be specified to indicate that I<number> is provided
+in kibibytes (multiples of 1024 bytes).
 
 =item B<-nopad>
 
@@ -251,7 +254,7 @@ Some of the ciphers do not have large keys and others have security
 implications if not used correctly. A beginner is advised to just use
 a strong block cipher, such as AES, in CBC mode.
 
-All the block ciphers normally use PKCS#5 padding, also known as standard
+All the block ciphers normally use PKCS#7 padding, also known as standard
 block padding. This allows a rudimentary integrity or password check to
 be performed. However, since the chance of random data passing the test
 is better than 1 in 256 it isn't a very good test.
@@ -458,7 +461,7 @@ The B<-ciphers> and B<-engine> options were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

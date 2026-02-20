@@ -37,7 +37,7 @@ SSL_CIPHER_get_protocol_id
  int SSL_CIPHER_is_aead(const SSL_CIPHER *c);
  const SSL_CIPHER *SSL_CIPHER_find(SSL *ssl, const unsigned char *ptr);
  uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *c);
- uint32_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *c);
+ uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *c);
 
 =head1 DESCRIPTION
 
@@ -203,7 +203,7 @@ The OPENSSL_cipher_name() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
