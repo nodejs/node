@@ -190,6 +190,13 @@ const customTypesMap = {
 
   'https.Server': 'https.html#class-httpsserver',
 
+  'metrics.Counter': 'metrics.html#class-counter',
+  'metrics.Gauge': 'metrics.html#class-gauge',
+  'metrics.Metric': 'metrics.html#class-metric',
+  'metrics.MetricReport': 'metrics.html#class-metricreport',
+  'metrics.PullGauge': 'metrics.html#class-pullgauge',
+  'metrics.Timer': 'metrics.html#class-timer',
+
   'module': 'modules.html#the-module-object',
 
   'module.SourceMap':

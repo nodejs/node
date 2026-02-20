@@ -132,6 +132,35 @@ if (diagnostics_channel.hasSubscribers('my-channel')) {
 }
 ```
 
+#### `diagnostics_channel.hasChannel(name)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string|symbol} The channel name
+
+* Returns: {boolean} If the channel exists
+
+Check if a channel with the given name exists. This is useful to check if a
+channel has been created to add additional logic if it's the first time.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+if (!diagnostics_channel.hasChannel('my-channel')) {
+  // Channel does not exist yet, do additional setup
+}
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+if (!diagnostics_channel.hasChannel('my-channel')) {
+  // Channel does not exist yet, do additional setup
+}
+```
+
 #### `diagnostics_channel.channel(name)`
 
 <!-- YAML
