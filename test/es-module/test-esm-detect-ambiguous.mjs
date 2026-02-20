@@ -147,6 +147,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     }
 
     it('should not hint wrong format in resolve hook', async () => {
+      // eslint-disable-next-line no-unassigned-vars
       let writeSync;
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--no-warnings',
