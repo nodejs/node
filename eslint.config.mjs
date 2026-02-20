@@ -228,6 +228,7 @@ export default [
         ...noRestrictedSyntaxCommonLib,
       ],
       'no-self-compare': 'error',
+      'no-shadow-restricted-names': ['error', { reportGlobalThis: false }],
       'no-template-curly-in-string': 'error',
       'no-throw-literal': 'error',
       'no-undef': ['error', { typeof: true }],
@@ -255,7 +256,6 @@ export default [
 
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
-      'no-shadow-restricted-names': 'off',
       'no-useless-assignment': 'off',
 
       // JSDoc rules.
