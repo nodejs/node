@@ -11,7 +11,7 @@ if /i "%arg:~-4%"=="help" goto help
 cd %~dp0
 
 set JS_SUITES=default
-set NATIVE_SUITES=addons js-native-api node-api
+set NATIVE_SUITES=addons js-native-api node-api embedding
 @rem CI_* variables should be kept synchronized with the ones in Makefile
 set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
 set "CI_JS_SUITES=%JS_SUITES% pummel"
@@ -72,6 +72,7 @@ set doc=
 set extra_msbuild_args=
 set compile_commands=
 set cfg=
+set v8temporal=
 set v8windbg=
 set exit_code=0
 
@@ -97,6 +98,7 @@ if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
+if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
 if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
@@ -214,6 +216,7 @@ if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
 if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
 if defined compile_commands set configure_flags=%configure_flags% -C
 if defined cfg              set configure_flags=%configure_flags% --control-flow-guard
+if defined v8temporal       set configure_flags=%configure_flags% --v8-enable-temporal-support
 if defined v8windbg         set configure_flags=%configure_flags% --enable-v8windbg
 
 if "%target_arch%"=="x86" (
@@ -246,7 +249,7 @@ call :getnodeversion || exit /b 1
 set NODE_MAJOR_VERSION=
 for /F "tokens=1 delims=." %%i in ("%NODE_VERSION%") do set "NODE_MAJOR_VERSION=%%i"
 if %NODE_MAJOR_VERSION% GEQ 24 (
-  echo Using ClangCL because the Node.js version being compiled is ^>= 24.
+  echo ClangCL is required because the Node.js version being compiled is ^>= 24.
   set clang_cl=1
 )
 
@@ -270,7 +273,7 @@ if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
 
 @rem Look for Visual Studio 2026
 :vs-set-2026
-if defined target_env if "%target_env%" NEQ "vs2026" goto msbuild-not-found
+if defined target_env if "%target_env%" NEQ "vs2026" goto vs-set-2022
 echo Looking for Visual Studio 2026
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
@@ -324,7 +327,7 @@ goto msbuild-found
 
 :msbuild-not-found
 set "clang_echo="
-if defined clang_cl set "clang_echo= or Clang compiler/LLVM toolset"
+if defined clang_cl set "clang_echo= with Clang compiler/LLVM toolset"
 echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
@@ -736,9 +739,6 @@ if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test"
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 if %errorlevel% neq 0 set exit_code=%errorlevel%
-echo running '%node_exe% test\embedding\test-embedding.js'
-"%node_exe%" test\embedding\test-embedding.js
-if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
 python tools\test.py %test_args%
@@ -752,7 +752,7 @@ if errorlevel 1 goto exit
 goto lint-cpp
 
 :lint-cpp
-if not defined lint_cpp goto lint-js
+if not defined lint_cpp goto lint-js-build
 if defined NODEJS_MAKE goto run-make-lint
 where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
@@ -760,7 +760,7 @@ where wsl > NUL 2>&1
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
 echo Could not find GNU Make, needed for linting C/C++
 echo Alternatively, you can use WSL
-goto lint-js
+goto lint-js-build
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp

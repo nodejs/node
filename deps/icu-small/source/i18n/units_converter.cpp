@@ -7,6 +7,7 @@
 
 #include "charstr.h"
 #include "cmemory.h"
+#include "cstring.h"
 #include "double-conversion-string-to-double.h"
 #include "measunit_impl.h"
 #include "putilimp.h"
@@ -23,7 +24,7 @@
 U_NAMESPACE_BEGIN
 namespace units {
 
-void U_I18N_API Factor::multiplyBy(const Factor &rhs) {
+void Factor::multiplyBy(const Factor& rhs) {
     factorNum *= rhs.factorNum;
     factorDen *= rhs.factorDen;
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
@@ -36,7 +37,7 @@ void U_I18N_API Factor::multiplyBy(const Factor &rhs) {
     offset = std::max(rhs.offset, offset);
 }
 
-void U_I18N_API Factor::divideBy(const Factor &rhs) {
+void Factor::divideBy(const Factor& rhs) {
     factorNum *= rhs.factorDen;
     factorDen *= rhs.factorNum;
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
@@ -49,9 +50,9 @@ void U_I18N_API Factor::divideBy(const Factor &rhs) {
     offset = std::max(rhs.offset, offset);
 }
 
-void U_I18N_API Factor::divideBy(const uint64_t constant) { factorDen *= constant; }
+void Factor::divideBy(const uint64_t constant) { factorDen *= constant; }
 
-void U_I18N_API Factor::power(int32_t power) {
+void Factor::power(int32_t power) {
     // multiply all the constant by the power.
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
         constantExponents[i] *= power;
@@ -69,7 +70,7 @@ void U_I18N_API Factor::power(int32_t power) {
     }
 }
 
-void U_I18N_API Factor::applyPrefix(UMeasurePrefix unitPrefix) {
+void Factor::applyPrefix(UMeasurePrefix unitPrefix) {
     if (unitPrefix == UMeasurePrefix::UMEASURE_PREFIX_ONE) {
         // No need to do anything
         return;
@@ -85,7 +86,7 @@ void U_I18N_API Factor::applyPrefix(UMeasurePrefix unitPrefix) {
     }
 }
 
-void U_I18N_API Factor::substituteConstants() {
+void Factor::substituteConstants() {
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
         if (this->constantExponents[i] == 0) {
             continue;
@@ -212,8 +213,8 @@ Factor loadSingleFactor(StringPiece source, const ConversionRates &ratesInfo, UE
         return {};
     }
 
-    Factor result = extractFactorConversions(conversionUnit->factor.toStringPiece(), status);
-    result.offset = strHasDivideSignToDouble(conversionUnit->offset.toStringPiece(), status);
+    Factor result = extractFactorConversions(conversionUnit->factor.data(), status);
+    result.offset = strHasDivideSignToDouble(conversionUnit->offset.data(), status);
 
     return result;
 }
@@ -283,8 +284,8 @@ UBool checkSimpleUnit(const MeasureUnitImpl &unit, UErrorCode &status) {
 // SingleUnitImpl's simpleUnitID to get the corresponding ConversionRateInfo;
 // from that we get the specialMappingName (which may be empty if the simple unit
 // converts to base using factor + offset instelad of a special mapping).
-CharString getSpecialMappingName(const MeasureUnitImpl &simpleUnit, const ConversionRates &ratesInfo,
-                          UErrorCode &status) {
+StringPiece getSpecialMappingName(const MeasureUnitImpl& simpleUnit, const ConversionRates& ratesInfo,
+                                  UErrorCode& status) {
     if (!checkSimpleUnit(simpleUnit, status)) {
         return {};
     }
@@ -298,9 +299,7 @@ CharString getSpecialMappingName(const MeasureUnitImpl &simpleUnit, const Conver
         status = U_INTERNAL_PROGRAM_ERROR;
         return {};
     }
-    CharString result;
-    result.copyFrom(conversionUnit->specialMappingName, status);
-    return result;
+    return conversionUnit->specialMappingName.data();
 }
 
 /**
@@ -311,10 +310,18 @@ CharString getSpecialMappingName(const MeasureUnitImpl &simpleUnit, const Conver
 void loadConversionRate(ConversionRate &conversionRate, const MeasureUnitImpl &source,
                         const MeasureUnitImpl &target, Convertibility unitsState,
                         const ConversionRates &ratesInfo, UErrorCode &status) {
+    StringPiece specialSource = getSpecialMappingName(source, ratesInfo, status);
+    StringPiece specialTarget = getSpecialMappingName(target, ratesInfo, status);
 
-    conversionRate.specialSource = getSpecialMappingName(source, ratesInfo, status);
-    conversionRate.specialTarget = getSpecialMappingName(target, ratesInfo, status);
-    
+    conversionRate.specialSource = specialSource;
+    conversionRate.specialTarget = specialTarget;
+
+    if (conversionRate.specialSource.isEmpty() != specialSource.empty() ||
+        conversionRate.specialTarget.isEmpty() != specialTarget.empty()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+
     if (conversionRate.specialSource.isEmpty() && conversionRate.specialTarget.isEmpty()) {
         // Represents the conversion factor from the source to the target.
         Factor finalFactor;
@@ -475,9 +482,9 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
  * Extracts the compound base unit of a compound unit (`source`). For example, if the source unit is
  * `square-mile-per-hour`, the compound base unit will be `square-meter-per-second`
  */
-MeasureUnitImpl U_I18N_API extractCompoundBaseUnit(const MeasureUnitImpl &source,
-                                                   const ConversionRates &conversionRates,
-                                                   UErrorCode &status) {
+MeasureUnitImpl extractCompoundBaseUnit(const MeasureUnitImpl& source,
+                                        const ConversionRates& conversionRates,
+                                        UErrorCode& status) {
 
     MeasureUnitImpl result;
     if (U_FAILURE(status)) return result;
@@ -500,7 +507,7 @@ MeasureUnitImpl U_I18N_API extractCompoundBaseUnit(const MeasureUnitImpl &source
         // Multiply the power of the singleUnit by the power of the baseUnit. For example, square-hectare
         // must be pow4-meter. (NOTE: hectare --> square-meter)
         auto baseUnits =
-            MeasureUnitImpl::forIdentifier(rateInfo->baseUnit.toStringPiece(), status).singleUnits;
+            MeasureUnitImpl::forIdentifier(rateInfo->baseUnit.data(), status).singleUnits;
         for (int32_t i = 0, baseUnitsCount = baseUnits.length(); i < baseUnitsCount; i++) {
             baseUnits[i]->dimensionality *= singleUnit.dimensionality;
             // TODO: Deal with SI-prefix
@@ -626,21 +633,19 @@ int32_t UnitsConverter::compareTwoUnits(const MeasureUnitImpl &firstUnit,
         return 0;
     }
 
-    CharString firstSpecial = getSpecialMappingName(firstUnit, ratesInfo, status);
-    CharString secondSpecial = getSpecialMappingName(secondUnit, ratesInfo, status);
-    if (!firstSpecial.isEmpty() || !secondSpecial.isEmpty()) {
-        if (firstSpecial.isEmpty()) {
+    StringPiece firstSpecial = getSpecialMappingName(firstUnit, ratesInfo, status);
+    StringPiece secondSpecial = getSpecialMappingName(secondUnit, ratesInfo, status);
+    if (!firstSpecial.empty() || !secondSpecial.empty()) {
+        if (firstSpecial.empty()) {
             // non-specials come first
             return -1;
         }
-        if (secondSpecial.isEmpty()) {
+        if (secondSpecial.empty()) {
             // non-specials come first
             return 1;
         }
         // both are specials, compare lexicographically
-        StringPiece firstSpecialPiece = firstSpecial.toStringPiece();
-        StringPiece secondSpecialPiece = secondSpecial.toStringPiece();
-        return firstSpecialPiece.compare(secondSpecialPiece);
+        return firstSpecial.compare(secondSpecial);
     }
 
     // Represents the conversion factor from the firstUnit to the base
@@ -757,7 +762,7 @@ double UnitsConverter::convert(double inputValue) const {
         if (!conversionRate_.specialSource.isEmpty()) {
             // We  have a special mapping from source to base (not using factor, offset).
             // Currently the only supported mapping is a scale-based mapping for beaufort.
-            base = (conversionRate_.specialSource == StringPiece("beaufort"))?
+            base = uprv_strcmp(conversionRate_.specialSource.data(), "beaufort") == 0 ?
                 scaleToBase(inputValue, minMetersPerSecForBeaufort, maxBeaufort): inputValue;
         } else {
             // Standard mapping (using factor) from source to base.
@@ -767,7 +772,7 @@ double UnitsConverter::convert(double inputValue) const {
         if (!conversionRate_.specialTarget.isEmpty()) {
             // We  have a special mapping from base to target (not using factor, offset).
             // Currently the only supported mapping is a scale-based mapping for beaufort.
-            result = (conversionRate_.specialTarget == StringPiece("beaufort"))?
+            result = uprv_strcmp(conversionRate_.specialTarget.data(), "beaufort") == 0 ?
                 baseToScale(base, minMetersPerSecForBeaufort, maxBeaufort): base;
         } else {
             // Standard mapping (using factor) from base to target.
@@ -800,7 +805,7 @@ double UnitsConverter::convertInverse(double inputValue) const {
         if (!conversionRate_.specialTarget.isEmpty()) {
             // We  have a special mapping from target to base (not using factor).
             // Currently the only supported mapping is a scale-based mapping for beaufort.
-            base = (conversionRate_.specialTarget == StringPiece("beaufort"))?
+            base = uprv_strcmp(conversionRate_.specialTarget.data(), "beaufort") == 0 ?
                 scaleToBase(inputValue, minMetersPerSecForBeaufort, maxBeaufort): inputValue;
         } else {
             // Standard mapping (using factor) from target to base.
@@ -810,7 +815,7 @@ double UnitsConverter::convertInverse(double inputValue) const {
         if (!conversionRate_.specialSource.isEmpty()) {
             // We  have a special mapping from base to source (not using factor).
             // Currently the only supported mapping is a scale-based mapping for beaufort.
-            result = (conversionRate_.specialSource == StringPiece("beaufort"))?
+            result = uprv_strcmp(conversionRate_.specialSource.data(), "beaufort") == 0 ?
                 baseToScale(base, minMetersPerSecForBeaufort, maxBeaufort): base;
         } else {
             // Standard mapping (using factor) from base to source.

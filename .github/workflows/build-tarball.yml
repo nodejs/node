@@ -18,7 +18,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**
@@ -48,7 +47,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**
@@ -74,13 +72,13 @@ permissions:
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -102,11 +100,12 @@ jobs:
     needs: build-tarball
     runs-on: ubuntu-24.04
     env:
-      CC: sccache clang-19
-      CXX: sccache clang++-19
-      SCCACHE_GHA_ENABLED: 'true'
+      CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+      CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      SCCACHE_IDLE_TIMEOUT: '0'
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/install-clang
@@ -116,11 +115,12 @@ jobs:
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0

@@ -95,15 +95,14 @@ _strToWCS(wchar_t *dest,
     pSrcLimit = pSrc + srcLength;
 
     for(;;) {
-        /* reset the error state */
-        *pErrorCode = U_ZERO_ERROR;
+        UErrorCode bufferStatus = U_ZERO_ERROR;
 
         /* convert to chars using default converter */
-        ucnv_fromUnicode(conv,&tempBuf,tempBufLimit,&pSrc,pSrcLimit,nullptr,(UBool)(pSrc==pSrcLimit),pErrorCode);
+        ucnv_fromUnicode(conv,&tempBuf,tempBufLimit,&pSrc,pSrcLimit,nullptr,(UBool)(pSrc==pSrcLimit),&bufferStatus);
         count =(tempBuf - saveBuf);
         
         /* This should rarely occur */
-        if(*pErrorCode==U_BUFFER_OVERFLOW_ERROR){
+        if(bufferStatus==U_BUFFER_OVERFLOW_ERROR){
             tempBuf = saveBuf;
             
             /* we don't have enough room on the stack grow the buffer */
@@ -119,14 +118,13 @@ _strToWCS(wchar_t *dest,
            saveBuf = tempBuf;
            tempBufLimit = tempBuf + tempBufCapacity;
            tempBuf = tempBuf + count;
-
         } else {
+            if (U_FAILURE(bufferStatus)) {
+                *pErrorCode = bufferStatus;
+                goto cleanup;
+            }
             break;
         }
-    }
-
-    if(U_FAILURE(*pErrorCode)){
-        goto cleanup;
     }
 
     /* done with conversion null terminate the char buffer */
@@ -441,20 +439,22 @@ _strFromWCS( char16_t   *dest,
     }
     
     for(;;) {
-        
-        *pErrorCode = U_ZERO_ERROR;
-        
+        UErrorCode bufferStatus = U_ZERO_ERROR;
+
         /* convert to stack buffer*/
-        ucnv_toUnicode(conv,&pTarget,pTargetLimit,(const char**)&pCSrc,pCSrcLimit,nullptr,(UBool)(pCSrc==pCSrcLimit),pErrorCode);
-        
+        ucnv_toUnicode(conv,&pTarget,pTargetLimit,(const char**)&pCSrc,pCSrcLimit,nullptr,(UBool)(pCSrc==pCSrcLimit),&bufferStatus);
+
         /* increment count to number written to stack */
         count+= pTarget - target;
-        
-        if(*pErrorCode==U_BUFFER_OVERFLOW_ERROR){
+
+        if(bufferStatus==U_BUFFER_OVERFLOW_ERROR){
             target = uStack;
             pTarget = uStack;
             pTargetLimit = uStack + _STACK_BUFFER_CAPACITY;
         } else {
+            if (U_FAILURE(bufferStatus)) {
+                *pErrorCode = bufferStatus;
+            }
             break;
         }
         

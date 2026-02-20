@@ -401,13 +401,31 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--build-sea=config`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+Generates a [single executable application][] from a JSON
+configuration file. The argument must be a path to the configuration file. If
+the path is not absolute, it is resolved relative to the current working
+directory.
+
+For configuration fields, cross-platform notes, and asset APIs, see
+the [single executable application][] documentation.
+
 ### `--build-snapshot`
 
 <!-- YAML
 added: v18.8.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -475,7 +493,8 @@ added:
   - v20.12.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60954
     description: The snapshot building process is no longer experimental.
 -->
@@ -739,7 +758,7 @@ added:
 
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
@@ -815,15 +834,6 @@ added: v6.0.0
 
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
-
-### `--enable-network-family-autoselection`
-
-<!-- YAML
-added: v18.18.0
--->
-
-Enables the family autoselection algorithm unless connection options explicitly
-disables it.
 
 ### `--enable-source-maps`
 
@@ -1253,6 +1263,17 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-storage-inspection`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for storage inspection
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -1495,7 +1516,8 @@ added:
   - v14.18.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60956
     description: The flag is no longer experimental.
 -->
@@ -1665,26 +1687,6 @@ When enabled, the parser will accept the following:
 All the above will expose your application to request smuggling
 or poisoning attack. Avoid using this option.
 
-<!-- Anchor to make sure old links find a target -->
-
-<a id="inspector_security"></a>
-
-#### Warning: binding inspector to a public IP:port combination is insecure
-
-Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
-insecure, as it allows external hosts to connect to the inspector and perform
-a [remote code execution][] attack.
-
-If specifying a host, make sure that either:
-
-* The host is not accessible from public networks.
-* A firewall disallows unwanted connections on the port.
-
-**More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
-default) is not firewall-protected.**
-
-See the [debugging security implications][] section for more information.
-
 ### `--inspect-brk[=[host:]port]`
 
 <!-- YAML
@@ -1696,6 +1698,9 @@ Default `host:port` is `127.0.0.1:9229`. If port `0` is specified,
 a random available port will be used.
 
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
+
+See the [security warning][] below regarding the `host`
+parameter usage.
 
 ### `--inspect-port=[host:]port`
 
@@ -1734,6 +1739,9 @@ a random available port will be used.
 
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
+See the [security warning][] below regarding the `host`
+parameter usage.
+
 ### `--inspect[=[host:]port]`
 
 <!-- YAML
@@ -1747,6 +1755,26 @@ V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
+
+<!-- Anchor to make sure old links find a target -->
+
+<a id="inspector_security"></a>
+
+#### Warning: binding inspector to a public IP:port combination is insecure
+
+Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
+insecure, as it allows external hosts to connect to the inspector and perform
+a [remote code execution][] attack.
+
+If specifying a host, make sure that either:
+
+* The host is not accessible from public networks.
+* A firewall disallows unwanted connections on the port.
+
+**More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
+default) is not firewall-protected.**
+
+See the [debugging security implications][] section for more information.
 
 ### `-i`, `--interactive`
 
@@ -1906,7 +1934,7 @@ added:
   - v20.17.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: The flag was renamed from `--no-experimental-require-module` to
                  `--no-require-module`, with the former marked as legacy.
@@ -2009,11 +2037,11 @@ added:
   - v20.17.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This flag is no longer experimental.
   - version:
-    - REPLACEME
+    - v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This flag was renamed from `--no-experimental-require-module`
                  to `--no-require-module`.
@@ -2266,7 +2294,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-### `--report-dir=directory`, `report-directory=directory`
+### `--report-dir=directory`, `--report-directory=directory`
 
 <!-- YAML
 added: v11.8.0
@@ -3420,7 +3448,7 @@ Any other value will result in colorized output being disabled.
 <!-- YAML
 added: v22.1.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -4184,7 +4212,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
-[`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
+[`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-require-module`]: #--no-require-module

@@ -1,5 +1,5 @@
-import { Socket } from 'net'
-import { URL } from 'url'
+import { Socket } from 'node:net'
+import { URL } from 'node:url'
 import buildConnector from './connector'
 import Dispatcher from './dispatcher'
 

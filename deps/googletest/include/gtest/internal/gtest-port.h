@@ -664,10 +664,20 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
      defined(GTEST_OS_NETBSD) || defined(GTEST_OS_FUCHSIA) ||         \
      defined(GTEST_OS_DRAGONFLY) || defined(GTEST_OS_GNU_KFREEBSD) || \
      defined(GTEST_OS_HAIKU) || defined(GTEST_OS_GNU_HURD))
+
 // Death tests require a file system to work properly.
 #if GTEST_HAS_FILE_SYSTEM
 #define GTEST_HAS_DEATH_TEST 1
 #endif  // GTEST_HAS_FILE_SYSTEM
+#endif
+
+// Determines whether the Premature Exit file can be created.
+// Created by default when Death tests are supported, but other platforms can
+// use the Premature exit file without Death test support (e.g. for detecting
+// crashes).
+#if GTEST_HAS_DEATH_TEST || \
+    (defined(GTEST_OS_EMSCRIPTEN) && GTEST_HAS_FILE_SYSTEM)
+#define GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE 1
 #endif
 
 // Determines whether to support type-driven tests.
@@ -822,10 +832,10 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #ifndef GTEST_API_
 
 #ifdef _MSC_VER
-#if defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
-#define GTEST_API_ __declspec(dllimport)
-#elif defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
+#if defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllexport)
+#elif defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
+#define GTEST_API_ __declspec(dllimport)
 #endif
 #elif GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(gnu::visibility)
 #define GTEST_API_ [[gnu::visibility("default")]]
@@ -1442,7 +1452,7 @@ typedef GTestMutexLock MutexLock;
 // without knowing its type.
 class [[nodiscard]] ThreadLocalValueHolderBase {
  public:
-  virtual ~ThreadLocalValueHolderBase() {}
+  virtual ~ThreadLocalValueHolderBase() = default;
 };
 
 // Provides a way for a thread to send notifications to a ThreadLocal
@@ -1456,8 +1466,8 @@ class [[nodiscard]] ThreadLocalBase {
   virtual ThreadLocalValueHolderBase* NewValueForCurrentThread() const = 0;
 
  protected:
-  ThreadLocalBase() {}
-  virtual ~ThreadLocalBase() {}
+  ThreadLocalBase() = default;
+  virtual ~ThreadLocalBase() = default;
 
  private:
   ThreadLocalBase(const ThreadLocalBase&) = delete;
@@ -1486,7 +1496,7 @@ class GTEST_API_ [[nodiscard]] ThreadWithParamBase {
  protected:
   class Runnable {
    public:
-    virtual ~Runnable() {}
+    virtual ~Runnable() = default;
     virtual void Run() = 0;
   };
 
@@ -1505,14 +1515,14 @@ class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
 
   ThreadWithParam(UserThreadFunc* func, T param, Notification* thread_can_start)
       : ThreadWithParamBase(new RunnableImpl(func, param), thread_can_start) {}
-  virtual ~ThreadWithParam() {}
+  ~ThreadWithParam() override = default;
 
  private:
   class RunnableImpl : public Runnable {
    public:
     RunnableImpl(UserThreadFunc* func, T param) : func_(func), param_(param) {}
-    virtual ~RunnableImpl() {}
-    virtual void Run() { func_(param_); }
+    ~RunnableImpl() override = default;
+    void Run() override { func_(param_); }
 
    private:
     UserThreadFunc* const func_;
@@ -1595,8 +1605,8 @@ class [[nodiscard]] ThreadLocal : public ThreadLocalBase {
 
   class ValueHolderFactory {
    public:
-    ValueHolderFactory() {}
-    virtual ~ValueHolderFactory() {}
+    ValueHolderFactory() = default;
+    virtual ~ValueHolderFactory() = default;
     virtual ValueHolder* MakeNewHolder() const = 0;
 
    private:
@@ -1606,7 +1616,7 @@ class [[nodiscard]] ThreadLocal : public ThreadLocalBase {
 
   class DefaultValueHolderFactory : public ValueHolderFactory {
    public:
-    DefaultValueHolderFactory() {}
+    DefaultValueHolderFactory() = default;
     ValueHolder* MakeNewHolder() const override { return new ValueHolder(); }
 
    private:
@@ -2242,11 +2252,11 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 
 // Macros for declaring flags.
 #define GTEST_DECLARE_bool_(name) \
-  ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_int32_(name) \
-  ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_string_(name) \
-  ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
 
 #define GTEST_FLAG_SAVER_ ::absl::FlagSaver
 

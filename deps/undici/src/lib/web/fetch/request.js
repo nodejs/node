@@ -918,6 +918,8 @@ function makeRequest (init) {
     preventNoCacheCacheControlHeaderModification: init.preventNoCacheCacheControlHeaderModification ?? false,
     done: init.done ?? false,
     timingAllowFailed: init.timingAllowFailed ?? false,
+    useURLCredentials: init.useURLCredentials ?? undefined,
+    traversableForUserPrompts: init.traversableForUserPrompts ?? 'client',
     urlList: init.urlList,
     url: init.urlList[0],
     headersList: init.headersList
@@ -1094,6 +1096,12 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'dispatcher', // undici specific option
     converter: webidl.converters.any
+  },
+  {
+    key: 'priority',
+    converter: webidl.converters.DOMString,
+    allowedValues: ['high', 'low', 'auto'],
+    defaultValue: () => 'auto'
   }
 ])
 

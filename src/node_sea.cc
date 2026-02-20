@@ -14,15 +14,6 @@
 #include "simdjson.h"
 #include "util-inl.h"
 
-// The POSTJECT_SENTINEL_FUSE macro is a string of random characters selected by
-// the Node.js project that is present only once in the entire binary. It is
-// used by the postject_has_resource() function to efficiently detect if a
-// resource has been injected. See
-// https://github.com/nodejs/postject/blob/35343439cac8c488f2596d7c4c1dddfec1fddcae/postject-api.h#L42-L45.
-#define POSTJECT_SENTINEL_FUSE "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
-#include "postject-api.h"
-#undef POSTJECT_SENTINEL_FUSE
-
 #include <memory>
 #include <string_view>
 #include <tuple>
@@ -93,6 +84,11 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
         static_cast<uint8_t>(sea.exec_argv_extension));
   written_total +=
       WriteArithmetic<uint8_t>(static_cast<uint8_t>(sea.exec_argv_extension));
+
+  Debug("Write SEA main code format %u\n",
+        static_cast<uint8_t>(sea.main_code_format));
+  written_total +=
+      WriteArithmetic<uint8_t>(static_cast<uint8_t>(sea.main_code_format));
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
   Debug("Write SEA code path %p, size=%zu\n",
@@ -170,6 +166,11 @@ SeaResource SeaDeserializer::Read() {
   SeaExecArgvExtension exec_argv_extension =
       static_cast<SeaExecArgvExtension>(extension_value);
   Debug("Read SEA resource exec argv extension %u\n", extension_value);
+
+  uint8_t format_value = ReadArithmetic<uint8_t>();
+  CHECK_LE(format_value, static_cast<uint8_t>(ModuleFormat::kModule));
+  ModuleFormat main_code_format = static_cast<ModuleFormat>(format_value);
+  Debug("Read SEA main code format %u\n", format_value);
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
   std::string_view code_path =
@@ -228,36 +229,10 @@ SeaResource SeaDeserializer::Read() {
           exec_argv_extension,
           code_path,
           code,
+          main_code_format,
           code_cache,
           assets,
           exec_argv};
-}
-
-std::string_view FindSingleExecutableBlob() {
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-  CHECK(IsSingleExecutable());
-  static const std::string_view result = []() -> std::string_view {
-    size_t size;
-#ifdef __APPLE__
-    postject_options options;
-    postject_options_init(&options);
-    options.macho_segment_name = "NODE_SEA";
-    const char* blob = static_cast<const char*>(
-        postject_find_resource("NODE_SEA_BLOB", &size, &options));
-#else
-    const char* blob = static_cast<const char*>(
-        postject_find_resource("NODE_SEA_BLOB", &size, nullptr));
-#endif
-    return {blob, size};
-  }();
-  per_process::Debug(DebugCategory::SEA,
-                     "Found SEA blob %p, size=%zu\n",
-                     result.data(),
-                     result.size());
-  return result;
-#else
-  UNREACHABLE();
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 }
 
 }  // anonymous namespace
@@ -281,10 +256,6 @@ SeaResource FindSingleExecutableResource() {
     return deserializer.Read<SeaResource>();
   }();
   return sea_resource;
-}
-
-bool IsSingleExecutable() {
-  return postject_has_resource();
 }
 
 void IsSea(const FunctionCallbackInfo<Value>& args) {
@@ -373,17 +344,6 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   return {argc, argv};
 }
 
-namespace {
-
-struct SeaConfig {
-  std::string main_path;
-  std::string output_path;
-  SeaFlags flags = SeaFlags::kDefault;
-  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
-  std::unordered_map<std::string, std::string> assets;
-  std::vector<std::string> exec_argv;
-};
-
 std::optional<SeaConfig> ParseSingleExecutableConfig(
     const std::string& config_path) {
   std::string config;
@@ -438,6 +398,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
           result.output_path.empty()) {
         FPrintF(stderr,
                 "\"output\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+    } else if (key == "executable") {
+      if (field.value().get_string().get(result.executable_path) ||
+          result.executable_path.empty()) {
+        FPrintF(stderr,
+                "\"executable\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
@@ -544,6 +512,25 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
                 config_path);
         return std::nullopt;
       }
+    } else if (key == "mainFormat") {
+      std::string_view format_str;
+      if (field.value().get_string().get(format_str)) {
+        FPrintF(stderr,
+                "\"mainFormat\" field of %s is not a string\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (format_str == "commonjs") {
+        result.main_format = ModuleFormat::kCommonJS;
+      } else if (format_str == "module") {
+        result.main_format = ModuleFormat::kModule;
+      } else {
+        FPrintF(stderr,
+                "\"mainFormat\" field of %s must be one of "
+                "\"commonjs\" or \"module\"\n",
+                config_path);
+        return std::nullopt;
+      }
     }
   }
 
@@ -553,6 +540,23 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     // separate snapshot configurations.
     FPrintF(stderr,
             "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
+  }
+
+  // TODO(joyeecheung): support ESM with useSnapshot and useCodeCache.
+  if (result.main_format == ModuleFormat::kModule &&
+      static_cast<bool>(result.flags & SeaFlags::kUseSnapshot)) {
+    FPrintF(stderr,
+            "\"mainFormat\": \"module\" is not supported when "
+            "\"useSnapshot\" is true\n");
+    return std::nullopt;
+  }
+
+  if (result.main_format == ModuleFormat::kModule &&
+      static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
+    FPrintF(stderr,
+            "\"mainFormat\": \"module\" is not supported when "
+            "\"useCodeCache\" is true\n");
+    return std::nullopt;
   }
 
   if (result.main_path.empty()) {
@@ -572,6 +576,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   return result;
 }
 
+namespace {
 ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
                                 const std::vector<std::string>& args,
                                 const std::vector<std::string>& exec_args,
@@ -681,7 +686,7 @@ int BuildAssets(const std::unordered_map<std::string, std::string>& config,
     int r = ReadFileSync(&blob, path.c_str());
     if (r != 0) {
       const char* err = uv_strerror(r);
-      FPrintF(stderr, "Cannot read asset %s: %s\n", path.c_str(), err);
+      FPrintF(stderr, "Cannot read asset %s: %s\n", path, err);
       return r;
     }
     assets->emplace(key, std::move(blob));
@@ -689,7 +694,10 @@ int BuildAssets(const std::unordered_map<std::string, std::string>& config,
   return 0;
 }
 
+}  // anonymous namespace
+
 ExitCode GenerateSingleExecutableBlob(
+    std::vector<char>* out,
     const SeaConfig& config,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args) {
@@ -748,15 +756,35 @@ ExitCode GenerateSingleExecutableBlob(
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
+      config.main_format,
       optional_sv_code_cache,
       assets_view,
       exec_argv_view};
 
   SeaSerializer serializer;
   serializer.Write(sea);
+  std::swap(*out, serializer.sink);
+  return ExitCode::kNoFailure;
+}
 
-  uv_buf_t buf = uv_buf_init(serializer.sink.data(), serializer.sink.size());
-  r = WriteFileSync(config.output_path.c_str(), buf);
+ExitCode WriteSingleExecutableBlob(const std::string& config_path,
+                                   const std::vector<std::string>& args,
+                                   const std::vector<std::string>& exec_args) {
+  std::optional<SeaConfig> config_opt =
+      ParseSingleExecutableConfig(config_path);
+  if (!config_opt.has_value()) {
+    return ExitCode::kGenericUserError;
+  }
+
+  SeaConfig config = config_opt.value();
+  std::vector<char> blob;
+  ExitCode exit_code =
+      GenerateSingleExecutableBlob(&blob, config, args, exec_args);
+  if (exit_code != ExitCode::kNoFailure) {
+    return exit_code;
+  }
+  uv_buf_t buf = uv_buf_init(blob.data(), blob.size());
+  int r = WriteFileSync(config.output_path.c_str(), buf);
   if (r != 0) {
     const char* err = uv_strerror(r);
     FPrintF(stderr, "Cannot write output to %s:%s\n", config.output_path, err);
@@ -767,22 +795,6 @@ ExitCode GenerateSingleExecutableBlob(
           "Wrote single executable preparation blob to %s\n",
           config.output_path);
   return ExitCode::kNoFailure;
-}
-
-}  // anonymous namespace
-
-ExitCode BuildSingleExecutableBlob(const std::string& config_path,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args) {
-  std::optional<SeaConfig> config_opt =
-      ParseSingleExecutableConfig(config_path);
-  if (config_opt.has_value()) {
-    ExitCode code =
-        GenerateSingleExecutableBlob(config_opt.value(), args, exec_args);
-    return code;
-  }
-
-  return ExitCode::kGenericUserError;
 }
 
 void GetAsset(const FunctionCallbackInfo<Value>& args) {
@@ -828,20 +840,25 @@ void GetAssetKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 MaybeLocal<Value> LoadSingleExecutableApplication(
-    const StartExecutionCallbackInfo& info) {
+    const StartExecutionCallbackInfoWithModule& info) {
   // Here we are currently relying on the fact that in NodeMainInstance::Run(),
   // env->context() is entered.
-  Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
+  Environment* env = info.env();
+  Local<Context> context = env->context();
   SeaResource sea = FindSingleExecutableResource();
 
   CHECK(!sea.use_snapshot());
   // TODO(joyeecheung): this should be an external string. Refactor UnionBytes
   // and make it easy to create one based on static content on the fly.
   Local<Value> main_script =
-      ToV8Value(env->context(), sea.main_code_or_snapshot).ToLocalChecked();
-  return info.run_cjs->Call(
-      env->context(), Null(env->isolate()), 1, &main_script);
+      ToV8Value(context, sea.main_code_or_snapshot).ToLocalChecked();
+  Local<Value> kind =
+      v8::Integer::New(env->isolate(), static_cast<int>(sea.main_code_format));
+  Local<Value> resource_name =
+      ToV8Value(context, env->exec_path()).ToLocalChecked();
+  Local<Value> args[] = {main_script, kind, resource_name};
+  return info.run_module()->Call(
+      env->context(), Null(env->isolate()), arraysize(args), args);
 }
 
 bool MaybeLoadSingleExecutableApplication(Environment* env) {
@@ -857,7 +874,7 @@ bool MaybeLoadSingleExecutableApplication(Environment* env) {
     // this check is just here to guard against the unlikely case where
     // the SEA preparation blob has been manually modified by someone.
     CHECK(!env->snapshot_deserialize_main().IsEmpty());
-    LoadEnvironment(env, StartExecutionCallback{});
+    LoadEnvironment(env, StartExecutionCallbackWithModule{});
     return true;
   }
 

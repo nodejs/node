@@ -7,23 +7,23 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_POLL_METHOD_H
-# define OSSL_POLL_METHOD_H
+#define OSSL_POLL_METHOD_H
 
-# include "internal/common.h"
-# include "internal/sockets.h"
+#include "internal/common.h"
+#include "internal/sockets.h"
 
-# define RIO_POLL_METHOD_SELECT         1
-# define RIO_POLL_METHOD_POLL           2
-# define RIO_POLL_METHOD_NONE           3
+#define RIO_POLL_METHOD_SELECT 1
+#define RIO_POLL_METHOD_POLL 2
+#define RIO_POLL_METHOD_NONE 3
 
-# ifndef RIO_POLL_METHOD
-#  if defined(OPENSSL_SYS_UEFI)
-#   define RIO_POLL_METHOD              RIO_POLL_METHOD_NONE
-#  elif !defined(OPENSSL_SYS_WINDOWS) && defined(POLLIN)
-#   define RIO_POLL_METHOD              RIO_POLL_METHOD_POLL
-#  else
-#   define RIO_POLL_METHOD              RIO_POLL_METHOD_SELECT
-#  endif
-# endif
+#ifndef RIO_POLL_METHOD
+#if defined(OPENSSL_SYS_UEFI)
+#define RIO_POLL_METHOD RIO_POLL_METHOD_NONE
+#elif !defined(OPENSSL_SYS_WINDOWS) && defined(POLLIN)
+#define RIO_POLL_METHOD RIO_POLL_METHOD_POLL
+#else
+#define RIO_POLL_METHOD RIO_POLL_METHOD_SELECT
+#endif
+#endif
 
 #endif

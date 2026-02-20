@@ -30,7 +30,7 @@ class VisualStudioFinder {
     this.configVersionYear = null
     this.configPath = null
     if (this.configMsvsVersion) {
-      this.addLog('msvs_version was set from command line or npm config')
+      this.addLog(`--msvs_version=${this.configMsvsVersion} was set on the command line`)
       if (this.configMsvsVersion.match(/^\d{4}$/)) {
         this.configVersionYear = parseInt(this.configMsvsVersion, 10)
         this.addLog(
@@ -41,7 +41,7 @@ class VisualStudioFinder {
           `- looking for Visual Studio installed in "${this.configPath}"`)
       }
     } else {
-      this.addLog('msvs_version not set from command line or npm config')
+      this.addLog('--msvs_version was not set on the command line')
     }
 
     if (process.env.VCINSTALLDIR) {

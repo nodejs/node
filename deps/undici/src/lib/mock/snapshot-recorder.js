@@ -283,8 +283,7 @@ class SnapshotRecorder {
     }
 
     // Check URL exclusion patterns
-    const url = new URL(requestOpts.path, requestOpts.origin).toString()
-    if (this.#isUrlExcluded(url)) {
+    if (this.isUrlExcluded(requestOpts)) {
       return // Skip recording
     }
 
@@ -331,6 +330,16 @@ class SnapshotRecorder {
   }
 
   /**
+   * Checks if a URL should be excluded from recording/playback
+   * @param {SnapshotRequestOptions} requestOpts - Request options to check
+   * @returns {boolean} - True if URL is excluded
+   */
+  isUrlExcluded (requestOpts) {
+    const url = new URL(requestOpts.path, requestOpts.origin).toString()
+    return this.#isUrlExcluded(url)
+  }
+
+  /**
    * Finds a matching snapshot for the given request
    * Returns the appropriate response based on call count for sequential responses
    *
@@ -344,8 +353,7 @@ class SnapshotRecorder {
     }
 
     // Check URL exclusion patterns
-    const url = new URL(requestOpts.path, requestOpts.origin).toString()
-    if (this.#isUrlExcluded(url)) {
+    if (this.isUrlExcluded(requestOpts)) {
       return undefined // Skip playback
     }
 

@@ -4,6 +4,7 @@ const { InvalidArgumentError, SocketError } = require('../core/errors')
 const { AsyncResource } = require('node:async_hooks')
 const assert = require('node:assert')
 const util = require('../core/util')
+const { kHTTP2Stream } = require('../core/symbols')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 class UpgradeHandler extends AsyncResource {
@@ -50,7 +51,7 @@ class UpgradeHandler extends AsyncResource {
   }
 
   onUpgrade (statusCode, rawHeaders, socket) {
-    assert(statusCode === 101)
+    assert(socket[kHTTP2Stream] === true ? statusCode === 200 : statusCode === 101)
 
     const { callback, opaque, context } = this
 

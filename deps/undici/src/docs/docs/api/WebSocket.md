@@ -34,6 +34,27 @@ import { WebSocket } from 'undici'
 const ws = new WebSocket('wss://echo.websocket.events', ['echo', 'chat'])
 ```
 
+### Example with HTTP/2:
+
+> ⚠️ Warning: WebSocket over HTTP/2 is experimental, it is likely to change in the future.
+
+> 🗒️ Note: WebSocket over HTTP/2 may be enabled by default in a future version,
+> this will happen by enabling HTTP/2 connections as the default behavior of Undici's Agent as well the global dispatcher.
+> Stay tuned to the changelog for more information.
+
+This example will not work in browsers or other platforms that don't allow passing an object.
+
+```mjs
+import { Agent } from 'undici'
+
+const agent = new Agent({ allowH2: true })
+
+const ws = new WebSocket('wss://echo.websocket.events', {
+  dispatcher: agent,
+  protocols: ['echo', 'chat']
+})
+```
+
 # Class: WebSocketStream
 
 > ⚠️ Warning: the WebSocketStream API has not been finalized and is likely to change.

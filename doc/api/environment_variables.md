@@ -1,5 +1,7 @@
 # Environment Variables
 
+<!--introduced_in=v20.12.0-->
+
 Environment variables are variables associated to the environment the Node.js process runs in.
 
 ## CLI Environment Variables
@@ -16,11 +18,9 @@ For more details refer to the [`process.env` documentation][].
 
 ## DotEnv
 
-Set of utilities for dealing with additional environment variables defined in `.env` files.
-
 > Stability: 2 - Stable
 
-<!--introduced_in=v20.12.0-->
+Set of utilities for dealing with additional environment variables defined in `.env` files.
 
 ### .env files
 

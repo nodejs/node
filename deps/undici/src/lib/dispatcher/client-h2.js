@@ -7,7 +7,8 @@ const {
   RequestContentLengthMismatchError,
   RequestAbortedError,
   SocketError,
-  InformationalError
+  InformationalError,
+  InvalidArgumentError
 } = require('../core/errors.js')
 const {
   kUrl,
@@ -23,12 +24,19 @@ const {
   kStrictContentLength,
   kOnError,
   kMaxConcurrentStreams,
+  kPingInterval,
   kHTTP2Session,
+  kHTTP2InitialWindowSize,
+  kHTTP2ConnectionWindowSize,
   kResume,
   kSize,
   kHTTPContext,
   kClosed,
-  kBodyTimeout
+  kBodyTimeout,
+  kEnableConnectProtocol,
+  kRemoteSettings,
+  kHTTP2Stream,
+  kHTTP2SessionState
 } = require('../core/symbols.js')
 const { channels } = require('../core/diagnostics.js')
 
@@ -53,7 +61,10 @@ const {
     HTTP2_HEADER_SCHEME,
     HTTP2_HEADER_CONTENT_LENGTH,
     HTTP2_HEADER_EXPECT,
-    HTTP2_HEADER_STATUS
+    HTTP2_HEADER_STATUS,
+    HTTP2_HEADER_PROTOCOL,
+    NGHTTP2_REFUSED_STREAM,
+    NGHTTP2_CANCEL
   }
 } = http2
 
@@ -80,25 +91,48 @@ function parseH2Headers (headers) {
 function connectH2 (client, socket) {
   client[kSocket] = socket
 
+  const http2InitialWindowSize = client[kHTTP2InitialWindowSize]
+  const http2ConnectionWindowSize = client[kHTTP2ConnectionWindowSize]
+
   const session = http2.connect(client[kUrl], {
     createConnection: () => socket,
     peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
     settings: {
       // TODO(metcoder95): add support for PUSH
-      enablePush: false
+      enablePush: false,
+      ...(http2InitialWindowSize != null ? { initialWindowSize: http2InitialWindowSize } : null)
     }
   })
 
+  client[kSocket] = socket
   session[kOpenStreams] = 0
   session[kClient] = client
   session[kSocket] = socket
-  session[kHTTP2Session] = null
+  session[kHTTP2SessionState] = {
+    ping: {
+      interval: client[kPingInterval] === 0 ? null : setInterval(onHttp2SendPing, client[kPingInterval], session).unref()
+    }
+  }
+  // We set it to true by default in a best-effort; however once connected to an H2 server
+  // we will check if extended CONNECT protocol is supported or not
+  // and set this value accordingly.
+  session[kEnableConnectProtocol] = false
+  // States whether or not we have received the remote settings from the server
+  session[kRemoteSettings] = false
+
+  // Apply connection-level flow control once connected (if supported).
+  if (http2ConnectionWindowSize) {
+    util.addListener(session, 'connect', applyConnectionWindowSize.bind(session, http2ConnectionWindowSize))
+  }
 
   util.addListener(session, 'error', onHttp2SessionError)
   util.addListener(session, 'frameError', onHttp2FrameError)
   util.addListener(session, 'end', onHttp2SessionEnd)
   util.addListener(session, 'goaway', onHttp2SessionGoAway)
   util.addListener(session, 'close', onHttp2SessionClose)
+  util.addListener(session, 'remoteSettings', onHttp2RemoteSettings)
+  // TODO (@metcoder95): implement SETTINGS support
+  // util.addListener(session, 'localSettings', onHttp2RemoteSettings)
 
   session.unref()
 
@@ -115,12 +149,23 @@ function connectH2 (client, socket) {
   return {
     version: 'h2',
     defaultPipelining: Infinity,
+    /**
+     * @param {import('../core/request.js')} request
+     * @returns {boolean}
+    */
     write (request) {
       return writeH2(client, request)
     },
+    /**
+     * @returns {void}
+     */
     resume () {
       resumeH2(client)
     },
+    /**
+     * @param {Error | null} err
+     * @param {() => void} callback
+     */
     destroy (err, callback) {
       if (socket[kClosed]) {
         queueMicrotask(callback)
@@ -128,10 +173,43 @@ function connectH2 (client, socket) {
         socket.destroy(err).on('close', callback)
       }
     },
+    /**
+     * @type {boolean}
+     */
     get destroyed () {
       return socket.destroyed
     },
-    busy () {
+    /**
+     * @param {import('../core/request.js')} request
+     * @returns {boolean}
+    */
+    busy (request) {
+      if (request != null) {
+        if (client[kRunning] > 0) {
+          // We are already processing requests
+
+          // Non-idempotent request cannot be retried.
+          // Ensure that no other requests are inflight and
+          // could cause failure.
+          if (request.idempotent === false) return true
+          // Don't dispatch an upgrade until all preceding requests have completed.
+          // Possibly, we do not have remote settings confirmed yet.
+          if ((request.upgrade === 'websocket' || request.method === 'CONNECT') && session[kRemoteSettings] === false) return true
+          // Request with stream or iterator body can error while other requests
+          // are inflight and indirectly error those as well.
+          // Ensure this doesn't happen by waiting for inflight
+          // to complete before dispatching.
+
+          // Request with stream or iterator body cannot be retried.
+          // Ensure that no other requests are inflight and
+          // could cause failure.
+          if (util.bodyLength(request.body) !== 0 &&
+            (util.isStream(request.body) || util.isAsyncIterable(request.body) || util.isFormDataLike(request.body))) return true
+        } else {
+          return (request.upgrade === 'websocket' || request.method === 'CONNECT') && session[kRemoteSettings] === false
+        }
+      }
+
       return false
     }
   }
@@ -147,6 +225,62 @@ function resumeH2 (client) {
     } else {
       socket.ref()
       client[kHTTP2Session].ref()
+    }
+  }
+}
+
+function applyConnectionWindowSize (connectionWindowSize) {
+  try {
+    if (typeof this.setLocalWindowSize === 'function') {
+      this.setLocalWindowSize(connectionWindowSize)
+    }
+  } catch {
+    // Best-effort only.
+  }
+}
+
+function onHttp2RemoteSettings (settings) {
+  // Fallbacks are a safe bet, remote setting will always override
+  this[kClient][kMaxConcurrentStreams] = settings.maxConcurrentStreams ?? this[kClient][kMaxConcurrentStreams]
+  /**
+   * From RFC-8441
+   * A sender MUST NOT send a SETTINGS_ENABLE_CONNECT_PROTOCOL parameter
+   * with the value of 0 after previously sending a value of 1.
+   */
+  // Note: Cannot be tested in Node, it does not supports disabling the extended CONNECT protocol once enabled
+  if (this[kRemoteSettings] === true && this[kEnableConnectProtocol] === true && settings.enableConnectProtocol === false) {
+    const err = new InformationalError('HTTP/2: Server disabled extended CONNECT protocol against RFC-8441')
+    this[kSocket][kError] = err
+    this[kClient][kOnError](err)
+    return
+  }
+
+  this[kEnableConnectProtocol] = settings.enableConnectProtocol ?? this[kEnableConnectProtocol]
+  this[kRemoteSettings] = true
+  this[kClient][kResume]()
+}
+
+function onHttp2SendPing (session) {
+  const state = session[kHTTP2SessionState]
+  if ((session.closed || session.destroyed) && state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+    return
+  }
+
+  // If no ping sent, do nothing
+  session.ping(onPing.bind(session))
+
+  function onPing (err, duration) {
+    const client = this[kClient]
+    const socket = this[kClient]
+
+    if (err != null) {
+      const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`)
+      socket[kError] = error
+      client[kOnError](error)
+    } else {
+      client.emit('ping', duration)
     }
   }
 }
@@ -214,13 +348,18 @@ function onHttp2SessionGoAway (errorCode) {
 }
 
 function onHttp2SessionClose () {
-  const { [kClient]: client } = this
+  const { [kClient]: client, [kHTTP2SessionState]: state } = this
   const { [kSocket]: socket } = client
 
   const err = this[kSocket][kError] || this[kError] || new SocketError('closed', util.getSocketInfo(socket))
 
   client[kSocket] = null
   client[kHTTPContext] = null
+
+  if (state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+  }
 
   if (client.destroyed) {
     assert(client[kPending] === 0)
@@ -282,8 +421,8 @@ function writeH2 (client, request) {
   const { method, path, host, upgrade, expectContinue, signal, protocol, headers: reqHeaders } = request
   let { body } = request
 
-  if (upgrade) {
-    util.errorRequest(client, request, new Error('Upgrade not supported for H2'))
+  if (upgrade != null && upgrade !== 'websocket') {
+    util.errorRequest(client, request, new InvalidArgumentError(`Custom upgrade "${upgrade}" not supported over HTTP/2`))
     return false
   }
 
@@ -364,26 +503,75 @@ function writeH2 (client, request) {
     return false
   }
 
-  if (method === 'CONNECT') {
+  if (upgrade || method === 'CONNECT') {
     session.ref()
-    // We are already connected, streams are pending, first request
+
+    if (upgrade === 'websocket') {
+      // We cannot upgrade to websocket if extended CONNECT protocol is not supported
+      if (session[kEnableConnectProtocol] === false) {
+        util.errorRequest(client, request, new InformationalError('HTTP/2: Extended CONNECT protocol not supported by server'))
+        session.unref()
+        return false
+      }
+
+      // We force the method to CONNECT
+      // as per RFC-8441
+      // https://datatracker.ietf.org/doc/html/rfc8441#section-4
+      headers[HTTP2_HEADER_METHOD] = 'CONNECT'
+      headers[HTTP2_HEADER_PROTOCOL] = 'websocket'
+      // :path and :scheme headers must be omitted when sending CONNECT but set if extended-CONNECT
+      headers[HTTP2_HEADER_PATH] = path
+
+      if (protocol === 'ws:' || protocol === 'wss:') {
+        headers[HTTP2_HEADER_SCHEME] = protocol === 'ws:' ? 'http' : 'https'
+      } else {
+        headers[HTTP2_HEADER_SCHEME] = protocol === 'http:' ? 'http' : 'https'
+      }
+
+      stream = session.request(headers, { endStream: false, signal })
+      stream[kHTTP2Stream] = true
+
+      stream.once('response', (headers, _flags) => {
+        const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
+
+        request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
+
+        ++session[kOpenStreams]
+        client[kQueue][client[kRunningIdx]++] = null
+      })
+
+      stream.on('error', () => {
+        if (stream.rstCode === NGHTTP2_REFUSED_STREAM || stream.rstCode === NGHTTP2_CANCEL) {
+          // NGHTTP2_REFUSED_STREAM (7) or NGHTTP2_CANCEL (8)
+          // We do not treat those as errors as the server might
+          // not support websockets and refuse the stream
+          abort(new InformationalError(`HTTP/2: "stream error" received - code ${stream.rstCode}`))
+        }
+      })
+
+      stream.once('close', () => {
+        session[kOpenStreams] -= 1
+        if (session[kOpenStreams] === 0) session.unref()
+      })
+
+      stream.setTimeout(requestTimeout)
+      return true
+    }
+
+    // TODO: consolidate once we support CONNECT properly
+    // NOTE: We are already connected, streams are pending, first request
     // will create a new stream. We trigger a request to create the stream and wait until
     // `ready` event is triggered
     // We disabled endStream to allow the user to write to the stream
     stream = session.request(headers, { endStream: false, signal })
+    stream[kHTTP2Stream] = true
+    stream.on('response', headers => {
+      const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
 
-    if (!stream.pending) {
-      request.onUpgrade(null, null, stream)
+      request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
       ++session[kOpenStreams]
       client[kQueue][client[kRunningIdx]++] = null
-    } else {
-      stream.once('ready', () => {
-        request.onUpgrade(null, null, stream)
-        ++session[kOpenStreams]
-        client[kQueue][client[kRunningIdx]++] = null
-      })
-    }
-
+    })
     stream.once('close', () => {
       session[kOpenStreams] -= 1
       if (session[kOpenStreams] === 0) session.unref()
@@ -395,7 +583,6 @@ function writeH2 (client, request) {
 
   // https://tools.ietf.org/html/rfc7540#section-8.3
   // :path and :scheme headers must be omitted when sending CONNECT
-
   headers[HTTP2_HEADER_PATH] = path
   headers[HTTP2_HEADER_SCHEME] = protocol === 'http:' ? 'http' : 'https'
 
@@ -435,12 +622,12 @@ function writeH2 (client, request) {
     contentLength = request.contentLength
   }
 
-  if (contentLength === 0 || !expectsPayload) {
+  if (!expectsPayload) {
     // https://tools.ietf.org/html/rfc7230#section-3.3.2
     // A user agent SHOULD NOT send a Content-Length header field when
     // the request message does not contain a payload body and the method
     // semantics do not anticipate such a body.
-
+    // And for methods that don't expect a payload, omit Content-Length.
     contentLength = null
   }
 
@@ -456,7 +643,7 @@ function writeH2 (client, request) {
   }
 
   if (contentLength != null) {
-    assert(body, 'no body must not have content length')
+    assert(body || contentLength === 0, 'no body must not have content length')
     headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`
   }
 
@@ -475,6 +662,7 @@ function writeH2 (client, request) {
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
     stream = session.request(headers, { endStream: shouldEndStream, signal })
+    stream[kHTTP2Stream] = true
 
     stream.once('continue', writeBodyH2)
   } else {
@@ -482,6 +670,7 @@ function writeH2 (client, request) {
       endStream: shouldEndStream,
       signal
     })
+    stream[kHTTP2Stream] = true
 
     writeBodyH2()
   }
@@ -490,9 +679,13 @@ function writeH2 (client, request) {
   ++session[kOpenStreams]
   stream.setTimeout(requestTimeout)
 
+  // Track whether we received a response (headers)
+  let responseReceived = false
+
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
     request.onResponseStarted()
+    responseReceived = true
 
     // Due to the stream nature, it is possible we face a race condition
     // where the stream has been assigned, but the request has been aborted
@@ -515,14 +708,10 @@ function writeH2 (client, request) {
     }
   })
 
-  stream.once('end', (err) => {
+  stream.once('end', () => {
     stream.removeAllListeners('data')
-    // When state is null, it means we haven't consumed body and the stream still do not have
-    // a state.
-    // Present specially when using pipeline or stream
-    if (stream.state?.state == null || stream.state.state < 6) {
-      // Do not complete the request if it was aborted
-      // Not prone to happen for as safety net to avoid race conditions with 'trailers'
+    // If we received a response, this is a normal completion
+    if (responseReceived) {
       if (!request.aborted && !request.completed) {
         request.onComplete({})
       }
@@ -530,15 +719,9 @@ function writeH2 (client, request) {
       client[kQueue][client[kRunningIdx]++] = null
       client[kResume]()
     } else {
-      // Stream is closed or half-closed-remote (6), decrement counter and cleanup
-      // It does not have sense to continue working with the stream as we do not
-      // have yet RST_STREAM support on client-side
-      --session[kOpenStreams]
-      if (session[kOpenStreams] === 0) {
-        session.unref()
-      }
-
-      abort(err ?? new InformationalError('HTTP/2: stream half-closed (remote)'))
+      // Stream ended without receiving a response - this is an error
+      // (e.g., server destroyed the stream before sending headers)
+      abort(new InformationalError('HTTP/2: stream half-closed (remote)'))
       client[kQueue][client[kRunningIdx]++] = null
       client[kPendingIdx] = client[kRunningIdx]
       client[kResume]()
@@ -590,7 +773,6 @@ function writeH2 (client, request) {
   return true
 
   function writeBodyH2 () {
-    /* istanbul ignore else: assertion */
     if (!body || contentLength === 0) {
       writeBuffer(
         abort,

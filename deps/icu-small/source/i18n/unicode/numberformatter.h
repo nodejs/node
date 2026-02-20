@@ -1256,7 +1256,6 @@ class U_I18N_API StringProp : public UMemory {
     StringProp() : fValue(nullptr), fLength(0), fError(U_ZERO_ERROR) {
     }
 
-    /** @internal (private) */
     UBool copyErrorTo(UErrorCode &status) const {
         if (U_FAILURE(fError)) {
             status = fError;
@@ -1517,9 +1516,10 @@ class U_I18N_API Padder : public UMemory {
     friend class impl::GeneratorHelpers;
 };
 
-// Do not enclose entire MacroProps with #ifndef U_HIDE_INTERNAL_API, needed for a protected field
+// Do not enclose entire MacroProps with #ifndef U_HIDE_INTERNAL_API, needed for a protected field.
+// U_I18N_API because intltest uses it.
 /** @internal */
-struct U_I18N_API MacroProps : public UMemory {
+struct U_I18N_API_CLASS MacroProps : public UMemory {
     /** @internal */
     Notation notation;
 
@@ -1588,7 +1588,7 @@ struct U_I18N_API MacroProps : public UMemory {
      * Check all members for errors.
      * @internal
      */
-    bool copyErrorTo(UErrorCode &status) const {
+    U_I18N_API bool copyErrorTo(UErrorCode &status) const {
         return notation.copyErrorTo(status) || precision.copyErrorTo(status) ||
                padder.copyErrorTo(status) || integerWidth.copyErrorTo(status) ||
                symbols.copyErrorTo(status) || scale.copyErrorTo(status) || usage.copyErrorTo(status) ||

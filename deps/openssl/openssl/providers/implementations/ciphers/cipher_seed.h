@@ -11,7 +11,7 @@
 #include "prov/ciphercommon.h"
 
 typedef struct prov_seed_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         SEED_KEY_SCHEDULE ks;

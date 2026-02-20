@@ -76,9 +76,7 @@ class U_I18N_API FieldPositionIteratorHandler : public FieldPositionHandler {
   // This attempts to encourage that by blocking heap allocation.
   static void* U_EXPORT2 operator new(size_t) noexcept = delete;
   static void* U_EXPORT2 operator new[](size_t) noexcept = delete;
-#if U_HAVE_PLACEMENT_NEW
   static void* U_EXPORT2 operator new(size_t, void*) noexcept = delete;
-#endif
 
  public:
   FieldPositionIteratorHandler(FieldPositionIterator* posIter, UErrorCode& status);

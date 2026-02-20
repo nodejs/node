@@ -364,6 +364,33 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
   }
 }
 
+/**
+ * Creates a string key for request deduplication purposes.
+ * This key is used to identify in-flight requests that can be shared.
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
+ * @param {Set<string>} [excludeHeaders] Set of lowercase header names to exclude from the key
+ * @returns {string}
+ */
+function makeDeduplicationKey (cacheKey, excludeHeaders) {
+  // Create a deterministic string key from the cache key
+  // Include origin, method, path, and sorted headers
+  let key = `${cacheKey.origin}:${cacheKey.method}:${cacheKey.path}`
+
+  if (cacheKey.headers) {
+    const sortedHeaders = Object.keys(cacheKey.headers).sort()
+    for (const header of sortedHeaders) {
+      // Skip excluded headers
+      if (excludeHeaders?.has(header.toLowerCase())) {
+        continue
+      }
+      const value = cacheKey.headers[header]
+      key += `:${header}=${Array.isArray(value) ? value.join(',') : value}`
+    }
+  }
+
+  return key
+}
+
 module.exports = {
   makeCacheKey,
   normalizeHeaders,
@@ -373,5 +400,6 @@ module.exports = {
   parseVaryHeader,
   isEtagUsable,
   assertCacheMethods,
-  assertCacheStore
+  assertCacheStore,
+  makeDeduplicationKey
 }

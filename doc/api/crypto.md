@@ -4531,7 +4531,9 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v25.5.0
+     - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60994
     description: This API is no longer experimental.
   - version: v24.4.0
@@ -6004,7 +6006,7 @@ binary data. As such, many `crypto` classes have methods not
 typically found on other Node.js classes that implement the [streams][stream]
 API (e.g. `update()`, `final()`, or `digest()`). Also, many methods accepted
 and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
-default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
+default was changed in Node.js 0.9.3 to use [`Buffer`][] objects by default
 instead.
 
 ### Support for weak or compromised algorithms

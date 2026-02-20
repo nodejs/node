@@ -3,6 +3,7 @@
 const { createInflate, createGunzip, createBrotliDecompress, createZstdDecompress } = require('node:zlib')
 const { pipeline } = require('node:stream')
 const DecoratorHandler = require('../handler/decorator-handler')
+const { runtimeFeatures } = require('../util/runtime-features')
 
 /** @typedef {import('node:stream').Transform} Transform */
 /** @typedef {import('node:stream').Transform} Controller */
@@ -16,7 +17,7 @@ const supportedEncodings = {
   deflate: createInflate,
   compress: createInflate,
   'x-compress': createInflate,
-  ...(createZstdDecompress ? { zstd: createZstdDecompress } : {})
+  ...(runtimeFeatures.has('zstd') ? { zstd: createZstdDecompress } : {})
 }
 
 const defaultSkipStatusCodes = /** @type {const} */ ([204, 304])
@@ -32,8 +33,6 @@ let warningEmitted = /** @type {boolean} */ (false)
 class DecompressHandler extends DecoratorHandler {
   /** @type {Transform[]} */
   #decompressors = []
-  /** @type {NodeJS.WritableStream&NodeJS.ReadableStream|null} */
-  #pipelineStream
   /** @type {Readonly<number[]>} */
   #skipStatusCodes
   /** @type {boolean} */
@@ -63,9 +62,17 @@ class DecompressHandler extends DecoratorHandler {
    *
    * @param {string} encodings - Comma-separated list of content encodings
    * @returns {Array<DecompressorStream>} - Array of decompressor streams
+   * @throws {Error} - If the number of content-encodings exceeds the maximum allowed
    */
   #createDecompressionChain (encodings) {
     const parts = encodings.split(',')
+
+    // Limit the number of content-encodings to prevent resource exhaustion.
+    // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
+    const maxContentEncodings = 5
+    if (parts.length > maxContentEncodings) {
+      throw new Error(`too many content-encodings in response: ${parts.length}, maximum allowed is ${maxContentEncodings}`)
+    }
 
     /** @type {DecompressorStream[]} */
     const decompressors = []
@@ -130,7 +137,7 @@ class DecompressHandler extends DecoratorHandler {
     const lastDecompressor = this.#decompressors[this.#decompressors.length - 1]
     this.#setupDecompressorEvents(lastDecompressor, controller)
 
-    this.#pipelineStream = pipeline(this.#decompressors, (err) => {
+    pipeline(this.#decompressors, (err) => {
       if (err) {
         super.onResponseError(controller, err)
         return
@@ -145,7 +152,6 @@ class DecompressHandler extends DecoratorHandler {
    */
   #cleanupDecompressors () {
     this.#decompressors.length = 0
-    this.#pipelineStream = null
   }
 
   /**
@@ -181,7 +187,7 @@ class DecompressHandler extends DecoratorHandler {
       this.#setupMultipleDecompressors(controller)
     }
 
-    super.onResponseStart(controller, statusCode, newHeaders, statusMessage)
+    return super.onResponseStart(controller, statusCode, newHeaders, statusMessage)
   }
 
   /**

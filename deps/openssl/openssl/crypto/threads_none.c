@@ -10,21 +10,22 @@
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include "internal/rcu.h"
+#include "crypto/cryptlib.h"
 #include "rcu_internal.h"
 
 #if !defined(OPENSSL_THREADS) || defined(CRYPTO_TDEBUG)
 
-# if defined(OPENSSL_SYS_UNIX)
-#  include <sys/types.h>
-#  include <unistd.h>
-# endif
+#if defined(OPENSSL_SYS_UNIX)
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 struct rcu_lock_st {
     struct rcu_cb_item *cb_items;
 };
 
 CRYPTO_RCU_LOCK *ossl_rcu_lock_new(int num_writers,
-                                   ossl_unused OSSL_LIB_CTX *ctx)
+    ossl_unused OSSL_LIB_CTX *ctx)
 {
     struct rcu_lock_st *lock;
 
@@ -130,7 +131,8 @@ int CRYPTO_THREAD_unlock(CRYPTO_RWLOCK *lock)
     return 1;
 }
 
-void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock) {
+void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock)
+{
     if (lock == NULL)
         return;
 
@@ -151,7 +153,7 @@ int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))
     return 1;
 }
 
-# define OPENSSL_CRYPTO_THREAD_LOCAL_KEY_MAX 256
+#define OPENSSL_CRYPTO_THREAD_LOCAL_KEY_MAX 256
 
 struct thread_local_storage_entry {
     void *data;
@@ -163,6 +165,11 @@ static struct thread_local_storage_entry thread_local_storage[OPENSSL_CRYPTO_THR
 int CRYPTO_THREAD_init_local(CRYPTO_THREAD_LOCAL *key, void (*cleanup)(void *))
 {
     int entry_idx = 0;
+
+#ifndef FIPS_MODULE
+    if (!ossl_init_thread())
+        return 0;
+#endif
 
     for (entry_idx = 0; entry_idx < OPENSSL_CRYPTO_THREAD_LOCAL_KEY_MAX; entry_idx++) {
         if (!thread_local_storage[entry_idx].used)
@@ -221,41 +228,41 @@ int CRYPTO_THREAD_compare_id(CRYPTO_THREAD_ID a, CRYPTO_THREAD_ID b)
 int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
 {
     *val += amount;
-    *ret  = *val;
+    *ret = *val;
 
     return 1;
 }
 
 int CRYPTO_atomic_add64(uint64_t *val, uint64_t op, uint64_t *ret,
-                        CRYPTO_RWLOCK *lock)
+    CRYPTO_RWLOCK *lock)
 {
     *val += op;
-    *ret  = *val;
+    *ret = *val;
 
     return 1;
 }
 
 int CRYPTO_atomic_and(uint64_t *val, uint64_t op, uint64_t *ret,
-                      CRYPTO_RWLOCK *lock)
+    CRYPTO_RWLOCK *lock)
 {
     *val &= op;
-    *ret  = *val;
+    *ret = *val;
 
     return 1;
 }
 
 int CRYPTO_atomic_or(uint64_t *val, uint64_t op, uint64_t *ret,
-                     CRYPTO_RWLOCK *lock)
+    CRYPTO_RWLOCK *lock)
 {
     *val |= op;
-    *ret  = *val;
+    *ret = *val;
 
     return 1;
 }
 
 int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock)
 {
-    *ret  = *val;
+    *ret = *val;
 
     return 1;
 }
@@ -281,10 +288,10 @@ int openssl_init_fork_handlers(void)
 
 int openssl_get_fork_id(void)
 {
-# if defined(OPENSSL_SYS_UNIX)
+#if defined(OPENSSL_SYS_UNIX)
     return getpid();
-# else
+#else
     return 0;
-# endif
+#endif
 }
 #endif

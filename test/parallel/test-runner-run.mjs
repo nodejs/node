@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
+import consumers from 'node:stream/consumers';
 import assert from 'node:assert';
 import util from 'node:util';
 
@@ -111,34 +112,31 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   describe('should be piped with spec reporter', () => {
     it('new spec', async () => {
       const specReporter = new spec();
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(specReporter).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(specReporter));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
 
     it('spec()', async () => {
       const specReporter = spec();
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(specReporter).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(specReporter));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
 
     it('spec', async () => {
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(spec).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(spec));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
   });
 
@@ -647,6 +645,29 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     ) {
       assert.strictEqual(diagnostics.includes(entry), true);
     }
+  });
+});
+
+describe('env', () => {
+  it('should allow env variables to be configured', async () => {
+    // Need to inherit some process.env variables so it runs reliably across different environments.
+    const env = { ...process.env, FOOBAR: 'FUZZBUZZ' };
+    // Set a variable on main process env and test it does not exist within test env.
+    process.env.ABC = 'XYZ';
+
+    const stream = run({ files: [join(testFixtures, 'process-env.js')], env });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    delete process.env.ABC;
+  });
+
+  it('should throw error when env is specified with isolation=none', async () => {
+    assert.throws(() => run({ env: { foo: 'bar' }, isolation: 'none' }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The property 'options\.env' is not supported with isolation='none'\. Received { foo: 'bar' }/
+    });
   });
 });
 

@@ -31,8 +31,8 @@
 #include "endecoder_local.h"
 
 static int read_pem(PROV_CTX *provctx, OSSL_CORE_BIO *cin,
-                    char **pem_name, char **pem_header,
-                    unsigned char **data, long *len)
+    char **pem_name, char **pem_header,
+    unsigned char **data, long *len)
 {
     BIO *in = ossl_bio_new_from_core_bio(provctx, cin);
     int ok;
@@ -124,8 +124,8 @@ static int pem2der_pass_helper(char *buf, int num, int w, void *data)
 }
 
 static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
-                          OSSL_CALLBACK *data_cb, void *data_cbarg,
-                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     /*
      * PEM names we recognise.  Other PEM names should be recognised by
@@ -175,7 +175,8 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     int objtype = OSSL_OBJECT_UNKNOWN;
 
     ok = read_pem(ctx->provctx, cin, &pem_name, &pem_header,
-                  &der, &der_len) > 0;
+             &der, &der_len)
+        > 0;
     /* We return "empty handed".  This is not an error. */
     if (!ok)
         return 1;
@@ -190,12 +191,12 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         EVP_CIPHER_INFO cipher;
         struct pem2der_pass_data_st pass_data;
 
-        ok = 0;                  /* Assume that we fail */
+        ok = 0; /* Assume that we fail */
         pass_data.cb = pw_cb;
         pass_data.cbarg = pw_cbarg;
         if (!PEM_get_EVP_CIPHER_INFO(pem_header, &cipher)
             || !PEM_do_header(&cipher, der, &der_len,
-                              pem2der_pass_helper, &pass_data))
+                pem2der_pass_helper, &pass_data))
             goto end;
     }
 
@@ -225,9 +226,9 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
                 || OPENSSL_strcasecmp(ctx->data_structure, "EncryptedPrivateKeyInfo") == 0
                 || OPENSSL_strcasecmp(ctx->data_structure, "PrivateKeyInfo") == 0)) {
             ok = ossl_epki2pki_der_decode(der, der_len, selection, data_cb,
-                                          data_cbarg, pw_cb, pw_cbarg,
-                                          PROV_LIBCTX_OF(ctx->provctx),
-                                          ctx->propq);
+                data_cbarg, pw_cb, pw_cbarg,
+                PROV_LIBCTX_OF(ctx->provctx),
+                ctx->propq);
             goto end;
         }
 
@@ -235,35 +236,31 @@ static int pem2der_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
             && ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
                 || OPENSSL_strcasecmp(ctx->data_structure, "SubjectPublicKeyInfo") == 0)) {
             ok = ossl_spki2typespki_der_decode(der, der_len, selection, data_cb,
-                                               data_cbarg, pw_cb, pw_cbarg,
-                                               PROV_LIBCTX_OF(ctx->provctx),
-                                               ctx->propq);
+                data_cbarg, pw_cb, pw_cbarg,
+                PROV_LIBCTX_OF(ctx->provctx),
+                ctx->propq);
             goto end;
         }
 
         objtype = pem_name_map[i].object_type;
         if (data_type != NULL)
-            *p++ =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                 data_type, 0);
+            *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                data_type, 0);
 
         /* We expect this to be read only so casting away the const is ok */
         if (data_structure != NULL)
-            *p++ =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
-                                                 data_structure, 0);
-        *p++ =
-            OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                              der, der_len);
-        *p++ =
-            OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
+            *p++ = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
+                data_structure, 0);
+        *p++ = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+            der, der_len);
+        *p++ = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &objtype);
 
         *p = OSSL_PARAM_construct_end();
 
         ok = data_cb(params, data_cbarg);
     }
 
- end:
+end:
     OPENSSL_free(pem_name);
     OPENSSL_free(pem_header);
     OPENSSL_free(der);
@@ -275,8 +272,8 @@ const OSSL_DISPATCH ossl_pem_to_der_decoder_functions[] = {
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))pem2der_freectx },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))pem2der_decode },
     { OSSL_FUNC_DECODER_SETTABLE_CTX_PARAMS,
-      (void (*)(void))pem2der_settable_ctx_params },
+        (void (*)(void))pem2der_settable_ctx_params },
     { OSSL_FUNC_DECODER_SET_CTX_PARAMS,
-      (void (*)(void))pem2der_set_ctx_params },
+        (void (*)(void))pem2der_set_ctx_params },
     OSSL_DISPATCH_END
 };

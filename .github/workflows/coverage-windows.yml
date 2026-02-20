@@ -3,31 +3,55 @@ name: Coverage Windows
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
       - main
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -45,20 +69,24 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: windows-2025
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Install deps
         run: choco install nasm
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat clang-cl
+        run: ./vcbuild.bat clang-cl v8temporal
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test

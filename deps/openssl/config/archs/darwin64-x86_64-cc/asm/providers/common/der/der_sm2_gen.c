@@ -13,6 +13,7 @@
 #include "prov/der_sm2.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * sm2-with-SM3 OBJECT IDENTIFIER ::= { sm-scheme 501 }
@@ -28,3 +29,4 @@ const unsigned char ossl_der_oid_curveSM2[DER_OID_SZ_curveSM2] = {
     DER_OID_V_curveSM2
 };
 
+/* clang-format on */

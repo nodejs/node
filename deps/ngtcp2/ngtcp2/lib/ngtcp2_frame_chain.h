@@ -70,6 +70,12 @@ int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
 #define NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES                                     \
   (NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES * sizeof(ngtcp2_vec))
 
+/* NGTCP2_FRAME_CHAIN_FLAG_NONE indicates no flag is set. */
+#define NGTCP2_FRAME_CHAIN_FLAG_NONE 0x0
+/* NGTCP2_FRAME_CHAIN_FLAG_MALLOC indicates that ngtcp2_frame_chain is
+   allocated by ngtcp2_mem_malloc. */
+#define NGTCP2_FRAME_CHAIN_FLAG_MALLOC 0x1
+
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /*
@@ -80,6 +86,7 @@ struct ngtcp2_frame_chain {
     struct {
       ngtcp2_frame_chain *next;
       ngtcp2_frame_chain_binder *binder;
+      uint32_t flags;
       ngtcp2_frame fr;
       uint8_t buf[sizeof(ngtcp2_vec) * NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES];
     };
@@ -125,8 +132,6 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
  * words, |datacnt| <= NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES,
  * ngtcp2_frame_chain_objalloc_new is called internally.  Otherwise,
  * ngtcp2_frame_chain_extralen_new is used and objalloc is not used.
- * Therefore, it is important to call ngtcp2_frame_chain_objalloc_del
- * without changing datacnt field.
  */
 int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
@@ -147,24 +152,19 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
                                               const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
- * memory pointed by |frc|.
- */
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_objalloc_del adds |frc| to |objalloc| for reuse.
- * It might just delete |frc| depending on the frame type and the size
- * of |frc|.
+ * ngtcp2_frame_chain_objalloc_del adds |frc| to |objalloc| for reuse
+ * if NGTCP2_FRAME_CHAIN_FLAG_MALLOC is not set in |frc|->flags.
+ * Otherwise, it deletes |frc|.
  */
 void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
                                      ngtcp2_objalloc *objalloc,
                                      const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_frame_chain_init initializes |frc|.
+ * ngtcp2_frame_chain_init initializes |frc|.  |flags| is bitwise-OR
+ * of zero or more of NGTCP2_FRAME_CHAIN_FLAG_*.
  */
-void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
+void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc, uint32_t flags);
 
 /*
  * ngtcp2_frame_chain_list_objalloc_del adds all ngtcp2_frame_chain

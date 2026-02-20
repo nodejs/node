@@ -101,8 +101,8 @@ CECalendar::handleGetLimit(UCalendarDateFields field, ELimitType limitType) cons
 // Calendar system Conversion methods...
 //-------------------------------------------------------------------------
 
-void
-CECalendar::jdToCE(int32_t julianDay, int32_t jdEpochOffset, int32_t& year, int32_t& month, int32_t& day, UErrorCode& status)
+namespace {
+void jdToCE(int32_t julianDay, int32_t jdEpochOffset, int32_t& year, int32_t& month, int32_t& day, int32_t& doy, UErrorCode& status)
 {
     int32_t c4; // number of 4 year cycle (1461 days)
     int32_t r4; // remainder of 4 year cycle, always positive
@@ -115,10 +115,30 @@ CECalendar::jdToCE(int32_t julianDay, int32_t jdEpochOffset, int32_t& year, int3
 
     year = 4 * c4 + (r4/365 - r4/1460); // 4 * <number of 4year cycle> + <years within the last cycle>
 
-    int32_t doy = (r4 == 1460) ? 365 : (r4 % 365); // days in present year
+    doy = (r4 == 1460) ? 365 : (r4 % 365); // days in present year
 
     month = doy / 30;       // 30 -> Coptic/Ethiopic month length up to 12th month
     day = (doy % 30) + 1;   // 1-based days in a month
+    doy++;  // 1-based days in a year.
+}
+}  // namespace
+
+void
+CECalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
+{
+    int32_t eyear, month, day, doy;
+    jdToCE(julianDay, getJDEpochOffset(), eyear, month, day, doy, status);
+    if (U_FAILURE(status)) return;
+    int32_t era = extendedYearToEra(eyear);
+    int32_t year = extendedYearToYear(eyear);
+
+    internalSet(UCAL_EXTENDED_YEAR, eyear);
+    internalSet(UCAL_ERA, era);
+    internalSet(UCAL_YEAR, year);
+    internalSet(UCAL_MONTH, month);
+    internalSet(UCAL_ORDINAL_MONTH, month);
+    internalSet(UCAL_DATE, day);
+    internalSet(UCAL_DAY_OF_YEAR, doy);
 }
 
 static const char* kMonthCode13 = "M13";

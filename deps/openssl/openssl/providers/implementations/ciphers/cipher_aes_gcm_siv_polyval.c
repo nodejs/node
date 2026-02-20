@@ -71,7 +71,7 @@ void ossl_polyval_ghash_init(u128 Htable[16], const uint64_t H[2])
         tmp[1] = GSWAP8(tmp[1]);
     }
 
-    ossl_gcm_init_4bit(Htable, (u64*)tmp);
+    ossl_gcm_init_4bit(Htable, (u64 *)tmp);
 }
 
 /* Implementation of POLYVAL via existing GHASH implementation */
@@ -89,7 +89,7 @@ void ossl_polyval_ghash_hash(const u128 Htable[16], uint8_t *tag, const uint8_t 
      */
     for (i = 0; i < len; i += 16) {
         byte_reverse16((uint8_t *)tmp, &inp[i]);
-        ossl_gcm_ghash_4bit((u64*)out, Htable, (uint8_t *)tmp, 16);
+        ossl_gcm_ghash_4bit((u64 *)out, Htable, (uint8_t *)tmp, 16);
     }
     byte_reverse16(tag, (uint8_t *)out);
 }

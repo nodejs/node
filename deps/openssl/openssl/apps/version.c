@@ -18,32 +18,43 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_B, OPT_D, OPT_E, OPT_M, OPT_F, OPT_O, OPT_P, OPT_V, OPT_A, OPT_R, OPT_C
+    OPT_B,
+    OPT_D,
+    OPT_E,
+    OPT_M,
+    OPT_F,
+    OPT_O,
+    OPT_P,
+    OPT_V,
+    OPT_A,
+    OPT_R,
+    OPT_C
 #if defined(_WIN32)
-    ,OPT_W
+    ,
+    OPT_W
 #endif
 } OPTION_CHOICE;
 
 const OPTIONS version_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 
     OPT_SECTION("Output"),
-    {"a", OPT_A, '-', "Show all data"},
-    {"b", OPT_B, '-', "Show build date"},
-    {"d", OPT_D, '-', "Show configuration directory"},
-    {"e", OPT_E, '-', "Show engines directory"},
-    {"m", OPT_M, '-', "Show modules directory"},
-    {"f", OPT_F, '-', "Show compiler flags used"},
-    {"o", OPT_O, '-', "Show some internal datatype options"},
-    {"p", OPT_P, '-', "Show target build platform"},
-    {"r", OPT_R, '-', "Show random seeding options"},
-    {"v", OPT_V, '-', "Show library version"},
-    {"c", OPT_C, '-', "Show CPU settings info"},
+    { "a", OPT_A, '-', "Show all data" },
+    { "b", OPT_B, '-', "Show build date" },
+    { "d", OPT_D, '-', "Show configuration directory" },
+    { "e", OPT_E, '-', "Show engines directory" },
+    { "m", OPT_M, '-', "Show modules directory" },
+    { "f", OPT_F, '-', "Show compiler flags used" },
+    { "o", OPT_O, '-', "Show some internal datatype options" },
+    { "p", OPT_P, '-', "Show target build platform" },
+    { "r", OPT_R, '-', "Show random seeding options" },
+    { "v", OPT_V, '-', "Show library version" },
+    { "c", OPT_C, '-', "Show CPU settings info" },
 #if defined(_WIN32)
-    {"w", OPT_W, '-', "Show Windows install context"},
+    { "w", OPT_W, '-', "Show Windows install context" },
 #endif
-    {NULL}
+    { NULL }
 };
 
 int version_main(int argc, char **argv)
@@ -62,7 +73,7 @@ int version_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
-opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -121,7 +132,7 @@ opthelp:
 
     if (version)
         printf("%s (Library: %s)\n",
-               OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
+            OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
     if (date)
         printf("%s\n", OpenSSL_version(OPENSSL_BUILT_ON));
     if (platform)
@@ -150,10 +161,9 @@ opthelp:
         printf("%s\n", OpenSSL_version(OPENSSL_WINCTX));
 #endif
     ret = 0;
- end:
+end:
     return ret;
 }
-
 
 #if defined(__TANDEM) && defined(OPENSSL_VPROC)
 /*
@@ -161,8 +171,8 @@ opthelp:
  * This is used by platform version identification tools.
  * Do not inline this procedure or make it static.
  */
-# define OPENSSL_VPROC_STRING_(x)    x##_OPENSSL
-# define OPENSSL_VPROC_STRING(x)     OPENSSL_VPROC_STRING_(x)
-# define OPENSSL_VPROC_FUNC          OPENSSL_VPROC_STRING(OPENSSL_VPROC)
-void OPENSSL_VPROC_FUNC(void) {}
+#define OPENSSL_VPROC_STRING_(x) x##_OPENSSL
+#define OPENSSL_VPROC_STRING(x) OPENSSL_VPROC_STRING_(x)
+#define OPENSSL_VPROC_FUNC OPENSSL_VPROC_STRING(OPENSSL_VPROC)
+void OPENSSL_VPROC_FUNC(void) { }
 #endif

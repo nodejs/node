@@ -156,13 +156,11 @@ private:
 
     /**
      * Copy constructor. Private for now.
-     * @internal (private)
      */
     CanonicalIterator(const CanonicalIterator& other) = delete;
 
     /**
      * Assignment operator. Private for now.
-     * @internal (private)
      */
     CanonicalIterator& operator=(const CanonicalIterator& other) = delete;
 

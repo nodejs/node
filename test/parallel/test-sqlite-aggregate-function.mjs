@@ -68,6 +68,19 @@ describe('DatabaseSync.prototype.aggregate()', () => {
         message: /The "options\.directOnly" argument must be a boolean/,
       });
     });
+
+    test('throws if options.inverse is not a function', (t) => {
+      t.assert.throws(() => {
+        db.aggregate('sum', {
+          start: 0,
+          step: (acc, value) => acc + value,
+          inverse: 10
+        });
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /The "options\.inverse" argument must be a function/,
+      });
+    });
   });
 });
 

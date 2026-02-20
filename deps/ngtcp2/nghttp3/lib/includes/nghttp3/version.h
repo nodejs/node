@@ -31,7 +31,7 @@
  *
  * Version number of the nghttp3 library release.
  */
-#define NGHTTP3_VERSION "1.14.0"
+#define NGHTTP3_VERSION "1.15.0"
 
 /**
  * @macro
@@ -41,6 +41,6 @@
  * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
  * becomes 0x010203.
  */
-#define NGHTTP3_VERSION_NUM 0x010e00
+#define NGHTTP3_VERSION_NUM 0x010f00
 
 #endif /* !defined(NGHTTP3_VERSION_H) */

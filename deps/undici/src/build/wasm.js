@@ -15,7 +15,7 @@ const WASM_CC = process.env.WASM_CC || 'clang'
 let WASM_CFLAGS = process.env.WASM_CFLAGS || '--sysroot=/usr/share/wasi-sysroot -target wasm32-unknown-wasi'
 let WASM_LDFLAGS = process.env.WASM_LDFLAGS || ''
 const WASM_LDLIBS = process.env.WASM_LDLIBS || ''
-const WASM_OPT = process.env.WASM_OPT || './wasm-opt'
+const WASM_OPT = process.env.WASM_OPT || 'wasm-opt'
 
 // For compatibility with Node.js' `configure --shared-builtin-undici/undici-path ...`
 const EXTERNAL_PATH = process.env.EXTERNAL_PATH
@@ -65,7 +65,7 @@ if (process.argv[2] === '--docker') {
            -t ${WASM_BUILDER_CONTAINER} node build/wasm.js`
   console.log(`> ${cmd}\n\n`)
   execSync(cmd, { stdio: 'inherit' })
-  process.exit(0)
+  process.exit(0) // eslint-disable-line n/no-process-exit
 }
 
 const hasApk = (function () {
@@ -78,8 +78,7 @@ if (hasApk) {
   // Gather information about the tools used for the build
   const buildInfo = execSync('apk info -v').toString()
   if (!buildInfo.includes('wasi-sdk')) {
-    console.log('Failed to generate build environment information')
-    process.exit(-1)
+    throw new Error('Failed to generate build environment information')
   }
   console.log(buildInfo)
 }

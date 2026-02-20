@@ -25,44 +25,30 @@
  *  - RFC 5035 Section 5.4
  */
 /* This is a signed attribute */
-#define CMS_ATTR_F_SIGNED         0x01
+#define CMS_ATTR_F_SIGNED 0x01
 /* This is an unsigned attribute */
-#define CMS_ATTR_F_UNSIGNED       0x02
+#define CMS_ATTR_F_UNSIGNED 0x02
 /* Must be present if there are any other attributes of the same type */
-#define CMS_ATTR_F_REQUIRED_COND  0x10
+#define CMS_ATTR_F_REQUIRED_COND 0x10
 /* There can only be one instance of this attribute */
-#define CMS_ATTR_F_ONLY_ONE       0x20
+#define CMS_ATTR_F_ONLY_ONE 0x20
 /* The Attribute's value must have exactly one entry */
 #define CMS_ATTR_F_ONE_ATTR_VALUE 0x40
 
 /* Attributes rules for different attributes */
 static const struct {
-    int nid;   /* The attribute id */
+    int nid; /* The attribute id */
     int flags;
 } cms_attribute_properties[] = {
     /* See RFC Section 11 */
-    { NID_pkcs9_contentType, CMS_ATTR_F_SIGNED
-                             | CMS_ATTR_F_ONLY_ONE
-                             | CMS_ATTR_F_ONE_ATTR_VALUE
-                             | CMS_ATTR_F_REQUIRED_COND },
-    { NID_pkcs9_messageDigest, CMS_ATTR_F_SIGNED
-                               | CMS_ATTR_F_ONLY_ONE
-                               | CMS_ATTR_F_ONE_ATTR_VALUE
-                               | CMS_ATTR_F_REQUIRED_COND },
-    { NID_pkcs9_signingTime, CMS_ATTR_F_SIGNED
-                             | CMS_ATTR_F_ONLY_ONE
-                             | CMS_ATTR_F_ONE_ATTR_VALUE },
+    { NID_pkcs9_contentType, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE | CMS_ATTR_F_REQUIRED_COND },
+    { NID_pkcs9_messageDigest, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE | CMS_ATTR_F_REQUIRED_COND },
+    { NID_pkcs9_signingTime, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE },
     { NID_pkcs9_countersignature, CMS_ATTR_F_UNSIGNED },
     /* ESS */
-    { NID_id_smime_aa_signingCertificate, CMS_ATTR_F_SIGNED
-                                          | CMS_ATTR_F_ONLY_ONE
-                                          | CMS_ATTR_F_ONE_ATTR_VALUE },
-    { NID_id_smime_aa_signingCertificateV2, CMS_ATTR_F_SIGNED
-                                            | CMS_ATTR_F_ONLY_ONE
-                                            | CMS_ATTR_F_ONE_ATTR_VALUE },
-    { NID_id_smime_aa_receiptRequest, CMS_ATTR_F_SIGNED
-                                      | CMS_ATTR_F_ONLY_ONE
-                                      | CMS_ATTR_F_ONE_ATTR_VALUE }
+    { NID_id_smime_aa_signingCertificate, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE },
+    { NID_id_smime_aa_signingCertificateV2, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE },
+    { NID_id_smime_aa_receiptRequest, CMS_ATTR_F_SIGNED | CMS_ATTR_F_ONLY_ONE | CMS_ATTR_F_ONE_ATTR_VALUE }
 };
 
 /* CMS SignedData Attribute utilities */
@@ -78,7 +64,7 @@ int CMS_signed_get_attr_by_NID(const CMS_SignerInfo *si, int nid, int lastpos)
 }
 
 int CMS_signed_get_attr_by_OBJ(const CMS_SignerInfo *si, const ASN1_OBJECT *obj,
-                               int lastpos)
+    int lastpos)
 {
     return X509at_get_attr_by_OBJ(si->signedAttrs, obj, lastpos);
 }
@@ -101,8 +87,8 @@ int CMS_signed_add1_attr(CMS_SignerInfo *si, X509_ATTRIBUTE *attr)
 }
 
 int CMS_signed_add1_attr_by_OBJ(CMS_SignerInfo *si,
-                                const ASN1_OBJECT *obj, int type,
-                                const void *bytes, int len)
+    const ASN1_OBJECT *obj, int type,
+    const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_OBJ(&si->signedAttrs, obj, type, bytes, len))
         return 1;
@@ -110,7 +96,7 @@ int CMS_signed_add1_attr_by_OBJ(CMS_SignerInfo *si,
 }
 
 int CMS_signed_add1_attr_by_NID(CMS_SignerInfo *si,
-                                int nid, int type, const void *bytes, int len)
+    int nid, int type, const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_NID(&si->signedAttrs, nid, type, bytes, len))
         return 1;
@@ -118,18 +104,18 @@ int CMS_signed_add1_attr_by_NID(CMS_SignerInfo *si,
 }
 
 int CMS_signed_add1_attr_by_txt(CMS_SignerInfo *si,
-                                const char *attrname, int type,
-                                const void *bytes, int len)
+    const char *attrname, int type,
+    const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_txt(&si->signedAttrs, attrname, type, bytes,
-                                     len))
+            len))
         return 1;
     return 0;
 }
 
 void *CMS_signed_get0_data_by_OBJ(const CMS_SignerInfo *si,
-                                  const ASN1_OBJECT *oid,
-                                  int lastpos, int type)
+    const ASN1_OBJECT *oid,
+    int lastpos, int type)
 {
     return X509at_get0_data_by_OBJ(si->signedAttrs, oid, lastpos, type);
 }
@@ -140,13 +126,13 @@ int CMS_unsigned_get_attr_count(const CMS_SignerInfo *si)
 }
 
 int CMS_unsigned_get_attr_by_NID(const CMS_SignerInfo *si, int nid,
-                                 int lastpos)
+    int lastpos)
 {
     return X509at_get_attr_by_NID(si->unsignedAttrs, nid, lastpos);
 }
 
 int CMS_unsigned_get_attr_by_OBJ(const CMS_SignerInfo *si,
-                                 const ASN1_OBJECT *obj, int lastpos)
+    const ASN1_OBJECT *obj, int lastpos)
 {
     return X509at_get_attr_by_OBJ(si->unsignedAttrs, obj, lastpos);
 }
@@ -169,8 +155,8 @@ int CMS_unsigned_add1_attr(CMS_SignerInfo *si, X509_ATTRIBUTE *attr)
 }
 
 int CMS_unsigned_add1_attr_by_OBJ(CMS_SignerInfo *si,
-                                  const ASN1_OBJECT *obj, int type,
-                                  const void *bytes, int len)
+    const ASN1_OBJECT *obj, int type,
+    const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_OBJ(&si->unsignedAttrs, obj, type, bytes, len))
         return 1;
@@ -178,8 +164,8 @@ int CMS_unsigned_add1_attr_by_OBJ(CMS_SignerInfo *si,
 }
 
 int CMS_unsigned_add1_attr_by_NID(CMS_SignerInfo *si,
-                                  int nid, int type,
-                                  const void *bytes, int len)
+    int nid, int type,
+    const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_NID(&si->unsignedAttrs, nid, type, bytes, len))
         return 1;
@@ -187,17 +173,17 @@ int CMS_unsigned_add1_attr_by_NID(CMS_SignerInfo *si,
 }
 
 int CMS_unsigned_add1_attr_by_txt(CMS_SignerInfo *si,
-                                  const char *attrname, int type,
-                                  const void *bytes, int len)
+    const char *attrname, int type,
+    const void *bytes, int len)
 {
     if (ossl_x509at_add1_attr_by_txt(&si->unsignedAttrs, attrname,
-                                     type, bytes, len))
+            type, bytes, len))
         return 1;
     return 0;
 }
 
 void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
-                                    int lastpos, int type)
+    int lastpos, int type)
 {
     return X509at_get0_data_by_OBJ(si->unsignedAttrs, oid, lastpos, type);
 }
@@ -209,8 +195,8 @@ void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
  * If an attribute was found *lastpos returns the index of the found attribute.
  */
 static X509_ATTRIBUTE *cms_attrib_get(int nid,
-                                      const STACK_OF(X509_ATTRIBUTE) *attrs,
-                                      int *lastpos)
+    const STACK_OF(X509_ATTRIBUTE) *attrs,
+    int *lastpos)
 {
     X509_ATTRIBUTE *at;
     int loc;
@@ -225,8 +211,8 @@ static X509_ATTRIBUTE *cms_attrib_get(int nid,
 }
 
 static int cms_check_attribute(int nid, int flags, int type,
-                               const STACK_OF(X509_ATTRIBUTE) *attrs,
-                               int have_attrs)
+    const STACK_OF(X509_ATTRIBUTE) *attrs,
+    int have_attrs)
 {
     int lastpos = -1;
     X509_ATTRIBUTE *at = cms_attrib_get(nid, attrs, &lastpos);
@@ -244,7 +230,7 @@ static int cms_check_attribute(int nid, int flags, int type,
                 && count != 1)
             /* There should be at least one value */
             || count == 0)
-        return 0;
+            return 0;
     } else {
         /* fail if a required attribute is missing */
         if (have_attrs
@@ -276,9 +262,9 @@ int ossl_cms_si_check_attributes(const CMS_SignerInfo *si)
         int flags = cms_attribute_properties[i].flags;
 
         if (!cms_check_attribute(nid, flags, CMS_ATTR_F_SIGNED,
-                                 si->signedAttrs, have_signed_attrs)
+                si->signedAttrs, have_signed_attrs)
             || !cms_check_attribute(nid, flags, CMS_ATTR_F_UNSIGNED,
-                                    si->unsignedAttrs, have_unsigned_attrs)) {
+                si->unsignedAttrs, have_unsigned_attrs)) {
             ERR_raise(ERR_LIB_CMS, CMS_R_ATTRIBUTE_ERROR);
             return 0;
         }

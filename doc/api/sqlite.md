@@ -104,6 +104,9 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: v25.5.0
+    pr-url: https://github.com/nodejs/node/pull/61266
+    description: Enable `defensive` by default.
   - version:
       - v25.1.0
       - v24.12.0
@@ -154,7 +157,7 @@ changes:
   * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
-    **Default:** `false`.
+    **Default:** `true`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -453,13 +456,23 @@ Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
-### `database.prepare(sql)`
+### `database.prepare(sql[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
+* `options` {Object} Optional configuration for the prepared statement.
+  * `readBigInts` {boolean} If `true`, integer fields are read as `BigInt`s.
+    **Default:** inherited from database options or `false`.
+  * `returnArrays` {boolean} If `true`, results are returned as arrays.
+    **Default:** inherited from database options or `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named
+    parameters without the prefix character. **Default:** inherited from
+    database options or `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
+    are ignored. **Default:** inherited from database options or `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
@@ -735,10 +748,18 @@ Similar to the method above, but generates a more compact patchset. See [Changes
 in the documentation of SQLite. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_patchset()`][].
 
-### `session.close()`.
+### `session.close()`
 
 Closes the session. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_delete()`][].
+
+### `session[Symbol.dispose]()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+Closes the session. If the session is already closed, does nothing.
 
 ## Class: `StatementSync`
 
@@ -1081,7 +1102,9 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v25.5.0
+     - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60246
     description: Changed from a method to a getter.
 -->

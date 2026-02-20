@@ -125,6 +125,13 @@ function errorMessage () {
   log.error('cwd', process.cwd())
   log.error('node -v', process.version)
   log.error('node-gyp -v', 'v' + prog.package.version)
+  // print the npm package version
+  for (const env of ['npm_package_name', 'npm_package_version']) {
+    const value = process.env[env]
+    if (value != null) {
+      log.error(`$${env}`, value)
+    }
+  }
 }
 
 function issueMessage () {

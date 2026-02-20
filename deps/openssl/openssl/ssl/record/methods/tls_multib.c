@@ -12,35 +12,33 @@
 #include "recmethod_local.h"
 
 #if defined(OPENSSL_SMALL_FOOTPRINT) \
-    || !(defined(AES_ASM) && (defined(__x86_64) \
-                              || defined(__x86_64__) \
-                              || defined(_M_AMD64) \
-                              || defined(_M_X64)))
-# undef EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
-# define EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK 0
+    || !(defined(AES_ASM) && (defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)))
+#undef EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
+#define EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK 0
 #endif
 
 static int tls_is_multiblock_capable(OSSL_RECORD_LAYER *rl, uint8_t type,
-                                     size_t len, size_t fraglen)
+    size_t len, size_t fraglen)
 {
 #if !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
     if (type == SSL3_RT_APPLICATION_DATA
-            && len >= 4 * fraglen
-            && rl->compctx == NULL
-            && rl->msg_callback == NULL
-            && !rl->use_etm
-            && RLAYER_USE_EXPLICIT_IV(rl)
-            && !BIO_get_ktls_send(rl->bio)
-            && (EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(rl->enc_ctx))
-                & EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK) != 0)
+        && len >= 4 * fraglen
+        && rl->compctx == NULL
+        && rl->msg_callback == NULL
+        && !rl->use_etm
+        && RLAYER_USE_EXPLICIT_IV(rl)
+        && !BIO_get_ktls_send(rl->bio)
+        && (EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(rl->enc_ctx))
+               & EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK)
+            != 0)
         return 1;
 #endif
     return 0;
 }
 
 size_t tls_get_max_records_multiblock(OSSL_RECORD_LAYER *rl, uint8_t type,
-                                      size_t len, size_t maxfrag,
-                                      size_t *preffrag)
+    size_t len, size_t maxfrag,
+    size_t *preffrag)
 {
     if (tls_is_multiblock_capable(rl, type, len, *preffrag)) {
         /* minimize address aliasing conflicts */
@@ -63,8 +61,8 @@ size_t tls_get_max_records_multiblock(OSSL_RECORD_LAYER *rl, uint8_t type,
  * -1 on fatal error.
  */
 static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
-                                            OSSL_RECORD_TEMPLATE *templates,
-                                            size_t numtempl)
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl)
 {
 #if !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
     size_t i;
@@ -84,15 +82,15 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
      */
     for (i = 1; i < numtempl; i++) {
         if (templates[i - 1].type != templates[i].type
-                || templates[i - 1].buflen != templates[i].buflen
-                || templates[i - 1].buf + templates[i - 1].buflen
-                   != templates[i].buf)
+            || templates[i - 1].buflen != templates[i].buflen
+            || templates[i - 1].buf + templates[i - 1].buflen
+                != templates[i].buf)
             return 0;
     }
 
     totlen = templates[0].buflen * numtempl;
     if (!tls_is_multiblock_capable(rl, templates[0].type, totlen,
-                                   templates[0].buflen))
+            templates[0].buflen))
         return 0;
 
     /*
@@ -109,8 +107,8 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
      * buffer sizes will be spotted and the buffer reallocated.
      */
     packlen = EVP_CIPHER_CTX_ctrl(rl->enc_ctx,
-                                  EVP_CTRL_TLS1_1_MULTIBLOCK_MAX_BUFSIZE,
-                                  (int)templates[0].buflen, NULL);
+        EVP_CTRL_TLS1_1_MULTIBLOCK_MAX_BUFSIZE,
+        (int)templates[0].buflen, NULL);
     packlen *= numtempl;
     if (!tls_setup_write_buffer(rl, 1, packlen, packlen)) {
         /* RLAYERfatal() already called */
@@ -130,8 +128,8 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
     mb_param.len = totlen;
 
     packleni = EVP_CIPHER_CTX_ctrl(rl->enc_ctx,
-                                   EVP_CTRL_TLS1_1_MULTIBLOCK_AAD,
-                                   sizeof(mb_param), &mb_param);
+        EVP_CTRL_TLS1_1_MULTIBLOCK_AAD,
+        sizeof(mb_param), &mb_param);
     packlen = (size_t)packleni;
     if (packleni <= 0 || packlen > wb->len) { /* never happens */
         RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
@@ -143,8 +141,9 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
     mb_param.len = totlen;
 
     if (EVP_CIPHER_CTX_ctrl(rl->enc_ctx,
-                            EVP_CTRL_TLS1_1_MULTIBLOCK_ENCRYPT,
-                            sizeof(mb_param), &mb_param) <= 0) {
+            EVP_CTRL_TLS1_1_MULTIBLOCK_ENCRYPT,
+            sizeof(mb_param), &mb_param)
+        <= 0) {
         RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return -1;
     }
@@ -152,21 +151,22 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
     rl->sequence[7] += mb_param.interleave;
     if (rl->sequence[7] < mb_param.interleave) {
         int j = 6;
-        while (j >= 0 && (++rl->sequence[j--]) == 0) ;
+        while (j >= 0 && (++rl->sequence[j--]) == 0)
+            ;
     }
 
     wb->offset = 0;
     wb->left = packlen;
 
     return 1;
-#else  /* !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK */
+#else /* !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK */
     return 0;
 #endif
 }
 
 int tls_write_records_multiblock(OSSL_RECORD_LAYER *rl,
-                                 OSSL_RECORD_TEMPLATE *templates,
-                                 size_t numtempl)
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl)
 {
     int ret;
 

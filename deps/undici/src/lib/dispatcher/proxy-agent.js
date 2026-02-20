@@ -7,6 +7,7 @@ const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError, RequestAbortedError, SecureProxyConnectionError } = require('../core/errors')
 const buildConnector = require('../core/connect')
 const Client = require('./client')
+const { channels } = require('../core/diagnostics')
 
 const kAgent = Symbol('proxy agent')
 const kClient = Symbol('proxy client')
@@ -150,7 +151,7 @@ class ProxyAgent extends DispatcherBase {
           requestedPath += `:${defaultProtocolPort(opts.protocol)}`
         }
         try {
-          const { socket, statusCode } = await this[kClient].connect({
+          const connectParams = {
             origin,
             port,
             path: requestedPath,
@@ -161,11 +162,21 @@ class ProxyAgent extends DispatcherBase {
               ...(opts.connections == null || opts.connections > 0 ? { 'proxy-connection': 'keep-alive' } : {})
             },
             servername: this[kProxyTls]?.servername || proxyHostname
-          })
+          }
+          const { socket, statusCode } = await this[kClient].connect(connectParams)
           if (statusCode !== 200) {
             socket.on('error', noop).destroy()
             callback(new RequestAbortedError(`Proxy response (${statusCode}) !== 200 when HTTP Tunneling`))
+            return
           }
+
+          if (channels.proxyConnected.hasSubscribers) {
+            channels.proxyConnected.publish({
+              socket,
+              connectParams
+            })
+          }
+
           if (opts.protocol !== 'https:') {
             callback(null, socket)
             return

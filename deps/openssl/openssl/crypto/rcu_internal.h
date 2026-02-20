@@ -8,8 +8,8 @@
  */
 
 #ifndef OPENSSL_RCU_INTERNAL_H
-# define OPENSSL_RCU_INTERNAL_H
-# pragma once
+#define OPENSSL_RCU_INTERNAL_H
+#pragma once
 
 struct rcu_qp;
 

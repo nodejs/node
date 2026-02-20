@@ -14,6 +14,7 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * hashAlgs OBJECT IDENTIFIER ::= { nistAlgorithms 2 }
@@ -173,15 +174,16 @@ extern const unsigned char ossl_der_oid_ripemd160WithRSAEncryption[DER_OID_SZ_ri
 #define DER_OID_SZ_mdc2WithRSASignature 7
 extern const unsigned char ossl_der_oid_mdc2WithRSASignature[DER_OID_SZ_mdc2WithRSASignature];
 
+/* clang-format on */
 
 /* PSS parameters */
 int ossl_DER_w_RSASSA_PSS_params(WPACKET *pkt, int tag,
-                                 const RSA_PSS_PARAMS_30 *pss);
+    const RSA_PSS_PARAMS_30 *pss);
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_RSA(WPACKET *pkt, int tag, RSA *rsa);
 int ossl_DER_w_algorithmIdentifier_RSA_PSS(WPACKET *pkt, int tag,
-                                           int rsa_type,
-                                           const RSA_PSS_PARAMS_30 *pss);
+    int rsa_type,
+    const RSA_PSS_PARAMS_30 *pss);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_MDWithRSAEncryption(WPACKET *pkt, int tag,
-                                                       int mdnid);
+    int mdnid);

@@ -22,35 +22,43 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOOUT,
-    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_QUIET,
-    OPT_ENGINE, OPT_PROV_ENUM
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_NOOUT,
+    OPT_TEXT,
+    OPT_PRINT,
+    OPT_PRINT_CERTS,
+    OPT_QUIET,
+    OPT_ENGINE,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs7_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
-    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
+    { "in", OPT_IN, '<', "Input file" },
+    { "inform", OPT_INFORM, 'F', "Input format - DER or PEM" },
 
     OPT_SECTION("Output"),
-    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
-    {"out", OPT_OUT, '>', "Output file"},
-    {"noout", OPT_NOOUT, '-', "Don't output encoded data"},
-    {"text", OPT_TEXT, '-', "Print full details of certificates"},
-    {"print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure"},
-    {"print_certs", OPT_PRINT_CERTS, '-',
-     "Print_certs  print any certs or crl in the input"},
-    {"quiet", OPT_QUIET, '-',
-     "When used with -print_certs, it produces a cleaner output"},
+    { "outform", OPT_OUTFORM, 'F', "Output format - DER or PEM" },
+    { "out", OPT_OUT, '>', "Output file" },
+    { "noout", OPT_NOOUT, '-', "Don't output encoded data" },
+    { "text", OPT_TEXT, '-', "Print full details of certificates" },
+    { "print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure" },
+    { "print_certs", OPT_PRINT_CERTS, '-',
+        "Print_certs  print any certs or crl in the input" },
+    { "quiet", OPT_QUIET, '-',
+        "When used with -print_certs, it produces a cleaner output" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int pkcs7_main(int argc, char **argv)
@@ -69,7 +77,7 @@ int pkcs7_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -215,7 +223,7 @@ int pkcs7_main(int argc, char **argv)
         }
     }
     ret = 0;
- end:
+end:
     PKCS7_free(p7);
     release_engine(e);
     BIO_free(in);

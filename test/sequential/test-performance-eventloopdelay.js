@@ -64,42 +64,47 @@ const { sleep } = require('internal/util');
     if (--m > 0) {
       setTimeout(spinAWhile, common.platformTimeout(500));
     } else {
-      histogram.disable();
-      // The values are non-deterministic, so we just check that a value is
-      // present, as opposed to a specific value.
-      assert(histogram.min > 0);
-      assert(histogram.max > 0);
-      assert(histogram.stddev > 0);
-      assert(histogram.mean > 0);
-      assert(histogram.percentiles.size > 0);
-      for (let n = 1; n < 100; n = n + 0.1) {
-        assert(histogram.percentile(n) >= 0);
-      }
-      histogram.reset();
-      assert.strictEqual(histogram.min, 9223372036854776000);
-      assert.strictEqual(histogram.max, 0);
-      assert(Number.isNaN(histogram.stddev));
-      assert(Number.isNaN(histogram.mean));
-      assert.strictEqual(histogram.percentiles.size, 1);
+      // Give the histogram a chance to record final samples before disabling.
+      // This helps on slower systems where sampling may be delayed.
+      setImmediate(common.mustCall(() => {
+        histogram.disable();
+        // The values are non-deterministic, so we just check that a value is
+        // present, as opposed to a specific value.
+        assert(histogram.count > 0, `Expected samples to be recorded, got count=${histogram.count}`);
+        assert(histogram.min > 0);
+        assert(histogram.max > 0);
+        assert(histogram.stddev > 0);
+        assert(histogram.mean > 0);
+        assert(histogram.percentiles.size > 0);
+        for (let n = 1; n < 100; n = n + 0.1) {
+          assert(histogram.percentile(n) >= 0);
+        }
+        histogram.reset();
+        assert.strictEqual(histogram.min, 9223372036854776000);
+        assert.strictEqual(histogram.max, 0);
+        assert(Number.isNaN(histogram.stddev));
+        assert(Number.isNaN(histogram.mean));
+        assert.strictEqual(histogram.percentiles.size, 1);
 
-      ['a', false, {}, []].forEach((i) => {
-        assert.throws(
-          () => histogram.percentile(i),
-          {
-            name: 'TypeError',
-            code: 'ERR_INVALID_ARG_TYPE',
-          }
-        );
-      });
-      [-1, 0, 101, NaN].forEach((i) => {
-        assert.throws(
-          () => histogram.percentile(i),
-          {
-            name: 'RangeError',
-            code: 'ERR_OUT_OF_RANGE',
-          }
-        );
-      });
+        ['a', false, {}, []].forEach((i) => {
+          assert.throws(
+            () => histogram.percentile(i),
+            {
+              name: 'TypeError',
+              code: 'ERR_INVALID_ARG_TYPE',
+            }
+          );
+        });
+        [-1, 0, 101, NaN].forEach((i) => {
+          assert.throws(
+            () => histogram.percentile(i),
+            {
+              name: 'RangeError',
+              code: 'ERR_OUT_OF_RANGE',
+            }
+          );
+        });
+      }));
     }
   }
   spinAWhile();

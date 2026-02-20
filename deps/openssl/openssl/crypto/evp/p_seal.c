@@ -17,8 +17,8 @@
 #include <openssl/x509.h>
 
 int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-                 unsigned char **ek, int *ekl, unsigned char *iv,
-                 EVP_PKEY **pubk, int npubk)
+    unsigned char **ek, int *ekl, unsigned char *iv,
+    EVP_PKEY **pubk, int npubk)
 {
     unsigned char key[EVP_MAX_KEY_LENGTH];
     const OSSL_PROVIDER *prov;
@@ -34,7 +34,7 @@ int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
             return 0;
     }
     if ((cipher = EVP_CIPHER_CTX_get0_cipher(ctx)) != NULL
-            && (prov = EVP_CIPHER_get0_provider(cipher)) != NULL)
+        && (prov = EVP_CIPHER_get0_provider(cipher)) != NULL)
         libctx = ossl_provider_libctx(prov);
     if ((npubk <= 0) || !pubk)
         return 1;

@@ -121,6 +121,7 @@ class RequestHandler extends AsyncResource {
       try {
         this.runInAsyncScope(callback, null, null, {
           statusCode,
+          statusText: statusMessage,
           headers,
           trailers: this.trailers,
           opaque,

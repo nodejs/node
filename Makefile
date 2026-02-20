@@ -301,7 +301,6 @@ coverage-report-js: ## Report JavaScript coverage results.
 
 cctest: all ## Run the C++ tests using the built `cctest` executable.
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
-	'$(OUT_NODE)' ./test/embedding/test-embedding.js
 
 .PHONY: list-gtests
 list-gtests: ## List all available C++ gtests.
@@ -571,7 +570,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api
+NATIVE_SUITES ?= addons js-native-api node-api embedding
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
@@ -613,7 +612,6 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	'$(OUT_NODE)' ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -1237,9 +1235,14 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/brotli
 	$(RM) -r $(TARNAME)/deps/cares
 	$(RM) -r $(TARNAME)/deps/crates
+	$(RM) -r $(TARNAME)/deps/googletest
+	$(RM) -r $(TARNAME)/deps/histogram
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
+	$(RM) -r $(TARNAME)/deps/LIEF
 	$(RM) -r $(TARNAME)/deps/llhttp
+	$(RM) -r $(TARNAME)/deps/merve
+	$(RM) -r $(TARNAME)/deps/nbytes
 	$(RM) -r $(TARNAME)/deps/nghttp2
 	$(RM) -r $(TARNAME)/deps/ngtcp2
 	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +

@@ -64,6 +64,7 @@ class NumberRangeFormatterImpl : public UMemory {
                            UErrorCode& status) const;
 
     void formatApproximately(UFormattedNumberRangeData& data,
+                             DecimalQuantity quantity,
                              MicroProps& micros1, MicroProps& micros2,
                              UErrorCode& status) const;
 

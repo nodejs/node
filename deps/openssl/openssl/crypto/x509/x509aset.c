@@ -75,9 +75,9 @@ err:
 }
 
 int OSSL_OBJECT_DIGEST_INFO_set1_digest(OSSL_OBJECT_DIGEST_INFO *o,
-                                        int digestedObjectType,
-                                        X509_ALGOR *digestAlgorithm,
-                                        ASN1_BIT_STRING *digest)
+    int digestedObjectType,
+    X509_ALGOR *digestAlgorithm,
+    ASN1_BIT_STRING *digest)
 {
 
     if (ASN1_ENUMERATED_set(&o->digestedObjectType, digestedObjectType) <= 0)
@@ -93,19 +93,19 @@ int OSSL_OBJECT_DIGEST_INFO_set1_digest(OSSL_OBJECT_DIGEST_INFO *o,
 }
 
 int OSSL_ISSUER_SERIAL_set1_issuer(OSSL_ISSUER_SERIAL *isss,
-                                   const X509_NAME *issuer)
+    const X509_NAME *issuer)
 {
     return replace_dirName(&isss->issuer, issuer);
 }
 
 int OSSL_ISSUER_SERIAL_set1_serial(OSSL_ISSUER_SERIAL *isss,
-                                   const ASN1_INTEGER *serial)
+    const ASN1_INTEGER *serial)
 {
     return ASN1_STRING_copy(&isss->serial, serial);
 }
 
 int OSSL_ISSUER_SERIAL_set1_issuerUID(OSSL_ISSUER_SERIAL *isss,
-                                      const ASN1_BIT_STRING *uid)
+    const ASN1_BIT_STRING *uid)
 {
     ASN1_BIT_STRING_free(isss->issuerUID);
     isss->issuerUID = ASN1_STRING_dup(uid);
@@ -128,14 +128,14 @@ void X509_ACERT_set0_holder_entityName(X509_ACERT *x, GENERAL_NAMES *names)
 }
 
 void X509_ACERT_set0_holder_baseCertId(X509_ACERT *x,
-                                       OSSL_ISSUER_SERIAL *isss)
+    OSSL_ISSUER_SERIAL *isss)
 {
     OSSL_ISSUER_SERIAL_free(x->acinfo->holder.baseCertificateID);
     x->acinfo->holder.baseCertificateID = isss;
 }
 
 void X509_ACERT_set0_holder_digest(X509_ACERT *x,
-                                   OSSL_OBJECT_DIGEST_INFO *dinfo)
+    OSSL_OBJECT_DIGEST_INFO *dinfo)
 {
     OSSL_OBJECT_DIGEST_INFO_free(x->acinfo->holder.objectDigestInfo);
     x->acinfo->holder.objectDigestInfo = dinfo;

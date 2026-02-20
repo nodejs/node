@@ -21,6 +21,14 @@ The objects listed here are specific to Node.js. There are [built-in objects][]
 that are part of the JavaScript language itself, which are also globally
 accessible.
 
+## `__dirname`
+
+This variable may appear to be global but is not. See [`__dirname`][].
+
+## `__filename`
+
+This variable may appear to be global but is not. See [`__filename`][].
+
 ## Class: `AbortController`
 
 <!-- YAML
@@ -77,7 +85,7 @@ added:
 
 * Type: {AbortSignal}
 
-### Class: `AbortSignal`
+## Class: `AbortSignal`
 
 <!-- YAML
 added:
@@ -90,7 +98,7 @@ added:
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
-#### Static method: `AbortSignal.abort([reason])`
+### Static method: `AbortSignal.abort([reason])`
 
 <!-- YAML
 added:
@@ -109,7 +117,7 @@ changes:
 
 Returns a new already aborted `AbortSignal`.
 
-#### Static method: `AbortSignal.timeout(delay)`
+### Static method: `AbortSignal.timeout(delay)`
 
 <!-- YAML
 added:
@@ -122,7 +130,7 @@ added:
 
 Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 
-#### Static method: `AbortSignal.any(signals)`
+### Static method: `AbortSignal.any(signals)`
 
 <!-- YAML
 added:
@@ -136,7 +144,7 @@ Returns a new `AbortSignal` which will be aborted if any of the provided
 signals are aborted. Its [`abortSignal.reason`][] will be set to whichever
 one of the `signals` caused it to be aborted.
 
-#### Event: `'abort'`
+### Event: `'abort'`
 
 <!-- YAML
 added:
@@ -173,7 +181,7 @@ listener, use the `once()` method) to ensure that the event listener is
 removed as soon as the `'abort'` event is handled. Failure to do so may
 result in memory leaks.
 
-#### `abortSignal.aborted`
+### `abortSignal.aborted`
 
 <!-- YAML
 added:
@@ -181,9 +189,11 @@ added:
   - v14.17.0
 -->
 
-* Type: {boolean} True after the `AbortController` has been aborted.
+* Type: {boolean}
 
-#### `abortSignal.onabort`
+True after the `AbortController` has been aborted.
+
+### `abortSignal.onabort`
 
 <!-- YAML
 added:
@@ -196,7 +206,7 @@ added:
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
 
-#### `abortSignal.reason`
+### `abortSignal.reason`
 
 <!-- YAML
 added:
@@ -214,7 +224,7 @@ ac.abort(new Error('boom!'));
 console.log(ac.signal.reason);  // Error: boom!
 ```
 
-#### `abortSignal.throwIfAborted()`
+### `abortSignal.throwIfAborted()`
 
 <!-- YAML
 added:
@@ -223,46 +233,6 @@ added:
 -->
 
 If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
-
-## Class: `Blob`
-
-<!-- YAML
-added: v18.0.0
--->
-
-See {Blob}.
-
-## Class: `Buffer`
-
-<!-- YAML
-added: v0.1.103
--->
-
-* Type: {Function}
-
-Used to handle binary data. See the [buffer section][].
-
-## Class: `ByteLengthQueuingStrategy`
-
-<!-- YAML
-added: v18.0.0
-changes:
- - version:
-    - v23.11.0
-    - v22.15.0
-   pr-url: https://github.com/nodejs/node/pull/57510
-   description: Marking the API stable.
--->
-
-A browser-compatible implementation of [`ByteLengthQueuingStrategy`][].
-
-## `__dirname`
-
-This variable may appear to be global but is not. See [`__dirname`][].
-
-## `__filename`
-
-This variable may appear to be global but is not. See [`__filename`][].
 
 ## `atob(data)`
 
@@ -279,6 +249,14 @@ An automated migration is available ([source](https://github.com/nodejs/userland
 ```bash
 npx codemod@latest @nodejs/buffer-atob-btoa
 ```
+
+## Class: `Blob`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+See {Blob}.
 
 ## Class: `BroadcastChannel`
 
@@ -303,6 +281,30 @@ An automated migration is available ([source](https://github.com/nodejs/userland
 ```bash
 npx codemod@latest @nodejs/buffer-atob-btoa
 ```
+
+## Class: `Buffer`
+
+<!-- YAML
+added: v0.1.103
+-->
+
+* Type: {Function}
+
+Used to handle binary data. See the [buffer section][].
+
+## Class: `ByteLengthQueuingStrategy`
+
+<!-- YAML
+added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
+-->
+
+A browser-compatible implementation of [`ByteLengthQueuingStrategy`][].
 
 ## `clearImmediate(immediateObject)`
 
@@ -476,6 +478,14 @@ changes:
 
 A browser-compatible implementation of [`DecompressionStream`][].
 
+## Class: `DOMException`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+The WHATWG {DOMException} class.
+
 ## `ErrorEvent`
 
 <!-- YAML
@@ -580,10 +590,10 @@ setGlobalDispatcher(new MyAgent());
 
 The following globals are available to use with `fetch`:
 
-* [`FormData`](https://nodejs.org/api/globals.html#class-formdata)
-* [`Headers`](https://nodejs.org/api/globals.html#class-headers)
-* [`Request`](https://nodejs.org/api/globals.html#request)
-* [`Response`](https://nodejs.org/api/globals.html#response).
+* [`FormData`][]
+* [`Headers`][]
+* [`Request`][]
+* [`Response`][]
 
 ## Class: `File`
 
@@ -767,7 +777,7 @@ console.log(`The preferred language of the Node.js instance has the tag '${navig
 added: v21.2.0
 -->
 
-* Type: {Array<string>}
+* Type: {string\[]}
 
 The `navigator.languages` read-only property returns an array of strings
 representing the preferred languages of the Node.js instance.
@@ -779,36 +789,6 @@ The fallback value on builds without ICU is `['en-US']`.
 
 ```js
 console.log(`The preferred languages are '${navigator.languages}'`);
-```
-
-### `navigator.platform`
-
-<!-- YAML
-added: v21.2.0
--->
-
-* Type: {string}
-
-The `navigator.platform` read-only property returns a string identifying the
-platform on which the Node.js instance is running.
-
-```js
-console.log(`This process is running on ${navigator.platform}`);
-```
-
-### `navigator.userAgent`
-
-<!-- YAML
-added: v21.1.0
--->
-
-* Type: {string}
-
-The `navigator.userAgent` read-only property returns user agent
-consisting of the runtime name and major version number.
-
-```js
-console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
 ### `navigator.locks`
@@ -860,6 +840,44 @@ navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
 
 See [`worker_threads.locks`][] for detailed API documentation.
 
+### `navigator.platform`
+
+<!-- YAML
+added: v21.2.0
+-->
+
+* Type: {string}
+
+The `navigator.platform` read-only property returns a string identifying the
+platform on which the Node.js instance is running.
+
+```js
+console.log(`This process is running on ${navigator.platform}`);
+```
+
+### `navigator.userAgent`
+
+<!-- YAML
+added: v21.1.0
+-->
+
+* Type: {string}
+
+The `navigator.userAgent` read-only property returns user agent
+consisting of the runtime name and major version number.
+
+```js
+console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
+```
+
+## `performance`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+The [`perf_hooks.performance`][] object.
+
 ## Class: `PerformanceEntry`
 
 <!-- YAML
@@ -909,14 +927,6 @@ added: v19.0.0
 
 The `PerformanceResourceTiming` class. See [`PerformanceResourceTiming`][] for
 more details.
-
-## `performance`
-
-<!-- YAML
-added: v16.0.0
--->
-
-The [`perf_hooks.performance`][] object.
 
 ## `process`
 
@@ -1050,6 +1060,24 @@ changes:
 
 A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
 
+## Class: `Request`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+changes:
+  - version:
+    - v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-fetch` CLI flag.
+-->
+
+A browser-compatible implementation of {Request}.
+
 ## `require()`
 
 This variable may appear to be global but is not. See [`require()`][].
@@ -1071,24 +1099,6 @@ changes:
 -->
 
 A browser-compatible implementation of {Response}.
-
-## Class: `Request`
-
-<!-- YAML
-added:
-  - v17.5.0
-  - v16.15.0
-changes:
-  - version:
-    - v21.0.0
-    pr-url: https://github.com/nodejs/node/pull/45684
-    description: No longer experimental.
-  - version: v18.0.0
-    pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-fetch` CLI flag.
--->
-
-A browser-compatible implementation of {Request}.
 
 ## `sessionStorage`
 
@@ -1163,14 +1173,6 @@ changes:
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
-
-## Class: `DOMException`
-
-<!-- YAML
-added: v17.0.0
--->
-
-The WHATWG {DOMException} class.
 
 ## Class: `TextDecoder`
 
@@ -1358,6 +1360,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
+[`FormData`]: #class-formdata
+[`Headers`]: #class-headers
 [`LockManager`]: worker_threads.md#class-lockmanager
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessagePort`]: worker_threads.md#class-messageport
@@ -1373,6 +1377,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
 [`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
 [`ReadableStream`]: webstreams.md#class-readablestream
+[`Request`]: #class-request
+[`Response`]: #class-response
 [`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoderStream`]: webstreams.md#class-textencoderstream

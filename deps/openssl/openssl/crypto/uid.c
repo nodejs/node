@@ -19,7 +19,7 @@ int OPENSSL_issetugid(void)
 
 #elif defined(__OpenBSD__) || (defined(__FreeBSD__) && __FreeBSD__ > 2) || defined(__DragonFly__) || (defined(__GLIBC__) && defined(__FreeBSD_kernel__))
 
-# include <unistd.h>
+#include <unistd.h>
 
 int OPENSSL_issetugid(void)
 {
@@ -28,28 +28,28 @@ int OPENSSL_issetugid(void)
 
 #else
 
-# include <unistd.h>
-# include <sys/types.h>
+#include <unistd.h>
+#include <sys/types.h>
 
-# if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
-#  if __GLIBC_PREREQ(2, 16)
-#   include <sys/auxv.h>
-#   define OSSL_IMPLEMENT_GETAUXVAL
-#  endif
-# elif defined(__ANDROID_API__)
+#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 16)
+#include <sys/auxv.h>
+#define OSSL_IMPLEMENT_GETAUXVAL
+#endif
+#elif defined(__ANDROID_API__)
 /* see https://developer.android.google.cn/ndk/guides/cpu-features */
-#  if __ANDROID_API__ >= 18
-#   include <sys/auxv.h>
-#   define OSSL_IMPLEMENT_GETAUXVAL
-#  endif
-# endif
+#if __ANDROID_API__ >= 18
+#include <sys/auxv.h>
+#define OSSL_IMPLEMENT_GETAUXVAL
+#endif
+#endif
 
 int OPENSSL_issetugid(void)
 {
-# ifdef OSSL_IMPLEMENT_GETAUXVAL
+#ifdef OSSL_IMPLEMENT_GETAUXVAL
     return getauxval(AT_SECURE) != 0;
-# else
+#else
     return getuid() != geteuid() || getgid() != getegid();
-# endif
+#endif
 }
 #endif

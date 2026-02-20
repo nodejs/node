@@ -348,7 +348,8 @@ TEST_F(LinkedBindingTest, ManyBindingsTest) {
   AddLinkedBinding(*test_env, "local_linked1", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked2", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked3", InitializeLocalBinding, &calls);
-  AddLinkedBinding(*test_env, local_linked_napi);  // Add a N-API addon as well.
+  AddLinkedBinding(*test_env,
+                   local_linked_napi);  // Add a Node-API addon as well.
   AddLinkedBinding(*test_env, "local_linked4", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked5", InitializeLocalBinding, &calls);
 

@@ -3,6 +3,7 @@
 # assembly language, etc.
 #
 OPENSSL_ia32cap                         environment
+OPENSSL_ppccap                          environment
 OPENSSL_s390xcap                        environment
 OPENSSL_riscvcap                        environment
 OPENSSL_MALLOC_FD                       environment
@@ -216,6 +217,8 @@ BIO_get_conn_port                       define
 BIO_get_conn_ip_family                  define
 BIO_get_conn_mode                       define
 BIO_get_fd                              define
+BIO_get_flags                           define
+BIO_get_retry_flags                     define
 BIO_get_fp                              define
 BIO_get_indent                          define
 BIO_get_info_callback                   define
@@ -250,6 +253,12 @@ BIO_set_conn_port                       define
 BIO_set_conn_ip_family                  define
 BIO_set_conn_mode                       define
 BIO_set_fd                              define
+BIO_set_flags                           define
+BIO_set_retry_read                      define
+BIO_set_retry_write                     define
+BIO_set_retry_special                   define
+BIO_clear_flags                         define
+BIO_clear_retry_flags                   define
 BIO_set_fp                              define
 BIO_set_indent                          define
 BIO_set_info_callback                   define

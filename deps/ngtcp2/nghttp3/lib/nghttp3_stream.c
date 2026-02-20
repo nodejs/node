@@ -73,7 +73,7 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
 
   nghttp3_tnode_init(&stream->node, stream_id);
 
-  nghttp3_ringbuf_init(&stream->frq, 0, sizeof(nghttp3_frame_entry), mem);
+  nghttp3_ringbuf_init(&stream->frq, 0, sizeof(nghttp3_frame), mem);
   nghttp3_ringbuf_init(&stream->chunks, 0, sizeof(nghttp3_buf), mem);
   nghttp3_ringbuf_init(&stream->outq, 0, sizeof(nghttp3_typed_buf), mem);
   nghttp3_ringbuf_init(&stream->inq, 0, sizeof(nghttp3_buf), mem);
@@ -136,17 +136,17 @@ static void delete_out_chunks(nghttp3_ringbuf *chunks,
 }
 
 static void delete_frq(nghttp3_ringbuf *frq, const nghttp3_mem *mem) {
-  nghttp3_frame_entry *frent;
+  nghttp3_frame *fr;
   size_t i, len = nghttp3_ringbuf_len(frq);
 
   for (i = 0; i < len; ++i) {
-    frent = nghttp3_ringbuf_get(frq, i);
-    switch (frent->fr.hd.type) {
+    fr = nghttp3_ringbuf_get(frq, i);
+    switch (fr->hd.type) {
     case NGHTTP3_FRAME_HEADERS:
-      nghttp3_frame_headers_free(&frent->fr.headers, mem);
+      nghttp3_frame_headers_free(&fr->headers, mem);
       break;
     case NGHTTP3_FRAME_PRIORITY_UPDATE:
-      nghttp3_frame_priority_update_free(&frent->fr.priority_update, mem);
+      nghttp3_frame_priority_update_free(&fr->priority_update, mem);
       break;
     default:
       break;
@@ -223,10 +223,9 @@ nghttp3_ssize nghttp3_read_varint(nghttp3_varint_read_state *rvint,
   return (nghttp3_ssize)len;
 }
 
-int nghttp3_stream_frq_add(nghttp3_stream *stream,
-                           const nghttp3_frame_entry *frent) {
+int nghttp3_stream_frq_add(nghttp3_stream *stream, const nghttp3_frame *fr) {
   nghttp3_ringbuf *frq = &stream->frq;
-  nghttp3_frame_entry *dest;
+  nghttp3_frame *dest;
   int rv;
 
   if (nghttp3_ringbuf_full(frq)) {
@@ -239,37 +238,37 @@ int nghttp3_stream_frq_add(nghttp3_stream *stream,
   }
 
   dest = nghttp3_ringbuf_push_back(frq);
-  *dest = *frent;
+  *dest = *fr;
 
   return 0;
 }
 
 int nghttp3_stream_fill_outq(nghttp3_stream *stream) {
   nghttp3_ringbuf *frq = &stream->frq;
-  nghttp3_frame_entry *frent;
+  nghttp3_frame *fr;
   int data_eof;
   int rv;
 
   for (; nghttp3_ringbuf_len(frq) &&
          stream->unsent_bytes < NGHTTP3_MIN_UNSENT_BYTES;) {
-    frent = nghttp3_ringbuf_get(frq, 0);
+    fr = nghttp3_ringbuf_get(frq, 0);
 
-    switch (frent->fr.hd.type) {
+    switch (fr->hd.type) {
     case NGHTTP3_FRAME_SETTINGS:
-      rv = nghttp3_stream_write_settings(stream, frent);
+      rv = nghttp3_stream_write_settings(stream, &fr->settings);
       if (rv != 0) {
         return rv;
       }
       break;
     case NGHTTP3_FRAME_HEADERS:
-      rv = nghttp3_stream_write_headers(stream, frent);
+      rv = nghttp3_stream_write_headers(stream, &fr->headers);
       if (rv != 0) {
         return rv;
       }
-      nghttp3_frame_headers_free(&frent->fr.headers, stream->mem);
+      nghttp3_frame_headers_free(&fr->headers, stream->mem);
       break;
     case NGHTTP3_FRAME_DATA:
-      rv = nghttp3_stream_write_data(stream, &data_eof, frent);
+      rv = nghttp3_stream_write_data(stream, &data_eof, &fr->data);
       if (rv != 0) {
         return rv;
       }
@@ -281,21 +280,20 @@ int nghttp3_stream_fill_outq(nghttp3_stream *stream) {
       }
       break;
     case NGHTTP3_FRAME_GOAWAY:
-      rv = nghttp3_stream_write_goaway(stream, frent);
+      rv = nghttp3_stream_write_goaway(stream, &fr->goaway);
       if (rv != 0) {
         return rv;
       }
       break;
     case NGHTTP3_FRAME_PRIORITY_UPDATE:
-      rv = nghttp3_stream_write_priority_update(stream, frent);
+      rv = nghttp3_stream_write_priority_update(stream, &fr->priority_update);
       if (rv != 0) {
         return rv;
       }
-      nghttp3_frame_priority_update_free(&frent->fr.priority_update,
-                                         stream->mem);
+      nghttp3_frame_priority_update_free(&fr->priority_update, stream->mem);
       break;
     case NGHTTP3_FRAME_ORIGIN:
-      rv = nghttp3_stream_write_origin(stream, frent);
+      rv = nghttp3_stream_write_origin(stream, &fr->origin);
       if (rv != 0) {
         return rv;
       }
@@ -333,7 +331,7 @@ int nghttp3_stream_write_stream_type(nghttp3_stream *stream) {
 }
 
 int nghttp3_stream_write_settings(nghttp3_stream *stream,
-                                  nghttp3_frame_entry *frent) {
+                                  const nghttp3_frame_settings *infr) {
   size_t len;
   int rv;
   nghttp3_buf *chunk;
@@ -344,7 +342,7 @@ int nghttp3_stream_write_settings(nghttp3_stream *stream,
     .niv = 3,
     .iv = ents,
   };
-  nghttp3_settings *local_settings = frent->aux.settings.local_settings;
+  const nghttp3_settings *local_settings = infr->local_settings;
   int64_t payloadlen;
 
   ents[0] = (nghttp3_settings_entry){
@@ -396,8 +394,7 @@ int nghttp3_stream_write_settings(nghttp3_stream *stream,
 }
 
 int nghttp3_stream_write_goaway(nghttp3_stream *stream,
-                                nghttp3_frame_entry *frent) {
-  nghttp3_frame_goaway *fr = &frent->fr.goaway;
+                                const nghttp3_frame_goaway *fr) {
   size_t len;
   int rv;
   nghttp3_buf *chunk;
@@ -421,9 +418,8 @@ int nghttp3_stream_write_goaway(nghttp3_stream *stream,
   return nghttp3_stream_outq_add(stream, &tbuf);
 }
 
-int nghttp3_stream_write_priority_update(nghttp3_stream *stream,
-                                         nghttp3_frame_entry *frent) {
-  nghttp3_frame_priority_update *fr = &frent->fr.priority_update;
+int nghttp3_stream_write_priority_update(
+  nghttp3_stream *stream, const nghttp3_frame_priority_update *fr) {
   size_t len;
   int rv;
   nghttp3_buf *chunk;
@@ -449,8 +445,7 @@ int nghttp3_stream_write_priority_update(nghttp3_stream *stream,
 }
 
 int nghttp3_stream_write_origin(nghttp3_stream *stream,
-                                nghttp3_frame_entry *frent) {
-  nghttp3_frame_origin *fr = &frent->fr.origin;
+                                const nghttp3_frame_origin *fr) {
   nghttp3_buf *chunk;
   nghttp3_buf buf;
   nghttp3_typed_buf tbuf;
@@ -488,8 +483,7 @@ int nghttp3_stream_write_origin(nghttp3_stream *stream,
 }
 
 int nghttp3_stream_write_headers(nghttp3_stream *stream,
-                                 nghttp3_frame_entry *frent) {
-  nghttp3_frame_headers *fr = &frent->fr.headers;
+                                 const nghttp3_frame_headers *fr) {
   nghttp3_conn *conn = stream->conn;
 
   assert(conn);
@@ -610,13 +604,13 @@ int nghttp3_stream_write_header_block(nghttp3_stream *stream,
 }
 
 int nghttp3_stream_write_data(nghttp3_stream *stream, int *peof,
-                              nghttp3_frame_entry *frent) {
+                              const nghttp3_frame_data *fr) {
   int rv;
   size_t len;
   nghttp3_typed_buf tbuf;
   nghttp3_buf buf;
   nghttp3_buf *chunk;
-  nghttp3_read_data_callback read_data = frent->aux.data.dr.read_data;
+  nghttp3_read_data_callback read_data = fr->dr.read_data;
   nghttp3_conn *conn = stream->conn;
   int64_t datalen;
   uint32_t flags = 0;

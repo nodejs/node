@@ -125,34 +125,6 @@ Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
-## Skipping tests
-
-Individual tests can be skipped by passing the `skip` option to the test, or by
-calling the test context's `skip()` method as shown in the
-following example.
-
-```js
-// The skip option is used, but no message is provided.
-test('skip option', { skip: true }, (t) => {
-  // This code is never executed.
-});
-
-// The skip option is used, and a message is provided.
-test('skip option with message', { skip: 'this is skipped' }, (t) => {
-  // This code is never executed.
-});
-
-test('skip() method', (t) => {
-  // Make sure to return here as well if the test contains additional logic.
-  t.skip();
-});
-
-test('skip() method with message', (t) => {
-  // Make sure to return here as well if the test contains additional logic.
-  t.skip('this is skipped');
-});
-```
-
 ## Rerunning failed tests
 
 The test runner supports persisting the state of the run to a file, allowing
@@ -193,37 +165,6 @@ When the `--test-rerun-failures` option is used, the test runner will only run t
 node --test-rerun-failures /path/to/state/file
 ```
 
-## TODO tests
-
-Individual tests can be marked as flaky or incomplete by passing the `todo`
-option to the test, or by calling the test context's `todo()` method, as shown
-in the following example. These tests represent a pending implementation or bug
-that needs to be fixed. TODO tests are executed, but are not treated as test
-failures, and therefore do not affect the process exit code. If a test is marked
-as both TODO and skipped, the TODO option is ignored.
-
-```js
-// The todo option is used, but no message is provided.
-test('todo option', { todo: true }, (t) => {
-  // This code is executed, but not treated as a failure.
-  throw new Error('this does not fail the test');
-});
-
-// The todo option is used, and a message is provided.
-test('todo option with message', { todo: 'this is a todo test' }, (t) => {
-  // This code is executed.
-});
-
-test('todo() method', (t) => {
-  t.todo();
-});
-
-test('todo() method with message', (t) => {
-  t.todo('this is a todo test and is not treated as a failure');
-  throw new Error('this does not fail the test');
-});
-```
-
 ## `describe()` and `it()` aliases
 
 Suites and tests can also be written using the `describe()` and `it()`
@@ -256,6 +197,116 @@ import { describe, it } from 'node:test';
 
 ```cjs
 const { describe, it } = require('node:test');
+```
+
+## Skipping tests
+
+Individual tests can be skipped by passing the `skip` option to the test, or by
+calling the test context's `skip()` method as shown in the
+following example.
+
+```js
+// The skip option is used, but no message is provided.
+test('skip option', { skip: true }, (t) => {
+  // This code is never executed.
+});
+
+// The skip option is used, and a message is provided.
+test('skip option with message', { skip: 'this is skipped' }, (t) => {
+  // This code is never executed.
+});
+
+test('skip() method', (t) => {
+  // Make sure to return here as well if the test contains additional logic.
+  t.skip();
+});
+
+test('skip() method with message', (t) => {
+  // Make sure to return here as well if the test contains additional logic.
+  t.skip('this is skipped');
+});
+```
+
+## TODO tests
+
+Individual tests can be marked as flaky or incomplete by passing the `todo`
+option to the test, or by calling the test context's `todo()` method, as shown
+in the following example. These tests represent a pending implementation or bug
+that needs to be fixed. TODO tests are executed, but are not treated as test
+failures, and therefore do not affect the process exit code. If a test is marked
+as both TODO and skipped, the TODO option is ignored.
+
+```js
+// The todo option is used, but no message is provided.
+test('todo option', { todo: true }, (t) => {
+  // This code is executed, but not treated as a failure.
+  throw new Error('this does not fail the test');
+});
+
+// The todo option is used, and a message is provided.
+test('todo option with message', { todo: 'this is a todo test' }, (t) => {
+  // This code is executed.
+});
+
+test('todo() method', (t) => {
+  t.todo();
+});
+
+test('todo() method with message', (t) => {
+  t.todo('this is a todo test and is not treated as a failure');
+  throw new Error('this does not fail the test');
+});
+```
+
+## Expecting tests to fail
+
+<!-- YAML
+added:
+ - v25.5.0
+-->
+
+This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
+in order to "pass"; a test/test-case that does not throw, fails.
+
+In the following, `doTheThing()` returns _currently_ `false` (`false` does not equal `true`, causing
+`strictEqual` to throw, so the test-case passes).
+
+```js
+it.expectFailure('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+`skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
+will "win" when both are applied (`skip` wins against both, and `todo` wins
+against `expectFailure`).
+
+These tests will be skipped (and not run):
+
+```js
+it.expectFailure('should do the thing', { skip: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.skip('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+These tests will be marked "todo" (silencing errors):
+
+```js
+it.expectFailure('should do the thing', { todo: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.todo('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
 ```
 
 ## `only` tests
@@ -1384,6 +1435,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v25.6.0
+    pr-url: https://github.com/nodejs/node/pull/61367
+    description: Add the `env` option.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59443
     description: Added a rerunFailuresFilePath option.
@@ -1504,6 +1558,10 @@ changes:
   * `functionCoverage` {number} Require a minimum percent of covered functions. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
+  * `env` {Object} Specify environment variables to be passed along to the test process.
+    This options is not compatible with `isolation='none'`. These variables will override
+    those from the main process, and are not merged with `process.env`.
+    **Default:** `process.env`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -3289,6 +3347,32 @@ Emitted when a test fails.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
 The corresponding execution ordered event is `'test:complete'`.
+
+### Event: `'test:interrupted'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {Object}
+  * `tests` {Array} An array of objects containing information about the
+    interrupted tests.
+    * `column` {number|undefined} The column number where the test is defined,
+      or `undefined` if the test was run through the REPL.
+    * `file` {string|undefined} The path of the test file,
+      `undefined` if test was run through the REPL.
+    * `line` {number|undefined} The line number where the test is defined, or
+      `undefined` if the test was run through the REPL.
+    * `name` {string} The test name.
+    * `nesting` {number} The nesting level of the test.
+
+Emitted when the test runner is interrupted by a `SIGINT` signal (e.g., when
+pressing <kbd>Ctrl</kbd>+<kbd>C</kbd>). The event contains information about
+the tests that were running at the time of interruption.
+
+When using process isolation (the default), the test name will be the file path
+since the parent runner only knows about file-level tests. When using
+`--test-isolation=none`, the actual test name is shown.
 
 ### Event: `'test:pass'`
 

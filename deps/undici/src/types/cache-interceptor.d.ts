@@ -38,6 +38,13 @@ declare namespace CacheHandler {
      * @default 'shared'
      */
     type?: 'shared' | 'private'
+
+    /**
+     * Array of origins to cache. Only requests to these origins will be cached.
+     * Supports strings (case insensitive) and RegExp patterns.
+     * @default undefined (cache all origins)
+     */
+    origins?: (string | RegExp)[]
   }
 
   export interface CacheControlDirectives {

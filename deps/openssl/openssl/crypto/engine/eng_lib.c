@@ -168,7 +168,7 @@ int engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)
 /* The API function that performs all cleanup */
 static void engine_cleanup_cb_free(ENGINE_CLEANUP_ITEM *item)
 {
-    (*(item->cb)) ();
+    (*(item->cb))();
     OPENSSL_free(item);
 }
 
@@ -176,7 +176,7 @@ void engine_cleanup_int(void)
 {
     if (int_cleanup_check(0)) {
         sk_ENGINE_CLEANUP_ITEM_pop_free(cleanup_stack,
-                                        engine_cleanup_cb_free);
+            engine_cleanup_cb_free);
         cleanup_stack = NULL;
     }
     CRYPTO_THREAD_lock_free(global_engine_lock);

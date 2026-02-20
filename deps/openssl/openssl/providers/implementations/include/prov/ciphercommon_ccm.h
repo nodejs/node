@@ -8,14 +8,14 @@
  */
 
 #ifndef OSSL_PROV_CIPHERCOMMON_CCM_H
-# define OSSL_PROV_CIPHERCOMMON_CCM_H
-# pragma once
+#define OSSL_PROV_CIPHERCOMMON_CCM_H
+#pragma once
 
-# include "ciphercommon_aead.h"
+#include "ciphercommon_aead.h"
 
 typedef struct prov_ccm_hw_st PROV_CCM_HW;
 
-# if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
+#if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
 /*-
  * KMAC-AES parameter block - begin
  * (see z/Architecture Principles of Operation >= SA22-7832-08)
@@ -28,46 +28,33 @@ typedef struct S390X_kmac_params_st {
     unsigned char k[32];
 } S390X_KMAC_PARAMS;
 /* KMAC-AES parameter block - end */
-# endif
+#endif
 
 /* Base structure that is shared by AES & ARIA for CCM MODE */
 typedef struct prov_ccm_st {
     unsigned int enc : 1;
-    unsigned int key_set : 1;  /* Set if key initialised */
-    unsigned int iv_set : 1;   /* Set if an iv is set */
-    unsigned int tag_set : 1;  /* Set if tag is valid */
-    unsigned int len_set : 1;  /* Set if message length set */
-    size_t l, m;               /* L and M parameters from RFC3610 */
+    unsigned int key_set : 1; /* Set if key initialised */
+    unsigned int iv_set : 1; /* Set if an iv is set */
+    unsigned int tag_set : 1; /* Set if tag is valid */
+    unsigned int len_set : 1; /* Set if message length set */
+    size_t l, m; /* L and M parameters from RFC3610 */
     size_t keylen;
-    size_t tls_aad_len;        /* TLS AAD length */
+    size_t tls_aad_len; /* TLS AAD length */
     size_t tls_aad_pad_sz;
     unsigned char iv[GENERIC_BLOCK_SIZE];
     unsigned char buf[GENERIC_BLOCK_SIZE];
     CCM128_CONTEXT ccm_ctx;
     ccm128_f str;
-    const PROV_CCM_HW *hw;     /* hardware specific methods  */
+    const PROV_CCM_HW *hw; /* hardware specific methods  */
 } PROV_CCM_CTX;
 
-PROV_CIPHER_FUNC(int, CCM_cipher, (PROV_CCM_CTX *ctx, unsigned char *out,      \
-                                   size_t *padlen, const unsigned char *in,    \
-                                   size_t len));
-PROV_CIPHER_FUNC(int, CCM_setkey, (PROV_CCM_CTX *ctx,                          \
-                                   const unsigned char *key, size_t keylen));
-PROV_CIPHER_FUNC(int, CCM_setiv, (PROV_CCM_CTX *dat,                           \
-                                  const unsigned char *iv, size_t ivlen,       \
-                                  size_t mlen));
-PROV_CIPHER_FUNC(int, CCM_setaad, (PROV_CCM_CTX *ctx,                          \
-                                   const unsigned char *aad, size_t aadlen));
-PROV_CIPHER_FUNC(int, CCM_auth_encrypt, (PROV_CCM_CTX *ctx,                    \
-                                         const unsigned char *in,              \
-                                         unsigned char *out, size_t len,       \
-                                         unsigned char *tag, size_t taglen));
-PROV_CIPHER_FUNC(int, CCM_auth_decrypt, (PROV_CCM_CTX *ctx,                    \
-                                         const unsigned char *in,              \
-                                         unsigned char *out, size_t len,       \
-                                         unsigned char *tag, size_t taglen));
-PROV_CIPHER_FUNC(int, CCM_gettag, (PROV_CCM_CTX *ctx,                          \
-                                   unsigned char *tag,  size_t taglen));
+PROV_CIPHER_FUNC(int, CCM_cipher, (PROV_CCM_CTX * ctx, unsigned char *out, size_t *padlen, const unsigned char *in, size_t len));
+PROV_CIPHER_FUNC(int, CCM_setkey, (PROV_CCM_CTX * ctx, const unsigned char *key, size_t keylen));
+PROV_CIPHER_FUNC(int, CCM_setiv, (PROV_CCM_CTX * dat, const unsigned char *iv, size_t ivlen, size_t mlen));
+PROV_CIPHER_FUNC(int, CCM_setaad, (PROV_CCM_CTX * ctx, const unsigned char *aad, size_t aadlen));
+PROV_CIPHER_FUNC(int, CCM_auth_encrypt, (PROV_CCM_CTX * ctx, const unsigned char *in, unsigned char *out, size_t len, unsigned char *tag, size_t taglen));
+PROV_CIPHER_FUNC(int, CCM_auth_decrypt, (PROV_CCM_CTX * ctx, const unsigned char *in, unsigned char *out, size_t len, unsigned char *tag, size_t taglen));
+PROV_CIPHER_FUNC(int, CCM_gettag, (PROV_CCM_CTX * ctx, unsigned char *tag, size_t taglen));
 
 /*
  * CCM Mode internal method table used to handle hardware specific differences,
@@ -92,15 +79,15 @@ OSSL_FUNC_cipher_cipher_fn ossl_ccm_cipher;
 void ossl_ccm_initctx(PROV_CCM_CTX *ctx, size_t keybits, const PROV_CCM_HW *hw);
 
 int ossl_ccm_generic_setiv(PROV_CCM_CTX *ctx, const unsigned char *nonce,
-                           size_t nlen, size_t mlen);
+    size_t nlen, size_t mlen);
 int ossl_ccm_generic_setaad(PROV_CCM_CTX *ctx, const unsigned char *aad,
-                            size_t alen);
+    size_t alen);
 int ossl_ccm_generic_gettag(PROV_CCM_CTX *ctx, unsigned char *tag, size_t tlen);
 int ossl_ccm_generic_auth_encrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
-                                  unsigned char *out, size_t len,
-                                  unsigned char *tag, size_t taglen);
+    unsigned char *out, size_t len,
+    unsigned char *tag, size_t taglen);
 int ossl_ccm_generic_auth_decrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
-                                  unsigned char *out, size_t len,
-                                  unsigned char *expected_tag, size_t taglen);
+    unsigned char *out, size_t len,
+    unsigned char *expected_tag, size_t taglen);
 
 #endif

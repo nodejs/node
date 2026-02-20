@@ -379,12 +379,16 @@ The location information will be one of:
   represents a call in a user program (using ES module system), or
   its dependencies.
 
-The string representing the stack trace is lazily generated when the
-`error.stack` property is **accessed**.
-
 The number of frames captured by the stack trace is bounded by the smaller of
 `Error.stackTraceLimit` or the number of available frames on the current event
 loop tick.
+
+`error.stack` is a getter/setter for a hidden internal property which is only
+present on builtin `Error` objects (those for which [`Error.isError`][] returns
+true). If `error` is not a builtin error object, then the `error.stack` getter
+will always return `undefined`, and the setter will do nothing. This can occur
+if the accessor is manually invoked with a `this` value that is not a builtin
+error object, such as a {Proxy}.
 
 ## Class: `AssertionError`
 
@@ -3346,6 +3350,14 @@ The WASI instance has already started.
 
 The WASI instance has not been started.
 
+<a id="ERR_WEBASSEMBLY_NOT_SUPPORTED"></a>
+
+### `ERR_WEBASSEMBLY_NOT_SUPPORTED`
+
+A feature requiring WebAssembly was used, but WebAssembly is not supported or
+has been disabled in the current environment (for example, when running with
+`--jitless`).
+
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
 ### `ERR_WEBASSEMBLY_RESPONSE`
@@ -3856,7 +3868,7 @@ removed: v15.0.0
 -->
 
 This error code was replaced by [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`][]
-in Node.js v15.0.0, because it is no longer accurate as other types of
+in Node.js 15.0.0, because it is no longer accurate as other types of
 transferable objects also exist now.
 
 <a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>
@@ -4381,6 +4393,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
 [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #err_missing_transferable_in_transfer_list
 [`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
+[`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`EventEmitter`]: events.md#class-eventemitter
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf

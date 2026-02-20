@@ -26,13 +26,23 @@ const channels = {
   close: diagnosticsChannel.channel('undici:websocket:close'),
   socketError: diagnosticsChannel.channel('undici:websocket:socket_error'),
   ping: diagnosticsChannel.channel('undici:websocket:ping'),
-  pong: diagnosticsChannel.channel('undici:websocket:pong')
+  pong: diagnosticsChannel.channel('undici:websocket:pong'),
+  // ProxyAgent
+  proxyConnected: diagnosticsChannel.channel('undici:proxy:connected')
 }
 
 let isTrackingClientEvents = false
 
 function trackClientEvents (debugLog = undiciDebugLog) {
   if (isTrackingClientEvents) {
+    return
+  }
+
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.beforeConnect.hasSubscribers || channels.connected.hasSubscribers ||
+      channels.connectError.hasSubscribers || channels.sendHeaders.hasSubscribers) {
+    isTrackingClientEvents = true
     return
   }
 
@@ -98,6 +108,14 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
     return
   }
 
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.headers.hasSubscribers || channels.trailers.hasSubscribers ||
+      channels.error.hasSubscribers) {
+    isTrackingRequestEvents = true
+    return
+  }
+
   isTrackingRequestEvents = true
 
   diagnosticsChannel.subscribe('undici:request:headers',
@@ -143,6 +161,15 @@ let isTrackingWebSocketEvents = false
 
 function trackWebSocketEvents (debugLog = websocketDebuglog) {
   if (isTrackingWebSocketEvents) {
+    return
+  }
+
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.open.hasSubscribers || channels.close.hasSubscribers ||
+      channels.socketError.hasSubscribers || channels.ping.hasSubscribers ||
+      channels.pong.hasSubscribers) {
+    isTrackingWebSocketEvents = true
     return
   }
 

@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include "data.h"
@@ -113,6 +113,29 @@ Maybe<Store> Store::From(Local<ArrayBufferView> view, Local<Value> detach_key) {
     return Nothing<Store>();
   }
   return Just(Store(std::move(backing), length, offset));
+}
+
+Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  auto backing = buffer->GetBackingStore();
+  auto length = buffer->ByteLength();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+  // copy content
+  memcpy(dest->Data(), backing->Data(), length);
+  return Store(std::move(dest), length, 0);
+}
+
+Store Store::CopyFrom(Local<ArrayBufferView> view) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  auto backing = view->Buffer()->GetBackingStore();
+  auto length = view->ByteLength();
+  auto offset = view->ByteOffset();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+  // copy content
+  memcpy(dest->Data(), static_cast<char*>(backing->Data()) + offset, length);
+  return Store(std::move(dest), length, 0);
 }
 
 Local<Uint8Array> Store::ToUint8Array(Environment* env) const {
@@ -394,4 +417,4 @@ const QuicError QuicError::INTERNAL_ERROR = ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC
