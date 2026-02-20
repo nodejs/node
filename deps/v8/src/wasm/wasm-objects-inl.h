@@ -27,6 +27,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
@@ -97,6 +98,10 @@ WasmModuleObject::shared_native_module() const {
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>, kInstancesOffset)
 
+const std::shared_ptr<BackingStore>& WasmMemoryObject::backing_store() const {
+  return managed_backing_store()->get();
+}
+
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
           kUntaggedBufferOffset)
@@ -106,7 +111,7 @@ TRUSTED_POINTER_ACCESSORS(WasmGlobalObject, trusted_data,
                           WasmTrustedInstanceData, kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
 
-wasm::ValueType WasmGlobalObject::type() const {
+wasm::ValueType WasmGlobalObject::unsafe_type() const {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
   // value as index into a global array. As such, if the index is corrupted
   // (which must be assumed, as it comes from within the sandbox), this can
@@ -117,42 +122,44 @@ wasm::ValueType WasmGlobalObject::type() const {
   SBXCHECK(type.is_valid());
   return type;
 }
-void WasmGlobalObject::set_type(wasm::ValueType value) {
+void WasmGlobalObject::set_unsafe_type(wasm::ValueType value) {
   set_raw_type(static_cast<int>(value.raw_bit_field()));
 }
 
-int WasmGlobalObject::type_size() const { return type().value_kind_size(); }
+int WasmGlobalObject::unsafe_type_size() const {
+  return unsafe_type().value_kind_size();
+}
 
 Address WasmGlobalObject::address() const {
-  DCHECK(!type().is_reference());
-  DCHECK_LE(offset() + type_size(), untagged_buffer()->byte_length());
+  DCHECK(!unsafe_type().is_ref());
+  DCHECK_LE(offset() + unsafe_type_size(), untagged_buffer()->byte_length());
   return reinterpret_cast<Address>(untagged_buffer()->backing_store()) +
          offset();
 }
 
-int32_t WasmGlobalObject::GetI32() {
+int32_t WasmGlobalObject::GetI32() const {
   return base::ReadUnalignedValue<int32_t>(address());
 }
 
-int64_t WasmGlobalObject::GetI64() {
+int64_t WasmGlobalObject::GetI64() const {
   return base::ReadUnalignedValue<int64_t>(address());
 }
 
-float WasmGlobalObject::GetF32() {
+float WasmGlobalObject::GetF32() const {
   return base::ReadUnalignedValue<float>(address());
 }
 
-double WasmGlobalObject::GetF64() {
+double WasmGlobalObject::GetF64() const {
   return base::ReadUnalignedValue<double>(address());
 }
 
-uint8_t* WasmGlobalObject::GetS128RawBytes() {
+uint8_t* WasmGlobalObject::GetS128RawBytes() const {
   return reinterpret_cast<uint8_t*>(address());
 }
 
-DirectHandle<Object> WasmGlobalObject::GetRef() {
+DirectHandle<Object> WasmGlobalObject::GetRef() const {
   // We use this getter for externref, funcref, and stringref.
-  DCHECK(type().is_reference());
+  DCHECK(unsafe_type().is_ref());
   return direct_handle(tagged_buffer()->get(offset()), Isolate::Current());
 }
 
@@ -173,7 +180,7 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetRef(DirectHandle<Object> value) {
-  DCHECK(type().is_object_reference());
+  DCHECK(unsafe_type().is_ref());
   tagged_buffer()->set(offset(), *value);
 }
 
@@ -804,7 +811,7 @@ Address WasmArray::ElementAddress(uint32_t index) {
 
 ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   DCHECK_LE(index, length());
-  DCHECK(map()->wasm_type_info()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_ref());
   return RawField(kHeaderSize + kTaggedSize * index);
 }
 

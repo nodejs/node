@@ -22,6 +22,7 @@
 #undef CASE
 #undef CONTINUE
 #undef ELSE
+#undef FIELD
 #undef FOREACH
 #undef FOREACH_IMPL_2
 #undef FOREACH_IMPL_3

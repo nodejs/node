@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/name-trait.h"
 #include "include/cppgc/trace-trait.h"
@@ -313,9 +314,9 @@ class State final : public StateBase {
   bool was_visited_from_stack_ = false;
   // Ephemeron keys that will be strongified if a weak container is reachable
   // from stack.
-  std::unordered_set<const HeapObjectHeader*> ephemeron_keys_;
+  absl::flat_hash_set<const HeapObjectHeader*> ephemeron_keys_;
   // Values that are held alive through ephemerons by this particular key.
-  std::unordered_set<const HeapObjectHeader*> ephemeron_edges_;
+  absl::flat_hash_set<const HeapObjectHeader*> ephemeron_edges_;
   // Values that are eagerly traced and held alive through ephemerons by this
   // particular key.
   std::unordered_map<const void*, cppgc::TraceCallback> eager_ephemeron_edges_;

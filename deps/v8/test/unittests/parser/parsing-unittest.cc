@@ -8630,8 +8630,13 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
       declarations->AtForTest(12)->var()->raw_name()->IsOneByteEqualTo("foob"));
   CHECK(declarations->AtForTest(12)->var()->mode() == i::VariableMode::kConst);
   CHECK(!declarations->AtForTest(12)->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(12)->var()->location() ==
-        i::VariableLocation::MODULE);
+  if (v8_flags.js_esm_ns_reexport) {
+    CHECK(declarations->AtForTest(12)->var()->location() !=
+          i::VariableLocation::MODULE);
+  } else {
+    CHECK(declarations->AtForTest(12)->var()->location() ==
+          i::VariableLocation::MODULE);
+  }
 
   i::SourceTextModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
@@ -8658,13 +8663,15 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
     }
   }
 
-  CHECK_EQ(3, descriptor->special_exports().size());
+  CHECK_EQ(v8_flags.js_esm_ns_reexport ? 4 : 3,
+           descriptor->special_exports().size());
   CheckEntry(descriptor->special_exports().at(0), "b", nullptr, "a", 0);
   CheckEntry(descriptor->special_exports().at(1), nullptr, nullptr, nullptr, 2);
   CheckEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
              0);  // !!!
 
-  CHECK_EQ(8u, descriptor->regular_exports().size());
+  CHECK_EQ(v8_flags.js_esm_ns_reexport ? 7u : 8u,
+           descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(3)->var()->raw_name())
               ->second;
@@ -8685,10 +8692,6 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
               .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
   CheckEntry(entry, "default", ".default", nullptr, -1);
-  entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(12)->var()->raw_name())
-              ->second;
-  CheckEntry(entry, "foob", "foob", nullptr, -1);
   // TODO(neis): The next lines are terrible. Find a better way.
   auto name_x = declarations->AtForTest(0)->var()->raw_name();
   CHECK_EQ(2u, descriptor->regular_exports().count(name_x));
@@ -8705,9 +8708,16 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
   }
 
   CHECK_EQ(2, descriptor->namespace_imports().size());
-  CheckEntry(descriptor->namespace_imports().at(0), nullptr, "loo", nullptr, 4);
-  CheckEntry(descriptor->namespace_imports().at(1), nullptr, "foob", nullptr,
-             4);
+  if (v8_flags.js_esm_ns_reexport) {
+    const i::AstRawString* loo_string =
+        info.ast_value_factory()->GetOneByteString("loo");
+    const i::AstRawString* foob_string =
+        info.ast_value_factory()->GetOneByteString("foob");
+    CheckEntry(descriptor->namespace_imports().at(loo_string), nullptr, "loo",
+               nullptr, 4);
+    CheckEntry(descriptor->namespace_imports().at(foob_string), nullptr, "foob",
+               nullptr, 4);
+  }
 
   CHECK_EQ(4u, descriptor->regular_imports().size());
   entry = descriptor->regular_imports()

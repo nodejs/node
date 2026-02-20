@@ -112,6 +112,27 @@ transitioning javascript builtin ArrayBufferPrototypeGetDetached(
   return False;
 }
 
+// #sec-get-arraybuffer.prototype.immutable
+transitioning javascript builtin ArrayBufferPrototypeGetImmutable(
+    js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get ArrayBuffer.prototype.immutable';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. Return IsImmutableBuffer(O).
+  if (o.bit_field.is_immutable) {
+    return True;
+  }
+  return False;
+}
+
 // #sec-get-growablesharedarraybuffer.prototype.maxbytelength
 transitioning javascript builtin SharedArrayBufferPrototypeGetMaxByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {

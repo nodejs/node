@@ -10,6 +10,7 @@
 
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/common/assert-scope.h"
+#include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -100,10 +101,22 @@ void SegmentedTable<Entry, size>::Initialize() {
     V8::FatalProcessOutOfMemory(
         nullptr, "SegmentedTable::InitializeTable (subspace allocation)");
   }
-#else  // V8_TARGET_ARCH_64_BIT
+  vas_->SetName(kPointerTableAddressSpaceName);
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  // In-sandbox corruption of handles can lead to out-of-bounds accesses into
+  // our tables, but these will stay inside the table's reserved region and hit
+  // PROT_NONE mappings, so they are safe. They can be both read- and write
+  // accesses though as we also write new pointers into existing table entries.
+  // Writing is fine as long as the value is not attacker controlled. It's only
+  // when we write attacker-controlled data that we (likely) have a security
+  // problem (but then it doesn't matter whether it's out-of-bounds or not).
+  SandboxTesting::RegisterSafeMemoryRegion(
+      vas_->base(), vas_->size(), SandboxTesting::kReadAndWriteAccessIsSafe);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+#else
   static_assert(!kUseContiguousMemory);
   vas_ = root_space;
-#endif
+#endif  // V8_TARGET_ARCH_64_BIT
 
   base_ = reinterpret_cast<Entry*>(vas_->base());
 
@@ -120,6 +133,10 @@ void SegmentedTable<Entry, size>::Initialize() {
 template <typename Entry, size_t size>
 void SegmentedTable<Entry, size>::TearDown() {
   DCHECK(is_initialized());
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::UnregisterSafeMemoryRegion(vas_->base());
+#endif
 
   if (segment_pool_grow_mutex_) {
     delete segment_pool_grow_mutex_;

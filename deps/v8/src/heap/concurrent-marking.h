@@ -28,8 +28,8 @@ namespace internal {
 
 class Heap;
 class Isolate;
+class MutablePage;
 class NonAtomicMarkingState;
-class MutablePageMetadata;
 class WeakObjects;
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {

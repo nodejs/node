@@ -109,6 +109,22 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
        CanonicalShuffle::kS8x16TransposeEven},
       {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
        CanonicalShuffle::kS8x16TransposeOdd},
+      {{0, 4, 8, 12, 16, 20, 24, 28},
+       CanonicalShuffle::kS8x8DeinterleaveEvenEven},
+      {{1, 5, 9, 13, 17, 21, 25, 29},
+       CanonicalShuffle::kS8x8DeinterleaveOddEven},
+      {{2, 6, 10, 14, 18, 22, 26, 30},
+       CanonicalShuffle::kS8x8DeinterleaveEvenOdd},
+      {{3, 7, 11, 15, 19, 23, 27, 31},
+       CanonicalShuffle::kS8x8DeinterleaveOddOdd},
+      {expandHalf<4>({0, 4, 8, 12}),
+       CanonicalShuffle::kS16x4DeinterleaveEvenEven},
+      {expandHalf<4>({1, 5, 9, 13}),
+       CanonicalShuffle::kS16x4DeinterleaveOddEven},
+      {expandHalf<4>({2, 6, 10, 14}),
+       CanonicalShuffle::kS16x4DeinterleaveEvenOdd},
+      {expandHalf<4>({3, 7, 11, 15}),
+       CanonicalShuffle::kS16x4DeinterleaveOddOdd},
   });
   for (const auto& [lanes, canonical] : canonical_shuffle_list) {
     if (std::equal(lanes.begin(), lanes.begin() + N, shuffle.begin())) {
@@ -165,8 +181,8 @@ bool SimdShuffle::TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
                                              uint8_t* from_lane,
                                              uint8_t* to_lane) {
   constexpr uint32_t patterns[12]{
-      0x30200000,  // 0 -> 1
-      0x30000100,  // 0 -> 2
+      0x03020000,  // 0 -> 1
+      0x03000100,  // 0 -> 2
       0x00020100,  // 0 -> 3
       0x03020101,  // 1 -> 0
       0x03010100,  // 1 -> 2

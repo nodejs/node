@@ -281,7 +281,7 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
 
   if ((opcode >= kExprS128LoadMem && opcode <= kExprS128StoreMem) ||
       opcode == kExprS128Load32Zero || opcode == kExprS128Load64Zero) {
-    MemoryAccessImmediate imm(decoder, code->at(pc + *len), 64,
+    MemoryAccessImmediate imm(decoder, code->at(pc + *len), 64, false,
                               Decoder::kNoValidation);
     optional->offset = imm.offset;
     *len += imm.length;
@@ -307,7 +307,7 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
     *len += 1;
   } else if ((opcode >= kExprS128Load8Lane) &&
              (opcode <= kExprS128Store64Lane)) {
-    MemoryAccessImmediate mem_imm(decoder, code->at(pc + *len), 64,
+    MemoryAccessImmediate mem_imm(decoder, code->at(pc + *len), 64, false,
                                   Decoder::kNoValidation);
     if (mem_imm.offset >= ((uint64_t)1 << 48)) {
       return false;

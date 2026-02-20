@@ -8,6 +8,7 @@
 #include <array>
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/wasm/function-body-decoder.h"
@@ -293,7 +294,7 @@ ValueType GetValueTypeHelper(WasmModuleGenerationOptions options,
         nullability, kNotShared, RefTypeKind::kOther /* unknown */);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
-  if (types[chosen_id].is_reference()) {
+  if (types[chosen_id].is_ref()) {
     return ValueType::RefMaybeNull(types[chosen_id].heap_type(), nullability);
   }
   // Otherwise, just return the picked type.
@@ -320,7 +321,7 @@ void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
 uint32_t GenerateRefTypeElementSegment(DataRange* range,
                                        WasmModuleBuilder* builder,
                                        ValueType element_type) {
-  DCHECK(element_type.is_object_reference());
+  DCHECK(element_type.is_ref());
   DCHECK(element_type.has_index());
   WasmModuleBuilder::WasmElemSegment segment(
       builder->zone(), element_type, false,
@@ -572,8 +573,8 @@ class BodyGen {
     //   Resetting locals in each iteration can create interesting loop-phis.
     // TODO(evih): Iterate through existing locals and try to reuse them instead
     // of creating new locals.
-    for (auto it = param_types.rbegin(); it != param_types.rend(); it++) {
-      uint32_t local = builder_->AddLocal(*it);
+    for (ValueType type : base::Reversed(param_types)) {
+      uint32_t local = builder_->AddLocal(type);
       builder_->EmitSetLocal(local);
     }
 
@@ -857,8 +858,7 @@ class BodyGen {
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
-    if (break_types.empty() ||
-        !break_types[break_types.size() - 1].is_reference()) {
+    if (break_types.empty() || !break_types[break_types.size() - 1].is_ref()) {
       // Invalid break_types for br_on_non_null.
       Generate<wanted_kind>(data);
       return;
@@ -1525,7 +1525,7 @@ class BodyGen {
   }
 
   bool new_object(HeapType type, DataRange* data, Nullability nullable) {
-    DCHECK(type.is_index());
+    DCHECK(type.has_index());
 
     ModuleTypeIndex index = type.ref_index();
     bool new_default = data->get<bool>();
@@ -1536,25 +1536,23 @@ class BodyGen {
       bool can_be_defaultable = std::all_of(
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
+      bool has_descriptor = builder_->builder()->HasDescriptor(index);
 
       WasmOpcode opcode;
       if (new_default && can_be_defaultable) {
-        opcode = kExprStructNewDefault;
+        opcode =
+            has_descriptor ? kExprStructNewDefaultDesc : kExprStructNewDefault;
       } else {
-        opcode = kExprStructNew;
+        opcode = has_descriptor ? kExprStructNewDesc : kExprStructNew;
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
       }
-      {
-        const TypeDefinition& struct_def =
-            builder_->builder()->GetType_Unsafe(index);
-        if (struct_def.has_descriptor()) {
-          GenerateRef(HeapType::Index(struct_def.descriptor, false,
-                                      RefTypeKind::kStruct)
-                          .AsExact(),
-                      data, kNonNullable);
-        }
+      if (has_descriptor) {
+        ModuleTypeIndex descriptor = builder_->builder()->GetDescriptor(index);
+        GenerateRef(
+            HeapType::Index(descriptor, false, RefTypeKind::kStruct).AsExact(),
+            data, kNonNullable);
       }
       builder_->EmitWithPrefix(opcode);
       builder_->EmitU32V(index);
@@ -1575,8 +1573,7 @@ class BodyGen {
           // This is more restrictive than it has to be.
           // TODO(14034): Also support nonnullable and non-index reference
           // types.
-          if (element_type.is_reference() && element_type.is_nullable() &&
-              element_type.has_index()) {
+          if (element_type.has_index() && element_type.is_nullable()) {
             // Add a new element segment with the corresponding type.
             uint32_t element_segment = GenerateRefTypeElementSegment(
                 data, builder_->builder(), element_type);
@@ -1589,7 +1586,7 @@ class BodyGen {
             builder_->EmitU32V(index);
             builder_->EmitU32V(element_segment);
             break;
-          } else if (!element_type.is_reference()) {
+          } else if (!element_type.is_ref()) {
             // Lazily create a data segment if the module doesn't have one yet.
             if (builder_->builder()->NumDataSegments() == 0) {
               GeneratePassiveDataSegment(data, builder_->builder());
@@ -2007,7 +2004,7 @@ class BodyGen {
         builder_->builder()->GetArrayType(array_index);
     DCHECK(array_type->mutability());
     ValueType element_type = array_type->element_type().Unpacked();
-    if (element_type.is_reference()) {
+    if (element_type.is_ref()) {
       return;
     }
     if (builder_->builder()->NumDataSegments() == 0) {
@@ -2037,8 +2034,7 @@ class BodyGen {
     // This is more restrictive than it has to be.
     // TODO(14034): Also support nonnullable and non-index reference
     // types.
-    if (!element_type.is_reference() || element_type.is_non_nullable() ||
-        !element_type.has_index()) {
+    if (!element_type.has_index() || element_type.is_non_nullable()) {
       return;
     }
     // Add a new element segment with the corresponding type.
@@ -2317,7 +2313,7 @@ class BodyGen {
     return true;  // It always produces the desired result type.
   }
 
-  bool ref_cast_desc(HeapType type, DataRange* data, Nullability nullable) {
+  bool ref_cast_desc_eq(HeapType type, DataRange* data, Nullability nullable) {
     if (!builder_->builder()
              ->GetType_Unsafe(type.ref_index())
              .has_descriptor()) {
@@ -2331,8 +2327,8 @@ class BodyGen {
             false, RefTypeKind::kStruct)
             .AsExact(type.exactness());
     GenerateRef(desc_type, data, kNonNullable);
-    builder_->EmitWithPrefix(nullable ? kExprRefCastDescNull
-                                      : kExprRefCastDesc);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastDescEqNull
+                                      : kExprRefCastDescEq);
     builder_->EmitHeapType(type);
     return true;
   }
@@ -2492,7 +2488,7 @@ class BodyGen {
       return false;
     }
     ValueType break_type = break_types.last();
-    if (!break_type.is_reference()) {
+    if (!break_type.is_ref()) {
       return false;
     }
 
@@ -2538,8 +2534,8 @@ class BodyGen {
                                              RefTypeKind::kStruct)
                                  .AsExact(target_type.exactness());
         GenerateRef(desc_type, data, kNonNullable);
-        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDesc;
-        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescFail;
+        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDescEq;
+        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescEqFail;
       }
     }
     builder_->EmitWithPrefix(opcode);
@@ -3821,7 +3817,7 @@ class BodyGen {
     if (recursion_limit_reached() || data->size() == 0) {
       // For defaultable types, prefer to emit *.new_default, because that
       // makes functions more interesting to execute than ref.null.
-      if (type.is_index()) {
+      if (type.has_index()) {
         ModuleTypeIndex index = type.ref_index();
         const TypeDefinition& type_def =
             builder_->builder()->GetType_Unsafe(index);
@@ -3857,8 +3853,7 @@ class BodyGen {
     }
 
     constexpr auto alternatives_indexed_type =
-        CreateArray(&BodyGen::new_object,                     //
-                    &BodyGen::get_local_ref,                  //
+        CreateArray(&BodyGen::get_local_ref,                  //
                     &BodyGen::array_get_ref,                  //
                     &BodyGen::array_atomic_get_ref,           //
                     &BodyGen::array_atomic_rmw_xchg_ref,      //
@@ -3868,10 +3863,14 @@ class BodyGen {
                     &BodyGen::struct_atomic_rmw_xchg_ref,     //
                     &BodyGen::struct_atomic_rmw_cmpxchg_ref,  //
                     &BodyGen::ref_cast,                       //
-                    &BodyGen::ref_cast_desc,                  //
+                    &BodyGen::ref_cast_desc_eq,               //
                     &BodyGen::ref_get_desc,                   //
                     &BodyGen::ref_as_non_null,                //
-                    &BodyGen::br_on_cast);                    //
+                    // Note: More expensive operations (in terms of generated
+                    // code) should come last, because we will try the first
+                    // alternatives first when we run out of input bytes.
+                    &BodyGen::new_object,   //
+                    &BodyGen::br_on_cast);  //
 
     constexpr auto alternatives_func_any =
         CreateArray(&BodyGen::table_get,                   //
@@ -3904,8 +3903,8 @@ class BodyGen {
     if (type.has_index()) {
       if (options_.generate_wasm_gc() &&
           type.ref_index() == string_imports_.array_i8 &&
-          data->get<uint8_t>() < 18) {
-        // ~1/14th chance, fits the number of remaining alternatives (13)
+          data->get<uint8_t>() < 16) {
+        // ~1/16th chance, fits the number of remaining alternatives (15)
         // quite well.
         return string_toutf8array(data);
       }
@@ -4155,7 +4154,7 @@ class BodyGen {
 
     // Split the types in two halves and recursively generate each half.
     // Each half is non empty to ensure termination.
-    size_t split_index = data->get<uint8_t>() % (types.size() - 1) + 1;
+    size_t split_index = types.size() / 2;
     base::Vector<const ValueType> lower_half = types.SubVector(0, split_index);
     base::Vector<const ValueType> upper_half =
         types.SubVector(split_index, types.size());
@@ -4215,9 +4214,8 @@ class BodyGen {
 
     if (return_types.size() == 0 || param_types.size() == 0 ||
         !primitive(return_types[0])) {
-      for (auto iter = param_types.rbegin(); iter != param_types.rend();
-           ++iter) {
-        Consume(*iter);
+      for (ValueType type : base::Reversed(param_types)) {
+        Consume(type);
       }
       Generate(return_types, data);
       return;
@@ -4294,8 +4292,8 @@ class ModuleGen {
  public:
   explicit ModuleGen(Zone* zone, WasmModuleGenerationOptions options,
                      WasmModuleBuilder* fn, DataRange* module_range,
-                     uint8_t num_functions, uint8_t num_structs,
-                     uint8_t num_arrays, uint8_t num_signatures)
+                     int num_functions, int num_structs, int num_arrays,
+                     int num_signatures)
       : zone_(zone),
         options_(options),
         builder_(fn),
@@ -4492,8 +4490,8 @@ class ModuleGen {
       } while (false);
 
       // TODO(42204563): Add support for shared structs.
-      StructType::Builder struct_builder(zone_, num_fields, is_descriptor,
-                                         false);
+      StructType::Builder<Zone> struct_builder(zone_, num_fields, is_descriptor,
+                                               false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -4630,7 +4628,7 @@ class ModuleGen {
     }
   }
 
-  void GenerateRandomExceptions(uint8_t num_exceptions) {
+  void GenerateRandomExceptions(int num_exceptions) {
     for (int i = 0; i < num_exceptions; ++i) {
       FunctionSig* sig = GenerateSig(kExceptionSig, num_types_);
       builder_->AddTag(sig);
@@ -4706,8 +4704,13 @@ class ModuleGen {
     static constexpr base::Vector<const char> kTextEncoder =
         base::StaticCharVector("wasm:text-encoder");
 
+    // The signatures of compile-time imports must be defined in singleton
+    // recgroups, so we can't allow them to get deduplicated against existing
+    // signatures that might be in nontrivial recgroups.
+    static constexpr bool kForceNewSig = true;
 #define STRINGFUNC(name, sig, group) \
-  strings.name = builder_->AddImport(base::CStrVector(#name), &sig, group)
+  strings.name =                     \
+      builder_->AddImport(base::CStrVector(#name), &sig, group, kForceNewSig)
 
     STRINGFUNC(cast, kSig_e_r, kJsString);
     STRINGFUNC(test, kSig_i_r, kJsString);
@@ -4836,10 +4839,10 @@ class ModuleGen {
   const WasmModuleGenerationOptions options_;
   WasmModuleBuilder* const builder_;
   DataRange* const module_range_;
-  const uint8_t num_functions_;
-  const uint8_t num_structs_;
-  const uint8_t num_arrays_;
-  const uint16_t num_types_;
+  const int num_functions_;
+  const int num_structs_;
+  const int num_arrays_;
+  const int num_types_;
   std::vector<ExportData>* imports_ = nullptr;
 };
 
@@ -4854,17 +4857,16 @@ WasmInitExpr GenerateStructNewInitExpr(
       range.get<bool>();
 
   if (use_new_default) {
-    ZoneVector<WasmInitExpr>* descriptor = nullptr;
     const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
     if (struct_def.has_descriptor()) {
-      descriptor = zone->New<ZoneVector<WasmInitExpr>>(zone);
       ValueType type =
           ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
               .AsExact();
-      descriptor->push_back(GenerateInitExpr(
-          zone, range, builder, type, structs, arrays, recursion_depth + 1));
+      WasmInitExpr descriptor = GenerateInitExpr(
+          zone, range, builder, type, structs, arrays, recursion_depth + 1);
+      return WasmInitExpr::StructNewDefaultDesc(zone, index, descriptor);
     }
-    return WasmInitExpr::StructNewDefault(index, descriptor);
+    return WasmInitExpr::StructNewDefault(index);
   } else {
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
@@ -4881,6 +4883,7 @@ WasmInitExpr GenerateStructNewInitExpr(
               .AsExact();
       elements->push_back(GenerateInitExpr(zone, range, builder, type, structs,
                                            arrays, recursion_depth + 1));
+      return WasmInitExpr::StructNewDesc(index, elements);
     }
     return WasmInitExpr::StructNew(index, elements);
   }
@@ -5133,7 +5136,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // At least 1 function is needed.
   int max_num_functions = MaxNumOfFunctions();
   CHECK_GE(max_num_functions, 1);
-  uint8_t num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
+  int num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
 
   // In case of WasmGC expressions:
   // Add struct and array types first so that we get a chance to generate
@@ -5141,8 +5144,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // Currently, `BodyGen` assumes this order for struct/array/signature
   // definitions.
   // Otherwise, for non-WasmGC we can't use structs/arrays.
-  uint8_t num_structs = 0;
-  uint8_t num_arrays = 0;
+  int num_structs = 0;
+  int num_arrays = 0;
   std::vector<ModuleTypeIndex> array_types;
   std::vector<ModuleTypeIndex> struct_types;
 
@@ -5158,7 +5161,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                  module_range.get<uint8_t>() % kMaxArrays;
   }
 
-  uint8_t num_signatures = num_functions;
+  int num_signatures = num_functions;
   ModuleGen gen_module(zone, options, &builder, &module_range, num_functions,
                        num_structs, num_arrays, num_signatures);
 
@@ -5342,7 +5345,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     }
     // TODO(403372470): Add support for custom descriptors.
     // TODO(42204563): Add support for shared structs.
-    StructType::Builder struct_builder(zone, num_fields, false, false);
+    StructType::Builder<Zone> struct_builder(zone, num_fields, false, false);
 
     // Add all fields from super type.
     uint32_t field_index = 0;

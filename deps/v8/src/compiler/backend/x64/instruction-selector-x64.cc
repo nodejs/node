@@ -33,6 +33,10 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#include "src/sandbox/code-sandboxing-mode.h"
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -1083,6 +1087,27 @@ void InstructionSelector::VisitAbortCSADcheck(OpIndex node) {
   DCHECK_EQ(check.input_count, 1);
   Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(check.message(), rdx));
 }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void InstructionSelector::VisitSwitchSandboxMode(OpIndex node) {
+  CodeSandboxingMode sandbox_mode;
+  sandbox_mode = Cast<SwitchSandboxModeOp>(node).sandbox_mode;
+  X64OperandGenerator g(this);
+  if (sandbox_mode == CodeSandboxingMode::kUnsandboxed) {
+    Emit(kArchSwitchSandboxMode | MiscField::encode(static_cast<int>(
+                                      CodeSandboxingMode::kUnsandboxed)),
+         g.NoOutput());
+    return;
+  } else if (sandbox_mode == CodeSandboxingMode::kSandboxed) {
+    Emit(kArchSwitchSandboxMode | MiscField::encode(static_cast<int>(
+                                      CodeSandboxingMode::kSandboxed)),
+         g.NoOutput());
+    return;
+  } else {
+    UNREACHABLE();
+  }
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitLoadLane(OpIndex node) {
@@ -2803,11 +2828,10 @@ void VisitFloatBinop(InstructionSelector* selector, OpIndex node,
 void VisitFloatUnop(InstructionSelector* selector, OpIndex node, OpIndex input,
                     InstructionCode opcode) {
   X64OperandGenerator g(selector);
-  if (selector->IsSupported(AVX)) {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input));
-  } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
-  }
+  InstructionOperand dst = selector->IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  selector->Emit(opcode, dst, g.UseRegister(input));
 }
 
 }  // namespace
@@ -2861,6 +2885,10 @@ void VisitFloatUnop(InstructionSelector* selector, OpIndex node, OpIndex input,
   V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
   V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
   V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest)) \
+  V(F32x8Ceil, kX64F32x8Round | MiscField::encode(kRoundUp))              \
+  V(F32x8Floor, kX64F32x8Round | MiscField::encode(kRoundDown))           \
+  V(F32x8Trunc, kX64F32x8Round | MiscField::encode(kRoundToZero))         \
+  V(F32x8NearestInt, kX64F32x8Round | MiscField::encode(kRoundToNearest)) \
   V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))              \
   V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
   V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \
@@ -5939,8 +5967,10 @@ void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
   DCHECK_EQ(op.input_count, 2);
-  Emit(kX64I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(op.left()), g.UseRegister(op.right()));
+  InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)
+                                            : g.DefineSameAsInput(node, 1);
+  Emit(kX64I16x8DotI8x16I7x16S, dst, g.UseRegister(op.left()),
+       g.UseRegister(op.right()));
 }
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {

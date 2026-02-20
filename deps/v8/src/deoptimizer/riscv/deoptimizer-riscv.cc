@@ -49,6 +49,7 @@ void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+  caller_pc_ = value;
 }
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {

@@ -42,8 +42,7 @@ extern operator '.int32_value=' macro StoreContextCellInt32Value(
 const kContextCellConst: constexpr int32 generates 'ContextCell::kConst';
 const kContextCellSmi: constexpr int32 generates 'ContextCell::kSmi';
 const kContextCellInt32: constexpr int32 generates 'ContextCell::kInt32';
-const kContextCellFloat64:
-    constexpr int32 generates 'ContextCell::kFloat64';
+const kContextCellFloat64: constexpr int32 generates 'ContextCell::kFloat64';
 const kContextCellDetached:
     constexpr int32 generates 'ContextCell::kDetached';
 
@@ -146,6 +145,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   ITERATOR_TAKE_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FLAT_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_CONCAT_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
@@ -477,7 +477,6 @@ macro StoreScriptContextElementImpl(
 
 macro LoadContextElementImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
-  if (val == TheHole) return val;
   const cell = Cast<ContextCell>(val) otherwise return val;
   dcheck(HasContextCells(c));
   dcheck(kContextCellConst == 0);

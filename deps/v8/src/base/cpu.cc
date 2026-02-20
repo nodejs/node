@@ -25,9 +25,6 @@
 #endif
 #if V8_OS_AIX
 #include <sys/systemcfg.h>  // _system_configuration
-#ifndef POWER_8
-#define POWER_8 0x10000
-#endif
 #ifndef POWER_9
 #define POWER_9 0x20000
 #endif
@@ -124,7 +121,7 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
 #endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS64 || \
-    V8_HOST_ARCH_RISCV64
+    V8_HOST_ARCH_RISCV64 || V8_HOST_ARCH_LOONG64
 
 #if V8_OS_LINUX
 
@@ -245,6 +242,21 @@ static std::tuple<uint64_t, uint64_t> ReadELFHWCaps() {
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
 
+#if V8_HOST_ARCH_LOONG64
+
+#define LOONGARCH_CFG2 0x2
+#define LOONGARCH_CFG2_LSX (1 << 6)
+#define LOONGARCH_CFG2_LASX (1 << 7)
+
+static int cpu_flags_cpucfg(int cfg) {
+  int flags = 0;
+
+  __asm__ volatile("cpucfg %0, %1 \n\t" : "+&r"(flags) : "r"(cfg));
+
+  return flags;
+}
+#endif  // V8_HOST_ARCH_LOONG64
+
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
  public:
@@ -337,18 +349,24 @@ class CPUInfo final {
   size_t datalen_;
 };
 
-// Checks that a space-separated list of items contains one given 'item'.
-static bool HasListItem(const char* list, const char* item) {
+// Checks whether the given item appears in a list of items separated by
+// characters for which isseparator returns true.
+template <typename Predicate>
+static bool HasListItem(const char* list, const char* item,
+                        Predicate isseparator) {
   ssize_t item_len = strlen(item);
   const char* p = list;
   if (p != nullptr) {
+    // Skip whitespace.
+    while (isspace(*p)) ++p;
+
     while (*p != '\0') {
-      // Skip whitespace.
-      while (isspace(*p)) ++p;
+      // Skip separator.
+      while (isseparator(*p)) ++p;
 
       // Find end of current list item.
       const char* q = p;
-      while (*q != '\0' && !isspace(*q)) ++q;
+      while (*q != '\0' && !isseparator(*q)) ++q;
 
       if (item_len == q - p && memcmp(p, item, item_len) == 0) {
         return true;
@@ -361,10 +379,16 @@ static bool HasListItem(const char* list, const char* item) {
   return false;
 }
 
+// Checks that a space-separated list of items contains one given 'item'.
+static bool HasListItem(const char* list, const char* item) {
+  return HasListItem(list, item, isspace);
+}
+
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
+        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64 ||
+        // V8_HOST_ARCH_LOONG64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -403,6 +427,7 @@ bool CPU::StarboardDetectCPU() {
       has_lzcnt_ = features.x86.has_lzcnt;
       has_popcnt_ = features.x86.has_popcnt;
       has_f16c_ = features.x86.has_f16c;
+      // TODO(jiepan): Support APX_F on STARBOARD
       break;
     default:
       return false;
@@ -450,6 +475,7 @@ CPU::CPU()
       has_bmi2_(false),
       has_lzcnt_(false),
       has_popcnt_(false),
+      has_apx_f_(false),
       has_idiva_(false),
       has_neon_(false),
       has_thumb2_(false),
@@ -475,7 +501,9 @@ CPU::CPU()
       has_rvv_(false),
       has_zba_(false),
       has_zbb_(false),
-      has_zbs_(false) {
+      has_zbs_(false),
+      has_lsx_(false),
+      has_lasx_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -537,6 +565,7 @@ CPU::CPU()
     has_avx_vnni_int8_ = (cpu_info71[3] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
     has_f16c_ = (cpu_info[2] & 0x20000000) != 0;
+    has_apx_f_ = (cpu_info71[3] & 0x00200000) != 0;
     // CET shadow stack feature flag. See
     // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
     has_cetss_ = (cpu_info70[2] & 0x00000080) != 0;
@@ -820,6 +849,20 @@ CPU::CPU()
   delete[] cpu_model;
   delete[] ASEs;
 
+#elif V8_HOST_ARCH_LOONG64
+
+  CPUInfo cpu_info;
+  int flags = cpu_flags_cpucfg(LOONGARCH_CFG2);
+  if (flags != 0) {
+    has_lsx_ = (flags & LOONGARCH_CFG2_LSX) != 0;
+    has_lasx_ = (flags & LOONGARCH_CFG2_LASX) != 0;
+  } else {
+    char* features = cpu_info.ExtractField("features");
+    has_lsx_ = HasListItem(features, "lsx");
+    has_lasx_ = HasListItem(features, "lasx");
+    delete[] features;
+  }
+
 #elif V8_HOST_ARCH_ARM64
 #ifdef V8_OS_WIN
   // Windows makes high-resolution thread timing information available in
@@ -975,8 +1018,6 @@ CPU::CPU()
       part_ = kPPCPower10;
     } else if (strcmp(auxv_cpu_type, "power9") == 0) {
       part_ = kPPCPower9;
-    } else if (strcmp(auxv_cpu_type, "power8") == 0) {
-      part_ = kPPCPower8;
     }
   }
 
@@ -987,9 +1028,6 @@ CPU::CPU()
       break;
     case POWER_9:
       part_ = kPPCPower9;
-      break;
-    case POWER_8:
-      part_ = kPPCPower8;
       break;
   }
 #endif  // V8_OS_AIX
@@ -1023,10 +1061,16 @@ CPU::CPU()
 #else
   char* features = cpu_info.ExtractField("isa");
 
-  if (HasListItem(features, "rv64imafdc")) {
+  // Underscore (_) is used as the separator for RISC-V ISA features.
+  auto HasFeature = [features](const char* feature) {
+    return HasListItem(features, feature,
+                       std::bind_front(std::equal_to{}, '_'));
+  };
+
+  if (HasFeature("rv64imafdc")) {
     has_fpu_ = true;
   }
-  if (HasListItem(features, "rv64imafdcv")) {
+  if (HasFeature("rv64imafdcv")) {
     has_fpu_ = true;
     has_rvv_ = true;
   }

@@ -10,7 +10,6 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/mutable-page-metadata.h"
 #include "src/objects/free-space.h"
 #include "src/objects/map.h"
 #include "src/utils/utils.h"
@@ -28,9 +27,9 @@ class AllocationObserver;
 class FreeList;
 class Isolate;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class LinearAllocationArea;
-class PageMetadata;
+class NormalPage;
 class PagedSpace;
 class SemiSpace;
 
@@ -162,7 +161,7 @@ class FreeList {
       AllocationOrigin origin) = 0;
 
   // Returns a page containing an entry for a given type, or nullptr otherwise.
-  V8_EXPORT_PRIVATE virtual PageMetadata* GetPageForSize(
+  V8_EXPORT_PRIVATE virtual NormalPage* GetPageForSize(
       size_t size_in_bytes) = 0;
 
   virtual void Reset();
@@ -193,7 +192,7 @@ class FreeList {
   // Used after booting the VM.
   void RepairLists(Heap* heap);
 
-  V8_EXPORT_PRIVATE void EvictFreeListItems(PageMetadata* page);
+  V8_EXPORT_PRIVATE void EvictFreeListItems(NormalPage* page);
 
   int number_of_categories() { return number_of_categories_; }
   FreeListCategoryType last_category() { return last_category_; }
@@ -269,7 +268,7 @@ class FreeList {
     return categories_[type];
   }
 
-  inline PageMetadata* GetPageForCategoryType(FreeListCategoryType type);
+  inline NormalPage* GetPageForCategoryType(FreeListCategoryType type);
 
   const int number_of_categories_ = 0;
   const FreeListCategoryType last_category_ = 0;
@@ -284,9 +283,9 @@ class FreeList {
   std::atomic<size_t> wasted_bytes_ = 0;
 
   friend class FreeListCategory;
-  friend class PageMetadata;
-  friend class MutablePageMetadata;
-  friend class ReadOnlyPageMetadata;
+  friend class MutablePage;
+  friend class NormalPage;
+  friend class ReadOnlyPage;
   friend class MapSpace;
 };
 
@@ -298,7 +297,7 @@ class FreeList {
 // consumption should be lower (since fragmentation should be lower).
 class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
  public:
-  PageMetadata* GetPageForSize(size_t size_in_bytes) override;
+  NormalPage* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListMany();
   ~FreeListMany() override;
@@ -312,7 +311,7 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
 
   // This is a conservative upper bound. The actual maximum block size takes
   // padding and alignment of data and code pages into account.
-  static constexpr size_t kMaxBlockSize = MutablePageMetadata::kPageSize;
+  static constexpr size_t kMaxBlockSize = kRegularPageSize;
   // Largest size for which categories are still precise, and for which we can
   // therefore compute the category in constant time.
   static constexpr size_t kPreciseCategoryMaxSize = 256;

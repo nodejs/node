@@ -1282,7 +1282,10 @@ void GraphAssembler::BranchWithCriticalSafetyCheck(
 }
 
 void GraphAssembler::RuntimeAbort(AbortReason reason) {
-  AddNode(graph()->NewNode(simplified()->RuntimeAbort(reason)));
+  // We used to insert a RuntimeAbort operation here, but that code was broken.
+  // As it's currently not much used (and about to be replaced by turboshaft),
+  // we now just insert a DebugBreak here.
+  DebugBreak();
 }
 
 void GraphAssembler::ConnectUnreachableToEnd() {

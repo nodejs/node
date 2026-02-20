@@ -242,6 +242,14 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     }
   }
 
+  bool IsSubsetOf(const BitVector& other) const {
+    DCHECK(other.length() == length());
+    for (int i = 0; i < data_length(); i++) {
+      if ((data_begin_[i] & ~other.data_begin_[i]) != 0) return false;
+    }
+    return true;
+  }
+
   void Clear() { std::fill_n(data_begin_, data_length(), 0); }
 
   bool IsEmpty() const {

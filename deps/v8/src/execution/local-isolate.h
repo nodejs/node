@@ -118,6 +118,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     UNREACHABLE();
   }
 
+  JSDispatchTable& js_dispatch_table() const {
+    return isolate_->js_dispatch_table();
+  }
+
   int GetNextScriptId();
   uint32_t GetAndIncNextUniqueSfiId() {
     return isolate_->GetAndIncNextUniqueSfiId();

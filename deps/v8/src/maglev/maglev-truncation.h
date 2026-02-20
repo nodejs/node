@@ -8,11 +8,19 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/common/scoped-modification.h"
+#include "src/flags/flags.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
+
+#define TRACE_TRUNCATION(msg)                                                  \
+  if (V8_UNLIKELY(v8_flags.trace_maglev_truncation && is_tracing_enabled())) { \
+    StdoutStream{} << "[maglev-truncation] " << msg << std::endl;              \
+  }
 
 namespace v8 {
 namespace internal {
@@ -96,13 +104,27 @@ class PropagateTruncationProcessor {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
+  ProcessResult Process(Identity* node) {
+    return ProcessSingleInputSpecialNode(node);
+  }
+  ProcessResult Process(ReturnedValue* node) {
+    return ProcessSingleInputSpecialNode(node);
+  }
+
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
   // TODO(victorgomes): We can only truncate CheckedHoleyFloat64ToInt32
   // inputs if we statically know they are in Int32 range.
 
+  ProcessResult Process(TruncateFloat64ToInt32* node) {
+    // We can always truncate the input of this node.
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(TruncateHoleyFloat64ToInt32* node) {
+    // We can always truncate the input of this node.
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(UnsafeFloat64ToInt32* node) {
     // We can always truncate the input of this node.
     return ProcessResult::kContinue;
   }
@@ -117,7 +139,8 @@ class PropagateTruncationProcessor {
   template <typename NodeT, int I>
   void UnsetCanTruncateToInt32ForFixedInputNodes(NodeT* node) {
     if constexpr (I < static_cast<int>(NodeT::kInputCount)) {
-      if constexpr (NodeT::kInputTypes[I] != ValueRepresentation::kTagged) {
+      if constexpr (NodeT::kInputRepresentations[I] !=
+                    ValueRepresentation::kTagged) {
         node->NodeBase::input(I).node()->set_can_truncate_to_int32(false);
       }
       UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, I + 1>(node);
@@ -130,16 +153,20 @@ class PropagateTruncationProcessor {
       return UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, 0>(node);
     }
 #ifdef DEBUG
-    // Non-fixed input nodes don't expect float64 as inputs, except
-    // ReturnedValue.
-    if constexpr (std::is_same_v<NodeT, ReturnedValue>) {
-      return;
-    }
     for (Input input : node->inputs()) {
-      DCHECK_NE(input.node()->value_representation(),
-                ValueRepresentation::kFloat64);
+      DCHECK(!input.node()->can_truncate_to_int32());
     }
 #endif  // DEBUG
+  }
+
+  ProcessResult ProcessSingleInputSpecialNode(ValueNode* node) {
+    if (!node->can_truncate_to_int32()) {
+      ValueNode* input_node = node->input_node(0);
+      if (input_node->value_representation() != ValueRepresentation::kTagged) {
+        input_node->set_can_truncate_to_int32(false);
+      }
+    }
+    return ProcessResult::kContinue;
   }
 
   void UnsetCanTruncateToInt32ForDeoptFrameInput(ValueNode* node) {
@@ -194,7 +221,9 @@ class TruncationProcessor {
     PostProcessNode(node);                                          \
     return result;                                                  \
   }
+  PROCESS_TRUNC_CONV(TruncateFloat64ToInt32)
   PROCESS_TRUNC_CONV(TruncateHoleyFloat64ToInt32)
+  PROCESS_TRUNC_CONV(UnsafeFloat64ToInt32)
   PROCESS_TRUNC_CONV(UnsafeHoleyFloat64ToInt32)
 #undef PROCESS_TRUNC_CONV
 
@@ -221,9 +250,30 @@ class TruncationProcessor {
       PROCESS_INT32_BITWISE_BINARY_OPERATION)
 #undef PROCESS_INT32_BITWISE_BINARY_OPERATION
 
+  ProcessResult Process(Float64SpeculateSafeAdd* node,
+                        const ProcessingState& state) {
+    ScopedModification<NodeBase*> current_node(&current_node_, node);
+    PreProcessNode(node, state);
+    ProcessFloat64SpeculateSafeAdd(node);
+    PostProcessNode(node);
+    return ProcessResult::kContinue;
+  }
+
+  DeoptFrame* GetDeoptFrameForEagerDeopt() {
+    DCHECK(current_node()->properties().can_eager_deopt() ||
+           current_node()->properties().is_deopt_checkpoint());
+    return &current_node()->eager_deopt_info()->top_frame();
+  }
+
  private:
   MaglevReducer<TruncationProcessor> reducer_;
   int current_node_index_ = 0;
+  NodeBase* current_node_;
+
+  NodeBase* current_node() const {
+    CHECK_NOT_NULL(current_node_);
+    return current_node_;
+  }
 
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
@@ -240,19 +290,58 @@ class TruncationProcessor {
   void PostProcessNode(ControlNode*);
 
   int NonInt32InputCount(ValueNode* node);
-  ValueNode* GetUnwrappedInput(ValueNode* node, int index);
-  void UnwrapInputs(ValueNode* node);
+  ValueNode* GetTruncatedInt32Input(ValueNode* node, int index);
+  ValueNode* GetSpeculatedTruncatedInt32Input(ValueNode* node, int index);
+  void EnsureTruncatedInt32Inputs(ValueNode* node);
   void ConvertInputsToFloat64(ValueNode* node);
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
+  bool IsSafeIntInputOrPhi(ValueNode* node, int index) {
+    ValueNode* input = node->input_node(index);
+    if (input->Is<Phi>()) return true;
+    if (input->is_conversion()) return IsSafeIntInputOrPhi(input, 0);
+    return input->GetStaticRange().IsSafeInt();
+  }
+
+  void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
+    if (!node->can_truncate_to_int32()) {
+      // Don't truncate this node.
+      node->OverwriteWith<Float64Add>();
+      return;
+    }
+    if (node->range().IsSafeInt()) {
+      // Non-speculating truncation.
+      ProcessFloat64BinaryOp<Int32Add>(node);
+      return;
+    }
+    // Checking both inputs are usually expensive, so we only speculate if one
+    // of the inputs is already a safe int. However since truncation happens
+    // before phi representation selector, we also speculate if we see a phi.
+    if (!IsSafeIntInputOrPhi(node, 0) && !IsSafeIntInputOrPhi(node, 1)) {
+      // Don't truncate this node.
+      node->OverwriteWith<Float64Add>();
+      return;
+    }
+    // Speculating truncation.
+    for (int i = 0; i < node->input_count(); i++) {
+      node->change_input(i, GetSpeculatedTruncatedInt32Input(node, i));
+    }
+    node->OverwriteWith<Int32Add>();
+  }
+
   template <typename NodeT>
+
   void ProcessFloat64BinaryOp(ValueNode* node) {
     if (!node->can_truncate_to_int32()) return;
+
     switch (NonInt32InputCount(node)) {
       case 0:
         // All inputs are Int32, truncate node.
-        UnwrapInputs(node);
+        EnsureTruncatedInt32Inputs(node);
+        TRACE_TRUNCATION("truncating "
+                         << PrintNodeBrief{node} << " to "
+                         << OpcodeToString(Node::opcode_of<NodeT>));
         node->OverwriteWith<NodeT>();
         break;
       case 1:
@@ -268,13 +357,18 @@ class TruncationProcessor {
   }
 
   template <typename NodeT>
+
   void ProcessInt32ArithmeticOperationWithOverflow(NodeT* node) {
     if (!node->can_truncate_to_int32()) return;
 
     if (node->opcode() == Opcode::kInt32AddWithOverflow) {
+      TRACE_TRUNCATION("truncating " << PrintNodeBrief{node} << " to Int32Add");
       node->OverwriteWith(Opcode::kInt32Add);
+
     } else {
       DCHECK_EQ(node->opcode(), Opcode::kInt32SubtractWithOverflow);
+      TRACE_TRUNCATION("truncating " << PrintNodeBrief{node}
+                                     << " to Int32Subtract");
       node->OverwriteWith(Opcode::kInt32Subtract);
     }
     // TODO(marja): To support Int32MultiplyWithOverflow and
@@ -290,13 +384,17 @@ class TruncationProcessor {
     if (IsCommutativeNode(Node::opcode_of<NodeT>)) {
       std::optional<int32_t> left = node->TryGetInt32ConstantInput(0);
       if (left && left == Int32Identity(Node::opcode_of<NodeT>)) {
-        node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 1));
+        TRACE_TRUNCATION("eliding identity " << PrintNodeBrief{node}
+                                             << " with left input");
+        node->OverwriteWithIdentityTo(node->input_node(1));
         return ProcessResult::kRemove;
       }
     }
     std::optional<int32_t> right = node->TryGetInt32ConstantInput(1);
     if (right && right == Int32Identity(Node::opcode_of<NodeT>)) {
-      node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
+      TRACE_TRUNCATION("eliding identity " << PrintNodeBrief{node}
+                                           << " with right input");
+      node->OverwriteWithIdentityTo(node->input_node(0));
       return ProcessResult::kRemove;
     }
     return ProcessResult::kContinue;

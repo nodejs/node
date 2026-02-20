@@ -119,7 +119,8 @@ TEST_P(StringResizeAndOverwriteTest, Initialized) {
 
   if (param.initial_size < param.final_size) {
 #ifndef NDEBUG
-    EXPECT_DEATH_IF_SUPPORTED(op(), "shadow == -1");
+    EXPECT_DEATH_IF_SUPPORTED(op(),
+                              "MemorySanitizer: use-of-uninitialized-value");
 #endif
   } else {
     // The string is fully initialized from the initial constructor, or we skip

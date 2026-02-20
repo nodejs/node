@@ -27,4 +27,8 @@ testForOf([1, 2, 3].entries());
 console.log(results);
 assertEquals(results, [[0, 1], [1, 2], [2, 3]]);
 
+testForOf(new Uint8Array([1, 2, 3, 4, 5]));
+console.log(results);
+assertEquals(results, [1, 2, 3, 4, 5]);
+
 assertTrue(isBaseline(testForOf))

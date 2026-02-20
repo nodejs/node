@@ -97,7 +97,7 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
 // {pc_address} and the pointer used as a context for signing.
 V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
                                                 Address new_pc,
-                                                int offset_from_sp) {
+                                                int offset_from_sp, int) {
   uint64_t sp = reinterpret_cast<uint64_t>(pc_address) + offset_from_sp;
   uint64_t old_pc = static_cast<uint64_t>(*pc_address);
 #ifdef USE_SIMULATOR

@@ -6,6 +6,7 @@
 #define V8_SANDBOX_HARDWARE_SUPPORT_H_
 
 #include "include/v8-platform.h"
+#include "src/base/platform/memory-protection-key.h"
 #include "src/common/globals.h"
 #include "src/sandbox/code-sandboxing-mode.h"
 
@@ -47,9 +48,16 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // Enable sandbox hardware support for the current thread.
   //
   // Any thread that wishes to use EnterSandbox/ExitSandbox must first call
-  // this function. Internally, this will ensure that the thread's stack memory
-  // is correctly set up for hardware sandboxing.
-  static void EnableForCurrentThread();
+  // this function. Internally, this will apply a pkey to the thread's stack
+  // memory to ensure that the stack remains accessible to sandboxed code.
+  // In the future, we might instead want to use a dedicated "sandboxed" stack,
+  // in which case this method would allocate and set up this stack.
+  //
+  // If limit_address is provided, only stack pages up to and including that
+  // address will be tagged with the pkey, otherwise the full stack will. This
+  // is useful to avoid unrelated data structures allocated at the top of the
+  // stack segment, such as the TLS, being made sandbox-accessible.
+  static void EnableForCurrentThread(void* limit_address = nullptr);
 
   // Register memory outside of the sandbox.
   //
@@ -215,10 +223,12 @@ class V8_NODISCARD V8_ALLOW_UNUSED ExitSandboxScope {
 // These scopes can be arbitrarily nested and can be allocated both on the
 // stack and on the heap. Sandbox access will be disallowed as long as at least
 // one scope remains active.
-class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
+// However, these scopes must retain a strict LIFO ordering, with an inner
+// scope always being destroyed before any of its surrounding scopes.
+class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
-  DisallowSandboxAccess();
+  explicit DisallowSandboxAccess(const char* reason);
   ~DisallowSandboxAccess();
 
   // Copying and assigning these scope objects is not allowed as it would not
@@ -228,20 +238,24 @@ class V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
 
  private:
   int pkey_;
+  base::MemoryProtectionKey::Permission previous_permission_;
+#else
+  explicit DisallowSandboxAccess(const char* reason) {}
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 
 // Scope object to grant a temporary exception from a DisallowSandboxAccess.
 // This scope object will re-enable access to in-sandbox memory during its
-// lifetime even if one or more DisallowSandboxAccess scopes are currently
-// active. However, in contrast to DisallowSandboxAccess these scopes cannot be
-// nested and should only be used sparingly and for short durations. It is also
-// currently not possible to have have another DisallowSandboxAccess inside an
-// AllowSandboxAccess scope, although that could be implemented if needed.
-class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
+// lifetime even if one or more DisallowSandboxAccess scopes are active.
+//
+// NOTE: Please use these scopes carefully and consider asking for a review
+// from the security team when adding new uses.
+class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
-  AllowSandboxAccess();
+  // The justification should describe which in-sandbox data is being accessed
+  // and for what purpose, and why that cannot lead to a sandbox violation.
+  explicit AllowSandboxAccess(const char* justification);
   ~AllowSandboxAccess();
 
   // Copying and assigning these scope objects is not allowed as it would not
@@ -251,6 +265,9 @@ class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
 
  private:
   int pkey_;
+  base::MemoryProtectionKey::Permission previous_permission_;
+#else
+  explicit AllowSandboxAccess(const char* justification) {}
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 

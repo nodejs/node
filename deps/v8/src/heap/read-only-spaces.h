@@ -14,10 +14,11 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base-space.h"
 #include "src/heap/heap-verifier.h"
+#include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 
 namespace v8 {
 namespace internal {
@@ -27,11 +28,12 @@ class ReadOnlyHeap;
 class SharedReadOnlySpace;
 class SnapshotByteSource;
 
-class ReadOnlyPageMetadata : public MemoryChunkMetadata {
+// Read-only page that can be sealed to protect from any writes after
+// initialization.
+class ReadOnlyPage final : public BasePage {
  public:
-  ReadOnlyPageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
-                       Address area_start, Address area_end,
-                       VirtualMemory reservation);
+  ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+               Address area_start, Address area_end, VirtualMemory reservation);
   MemoryChunk::MainThreadFlags InitialFlags() const;
 
   // Clears any pointers in the header that point out of the page that would
@@ -67,6 +69,13 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   friend class ReadOnlySpace;
 };
 
+template <>
+struct CastTraits<ReadOnlyPage> {
+  static inline bool AllowFrom(const BasePage& page) {
+    return page.IsReadOnlyPage();
+  }
+};
+
 // -----------------------------------------------------------------------------
 // Artifacts used to construct a new SharedReadOnlySpace
 class ReadOnlyArtifacts final {
@@ -77,7 +86,7 @@ class ReadOnlyArtifacts final {
 
   // Initialize the ReadOnlyArtifacts from an Isolate that has just been created
   // either by serialization or by creating the objects directly.
-  void Initialize(Isolate* isolate, std::vector<ReadOnlyPageMetadata*>&& pages,
+  void Initialize(Isolate* isolate, std::vector<ReadOnlyPage*>&& pages,
                   const AllocationStats& stats);
 
   // This replaces the ReadOnlySpace in the given Heap with a newly constructed
@@ -88,7 +97,7 @@ class ReadOnlyArtifacts final {
 
   void VerifyHeapAndSpaceRelationships(Isolate* isolate);
 
-  std::vector<ReadOnlyPageMetadata*>& pages() { return pages_; }
+  std::vector<ReadOnlyPage*>& pages() { return pages_; }
 
   const AllocationStats& accounting_stats() const { return stats_; }
 
@@ -131,7 +140,7 @@ class ReadOnlyArtifacts final {
  private:
   friend class ReadOnlyHeap;
 
-  std::vector<ReadOnlyPageMetadata*> pages_;
+  std::vector<ReadOnlyPage*> pages_;
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
@@ -185,18 +194,18 @@ class ReadOnlySpace : public BaseSpace {
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free space nodes that were already created.
-  void RepairFreeSpacesAfterDeserialization();
+  void RepairFreeSpacesBeforeSerialization();
 
   size_t Size() const override { return accounting_stats_.Size(); }
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;
 
-  const std::vector<ReadOnlyPageMetadata*>& pages() const { return pages_; }
+  const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
   Address limit() const { return limit_; }
-  size_t Capacity() const { return capacity_; }
+  size_t Capacity() const { return accounting_stats_.Capacity(); }
 
   // Returns the index within pages_. The chunk must be part of this space.
-  size_t IndexOf(const MemoryChunkMetadata* chunk) const;
+  size_t IndexOf(const BasePage* chunk) const;
 
   bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
@@ -222,7 +231,7 @@ class ReadOnlySpace : public BaseSpace {
   // Accounting information for this space.
   AllocationStats accounting_stats_;
 
-  std::vector<ReadOnlyPageMetadata*> pages_;
+  std::vector<ReadOnlyPage*> pages_;
 
   Address top_ = kNullAddress;
   Address limit_ = kNullAddress;
@@ -237,14 +246,15 @@ class ReadOnlySpace : public BaseSpace {
   // Return the index within pages_ of the newly allocated page.
   size_t AllocateNextPage();
   size_t AllocateNextPageAt(Address pos);
-  void InitializePageForDeserialization(ReadOnlyPageMetadata* page,
+  void InitializePageForDeserialization(ReadOnlyPage* page,
                                         size_t area_size_in_bytes);
-  void FinalizeSpaceForDeserialization();
+  void FinalizeSpaceForDeserialization(int sfi_id);
 
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 
-  size_t capacity_ = 0;
+  AllocationResult AllocateRawUnmappableAllocation(
+      int mapped_prefix_in_bytes, int unmapped_payload_in_bytes);
 
   friend class Heap;
   friend class ReadOnlyHeapImageDeserializer;
@@ -268,13 +278,12 @@ class SharedReadOnlySpace : public ReadOnlySpace {
 
 namespace base {
 // Define special hash function for page pointers, to be used with std data
-// structures, e.g. std::unordered_set<ReadOnlyPageMetadata*,
-// base::hash<ReadOnlyPageMetadata*>
+// structures, e.g. std::unordered_set<ReadOnlyPage*,
+// base::hash<ReadOnlyPage*>
 template <>
-struct hash<i::ReadOnlyPageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::ReadOnlyPage*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::ReadOnlyPageMetadata*>
-    : hash<const i::MemoryChunkMetadata*> {};
+struct hash<const i::ReadOnlyPage*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8

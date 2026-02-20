@@ -908,7 +908,7 @@ void DisassemblingDecoder::VisitLoadStoreUnsignedOffset(Instruction* instr) {
 #undef LS_UNSIGNEDOFFSET
     case PRFM_unsigned:
       mnemonic = "prfm";
-      form = "'PrefOp, ['Xn'ILU]";
+      form = "'PrefOp, ['Xns'ILU]";
   }
   Format(instr, mnemonic, form);
 }
@@ -4522,7 +4522,7 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
   int prefetch_mode = instr->PrefetchMode();
 
   const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
-  int level = (prefetch_mode >> 1) + 1;
+  int level = ((prefetch_mode >> 1) & 3) + 1;
   const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
 
   AppendToOutput("p%sl%d%s", ls, level, ks);

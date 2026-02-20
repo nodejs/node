@@ -17,6 +17,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instruction-stream-inl.h"
 #include "src/objects/trusted-object-inl.h"
+#include "src/objects/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -113,7 +114,7 @@ inline Tagged<DeoptimizationData> Code::deoptimization_data() const {
 
 inline void Code::set_deoptimization_data(Tagged<DeoptimizationData> value,
                                           WriteBarrierMode mode) {
-  DCHECK(uses_deoptimization_data());
+  SBXCHECK(uses_deoptimization_data());
   DCHECK(!HeapLayout::InYoungGeneration(value));
 
   WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
@@ -144,7 +145,7 @@ Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
 }
 void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
-  DCHECK(kind() == CodeKind::BASELINE);
+  SBXCHECK_EQ(kind(), CodeKind::BASELINE);
   DCHECK(IsBytecodeArray(value) || IsInterpreterData(value));
 
   WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);

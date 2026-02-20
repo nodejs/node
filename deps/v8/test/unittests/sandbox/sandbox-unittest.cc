@@ -9,6 +9,10 @@
 #include "src/base/virtual-address-space.h"
 #include "test/unittests/test-utils.h"
 
+#ifdef V8_OS_LINUX
+#include "src/base/platform/platform-linux.h"
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
@@ -159,6 +163,38 @@ TEST(SandboxTest, PageAllocation) {
 
   sandbox.TearDown();
 }
+
+#ifdef V8_OS_LINUX
+TEST(SandboxTest, SandboxName) {
+  base::VirtualAddressSpace vas;
+  // This test only works if virtual memory subspaces can be allocated.
+  if (!vas.CanAllocateSubspaces()) GTEST_SKIP();
+
+  Sandbox sandbox;
+  sandbox.Initialize(&vas);
+
+  base::SignalSafeMapsParser parser;
+  ASSERT_TRUE(parser.IsValid());
+
+  // Check if the system supports naming.
+  auto control_subspace = vas.AllocateSubspace(
+      0, vas.allocation_granularity(), vas.allocation_granularity(),
+      PagePermissions::kReadWrite, std::nullopt, std::nullopt);
+  if (!control_subspace->SetName("test-name")) GTEST_SKIP();
+
+  // If so, we expect the sandbox mapping to be named.
+  bool found_sandbox_mapping = false;
+  while (auto entry = parser.Next()) {
+    if (strstr(entry->pathname, Sandbox::kSandboxAddressSpaceName)) {
+      found_sandbox_mapping = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_sandbox_mapping);
+
+  sandbox.TearDown();
+}
+#endif  // V8_OS_LINUX
 
 }  // namespace internal
 }  // namespace v8

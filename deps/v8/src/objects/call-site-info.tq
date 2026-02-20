@@ -16,6 +16,7 @@ bitfield struct CallSiteInfoFlags extends uint31 {
   is_source_position_computed: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class CallSiteInfo extends Struct {
   // A direct (sandbox off) or indirect (sandbox on) pointer to a Code or a
   // BytecodeArray object. May be empty, in which case it contains Smi::zero().

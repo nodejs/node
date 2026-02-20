@@ -536,7 +536,7 @@ Maybe<std::string> ToMonthCode(Isolate* isolate,
 
   // 2. If monthCode is not a String, throw a TypeError exception.
   if (!IsString(*mc_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kMonthCodeOutOfRange));
   }
 
   auto month_code = Cast<String>(*mc_prim)->ToStdString();
@@ -1037,27 +1037,27 @@ std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
   if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
     return Cast<JSTemporalPlainDate>(*calendar_like)
         ->wrapped_rust()
-        .calendar()
+        ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
     return Cast<JSTemporalPlainDateTime>(*calendar_like)
         ->wrapped_rust()
-        .calendar()
+        ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
     return Cast<JSTemporalPlainMonthDay>(*calendar_like)
         ->wrapped_rust()
-        .calendar()
+        ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
     return Cast<JSTemporalPlainYearMonth>(*calendar_like)
         ->wrapped_rust()
-        .calendar()
+        ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
     return Cast<JSTemporalZonedDateTime>(*calendar_like)
         ->wrapped_rust()
-        .calendar()
+        ->calendar()
         .kind();
   }
   return std::nullopt;
@@ -1159,7 +1159,7 @@ MaybeDirectHandle<String> GenericTemporalToString(
     std::string (JSType::RustType::*method)(Args2...) const, Args... args) {
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  auto output = (val->wrapped_rust().*method)(args...);
+  auto output = (val->wrapped_rust().get()->*method)(args...);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
@@ -1177,7 +1177,8 @@ MaybeDirectHandle<String> GenericTemporalToString(
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
   MOVE_RETURN_ON_EXCEPTION(
       isolate, output,
-      ExtractRustResult(isolate, (val->wrapped_rust().*method)(args...)));
+      ExtractRustResult(isolate,
+                        (val->wrapped_rust().get()->*method)(args...)));
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
@@ -1980,31 +1981,28 @@ Maybe<bool> GetSingleCalendarField(
   V(kYearFields, eraYear, result.date.era_year, double,                        \
     ToIntegerWithTruncation, ERA_CONDITION, SIMPLE_SETTER,                     \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
-  V(kTimeFields, hour, result.time.hour, double,                               \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, hour, result.time.hour, double, ToIntegerWithTruncation,      \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeFields, microsecond, result.time.microsecond, double,                 \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kTimeFields, millisecond, result.time.millisecond, double,                 \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
-  V(kTimeFields, minute, result.time.minute, double,                           \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, minute, result.time.minute, double, ToIntegerWithTruncation,  \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kMonthFields, month, result.date.month, double,                            \
     ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kMonthFields, monthCode, result.date.month_code, std::string, ToMonthCode, \
     SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeFields, nanosecond, result.time.nanosecond, double,                   \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kOffset, offset, result.offset, std::string, ToOffsetString,               \
     SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
-  V(kTimeFields, second, result.time.second, double,                           \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, second, result.time.second, double, ToIntegerWithTruncation,  \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeZone, timeZone, result.time_zone, temporal_rs::TimeZone,              \
     ToTemporalTimeZoneIdentifier, SIMPLE_CONDITION, MOVING_SETTER,             \
     TIMEZONE_REQUIRED_CHECK, MOVE)                                             \
@@ -2165,20 +2163,19 @@ temporal_rs::TimeZone SystemTimeZoneIdentifier() {
 temporal_rs::TimeZone SystemTimeZoneIdentifier() { return UTCTimeZone(); }
 #endif  //  V8_INTL_SUPPORT
 
-// We don't have nanosecond precision counters, so it's pointless to perform
-// numeric conversions back and forth.
-//
 // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
-// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
-int64_t SystemUTCEpochMilliseconds() {
+temporal_rs::I128Nanoseconds SystemUTCEpochNanoseconds() {
   double ms =
       V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
 
-  auto min = static_cast<double>(std::numeric_limits<int64_t>::min());
-  auto max = static_cast<double>(std::numeric_limits<int64_t>::max());
-  double clamped = std::clamp(ms, min, max);
+  double intPart;
+  double fracPart = std::modf(ms, &intPart);
 
-  return static_cast<int64_t>(clamped);
+  absl::int128 ns = absl::int128(static_cast<int64_t>(intPart)) * 1'000'000;
+  ns += static_cast<int64_t>(std::round(fracPart * 1'000'000));
+
+  return temporal_rs::I128Nanoseconds{.high = absl::Uint128High64(ns),
+                                      .low = absl::Uint128Low64(ns)};
 }
 
 // Gets a ZonedDateTime in the ISO calendar representing system time, using
@@ -2208,7 +2205,7 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   }
 
   // 3. Let ns be SystemUTCEpochNanoseconds().
-  auto ms = SystemUTCEpochMilliseconds();
+  auto ns = SystemUTCEpochNanoseconds();
 
   // 4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
   // TODO(manishearth) we can avoid the multiple layers of allocation here
@@ -2216,8 +2213,7 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   std::unique_ptr<temporal_rs::Instant> instant;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, instant,
-      ExtractRustResult(isolate,
-                        temporal_rs::Instant::from_epoch_milliseconds(ms)));
+      ExtractRustResult(isolate, temporal_rs::Instant::try_new(ns)));
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
@@ -2236,8 +2232,8 @@ MaybeDirectHandle<DstType> GenericToTemporalMethod(
     Isolate* isolate, DirectHandle<SrcType> val,
     TemporalAllocatedResult<typename DstType::RustType> (
         SrcType::RustType::*method)() const) {
-  return ConstructRustWrappingType<DstType>(isolate,
-                                            (val->wrapped_rust().*method)());
+  return ConstructRustWrappingType<DstType>(
+      isolate, (val->wrapped_rust().get()->*method)());
 }
 
 // Same as above, but for infallible conversions
@@ -2246,8 +2242,8 @@ MaybeDirectHandle<DstType> GenericToTemporalMethod(
     Isolate* isolate, DirectHandle<SrcType> val,
     std::unique_ptr<typename DstType::RustType> (SrcType::RustType::*method)()
         const) {
-  return ConstructRustWrappingType<DstType>(isolate,
-                                            (val->wrapped_rust().*method)());
+  return ConstructRustWrappingType<DstType>(
+      isolate, (val->wrapped_rust().get()->*method)());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
@@ -3479,7 +3475,7 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
   if constexpr (JSType::kTypeContainsCalendar) {
     // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
     // false, throw a RangeError exception.
-    if (this_rust.calendar().kind() != other_rust.calendar().kind()) {
+    if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
       THROW_NEW_ERROR(isolate,
                       NewRangeError(MessageTemplate::kMismatchedCalendars));
     }
@@ -3497,7 +3493,8 @@ MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
   // operation negation (step 6) is also handled in temporal_rs, we should not
   // negate again here.
 
-  auto diff = (this_rust.*operation)(other_rust, settings, provider...);
+  auto diff =
+      (this_rust.get()->*operation)(*other_rust.get(), settings, provider...);
 
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(diff));
@@ -3551,7 +3548,7 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
                                  isolate, options_obj, method_name));
 
   // Remaining steps handled in Rust.
-  auto added = (temporal_js_type->wrapped_rust().*operation)(
+  auto added = (temporal_js_type->wrapped_rust().get()->*operation)(
       *other_duration->duration()->raw(), overflow, provider...);
 
   return ConstructRustWrappingType<JSType>(isolate, std::move(added));
@@ -3565,7 +3562,8 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
 template <typename JSType, typename PartialType>
 MaybeDirectHandle<JSType> GenericWithHelper(
-    Isolate* isolate, const typename JSType::RustType& rust_object,
+    Isolate* isolate,
+    const std::shared_ptr<const typename JSType::RustType>& rust_object,
     CombinedRecord& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
   // 8. Let resolvedOptions be ? GetOptionsObject(options).
@@ -3579,8 +3577,8 @@ MaybeDirectHandle<JSType> GenericWithHelper(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, partial,
                              fields.Regulate<PartialType>(isolate, overflow));
   // Rest handled by Rust.
-  return ConstructRustWrappingType<JSType>(isolate,
-                                           rust_object.with(partial, overflow));
+  return ConstructRustWrappingType<JSType>(
+      isolate, rust_object->with(partial, overflow));
 }
 
 // ZonedDateTime needs to extract extra options
@@ -3590,7 +3588,8 @@ MaybeDirectHandle<JSType> GenericWithHelper(
 template <>
 MaybeDirectHandle<JSTemporalZonedDateTime>
 GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
-    Isolate* isolate, const typename temporal_rs::ZonedDateTime& rust_object,
+    Isolate* isolate,
+    const std::shared_ptr<const temporal_rs::ZonedDateTime>& rust_object,
     CombinedRecord& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
   // 19. Let resolvedOptions be ? GetOptionsObject(options).
@@ -3625,8 +3624,8 @@ GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
   // Rest handled by Rust.
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
-      rust_object.with_with_provider(partial, disambiguation, offset_option,
-                                     overflow, TimeZoneProvider()));
+      rust_object->with_with_provider(partial, disambiguation, offset_option,
+                                      overflow, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
@@ -3664,7 +3663,7 @@ MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
 
   auto& rust_object = this_obj->wrapped_rust();
   // 4. Let calendar be temporalDate.[[Calendar]].
-  auto kind = rust_object.calendar().kind();
+  auto kind = rust_object->calendar().kind();
 
   // 5. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], date).
 
@@ -6554,9 +6553,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
-  auto ms = temporal::SystemUTCEpochMilliseconds();
+  auto ns = temporal::SystemUTCEpochNanoseconds();
   return ConstructRustWrappingType<JSTemporalInstant>(
-      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms));
+      isolate, temporal_rs::Instant::try_new(ns));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds

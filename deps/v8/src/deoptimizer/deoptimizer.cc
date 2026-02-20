@@ -273,6 +273,7 @@ Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                         : Tagged<JSFunction>();
   Deoptimizer* deoptimizer =
       new Deoptimizer(isolate, function, kind, from, fp_to_sp_delta);
+  DCHECK_NOT_NULL(deoptimizer);
   isolate->set_current_deoptimizer(deoptimizer);
   return deoptimizer;
 }
@@ -379,8 +380,10 @@ class ActivationsFinder : public ThreadVisitor {
               // Replace the current pc on the stack with the trampoline.
               // TODO(v8:10026): avoid replacing a signed pointer.
               Address* pc_addr = it.frame()->pc_address();
+
               PointerAuthentication::ReplacePC(pc_addr, new_pc,
-                                               kSystemPointerSize);
+                                               kSystemPointerSize,
+                                               it.frame()->iteration_depth());
             }
           }
         }
@@ -568,12 +571,10 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
 
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
-#if V8_ENABLE_WEBASSEMBLY
   // TODO(mliedtke,415707239): Ideally we'd only reset this when destroying this
   // object, however when calling the WasmLiftoffDeoptFinish builtin, we read
   // from the heap (probably in DEBUG-only code).
-  deoptimizer->no_sandbox_access_during_wasm_deopt_.reset();
-#endif
+  deoptimizer->disallow_sandbox_access_.reset();
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
@@ -632,12 +633,17 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   disallow_garbage_collection_ = new DisallowGarbageCollection();
 #endif  // DEBUG
 
+  // From now on we should not be accessing any in-sandbox data as all deopt
+  // data is trusted and so stored outside the heap.
+  if (!tracing_enabled()) {
+    // When tracing is enabled, we will print a lot of in-sandbox objects. To
+    // avoid needing many AllowSandboxAccess scopes for those, we disable
+    // no-sandbox-access enforcement when tracing is enabled.
+    disallow_sandbox_access_.emplace("No sandbox access during deopt");
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
-    // From now on we should not be accessing any in-sandbox data as all deopt
-    // data is trusted and so stored outside the heap.
-    no_sandbox_access_during_wasm_deopt_.emplace();
-
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
     compiled_optimized_wasm_code_ = code;
@@ -685,7 +691,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   DCHECK(!compiled_code_.is_null());
   DCHECK(IsCode(compiled_code_));
 
-  DCHECK(IsJSFunction(function));
+  DCHECK_WITH_SANDBOX_ACCESS(IsJSFunction(function));
   CHECK(CodeKindCanDeoptimize(compiled_code_->kind()));
   {
     HandleScope scope(isolate_);
@@ -694,8 +700,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count = compiled_code_->parameter_count();
-  DCHECK_EQ(
-      parameter_count,
+  DCHECK_WITH_SANDBOX_ACCESS(
+      parameter_count ==
       function->shared()->internal_formal_parameter_count_with_receiver());
   input_ = FrameDescription::Create(size, parameter_count, isolate_);
 
@@ -715,9 +721,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                     static_cast<int>(kLastDeoptimizeKind),
                 "lazy deopts are expected to be emitted last");
   // from_ is the value of the link register after the call to the
-  // deoptimizer, so for the last lazy deopt, from_ points to the first
-  // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
-  // the first deopt with resume entry.
+  // deoptimizer, so for the last eager deopt, from_ points to the first
+  // lazy deopt, so we use <=
   if (from_ <= lazy_deopt_start) {
     DCHECK_EQ(kind, DeoptimizeKind::kEager);
     int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
@@ -742,7 +747,7 @@ DirectHandle<Code> Deoptimizer::compiled_code() const {
 
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
-#ifdef V8_ENABLE_CET_SHADOW_STACK
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
   DCHECK_NULL(shadow_stack_);
 #endif
   DCHECK_NULL(disallow_garbage_collection_);
@@ -757,7 +762,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete[] output_;
   input_ = nullptr;
   output_ = nullptr;
-#ifdef V8_ENABLE_CET_SHADOW_STACK
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
   if (shadow_stack_ != nullptr) {
     delete[] shadow_stack_;
     shadow_stack_ = nullptr;
@@ -789,8 +794,7 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
   switch (translated_frame->kind()) {
     case TranslatedFrame::kUnoptimizedFunction: {
       int bytecode_offset = translated_frame->bytecode_offset().ToInt();
-      HandlerTable table(
-          translated_frame->raw_shared_info()->GetBytecodeArray(isolate));
+      HandlerTable table(translated_frame->raw_bytecode_array());
       int handler_index = table.LookupHandlerIndexForRange(bytecode_offset);
       if (handler_index == HandlerTable::kNoHandlerFound) return handler_index;
       *data_out = table.GetRangeData(handler_index);
@@ -806,15 +810,30 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
   return -1;
 }
 
+const char* CodeValidityToString(Deoptimizer::CodeValidity code_validity) {
+  switch (code_validity) {
+    case Deoptimizer::CodeValidity::kUnaffected:
+      return "unaffected";
+    case Deoptimizer::CodeValidity::kInvalidated:
+      return "invalidated";
+    case Deoptimizer::CodeValidity::kInvalidatedOsr:
+      return "invalidated-osr";
+    case Deoptimizer::CodeValidity::kUnknown:
+      return "unknown";
+  }
+}
+
 }  // namespace
 
 void Deoptimizer::TraceDeoptBegin(int optimization_id,
                                   BytecodeOffset bytecode_offset) {
   DCHECK(tracing_enabled());
   FILE* file = trace_scope()->file();
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
-  PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
-         MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
+  PrintF(file,
+         "[bailout (kind: %s, reason: %s): begin. "
+         "deoptimizing ",
+         MessageFor(deopt_kind_),
+         DeoptimizeReasonToString(GetDeoptInfo().deopt_reason));
   if (IsJSFunction(function_)) {
     ShortPrint(function_, file);
     PrintF(file, ", ");
@@ -830,22 +849,26 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
          "caller SP " V8PRIxPTR_FMT ", pc " V8PRIxPTR_FMT "]\n",
          optimization_id,
 #ifdef DEBUG
-         info.node_id,
+         GetDeoptInfo().node_id,
 #endif  // DEBUG
          bytecode_offset.ToInt(), deopt_exit_index_, fp_to_sp_delta_,
          caller_frame_top_, PointerAuthentication::StripPAC(from_));
   if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
     PrintF(file, "            ;;; deoptimize at ");
     OFStream outstr(file);
-    info.position.Print(outstr, compiled_code_);
+    GetDeoptInfo().position.Print(outstr, compiled_code_);
     PrintF(file, "\n");
   }
 }
 
 void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
   DCHECK(verbose_tracing_enabled());
-  PrintF(trace_scope()->file(), "[bailout end. took %0.3f ms]\n",
-         deopt_duration);
+  PrintF(trace_scope()->file(), "[bailout end. ");
+  if (code_validity_ != CodeValidity::kUnknown) {
+    PrintF(trace_scope()->file(), "code_invalidation: %s, ",
+           CodeValidityToString(code_validity()));
+  }
+  PrintF(trace_scope()->file(), "took %0.3f ms]\n", deopt_duration);
 }
 
 // static
@@ -1426,9 +1449,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
       wasm::declared_function_index(native_module->module(), code->index());
   {
     // We're running under a DisallowSandboxAccess scope, which also removes
-    // write access into the sandbox. As such, we need to temporarily allow
-    // sandbox access for this store.
-    AllowSandboxAccess sandbox_access_for_write;
+    // write access into the sandbox.
+    AllowSandboxAccess sandbox_access_for_write(
+        "Writing in-sandbox tiering budget. Not reading any untrusted data.");
     wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
   }
@@ -1490,6 +1513,52 @@ bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
 }
 
 }  // namespace
+
+#ifdef V8_DUMPLING
+void Deoptimizer::VirtualMaterializeAndPrint() {
+  TranslatedFrame* trans_frame =
+      &(translated_state_.frames()[output_count_ - 1]);
+  DCHECK_EQ(trans_frame->kind(), TranslatedFrame::kUnoptimizedFunction);
+  FrameDescription* frame_to_print = output_[output_count_ - 1];
+  {
+    // Materialize objects and put their addresses into FrameDescription
+    // instead of touching real stack.
+    auto update_frame_slot = [&frame_to_print](Address target_addr,
+                                               intptr_t value) {
+      Address top = frame_to_print->GetTop();
+      Address bottom = top + frame_to_print->GetFrameSize();
+
+      if (target_addr >= top && target_addr < bottom) {
+        int offset = static_cast<int>(target_addr - top);
+        DCHECK_GE(offset, 0);
+        frame_to_print->SetFrameSlot(offset, value);
+      }
+    };
+    // TODO(mdanylo): implement printing without materialization.
+    for (auto& materialization : values_to_materialize_) {
+      update_frame_slot(materialization.output_slot_address_, 0xdeadbeef);
+    }
+
+    for (auto& fbv_mat : feedback_vector_to_materialize_) {
+      update_frame_slot(fbv_mat.output_slot_address_, 0xdeadbeef);
+    }
+  }
+
+  DumplingFrameDescriptionFrame frame_view(frame_to_print, isolate());
+
+  Tagged<JSFunction> function = frame_view.function();
+  int bytecode_offset = trans_frame->bytecode_offset().ToInt();
+
+  DCHECK(compiled_code_->is_maglevved() || compiled_code_->is_turbofanned());
+
+  isolate()->dumpling_manager()->PrintDumpedFrame(
+      &frame_view, function, isolate(), bytecode_offset,
+      compiled_code_->is_maglevved() ? DumpFrameType::kMaglevFrame
+                                     : DumpFrameType::kTurbofanFrame);
+
+  DeleteFrameDescriptions();
+}
+#endif  // V8_DUMPLING
 
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
@@ -1677,43 +1746,77 @@ void Deoptimizer::DoComputeOutputFrames() {
           Deoptimizer::kAdaptShadowStackOffsetToSubtract;
     }
   }
-#endif  // V8_ENABLE_CET_SHADOW_STACK
+#elif V8_ENABLE_RISCV_SHADOW_STACK
+  CHECK_EQ(shadow_stack_count_, 0);
+  shadow_stack_ = new intptr_t[count];
+  for (int i = static_cast<int>(count) - 1; i > 0; i--) {
+    if (!output_[i]->HasCallerPc()) continue;
+    shadow_stack_[shadow_stack_count_++] = output_[i]->GetCallerPc();
+  }
+#endif  // V8_ENABLE_RISCV_SHADOW_STACK
 
-  // Don't reset the tiering state for OSR code since we might reuse OSR code
-  // after deopt, and we still want to tier up to non-OSR code even if OSR code
-  // deoptimized.
-  bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
-                        DeoptimizeReason::kOSREarlyExit;
-  // TODO(saelo): We have to use full pointer comparisons here while not all
-  // Code objects have been migrated into trusted space.
-  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
-  if (IsJSFunction(function_) &&
-      (compiled_code_->osr_offset().IsNone()
-           ? function_->code(isolate()).SafeEquals(compiled_code_)
-           : (!osr_early_exit &&
-              DeoptExitIsInsideOsrLoop(
+  // Determine if the code object must be replaced or not.
+  {
+    AllowSandboxAccess sandbox_access(
+        "Sandbox access for tiering decisions. These only affect the state of "
+        "the in-sandbox JSFunction object.");
+    if (IsJSFunction(function_)) {
+      code_validity_ = CodeValidity::kUnaffected;
+      // Lazy deopts don't invalidate the underlying optimized code since the
+      // code object itself is still valid (as far as we know); the called
+      // function caused the deopt, not the function we're currently looking at.
+      if (deopt_kind_ == DeoptimizeKind::kEager &&
+          !IsDeoptimizationWithoutCodeInvalidation(
+              GetDeoptInfo().deopt_reason) &&
+          !compiled_code_->marked_for_deoptimization()) {
+        if (compiled_code_->osr_offset().IsNone()) {
+          // TODO(saelo): We have to use full pointer comparisons here while not
+          // all Code objects have been migrated into trusted space.
+          static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+          if (function_->code(isolate()).SafeEquals(compiled_code_)) {
+            // Deopting code is the currently active tier.
+            code_validity_ = CodeValidity::kInvalidated;
+          }
+        } else {
+          DCHECK_NE(GetDeoptInfo().deopt_reason,
+                    DeoptimizeReason::kOSREarlyExit);
+          if (DeoptExitIsInsideOsrLoop(
                   isolate(), function_, bytecode_offset_in_outermost_frame_,
-                  compiled_code_->osr_offset(), compiled_code_->kind())))) {
-    if (v8_flags.profile_guided_optimization &&
-        function_->shared()->cached_tiering_decision() !=
-            CachedTieringDecision::kDelayMaglev) {
-      if (DeoptimizedMaglevvedCodeEarly(isolate(), function_, compiled_code_)) {
-        function_->shared()->set_cached_tiering_decision(
-            CachedTieringDecision::kDelayMaglev);
-      } else {
-        function_->shared()->set_cached_tiering_decision(
-            CachedTieringDecision::kNormal);
+                  compiled_code_->osr_offset(), compiled_code_->kind())) {
+            // Deopting inside OSR loop.
+            // TODO(olivf): We should also check if this osr code is actually
+            // the active one.
+            code_validity_ = CodeValidity::kInvalidatedOsr;
+          }
+        }
+      }
+
+      // Only invalidated code affects tiering decisions.
+      if (code_validity_ != CodeValidity::kUnaffected) {
+        if (v8_flags.profile_guided_optimization &&
+            function_->shared()->cached_tiering_decision() !=
+                CachedTieringDecision::kDelayMaglev) {
+          if (DeoptimizedMaglevvedCodeEarly(isolate(), function_,
+                                            compiled_code_)) {
+            function_->shared()->set_cached_tiering_decision(
+                CachedTieringDecision::kDelayMaglev);
+          } else {
+            function_->shared()->set_cached_tiering_decision(
+                CachedTieringDecision::kNormal);
+          }
+        }
+
+        function_->ResetTieringRequests(isolate_);
+        // This allows us to quickly re-spawn a new compilation request even if
+        // there is already one running. In particular it helps to squeeze in a
+        // maglev compilation when there is a long running turbofan one that
+        // was started right before the deopt.
+        function_->SetTieringInProgress(isolate_, false);
+        function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
+                                      CodeKind::INTERPRETED_FUNCTION);
+        function_->feedback_vector()->set_was_once_deoptimized();
       }
     }
-    function_->ResetTieringRequests();
-    // This allows us to quickly re-spawn a new compilation request even if
-    // there is already one running. In particular it helps to squeeze in a
-    // maglev compilation when there is a long running turbofan one that was
-    // started right before the deopt.
-    function_->SetTieringInProgress(isolate_, false);
-    function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
-                                  CodeKind::INTERPRETED_FUNCTION);
-    function_->feedback_vector()->set_was_once_deoptimized();
   }
 
   // Print some helpful diagnostic information.
@@ -1860,11 +1963,16 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
-  std::optional<Tagged<DebugInfo>> debug_info =
-      translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
-  if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-    // TODO(leszeks): Validate this bytecode.
-    bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
+  {
+    AllowSandboxAccess sandbox_access(
+        "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
+        "only do it when debugging is enabled. See the TODO below");
+    std::optional<Tagged<DebugInfo>> debug_info =
+        translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
+    if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+      // TODO(leszeks): Validate this bytecode.
+      bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
+    }
   }
 
   // Allocate and store the output frame description.
@@ -2997,11 +3105,11 @@ void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
   bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
-    Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
     PrintF(file, "Feedback updated from deoptimization at ");
     OFStream outstr(file);
-    info.position.Print(outstr, compiled_code_);
-    PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
+    GetDeoptInfo().position.Print(outstr, compiled_code_);
+    PrintF(file, ", %s\n",
+           DeoptimizeReasonToString(GetDeoptInfo().deopt_reason));
   }
 }
 
@@ -3101,12 +3209,15 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(Tagged<Code> code) {
   return parameter_slots * kSystemPointerSize;
 }
 
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
-                                                 Address pc) {
+// static
+Deoptimizer::DeoptInfo Deoptimizer::ComputeDeoptInfo(Tagged<Code> code,
+                                                     Address pc) {
   CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
   SourcePosition position = SourcePosition::Unknown();
   DeoptimizeReason reason = DeoptimizeReason::kUnknown;
+#ifdef DEBUG
   uint32_t node_id = 0;
+#endif
   int deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
@@ -3129,13 +3240,21 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
       deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       reason = static_cast<DeoptimizeReason>(info->data());
-    } else if (info->rmode() == RelocInfo::DEOPT_NODE_ID) {
-      node_id = static_cast<uint32_t>(info->data());
+    } else {
+#ifdef DEBUG
+      if (info->rmode() == RelocInfo::DEOPT_NODE_ID) {
+        node_id = static_cast<uint32_t>(info->data());
+      }
+#endif
     }
     it.next();
   }
 
-  return DeoptInfo(position, reason, node_id, deopt_id);
+#ifdef DEBUG
+  return DeoptInfo(position, deopt_id, node_id, reason);
+#else
+  return DeoptInfo(position, deopt_id, reason);
+#endif
 }
 
 }  // namespace internal

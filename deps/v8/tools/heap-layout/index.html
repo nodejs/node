@@ -52,7 +52,11 @@ found in the LICENSE file. -->
 
 <body>
   <h1>V8 Heap Layout</h1>
-  <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
+  <trace-file-reader onchange="globalDataChanged(event)">
+    <span slot="label">
+      Drag and drop a trace output text file into this area, or click to choose from disk.
+    </span>
+  </trace-file-reader>
   <heap-size-trend-viewer id="heap-size-trend-viewer" onchange="selectSnapshotAtIndex(event)"></heap-size-trend-viewer>
   <heap-layout-viewer id="heap-layout-viewer"></heap-layout-viewer>
   <div class="button-container">

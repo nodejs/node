@@ -64,18 +64,17 @@ class WasmSerializationTest {
     memset(const_cast<uint8_t*>(wire_bytes_.data()), 0, wire_bytes_.size() / 2);
   }
 
-  void PartlyDropTieringBudget() {
-    serialized_bytes_ = {serialized_bytes_.data(),
-                         serialized_bytes_.size() - 1};
-  }
-
   MaybeDirectHandle<WasmModuleObject> Deserialize(
       base::Vector<const char> source_url = {}) {
+    // Create a separate copy because some tests want to deserialize multiple
+    // times.
+    base::OwnedVector<const uint8_t> wire_bytes_copy =
+        base::OwnedCopyOf(wire_bytes_);
     return DeserializeNativeModule(
         CcTest::i_isolate(),
         WasmEnabledFeatures::FromIsolate(CcTest::i_isolate()),
-        base::VectorOf(serialized_bytes_), base::VectorOf(wire_bytes_),
-        compile_imports_, source_url);
+        base::VectorOf(serialized_bytes_), wire_bytes_copy, compile_imports_,
+        source_url);
   }
 
   void DeserializeAndRun() {
@@ -419,27 +418,19 @@ TEST(SerializeTieringBudget) {
   HandleScope scope(isolate);
   DirectHandle<WasmModuleObject> module_object;
   CompileTimeImports compile_imports = test.MakeCompileTimeImports();
+  base::OwnedVector<const uint8_t> wire_bytes_copy =
+      base::OwnedCopyOf(test.wire_bytes());
   CHECK(
       DeserializeNativeModule(
           isolate, WasmEnabledFeatures::FromIsolate(isolate),
           base::VectorOf(serialized_bytes.buffer.get(), serialized_bytes.size),
-          base::VectorOf(test.wire_bytes()), compile_imports, {})
+          wire_bytes_copy, compile_imports, {})
           .ToHandle(&module_object));
 
   auto* native_module = module_object->native_module();
   for (size_t i = 0; i < arraysize(mock_budget); ++i) {
     CHECK_EQ(mock_budget[i], native_module->tiering_budget_array()[i]);
   }
-}
-
-TEST(DeserializeTieringBudgetPartlyMissing) {
-  WasmSerializationTest test;
-  {
-    HandleScope scope(CcTest::i_isolate());
-    test.PartlyDropTieringBudget();
-    CHECK(test.Deserialize().is_null());
-  }
-  test.CollectGarbage();
 }
 
 TEST(SerializationFailsOnChangedFlags) {
@@ -616,12 +607,14 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     deserialization_context->Enter();
     ErrorThrower thrower(i_isolate, "");
     base::Vector<const char> kNoSourceUrl;
+    base::OwnedVector<const uint8_t> wire_bytes_copy =
+        base::OwnedCopyOf(zone_buffer);
     DirectHandle<WasmModuleObject> module_object =
         DeserializeNativeModule(
             i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
             base::VectorOf(serialized_module.buffer.get(),
                            serialized_module.size),
-            base::VectorOf(zone_buffer), CompileTimeImports{}, kNoSourceUrl)
+            wire_bytes_copy, CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
@@ -774,12 +767,14 @@ TEST(SerializeDetectedFeatures) {
     deserialization_context->Enter();
     ErrorThrower thrower(i_isolate, "");
     base::Vector<const char> kNoSourceUrl;
+    base::OwnedVector<const uint8_t> wire_bytes_copy =
+        base::OwnedCopyOf(buffer);
     DirectHandle<WasmModuleObject> module_object =
         DeserializeNativeModule(
             i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
             base::VectorOf(serialized_module.buffer.get(),
                            serialized_module.size),
-            base::VectorOf(buffer), CompileTimeImports{}, kNoSourceUrl)
+            wire_bytes_copy, CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::return_call}},

@@ -157,8 +157,8 @@ const char* FailureSignalToString(int signo) {
 #ifdef ABSL_HAVE_SIGALTSTACK
 
 static bool SetupAlternateStackOnce() {
-#if defined(__wasm__) || defined(__asjms__)
-  const size_t page_mask = getpagesize() - 1;
+#if defined(__wasm__) || defined(__asmjs__)
+  const size_t page_mask = static_cast<size_t>(getpagesize()) - 1;
 #else
   const size_t page_mask = static_cast<size_t>(sysconf(_SC_PAGESIZE)) - 1;
 #endif

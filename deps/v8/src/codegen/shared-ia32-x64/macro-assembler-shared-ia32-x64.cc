@@ -744,6 +744,7 @@ void SharedMacroAssemblerBase::I16x8DotI8x16I7x16S(XMMRegister dst,
     vpmaddubsw(dst, src2, src1);
   } else {
     if (dst != src2) {
+      DCHECK_NE(dst, src1);
       movdqa(dst, src2);
     }
     pmaddubsw(dst, src1);

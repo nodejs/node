@@ -373,12 +373,25 @@ class ReadStringVisitor : public TqObjectVisitor {
       uint32_t metadata_index = GetOrFinish(ReadValue<uint32_t>(
           memory_chunk + MemoryChunk::MetadataIndexOffset()));
       auto metadata_entry =
-          GetOrFinish(ReadValue<IsolateGroup::MemoryChunkMetadataTableEntry>(
+          GetOrFinish(ReadValue<IsolateGroup::BasePageTableEntry>(
               heap_addresses_.metadata_pointer_table, metadata_index));
       Address heap = GetOrFinish(ReadValue<Address>(
           reinterpret_cast<uintptr_t>(metadata_entry.metadata()) +
-          MemoryChunkMetadata::HeapOffset()));
-      Isolate* isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
+          BasePage::HeapOffset()));
+      // Get the Isolate pointer from the Heap object. The Heap class has a
+      // field "Isolate* isolate_" that points to the owning Isolate. The offset
+      // of this field is provided by the debugger (from PDB symbols). If the
+      // offset is not available (zero), fall back to using Isolate::FromHeap()
+      // which may fail if the offset differs between builds.
+      Isolate* isolate;
+      if (heap_addresses_.isolate_heap_member_offset != 0) {
+        // Read the Isolate* pointer from Heap::isolate_ field.
+        Address isolate_address = GetOrFinish(ReadValue<Address>(
+            heap + heap_addresses_.isolate_heap_member_offset));
+        isolate = reinterpret_cast<Isolate*>(isolate_address);
+      } else {
+        isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
+      }
       Address external_pointer_table_address_address =
           isolate->shared_external_pointer_table_address_address();
       Address external_pointer_table_address = GetOrFinish(

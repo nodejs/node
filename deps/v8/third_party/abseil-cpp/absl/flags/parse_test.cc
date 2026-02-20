@@ -827,7 +827,7 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
                       flagfile_flag),
   };
   EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args5),
-               "Unexpected line in the flagfile .*: \\*bin\\*");
+               "Unexpected line 2 in the flagfile .*");
 }
 
 // --------------------------------------------------------------------

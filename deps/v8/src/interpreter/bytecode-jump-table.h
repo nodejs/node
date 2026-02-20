@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_JUMP_TABLE_H_
 #define V8_INTERPRETER_BYTECODE_JUMP_TABLE_H_
 
+#include "src/interpreter/bytecode-operands.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone.h"
 
@@ -29,13 +30,15 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
         bound_(size, zone),
 #endif
         constant_pool_index_(constant_pool_index),
-        switch_bytecode_offset_(kInvalidOffset),
         size_(size),
         case_value_base_(case_value_base) {
   }
 
   size_t constant_pool_index() const { return constant_pool_index_; }
   size_t switch_bytecode_offset() const { return switch_bytecode_offset_; }
+  OperandScale switch_bytecode_operand_scale() const {
+    return switch_bytecode_operand_scale_;
+  }
   int case_value_base() const { return case_value_base_; }
   int size() const { return size_; }
 #ifdef DEBUG
@@ -51,6 +54,8 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
     return constant_pool_index_ + case_value - case_value_base_;
   }
 
+  void set_size(int size) { size_ = size; }
+
  private:
   static const size_t kInvalidIndex = static_cast<size_t>(-1);
   static const size_t kInvalidOffset = static_cast<size_t>(-1);
@@ -63,9 +68,10 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
 #endif
   }
 
-  void set_switch_bytecode_offset(size_t offset) {
+  void set_switch_bytecode_offset(size_t offset, OperandScale scale) {
     DCHECK_EQ(switch_bytecode_offset_, kInvalidOffset);
     switch_bytecode_offset_ = offset;
+    switch_bytecode_operand_scale_ = scale;
   }
 
 #ifdef DEBUG
@@ -74,7 +80,8 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
   BitVector bound_;
 #endif
   size_t constant_pool_index_;
-  size_t switch_bytecode_offset_;
+  size_t switch_bytecode_offset_ = kInvalidOffset;
+  OperandScale switch_bytecode_operand_scale_ = OperandScale::kSingle;
   int size_;
   int case_value_base_;
 

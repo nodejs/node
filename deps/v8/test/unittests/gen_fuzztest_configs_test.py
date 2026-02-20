@@ -65,7 +65,7 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
     self._set_up_executable()
 
     with patch('subprocess.check_output', return_value=b''):
-      with self.assertRaises(AssertionError) as e:
+      with self.assertRaises(AssertionError):
         gen_fuzztest_configs.main()
 
   def test_three_fuzzers(self):
@@ -87,31 +87,36 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
       gen_fuzztest_configs.main()
 
     fuzz_test_output = sorted(os.listdir('/out/build/fuzztests'))
-    expexted_fuzz_test_output = [
+    expected_fuzz_test_output = [
         'centipede',  # Bash wrapper to ../centipede
         'fuzztests.stamp',
         'v8_alpha_sort_this_foo_bar_xyz_fuzztest',
         'v8_foo_1_fuzztest',
         'v8_foo_2_fuzztest',
     ]
-    self.assertEqual(expexted_fuzz_test_output, fuzz_test_output)
+    self.assertEqual(expected_fuzz_test_output, fuzz_test_output)
 
     with open('/out/build/fuzztests/fuzztests.stamp') as f:
       self.assertEqual('AlphaSortThis.FooBarXYZ\nFooTest.Test1\nFooTest.Test2',
                        f.read())
 
     expected_wrapper = dedent("""\
-      #!/bin/sh
+      #!/bin/bash
+
       BINARY_DIR="$(cd "${0%/*}"/..; pwd)"
       cd $BINARY_DIR
       # Normal fuzzing.
       if [ "$#" -eq  "0" ]; then
+         echo -e "Starting fuzzing session:\\n$BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=\"\"\\n"
          exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=""
-      fi
       # Fuzztest replay.
-      if [ "$#" -eq  "1" ]; then
+      elif [ "$#" -eq  "1" ]; then
          unset CENTIPEDE_RUNNER_FLAGS
+         echo -e "Replaying test case:\\nFUZZTEST_REPLAY=$1 $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=\"\"\\n"
          FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=""
+      else
+        echo -e "Pass 0 arguments for a fuzzing session and 1 argument for replay (you passed $#)"
+        exit 1
       fi
       """)
     with open('/out/build/fuzztests/v8_foo_1_fuzztest') as f:

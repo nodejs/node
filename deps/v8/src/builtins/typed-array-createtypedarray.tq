@@ -23,6 +23,31 @@ extern runtime GrowableSharedArrayBufferByteLength(
 const kFloat16ArrayFeature: constexpr UseCounterFeature
     generates 'v8::Isolate::kFloat16Array';
 
+extern macro TypedArrayBuiltinsAssembler::IsTrackArrayBufferViewsEnabled():
+    bool;
+
+macro AttachView(buffer: JSArrayBuffer, view: JSArrayBufferView): void {
+  if (!IsTrackArrayBufferViewsEnabled()) return;
+  if (IsSharedArrayBuffer(buffer)) return;
+  const currentViews = buffer.views_or_detach_key;
+  typeswitch (currentViews) {
+    case (val: Smi): {
+      if (val == kManyViews) {
+        return;
+      }
+    }
+    case (_weakView: Weak<JSArrayBufferView>): {
+      buffer.views_or_detach_key = kManyViews;
+      return;
+    }
+    case (Object): {
+      // has_detach_key() is true and we can't track the view.
+      return;
+    }
+  }
+  buffer.views_or_detach_key = StrongToWeak(view);
+}
+
 transitioning macro AllocateTypedArray(
     implicit context: Context)(isOnHeap: constexpr bool, map: Map,
     buffer: JSArrayBuffer, byteOffset: uintptr, byteLength: uintptr,
@@ -79,6 +104,7 @@ transitioning macro AllocateTypedArray(
         (buffer.backing_store_ptr + Convert<intptr>(byteOffset)));
   }
   SetupTypedArrayEmbedderFields(typedArray);
+  AttachView(buffer, typedArray);
   if (typedArray.elements_kind == ElementsKind::FLOAT16_ELEMENTS ||
       typedArray.elements_kind == ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
     IncrementUseCounter(context, SmiConstant(kFloat16ArrayFeature));
@@ -173,7 +199,8 @@ transitioning macro ConstructByArrayLike(
         byteLength = LoadJSArrayBufferViewByteLength(src, src.buffer)
             otherwise DetachedOrOutOfBounds;
       } label DetachedOrOutOfBounds deferred {
-        ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
+        ThrowTypeError(
+            MessageTemplate::kTypedArrayValidateErrorOperation, 'Construct');
       }
       if (src.elements_kind != elementsInfo.kind) {
         goto IfElementsKindMismatch(src.elements_kind);
@@ -253,9 +280,9 @@ transitioning macro ConstructByTypedArray(
   let length: uintptr;
   try {
     // TODO(petermarshall): Throw on detached typedArray.
-    length = LoadJSTypedArrayLengthAndCheckDetached(srcTypedArray)
-        otherwise DetachedOrOutOfBounds;
-  } label DetachedOrOutOfBounds {
+    length = LoadJSTypedArrayLengthAndValidate(
+        srcTypedArray, TypedArrayAccessMode::kRead) otherwise Fail;
+  } label Fail {
     length = 0;
   }
 
@@ -302,7 +329,8 @@ transitioning macro ConstructByArrayBuffer(
 
     // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
+      ThrowTypeError(
+          MessageTemplate::kTypedArrayDetachedErrorOperation, 'Construct');
     }
 
     // 7. Let bufferByteLength be ArrayBufferByteLength(buffer, SeqCst).
@@ -373,7 +401,8 @@ transitioning macro ConstructByArrayBuffer(
 @export
 transitioning macro TypedArrayCreateByLength(
     implicit context: Context)(constructor: Constructor, length: Number,
-    methodName: constexpr string): JSTypedArray {
+    methodName: constexpr string,
+    accessMode: constexpr TypedArrayAccessMode): JSTypedArray {
   dcheck(IsSafeInteger(length));
 
   // 1. Let newTypedArray be ? Construct(constructor, argumentList).
@@ -381,8 +410,8 @@ transitioning macro TypedArrayCreateByLength(
 
   // 2. Perform ? ValidateTypedArray(newTypedArray).
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-  const newTypedArrayLength =
-      ValidateTypedArrayAndGetLength(context, newTypedArrayObj, methodName);
+  const newTypedArrayLength = ValidateTypedArrayAndGetLength(
+      context, newTypedArrayObj, methodName, accessMode);
   const newTypedArray: JSTypedArray =
       UnsafeCast<JSTypedArray>(newTypedArrayObj);
 
@@ -395,7 +424,8 @@ transitioning macro TypedArrayCreateByLength(
       IsResizableArrayBuffer(newTypedArray.buffer));
 
   if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
-      ThrowTypeError(MessageTemplate::kDetachedOperation, methodName);
+      ThrowTypeError(
+          MessageTemplate::kTypedArrayDetachedErrorOperation, methodName);
     }
 
   // 3. If argumentList is a List of a single Number, then
@@ -478,10 +508,11 @@ transitioning builtin CreateTypedArray(
   }
 }
 
-transitioning macro TypedArraySpeciesCreate(
+// Only partially validates the created typed array.
+transitioning macro TypedArraySpeciesCreateMaybeOOB(
     implicit context: Context)(methodName: constexpr string,
     numArgs: constexpr int31, exemplar: JSTypedArray, arg0: JSAny, arg1: JSAny,
-    arg2: JSAny): JSTypedArray {
+    arg2: JSAny, accessMode: constexpr TypedArrayAccessMode): JSTypedArray {
   const defaultConstructor = GetDefaultConstructor(exemplar);
 
   try {
@@ -511,27 +542,31 @@ transitioning macro TypedArraySpeciesCreate(
       newObj = Construct(constructor, arg0, arg1, arg2);
     }
 
-    return ValidateTypedArray(context, newObj, methodName);
+    return PartiallyValidateTypedArrayMaybeOOB(
+        context, newObj, methodName, accessMode);
   }
 }
 
+// TypedArrayAccessMode::kWrite ensures that the result TA is not immutable in
+// case the species constructor is overwritten.
 @export
 transitioning macro TypedArraySpeciesCreateByLength(
     implicit context: Context)(methodName: constexpr string,
-    exemplar: JSTypedArray, length: uintptr): JSTypedArray {
+    exemplar: JSTypedArray, length: uintptr,
+    accessMode: constexpr TypedArrayAccessMode): JSTypedArray {
   const numArgs: constexpr int31 = 1;
   // TODO(v8:4153): pass length further as uintptr.
-  const typedArray: JSTypedArray = TypedArraySpeciesCreate(
+  const typedArray: JSTypedArray = TypedArraySpeciesCreateMaybeOOB(
       methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
-      Undefined);
+      Undefined, accessMode);
   try {
-    const createdArrayLength =
-        LoadJSTypedArrayLengthAndCheckDetached(typedArray)
-        otherwise DetachedOrOutOfBounds;
+    const createdArrayLength = LoadJSTypedArrayLengthAndValidate(
+        typedArray, TypedArrayAccessMode::kRead)
+        otherwise Fail;
     if (createdArrayLength < length) deferred {
         ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
       }
-  } label DetachedOrOutOfBounds {
+  } label Fail {
     ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
   }
   return typedArray;
@@ -540,12 +575,13 @@ transitioning macro TypedArraySpeciesCreateByLength(
 transitioning macro TypedArraySpeciesCreateByBuffer(
     implicit context: Context)(methodName: constexpr string,
     exemplar: JSTypedArray, buffer: JSArrayBuffer, beginByteOffset: uintptr,
-    newLength: NumberOrUndefined): JSTypedArray {
+    newLength: NumberOrUndefined,
+    accessMode: constexpr TypedArrayAccessMode): JSTypedArray {
   const numArgs: constexpr int31 = 3;
   // TODO(v8:4153): pass length further as uintptr.
-  const typedArray: JSTypedArray = TypedArraySpeciesCreate(
+  const typedArray: JSTypedArray = TypedArraySpeciesCreateMaybeOOB(
       methodName, numArgs, exemplar, buffer, Convert<Number>(beginByteOffset),
-      newLength);
+      newLength, accessMode);
   return typedArray;
 }
 

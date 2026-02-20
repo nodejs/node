@@ -5,8 +5,7 @@
 #ifndef V8_HEAP_CPPGC_MARKING_WORKLISTS_H_
 #define V8_HEAP_CPPGC_MARKING_WORKLISTS_H_
 
-#include <unordered_set>
-
+#include "absl/container/flat_hash_set.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/base/worklist.h"
@@ -24,7 +23,7 @@ class MarkingWorklists {
     template <AccessMode = AccessMode::kNonAtomic>
     bool Contains(HeapObjectHeader*);
     template <AccessMode = AccessMode::kNonAtomic>
-    std::unordered_set<HeapObjectHeader*> Extract();
+    absl::flat_hash_set<HeapObjectHeader*> Extract();
     template <AccessMode = AccessMode::kNonAtomic>
     void Clear();
     template <AccessMode = AccessMode::kNonAtomic>
@@ -42,7 +41,7 @@ class MarkingWorklists {
     void operator delete[](void*) = delete;
 
     v8::base::Mutex lock_;
-    std::unordered_set<HeapObjectHeader*> objects_;
+    absl::flat_hash_set<HeapObjectHeader*> objects_;
   };
 
  public:
@@ -181,10 +180,10 @@ bool MarkingWorklists::ExternalMarkingWorklist::Contains(
 }
 
 template <AccessMode mode>
-std::unordered_set<HeapObjectHeader*>
+absl::flat_hash_set<HeapObjectHeader*>
 MarkingWorklists::ExternalMarkingWorklist::Extract() {
   ConditionalMutexGuard<mode> guard(&lock_);
-  std::unordered_set<HeapObjectHeader*> extracted;
+  absl::flat_hash_set<HeapObjectHeader*> extracted;
   std::swap(extracted, objects_);
   DCHECK(objects_.empty());
   return extracted;

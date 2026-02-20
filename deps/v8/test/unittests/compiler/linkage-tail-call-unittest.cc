@@ -42,15 +42,15 @@ class LinkageTailCall : public TestWithZone {
         kCodeEntrypointTagForTesting,     // tag
         MachineType::AnyTagged(),         // target MachineType
         LinkageLocation::ForAnyRegister(
-            MachineType::Pointer()),       // target location
-        locations,                         // location_sig
-        stack_arguments,                   // stack_parameter_count
-        Operator::kNoProperties,           // properties
-        kNoCalleeSaved,                    // callee-saved
-        kNoCalleeSavedFp,                  // callee-saved fp
-        CallDescriptor::kNoFlags,          // flags,
-        "", StackArgumentOrder::kDefault,  // --
-        RegList{},                         // allocatable_registers
+            MachineType::Pointer()),  // target location
+        locations,                    // location_sig
+        stack_arguments,              // stack_parameter_count
+        Operator::kNoProperties,      // properties
+        kNoCalleeSaved,               // callee-saved
+        kNoCalleeSavedFp,             // callee-saved fp
+        CallDescriptor::kNoFlags,     // flags,
+        "test-tail-call",             // debug name
+        RegList{},                    // allocatable_registers
         stack_returns);
   }
 
