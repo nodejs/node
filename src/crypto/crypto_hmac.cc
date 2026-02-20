@@ -268,7 +268,8 @@ Maybe<bool> HmacTraits::EncodeOutput(
       *result = Boolean::New(
           env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&
-              memcmp(out->data(), params.signature.data(), out->size()) == 0);
+              CRYPTO_memcmp(
+                  out->data(), params.signature.data(), out->size()) == 0);
       break;
     default:
       UNREACHABLE();
