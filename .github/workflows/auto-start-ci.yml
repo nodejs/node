@@ -71,3 +71,4 @@ jobs:
           | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
