@@ -15,8 +15,6 @@ const runner = path.join(fixtureDir, 'runner.mjs');
 describe('test runner flag propagation', () => {
   describe('via command line', () => {
     const flagPropagationTests = [
-      ['--experimental-config-file', 'node.config.json', ''],
-      ['--experimental-default-config-file', '', false],
       ['--env-file', '.env', '.env'],
       ['--env-file-if-exists', '.env', '.env'],
       ['--test-concurrency', '2', '2'],

@@ -909,7 +909,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
   std::string node_options_from_config;
-  if (auto path = per_process::config_reader.GetDataFromArgs(*argv)) {
+  if (auto path = per_process::config_reader.GetDataFromArgs(argv)) {
     switch (per_process::config_reader.ParseConfig(*path)) {
       case ParseResult::Valid:
         break;
