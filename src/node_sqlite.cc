@@ -2153,6 +2153,11 @@ inline bool StatementSync::IsFinalized() {
   return statement_ == nullptr;
 }
 
+inline int StatementSync::ResetStatement() {
+  reset_generation_++;
+  return sqlite3_reset(statement_);
+}
+
 bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_clear_bindings(statement_);
   CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
@@ -2544,8 +2549,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
-  stmt->reset_generation_++;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
@@ -2571,8 +2575,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
-  stmt->reset_generation_++;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
@@ -2595,8 +2598,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
-  stmt->reset_generation_++;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
@@ -2620,8 +2622,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
-  stmt->reset_generation_++;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {

@@ -244,6 +244,7 @@ class StatementSync : public BaseObject {
   bool allow_unknown_named_params_;
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
+  inline int ResetStatement();
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
