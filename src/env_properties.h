@@ -309,6 +309,10 @@
   V(readable_string, "readable")                                               \
   V(read_bigints_string, "readBigInts")                                        \
   V(reason_string, "reason")                                                   \
+  V(cause_string, "cause")                                                     \
+  V(aborted_string, "aborted")                                                 \
+  V(refresh_string, "refresh")                                                 \
+  V(regexp_string, "regexp")                                                   \
   V(remaining_pages_string, "remainingPages")                                  \
   V(rename_string, "rename")                                                   \
   V(required_module_facade_url_string,                                         \

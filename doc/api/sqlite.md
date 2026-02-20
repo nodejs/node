@@ -1170,8 +1170,10 @@ changes:
 -->
 
 * `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
+
 * `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
   the contents will be overwritten.
+
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
@@ -1182,6 +1184,10 @@ changes:
   * `progress` {Function} An optional callback function that will be called after each backup step. The argument passed
     to this callback is an {Object} with `remainingPages` and `totalPages` properties, describing the current progress
     of the backup operation.
+  * `signal` {AbortSignal} An optional AbortSignal that can be used to abort the backup operation.\
+    If the signal is aborted, the backup operation will be cancelled and the Promise will reject with an `AbortError`.\
+    **Note:** Aborting is a best-effort mechanism; the backup may complete before the abort is processed due to race
+    conditions.
 * Returns: {Promise} A promise that fulfills with the total number of backed-up pages upon completion, or rejects if an
   error occurs.
 
@@ -1220,6 +1226,34 @@ const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
 });
 
 console.log('Backup completed', totalPagesTransferred);
+```
+
+### Aborting a backup
+
+The backup operation can be cancelled using an `AbortSignal`:
+
+```cjs
+const { backup, DatabaseSync } = require('node:sqlite');
+
+(async () => {
+  const sourceDb = new DatabaseSync('source.db');
+
+  try {
+    await backup(sourceDb, 'backup.db', {
+      signal: AbortSignal.timeout(5000),
+      progress: ({ totalPages, remainingPages }) => {
+        console.log('Backup in progress', { totalPages, remainingPages });
+      },
+    });
+    console.log('Backup completed successfully');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('Backup was cancelled:', error.message);
+    } else {
+      console.error('Backup failed:', error.message);
+    }
+  }
+})();
 ```
 
 ## `sqlite.constants`
