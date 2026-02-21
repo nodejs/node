@@ -1,6 +1,5 @@
 'use strict';
 
-const common = require('../common');
 const readline = require('readline');
 const { PassThrough } = require('stream');
 
