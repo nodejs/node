@@ -163,8 +163,9 @@ std::string EscapeShell(const std::string_view input) {
 #ifdef _WIN32
   // Replace double quotes with single quotes and surround the string
   // with double quotes for Windows.
+  static const std::regex doubleQuote("\"");
   std::string escaped =
-      std::regex_replace(std::string(input), std::regex("\""), "\"\"");
+      std::regex_replace(std::string(input), doubleQuote, "\"\"");
   escaped = "\"" + escaped + "\"";
   // Remove excessive quote pairs and handle edge cases
   static const std::regex tripleSingleQuote("\\\\\"\"\"");
@@ -173,8 +174,9 @@ std::string EscapeShell(const std::string_view input) {
 #else
   // Replace single quotes("'") with "\\'" and wrap the result
   // in single quotes.
+  static const std::regex singleQuote("'");
   std::string escaped =
-      std::regex_replace(std::string(input), std::regex("'"), "\\'");
+      std::regex_replace(std::string(input), singleQuote, "\\'");
   escaped = "'" + escaped + "'";
   // Remove excessive quote pairs and handle edge cases
   static const std::regex tripleSingleQuote("\\\\'''");
