@@ -18,13 +18,7 @@ test('DecompressionStream accepts ArrayBuffer chunks', async () => {
   const writePromise = writer.write(compressedGzip.buffer);
   writer.close();
 
-  const chunks = [];
-  let done = false;
-  while (!done) {
-    const { value, done: d } = await reader.read();
-    if (value) chunks.push(value);
-    done = d;
-  }
+  const chunks = await Array.fromAsync(ds.readable);
   await writePromise;
   const out = Buffer.concat(chunks.map((c) => Buffer.from(c)));
   assert.strictEqual(out.toString(), 'hello');
