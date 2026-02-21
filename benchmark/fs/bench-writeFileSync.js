@@ -7,7 +7,7 @@ tmpdir.refresh();
 
 // Some variants are commented out as they do not show a change and just slow
 const bench = common.createBenchmark(main, {
-  encoding: ['utf8'],
+  encoding: ['utf8', 'UTF8'],
   useFd: ['true', 'false'],
   length: [1024, 102400, 1024 * 1024],
 
