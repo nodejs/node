@@ -668,6 +668,353 @@ void UserDefinedFunction::xDestroy(void* self) {
   delete static_cast<UserDefinedFunction*>(self);
 }
 
+// ---------------------------------------------------------------------------
+// VirtualTableModule
+// ---------------------------------------------------------------------------
+
+VirtualTableModule::VirtualTableModule(Environment* env,
+                                       DatabaseSync* db,
+                                       Local<Function> rows_fn,
+                                       std::string&& schema_sql,
+                                       int num_columns,
+                                       std::vector<int>&& hidden_col_indices,
+                                       bool use_bigint_args,
+                                       bool direct_only)
+    : env_(env),
+      db_(db),
+      rows_fn_(env->isolate(), rows_fn),
+      schema_sql_(std::move(schema_sql)),
+      num_columns_(num_columns),
+      hidden_col_indices_(std::move(hidden_col_indices)),
+      use_bigint_args_(use_bigint_args),
+      direct_only_(direct_only),
+      module_def_({}) {
+  // Initialize the sqlite3_module definition. Each VirtualTableModule instance
+  // gets its own copy to avoid thread-safety issues with worker threads.
+  module_def_.iVersion = 1;
+  module_def_.xCreate = VirtualTableModule::xCreate;
+  module_def_.xConnect = VirtualTableModule::xCreate;
+  module_def_.xBestIndex = VirtualTableModule::xBestIndex;
+  module_def_.xDisconnect = VirtualTableModule::xDisconnect;
+  module_def_.xDestroy = VirtualTableModule::xDestroy;
+  module_def_.xOpen = VirtualTableModule::xOpen;
+  module_def_.xClose = VirtualTableModule::xClose;
+  module_def_.xFilter = VirtualTableModule::xFilter;
+  module_def_.xNext = VirtualTableModule::xNext;
+  module_def_.xEof = VirtualTableModule::xEof;
+  module_def_.xColumn = VirtualTableModule::xColumn;
+  module_def_.xRowid = VirtualTableModule::xRowid;
+
+  // Build mapping from schema column index to row array index.
+  // Visible columns are numbered sequentially; hidden columns map to -1.
+  col_index_map_.assign(num_columns, 0);
+  for (int idx : hidden_col_indices_) {
+    col_index_map_[idx] = -1;
+  }
+  int visible_idx = 0;
+  for (int i = 0; i < num_columns; i++) {
+    if (col_index_map_[i] < 0) {
+      continue;
+    }
+    col_index_map_[i] = visible_idx++;
+  }
+}
+
+VirtualTableModule::~VirtualTableModule() {}
+
+int VirtualTableModule::xCreate(sqlite3* db,
+                                void* pAux,
+                                int argc,
+                                const char* const* argv,
+                                sqlite3_vtab** ppVTab,
+                                char** pzErr) {
+  VirtualTableModule* mod = static_cast<VirtualTableModule*>(pAux);
+
+  int rc = sqlite3_declare_vtab(db, mod->schema_sql_.c_str());
+  if (rc != SQLITE_OK) {
+    *pzErr = sqlite3_mprintf("%s", sqlite3_errmsg(db));
+    return rc;
+  }
+
+  if (mod->direct_only_) {
+    sqlite3_vtab_config(db, SQLITE_VTAB_DIRECTONLY);
+  }
+
+  NodeVTab* vtab = new NodeVTab();
+  memset(&vtab->base, 0, sizeof(vtab->base));
+  vtab->module = mod;
+  *ppVTab = &vtab->base;
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xBestIndex(sqlite3_vtab* pVTab,
+                                   sqlite3_index_info* pInfo) {
+  NodeVTab* vtab = reinterpret_cast<NodeVTab*>(pVTab);
+  VirtualTableModule* mod = vtab->module;
+  int num_hidden = static_cast<int>(mod->hidden_col_indices_.size());
+  int argv_index = 0;
+  int idx_num = 0;
+
+  // For each hidden column (parameter), look for a usable EQ constraint.
+  // Use idxNum as a bitmask to communicate which hidden columns have
+  // constraints, so xFilter can assign argv values to the correct parameters.
+  for (int hidden_idx = 0; hidden_idx < num_hidden; hidden_idx++) {
+    int col = mod->hidden_col_indices_[hidden_idx];
+
+    for (int i = 0; i < pInfo->nConstraint; i++) {
+      if (pInfo->aConstraint[i].iColumn == col &&
+          pInfo->aConstraint[i].usable &&
+          pInfo->aConstraint[i].op == SQLITE_INDEX_CONSTRAINT_EQ) {
+        argv_index++;
+        pInfo->aConstraintUsage[i].argvIndex = argv_index;
+        pInfo->aConstraintUsage[i].omit = 1;
+        idx_num |= (1 << hidden_idx);
+        break;
+      }
+    }
+  }
+
+  pInfo->idxNum = idx_num;
+  pInfo->estimatedCost = 1000000.0;
+  pInfo->estimatedRows = 1000;
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xDisconnect(sqlite3_vtab* pVTab) {
+  NodeVTab* vtab = reinterpret_cast<NodeVTab*>(pVTab);
+  delete vtab;
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xDestroy(sqlite3_vtab* pVTab) {
+  return xDisconnect(pVTab);
+}
+
+int VirtualTableModule::xOpen(sqlite3_vtab* pVTab,
+                              sqlite3_vtab_cursor** ppCursor) {
+  NodeVTab* vtab = reinterpret_cast<NodeVTab*>(pVTab);
+  NodeVTabCursor* cursor = new NodeVTabCursor();
+  memset(&cursor->base, 0, sizeof(cursor->base));
+  cursor->module = vtab->module;
+  cursor->rowid = 0;
+  cursor->done = true;
+  *ppCursor = &cursor->base;
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xClose(sqlite3_vtab_cursor* pCursor) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  cursor->iterator.Reset();
+  cursor->current_row.Reset();
+  delete cursor;
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xFilter(sqlite3_vtab_cursor* pCursor,
+                                int idxNum,
+                                const char* idxStr,
+                                int argc,
+                                sqlite3_value** argv) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  VirtualTableModule* mod = cursor->module;
+  Environment* env = mod->env_;
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  cursor->rowid = 0;
+  cursor->done = false;
+  cursor->iterator.Reset();
+  cursor->current_row.Reset();
+
+  // Build arguments for rows() from hidden column constraint values.
+  // The idxNum bitmask (set in xBestIndex) indicates which hidden columns
+  // received EQ constraints. argv values are in order of the set bits.
+  int num_hidden = static_cast<int>(mod->hidden_col_indices_.size());
+  LocalVector<Value> js_args(isolate);
+  int argv_pos = 0;
+
+  for (int i = 0; i < num_hidden; i++) {
+    if ((idxNum & (1 << i)) && argv_pos < argc) {
+      sqlite3_value* sv = argv[argv_pos];
+      MaybeLocal<Value> js_val;
+      SQLITE_VALUE_TO_JS(
+          value, isolate, mod->use_bigint_args_, js_val, sv);
+      if (js_val.IsEmpty()) {
+        mod->db_->SetIgnoreNextSQLiteError(true);
+        return SQLITE_ERROR;
+      }
+      Local<Value> local;
+      if (!js_val.ToLocal(&local)) {
+        mod->db_->SetIgnoreNextSQLiteError(true);
+        return SQLITE_ERROR;
+      }
+      js_args.emplace_back(local);
+      argv_pos++;
+    } else {
+      js_args.emplace_back(Null(isolate));
+    }
+  }
+
+  // Call the rows() function.
+  auto recv = Undefined(isolate);
+  auto fn = mod->rows_fn_.Get(isolate);
+  MaybeLocal<Value> retval = fn->Call(
+      env->context(), recv, js_args.size(), js_args.data());
+  Local<Value> result;
+  if (!retval.ToLocal(&result)) {
+    mod->db_->SetIgnoreNextSQLiteError(true);
+    return SQLITE_ERROR;
+  }
+
+  // Get an iterator from the result. If the result has Symbol.iterator,
+  // call it. Otherwise, assume the result is already an iterator.
+  Local<Object> iterator_obj;
+  if (result->IsObject()) {
+    Local<Object> result_obj = result.As<Object>();
+    Local<Value> iter_method_val;
+    if (!result_obj->Get(env->context(), v8::Symbol::GetIterator(isolate))
+             .ToLocal(&iter_method_val)) {
+      mod->db_->SetIgnoreNextSQLiteError(true);
+      return SQLITE_ERROR;
+    }
+
+    if (iter_method_val->IsFunction()) {
+      MaybeLocal<Value> iter_result =
+          iter_method_val.As<Function>()->Call(
+              env->context(), result_obj, 0, nullptr);
+      Local<Value> iter_val;
+      if (!iter_result.ToLocal(&iter_val) || !iter_val->IsObject()) {
+        mod->db_->SetIgnoreNextSQLiteError(true);
+        return SQLITE_ERROR;
+      }
+      iterator_obj = iter_val.As<Object>();
+    } else {
+      // Assume result is already an iterator (has .next()).
+      iterator_obj = result_obj;
+    }
+  } else {
+    sqlite3_free(pCursor->pVtab->zErrMsg);
+    pCursor->pVtab->zErrMsg = sqlite3_mprintf(
+        "The \"options.rows\" function must return an iterable object");
+    return SQLITE_ERROR;
+  }
+
+  cursor->iterator.Reset(isolate, iterator_obj);
+
+  // Advance to the first row.
+  return xNext(pCursor);
+}
+
+int VirtualTableModule::xNext(sqlite3_vtab_cursor* pCursor) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  VirtualTableModule* mod = cursor->module;
+  Environment* env = mod->env_;
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  Local<Object> iterator = cursor->iterator.Get(isolate);
+
+  // Call iterator.next().
+  Local<Value> next_method_val;
+  if (!iterator
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(isolate, "next"))
+           .ToLocal(&next_method_val) ||
+      !next_method_val->IsFunction()) {
+    mod->db_->SetIgnoreNextSQLiteError(true);
+    return SQLITE_ERROR;
+  }
+
+  MaybeLocal<Value> next_result =
+      next_method_val.As<Function>()->Call(
+          env->context(), iterator, 0, nullptr);
+  Local<Value> next_val;
+  if (!next_result.ToLocal(&next_val) || !next_val->IsObject()) {
+    mod->db_->SetIgnoreNextSQLiteError(true);
+    return SQLITE_ERROR;
+  }
+
+  Local<Object> next_obj = next_val.As<Object>();
+
+  // Read "done" property.
+  Local<Value> done_val;
+  if (!next_obj->Get(env->context(), env->done_string())
+           .ToLocal(&done_val)) {
+    mod->db_->SetIgnoreNextSQLiteError(true);
+    return SQLITE_ERROR;
+  }
+
+  if (done_val->BooleanValue(isolate)) {
+    cursor->done = true;
+    cursor->current_row.Reset();
+  } else {
+    cursor->done = false;
+    cursor->rowid++;
+
+    // Read "value" property.
+    Local<Value> value_val;
+    if (!next_obj->Get(env->context(), env->value_string())
+             .ToLocal(&value_val)) {
+      mod->db_->SetIgnoreNextSQLiteError(true);
+      return SQLITE_ERROR;
+    }
+
+    cursor->current_row.Reset(isolate, value_val);
+  }
+
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xEof(sqlite3_vtab_cursor* pCursor) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  return cursor->done ? 1 : 0;
+}
+
+int VirtualTableModule::xColumn(sqlite3_vtab_cursor* pCursor,
+                                sqlite3_context* ctx,
+                                int i) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  VirtualTableModule* mod = cursor->module;
+  Environment* env = mod->env_;
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  // Hidden columns are not present in the row array.
+  if (i < 0 || i >= mod->num_columns_ || mod->col_index_map_[i] < 0) {
+    sqlite3_result_null(ctx);
+    return SQLITE_OK;
+  }
+
+  Local<Value> row = cursor->current_row.Get(isolate);
+  if (!row->IsObject()) {
+    sqlite3_result_null(ctx);
+    return SQLITE_OK;
+  }
+
+  Local<Object> row_obj = row.As<Object>();
+  Local<Value> col_val;
+  if (!row_obj->Get(env->context(), mod->col_index_map_[i])
+           .ToLocal(&col_val)) {
+    mod->db_->SetIgnoreNextSQLiteError(true);
+    sqlite3_result_error(ctx, "", 0);
+    return SQLITE_ERROR;
+  }
+
+  JSValueToSQLiteResult(isolate, ctx, col_val);
+  return SQLITE_OK;
+}
+
+int VirtualTableModule::xRowid(sqlite3_vtab_cursor* pCursor,
+                               sqlite3_int64* pRowid) {
+  NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
+  *pRowid = cursor->rowid;
+  return SQLITE_OK;
+}
+
+void VirtualTableModule::xDestroyModule(void* pAux) {
+  delete static_cast<VirtualTableModule*>(pAux);
+}
+
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            DatabaseOpenConfiguration&& open_config,
@@ -1605,6 +1952,232 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
                                          xValue,
                                          xInverse,
                                          CustomAggregate::xDestroy);
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+}
+
+void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"name\" argument must be a string.");
+    return;
+  }
+
+  if (!args[1]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"options\" argument must be an object.");
+    return;
+  }
+
+  Utf8Value name(env->isolate(), args[0].As<String>());
+  Local<Object> options = args[1].As<Object>();
+
+  // Extract columns array.
+  Local<Value> columns_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "columns"))
+           .ToLocal(&columns_v)) {
+    return;
+  }
+
+  if (!columns_v->IsArray()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"options.columns\" argument must be an array.");
+    return;
+  }
+
+  Local<Array> columns = columns_v.As<Array>();
+  uint32_t num_columns = columns->Length();
+
+  if (num_columns == 0) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env->isolate(),
+        "The \"options.columns\" array must not be empty.");
+    return;
+  }
+
+  // Extract rows function.
+  Local<Value> rows_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "rows"))
+           .ToLocal(&rows_v)) {
+    return;
+  }
+
+  if (!rows_v->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"options.rows\" argument must be a function.");
+    return;
+  }
+
+  Local<Function> rows_fn = rows_v.As<Function>();
+
+  // Extract optional boolean options.
+  bool direct_only = false;
+  Local<Value> direct_only_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "directOnly"))
+           .ToLocal(&direct_only_v)) {
+    return;
+  }
+
+  if (!direct_only_v->IsUndefined()) {
+    if (!direct_only_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.directOnly\" argument must be a boolean.");
+      return;
+    }
+    direct_only = direct_only_v.As<Boolean>()->Value();
+  }
+
+  bool use_bigint_args = false;
+  Local<Value> use_bigint_args_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "useBigIntArguments"))
+           .ToLocal(&use_bigint_args_v)) {
+    return;
+  }
+
+  if (!use_bigint_args_v->IsUndefined()) {
+    if (!use_bigint_args_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.useBigIntArguments\" argument must be a boolean.");
+      return;
+    }
+    use_bigint_args = use_bigint_args_v.As<Boolean>()->Value();
+  }
+
+  // Build CREATE TABLE schema SQL from columns.
+  std::string schema_sql = "CREATE TABLE x(";
+  std::vector<int> hidden_col_indices;
+
+  for (uint32_t i = 0; i < num_columns; i++) {
+    Local<Value> col_v;
+    if (!columns->Get(env->context(), i).ToLocal(&col_v)) {
+      return;
+    }
+
+    if (!col_v->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "Each column in \"options.columns\" must be an object.");
+      return;
+    }
+
+    Local<Object> col = col_v.As<Object>();
+
+    // Get column name.
+    Local<Value> col_name_v;
+    if (!col->Get(env->context(), env->name_string()).ToLocal(&col_name_v)) {
+      return;
+    }
+
+    if (!col_name_v->IsString()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The column \"name\" property must be a string.");
+      return;
+    }
+
+    Utf8Value col_name(env->isolate(), col_name_v.As<String>());
+
+    // Get column type.
+    Local<Value> col_type_v;
+    if (!col->Get(env->context(), env->type_string()).ToLocal(&col_type_v)) {
+      return;
+    }
+
+    if (!col_type_v->IsString()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The column \"type\" property must be a string.");
+      return;
+    }
+
+    Utf8Value col_type(env->isolate(), col_type_v.As<String>());
+
+    // Get optional hidden flag.
+    bool hidden = false;
+    Local<Value> hidden_v;
+    if (!col->Get(env->context(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "hidden"))
+             .ToLocal(&hidden_v)) {
+      return;
+    }
+
+    if (!hidden_v->IsUndefined()) {
+      if (!hidden_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The column \"hidden\" property must be a boolean.");
+        return;
+      }
+      hidden = hidden_v.As<Boolean>()->Value();
+    }
+
+    if (hidden) {
+      hidden_col_indices.push_back(static_cast<int>(i));
+    }
+
+    if (i > 0) {
+      schema_sql += ", ";
+    }
+
+    // Validate column type against allowed SQLite type names.
+    std::string type_str = col_type.ToString();
+    if (type_str != "INTEGER" && type_str != "TEXT" && type_str != "REAL" &&
+        type_str != "BLOB" && type_str != "ANY") {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env->isolate(),
+          "The column \"type\" property must be one of "
+          "'INTEGER', 'TEXT', 'REAL', 'BLOB', or 'ANY'.");
+      return;
+    }
+
+    // Quote column name to prevent SQL injection.
+    schema_sql += "\"";
+    std::string name_str = col_name.ToString();
+    for (char c : name_str) {
+      if (c == '"') {
+        schema_sql += "\"\"";
+      } else {
+        schema_sql += c;
+      }
+    }
+    schema_sql += "\" ";
+    schema_sql += type_str;
+
+    if (hidden) {
+      schema_sql += " HIDDEN";
+    }
+  }
+
+  schema_sql += ")";
+
+  VirtualTableModule* vtab_mod =
+      new VirtualTableModule(env,
+                             db,
+                             rows_fn,
+                             std::move(schema_sql),
+                             num_columns,
+                             std::move(hidden_col_indices),
+                             use_bigint_args,
+                             direct_only);
+
+  int r = sqlite3_create_module_v2(db->connection_,
+                                   *name,
+                                   &vtab_mod->module_def_,
+                                   vtab_mod,
+                                   VirtualTableModule::xDestroyModule);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -3488,6 +4061,7 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
+  SetProtoMethod(isolate, db_tmpl, "createModule", DatabaseSync::CreateModule);
   SetSideEffectFreeGetter(isolate,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
