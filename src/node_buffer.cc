@@ -761,9 +761,43 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
-  args.GetReturnValue().Set(static_cast<uint64_t>(result));
+  Isolate* isolate = args.GetIsolate();
+  Local<String> source = args[0].As<String>();
+
+  static constexpr int kSmallStringThreshold = 128;
+  if (source->Length() <= kSmallStringThreshold) {
+    size_t result = source->Utf8LengthV2(isolate);
+    args.GetReturnValue().Set(static_cast<uint64_t>(result));
+    return;
+  }
+
+  size_t utf8_length;
+
+  // Fast path for external one-byte strings (common case for ASCII/Latin1)
+  if (source->IsExternalOneByte()) {
+    auto ext = source->GetExternalOneByteStringResource();
+    utf8_length = simdutf::utf8_length_from_latin1(ext->data(), ext->length());
+    args.GetReturnValue().Set(static_cast<uint64_t>(utf8_length));
+    return;
+  }
+
+  // For non-external strings, use ValueView
+  String::ValueView view(isolate, source);
+  size_t length = view.length();
+
+  if (view.is_one_byte()) {
+    auto data = reinterpret_cast<const char*>(view.data8());
+    utf8_length = simdutf::utf8_length_from_latin1(data, length);
+  } else {
+    auto data = reinterpret_cast<const char16_t*>(view.data16());
+    if (simdutf::validate_utf16(data, length)) {
+      utf8_length = simdutf::utf8_length_from_utf16(data, length);
+    } else {
+      utf8_length = source->Utf8LengthV2(isolate);
+    }
+  }
+
+  args.GetReturnValue().Set(static_cast<uint64_t>(utf8_length));
 }
 
 uint32_t FastByteLengthUtf8(
@@ -776,49 +810,40 @@ uint32_t FastByteLengthUtf8(
   CHECK(sourceValue->IsString());
   Local<String> sourceStr = sourceValue.As<String>();
 
-  if (!sourceStr->IsExternalOneByte()) {
+  int length = sourceStr->Length();
+
+  // For short inputs, use V8's path - function call overhead not worth it
+  static constexpr int kSmallStringThreshold = 128;
+  if (length <= kSmallStringThreshold) {
     return sourceStr->Utf8LengthV2(isolate);
   }
-  auto source = sourceStr->GetExternalOneByteStringResource();
-  // For short inputs, the function call overhead to simdutf is maybe
-  // not worth it, reserve simdutf for long strings.
-  if (source->length() > 128) {
-    return simdutf::utf8_length_from_latin1(source->data(), source->length());
+
+  // Fast path for external one-byte strings (common case for ASCII/Latin1)
+  if (sourceStr->IsExternalOneByte()) {
+    auto ext = sourceStr->GetExternalOneByteStringResource();
+    return simdutf::utf8_length_from_latin1(ext->data(), ext->length());
   }
 
-  uint32_t length = source->length();
-  const auto input = reinterpret_cast<const uint8_t*>(source->data());
-
-  uint32_t answer = length;
-  uint32_t i = 0;
-
-  auto pop = [](uint64_t v) {
-    return static_cast<size_t>(((v >> 7) & UINT64_C(0x0101010101010101)) *
-                                   UINT64_C(0x0101010101010101) >>
-                               56);
-  };
-
-  for (; i + 32 <= length; i += 32) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 8, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 16, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 24, 8);
-    answer += pop(v);
-  }
-  for (; i + 8 <= length; i += 8) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-  }
-  for (; i + 1 <= length; i += 1) {
-    answer += input[i] >> 7;
+  // For one-byte (Latin1/ASCII) strings, V8 is already fast and ValueView
+  // creation has overhead. Use higher threshold before switching to simdutf.
+  static constexpr int kOneByteLargeThreshold = 1024;
+  if (sourceStr->IsOneByte() && length <= kOneByteLargeThreshold) {
+    return sourceStr->Utf8LengthV2(isolate);
   }
 
-  return answer;
+  // For larger strings or two-byte strings, use ValueView + simdutf
+  String::ValueView view(isolate, sourceStr);
+
+  if (view.is_one_byte()) {
+    auto data = reinterpret_cast<const char*>(view.data8());
+    return simdutf::utf8_length_from_latin1(data, length);
+  }
+
+  auto data = reinterpret_cast<const char16_t*>(view.data16());
+  if (simdutf::validate_utf16(data, length)) {
+    return simdutf::utf8_length_from_utf16(data, length);
+  }
+  return sourceStr->Utf8LengthV2(isolate);
 }
 
 static CFunction fast_byte_length_utf8(CFunction::Make(FastByteLengthUtf8));
