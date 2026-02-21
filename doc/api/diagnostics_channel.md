@@ -829,22 +829,35 @@ channels.traceSync(() => {
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61766
+    description: Custom thenables will no longer be wrapped in native Promises.
+                 Non-thenables will be returned with a warning.
 -->
 
-* `fn` {Function} Promise-returning function to wrap a trace around
+* `fn` {Function} Function to wrap a trace around
 * `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
-* Returns: {Promise} Chained from promise returned by the given function
+* Returns: {any} The return value of the given function, or the result of
+  calling `.then(...)` on the return value if the tracing channel has active
+  subscribers. If the return value is not a Promise or thenable, then
+  it is returned as-is and a warning is emitted.
 
-Trace a promise-returning function call. This will always produce a
-[`start` event][] and [`end` event][] around the synchronous portion of the
-function execution, and will produce an [`asyncStart` event][] and
-[`asyncEnd` event][] when a promise continuation is reached. It may also
-produce an [`error` event][] if the given function throws an error or the
-returned promise rejects. This will run the given function using
+Trace an asynchronous function call which returns a {Promise} or
+[thenable object][]. This will always produce a [`start` event][] and
+[`end` event][] around the synchronous portion of the function execution, and
+will produce an [`asyncStart` event][] and [`asyncEnd` event][] when the
+returned promise is resolved or rejected. It may also produce an
+[`error` event][] if the given function throws an error or the returned promise
+is rejected. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+If the value returned by `fn` is not a Promise or thenable, then it will be
+returned with a warning, and no `asyncStart` or `asyncEnd` events will be
+produced.
 
 To ensure only correct trace graphs are formed, events will only be published
 if subscribers are present prior to starting the trace. Subscriptions which are
@@ -1457,3 +1470,4 @@ Emitted when a new thread is created.
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss
+[thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables
