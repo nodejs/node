@@ -1614,6 +1614,9 @@ AES_ctr32_encrypt:
 	stg	%r11,0(%r15)			# backchain
 	la	%r1,160(%r15)
 
+	xc	160+0(64,%r15),160+0(%r15)	# clear reserved/unused
+							# in parameter block
+
 	lmg	%r10,%r11,0(%r5)			# copy key
 	stg	%r10,160+80(%r15)
 	stg	%r11,160+88(%r15)

@@ -3104,7 +3104,7 @@ aes_v8_xts_decrypt:
 	cbnz	x2,.Lxts_dec_1st_done
 	ld1	{v0.16b},[x0],#16
 
-	// Decrypt the last secod block to get the last plain text block
+	// Decrypt the last second block to get the last plain text block
 .Lxts_dec_1st_done:
 	eor	v26.16b,v0.16b,v8.16b
 	ldr	w6,[x3,#240]

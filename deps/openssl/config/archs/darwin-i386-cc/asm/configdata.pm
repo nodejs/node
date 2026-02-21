@@ -18,6 +18,7 @@ our %config = (
     "ARFLAGS" => [
         "qc"
     ],
+    "AS" => "as",
     "CC" => "gcc",
     "CFLAGS" => [
         "-O3 -fomit-frame-pointer"
@@ -25,13 +26,15 @@ our %config = (
     "CPPDEFINES" => [],
     "CPPFLAGS" => [],
     "CPPINCLUDES" => [],
+    "CXX" => "g++",
     "CXXFLAGS" => [],
     "FIPSKEY" => "f4556650ac31d35461610bac4ed81b1a181b2d8a43ea2854cbae22ca74560813",
     "HASHBANGPERL" => "/usr/bin/env perl",
+    "LD" => "ld",
     "LDFLAGS" => [],
     "LDLIBS" => [],
-    "PERL" => "/usr/bin/perl",
-    "RANLIB" => "ranlib -c",
+    "PERL" => "perl",
+    "RANLIB" => "ranlib",
     "RC" => "windres",
     "RCFLAGS" => [],
     "api" => "30000",
@@ -156,7 +159,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.17",
+    "full_version" => "3.0.19",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -206,10 +209,10 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "17",
-    "perl_archname" => "x86_64-linux-gnu-thread-multi",
-    "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.38.2",
+    "patch" => "19",
+    "perl_archname" => "aarch64-linux-thread-multi",
+    "perl_cmd" => "perl",
+    "perl_version" => "5.40.0",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -219,9 +222,9 @@ our %config = (
         "darwin-i386-cc"
     ],
     "perlenv" => {
-        "AR" => undef,
+        "AR" => "ar",
         "ARFLAGS" => undef,
-        "AS" => undef,
+        "AS" => "as",
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
         "CC" => "gcc",
@@ -231,17 +234,17 @@ our %config = (
         "CPPFLAGS" => undef,
         "CPPINCLUDES" => undef,
         "CROSS_COMPILE" => undef,
-        "CXX" => undef,
+        "CXX" => "g++",
         "CXXFLAGS" => undef,
         "HASHBANGPERL" => undef,
-        "LD" => undef,
+        "LD" => "ld",
         "LDFLAGS" => undef,
         "LDLIBS" => undef,
         "MT" => undef,
         "MTFLAGS" => undef,
         "OPENSSL_LOCAL_CONFIG_DIR" => undef,
         "PERL" => undef,
-        "RANLIB" => undef,
+        "RANLIB" => "ranlib",
         "RC" => undef,
         "RCFLAGS" => undef,
         "RM" => undef,
@@ -258,11 +261,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "1 Jul 2025",
+    "release_date" => "27 Jan 2026",
     "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "darwin-i386-cc",
-    "version" => "3.0.17"
+    "version" => "3.0.19"
 );
 our %target = (
     "AR" => "ar",
@@ -2291,6 +2294,9 @@ our %unified_info = (
         "doc/html/man3/BIO_set_callback.html" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/html/man3/BIO_set_flags.html" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/html/man3/BIO_should_retry.html" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -2365,6 +2371,9 @@ our %unified_info = (
         ],
         "doc/html/man3/CMS_EncryptedData_encrypt.html" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/html/man3/CMS_EncryptedData_set1_key.html" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/html/man3/CMS_EnvelopedData_create.html" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -2599,6 +2608,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_BytesToKey.html" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -4682,6 +4694,9 @@ our %unified_info = (
         "doc/man/man3/BIO_set_callback.3" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/man/man3/BIO_set_flags.3" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/man/man3/BIO_should_retry.3" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -4756,6 +4771,9 @@ our %unified_info = (
         ],
         "doc/man/man3/CMS_EncryptedData_encrypt.3" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/man/man3/CMS_EncryptedData_set1_key.3" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/man/man3/CMS_EnvelopedData_create.3" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -4990,6 +5008,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_BytesToKey.3" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -11322,6 +11343,9 @@ our %unified_info = (
         "doc/html/man3/BIO_set_callback.html" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/html/man3/BIO_set_flags.html" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/html/man3/BIO_should_retry.html" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -11396,6 +11420,9 @@ our %unified_info = (
         ],
         "doc/html/man3/CMS_EncryptedData_encrypt.html" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/html/man3/CMS_EncryptedData_set1_key.html" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/html/man3/CMS_EnvelopedData_create.html" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -11630,6 +11657,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_BytesToKey.html" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -13713,6 +13743,9 @@ our %unified_info = (
         "doc/man/man3/BIO_set_callback.3" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/man/man3/BIO_set_flags.3" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/man/man3/BIO_should_retry.3" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -13787,6 +13820,9 @@ our %unified_info = (
         ],
         "doc/man/man3/CMS_EncryptedData_encrypt.3" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/man/man3/CMS_EncryptedData_set1_key.3" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/man/man3/CMS_EnvelopedData_create.3" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -14021,6 +14057,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_BytesToKey.3" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -16454,6 +16493,7 @@ our %unified_info = (
             "doc/html/man3/BIO_s_null.html",
             "doc/html/man3/BIO_s_socket.html",
             "doc/html/man3/BIO_set_callback.html",
+            "doc/html/man3/BIO_set_flags.html",
             "doc/html/man3/BIO_should_retry.html",
             "doc/html/man3/BIO_socket_wait.html",
             "doc/html/man3/BN_BLINDING_new.html",
@@ -16479,6 +16519,7 @@ our %unified_info = (
             "doc/html/man3/BUF_MEM_new.html",
             "doc/html/man3/CMS_EncryptedData_decrypt.html",
             "doc/html/man3/CMS_EncryptedData_encrypt.html",
+            "doc/html/man3/CMS_EncryptedData_set1_key.html",
             "doc/html/man3/CMS_EnvelopedData_create.html",
             "doc/html/man3/CMS_add0_cert.html",
             "doc/html/man3/CMS_add1_recipient_cert.html",
@@ -16557,6 +16598,7 @@ our %unified_info = (
             "doc/html/man3/ERR_set_mark.html",
             "doc/html/man3/EVP_ASYM_CIPHER_free.html",
             "doc/html/man3/EVP_BytesToKey.html",
+            "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html",
             "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html",
             "doc/html/man3/EVP_CIPHER_CTX_get_original_iv.html",
             "doc/html/man3/EVP_CIPHER_meth_new.html",
@@ -19442,6 +19484,7 @@ our %unified_info = (
             "doc/man/man3/BIO_s_null.3",
             "doc/man/man3/BIO_s_socket.3",
             "doc/man/man3/BIO_set_callback.3",
+            "doc/man/man3/BIO_set_flags.3",
             "doc/man/man3/BIO_should_retry.3",
             "doc/man/man3/BIO_socket_wait.3",
             "doc/man/man3/BN_BLINDING_new.3",
@@ -19467,6 +19510,7 @@ our %unified_info = (
             "doc/man/man3/BUF_MEM_new.3",
             "doc/man/man3/CMS_EncryptedData_decrypt.3",
             "doc/man/man3/CMS_EncryptedData_encrypt.3",
+            "doc/man/man3/CMS_EncryptedData_set1_key.3",
             "doc/man/man3/CMS_EnvelopedData_create.3",
             "doc/man/man3/CMS_add0_cert.3",
             "doc/man/man3/CMS_add1_recipient_cert.3",
@@ -19545,6 +19589,7 @@ our %unified_info = (
             "doc/man/man3/ERR_set_mark.3",
             "doc/man/man3/EVP_ASYM_CIPHER_free.3",
             "doc/man/man3/EVP_BytesToKey.3",
+            "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3",
             "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3",
             "doc/man/man3/EVP_CIPHER_CTX_get_original_iv.3",
             "doc/man/man3/EVP_CIPHER_meth_new.3",
@@ -27626,7 +27671,7 @@ unless (caller) {
     if (scalar @ARGV == 0) {
         # With no arguments, re-create the build file
         # We do that in two steps, where the first step emits perl
-        # snipets.
+        # snippets.
 
         my $buildfile = $config{build_file};
         my $buildfile_template = "$buildfile.in";
