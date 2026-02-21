@@ -496,6 +496,13 @@ createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(so
 This approach sets the security level to 0, allowing the use of legacy features while still
 leveraging the default OpenSSL ciphers.
 
+**Note:**  
+The default minimum TLS version (`tls.DEFAULT_MIN_VERSION`) is `'TLSv1.2'`.  
+If you set `maxVersion` lower than this value (for example, `'TLSv1'`), no protocols will overlap, and the TLS handshake will fail with:
+`ERR_SSL_NO_PROTOCOLS_AVAILABLE`.  
+Even when `maxVersion` equals the default, weaker ciphers or low security levels may cause `ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE`.
+
+
 ### Using [`--tls-cipher-list`][]
 
 You can also set the security level and ciphers from the command line using the
