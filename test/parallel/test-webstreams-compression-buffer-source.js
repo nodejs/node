@@ -28,7 +28,6 @@ test('CompressionStream round-trip with ArrayBuffer input', async () => {
   const ds = new DecompressionStream('gzip');
 
   const csWriter = cs.writable.getWriter();
-  const dsReader = ds.readable.getReader();
 
   const input = new TextEncoder().encode('hello').buffer;
 
@@ -37,13 +36,7 @@ test('CompressionStream round-trip with ArrayBuffer input', async () => {
 
   await cs.readable.pipeTo(ds.writable);
 
-  const out = [];
-  let done = false;
-  while (!done) {
-    const { value, done: d } = await dsReader.read();
-    if (value) out.push(value);
-    done = d;
-  }
+  const out = await Array.fromAsync(ds.readable);
   const result = Buffer.concat(out.map((c) => Buffer.from(c)));
   assert.strictEqual(result.toString(), 'hello');
 });
