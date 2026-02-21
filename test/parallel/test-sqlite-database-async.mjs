@@ -1,5 +1,4 @@
-import { skip, skipIfSQLiteMissing } from '../common/index.mjs';
-skip();
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { existsSync } from 'node:fs';
 import { suite, test } from 'node:test';
@@ -87,18 +86,22 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('is not read-only by default', async (t) => {
+  test.skip('is not read-only by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
     await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
   });
 
-  test('is read-only if readOnly is set', async (t) => {
+  test.skip('is read-only if readOnly is set', async (t) => {
     const dbPath = nextDb();
     {
+      // TODO: use `await using` once it's supported in test files
       const db = new Database(dbPath);
-      await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
-      db.close();
+      try {
+        await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+      } finally {
+        await db.close();
+      }
     }
     {
       const db = new Database(dbPath, { readOnly: true });
@@ -118,14 +121,14 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('enables foreign key constraints by default', async (t) => {
+  test.skip('enables foreign key constraints by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
     await db.exec(`
       CREATE TABLE foo (id INTEGER PRIMARY KEY);
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     await t.assert.rejects(
       db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
       {
@@ -134,14 +137,14 @@ suite('Database() constructor', () => {
       });
   });
 
-  test('allows disabling foreign key constraints', async (t) => {
+  test.skip('allows disabling foreign key constraints', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableForeignKeyConstraints: false });
     await db.exec(`
       CREATE TABLE foo (id INTEGER PRIMARY KEY);
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     await db.exec('INSERT INTO bar (foo_id) VALUES (1)');
   });
 
@@ -154,20 +157,20 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('disables double-quoted string literals by default', async (t) => {
+  test.skip('disables double-quoted string literals by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     await t.assert.rejects(db.exec('SELECT "foo";'), {
       code: 'ERR_SQLITE_ERROR',
       message: /no such column: "?foo"?/,
     });
   });
 
-  test('allows enabling double-quoted string literals', async (t) => {
+  test.skip('allows enabling double-quoted string literals', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableDoubleQuotedStringLiterals: true });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     await db.exec('SELECT "foo";');
   });
 
@@ -180,10 +183,10 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('allows reading big integers', async (t) => {
+  test.skip('allows reading big integers', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { readBigInts: true });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     const setup = await db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
@@ -210,10 +213,10 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('allows returning arrays', async (t) => {
+  test.skip('allows returning arrays', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { returnArrays: true });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -234,10 +237,10 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('throws if bare named parameters are used when option is false', async (t) => {
+  test.skip('throws if bare named parameters are used when option is false', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { allowBareNamedParameters: false });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -261,10 +264,10 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('allows unknown named parameters', async (t) => {
+  test.skip('allows unknown named parameters', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { allowUnknownNamedParameters: true });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
     );
@@ -280,11 +283,11 @@ suite('Database() constructor', () => {
 
   test('has sqlite-type symbol property', (t) => {
     const dbPath = nextDb();
-    const db = new Database(dbPath);
-    t.after(() => { db.close(); });
+    const db = new Database(dbPath, { open: false });
+    t.after(async () => { await db[Symbol.asyncDispose](); });
 
     const sqliteTypeSymbol = Symbol.for('sqlite-type');
-    t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite');
+    t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite-async');
   });
 });
 
@@ -292,7 +295,7 @@ suite('Database.prototype.open()', () => {
   test('opens a database connection', (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { open: false });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     t.assert.strictEqual(db.isOpen, false);
     t.assert.strictEqual(existsSync(dbPath), false);
@@ -303,7 +306,7 @@ suite('Database.prototype.open()', () => {
 
   test('throws if database is already open', (t) => {
     const db = new Database(nextDb(), { open: false });
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     t.assert.strictEqual(db.isOpen, false);
     db.open();
@@ -319,32 +322,111 @@ suite('Database.prototype.open()', () => {
 });
 
 suite('Database.prototype.close()', () => {
-  test('closes an open database connection', (t) => {
+  test('closes an open database connection', async (t) => {
     const db = new Database(nextDb());
 
     t.assert.strictEqual(db.isOpen, true);
-    t.assert.strictEqual(db.close(), undefined);
+    t.assert.strictEqual(await db.close(), undefined);
     t.assert.strictEqual(db.isOpen, false);
   });
 
-  test('throws if database is not open', (t) => {
+  test('throws if database is not open', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
     t.assert.strictEqual(db.isOpen, false);
-    t.assert.throws(() => {
-      db.close();
-    }, {
+    await t.assert.rejects(db.close(), {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
     t.assert.strictEqual(db.isOpen, false);
   });
+
+  // These tests need to be rewritten to account for the fact that close() is
+  // async, so instead of rejecting pending operations, it will wait for them to
+  // finish before closing the database. However, we can still test that new
+  // operations are rejected once the database is closing.
+  test.skip('rejects pending operations when database is closed', async (t) => {
+    const db = new Database(':memory:');
+    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
+    const pendingOp = db.exec('INSERT INTO test (value) VALUES (\'test\')');
+    await db.close();
+
+    await t.assert.rejects(pendingOp, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is closing/,
+    });
+  });
+
+  test.skip('rejects multiple pending operations when database is closed', async (t) => {
+    const db = new Database(':memory:');
+    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
+    const ops = [
+      db.exec('INSERT INTO test (value) VALUES (\'test1\')'),
+      db.exec('INSERT INTO test (value) VALUES (\'test2\')'),
+      db.exec('INSERT INTO test (value) VALUES (\'test3\')'),
+    ];
+
+    await db.close();
+
+    const results = await Promise.allSettled(ops);
+    t.assert.partialDeepStrictEqual(
+      results,
+      ops.map(() => ({
+        status: 'rejected',
+        reason: {
+          code: 'ERR_INVALID_STATE',
+          message: /database is closing/,
+        },
+      }))
+    );
+    t.assert.strictEqual(results.length, ops.length);
+  });
 });
 
-suite('Database.prototype.prepare()', () => {
+suite('Database.prototype[Symbol.asyncDispose]()', () => {
+  test('closes an open database connection', async (t) => {
+    const db = new Database(nextDb());
+
+    t.assert.strictEqual(db.isOpen, true);
+    t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+  });
+  test('does not throw if the database is not open', async (t) => {
+    const db = new Database(nextDb(), { open: false });
+
+    t.assert.strictEqual(db.isOpen, false);
+    t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+  });
+  test.skip('prevents a database from being opened after disposal', async (t) => {
+    const db = new Database(nextDb(), { open: false });
+
+    t.assert.strictEqual(db.isOpen, false);
+    t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+    t.assert.throws(() => {
+      db.open();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is disposed/,
+    });
+    t.assert.strictEqual(db.isOpen, false);
+  });
+  test('is idempotent', async (t) => {
+    const db = new Database(nextDb());
+
+    t.assert.strictEqual(db.isOpen, true);
+    t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+    t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+  });
+});
+
+suite.skip('Database.prototype.prepare()', () => {
   test('returns a prepared statement', (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const stmt = db.prepare('CREATE TABLE webstorage(key TEXT)');
     t.assert.ok(stmt instanceof Statement);
   });
@@ -362,7 +444,7 @@ suite('Database.prototype.prepare()', () => {
 
   test('throws if sql is not a string', (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     t.assert.throws(() => {
       db.prepare();
@@ -373,10 +455,10 @@ suite('Database.prototype.prepare()', () => {
   });
 });
 
-suite('Database.prototype.exec()', () => {
+suite.skip('Database.prototype.exec()', () => {
   test('executes SQL', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const result = await db.exec(`
       CREATE TABLE data(
         key INTEGER PRIMARY KEY,
@@ -395,7 +477,7 @@ suite('Database.prototype.exec()', () => {
 
   test('reports errors from SQLite', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     await t.assert.rejects(
       db.exec('CREATE TABLEEEE'),
@@ -427,7 +509,7 @@ suite('Database.prototype.exec()', () => {
 
   test('throws if sql is not a string', (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     t.assert.throws(() => {
       db.exec();
@@ -438,7 +520,7 @@ suite('Database.prototype.exec()', () => {
   });
 });
 
-suite('Database.prototype.isTransaction', () => {
+suite.skip('Database.prototype.isTransaction', () => {
   test('correctly detects a committed transaction', async (t) => {
     const db = new Database(':memory:');
 
@@ -475,7 +557,7 @@ suite('Database.prototype.isTransaction', () => {
   });
 });
 
-suite('Database.prototype.location()', () => {
+suite.skip('Database.prototype.location()', () => {
   test('throws if database is not open', (t) => {
     const db = new Database(nextDb(), { open: false });
 
@@ -489,7 +571,7 @@ suite('Database.prototype.location()', () => {
 
   test('throws if provided dbName is not string', (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
 
     t.assert.throws(() => {
       db.location(null);
@@ -507,7 +589,7 @@ suite('Database.prototype.location()', () => {
   test('returns db path when connected to a persistent database', (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     t.assert.strictEqual(db.location(), dbPath);
   });
 
@@ -515,9 +597,9 @@ suite('Database.prototype.location()', () => {
     const dbPath = nextDb();
     const otherPath = nextDb();
     const db = new Database(dbPath);
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const other = new Database(dbPath);
-    t.after(() => { other.close(); });
+    t.after(async () => { await other.close(); });
 
     // Adding this escape because the test with unusual chars have a single quote which breaks the query
     const escapedPath = otherPath.replace("'", "''");
@@ -527,48 +609,10 @@ suite('Database.prototype.location()', () => {
   });
 });
 
-suite('Async mode restrictions', () => {
-  test('throws when defining a custom function', (t) => {
-    const db = new Database(':memory:');
-    t.after(() => { db.close(); });
-
-    t.assert.throws(() => {
-      db.function('test', () => 1);
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Custom functions are not supported in async mode/,
-    });
-  });
-
-  test('throws when defining an aggregate function', (t) => {
-    const db = new Database(':memory:');
-    t.after(() => { db.close(); });
-
-    t.assert.throws(() => {
-      db.aggregate('test', { start: 0, step: (acc) => acc });
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Aggregate functions are not supported in async mode/,
-    });
-  });
-
-  test('throws when setting an authorizer callback', (t) => {
-    const db = new Database(':memory:');
-    t.after(() => { db.close(); });
-
-    t.assert.throws(() => {
-      db.setAuthorizer(() => 0);
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Authorizer callbacks are not supported in async mode/,
-    });
-  });
-});
-
-suite('Async operation ordering', () => {
+suite.skip('Async operation ordering', () => {
   test('executes operations sequentially per database', async (t) => {
     const db = new Database(':memory:');
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, seq INTEGER)');
 
     // Launch multiple operations concurrently
@@ -621,37 +665,5 @@ suite('Async operation ordering', () => {
       times.db1.start < times.db2.end &&
       times.db2.start < times.db1.end
     );
-  });
-});
-
-suite('Database.prototype.close', () => {
-  test('rejects pending operations when database is closed', async (t) => {
-    const db = new Database(':memory:');
-    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
-    const pendingOp = db.exec('INSERT INTO test (value) VALUES (\'test\')');
-    db.close();
-
-    await t.assert.rejects(pendingOp, {
-      code: 'ERR_INVALID_STATE',
-      message: /database is closing/,
-    });
-  });
-
-  test('rejects multiple pending operations when database is closed', async (t) => {
-    const db = new Database(':memory:');
-    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
-    const ops = [
-      db.exec('INSERT INTO test (value) VALUES (\'test1\')'),
-      db.exec('INSERT INTO test (value) VALUES (\'test2\')'),
-      db.exec('INSERT INTO test (value) VALUES (\'test3\')'),
-    ];
-
-    db.close();
-
-    const results = await Promise.allSettled(ops);
-    for (const result of results) {
-      t.assert.strictEqual(result.status, 'rejected');
-      t.assert.strictEqual(result.reason.code, 'ERR_INVALID_STATE');
-    }
   });
 });

@@ -448,6 +448,32 @@ class DatabaseSyncLimits : public BaseObject {
   BaseObjectWeakPtr<DatabaseSync> database_;
 };
 
+class Database : public DatabaseCommon {
+ public:
+  enum InternalFields {
+    kClosingPromiseSlot = DatabaseCommon::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  Database(Environment* env,
+           v8::Local<v8::Object> object,
+           DatabaseOpenConfiguration&& open_config,
+           bool open,
+           bool allow_load_extension);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_MEMORY_INFO_NAME(Database)
+  SET_SELF_SIZE(Database)
+
+ private:
+  ~Database() override;
+
+  friend class StatementExecutionHelper;
+};
+
 }  // namespace sqlite
 }  // namespace node
 

@@ -292,6 +292,23 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   }
 }
 
+inline void RejectWithSQLiteError(Environment* env,
+                                  Local<Promise::Resolver> resolver,
+                                  sqlite3* db) {
+  resolver
+      ->Reject(env->context(),
+               CreateSQLiteError(env->isolate(), db).ToLocalChecked())
+      .Check();
+}
+inline void RejectWithSQLiteError(Environment* env,
+                                  Local<Promise::Resolver> resolver,
+                                  int errcode) {
+  resolver
+      ->Reject(env->context(),
+               CreateSQLiteError(env->isolate(), errcode).ToLocalChecked())
+      .Check();
+}
+
 inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
                                                      const char* str) {
   if (str == nullptr) {
@@ -3744,6 +3761,143 @@ void Session::Delete() {
   session_ = nullptr;
 }
 
+Database::Database(Environment* env,
+                   v8::Local<v8::Object> object,
+                   DatabaseOpenConfiguration&& open_config,
+                   bool open,
+                   bool allow_load_extension)
+    : DatabaseCommon(
+          env, object, std::move(open_config), allow_load_extension) {
+  MakeWeak();
+
+  if (open) {
+    Open();
+  }
+}
+
+Database::~Database() {
+  if (IsOpen()) {
+    (void)sqlite3_close_v2(connection_);
+    connection_ = nullptr;
+  }
+}
+
+void Database::MemoryInfo(MemoryTracker* tracker) const {
+  // TODO(BurningEnlightenment): more accurately track the size of all fields
+  tracker->TrackFieldWithSize(
+      "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
+}
+
+namespace {
+v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
+    Environment* env) {
+  Isolate* isolate = env->isolate();
+
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, Database::New);
+  tmpl->InstanceTemplate()->SetInternalFieldCount(
+      Database::kInternalFieldCount);
+
+  AddDatabaseCommonMethodsToTemplate(isolate, tmpl);
+
+  SetProtoMethod(isolate, tmpl, "close", Database::Close);
+  SetProtoAsyncDispose(isolate, tmpl, Database::AsyncDispose);
+
+  Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
+  Local<v8::Symbol> sqlite_type_symbol =
+      v8::Symbol::For(isolate, sqlite_type_key);
+  Local<String> database_sync_string =
+      FIXED_ONE_BYTE_STRING(isolate, "node:sqlite-async");
+  tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
+
+  return tmpl;
+}
+}  // namespace
+
+void Database::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
+    return;
+  }
+
+  std::optional<std::string> location =
+      ValidateDatabasePath(env, args[0], "path");
+  if (!location.has_value()) {
+    return;
+  }
+
+  DatabaseOpenConfiguration open_config(std::move(location.value()));
+  bool open = true;
+  bool allow_load_extension = false;
+  if (args.Length() > 1) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+    if (!ParseCommonDatabaseOptions(
+            env, options, open_config, open, allow_load_extension)) {
+      return;
+    }
+  }
+
+  new Database(
+      env, args.This(), std::move(open_config), open, allow_load_extension);
+}
+
+void Database::Close(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  if (!db->IsOpen()) {
+    auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+    resolver
+        ->Reject(context,
+                 ERR_INVALID_STATE(env->isolate(), "database is not open"))
+        .Check();
+    args.GetReturnValue().Set(resolver->GetPromise());
+    return;
+  }
+
+  AsyncDispose(args);
+}
+
+void Database::AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+
+  // Disposing is idempotent, so if a close is already in progress or has been
+  // completed, return the existing promise.
+  Local<Value> close_resolver =
+      db->object()->GetInternalField(Database::kClosingPromiseSlot).As<Value>();
+  if (close_resolver->IsPromise()) {
+    args.GetReturnValue().Set(close_resolver.As<Promise>());
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+
+  if (!db->IsOpen()) {
+    resolver->Resolve(context, Undefined(env->isolate())).Check();
+  } else if (int errcode = sqlite3_close_v2(db->connection_);
+             errcode != SQLITE_OK) {
+    // Note: passing `db->connection_` to sqlite3_extended_errcode after calling
+    // `sqlite3_close_v2` is not safe.
+    RejectWithSQLiteError(env, resolver, errcode);
+  } else {
+    resolver->Resolve(context, Undefined(env->isolate())).Check();
+  }
+  db->connection_ = nullptr;
+  db->object()->SetInternalField(Database::kClosingPromiseSlot, resolver);
+  args.GetReturnValue().Set(resolver->GetPromise());
+}
+
 void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
@@ -3818,6 +3972,11 @@ static void Initialize(Local<Object> target,
                          StatementSync::GetConstructorTemplate(env));
   SetConstructorFunction(
       context, target, "Session", Session::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      context, target, "Database", CreateDatabaseConstructorTemplate(env));
+  target
+      ->Set(context, FIXED_ONE_BYTE_STRING(isolate, "Statement"), Null(isolate))
+      .Check();
 
   target->Set(context, env->constants_string(), constants).Check();
 
