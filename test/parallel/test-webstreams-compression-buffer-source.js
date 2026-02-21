@@ -43,16 +43,7 @@ async function testCompressionRoundTripWithArrayBuffer() {
   await csWriter.write(input);
   csWriter.close();
 
-  const compressed = [];
-  let done = false;
-  while (!done) {
-    const { value, done: d } = await csReader.read();
-    if (value) compressed.push(value);
-    done = d;
-  }
-
-  for (const chunk of compressed) await dsWriter.write(chunk);
-  dsWriter.close();
+  await cs.readable.pipeTo(ds.writable);
 
   const out = [];
   done = false;
