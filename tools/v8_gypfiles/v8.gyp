@@ -149,6 +149,7 @@
             '<@(torque_outputs_inc)',
           ],
           'action': [
+            '<@(emulator)',
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
             '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated',
             '-v8-root', '<(V8_ROOT)',
@@ -269,6 +270,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
@@ -517,6 +519,7 @@
             }],
           ],
           'action': [
+            '<@(emulator)',
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
           ],
@@ -1982,6 +1985,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
