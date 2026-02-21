@@ -2282,6 +2282,29 @@ subprocess.stdout.on('data', (data) => {
 The `subprocess.stdout` property can be `null` or `undefined`
 if the child process could not be successfully spawned.
 
+### `subprocess.timedOut`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+The `subprocess.timedOut` property indicates whether the child process
+was killed due to the `timeout` option set in [`child_process.spawn()`][],
+[`child_process.exec()`][], [`child_process.execFile()`][], or
+[`child_process.fork()`][].
+
+```js
+const { spawn } = require('node:child_process');
+
+const subprocess = spawn('sleep', ['10'], { timeout: 100 });
+
+subprocess.on('exit', () => {
+  console.log(subprocess.timedOut); // true
+});
+```
+
 ### `subprocess.unref()`
 
 <!-- YAML
