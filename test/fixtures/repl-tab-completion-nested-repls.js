@@ -1,6 +1,5 @@
 // Tab completion sometimes uses a separate REPL instance under the hood.
-// That REPL instance has its own domain. Make sure domain errors trickle back
-// up to the main REPL.
+// Make sure errors in completion callbacks are properly thrown.
 //
 // Ref: https://github.com/nodejs/node/issues/21586
 
@@ -30,11 +29,6 @@ const repl = require('repl');
 
 const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
-
-// Some errors are passed to the domain, but do not callback.
-testMe._domain.on('error', function(err) {
-  throw err;
-});
 
 // Nesting of structures causes REPL to use a nested REPL for completion.
 putIn.run([
