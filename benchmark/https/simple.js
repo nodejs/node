@@ -7,7 +7,6 @@ const bench = common.createBenchmark(main, {
   chunks: [1, 4],
   c: [50, 500],
   chunkedEnc: [1, 0],
-  benchmarker: ['test-double-https'],
   duration: 5,
 });
 
