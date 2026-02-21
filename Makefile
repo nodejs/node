@@ -819,11 +819,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: tools/doc/node_modules \
-	$(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping doc-only (no crypto or no icu)"; \
-	fi
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -841,29 +837,37 @@ out/doc/api: doc/api
 # Generate all doc files (individual and all.html/all.json) in a single doc-kit call
 # Using grouped targets (&:) so Make knows one command produces all outputs
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
-	$(call available-node, \
-		$(DOC_KIT) generate \
-		-t legacy-html-all \
-		-t legacy-json-all \
-		-i doc/api/*.md \
-		--ignore $(skip_apidoc_files) \
-		-o out/doc/api \
-		-c ./CHANGELOG.md \
-		-v $(VERSION) \
-		--index doc/api/index.md \
-		--type-map doc/type-map.json \
-	)
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t legacy-html-all \
+			-t legacy-json-all \
+			-i doc/api/*.md \
+			--ignore $(skip_apidoc_files) \
+			-o out/doc/api \
+			-c ./CHANGELOG.md \
+			-v $(VERSION) \
+			--index doc/api/index.md \
+			--type-map doc/type-map.json \
+		) \
+	fi
 
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
-	$(call available-node, \
-		$(DOC_KIT) generate \
-		-t api-links \
-		-i lib/*.js \
-		-o $(@D) \
-		-c ./CHANGELOG.md \
-		-v $(VERSION) \
-		--type-map doc/type-map.json \
-	) \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t api-links \
+			-i lib/*.js \
+			-o $(@D) \
+			-c ./CHANGELOG.md \
+			-v $(VERSION) \
+			--type-map doc/type-map.json \
+		) \
+	fi
 
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
