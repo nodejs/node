@@ -1080,6 +1080,23 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
+    Local<Value> read_null_as_undefined_v;
+    if (options->Get(env->context(),
+                     FIXED_ONE_BYTE_STRING(env->isolate(),
+                                           "readNullAsUndefined"))
+            .ToLocal(&read_null_as_undefined_v)) {
+      if (!read_null_as_undefined_v->IsUndefined()) {
+        if (!read_null_as_undefined_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.readNullAsUndefined" argument must be a boolean.)");
+          return;
+        }
+        open_config.set_read_null_as_undefined(
+            read_null_as_undefined_v.As<Boolean>()->Value());
+      }
+    }
+
     Local<Value> defensive_v;
     if (!options->Get(env->context(), env->defensive_string())
              .ToLocal(&defensive_v)) {
@@ -1157,6 +1174,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   std::optional<bool> use_big_ints;
   std::optional<bool> allow_bare_named_params;
   std::optional<bool> allow_unknown_named_params;
+  std::optional<bool> read_null_as_undefined;
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
@@ -1237,6 +1255,23 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
       }
       allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
     }
+
+    Local<Value> read_null_as_undefined_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "readNullAsUndefined"))
+             .ToLocal(&read_null_as_undefined_v)) {
+      return;
+    }
+    if (!read_null_as_undefined_v->IsUndefined()) {
+      if (!read_null_as_undefined_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readNullAsUndefined\" argument must be a boolean.");
+        return;
+      }
+      read_null_as_undefined = read_null_as_undefined_v->IsTrue();
+    }
   }
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
@@ -1260,7 +1295,9 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   if (allow_unknown_named_params.has_value()) {
     stmt->allow_unknown_named_params_ = allow_unknown_named_params.value();
   }
-
+  if (read_null_as_undefined.has_value()) {
+    stmt->read_null_as_undefined_ = read_null_as_undefined.value();
+  }
   args.GetReturnValue().Set(stmt->object());
 }
 
@@ -2136,6 +2173,7 @@ StatementSync::StatementSync(Environment* env,
   return_arrays_ = db_->return_arrays();
   allow_bare_named_params_ = db_->allow_bare_named_params();
   allow_unknown_named_params_ = db_->allow_unknown_named_params();
+  read_null_as_undefined_ = db_->read_null_as_undefined();
 
   bare_named_params_ = std::nullopt;
 }

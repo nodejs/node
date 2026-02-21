@@ -154,6 +154,8 @@ changes:
     character (e.g., `foo` instead of `:foo`). **Default:** `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
     If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
+  * `readNullAsUndefined` {boolean} If `true`, SQL `NULL` values are returned as `undefined` instead
+    of `null`. **Default:** `false`.
   * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
@@ -473,6 +475,8 @@ added: v22.5.0
     database options or `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
     are ignored. **Default:** inherited from database options or `false`.
+  * `readNullAsUndefined` {boolean} If `true`, SQL `NULL` values are returned
+    as `undefined` instead of `null`. **Default:** `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
