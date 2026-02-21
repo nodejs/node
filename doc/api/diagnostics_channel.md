@@ -1114,6 +1114,20 @@ for the sync error and one for the async error.
 
 ### Built-in Channels
 
+#### Async Context Frame
+
+> Stability: 1 - Experimental
+
+`async_context_frame.set`
+
+* `frame` {Object}
+
+Emitted when the async context frame for the current execution context is set.
+This happens in response to [`AsyncLocalStorage.enterWith`][],
+[`AsyncResource.runInAsyncScope`][], and other transitions. Receives the newly
+set internal `AsyncContextFrame` instance. It is not emitted when
+[`--no-async-context-frame`][] is used.
+
 #### Console
 
 > Stability: 1 - Experimental
@@ -1441,6 +1455,9 @@ Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--no-async-context-frame`]: cli.md#--no-async-context-frame
+[`AsyncLocalStorage.enterWith`]: async_context.md#asynclocalstorageenterwithstore
+[`AsyncResource.runInAsyncScope`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
