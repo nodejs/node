@@ -12,21 +12,22 @@
  */
 
 #ifndef OPENSSL_CONFIGURATION_H
-# define OPENSSL_CONFIGURATION_H
-# pragma once
+#define OPENSSL_CONFIGURATION_H
+#pragma once
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
-# ifdef OPENSSL_ALGORITHM_DEFINES
-#  error OPENSSL_ALGORITHM_DEFINES no longer supported
-# endif
+#ifdef OPENSSL_ALGORITHM_DEFINES
+#error OPENSSL_ALGORITHM_DEFINES no longer supported
+#endif
 
 /*
  * OpenSSL was configured with the following options:
  */
 
+/* clang-format off */
 # ifndef OPENSSL_SYS_MACOSX
 #  define OPENSSL_SYS_MACOSX 1
 # endif
@@ -116,25 +117,38 @@ extern "C" {
 #  define OPENSSL_NO_DYNAMIC_ENGINE
 # endif
 
+/* clang-format on */
 
 /* Generate 80386 code? */
+/* clang-format off */
 # undef I386_ONLY
+/* clang-format on */
 
 /*
  * The following are cipher-specific, but are part of the public API.
  */
-# if !defined(OPENSSL_SYS_UEFI)
+#if !defined(OPENSSL_SYS_UEFI)
+    /* clang-format off */
 #  undef BN_LLONG
-/* Only one for the following should be defined */
+    /* clang-format on */
+    /* Only one for the following should be defined */
+    /* clang-format off */
 #  define SIXTY_FOUR_BIT_LONG
+    /* clang-format on */
+    /* clang-format off */
 #  undef SIXTY_FOUR_BIT
+    /* clang-format on */
+    /* clang-format off */
 #  undef THIRTY_TWO_BIT
-# endif
+/* clang-format on */
+#endif
 
+/* clang-format off */
 # define RC4_INT unsigned int
+/* clang-format on */
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 
-#endif                          /* OPENSSL_CONFIGURATION_H */
+#endif /* OPENSSL_CONFIGURATION_H */
