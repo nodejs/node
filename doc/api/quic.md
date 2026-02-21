@@ -40,8 +40,8 @@ import { connect } from 'node:quic';
 import { Buffer } from 'node:buffer';
 
 const enc = new TextEncoder();
-const alpn = 'foo';
-const client = await connect('123.123.123.123:8888', { alpn });
+const protocol = 'foo';
+const client = await connect('123.123.123.123:8888', { protocol });
 await client.createUnidirectionalStream({
   body: enc.encode('hello world'),
 });
@@ -1110,16 +1110,6 @@ while establishing a new connection.
 added: v23.8.0
 -->
 
-#### `sessionOptions.alpn`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {string}
-
-The ALPN protocol identifier.
-
 #### `sessionOptions.ca`
 
 <!-- YAML
@@ -1254,6 +1244,18 @@ added: v23.8.0
 
 When the remote peer advertises a preferred address, this option specifies whether
 to use it or ignore it.
+
+#### `sessionOptions.protocol`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+The ALPN protocol identifier. This option specifies the application layer protocol
+negotiation (ALPN) protocol to use for the session. Common values include `'h3'` for
+HTTP/3, `'h2'` for HTTP/2, or custom protocol identifiers.
 
 #### `sessionOptions.qlog`
 
@@ -1549,7 +1551,7 @@ added: v23.8.0
 
 * `this` {quic.QuicSession}
 * `sni` {string}
-* `alpn` {string}
+* `protocol` {string}
 * `cipher` {string}
 * `cipherVersion` {string}
 * `validationErrorReason` {string}
