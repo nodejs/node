@@ -12,6 +12,8 @@ test('readdir should not recurse into Unix domain sockets', (t, done) => {
     // The process should not crash
     // See https://github.com/nodejs/node/issues/52159
     fs.readdirSync(tmpdir.path, { recursive: true });
+    // Buffer with utf8 default encoding
+    fs.readdirSync(Buffer.from(tmpdir.path), { recursive: true });
     server.close();
     done();
   }));
