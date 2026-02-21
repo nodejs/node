@@ -19,6 +19,17 @@ assert.strictEqual(result.stderr, `${process.execPath
 );
 assert.strictEqual(result.status, 9);
 
+const useSystemCA = childProcess.spawnSync(
+  process.execPath,
+  [ '--use-openssl-ca', '--use-system-ca', '-p', 'process.version' ],
+  { encoding: 'utf8' }
+);
+
+assert.strictEqual(useSystemCA.stderr, `${process.execPath
+}: either --use-openssl-ca or --use-system-ca can be used, not both${os.EOL}`
+);
+assert.strictEqual(useSystemCA.status, 9);
+
 const useBundledCA = childProcess.spawnSync(process.execPath, [
   '--use-bundled-ca',
   '-p', 'process.version']);

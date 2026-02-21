@@ -15,7 +15,7 @@
  */
 TEST(NodeCrypto, NewRootCertStore) {
   node::per_process::cli_options->ssl_openssl_cert_store = true;
-  X509_STORE* store = node::crypto::NewRootCertStore();
+  X509_STORE* store = node::crypto::NewRootCertStore(nullptr);
   ASSERT_TRUE(store);
   ASSERT_EQ(ERR_peek_error(), 0UL) << "NewRootCertStore should not have left "
                                       "any errors on the OpenSSL error stack\n";
