@@ -27,14 +27,14 @@ for (const invalid of [null, undefined, 42, {}, true]) {
   // Test input validation - should throw when passed an array with invalid elements
   assert.throws(() => tls.setDefaultCACertificates([invalid]), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "certs\[0\]" argument must be of type string or an instance of ArrayBufferView/
+    message: /The "certs\[0\]" property must be of type string or an instance of ArrayBufferView/
   });
   // Verify that default certificates remain unchanged after error.
   assertEqualCerts(tls.getCACertificates('default'), defaultCerts);
 
   assert.throws(() => tls.setDefaultCACertificates([fixtureCert, invalid]), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "certs\[1\]" argument must be of type string or an instance of ArrayBufferView/
+    message: /The "certs\[1\]" property must be of type string or an instance of ArrayBufferView/
   });
   // Verify that default certificates remain unchanged after error.
   assertEqualCerts(tls.getCACertificates('default'), defaultCerts);
