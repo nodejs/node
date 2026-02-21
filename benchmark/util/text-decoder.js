@@ -3,7 +3,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  encoding: ['utf-8', 'windows-1252', 'iso-8859-3'],
+  encoding: ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252', 'iso-8859-3'],
   ignoreBOM: [0, 1],
   fatal: [0, 1],
   len: [256, 1024 * 16, 1024 * 128],
@@ -25,7 +25,7 @@ function main({ encoding, len, n, ignoreBOM, type, fatal }) {
       break;
     }
     case 'Buffer': {
-      buf = Buffer.allocUnsafe(len);
+      buf = Buffer.alloc(len);
       break;
     }
   }
