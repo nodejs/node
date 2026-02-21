@@ -1,0 +1,75 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks the behavior of the every() method on Array objects.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+1.0 Single Argument Testing
+PASS [12, 5, 8, 130, 44].every(isBigEnough) is false
+PASS [12, 54, 18, 130, 44].every(isBigEnough) is true
+
+2.0 Two Argument Testing
+PASS [12, 5, 10, 130, 44].every(isBigEnough, predicate) is false
+PASS [12, 54, 18, 130, 44].every(isBigEnough, predicate) is true
+
+3.0 Array Mutation Tests
+
+3.1 Array Element Removal
+PASS [12, 5, 8, 130, 44].every(isBigEnoughAndPop) is false
+PASS [12, 54, 18, 130, 44].every(isBigEnoughAndPop) is true
+
+3.2 Array Element Changing
+PASS [12, 5, 8, 130, 44].every(isBigEnoughAndChange) is false
+PASS [12, 54, 18, 130, 44].every(isBigEnoughAndChange) is false
+
+3.3 Array Element Addition
+PASS [12, 5, 8, 130, 44].every(isBigEnoughAndPush) is false
+PASS [12, 54, 18, 130, 44].every(isBigEnoughAndPush) is false
+
+4.0 Exception Test
+PASS [12, 5, 8, 130, 44].every(isBigEnoughAndException) threw exception exception from function.
+PASS [12, 54, 18, 130, 44].every(isBigEnoughAndException) threw exception exception from function.
+
+5.0 Wrong Type for Callback Test
+PASS [12, 5, 8, 130, 44].every(5) threw exception TypeError: number 5 is not a function.
+PASS [12, 5, 8, 130, 44].every('wrong') threw exception TypeError: string "wrong" is not a function.
+PASS [12, 5, 8, 130, 44].every(new Object()) threw exception TypeError: object is not a function.
+PASS [12, 5, 8, 130, 44].every(null) threw exception TypeError: object null is not a function.
+PASS [12, 5, 8, 130, 44].every(undefined) threw exception TypeError: undefined is not a function.
+PASS [12, 5, 8, 130, 44].every() threw exception TypeError: undefined is not a function.
+
+6.0 Early Exit ("Short Circuiting")
+PASS [12, 5, 8, 130, 44].every(isBigEnoughShortCircuit) is false
+PASS accumulator.toString() is [12, 5].toString()
+PASS [12, 54, 18, 130, 44].every(isBigEnoughShortCircuit) is true
+PASS accumulator.toString() is [12, 54, 18, 130, 44].toString()
+
+7.0 Behavior for Holes in Arrays
+PASS arr.every(isNotUndefined) is true
+PASS arr.every(isNotUndefined) is true
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

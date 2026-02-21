@@ -1,0 +1,351 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class JSArgumentsObject extends JSObject {}
+
+type JSArgumentsObjectWithLength =
+    JSSloppyArgumentsObject|JSStrictArgumentsObject;
+
+@export
+macro IsJSArgumentsObjectWithLength(
+    implicit context: Context)(o: Object): bool {
+  return Is<JSArgumentsObjectWithLength>(o);
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+extern shape JSSloppyArgumentsObject extends JSArgumentsObject {
+  length: JSAny;
+  callee: JSAny;
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+extern shape JSStrictArgumentsObject extends JSArgumentsObject {
+  length: JSAny;
+}
+
+@cppObjectLayoutDefinition
+class SloppyArgumentsElements extends FixedArrayBase {
+  context: Context;
+  arguments: FixedArray|NumberDictionary;
+  mapped_entries[length]: Smi|TheHole;
+}
+
+macro NewSloppyArgumentsElements<Iterator: type>(
+    length: Smi, context: Context, arguments: FixedArray,
+    it: Iterator): SloppyArgumentsElements {
+  return new
+  SloppyArgumentsElements{length, context, arguments, mapped_entries: ...it};
+}
+
+extern class AliasedArgumentsEntry extends Struct {
+  aliased_context_slot: Smi;
+}
+
+// TODO(danno): This should be a namespace {} once supported
+namespace arguments {
+
+macro NewJSStrictArgumentsObject(
+    implicit context: Context)(elements: FixedArray): JSStrictArgumentsObject {
+  const map = GetStrictArgumentsMap();
+  return new JSStrictArgumentsObject{
+    map,
+    properties_or_hash: kEmptyFixedArray,
+    elements,
+    length: elements.length
+  };
+}
+
+macro NewJSSloppyArgumentsObject(
+    implicit context: Context)(elements: FixedArrayBase,
+    callee: JSFunction): JSSloppyArgumentsObject {
+  const map = GetSloppyArgumentsMap();
+  return new JSSloppyArgumentsObject{
+    map,
+    properties_or_hash: kEmptyFixedArray,
+    elements,
+    length: elements.length,
+    callee
+  };
+}
+
+macro NewJSFastAliasedArgumentsObject(
+    implicit context: Context)(elements: FixedArrayBase, length: Smi,
+    callee: JSFunction): JSSloppyArgumentsObject {
+  // TODO(danno): FastAliasedArguments should really be a type for itself
+  const map = GetFastAliasedArgumentsMap();
+  return new JSSloppyArgumentsObject{
+    map,
+    properties_or_hash: kEmptyFixedArray,
+    elements,
+    length,
+    callee
+  };
+}
+
+struct ParameterMapIterator {
+  macro Next(): Smi labels NoMore {
+    if (this.currentIndex == this.endInterationIndex) goto NoMore;
+    this.currentIndex--;
+    return Convert<Smi>(this.currentIndex);
+  }
+  currentIndex: intptr;
+  const endInterationIndex: intptr;
+}
+
+macro NewParameterMapIterator(
+    context: Context, formalParameterCount: intptr,
+    mappedCount: intptr): ParameterMapIterator {
+  const flags = context.GetScopeInfo().flags;
+  let contextHeaderSize: intptr = ContextSlot::MIN_CONTEXT_SLOTS;
+  if (flags.has_context_extension_slot) ++contextHeaderSize;
+  if (flags.receiver_variable ==
+      FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)) {
+    ++contextHeaderSize;
+  }
+  // Copy the parameter slots and the holes in the arguments.
+  // We need to fill in mapped_count slots. They index the context,
+  // where parameters are stored in reverse order, at
+  //   context_header_size .. context_header_size+argument_count-1
+  // The mapped parameter thus need to get indices
+  //   context_header_size+parameter_count-1 ..
+  //       context_header_size+argument_count-mapped_count
+  // We loop from right to left.
+  const afterLastContextIndex = contextHeaderSize + formalParameterCount;
+  const firstContextIndex = afterLastContextIndex - mappedCount;
+  return ParameterMapIterator{
+    currentIndex: afterLastContextIndex,
+    endInterationIndex: firstContextIndex
+  };
+}
+
+struct ParameterValueIterator {
+  macro Next(): Object labels NoMore() {
+    if (this.mapped_count != 0) {
+      this.mapped_count--;
+      return TheHole;
+    }
+    if (this.current == this.arguments.length) goto NoMore;
+    return this.arguments[this.current++];
+  }
+  mapped_count: intptr;
+  const arguments: Arguments;
+  current: intptr;
+}
+
+macro NewParameterValueIterator(mappedCount: intptr, arguments: Arguments):
+    ParameterValueIterator {
+  return ParameterValueIterator{
+    mapped_count: mappedCount,
+    arguments,
+    current: mappedCount
+  };
+}
+
+macro NewAllArguments(
+    implicit context: Context)(frame: FrameWithArguments,
+    argumentCount: intptr): JSArray {
+  const map = GetFastPackedElementsJSArrayMap();
+  const arguments = GetFrameArguments(frame, argumentCount);
+  const it = ArgumentsIterator{arguments, current: 0};
+  const elements = NewFixedArray(argumentCount, it);
+  return NewJSArray(map, elements);
+}
+
+macro NewRestArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: intptr): FixedArray {
+  const length = (formalParameterCount >= argumentCount) ?
+      0 :
+      argumentCount - formalParameterCount;
+  const arguments = GetFrameArguments(frame, argumentCount);
+  const it = ArgumentsIterator{arguments, current: formalParameterCount};
+  return NewFixedArray(length, it);
+}
+
+macro NewRestArguments(
+    implicit context: Context)(info: FrameWithArgumentsInfo): JSArray {
+  const argumentCount = Convert<intptr>(info.argument_count);
+  const formalParameterCount = Convert<intptr>(info.formal_parameter_count);
+  const map = GetFastPackedElementsJSArrayMap();
+  const elements =
+      NewRestArgumentsElements(info.frame, formalParameterCount, argumentCount);
+  return NewJSArray(map, elements);
+}
+
+macro NewStrictArgumentsElements(
+    frame: FrameWithArguments, argumentCount: intptr): FixedArray {
+  const arguments = GetFrameArguments(frame, argumentCount);
+  const it = ArgumentsIterator{arguments, current: 0};
+  return NewFixedArray(argumentCount, it);
+}
+
+macro NewStrictArguments(
+    implicit context: Context)(
+    info: FrameWithArgumentsInfo): JSStrictArgumentsObject {
+  const argumentCount = Convert<intptr>(info.argument_count);
+  const elements = NewStrictArgumentsElements(info.frame, argumentCount);
+  return NewJSStrictArgumentsObject(elements);
+}
+
+macro NewSloppyArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: intptr): FixedArray {
+  const arguments = GetFrameArguments(frame, argumentCount);
+  if (formalParameterCount == 0) {
+    const it = ArgumentsIterator{arguments, current: 0};
+    return NewFixedArray(argumentCount, it);
+  }
+  const mappedCount = IntPtrMin(formalParameterCount, argumentCount);
+  const it = NewParameterValueIterator(mappedCount, arguments);
+  return NewFixedArray(argumentCount, it);
+}
+
+macro NewSloppyArguments(
+    implicit context: Context)(info: FrameWithArgumentsInfo,
+    callee: JSFunction): JSSloppyArgumentsObject {
+  const argumentCount = Convert<intptr>(info.argument_count);
+  const formalParameterCount = Convert<intptr>(info.formal_parameter_count);
+  const parameterValues = arguments::NewSloppyArgumentsElements(
+      info.frame, formalParameterCount, argumentCount);
+  if (formalParameterCount == 0) {
+    return NewJSSloppyArgumentsObject(parameterValues, callee);
+  }
+  const mappedCount = IntPtrMin(formalParameterCount, argumentCount);
+  let paramIter =
+      NewParameterMapIterator(context, formalParameterCount, mappedCount);
+  const elementsLength = Convert<Smi>(mappedCount);
+  const elements = NewSloppyArgumentsElements(
+      elementsLength, context, parameterValues, paramIter);
+  const length = Convert<Smi>(argumentCount);
+  return NewJSFastAliasedArgumentsObject(elements, length, callee);
+}
+
+}  // namespace arguments
+
+@export
+macro EmitFastNewAllArguments(
+    implicit context: Context)(frame: FrameWithArguments,
+    argc: intptr): JSArray {
+  return arguments::NewAllArguments(frame, argc);
+}
+
+@export
+macro EmitFastNewRestArguments(
+    implicit context: Context)(_f: JSFunction): JSArray {
+  const info = GetFrameWithArgumentsInfo();
+  return arguments::NewRestArguments(info);
+}
+
+@export
+macro EmitFastNewStrictArguments(
+    implicit context: Context)(_f: JSFunction): JSStrictArgumentsObject {
+  const info = GetFrameWithArgumentsInfo();
+  return arguments::NewStrictArguments(info);
+}
+
+@export
+macro EmitFastNewSloppyArguments(
+    implicit context: Context)(f: JSFunction): JSSloppyArgumentsObject {
+  const info = GetFrameWithArgumentsInfo();
+  return arguments::NewSloppyArguments(info, f);
+}
+
+builtin NewSloppyArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewSloppyArgumentsElements(
+      frame, formalParameterCount, Convert<intptr>(argumentCount));
+}
+
+builtin NewStrictArgumentsElements(
+    frame: FrameWithArguments, _formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewStrictArgumentsElements(
+      frame, Convert<intptr>(argumentCount));
+}
+
+builtin NewRestArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewRestArgumentsElements(
+      frame, formalParameterCount, Convert<intptr>(argumentCount));
+}
+
+macro NewRestArgumentsFromArguments(
+    implicit context: Context)(arguments: Arguments, start: intptr): JSArray {
+  dcheck(start <= arguments.length);
+  const map = GetFastPackedElementsJSArrayMap();
+  const it = ArgumentsIterator{arguments, current: start};
+  const elements = NewFixedArray(arguments.length - start, it);
+  return NewJSArray(map, elements);
+}
+
+builtin FastNewSloppyArguments(
+    implicit context: Context)(f: JSFunction): JSSloppyArgumentsObject {
+  return EmitFastNewSloppyArguments(f);
+}
+
+builtin FastNewStrictArguments(
+    implicit context: Context)(f: JSFunction): JSStrictArgumentsObject {
+  return EmitFastNewStrictArguments(f);
+}
+
+builtin FastNewRestArguments(
+    implicit context: Context)(f: JSFunction): JSArray {
+  return EmitFastNewRestArguments(f);
+}
+
+macro AccessSloppyArgumentsCommon(
+    receiver: JSObject, keyObject: Object): &Object labels Bailout {
+  const key = Cast<Smi>(keyObject) otherwise Bailout;
+  const elements =
+      Cast<SloppyArgumentsElements>(receiver.elements) otherwise Bailout;
+
+  try {
+    if (OutOfBounds(key, elements.length)) goto Unmapped;
+    const mappedIndex = elements.mapped_entries[key];
+    typeswitch (mappedIndex) {
+      case (contextIndex: Smi): {
+        return &(elements.context.elements[contextIndex]);
+      }
+      case (TheHole): {
+        goto Unmapped;
+      }
+    }
+  } label Unmapped {
+    typeswitch (elements.arguments) {
+      case (NumberDictionary): {
+        goto Bailout;
+      }
+      case (arguments: FixedArray): {
+        if (OutOfBounds(key, arguments.length)) goto Bailout;
+        if (arguments.objects[key] == TheHole) goto Bailout;
+        return &(arguments.objects[key]);
+      }
+    }
+  }
+}
+
+@export
+macro SloppyArgumentsLoad(
+    receiver: JSObject, keyObject: Object): JSAny labels Bailout {
+  return UnsafeCast<JSAny>(
+      *AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout);
+}
+
+@export
+macro SloppyArgumentsHas(
+    receiver: JSObject, keyObject: Object): JSAny labels Bailout {
+  AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout;
+  return True;
+}
+
+@export
+macro SloppyArgumentsStore(
+    receiver: JSObject, keyObject: Object, value: JSAny): JSAny labels Bailout {
+  let destination =
+      AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout;
+  *destination = value;
+  return value;
+}

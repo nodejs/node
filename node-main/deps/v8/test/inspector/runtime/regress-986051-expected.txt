@@ -1,0 +1,76 @@
+Regression test for 986051
+Regression test
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 1
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: $0 is not defined     at <anonymous>:1:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 0
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            className : ReferenceError
+            description : ReferenceError: $0 is not defined     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : global
+            description : global
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

@@ -1,0 +1,57 @@
+{
+  "owners": ["yangguo@chromium.org", "jgruber@chromium.org"],
+  "name": "Memory",
+  "run_count": 5,
+  "units": "bytes",
+  "resources": ["run.js"],
+  "main": "run.js",
+  "path": ["."],
+  "flags": ["--allow-natives-syntax", "--profile-deserialization",
+            "--serialization-statistics"],
+  "tests": [
+    {
+      "name": "ReservedMemoryProcess",
+      "results_regexp": "(\\d+) bytes per process$"
+    },
+    {
+      "name": "ReservedMemoryIsolate",
+      "results_regexp": "(\\d+) bytes per isolate$"
+    },
+    {
+      "name": "ReservedMemoryContext",
+      "results_regexp": "(\\d+) bytes per context #0$"
+    },
+    {
+      "name": "SnapshotSizeStartup",
+      "results_regexp": "(\\d+) bytes for startup$"
+    },
+    {
+      "name": "SnapshotSizeSharedHeap",
+      "results_regexp": "(\\d+) bytes for shared heap$"
+    },
+    {
+      "name": "SnapshotSizeReadOnly",
+      "results_regexp": "(\\d+) bytes for read-only$"
+    },
+    {
+      "name": "SnapshotSizeContext",
+      "results_regexp": "(\\d+) bytes for context #0$"
+    },
+    {
+      "name": "DeserializationTimeReadOnly",
+      "results_regexp": "\\[Deserializing read-only space \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "DeserializationTimeIsolate",
+      "results_regexp": "\\[Deserializing isolate \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "DeserializationTimeContext",
+      "results_regexp": "\\[Deserializing context #0 \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "EmbeddedBuiltinsSize",
+      "results_regexp": "^Embedded blob is (\\d+) bytes$"
+    }
+  ]
+}

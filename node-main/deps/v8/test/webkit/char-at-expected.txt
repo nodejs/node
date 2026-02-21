@@ -1,0 +1,110 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This is a test of the charAt and charCodeAt string functions.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS "".charAt() is ""
+PASS "".charCodeAt() is NaN
+PASS "".charAt(undefined) is ""
+PASS "".charCodeAt(undefined) is NaN
+PASS "".charAt(0) is ""
+PASS "".charCodeAt(0) is NaN
+PASS "".charAt(null) is ""
+PASS "".charCodeAt(null) is NaN
+PASS "".charAt(false) is ""
+PASS "".charCodeAt(false) is NaN
+PASS "".charAt(true) is ""
+PASS "".charCodeAt(true) is NaN
+PASS "".charAt(0) is ""
+PASS "".charCodeAt(0) is NaN
+PASS "".charAt(0.1) is ""
+PASS "".charCodeAt(0.1) is NaN
+PASS "".charAt(999) is ""
+PASS "".charCodeAt(999) is NaN
+PASS "".charAt(Infinity) is ""
+PASS "".charCodeAt(Infinity) is NaN
+PASS "".charAt(-1) is ""
+PASS "".charCodeAt(-1) is NaN
+PASS "".charAt(-Infinity) is ""
+PASS "".charCodeAt(-Infinity) is NaN
+PASS "".charAt(NaN) is ""
+PASS "".charCodeAt(NaN) is NaN
+PASS "x".charAt() is "x"
+PASS "x".charCodeAt() is 120
+PASS "x".charAt(undefined) is "x"
+PASS "x".charCodeAt(undefined) is 120
+PASS "x".charAt(0) is "x"
+PASS "x".charCodeAt(0) is 120
+PASS "x".charAt(null) is "x"
+PASS "x".charCodeAt(null) is 120
+PASS "x".charAt(false) is "x"
+PASS "x".charCodeAt(false) is 120
+PASS "x".charAt(true) is ""
+PASS "x".charCodeAt(true) is NaN
+PASS "x".charAt(0) is "x"
+PASS "x".charCodeAt(0) is 120
+PASS "x".charAt(0.1) is "x"
+PASS "x".charCodeAt(0.1) is 120
+PASS "x".charAt(999) is ""
+PASS "x".charCodeAt(999) is NaN
+PASS "x".charAt(Infinity) is ""
+PASS "x".charCodeAt(Infinity) is NaN
+PASS "x".charAt(-1) is ""
+PASS "x".charCodeAt(-1) is NaN
+PASS "x".charAt(-Infinity) is ""
+PASS "x".charCodeAt(-Infinity) is NaN
+PASS "x".charAt(NaN) is "x"
+PASS "x".charCodeAt(NaN) is 120
+PASS "xy".charAt() is "x"
+PASS "xy".charCodeAt() is 120
+PASS "xy".charAt(undefined) is "x"
+PASS "xy".charCodeAt(undefined) is 120
+PASS "xy".charAt(0) is "x"
+PASS "xy".charCodeAt(0) is 120
+PASS "xy".charAt(null) is "x"
+PASS "xy".charCodeAt(null) is 120
+PASS "xy".charAt(false) is "x"
+PASS "xy".charCodeAt(false) is 120
+PASS "xy".charAt(true) is "y"
+PASS "xy".charCodeAt(true) is 121
+PASS "xy".charAt(0) is "x"
+PASS "xy".charCodeAt(0) is 120
+PASS "xy".charAt(0.1) is "x"
+PASS "xy".charCodeAt(0.1) is 120
+PASS "xy".charAt(999) is ""
+PASS "xy".charCodeAt(999) is NaN
+PASS "xy".charAt(Infinity) is ""
+PASS "xy".charCodeAt(Infinity) is NaN
+PASS "xy".charAt(-1) is ""
+PASS "xy".charCodeAt(-1) is NaN
+PASS "xy".charAt(-Infinity) is ""
+PASS "xy".charCodeAt(-Infinity) is NaN
+PASS "xy".charAt(NaN) is "x"
+PASS "xy".charCodeAt(NaN) is 120
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

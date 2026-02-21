@@ -1,0 +1,84 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PASS (0.0).toString(4) is "0"
+PASS (-0.0).toString(4) is "0"
+PASS (0.0).toString() is "0"
+PASS (-0.0).toString() is "0"
+PASS (1234.567).toString() is "1234.567"
+PASS (1234.567).toString(0) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(null) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(false) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString('foo') threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(nan) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(1) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(true) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString('1') threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(2) is "10011010010.1001000100100110111010010111100011010101"
+PASS (1234.567).toString(3) is "1200201.120022100021001021021002202"
+PASS (1234.567).toString(4) is "103102.21010212322113203111"
+PASS (1234.567).toString(4.9) is "103102.21010212322113203111"
+PASS (1234.567).toString(5) is "14414.240414141414141414"
+PASS (1234.567).toString(6) is "5414.32224554134430233"
+PASS (1234.567).toString(7) is "3412.365323661111653"
+PASS (1234.567).toString(8) is "2322.44223351361524"
+PASS (1234.567).toString(9) is "1621.50830703723265"
+PASS (1234.567).toString(10) is "1234.567"
+PASS (1234.567).toString(11) is "a22.62674a0a5885"
+PASS (1234.567).toString(12) is "86a.697938b17701"
+PASS (1234.567).toString(13) is "73c.74a91191a65"
+PASS (1234.567).toString(14) is "642.7d1bc2caa757"
+PASS (1234.567).toString(15) is "574.87895959596"
+PASS (1234.567).toString(16) is "4d2.9126e978d5"
+PASS (1234.567).toString(17) is "44a.9aeb6faa0da"
+PASS (1234.567).toString(18) is "3ea.a3cd7102ac"
+PASS (1234.567).toString(19) is "37i.aed102a04d"
+PASS (1234.567).toString(20) is "31e.b6g"
+PASS (1234.567).toString(21) is "2gg.bj0kf5cfe9"
+PASS (1234.567).toString(22) is "2c2.ca9937cak"
+PASS (1234.567).toString(23) is "27f.d0lfjb1a7c"
+PASS (1234.567).toString(24) is "23a.dee4nj99j"
+PASS (1234.567).toString(25) is "1o9.e49999999"
+PASS (1234.567).toString(26) is "1lc.ej7fa4pkf"
+PASS (1234.567).toString(27) is "1ij.f8971772k"
+PASS (1234.567).toString(28) is "1g2.foelqia8e"
+PASS (1234.567).toString(29) is "1dg.gcog9e05q"
+PASS (1234.567).toString(30) is "1b4.h09"
+PASS (1234.567).toString(31) is "18p.hhrfcj3t"
+PASS (1234.567).toString(32) is "16i.i4jeiu6l"
+PASS (1234.567).toString(33) is "14d.inf96rdvm"
+PASS (1234.567).toString(34) is "12a.j9fchdtm"
+PASS (1234.567).toString(35) is "109.jtk4d4d4e"
+PASS (1234.567).toString(36) is "ya.kety9sifl"
+PASS (1234.567).toString(37) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(-1) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(posInf) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS (1234.567).toString(negInf) threw exception RangeError: toString() radix argument must be between 2 and 36.
+PASS posInf.toString() is "Infinity"
+PASS negInf.toString() is "-Infinity"
+PASS nan.toString() is "NaN"
+PASS "" + -0.0 is "0"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

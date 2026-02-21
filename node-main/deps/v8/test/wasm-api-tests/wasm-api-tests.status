@@ -1,0 +1,17 @@
+# Copyright 2019 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  '*': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+]

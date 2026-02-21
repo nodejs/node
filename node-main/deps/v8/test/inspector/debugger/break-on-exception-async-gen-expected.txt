@@ -1,0 +1,56 @@
+Check that "break on exceptions" works for async generators.
+
+Running test: testSimpleGeneratorThrowCaught
+Paused for CAUGHT exception.
+
+Running test: testSimpleGeneratorThrowUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldBeforeThrowCaught
+Paused for CAUGHT exception.
+
+Running test: testYieldBeforeThrowUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testAwaitBeforeThrowCaught
+Paused for CAUGHT exception.
+
+Running test: testAwaitBeforeThrowUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldBeforeThrowWithAwaitCaught
+Paused for CAUGHT exception.
+
+Running test: testYieldBeforeThrowWithAwaitUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testAwaitBeforeThrowWithYieldCaught
+Paused for CAUGHT exception.
+
+Running test: testAwaitBeforeThrowWithYieldUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldThrowsCaught
+Paused for CAUGHT exception.
+
+Running test: testYieldThrowsUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldThrowsCaughtInGenerator
+Paused for CAUGHT exception.
+Paused for UNCAUGHT exception.
+
+Running test: testAwaitThrowsCaught
+Paused for CAUGHT exception.
+
+Running test: testAwaitThrowsUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldThrowMethodCaught
+Paused for CAUGHT exception.
+
+Running test: testYieldThrowMethodUncaught
+Paused for UNCAUGHT exception.
+
+Running test: testYieldThrowMethodCaughtInGenerator
+Paused for UNCAUGHT exception.

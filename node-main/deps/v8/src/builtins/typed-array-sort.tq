@@ -1,0 +1,173 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array {
+const kBuiltinNameSort: constexpr string = '%TypedArray%.prototype.sort';
+
+extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
+
+transitioning macro CallCompare(
+    implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+    a: JSAny, b: JSAny): Number {
+  // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
+  const v: Number = ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
+
+  // b. If v is NaN, return +0.
+  if (NumberIsNaN(v)) return 0;
+
+  // c. return v.
+  return v;
+}
+
+// Merges two sorted runs [from, middle) and [middle, to)
+// from "source" into "target".
+transitioning macro TypedArrayMerge(
+    implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+    source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
+    target: FixedArray): void {
+  let left: uintptr = from;
+  let right: uintptr = middle;
+
+  for (let targetIndex: uintptr = from; targetIndex < to; ++targetIndex) {
+    if (left < middle && right >= to) {
+      // If the left run has elements, but the right does not, we take
+      // from the left.
+      target.objects[targetIndex] = source.objects[left++];
+    } else if (left < middle) {
+      // If both have elements, we need to compare.
+      const leftElement = UnsafeCast<JSAny>(source.objects[left]);
+      const rightElement = UnsafeCast<JSAny>(source.objects[right]);
+      if (CallCompare(leftElement, rightElement) <= 0) {
+        target.objects[targetIndex] = leftElement;
+        left++;
+      } else {
+        target.objects[targetIndex] = rightElement;
+        right++;
+      }
+    } else {
+      // No elements on the left, but the right does, so we take
+      // from the right.
+      dcheck(left == middle);
+      target.objects[targetIndex] = source.objects[right++];
+    }
+  }
+}
+
+transitioning builtin TypedArrayMergeSort(
+    implicit context: Context)(source: FixedArray, from: uintptr, to: uintptr,
+    target: FixedArray, array: JSTypedArray, comparefn: Callable): JSAny {
+  dcheck(to - from > 1);
+  const middle: uintptr = from + ((to - from) >>> 1);
+
+  // On the next recursion step source becomes target and vice versa.
+  // This saves the copy of the relevant range from the original
+  // array into a work array on each recursion step.
+  if (middle - from > 1) {
+    TypedArrayMergeSort(target, from, middle, source, array, comparefn);
+  }
+  if (to - middle > 1) {
+    TypedArrayMergeSort(target, middle, to, source, array, comparefn);
+  }
+
+  TypedArrayMerge(source, from, middle, to, target);
+
+  return Undefined;
+}
+
+// Shared between TypedArray.prototype.sort and TypedArray.prototype.toSorted.
+transitioning macro TypedArraySortCommon(
+    implicit context: Context)(array: JSTypedArray, len: uintptr,
+    comparefnArg: Undefined|Callable, isSort: constexpr bool): JSTypedArray {
+  // Arrays of length 1 or less are considered sorted.
+  if (len < 2) return array;
+
+  // Default sorting is done in C++ using std::sort
+  if (comparefnArg == Undefined) {
+    return TypedArraySortFast(context, array);
+  }
+
+  // Throw rather than crash if the TypedArray's size exceeds max FixedArray
+  // size (which we need below).
+  // TODO(4153): Consider redesigning the sort implementation such that we
+  // don't have such a limit.
+  if (len > kFixedArrayMaxLength) {
+    ThrowTypeError(MessageTemplate::kTypedArrayTooLargeToSort);
+  }
+
+  const comparefn: Callable =
+      Cast<Callable>(comparefnArg) otherwise unreachable;
+  const accessor: TypedArrayAccessor =
+      GetTypedArrayAccessor(array.elements_kind);
+
+  // Prepare the two work arrays. All numbers are converted to tagged
+  // objects first, and merge sorted between the two FixedArrays.
+  // The result is then written back into the JSTypedArray.
+  const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+  const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+
+  for (let i: uintptr = 0; i < len; ++i) {
+    const element: Numeric = accessor.LoadNumeric(array, i);
+    work1.objects[i] = element;
+    work2.objects[i] = element;
+  }
+
+  TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
+
+  // If this is TypedArray.prototype.sort, reload the length; it's possible the
+  // backing ArrayBuffer has been resized to be OOB or detached, in which case
+  // treat it as length 0.
+  //
+  // This is not possible in TypedArray.prototype.toSorted as the array being
+  // sorted is a copy that has not yet escaped to user script.
+
+  let writebackLen = len;
+  if constexpr (isSort) {
+    try {
+      const newLen = LoadJSTypedArrayLengthAndCheckDetached(array)
+          otherwise DetachedOrOutOfBounds;
+      if (newLen < writebackLen) {
+        writebackLen = newLen;
+      }
+    } label DetachedOrOutOfBounds {
+      writebackLen = 0;
+    }
+  } else {
+    dcheck(
+        writebackLen ==
+        LoadJSTypedArrayLengthAndCheckDetached(array) otherwise unreachable);
+  }
+
+  // work1 contains the sorted numbers. Write them back.
+  for (let i: uintptr = 0; i < writebackLen; ++i) {
+    accessor.StoreNumeric(
+        context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
+  }
+
+  return array;
+}
+
+// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
+transitioning javascript builtin TypedArrayPrototypeSort(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
+  // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
+  //    throw a TypeError exception.
+  const comparefnObj: JSAny = arguments[0];
+  const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
+  ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
+
+  // 2. Let obj be the this value.
+  const obj: JSAny = receiver;
+
+  // 3. Let buffer be ? ValidateTypedArray(obj).
+  // 4. Let len be IntegerIndexedObjectLength(obj).
+  const len: uintptr =
+      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameSort);
+  const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
+  const kIsSort: constexpr bool = true;
+  return TypedArraySortCommon(array, len, comparefn, kIsSort);
+}
+}

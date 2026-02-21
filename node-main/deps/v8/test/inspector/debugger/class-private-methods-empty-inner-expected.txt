@@ -1,0 +1,7 @@
+Test empty inner classes with private instance methods in the outer class
+
+Running test: testScopesPaused
+privateProperties from Runtime.getProperties()
+undefined
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+undefined

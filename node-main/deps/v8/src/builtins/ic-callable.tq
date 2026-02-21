@@ -1,0 +1,288 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace ic {
+namespace callable {
+
+extern macro IncrementCallCount(FeedbackVector, uintptr): void;
+const kCallFeedbackContentFieldMask: constexpr int32
+    generates 'FeedbackNexus::CallFeedbackContentField::kMask';
+const kCallFeedbackContentFieldShift: constexpr uint32
+    generates 'FeedbackNexus::CallFeedbackContentField::kShift';
+
+macro IsMonomorphic(feedback: MaybeObject, target: JSAny): bool {
+  return IsWeakReferenceToObject(feedback, target);
+}
+
+macro InSameNativeContext(lhs: Context, rhs: Context): bool {
+  return LoadNativeContext(lhs) == LoadNativeContext(rhs);
+}
+
+macro TryInitializeAsMonomorphic(
+    implicit context: Context)(maybeTarget: JSAny,
+    feedbackVector: FeedbackVector,
+    slotId: uintptr): void labels TransitionToMegamorphic {
+  const targetHeapObject =
+      Cast<HeapObject>(maybeTarget) otherwise TransitionToMegamorphic;
+
+  let unwrappedTarget = targetHeapObject;
+  while (Is<JSBoundFunction>(unwrappedTarget)) {
+    unwrappedTarget =
+        UnsafeCast<JSBoundFunction>(unwrappedTarget).bound_target_function;
+  }
+
+  const unwrappedTargetJSFunction =
+      Cast<JSFunction>(unwrappedTarget) otherwise TransitionToMegamorphic;
+  if (!InSameNativeContext(unwrappedTargetJSFunction.context, context)) {
+    goto TransitionToMegamorphic;
+  }
+
+  StoreWeakReferenceInFeedbackVector(feedbackVector, slotId, targetHeapObject);
+  ReportFeedbackUpdate(feedbackVector, slotId, 'Call:Initialize');
+}
+
+macro TransitionToMegamorphic(
+    implicit context: Context)(feedbackVector: FeedbackVector,
+    slotId: uintptr): void {
+  StoreFeedbackVectorSlot(feedbackVector, slotId, kMegamorphicSymbol);
+  ReportFeedbackUpdate(feedbackVector, slotId, 'Call:TransitionMegamorphic');
+}
+
+macro TaggedEqualPrototypeApplyFunction(
+    implicit context: Context)(target: JSAny): bool {
+  return TaggedEqual(target, GetPrototypeApplyFunction());
+}
+
+macro FeedbackValueIsReceiver(
+    implicit context: Context)(feedbackVector: FeedbackVector,
+    slotId: uintptr): bool {
+  const callCountSmi =
+      Cast<Smi>(LoadFeedbackVectorSlot(feedbackVector, slotId, kTaggedSize))
+      otherwise return false;
+  const callCount: intptr = SmiUntag(callCountSmi);
+  return (callCount & IntPtrConstant(kCallFeedbackContentFieldMask)) !=
+      IntPtrConstant(0);
+}
+
+macro SetCallFeedbackContent(
+    implicit context: Context)(feedbackVector: FeedbackVector, slotId: uintptr,
+    callFeedbackContent: constexpr CallFeedbackContent): void {
+  // Load the call count field from the feecback vector.
+  const callCountSmi =
+      Cast<Smi>(LoadFeedbackVectorSlot(feedbackVector, slotId, kTaggedSize))
+      otherwise return;
+  const callCount: intptr = SmiUntag(callCountSmi);
+  // The second lowest bits of the call count are used to state whether the
+  // feedback collected is a target or a receiver. Change that bit based on the
+  // callFeedbackContent input.
+  const callFeedbackContentFieldMask: intptr =
+      ~IntPtrConstant(kCallFeedbackContentFieldMask);
+  const newCount: intptr = (callCount & callFeedbackContentFieldMask) |
+      Convert<intptr>(Signed(
+          %RawConstexprCast<constexpr uint32>(callFeedbackContent)
+          << kCallFeedbackContentFieldShift));
+  StoreFeedbackVectorSlot(
+      feedbackVector, slotId, SmiTag(newCount), SKIP_WRITE_BARRIER,
+      kTaggedSize);
+  ReportFeedbackUpdate(feedbackVector, slotId, 'Call:SetCallFeedbackContent');
+}
+
+macro CollectCallFeedback(
+    maybeTarget: JSAny, maybeReceiver: Lazy<JSAny>, context: Context,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  dcheck(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
+  const feedbackVector =
+      Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
+  IncrementCallCount(feedbackVector, slotId);
+
+  try {
+    const feedback: MaybeObject =
+        LoadFeedbackVectorSlot(feedbackVector, slotId);
+    if (IsMonomorphic(feedback, maybeTarget)) return;
+    if (IsMegamorphic(feedback)) return;
+    if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+
+    // If cleared, we have a new chance to become monomorphic.
+    const feedbackValue: HeapObject =
+        MaybeObjectToStrong(feedback) otherwise TryReinitializeAsMonomorphic;
+
+    if (FeedbackValueIsReceiver(feedbackVector, slotId) &&
+        TaggedEqualPrototypeApplyFunction(maybeTarget)) {
+      // If the Receiver is recorded and the target is
+      // Function.prototype.apply, check whether we can stay monomorphic based
+      // on the receiver.
+      if (IsMonomorphic(feedback, RunLazy(maybeReceiver))) {
+        return;
+      } else {
+        // If not, reinitialize the feedback with target.
+        SetCallFeedbackContent(
+            feedbackVector, slotId, CallFeedbackContent::kTarget);
+        TryInitializeAsMonomorphic(maybeTarget, feedbackVector, slotId)
+            otherwise TransitionToMegamorphic;
+        return;
+      }
+    }
+
+    // Try transitioning to a feedback cell.
+    // Check if {target}s feedback cell matches the {feedbackValue}.
+    const target =
+        Cast<JSFunction>(maybeTarget) otherwise TransitionToMegamorphic;
+    const targetFeedbackCell: FeedbackCell = target.feedback_cell;
+    if (TaggedEqual(feedbackValue, targetFeedbackCell)) return;
+
+    // Check if {target} and {feedbackValue} are both JSFunctions with
+    // the same feedback vector cell, and that those functions were
+    // actually compiled already.
+    const feedbackValueJSFunction =
+        Cast<JSFunction>(feedbackValue) otherwise TransitionToMegamorphic;
+    const feedbackCell: FeedbackCell = feedbackValueJSFunction.feedback_cell;
+    if (!TaggedEqual(feedbackCell, targetFeedbackCell))
+      goto TransitionToMegamorphic;
+
+    StoreWeakReferenceInFeedbackVector(feedbackVector, slotId, feedbackCell);
+    ReportFeedbackUpdate(feedbackVector, slotId, 'Call:FeedbackVectorCell');
+  } label TryReinitializeAsMonomorphic {
+    SetCallFeedbackContent(
+        feedbackVector, slotId, CallFeedbackContent::kTarget);
+    goto TryInitializeAsMonomorphic;
+  } label TryInitializeAsMonomorphic {
+    let recordedFunction = maybeTarget;
+    if (TaggedEqualPrototypeApplyFunction(maybeTarget)) {
+      recordedFunction = RunLazy(maybeReceiver);
+      SetCallFeedbackContent(
+          feedbackVector, slotId, CallFeedbackContent::kReceiver);
+    } else {
+      dcheck(!FeedbackValueIsReceiver(feedbackVector, slotId));
+    }
+    TryInitializeAsMonomorphic(recordedFunction, feedbackVector, slotId)
+        otherwise TransitionToMegamorphic;
+  } label TransitionToMegamorphic {
+    TransitionToMegamorphic(feedbackVector, slotId);
+  }
+}
+
+macro CollectInstanceOfFeedback(
+    maybeTarget: JSAny, context: Context,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  dcheck(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
+  const feedbackVector =
+      Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
+  // Note: The call count is not incremented.
+
+  try {
+    const feedback: MaybeObject =
+        LoadFeedbackVectorSlot(feedbackVector, slotId);
+    if (IsMonomorphic(feedback, maybeTarget)) return;
+    if (IsMegamorphic(feedback)) return;
+    if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+
+    // If cleared, we have a new chance to become monomorphic.
+    const _feedbackValue: HeapObject =
+        MaybeObjectToStrong(feedback) otherwise TryInitializeAsMonomorphic;
+
+    goto TransitionToMegamorphic;
+  } label TryInitializeAsMonomorphic {
+    TryInitializeAsMonomorphic(maybeTarget, feedbackVector, slotId)
+        otherwise TransitionToMegamorphic;
+  } label TransitionToMegamorphic {
+    TransitionToMegamorphic(feedbackVector, slotId);
+  }
+}
+
+macro BothTaggedEqualArrayFunction(
+    implicit context: Context)(first: JSAny, second: JSAny): bool {
+  return TaggedEqual(first, second) && TaggedEqual(second, GetArrayFunction());
+}
+
+extern macro CreateAllocationSiteInFeedbackVector(FeedbackVector, uintptr):
+    AllocationSite;
+
+macro CastFeedbackVector(
+    maybeFeedbackVector: Undefined|FeedbackVector,
+    updateFeedbackMode: constexpr UpdateFeedbackMode):
+    FeedbackVector labels Fallback {
+  if constexpr (updateFeedbackMode == UpdateFeedbackMode::kGuaranteedFeedback) {
+    return UnsafeCast<FeedbackVector>(maybeFeedbackVector);
+  } else if constexpr (
+      updateFeedbackMode == UpdateFeedbackMode::kOptionalFeedback) {
+    return Cast<FeedbackVector>(maybeFeedbackVector) otherwise goto Fallback;
+  } else if constexpr (updateFeedbackMode == UpdateFeedbackMode::kNoFeedback) {
+    goto Fallback;
+  } else {
+    unreachable;
+  }
+}
+
+macro CollectConstructFeedback(
+    implicit context: Context)(target: JSAny, newTarget: JSAny,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: TaggedIndex,
+    updateFeedbackMode: constexpr UpdateFeedbackMode):
+    never labels ConstructGeneric,
+    ConstructArray(AllocationSite) {
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  dcheck(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
+
+  const feedbackVector = CastFeedbackVector(
+      maybeFeedbackVector, updateFeedbackMode) otherwise goto ConstructGeneric;
+  // TODO(42200059): Propagate TaggedIndex usage.
+  const slotIdUintptr = Unsigned(TaggedIndexToIntPtr(slotId));
+  IncrementCallCount(feedbackVector, slotIdUintptr);
+
+  try {
+    const feedback: MaybeObject =
+        LoadFeedbackVectorSlot(feedbackVector, slotIdUintptr);
+    if (IsMonomorphic(feedback, newTarget)) goto ConstructGeneric;
+    if (IsMegamorphic(feedback)) goto ConstructGeneric;
+    if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+
+    if (!IsWeakOrCleared(feedback)) {
+      const feedbackAsStrong = %RawDownCast<Object>(feedback);
+      if (Is<AllocationSite>(feedbackAsStrong)) {
+        if (BothTaggedEqualArrayFunction(target, newTarget)) {
+          goto ConstructArray(UnsafeCast<AllocationSite>(feedbackAsStrong));
+        }
+        goto TransitionToMegamorphic;
+      }
+    }
+
+    // If cleared, we have a new chance to become monomorphic.
+    const _feedbackValue: HeapObject =
+        MaybeObjectToStrong(feedback) otherwise TryInitializeAsMonomorphic;
+
+    goto TransitionToMegamorphic;
+  } label TryInitializeAsMonomorphic {
+    if (BothTaggedEqualArrayFunction(target, newTarget)) {
+      // In this case we can skip unwrapping and context validation since we
+      // know the target is the current context's array function.
+      const allocationSite =
+          CreateAllocationSiteInFeedbackVector(feedbackVector, slotIdUintptr);
+      ReportFeedbackUpdate(
+          feedbackVector, slotIdUintptr, 'Construct:CreateAllocationSite');
+      goto ConstructArray(allocationSite);
+    }
+
+    TryInitializeAsMonomorphic(newTarget, feedbackVector, slotIdUintptr)
+        otherwise TransitionToMegamorphic;
+  } label TransitionToMegamorphic {
+    TransitionToMegamorphic(feedbackVector, slotIdUintptr);
+  }
+  goto ConstructGeneric;
+}
+
+}  // namespace callable
+}  // namespace ic

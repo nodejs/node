@@ -1,0 +1,27 @@
+Regression test for crbug.com/1195927
+
+Running test: test
+Debugger.setBreakpoint result:
+{
+    actualLocation : {
+        columnNumber : 2
+        lineNumber : 2
+        scriptId : <scriptId>
+    }
+    breakpointId : <breakpointId>
+}
+Debugger.paused call frames:
+foo (foo.js:2:2)
+(anonymous) (:0:0)
+Debugger.setScriptSource result:
+{
+    status : BlockedByActiveFunction
+}
+foo(42) result:
+{
+    result : {
+        description : 43
+        type : number
+        value : 43
+    }
+}

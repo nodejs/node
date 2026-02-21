@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<!-- Pull in executor_path needed by newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"></script>
+<!-- Pull in importScript / newPopup / newIframe -->
+<script src="/html/anonymous-iframe/resources/common.js"></script>
+<body>
+<script>
+
+const bc_postmessage_js = (channel_name, message, done_queue_name) => `
+  const bc = new BroadcastChannel("${channel_name}");
+  bc.postMessage("${message}");
+  send("${done_queue_name}", "done");
+`;
+
+const add_iframe_js = (iframe_origin, response_queue_uuid) => `
+  const importScript = ${importScript};
+  await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                   "/resources/common.js");
+  await importScript("/html/anonymous-iframe/resources/common.js");
+  await importScript("/common/utils.js");
+  send("${response_queue_uuid}", newIframe("${iframe_origin}"));
+`;
+
+const same_site_origin = get_host_info().HTTPS_ORIGIN;
+const cross_site_origin = get_host_info().HTTPS_NOTSAMESITE_ORIGIN;
+
+async function create_test_iframes(t, response_queue_uuid) {
+
+  // Create a same-origin iframe in a cross-site popup.
+  const not_same_site_popup_uuid = newPopup(t, cross_site_origin);
+  send(not_same_site_popup_uuid,
+       add_iframe_js(same_site_origin, response_queue_uuid));
+  const iframe_1_uuid = await receive(response_queue_uuid);
+
+  // Create a same-origin iframe in a same-site popup.
+  const same_origin_popup_uuid = newPopup(t, same_site_origin);
+  send(same_origin_popup_uuid,
+       add_iframe_js(same_site_origin, response_queue_uuid));
+  const iframe_2_uuid = await receive(response_queue_uuid);
+
+  return [iframe_1_uuid, iframe_2_uuid];
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    const response_queue_uuid = token();
+
+    const [iframe_1_uuid, iframe_2_uuid] =
+      await create_test_iframes(t, response_queue_uuid);
+
+    const channel_name = token();
+    const bc = new BroadcastChannel(channel_name);
+    bc.onmessage = resolve;
+
+    // Instruct the not-same-top-level-site iframe to send a message on the BC
+    // channel we are listening on. This message should not be received since
+    // the iframe should be in a different partition.
+    send(iframe_1_uuid,
+         bc_postmessage_js(channel_name, "iframe1 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger iframe1 BroadcastChannel message creation");
+    }
+
+    // Now instruct the same-top-level-site iframe to send a BC message. By
+    // the time we send the script to execute, have it send the BC message,
+    // and then receive the BC message in our BC instance, it should be
+    // reasonable to assume that the message from the first iframe would have
+    // been delivered if it was going to be.
+    send(iframe_2_uuid,
+         bc_postmessage_js(channel_name, "iframe2 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger iframe2 BroadcastChannel message creation");
+    }
+
+  }).then(event => {
+    assert_equals(event.data, "iframe2 msg");
+  });
+
+}, "BroadcastChannel messages aren't received from a cross-partition iframe");
+
+// Optional Test: Checking for partitioned BroadcastChannels in an A->B->A
+// (nested-iframe with cross-site ancestor chain) scenario.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    const response_queue_uuid = token();
+
+    const [cross_site_iframe_uuid, all_same_parent_iframe_uuid] =
+      await create_test_iframes(t, response_queue_uuid);
+
+    // Create a same-origin iframe in a cross-site iframe in a same-site popup.
+    // Create the same-site child iframe of the cross-site iframe (A->B->A).
+    send(cross_site_iframe_uuid,
+         add_iframe_js(same_site_origin, response_queue_uuid));
+    const same_site_iframe_uuid = await receive(response_queue_uuid);
+
+    // Create a same-origin iframe in a same-site iframe in a same-site popup.
+    // Create the same-site child iframe of the same-site parent iframe (A->A->A).
+    send(all_same_parent_iframe_uuid,
+         add_iframe_js(same_site_origin, response_queue_uuid));
+    const all_same_child_iframe_uuid = await receive(response_queue_uuid);
+
+    const channel_name = token();
+    const bc = new BroadcastChannel(channel_name);
+    bc.onmessage = resolve;
+
+    // Instruct the A->B->A child iframe to send a message on the BC
+    // channel we are listening on. This message should not be received since
+    // the iframe should be in a different partition.
+    send(same_site_iframe_uuid,
+      bc_postmessage_js(channel_name, "iframe1 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger A->B->A BroadcastChannel message creation");
+    }
+
+    // Now instruct the A->A->A child iframe to send a BC message. By
+    // the time we send the script to execute, send the BC message,
+    // and receive the BC message in our BC instance, it should be
+    // reasonable to assume that the message from the first iframe would have
+    // been delivered if it was going to be.
+    send(all_same_child_iframe_uuid,
+      bc_postmessage_js(channel_name, "iframe2 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger A->A->A BroadcastChannel message creation");
+    }
+
+  }).then(event => {
+    assert_equals(event.data, "iframe2 msg");
+  });
+
+}, "BroadcastChannel messages aren't received from a nested iframe with a cross-site ancestor");
+
+const newWorker = (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_worker_path + `&uuid=${worker_token}`;
+  const worker = new Worker(worker_url);
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    const response_queue_uuid = token();
+
+    const create_worker_js = (origin) => `
+      const importScript = ${importScript};
+      await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                       "/resources/common.js");
+      await importScript("/html/anonymous-iframe/resources/common.js");
+      await importScript("/common/utils.js");
+      const newWorker = ${newWorker};
+      send("${response_queue_uuid}", newWorker("${origin}"));
+    `;
+
+    const [iframe_1_uuid, iframe_2_uuid] =
+      await create_test_iframes(t, response_queue_uuid);
+
+    // Create a dedicated worker in the cross-top-level-site iframe.
+    send(iframe_1_uuid, create_worker_js(same_site_origin));
+    const worker_1_uuid = await receive(response_queue_uuid);
+
+    // Create a dedicated worker in the same-top-level-site iframe.
+    send(iframe_2_uuid, create_worker_js(same_site_origin));
+    const worker_2_uuid = await receive(response_queue_uuid);
+
+    const channel_name = token();
+    const bc = new BroadcastChannel(channel_name);
+    bc.onmessage = async (e) => {
+      await send(worker_1_uuid, "self.close();");
+      await send(worker_2_uuid, "self.close();");
+      resolve(e);
+    };
+
+    // Instruct the not-same-top-level-site worker to send a message on the BC
+    // channel we are listening on. This message should not be received since
+    // the worker should be in a different partition.
+    send(worker_1_uuid,
+         bc_postmessage_js(channel_name, "worker1 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker1 BroadcastChannel message creation");
+    }
+
+    // Now instruct the same-top-level-site worker to send a BC message. By
+    // the time we send the script to execute, have it send the BC message,
+    // and then receive the BC message in our BC instance, it should be
+    // reasonable to assume that the message from the first worker would have
+    // been delivered if it was going to be.
+    send(worker_2_uuid,
+         bc_postmessage_js(channel_name, "worker2 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker2 BroadcastChannel message creation");
+    }
+
+  }).then(event => {
+    assert_equals(event.data, "worker2 msg");
+  });
+
+}, "BroadcastChannel messages aren't received from a cross-partition dedicated worker");
+
+const newSharedWorker = (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_worker_path + `&uuid=${worker_token}`;
+  const worker = new SharedWorker(worker_url, worker_token);
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    const response_queue_uuid = token();
+
+    const create_worker_js = (origin) => `
+      const importScript = ${importScript};
+      await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                       "/resources/common.js");
+      await importScript("/html/anonymous-iframe/resources/common.js");
+      await importScript("/common/utils.js");
+      const newSharedWorker = ${newSharedWorker};
+      send("${response_queue_uuid}", newSharedWorker("${origin}"));
+    `;
+
+    const [iframe_1_uuid, iframe_2_uuid] =
+      await create_test_iframes(t, response_queue_uuid);
+
+    // Create a shared worker in the cross-top-level-site iframe.
+    send(iframe_1_uuid, create_worker_js(same_site_origin));
+    const worker_1_uuid = await receive(response_queue_uuid);
+
+    // Create a shared worker in the same-top-level-site iframe.
+    send(iframe_2_uuid, create_worker_js(same_site_origin));
+    const worker_2_uuid = await receive(response_queue_uuid);
+
+    const channel_name = token();
+    const bc = new BroadcastChannel(channel_name);
+    bc.onmessage = async (e) => {
+      await send(worker_1_uuid, "self.close();");
+      await send(worker_2_uuid, "self.close();");
+      resolve(e);
+    };
+
+    // Instruct the not-same-top-level-site worker to send a message on the BC
+    // channel we are listening on. This message should not be received since
+    // the worker should be in a different partition.
+    send(worker_1_uuid,
+         bc_postmessage_js(channel_name, "worker1 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker1 BroadcastChannel message creation");
+    }
+
+    // Now instruct the same-top-level-site worker to send a BC message. By
+    // the time we send the script to execute, have it send the BC message,
+    // and then receive the BC message in our BC instance, it should be
+    // reasonable to assume that the message from the first worker would have
+    // been delivered if it was going to be.
+    send(worker_2_uuid,
+         bc_postmessage_js(channel_name, "worker2 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker2 BroadcastChannel message creation");
+    }
+
+  }).then(event => {
+    assert_equals(event.data, "worker2 msg");
+  });
+
+}, "BroadcastChannel messages aren't received from a cross-partition shared worker");
+
+const newServiceWorker = async (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_service_worker_path +
+                     `&uuid=${worker_token}`;
+  const worker_url_path = executor_service_worker_path.substring(0,
+                              executor_service_worker_path.lastIndexOf('/'));
+  const scope = worker_url_path + "/not-used/";
+  const reg = await navigator.serviceWorker.register(worker_url,
+                                                     {'scope': scope});
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    const response_queue_uuid = token();
+
+    const create_worker_js = (origin) => `
+      const importScript = ${importScript};
+      await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                       "/resources/common.js");
+      await importScript("/html/anonymous-iframe/resources/common.js");
+      await importScript("/common/utils.js");
+      const newServiceWorker = ${newServiceWorker};
+      send("${response_queue_uuid}", await newServiceWorker("${origin}"));
+    `;
+
+    const [iframe_1_uuid, iframe_2_uuid] =
+      await create_test_iframes(t, response_queue_uuid);
+
+    // Create a service worker in the cross-top-level-site iframe.
+    send(iframe_1_uuid, create_worker_js(same_site_origin));
+    var worker_1_uuid = await receive(response_queue_uuid);
+
+    const channel_name = token();
+    const bc = new BroadcastChannel(channel_name);
+    bc.onmessage = async (e) => {
+      if (worker_1_uuid) {
+        await send(worker_1_uuid, "self.registration.unregister();");
+      }
+      if (worker_2_uuid) {
+        await send(worker_2_uuid, "self.registration.unregister();");
+      }
+      resolve(e);
+    };
+
+    // Instruct the not-same-top-level-site worker to send a message on the BC
+    // channel we are listening on. This message should not be received since
+    // the worker should be in a different partition.
+    send(worker_1_uuid,
+         bc_postmessage_js(channel_name, "worker1 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker1 BroadcastChannel message creation");
+    }
+
+    await send(worker_1_uuid, "await self.registration.unregister();");
+    worker_1_uuid = undefined;
+
+    // Create a service worker in the same-top-level-site iframe. Note that
+    // if service workers are unpartitioned then this new service worker would
+    // replace the one created above. This is why we wait to create the second
+    // service worker until after we are done with the first one.
+    send(iframe_2_uuid, create_worker_js(same_site_origin));
+    var worker_2_uuid = await receive(response_queue_uuid);
+
+    // Now instruct the same-top-level-site worker to send a BC message. By
+    // the time we send the script to execute, have it send the BC message,
+    // and then receive the BC message in our BC instance, it should be
+    // reasonable to assume that the message from the first worker would have
+    // been delivered if it was going to be.
+    send(worker_2_uuid,
+         bc_postmessage_js(channel_name, "worker2 msg", response_queue_uuid));
+    if (await receive(response_queue_uuid) != "done") {
+      reject("Unable to trigger worker2 BroadcastChannel message creation");
+    }
+
+    await send(worker_2_uuid, "await self.registration.unregister();");
+    worker_2_uuid = undefined;
+
+  }).then(event => {
+    assert_equals(event.data, "worker2 msg");
+  });
+
+}, "BroadcastChannel messages aren't received from a cross-partition service worker");
+
+</script>
+</body>

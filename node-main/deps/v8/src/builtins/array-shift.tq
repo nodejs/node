@@ -1,0 +1,112 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// These are technically all js-implicit parameters, but we don't currently
+// support supplying these in tail calls (where we have to supply them).
+extern javascript builtin ArrayShift(
+    Context, JSFunction, JSAny, int32, DispatchHandle): JSAny;
+
+macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
+    labels Slow, Runtime {
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  let witness = NewFastJSArrayWitness(array);
+
+  witness.EnsureArrayPushable() otherwise Slow;
+
+  if (array.length == 0) {
+    return Undefined;
+  }
+
+  const newLength = array.length - 1;
+
+  // Check that we're not supposed to right-trim the backing store, as
+  // implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
+  if ((newLength + newLength + kMinAddedElementsCapacity) <
+      array.elements.length) {
+    goto Runtime;
+  }
+
+  // Check that we're not supposed to left-trim the backing store, as
+  // implemented in elements.cc:FastElementsAccessor::MoveElements.
+  if (newLength > kMaxCopyElements) goto Runtime;
+
+  const result = witness.LoadElementOrUndefined(0);
+  witness.ChangeLength(newLength);
+  witness.MoveElements(0, 1, Convert<intptr>(newLength));
+  witness.StoreHole(newLength);
+  return result;
+}
+
+transitioning macro GenericArrayShift(
+    implicit context: Context)(receiver: JSAny): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const length: Number = GetLengthProperty(object);
+
+  // 3. If len is zero, then
+  if (length == 0) {
+    // a. Perform ? Set(O, "length", 0, true).
+    SetProperty(object, kLengthString, Convert<Smi>(0));
+    // b. Return undefined.
+    return Undefined;
+  }
+
+  // 4. Let first be ? Get(O, "0").
+  const first = GetProperty(object, Convert<Smi>(0));
+  // 5. Let k be 1.
+  let k: Number = 1;
+  // 6. Repeat, while k < len
+  while (k < length) {
+    // a. Let from be ! ToString(k).
+    const from: Number = k;
+
+    // b. Let to be ! ToString(k - 1).
+    const to: Number = k - 1;
+
+    // c. Let fromPresent be ? HasProperty(O, from).
+    const fromPresent: Boolean = HasProperty(object, from);
+
+    // d. If fromPresent is true, then
+    if (fromPresent == True) {
+      // i. Let fromVal be ? Get(O, from).
+      const fromValue: JSAny = GetProperty(object, from);
+
+      // ii. Perform ? Set(O, to, fromValue, true).
+      SetProperty(object, to, fromValue);
+    } else {
+      // i. Perform ? DeletePropertyOrThrow(O, to).
+      DeleteProperty(object, to, LanguageMode::kStrict);
+    }
+
+    // f. Increase k by 1.
+    k++;
+  }
+
+  // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len - 1)).
+  DeleteProperty(object, length - 1, LanguageMode::kStrict);
+
+  // 8. Perform ? Set(O, "length", len - 1, true).
+  SetProperty(object, kLengthString, length - 1);
+
+  // 9. Return first.
+  return first;
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.shift
+transitioning javascript builtin ArrayPrototypeShift(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    return TryFastArrayShift(receiver) otherwise Slow, Runtime;
+  } label Slow {
+    return GenericArrayShift(receiver);
+  } label Runtime {
+    tail ArrayShift(
+        context, LoadTargetFromFrame(), Undefined,
+        Convert<int32>(arguments.actual_count), kInvalidDispatchHandle);
+  }
+}
+}

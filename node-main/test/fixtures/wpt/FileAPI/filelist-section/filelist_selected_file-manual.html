@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>FileAPI Test: filelist_selected_file</title>
+    <link rel='author' title='Intel' href='http://www.intel.com'>
+    <link rel='help' href='http://dev.w3.org/2006/webapi/FileAPI/#filelist-section'>
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#dfn-length">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#dfn-item">
+    <script src='/resources/testharness.js'></script>
+    <script src='/resources/testharnessreport.js'></script>
+  </head>
+
+  <body>
+    <form name='uploadData'>
+      <input type='file' id='fileChooser'>
+    </form>
+    <div>
+      <p>Test steps:</p>
+      <ol>
+        <li>Download <a href='support/upload.txt'>upload.txt</a> to local.</li>
+        <li>Select the local upload.txt file to run the test.</li>
+      </ol>
+    </div>
+
+    <div id='log'></div>
+
+    <script>
+      var fileInput = document.querySelector('#fileChooser');
+      var fileList;
+
+      setup({explicit_done: true, explicit_timeout: true});
+
+      on_event(fileInput, 'change', function(evt) {
+        test(function() {
+          fileList = document.querySelector('#fileChooser').files;
+          assert_equals(fileList.length, 1, 'fileList length is 1');
+        }, 'Check if the fileList length is 1 when selected one file');
+
+        test(function() {
+          fileList = document.querySelector('#fileChooser').files;
+          assert_true(fileList.item(0) instanceof File, 'item method is instanceof File');
+        }, 'Check if the item method returns the File interface when selected one file');
+
+        test(function() {
+          fileList = document.querySelector('#fileChooser').files;
+          assert_not_equals(fileList.item(0), null, 'item(0) is not null');
+        }, 'Check if item(0) is not null when selected one file. Index must be treated by user agents as value for the position of a File object in the FileList, with 0 representing the first file.');
+
+        test(function() {
+          fileList = document.querySelector('#fileChooser').files;
+          assert_equals(fileList.item(1), null, 'item(1) is null');
+        }, 'Check if item(1) is null when selected one file only');
+
+        test(function() {
+          fileList = document.querySelector('#fileChooser').files;
+          assert_equals(fileList.item(0).name, 'upload.txt', 'file name string is "upload.txt"');
+        }, 'Check if the file name string is the selected "upload.txt"');
+
+        done();
+      });
+    </script>
+  </body>
+</html>

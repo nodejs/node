@@ -1,0 +1,72 @@
+Tests that Runtime.evaluate can run with breaks disabled.
+Test disableBreaks: false
+paused
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test disableBreaks: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test calling out with disableBreaks: false
+paused
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test calling out with disableBreaks: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test Debugger.pause with disableBreaks: false
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+Test Debugger.pause with disableBreaks: true
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}

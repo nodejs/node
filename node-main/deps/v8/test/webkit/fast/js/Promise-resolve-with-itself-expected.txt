@@ -1,0 +1,10 @@
+Test whether Promise will be rejected if it is resolved with itself.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS rejected
+PASS result is "TypeError: Chaining cycle detected for promise #<Promise>"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

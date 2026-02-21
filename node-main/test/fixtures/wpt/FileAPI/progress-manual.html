@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Process Events for FileReader</title>
+<link rel=help href="http://dev.w3.org/2006/webapi/FileAPI/#event-handler-attributes-section">
+<link rel=author title="Jinks Zhao" href="mailto:jinks@maxthon.com">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+Please choose one file through this input below.<br>
+<input type="file" id="filer">
+<div id="log"></div>
+<script>
+var input, reader, progressEventCounter, progressEventTimeList,
+    lastProgressEventTime;
+setup(function() {
+    input = document.getElementById('filer');
+    reader = new FileReader();
+    progressEventCounter = 0;
+    progressEventTimeList = [];
+    lastProgressEventTime;
+}, { explicit_timeout: true });
+
+var t = async_test("FileReader progress events.")
+
+reader.onprogress = t.step_func(function () {
+    var newTime = new Date;
+    var timeout = newTime - lastProgressEventTime;
+
+    progressEventTimeList.push(timeout);
+    lastProgressEventTime = newTime;
+    progressEventCounter++;
+
+    assert_less_than_equal(timeout, 50, "The progress event should be fired every 50ms.");
+});
+
+reader.onload = t.step_func_done(function () {
+    assert_greater_than_equal(progressEventCounter, 1,
+                              "When read completely, the progress event must be fired at least once.")
+});
+
+input.onchange = t.step_func(function () {
+    var files = input.files;
+
+    assert_greater_than(files.length, 0);
+    var file = files[0];
+
+    lastProgressEventTime = new Date;
+    reader.readAsArrayBuffer(file);
+});
+</script>

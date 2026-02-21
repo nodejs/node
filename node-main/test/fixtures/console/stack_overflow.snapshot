@@ -1,0 +1,8 @@
+before
+*test*fixtures*console*stack_overflow.js:*
+JSON.stringify(array);
+     ^
+
+[RangeError: Maximum call stack size exceeded]
+
+Node.js *

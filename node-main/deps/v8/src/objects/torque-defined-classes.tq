@@ -1,0 +1,17 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/objects/torque-defined-classes.h"
+
+// Classes defined in Torque that are not exported are attributed to this file,
+// independently of where they are actually defined. This gives them
+// corresponding C++ headers and removes the need to add another C++ header for
+// each file defining such a class.
+// In addition, classes defined in the test directory are also attributed to
+// here, because there is no directory corresponding to src/objects in test/ and
+// it would be confusing to add one there.
+
+// The corresponding C++ headers are:
+//  - src/objects/torque-defined-classes.h
+//  - src/objects/torque-defined-classes-inl.h

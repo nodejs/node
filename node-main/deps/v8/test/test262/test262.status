@@ -1,0 +1,1419 @@
+# Copyright 2011 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[
+
+[ALWAYS, {
+  ###################### MISSING ES6 FEATURES #######################
+
+  # https://code.google.com/p/v8/issues/detail?id=4248
+  'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.10_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.11_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.1_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.2_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.3_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.4_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.5_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.6_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.7_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.8_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.9_T4': [FAIL],
+  'language/statements/with/unscopables-inc-dec': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4249
+  'language/expressions/postfix-increment/S11.3.1_A6_T3': [FAIL],
+  'language/expressions/postfix-decrement/S11.3.2_A6_T3': [FAIL],
+  'language/expressions/prefix-decrement/S11.4.5_A6_T3': [FAIL],
+  'language/expressions/prefix-increment/S11.4.4_A6_T3': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4250
+  'language/expressions/assignment/S11.13.1_A5*': [FAIL],
+  'language/expressions/assignment/S11.13.1_A6*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4251
+  'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T3': [FAIL],
+  'language/expressions/postfix-decrement/S11.3.2_A5_*': [FAIL],
+  'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
+  'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
+  'language/statements/variable/binding-resolution': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
+  'language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
+  'language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
+  'language/eval-code/direct/non-definable-function-with-function': [FAIL],
+  'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
+  'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
+  'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
+  'language/global-code/script-decl-func-err-non-configurable': [FAIL],
+  'language/global-code/script-decl-var-collision': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5116
+  'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4698
+  'language/expressions/call/tco-call-args': [SKIP],
+  'language/expressions/call/tco-member-args': [SKIP],
+  'language/expressions/call/tco-non-eval-function': [SKIP],
+  'language/expressions/call/tco-non-eval-function-dynamic': [SKIP],
+  'language/expressions/call/tco-non-eval-global': [SKIP],
+  'language/expressions/call/tco-non-eval-with': [SKIP],
+  'language/expressions/comma/tco-final': [SKIP],
+  'language/expressions/conditional/tco-cond': [SKIP],
+  'language/expressions/conditional/tco-pos': [SKIP],
+  'language/expressions/logical-and/tco-right': [SKIP],
+  'language/expressions/logical-or/tco-right': [SKIP],
+  'language/expressions/tagged-template/tco-call': [SKIP],
+  'language/expressions/tagged-template/tco-member': [SKIP],
+  'language/expressions/tco-pos': [SKIP],
+  'language/statements/block/tco-stmt': [SKIP],
+  'language/statements/block/tco-stmt-list': [SKIP],
+  'language/statements/do-while/tco-body': [SKIP],
+  'language/statements/for/tco-const-body': [SKIP],
+  'language/statements/for/tco-let-body': [SKIP],
+  'language/statements/for/tco-lhs-body': [SKIP],
+  'language/statements/for/tco-var-body': [SKIP],
+  'language/statements/if/tco-else-body': [SKIP],
+  'language/statements/if/tco-if-body': [SKIP],
+  'language/statements/labeled/tco': [SKIP],
+  'language/statements/return/tco': [SKIP],
+  'language/statements/switch/tco-case-body': [SKIP],
+  'language/statements/switch/tco-case-body-dflt': [SKIP],
+  'language/statements/switch/tco-dftl-body': [SKIP],
+  'language/statements/try/tco-catch': [SKIP],
+  'language/statements/try/tco-catch-finally': [SKIP],
+  'language/statements/try/tco-finally': [SKIP],
+  'language/statements/while/tco-body': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5690
+  'language/expressions/call/eval-spread': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12209
+  'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
+
+  # https://github.com/tc39/test262/pull/4417
+  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9875
+  'language/expressions/coalesce/tco-pos-undefined': [FAIL],
+  'language/expressions/coalesce/tco-pos-null': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9049
+  'language/comments/hashbang/use-strict': [SKIP],
+
+  # http://crbug/v8/10447
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10381
+  'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
+
+  # https://crbug.com/v8/10789
+  'built-ins/Function/prototype/toString/built-in-function-object': [FAIL],
+
+  # http://crbug/v8/10903
+  'annexB/built-ins/RegExp/legacy-accessors/index/prop-desc': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/index/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/index/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/index/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/input/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/input/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/input/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastMatch/prop-desc': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastMatch/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastMatch/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastMatch/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastParen/prop-desc': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastParen/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastParen/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/lastParen/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/leftContext/prop-desc': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/leftContext/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/leftContext/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/leftContext/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/rightContext/prop-desc': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/rightContext/this-cross-realm-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/rightContext/this-not-regexp-constructor': [FAIL],
+  'annexB/built-ins/RegExp/legacy-accessors/rightContext/this-subclass-constructor': [FAIL],
+  'annexB/built-ins/RegExp/prototype/compile/this-cross-realm-instance': [FAIL],
+  'annexB/built-ins/RegExp/prototype/compile/this-subclass-instance': [FAIL],
+
+  # http://crbug/v8/10905
+  'language/identifier-resolution/assign-to-global-undefined': [FAIL],
+
+  # intl402
+  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
+
+  # Begin Temporal test expectations
+  # Temporal work is tracked in b/42201538
+
+  # Some of these tests need updating to the newer spec, and
+  # there are only 16 tests. Skip for now.
+  'staging/sm/Temporal/*': [SKIP],
+
+  # Fixed upstream
+
+  # Issue filed upstream
+
+  # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
+
+  # Remapping out-of-range eras (https://github.com/boa-dev/temporal/issues/448)
+  'intl402/Temporal/PlainDate/from/remapping-era': [FAIL],
+  'staging/Intl402/Temporal/old/japanese-before-era': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
+
+  # We need a way to regulate non-ISO on construction (https://github.com/unicode-org/icu4x/issues/6790)
+  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/with/gregorian-mutually-exclusive-fields': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
+  'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
+
+  # We need to be able to construct from ordinal months (https://github.com/unicode-org/icu4x/issues/6790)
+  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
+
+  # PlainMonthDay needs to support Chinese/Dangi (https://github.com/boa-dev/temporal/issues/450)
+  'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+
+  # Chinese/Dangi need to use related_iso as their arithmetical year (https://github.com/unicode-org/icu4x/pull/6800)
+  'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
+  'intl402/Temporal/PlainDate/from/calendar-not-supporting-eras': [FAIL],
+  'intl402/Temporal/PlainDateTime/from/calendar-not-supporting-eras': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/calendar-not-supporting-eras': [FAIL],
+
+  # Non-ISO datetime arithmetic (https://github.com/unicode-org/icu4x/issues/1174)
+  'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-gregory': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-iso8601': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-persian': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
+  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-hebrew': [FAIL],
+  'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/add/options-undefined': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
+  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
+
+  # No issue filed
+
+  # Temporal should error on the ambiguous `islamic` calendar
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
+
+  # ICU4C and ICU4X disagree on canonical timezones
+  'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
+
+  # End Temporal test expectations
+
+
+  # https://github.com/tc39/test262/pull/3988
+  'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12763
+  'language/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference': [FAIL],
+  'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-decorator-member-expr': [FAIL],
+  'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
+  'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12763
+  'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference-yield': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-member-expr-decorator-member-expr': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-member-expr-identifier-reference': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-member-expr-identifier-reference-yield': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference': [FAIL],
+  'language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
+  'language/statements/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference-yield': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-member-expr-decorator-member-expr': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-member-expr-identifier-reference': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-member-expr-identifier-reference-yield': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference': [FAIL],
+  'language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11989
+  'built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object': [FAIL],
+  'built-ins/ShadowRealm/prototype/importValue/throws-if-exportname-not-string': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14288
+  'intl402/DateTimeFormat/timezone-case-insensitive': [FAIL],
+  'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
+
+  # https://issues.chromium.org/u/0/issues/42204365
+
+  # https://issues.chromium.org/u/1/issues/368208157
+  'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Assigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Bidi_Mirrored': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Cased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Case_Ignorable': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casemapped': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Lowercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Titlecased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Uppercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Dash': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Diacritic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji_Presentation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extender': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Cased_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Dash_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Decimal_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Lowercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Math_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Modifier_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Nonspacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Spacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Uppercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Extend': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Ideographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Start': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Lowercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Math': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Balinese': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Cyrillic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Egyptian_Hieroglyphs': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Adlam': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Armenian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Avestan': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Balinese': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Bengali': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Bopomofo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Carian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Caucasian_Albanian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Cherokee': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Coptic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Cyrillic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Devanagari': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Duployan': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Egyptian_Hieroglyphs': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Elbasan': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Ethiopic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Garay': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Georgian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Glagolitic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Gothic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Greek': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Gunjala_Gondi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Gurung_Khema': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Hebrew': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kaithi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kannada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Katakana': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kawi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Khitan_Small_Script': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kirat_Rai': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Lisu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Lycian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Lydian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Mahajani': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Meroitic_Hieroglyphs': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Mongolian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Myanmar': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Old_Hungarian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Old_Permic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Old_Turkic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Ol_Onal': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Osage': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Phags_Pa': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Runic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Samaritan': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Shavian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sunuwar': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Syriac': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tai_Le': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Thai': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tibetan': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tifinagh': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Todhri': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Toto': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tulu_Tigalari': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Garay': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Gurung_Khema': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Kawi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Khitan_Small_Script': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Kirat_Rai': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Myanmar': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Ol_Onal': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sunuwar': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Todhri': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tulu_Tigalari': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Sentence_Terminal': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Terminal_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Uppercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Start': [FAIL],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-16.0': [FAIL],
+  'language/identifiers/part-unicode-16.0.0': [FAIL],
+  'language/identifiers/part-unicode-16.0.0-class': [FAIL],
+  'language/identifiers/part-unicode-16.0.0-class-escaped': [FAIL],
+  'language/identifiers/part-unicode-16.0.0-escaped': [FAIL],
+  'language/identifiers/start-unicode-16.0.0': [FAIL],
+  'language/identifiers/start-unicode-16.0.0-class': [FAIL],
+  'language/identifiers/start-unicode-16.0.0-class-escaped': [FAIL],
+  'language/identifiers/start-unicode-16.0.0-escaped': [FAIL],
+
+  # https://issues.chromium.org/u/1/issues/368222754
+  'language/statements/with/get-binding-value-call-with-proxy-env': [FAIL],
+  'language/statements/with/get-binding-value-idref-with-proxy-env': [FAIL],
+  'language/statements/with/set-mutable-binding-idref-compound-assign-with-proxy-env': [FAIL],
+  'language/statements/with/set-mutable-binding-idref-with-proxy-env': [FAIL],
+
+  ######################## NEEDS INVESTIGATION ###########################
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7833
+  # Flaky.
+  'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
+
+  ##################### DELIBERATE INCOMPATIBILITIES #####################
+
+  # https://github.com/tc39/ecma262/pull/889
+  'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
+
+  # https://tc39.es/ecma262/#sec-web-compat-blockdeclarationinstantiation
+  'annexB/language/function-code/block-decl-nested-blocks-with-fun-decl': [FAIL],
+
+  # Non-simple assignment targets are runtime errors instead of syntax errors
+  # for web compat. https://crbug.com/358346
+
+  # We replace U+202F (narrow-width space) with U+0020 (regular space).
+  # https://crbug.com/1414292
+  'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
+
+  # In alignment with Firefox and Safari, Function.prototype.arguments and
+  # .caller are ordinary accessors instead of the "poison pill thrower" when V8 is
+  # compiled without V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS.
+  #
+  # These expectations should be negated if the build time flag is true.
+  #
+  # See also https://bugs.chromium.org/p/v8/issues/detail?id=6049
+  'built-ins/Function/prototype/arguments/prop-desc': [FAIL],
+  'built-ins/Function/prototype/caller-arguments/accessor-properties': [FAIL],
+  'built-ins/Function/prototype/caller/prop-desc': [FAIL],
+  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [PASS],
+  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [PASS],
+  'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
+
+  ############################ INVALID TESTS #############################
+
+  # Test makes unjustified assumptions about the number of calls to SortCompare.
+  # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
+  'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
+
+  # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
+  'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
+
+  # Date tests that fail in CE(S)T timezone.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
+  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
+  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
+
+  # Test against internals of harness; we plug in differently.
+  'harness/detachArrayBuffer': [SKIP],
+  'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
+
+  # https://github.com/tc39/test262/pull/3987
+  'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
+
+  ############################ SKIPPED TESTS #############################
+
+  # These tests take a looong time to run.
+  'built-ins/decodeURI/S15.1.3.1_A1.10_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T2': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T2': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A1.11_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
+  'language/literals/regexp/S7.8.5_A1.1_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A2.4_T2': [SKIP],
+  'built-ins/Array/prototype/slice/S15.4.4.10_A3_T1': [SKIP],
+  'built-ins/Array/prototype/slice/S15.4.4.10_A3_T2': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7187
+  'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
+
+  # May OOM fatally
+  'staging/sm/regress/regress-610026': [SKIP],
+
+  # https://github.com/rbuckton/ecma262/pull/14
+  'staging/explicit-resource-management/await-using-in-switch-case-block': [SKIP],
+  'staging/explicit-resource-management/call-dispose-methods': [SKIP],
+
+  ############################ SLOW TESTS #############################
+
+  'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
+  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, SLOW],
+  'language/comments/S7.4_A5': [PASS, SLOW],
+  'language/comments/S7.4_A6': [PASS, SLOW],
+
+}],  # ALWAYS
+
+['not i18n', {
+  # Unicode canonicalization is not available with i18n turned off.
+  'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [SKIP],
+
+  # Unicode regexp case mapping is not available with i18n turned off.
+  'language/literals/regexp/u-case-mapping': [SKIP],
+
+  # Unicode in capture group.
+  'built-ins/RegExp/prototype/Symbol.replace/named-groups': [FAIL],
+
+  # BUG(v8:4437).
+  'built-ins/String/prototype/normalize/return-normalized-string': [SKIP],
+  'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [SKIP],
+  'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
+
+  # Case-conversion is not fully compliant to the Unicode spec with i18n off.
+  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': [FAIL],
+  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
+  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': [FAIL],
+  'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
+  'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toUpperCase/supplementary_plane': [FAIL],
+
+  # Locale-sensitive case-conversion is not available with i18n off.
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': [FAIL],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': [FAIL],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
+
+  # Unicode features unavaible without i18n, e.g. property escapes.
+  'built-ins/RegExp/prototype/exec/regexp-builtin-exec-v-u-flag': [SKIP],
+  'built-ins/RegExp/unicode_full_case_folding': [SKIP],
+  'built-ins/RegExp/property-escapes/*': [SKIP],
+  'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
+  'built-ins/RegExp/named-groups/unicode-property-names-valid': [SKIP],
+  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [SKIP],
+  'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-lower-b': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-lower-p': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-lower-w': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-b': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-p': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-w': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/remove-ignoreCase-affects-slash-lower-p': [SKIP],
+  'built-ins/RegExp/regexp-modifiers/remove-ignoreCase-affects-slash-upper-p': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-escape-union-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-class-union-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-intersection-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-property-escape-union-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/character-union-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-difference-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-intersection-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-character-class-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-character-class': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-character': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-13.1': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-14.0': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.0': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.1': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-difference-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-difference-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-intersection-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-intersection-property-of-strings-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-union-character-property-escape': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/string-literal-union-property-of-strings-escape': [SKIP],
+  'built-ins/String/prototype/match/regexp-prototype-match-v-u-flag': [SKIP],
+  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-v-u-flag': [SKIP],
+  'built-ins/String/prototype/replace/regexp-prototype-replace-v-u-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-u-flag': [SKIP],
+
+  # Unicode in identifiers.
+  'language/identifiers/part-unicode*': [FAIL],
+  'language/identifiers/start-unicode-1*': [FAIL],
+  'language/identifiers/start-unicode-2*': [FAIL],
+  'language/identifiers/start-unicode-3*': [FAIL],
+  'language/identifiers/start-unicode-4*': [FAIL],
+  'language/identifiers/start-unicode-5*': [FAIL],
+  'language/identifiers/start-unicode-6*': [FAIL],
+  'language/identifiers/start-unicode-7*': [FAIL],
+  'language/identifiers/start-unicode-8*': [FAIL],
+  'language/identifiers/start-unicode-9*': [FAIL],
+
+  # SpiderMonkey tests that depend on Unicode data.
+  'staging/sm/PrivateName/parse-utf8-non-ascii-identifier': [FAIL],
+  'staging/sm/RegExp/ignoreCase-non-latin1-to-latin1': [FAIL],
+  'staging/sm/RegExp/unicode-class-ignoreCase': [FAIL],
+  'staging/sm/RegExp/unicode-ignoreCase': [FAIL],
+  'staging/sm/RegExp/unicode-ignoreCase-ascii': [FAIL],
+  'staging/sm/RegExp/unicode-ignoreCase-escape': [FAIL],
+  'staging/sm/RegExp/unicode-ignoreCase-word-boundary': [FAIL],
+  'staging/sm/String/normalize-generic': [FAIL],
+  'staging/sm/String/normalize-rope': [FAIL],
+  'staging/sm/String/string-code-point-upper-lower-mapping': [FAIL],
+  'staging/sm/String/string-upper-lower-mapping': [FAIL],
+}],  # not i18n
+
+
+['system == android', {
+  # Fails on Android (b/433933898, likely due to b/434224293):
+  'intl402/Temporal/Instant/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
+  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
+
+  # Somehow passes on Android (b/433933898):
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
+}], # 'system == android'
+
+['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
+
+  # Causes stack overflow on simulators due to eager compilation of
+  # parenthesized function literals. Needs investigation.
+  'language/statements/function/S13.2.1_A1_T1': [SKIP],
+
+  # BUG(3251225): Tests that timeout with --noturbofan.
+  'built-ins/decodeURI/S15.1.3.1_A2.4_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.4_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
+  'built-ins/encodeURI/S15.1.3.3_A2.3_T1': [SKIP],
+  'built-ins/encodeURIComponent/S15.1.3.4_A2.3_T1': [SKIP],
+}],  # 'arch == arm or arch == arm64'
+
+['byteorder == big', {
+  # Test failures on big endian platforms due to the way the tests
+  # are written
+
+  # https://github.com/tc39/test262/issues/757
+  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-other-type': [SKIP],
+}],
+
+['asan == True or msan == True or tsan == True', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an asan/msan/tsan error
+  'built-ins/ArrayBuffer/allocation-limit': [SKIP],
+  'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
+  'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
+  'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, HEAVY],
+  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, HEAVY],
+  'built-ins/decodeURI/*': [PASS, HEAVY],
+  'built-ins/decodeURIComponent/*': [PASS, HEAVY],
+  'built-ins/RegExp/property-escapes/generated/*': [PASS, HEAVY],
+  'language/comments/S7.4_A5': [PASS, HEAVY],
+  'language/comments/S7.4_A6': [PASS, HEAVY],
+
+  # Times out on TSAN - https://bugs.chromium.org/p/v8/issues/detail?id=11898
+  'intl402/supportedLocalesOf-unicode-extensions-ignored': [SKIP],
+}],  # asan == True or msan == True or tsan == True
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+}], # variant == jitless
+
+['variant == no_wasm_traps', {
+  '*': [SKIP],
+}],  # variant == no_wasm_traps
+
+['variant != default or arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
+  # These tests take a long time to run
+  'built-ins/RegExp/property-escapes/generated/*': [SKIP],
+}],  # variant != default or arch == arm or arch == arm64
+
+['system == windows', {
+  # https://crbug.com/856119
+  'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
+}],  # system == windows
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+################################################################################
+# Test expectations should be updated because of crbug.com/381805376
+[ALWAYS, {
+  'staging/sm/Iterator/prototype/every/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/find/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/forEach/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/reduce/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/some/check-fn-after-getting-iterator': [SKIP],
+}],
+
+
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/module-code/import-attributes/allow-nlt-before-with': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
+  'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
+  'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],
+  'intl402/DateTimeFormat/timezone-legacy-non-iana': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/expressions/assignment/target-super-computed-reference': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [SKIP],
+  'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  # https://github.com/tc39/test262/pull/4146
+  'built-ins/Math/sumPrecise/length': [SKIP],
+  'built-ins/Math/sumPrecise/name': [SKIP],
+  'built-ins/Math/sumPrecise/not-a-constructor': [SKIP],
+  'built-ins/Math/sumPrecise/prop-desc': [SKIP],
+  'built-ins/Math/sumPrecise/sum': [SKIP],
+  'built-ins/Math/sumPrecise/sum-is-NaN': [SKIP],
+  'built-ins/Math/sumPrecise/sum-is-infinite': [SKIP],
+  'built-ins/Math/sumPrecise/sum-is-minus-zero': [SKIP],
+  'built-ins/Math/sumPrecise/takes-iterable': [SKIP],
+  'built-ins/Math/sumPrecise/throws-on-non-number': [SKIP],
+  'intl402/DateTimeFormat/offset-timezone-no-unicode-minus-sign': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArray/prototype/reduce/resizable-buffer-grow-mid-iteration': [SKIP],
+  'built-ins/TypedArray/prototype/reduce/resizable-buffer-shrink-mid-iteration': [SKIP],
+  'harness/asyncHelpers-throwsAsync-func-throws-sync': [SKIP],
+  'harness/asyncHelpers-throwsAsync-no-arg': [SKIP],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-en-IN': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/statements/with/get-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
+  'language/statements/with/set-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
+  'language/statements/with/set-mutable-binding-binding-deleted-with-typed-array-in-proto-chain-strict-mode': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/AsyncDisposableStack/prototype/Symbol.asyncDispose': [SKIP],
+  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/is-function': [SKIP],
+  'built-ins/DisposableStack/prototype/Symbol.dispose': [SKIP],
+  'built-ins/Iterator/prototype/Symbol.dispose/is-function': [SKIP],
+  'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
+  'language/expressions/delete/super-property-uninitialized-this': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DurationFormat/prototype/format/duration-out-of-range-3': [SKIP],
+  'intl402/DurationFormat/prototype/format/duration-out-of-range-4': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+
+####
+# import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
+[ALWAYS, {
+  'language/import/import-defer/deferred-namespace-object/exotic-object-behavior': [SKIP],
+  'language/import/import-defer/deferred-namespace-object/identity': [SKIP],
+  'language/import/import-defer/errors/get-other-while-dep-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-dep-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-self-while-defer-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-self-while-evaluating': [SKIP],
+  'language/import/import-defer/errors/get-self-while-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/module-throws/defer-import-after-evaluation': [SKIP],
+  'language/import/import-defer/errors/module-throws/third-party-evaluation-after-defer-import': [SKIP],
+  'language/import/import-defer/errors/module-throws/trigger-evaluation': [SKIP],
+  'language/import/import-defer/evaluation-sync/import-defer-does-not-evaluate': [SKIP],
+  'language/import/import-defer/evaluation-sync/module-imported-defer-and-eager': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/flattening-order/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/import-defer-async-module/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/import-defer-transitive-async-module/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/sync-dependency-of-deferred-async-module/main': [SKIP],
+  'language/import/import-defer/syntax/import-attributes': [SKIP],
+  'language/import/import-defer/syntax/valid-default-binding-named-defer': [SKIP],
+  'language/import/import-defer/syntax/valid-defer-namespace': [SKIP],
+}],
+# end import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
+####
+
+####
+# import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
+[ALWAYS, {
+  'built-ins/Iterator/concat/arguments-checked-in-order': [FAIL],
+  'built-ins/Iterator/concat/fresh-iterator-result': [FAIL],
+  'built-ins/Iterator/concat/get-iterator-method-only-once': [FAIL],
+  'built-ins/Iterator/concat/get-iterator-method-throws': [FAIL],
+  'built-ins/Iterator/concat/inner-iterator-created-in-order': [FAIL],
+  'built-ins/Iterator/concat/is-function': [FAIL],
+  'built-ins/Iterator/concat/iterable-primitive-wrapper-objects': [FAIL],
+  'built-ins/Iterator/concat/length': [FAIL],
+  'built-ins/Iterator/concat/many-arguments': [FAIL],
+  'built-ins/Iterator/concat/name': [FAIL],
+  'built-ins/Iterator/concat/next-method-called-with-zero-arguments': [FAIL],
+  'built-ins/Iterator/concat/next-method-returns-non-object': [FAIL],
+  'built-ins/Iterator/concat/next-method-returns-throwing-done': [FAIL],
+  'built-ins/Iterator/concat/next-method-returns-throwing-value': [FAIL],
+  'built-ins/Iterator/concat/next-method-returns-throwing-value-done': [FAIL],
+  'built-ins/Iterator/concat/next-method-throws': [FAIL],
+  'built-ins/Iterator/concat/prop-desc': [FAIL],
+  'built-ins/Iterator/concat/proto': [FAIL],
+  'built-ins/Iterator/concat/result-is-iterator': [FAIL],
+  'built-ins/Iterator/concat/return-is-forwarded': [FAIL],
+  'built-ins/Iterator/concat/return-is-not-forwarded-after-exhaustion': [FAIL],
+  'built-ins/Iterator/concat/return-is-not-forwarded-before-initial-start': [FAIL],
+  'built-ins/Iterator/concat/return-method-called-with-zero-arguments': [FAIL],
+  'built-ins/Iterator/concat/single-argument': [FAIL],
+  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-next': [FAIL],
+  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-return': [FAIL],
+  'built-ins/Iterator/concat/throws-typeerror-when-iterator-not-an-object': [FAIL],
+  'built-ins/Iterator/concat/zero-arguments': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/to-datetime-formattable-with-different-arg-kinds': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/to-datetime-formattable-with-different-arg-kinds': [FAIL],
+  'language/import/import-defer/deferred-namespace-object/to-string-tag': [FAIL],
+
+  'staging/sm/class/superCallOrder': [FAIL],
+  'staging/sm/class/superPropOrdering': [FAIL],
+  'staging/sm/DataView/detach-after-construction': [FAIL],
+  'staging/sm/eval/redeclared-arguments-in-param-expression-eval': [FAIL],
+  'staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation': [FAIL],
+  'staging/sm/extensions/ArrayBuffer-slice-arguments-detaching': [FAIL],
+  'staging/sm/extensions/dataview': [FAIL],
+  'staging/sm/extensions/DataView-construct-arguments-detaching': [FAIL],
+  'staging/sm/extensions/DataView-set-arguments-detaching': [FAIL],
+  'staging/sm/extensions/element-setting-ToNumber-detaches': [FAIL],
+  'staging/sm/extensions/recursion': [FAIL],
+  'staging/sm/extensions/regress-650753': [FAIL],
+  'staging/sm/extensions/typedarray-copyWithin-arguments-detaching': [FAIL],
+  'staging/sm/extensions/typedarray-set-detach': [FAIL],
+  'staging/sm/extensions/TypedArray-set-object-funky-length-detaches': [FAIL],
+  'staging/sm/extensions/TypedArray-subarray-arguments-detaching': [FAIL],
+  'staging/sm/extensions/weakmap': [FAIL],
+  'staging/sm/Function/function-caller-restrictions': [FAIL],
+  'staging/sm/generators/gen-with-call-obj': [FAIL],
+  'staging/sm/lexical-environment/block-scoped-functions-deprecated-redecl': [FAIL],
+  'staging/sm/lexical-environment/block-scoped-functions-hoisted-tdz': [FAIL],
+  'staging/sm/lexical-environment/var-in-catch-body-annex-b-eval': [FAIL],
+  'staging/sm/object/clear-dictionary-accessor-getset': [FAIL],
+  'staging/sm/object/values-entries-typedarray': [FAIL],
+  'staging/sm/regress/regress-1507322-deep-weakmap': [FAIL],
+  'staging/sm/regress/regress-563221': [FAIL],
+  'staging/sm/regress/regress-592556-c35': [FAIL],
+  'staging/sm/regress/regress-596103': [FAIL],
+  'staging/sm/statements/for-in-with-gc-and-unvisited-deletion': [FAIL],
+  'staging/sm/statements/property-reference-self-assignment': [FAIL],
+  'staging/sm/RegExp/unicode-ignoreCase': [FAIL],
+  'staging/sm/String/string-code-point-upper-lower-mapping': [FAIL],
+  'staging/sm/String/string-upper-lower-mapping': [FAIL],
+  'staging/sm/TypedArray/detached-array-buffer-checks': [FAIL],
+  'staging/sm/TypedArray/constructor-buffer-sequence': [FAIL],
+  'staging/sm/TypedArray/constructor-non-detached': [FAIL],
+  'staging/sm/TypedArray/from_typedarray_fastpath_detached': [FAIL],
+  'staging/sm/TypedArray/set-detached-bigint': [FAIL],
+  'staging/sm/TypedArray/seal-and-freeze': [FAIL],
+  'staging/sm/TypedArray/test-integrity-level': [FAIL],
+  'staging/sm/TypedArray/test-integrity-level-detached': [FAIL],
+  'staging/sm/TypedArray/toReversed-detached': [FAIL],
+  'staging/sm/TypedArray/toSorted-detached': [FAIL],
+  'staging/sm/TypedArray/with': [FAIL],
+  'staging/sm/TypedArray/with-detached': [FAIL],
+}],
+# end import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DurationFormat/prototype/format/digital-style-with-hours-display-auto-with-zero-hour': [SKIP],
+  'staging/sm/lexical-environment/block-scoped-functions-deprecated-redecl': [SKIP],
+  'staging/sm/lexical-environment/block-scoped-functions-hoisted-tdz': [SKIP],
+  'staging/sm/lexical-environment/var-in-catch-body-annex-b-eval': [SKIP],
+  'staging/sm/regress/regress-563221': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
+[ALWAYS, {
+  'language/import/import-defer/evaluation-triggers/ignore-exported-then-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-exported-then-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-exported-then-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-exported-then-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-getPrototypeOf': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-isExtensible': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-preventExtensions': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-setPrototypeOf': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-set-string-exported': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-set-string-not-exported': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-exported-string-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-exported-string-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-exported-string-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-exported-string-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-defineOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-delete': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-getOwnProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKey-names': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys': [SKIP],
+ 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys-symbols': [SKIP],
+}],
+# end import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
+###
+
+####
+# import test262@bc5c14176e2b11a78859571eb693f028c8822458
+[ALWAYS, {
+ 'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-arrow-function-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-arrow-function-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-function-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-function-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-function-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-gen-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-async-gen-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-block-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-block-labeled-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-do-while-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-else-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-function-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-if-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/nested-while-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/catch/top-level-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
+ 'language/expressions/dynamic-import/import-defer/import-defer-async-module/main': [SKIP],
+ 'language/expressions/dynamic-import/import-defer/import-defer-transitive-async-module/main': [SKIP],
+ 'language/expressions/dynamic-import/import-defer/sync-dependency-of-deferred-async-module/main': [SKIP],
+ 'language/expressions/dynamic-import/import-defer/sync/main': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-arrow-assignment-expression-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-arrow-assignment-expression-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-arrow-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-arrow-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-await-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-return-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-return-await-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-await-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-return-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-function-return-await-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-gen-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-async-gen-await-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-block-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-block-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-block-labeled-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-block-labeled-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-do-while-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-do-while-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-else-braceless-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-else-braceless-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-else-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-else-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-function-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-function-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-function-return-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-function-return-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-if-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-if-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-while-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-while-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-with-expression-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-with-expression-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-with-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/nested-with-import-defer-script-code-valid': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/top-level-import-defer-empty-str-is-valid-assign-expr': [SKIP],
+ 'language/expressions/dynamic-import/syntax/valid/top-level-import-defer-script-code-valid': [SKIP],
+}],
+# end import test262@bc5c14176e2b11a78859571eb693f028c8822458
+###
+
+####
+# import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+[ALWAYS, {
+ 'built-ins/SuppressedError/order-of-args-evaluation': [SKIP],
+ 'intl402/Locale/getters': [SKIP],
+}],
+# end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+###
+
+####
+# import test262@4ba104a21c5f8ede20ee5105bc89fa9693c2bfe1
+[ALWAYS, {
+  'intl402/DateTimeFormat/canonicalize-timezone': [FAIL],
+  'intl402/Intl/supportedValuesOf/timeZones-include-non-continental': [FAIL],
+}],
+# end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+###
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/String/prototype/match/cstm-matcher-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-string-primitive': [SKIP],
+  'intl402/DateTimeFormat/canonicalize-utc-timezone': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsert/append-new-values': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/append-new-values-normalizes-zero-key': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/append-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/getOrInsert': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/length': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/name': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/not-a-constructor': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsert/returns-value-normalized-zero-key': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-new-values': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-new-values-normalizes-zero-key': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/different-types-function-callbackfn-does-not-throw': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-normalized-zero-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/adds-object-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/adds-symbol-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/getOrInsert': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/length': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/name': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/not-a-constructor': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-not-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-not-present-symbol-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-symbol-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-object-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-symbol-element': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-value-different-callbackfn': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-symbol-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-object-key': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-symbol-key': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-rejected-return': [SKIP],
+  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return': [SKIP],
+  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return-getter': [SKIP],
+  'built-ins/Atomics/notify/retrieve-length-before-index-coercion': [SKIP],
+  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared': [SKIP],
+  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached': [SKIP],
+  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-resize-to-zero': [SKIP],
+  'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
+  'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
+  'harness/verifyProperty-value-error': [SKIP],
+  'intl402/PluralRules/constructor-option-read-order': [SKIP],
+  'intl402/PluralRules/constructor-options-throwing-getters': [SKIP],
+  'intl402/PluralRules/default-options-object-prototype': [SKIP],
+  'intl402/PluralRules/notation': [SKIP],
+  'intl402/PluralRules/prototype/resolvedOptions/order': [SKIP],
+  'intl402/PluralRules/prototype/resolvedOptions/properties': [SKIP],
+  'intl402/PluralRules/prototype/select/notation': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-in-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-out-of-bounds': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-present-different-key-types': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/Locale/constructor-getter-order': [SKIP],
+  'intl402/Locale/constructor-options-throwing-getters': [SKIP],
+  'intl402/Locale/constructor-options-variants-invalid': [SKIP],
+  'intl402/Locale/constructor-options-variants-valid': [SKIP],
+  'intl402/Locale/getters-grandfathered': [SKIP],
+  'intl402/Locale/getters-missing': [SKIP],
+  'intl402/Locale/prototype/variants/name': [SKIP],
+  'intl402/Locale/prototype/variants/prop-desc': [SKIP],
+  'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+}],
+# End roll-watcher patch
+
+####
+# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsertComputed/canonical-key-passed-to-callback': [FAIL],
+}],
+# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+###
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/WeakMap/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
+  'built-ins/WeakMap/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-compound-assignment': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-postfix-update': [SKIP],
+  'language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update': [SKIP],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression': [SKIP],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression-in-compound-assignment': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Iterator/concat/get-value-after-done': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object': [SKIP],
+  'built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer': [SKIP],
+  'built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer': [SKIP],
+  'built-ins/DataView/prototype/setBigInt64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setBigUint64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt8/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint8/immutable-buffer': [SKIP],
+}],
+# End roll-watcher patch
+####
+]

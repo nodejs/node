@@ -1,0 +1,10 @@
+openssl/demos
+openssl/doc/*
+!openssl/doc/man1
+openssl/doc/man1/*
+!openssl/doc/man1/build.info
+!openssl/doc/build.info
+openssl/fuzz/corpora
+openssl/makefile.in
+openssl/Makefile.in
+openssl/test

@@ -1,0 +1,533 @@
+{
+  "selection_pattern": "%(source_context_list)s.%(delivery_type)s/%(delivery_value)s/%(subresource)s/%(origin)s.%(redirection)s.%(source_scheme)s",
+  "test_file_path_pattern": "gen/%(source_context_list)s.%(delivery_type)s/%(delivery_value)s/%(subresource)s.%(source_scheme)s.html",
+  "excluded_tests": [
+    {
+      // Workers are same-origin only
+      "expansion": "*",
+      "source_scheme": "*",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": "*",
+      "subresource": [
+        "worker-classic",
+        "worker-module",
+        "sharedworker-classic",
+        "sharedworker-module"
+      ],
+      "origin": [
+        "cross-https",
+        "cross-http",
+        "cross-http-downgrade",
+        "cross-wss",
+        "cross-ws",
+        "cross-ws-downgrade"
+      ],
+      "expectation": "*"
+    },
+    {
+      // Workers are same-origin only (redirects)
+      "expansion": "*",
+      "source_scheme": "*",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": [
+        "swap-origin",
+        "swap-scheme"
+      ],
+      "subresource": [
+        "worker-classic",
+        "worker-module",
+        "sharedworker-classic",
+        "sharedworker-module"
+      ],
+      "origin": "*",
+      "expectation": "*"
+    },
+    {
+      // Websockets are ws/wss-only
+      "expansion": "*",
+      "source_scheme": "*",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": "*",
+      "subresource": "websocket",
+      "origin": [
+        "same-https",
+        "same-http",
+        "same-http-downgrade",
+        "cross-https",
+        "cross-http",
+        "cross-http-downgrade"
+      ],
+      "expectation": "*"
+    },
+    {
+      // Redirects are intentionally forbidden in browsers:
+      // https://fetch.spec.whatwg.org/#concept-websocket-establish
+      // Websockets are no-redirect only
+      "expansion": "*",
+      "source_scheme": "*",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": [
+        "keep-origin",
+        "swap-origin",
+        "keep-scheme",
+        "swap-scheme",
+        "downgrade"
+      ],
+      "subresource": "websocket",
+      "origin": "*",
+      "expectation": "*"
+    },
+    {
+      // ws/wss are websocket-only
+      "expansion": "*",
+      "source_scheme": "*",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": "*",
+      "subresource": [
+        "a-tag",
+        "area-tag",
+        "audio-tag",
+        "beacon",
+        "fetch",
+        "iframe-tag",
+        "img-tag",
+        "link-css-tag",
+        "link-prefetch-tag",
+        "object-tag",
+        "picture-tag",
+        "script-tag",
+        "script-tag-dynamic-import",
+        "sharedworker-classic",
+        "sharedworker-import",
+        "sharedworker-import-data",
+        "sharedworker-module",
+        "video-tag",
+        "worker-classic",
+        "worker-import",
+        "worker-import-data",
+        "worker-module",
+        "worklet-animation",
+        "worklet-animation-import-data",
+        "worklet-audio",
+        "worklet-audio-import-data",
+        "worklet-layout",
+        "worklet-layout-import-data",
+        "worklet-paint",
+        "worklet-paint-import-data",
+        "xhr"
+      ],
+      "origin": [
+        "same-wss",
+        "same-ws",
+        "same-ws-downgrade",
+        "cross-wss",
+        "cross-ws",
+        "cross-ws-downgrade"
+      ],
+      "expectation": "*"
+    },
+    {
+      // Worklets are HTTPS contexts only
+      "expansion": "*",
+      "source_scheme": "http",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": "*",
+      "subresource": [
+        "worklet-animation",
+        "worklet-animation-import-data",
+        "worklet-audio",
+        "worklet-audio-import-data",
+        "worklet-layout",
+        "worklet-layout-import-data",
+        "worklet-paint",
+        "worklet-paint-import-data"
+      ],
+      "origin": "*",
+      "expectation": "*"
+    }
+  ],
+  "source_context_schema": {
+    "supported_subresource": {
+      "top": "*",
+      "iframe": "*",
+      "iframe-blank": "*",
+      "srcdoc": "*",
+      "worker-classic": [
+        "xhr",
+        "fetch",
+        "websocket",
+        "worker-classic",
+        "worker-module"
+      ],
+      "worker-module": [
+        "xhr",
+        "fetch",
+        "websocket",
+        "worker-classic",
+        "worker-module"
+      ],
+      "worker-classic-data": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ],
+      "worker-module-data": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ],
+      "sharedworker-classic": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ],
+      "sharedworker-module": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ],
+      "sharedworker-classic-data": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ],
+      "sharedworker-module-data": [
+        "xhr",
+        "fetch",
+        "websocket"
+      ]
+    }
+  },
+  "source_context_list_schema": {
+    // Warning: Currently, some nested patterns of contexts have different
+    // inheritance rules for different kinds of policies.
+    // The generated tests will be used to test/investigate the policy
+    // inheritance rules, and eventually the policy inheritance rules will
+    // be unified (https://github.com/w3ctag/design-principles/issues/111).
+    "top": {
+      "description": "Policy set by the top-level Document",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "req": {
+      "description": "Subresource request's policy should override Document's policy",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": [
+        "nonNullPolicy"
+      ]
+    },
+    "srcdoc-inherit": {
+      "description": "srcdoc iframe without its own policy should inherit parent Document's policy",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "srcdoc"
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "srcdoc": {
+      "description": "srcdoc iframe's policy should override parent Document's policy",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "srcdoc",
+          "policyDeliveries": [
+            "nonNullPolicy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "iframe": {
+      "description": "external iframe's policy should override parent Document's policy",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "iframe",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "iframe-blank-inherit": {
+      "description": "blank iframe should inherit parent Document's policy",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "iframe-blank"
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "worker-classic": {
+      // This is applicable to referrer-policy tests.
+      // Use "worker-classic-inherit" for CSP (mixed-content, etc.).
+      "description": "dedicated workers shouldn't inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "worker-classic",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "worker-classic-data": {
+      "description": "data: dedicated workers should inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "worker-classic-data",
+          "policyDeliveries": []
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "worker-module": {
+      // This is applicable to referrer-policy tests.
+      "description": "dedicated workers shouldn't inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "worker-module",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "worker-module-data": {
+      "description": "data: dedicated workers should inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "worker-module-data",
+          "policyDeliveries": []
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "sharedworker-classic": {
+      "description": "shared workers shouldn't inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "sharedworker-classic",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "sharedworker-classic-data": {
+      "description": "data: shared workers should inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "sharedworker-classic-data",
+          "policyDeliveries": []
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "sharedworker-module": {
+      "description": "shared workers shouldn't inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "anotherPolicy"
+          ]
+        },
+        {
+          "sourceContextType": "sharedworker-module",
+          "policyDeliveries": [
+            "policy"
+          ]
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    },
+    "sharedworker-module-data": {
+      "description": "data: shared workers should inherit its parent's policy.",
+      "sourceContextList": [
+        {
+          "sourceContextType": "top",
+          "policyDeliveries": [
+            "policy"
+          ]
+        },
+        {
+          "sourceContextType": "sharedworker-module-data",
+          "policyDeliveries": []
+        }
+      ],
+      "subresourcePolicyDeliveries": []
+    }
+  },
+  "test_expansion_schema": {
+    "expansion": [
+      "default",
+      "override"
+    ],
+    "source_scheme": [
+      "http",
+      "https"
+    ],
+    "source_context_list": [
+      "top",
+      "req",
+      "srcdoc-inherit",
+      "srcdoc",
+      "iframe",
+      "iframe-blank-inherit",
+      "worker-classic",
+      "worker-classic-data",
+      "worker-module",
+      "worker-module-data",
+      "sharedworker-classic",
+      "sharedworker-classic-data",
+      "sharedworker-module",
+      "sharedworker-module-data"
+    ],
+    "redirection": [
+      "no-redirect",
+      "keep-origin",
+      "swap-origin",
+      "keep-scheme",
+      "swap-scheme",
+      "downgrade"
+    ],
+    "origin": [
+      "same-https",
+      "same-http",
+      "same-http-downgrade",
+      "cross-https",
+      "cross-http",
+      "cross-http-downgrade",
+      "same-wss",
+      "same-ws",
+      "same-ws-downgrade",
+      "cross-wss",
+      "cross-ws",
+      "cross-ws-downgrade"
+    ],
+    "subresource": [
+      "a-tag",
+      "area-tag",
+      "audio-tag",
+      "beacon",
+      "fetch",
+      "iframe-tag",
+      "img-tag",
+      "link-css-tag",
+      "link-prefetch-tag",
+      "object-tag",
+      "picture-tag",
+      "script-tag",
+      "script-tag-dynamic-import",
+      "sharedworker-classic",
+      "sharedworker-import",
+      "sharedworker-import-data",
+      "sharedworker-module",
+      "video-tag",
+      "websocket",
+      "worker-classic",
+      "worker-import",
+      "worker-import-data",
+      "worker-module",
+      "worklet-animation",
+      "worklet-animation-import-data",
+      "worklet-audio",
+      "worklet-audio-import-data",
+      "worklet-layout",
+      "worklet-layout-import-data",
+      "worklet-paint",
+      "worklet-paint-import-data",
+      "xhr"
+    ]
+  }
+}

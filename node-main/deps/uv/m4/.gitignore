@@ -1,0 +1,5 @@
+# Ignore libtoolize-generated files.
+*.m4
+!as_case.m4
+!ax_pthread.m4
+!libuv-check-flags.m4

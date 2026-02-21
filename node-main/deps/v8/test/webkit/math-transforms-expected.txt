@@ -1,0 +1,2254 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks for potential edge case bugs with certain math transforms involving multiplication by 1 and unary plus.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS values.someInt * 1 is +values.someInt
+PASS values.someInt * 1 is 42
+PASS 1 * values.someInt is +values.someInt
+PASS 1 * values.someInt is 42
+PASS values.someFloat * 1 is +values.someFloat
+PASS values.someFloat * 1 is 42.42
+PASS 1 * values.someFloat is +values.someFloat
+PASS 1 * values.someFloat is 42.42
+PASS values.one * 1 is +values.one
+PASS values.one * 1 is 1
+PASS 1 * values.one is +values.one
+PASS 1 * values.one is 1
+PASS values.minusOne * 1 is +values.minusOne
+PASS values.minusOne * 1 is -1
+PASS 1 * values.minusOne is +values.minusOne
+PASS 1 * values.minusOne is -1
+PASS values.zero * 1 is +values.zero
+PASS values.zero * 1 is 0
+PASS 1 * values.zero is +values.zero
+PASS 1 * values.zero is 0
+PASS values.minusZero * 1 is +values.minusZero
+PASS values.minusZero * 1 is -0
+PASS 1 * values.minusZero is +values.minusZero
+PASS 1 * values.minusZero is -0
+PASS values.infinity * 1 is +values.infinity
+PASS values.infinity * 1 is Infinity
+PASS 1 * values.infinity is +values.infinity
+PASS 1 * values.infinity is Infinity
+PASS values.minusInfinity * 1 is +values.minusInfinity
+PASS values.minusInfinity * 1 is -Infinity
+PASS 1 * values.minusInfinity is +values.minusInfinity
+PASS 1 * values.minusInfinity is -Infinity
+PASS values.notANumber * 1 is +values.notANumber
+PASS values.notANumber * 1 is NaN
+PASS 1 * values.notANumber is +values.notANumber
+PASS 1 * values.notANumber is NaN
+PASS values.nonNumberString * 1 is +values.nonNumberString
+PASS values.nonNumberString * 1 is NaN
+PASS 1 * values.nonNumberString is +values.nonNumberString
+PASS 1 * values.nonNumberString is NaN
+PASS values.someFloatString * 1 is +values.someFloatString
+PASS values.someFloatString * 1 is 42.42
+PASS 1 * values.someFloatString is +values.someFloatString
+PASS 1 * values.someFloatString is 42.42
+PASS +values.someInt * values.someInt is values.someInt * values.someInt
+PASS +values.someInt * values.someInt is 1764
+PASS values.someInt * +values.someInt is values.someInt * values.someInt
+PASS values.someInt * +values.someInt is 1764
+PASS +values.someInt * +values.someInt is values.someInt * values.someInt
+PASS +values.someInt * +values.someInt is 1764
+PASS +values.someInt / values.someInt is values.someInt / values.someInt
+PASS +values.someInt / values.someInt is 1
+PASS values.someInt / +values.someInt is values.someInt / values.someInt
+PASS values.someInt / +values.someInt is 1
+PASS +values.someInt / +values.someInt is values.someInt / values.someInt
+PASS +values.someInt / +values.someInt is 1
+PASS +values.someInt - values.someInt is values.someInt - values.someInt
+PASS +values.someInt - values.someInt is 0
+PASS values.someInt - +values.someInt is values.someInt - values.someInt
+PASS values.someInt - +values.someInt is 0
+PASS +values.someInt - +values.someInt is values.someInt - values.someInt
+PASS +values.someInt - +values.someInt is 0
+PASS +values.someInt * values.someFloat is values.someInt * values.someFloat
+PASS +values.someInt * values.someFloat is 1781.64
+PASS values.someInt * +values.someFloat is values.someInt * values.someFloat
+PASS values.someInt * +values.someFloat is 1781.64
+PASS +values.someInt * +values.someFloat is values.someInt * values.someFloat
+PASS +values.someInt * +values.someFloat is 1781.64
+PASS +values.someInt / values.someFloat is values.someInt / values.someFloat
+PASS +values.someInt / values.someFloat is 0.9900990099009901
+PASS values.someInt / +values.someFloat is values.someInt / values.someFloat
+PASS values.someInt / +values.someFloat is 0.9900990099009901
+PASS +values.someInt / +values.someFloat is values.someInt / values.someFloat
+PASS +values.someInt / +values.someFloat is 0.9900990099009901
+PASS +values.someInt - values.someFloat is values.someInt - values.someFloat
+PASS +values.someInt - values.someFloat is -0.4200000000000017
+PASS values.someInt - +values.someFloat is values.someInt - values.someFloat
+PASS values.someInt - +values.someFloat is -0.4200000000000017
+PASS +values.someInt - +values.someFloat is values.someInt - values.someFloat
+PASS +values.someInt - +values.someFloat is -0.4200000000000017
+PASS +values.someInt * values.one is values.someInt * values.one
+PASS +values.someInt * values.one is 42
+PASS values.someInt * +values.one is values.someInt * values.one
+PASS values.someInt * +values.one is 42
+PASS +values.someInt * +values.one is values.someInt * values.one
+PASS +values.someInt * +values.one is 42
+PASS +values.someInt / values.one is values.someInt / values.one
+PASS +values.someInt / values.one is 42
+PASS values.someInt / +values.one is values.someInt / values.one
+PASS values.someInt / +values.one is 42
+PASS +values.someInt / +values.one is values.someInt / values.one
+PASS +values.someInt / +values.one is 42
+PASS +values.someInt - values.one is values.someInt - values.one
+PASS +values.someInt - values.one is 41
+PASS values.someInt - +values.one is values.someInt - values.one
+PASS values.someInt - +values.one is 41
+PASS +values.someInt - +values.one is values.someInt - values.one
+PASS +values.someInt - +values.one is 41
+PASS +values.someInt * values.minusOne is values.someInt * values.minusOne
+PASS +values.someInt * values.minusOne is -42
+PASS values.someInt * +values.minusOne is values.someInt * values.minusOne
+PASS values.someInt * +values.minusOne is -42
+PASS +values.someInt * +values.minusOne is values.someInt * values.minusOne
+PASS +values.someInt * +values.minusOne is -42
+PASS +values.someInt / values.minusOne is values.someInt / values.minusOne
+PASS +values.someInt / values.minusOne is -42
+PASS values.someInt / +values.minusOne is values.someInt / values.minusOne
+PASS values.someInt / +values.minusOne is -42
+PASS +values.someInt / +values.minusOne is values.someInt / values.minusOne
+PASS +values.someInt / +values.minusOne is -42
+PASS +values.someInt - values.minusOne is values.someInt - values.minusOne
+PASS +values.someInt - values.minusOne is 43
+PASS values.someInt - +values.minusOne is values.someInt - values.minusOne
+PASS values.someInt - +values.minusOne is 43
+PASS +values.someInt - +values.minusOne is values.someInt - values.minusOne
+PASS +values.someInt - +values.minusOne is 43
+PASS +values.someInt * values.zero is values.someInt * values.zero
+PASS +values.someInt * values.zero is 0
+PASS values.someInt * +values.zero is values.someInt * values.zero
+PASS values.someInt * +values.zero is 0
+PASS +values.someInt * +values.zero is values.someInt * values.zero
+PASS +values.someInt * +values.zero is 0
+PASS +values.someInt / values.zero is values.someInt / values.zero
+PASS +values.someInt / values.zero is Infinity
+PASS values.someInt / +values.zero is values.someInt / values.zero
+PASS values.someInt / +values.zero is Infinity
+PASS +values.someInt / +values.zero is values.someInt / values.zero
+PASS +values.someInt / +values.zero is Infinity
+PASS +values.someInt - values.zero is values.someInt - values.zero
+PASS +values.someInt - values.zero is 42
+PASS values.someInt - +values.zero is values.someInt - values.zero
+PASS values.someInt - +values.zero is 42
+PASS +values.someInt - +values.zero is values.someInt - values.zero
+PASS +values.someInt - +values.zero is 42
+PASS +values.someInt * values.minusZero is values.someInt * values.minusZero
+PASS +values.someInt * values.minusZero is -0
+PASS values.someInt * +values.minusZero is values.someInt * values.minusZero
+PASS values.someInt * +values.minusZero is -0
+PASS +values.someInt * +values.minusZero is values.someInt * values.minusZero
+PASS +values.someInt * +values.minusZero is -0
+PASS +values.someInt / values.minusZero is values.someInt / values.minusZero
+PASS +values.someInt / values.minusZero is -Infinity
+PASS values.someInt / +values.minusZero is values.someInt / values.minusZero
+PASS values.someInt / +values.minusZero is -Infinity
+PASS +values.someInt / +values.minusZero is values.someInt / values.minusZero
+PASS +values.someInt / +values.minusZero is -Infinity
+PASS +values.someInt - values.minusZero is values.someInt - values.minusZero
+PASS +values.someInt - values.minusZero is 42
+PASS values.someInt - +values.minusZero is values.someInt - values.minusZero
+PASS values.someInt - +values.minusZero is 42
+PASS +values.someInt - +values.minusZero is values.someInt - values.minusZero
+PASS +values.someInt - +values.minusZero is 42
+PASS +values.someInt * values.infinity is values.someInt * values.infinity
+PASS +values.someInt * values.infinity is Infinity
+PASS values.someInt * +values.infinity is values.someInt * values.infinity
+PASS values.someInt * +values.infinity is Infinity
+PASS +values.someInt * +values.infinity is values.someInt * values.infinity
+PASS +values.someInt * +values.infinity is Infinity
+PASS +values.someInt / values.infinity is values.someInt / values.infinity
+PASS +values.someInt / values.infinity is 0
+PASS values.someInt / +values.infinity is values.someInt / values.infinity
+PASS values.someInt / +values.infinity is 0
+PASS +values.someInt / +values.infinity is values.someInt / values.infinity
+PASS +values.someInt / +values.infinity is 0
+PASS +values.someInt - values.infinity is values.someInt - values.infinity
+PASS +values.someInt - values.infinity is -Infinity
+PASS values.someInt - +values.infinity is values.someInt - values.infinity
+PASS values.someInt - +values.infinity is -Infinity
+PASS +values.someInt - +values.infinity is values.someInt - values.infinity
+PASS +values.someInt - +values.infinity is -Infinity
+PASS +values.someInt * values.minusInfinity is values.someInt * values.minusInfinity
+PASS +values.someInt * values.minusInfinity is -Infinity
+PASS values.someInt * +values.minusInfinity is values.someInt * values.minusInfinity
+PASS values.someInt * +values.minusInfinity is -Infinity
+PASS +values.someInt * +values.minusInfinity is values.someInt * values.minusInfinity
+PASS +values.someInt * +values.minusInfinity is -Infinity
+PASS +values.someInt / values.minusInfinity is values.someInt / values.minusInfinity
+PASS +values.someInt / values.minusInfinity is -0
+PASS values.someInt / +values.minusInfinity is values.someInt / values.minusInfinity
+PASS values.someInt / +values.minusInfinity is -0
+PASS +values.someInt / +values.minusInfinity is values.someInt / values.minusInfinity
+PASS +values.someInt / +values.minusInfinity is -0
+PASS +values.someInt - values.minusInfinity is values.someInt - values.minusInfinity
+PASS +values.someInt - values.minusInfinity is Infinity
+PASS values.someInt - +values.minusInfinity is values.someInt - values.minusInfinity
+PASS values.someInt - +values.minusInfinity is Infinity
+PASS +values.someInt - +values.minusInfinity is values.someInt - values.minusInfinity
+PASS +values.someInt - +values.minusInfinity is Infinity
+PASS +values.someInt * values.notANumber is values.someInt * values.notANumber
+PASS +values.someInt * values.notANumber is NaN
+PASS values.someInt * +values.notANumber is values.someInt * values.notANumber
+PASS values.someInt * +values.notANumber is NaN
+PASS +values.someInt * +values.notANumber is values.someInt * values.notANumber
+PASS +values.someInt * +values.notANumber is NaN
+PASS +values.someInt / values.notANumber is values.someInt / values.notANumber
+PASS +values.someInt / values.notANumber is NaN
+PASS values.someInt / +values.notANumber is values.someInt / values.notANumber
+PASS values.someInt / +values.notANumber is NaN
+PASS +values.someInt / +values.notANumber is values.someInt / values.notANumber
+PASS +values.someInt / +values.notANumber is NaN
+PASS +values.someInt - values.notANumber is values.someInt - values.notANumber
+PASS +values.someInt - values.notANumber is NaN
+PASS values.someInt - +values.notANumber is values.someInt - values.notANumber
+PASS values.someInt - +values.notANumber is NaN
+PASS +values.someInt - +values.notANumber is values.someInt - values.notANumber
+PASS +values.someInt - +values.notANumber is NaN
+PASS +values.someInt * values.nonNumberString is values.someInt * values.nonNumberString
+PASS +values.someInt * values.nonNumberString is NaN
+PASS values.someInt * +values.nonNumberString is values.someInt * values.nonNumberString
+PASS values.someInt * +values.nonNumberString is NaN
+PASS +values.someInt * +values.nonNumberString is values.someInt * values.nonNumberString
+PASS +values.someInt * +values.nonNumberString is NaN
+PASS +values.someInt / values.nonNumberString is values.someInt / values.nonNumberString
+PASS +values.someInt / values.nonNumberString is NaN
+PASS values.someInt / +values.nonNumberString is values.someInt / values.nonNumberString
+PASS values.someInt / +values.nonNumberString is NaN
+PASS +values.someInt / +values.nonNumberString is values.someInt / values.nonNumberString
+PASS +values.someInt / +values.nonNumberString is NaN
+PASS +values.someInt - values.nonNumberString is values.someInt - values.nonNumberString
+PASS +values.someInt - values.nonNumberString is NaN
+PASS values.someInt - +values.nonNumberString is values.someInt - values.nonNumberString
+PASS values.someInt - +values.nonNumberString is NaN
+PASS +values.someInt - +values.nonNumberString is values.someInt - values.nonNumberString
+PASS +values.someInt - +values.nonNumberString is NaN
+PASS +values.someInt * values.someFloatString is values.someInt * values.someFloatString
+PASS +values.someInt * values.someFloatString is 1781.64
+PASS values.someInt * +values.someFloatString is values.someInt * values.someFloatString
+PASS values.someInt * +values.someFloatString is 1781.64
+PASS +values.someInt * +values.someFloatString is values.someInt * values.someFloatString
+PASS +values.someInt * +values.someFloatString is 1781.64
+PASS +values.someInt / values.someFloatString is values.someInt / values.someFloatString
+PASS +values.someInt / values.someFloatString is 0.9900990099009901
+PASS values.someInt / +values.someFloatString is values.someInt / values.someFloatString
+PASS values.someInt / +values.someFloatString is 0.9900990099009901
+PASS +values.someInt / +values.someFloatString is values.someInt / values.someFloatString
+PASS +values.someInt / +values.someFloatString is 0.9900990099009901
+PASS +values.someInt - values.someFloatString is values.someInt - values.someFloatString
+PASS +values.someInt - values.someFloatString is -0.4200000000000017
+PASS values.someInt - +values.someFloatString is values.someInt - values.someFloatString
+PASS values.someInt - +values.someFloatString is -0.4200000000000017
+PASS +values.someInt - +values.someFloatString is values.someInt - values.someFloatString
+PASS +values.someInt - +values.someFloatString is -0.4200000000000017
+PASS +values.someFloat * values.someInt is values.someFloat * values.someInt
+PASS +values.someFloat * values.someInt is 1781.64
+PASS values.someFloat * +values.someInt is values.someFloat * values.someInt
+PASS values.someFloat * +values.someInt is 1781.64
+PASS +values.someFloat * +values.someInt is values.someFloat * values.someInt
+PASS +values.someFloat * +values.someInt is 1781.64
+PASS +values.someFloat / values.someInt is values.someFloat / values.someInt
+PASS +values.someFloat / values.someInt is 1.01
+PASS values.someFloat / +values.someInt is values.someFloat / values.someInt
+PASS values.someFloat / +values.someInt is 1.01
+PASS +values.someFloat / +values.someInt is values.someFloat / values.someInt
+PASS +values.someFloat / +values.someInt is 1.01
+PASS +values.someFloat - values.someInt is values.someFloat - values.someInt
+PASS +values.someFloat - values.someInt is 0.4200000000000017
+PASS values.someFloat - +values.someInt is values.someFloat - values.someInt
+PASS values.someFloat - +values.someInt is 0.4200000000000017
+PASS +values.someFloat - +values.someInt is values.someFloat - values.someInt
+PASS +values.someFloat - +values.someInt is 0.4200000000000017
+PASS +values.someFloat * values.someFloat is values.someFloat * values.someFloat
+PASS +values.someFloat * values.someFloat is 1799.4564000000003
+PASS values.someFloat * +values.someFloat is values.someFloat * values.someFloat
+PASS values.someFloat * +values.someFloat is 1799.4564000000003
+PASS +values.someFloat * +values.someFloat is values.someFloat * values.someFloat
+PASS +values.someFloat * +values.someFloat is 1799.4564000000003
+PASS +values.someFloat / values.someFloat is values.someFloat / values.someFloat
+PASS +values.someFloat / values.someFloat is 1
+PASS values.someFloat / +values.someFloat is values.someFloat / values.someFloat
+PASS values.someFloat / +values.someFloat is 1
+PASS +values.someFloat / +values.someFloat is values.someFloat / values.someFloat
+PASS +values.someFloat / +values.someFloat is 1
+PASS +values.someFloat - values.someFloat is values.someFloat - values.someFloat
+PASS +values.someFloat - values.someFloat is 0
+PASS values.someFloat - +values.someFloat is values.someFloat - values.someFloat
+PASS values.someFloat - +values.someFloat is 0
+PASS +values.someFloat - +values.someFloat is values.someFloat - values.someFloat
+PASS +values.someFloat - +values.someFloat is 0
+PASS +values.someFloat * values.one is values.someFloat * values.one
+PASS +values.someFloat * values.one is 42.42
+PASS values.someFloat * +values.one is values.someFloat * values.one
+PASS values.someFloat * +values.one is 42.42
+PASS +values.someFloat * +values.one is values.someFloat * values.one
+PASS +values.someFloat * +values.one is 42.42
+PASS +values.someFloat / values.one is values.someFloat / values.one
+PASS +values.someFloat / values.one is 42.42
+PASS values.someFloat / +values.one is values.someFloat / values.one
+PASS values.someFloat / +values.one is 42.42
+PASS +values.someFloat / +values.one is values.someFloat / values.one
+PASS +values.someFloat / +values.one is 42.42
+PASS +values.someFloat - values.one is values.someFloat - values.one
+PASS +values.someFloat - values.one is 41.42
+PASS values.someFloat - +values.one is values.someFloat - values.one
+PASS values.someFloat - +values.one is 41.42
+PASS +values.someFloat - +values.one is values.someFloat - values.one
+PASS +values.someFloat - +values.one is 41.42
+PASS +values.someFloat * values.minusOne is values.someFloat * values.minusOne
+PASS +values.someFloat * values.minusOne is -42.42
+PASS values.someFloat * +values.minusOne is values.someFloat * values.minusOne
+PASS values.someFloat * +values.minusOne is -42.42
+PASS +values.someFloat * +values.minusOne is values.someFloat * values.minusOne
+PASS +values.someFloat * +values.minusOne is -42.42
+PASS +values.someFloat / values.minusOne is values.someFloat / values.minusOne
+PASS +values.someFloat / values.minusOne is -42.42
+PASS values.someFloat / +values.minusOne is values.someFloat / values.minusOne
+PASS values.someFloat / +values.minusOne is -42.42
+PASS +values.someFloat / +values.minusOne is values.someFloat / values.minusOne
+PASS +values.someFloat / +values.minusOne is -42.42
+PASS +values.someFloat - values.minusOne is values.someFloat - values.minusOne
+PASS +values.someFloat - values.minusOne is 43.42
+PASS values.someFloat - +values.minusOne is values.someFloat - values.minusOne
+PASS values.someFloat - +values.minusOne is 43.42
+PASS +values.someFloat - +values.minusOne is values.someFloat - values.minusOne
+PASS +values.someFloat - +values.minusOne is 43.42
+PASS +values.someFloat * values.zero is values.someFloat * values.zero
+PASS +values.someFloat * values.zero is 0
+PASS values.someFloat * +values.zero is values.someFloat * values.zero
+PASS values.someFloat * +values.zero is 0
+PASS +values.someFloat * +values.zero is values.someFloat * values.zero
+PASS +values.someFloat * +values.zero is 0
+PASS +values.someFloat / values.zero is values.someFloat / values.zero
+PASS +values.someFloat / values.zero is Infinity
+PASS values.someFloat / +values.zero is values.someFloat / values.zero
+PASS values.someFloat / +values.zero is Infinity
+PASS +values.someFloat / +values.zero is values.someFloat / values.zero
+PASS +values.someFloat / +values.zero is Infinity
+PASS +values.someFloat - values.zero is values.someFloat - values.zero
+PASS +values.someFloat - values.zero is 42.42
+PASS values.someFloat - +values.zero is values.someFloat - values.zero
+PASS values.someFloat - +values.zero is 42.42
+PASS +values.someFloat - +values.zero is values.someFloat - values.zero
+PASS +values.someFloat - +values.zero is 42.42
+PASS +values.someFloat * values.minusZero is values.someFloat * values.minusZero
+PASS +values.someFloat * values.minusZero is -0
+PASS values.someFloat * +values.minusZero is values.someFloat * values.minusZero
+PASS values.someFloat * +values.minusZero is -0
+PASS +values.someFloat * +values.minusZero is values.someFloat * values.minusZero
+PASS +values.someFloat * +values.minusZero is -0
+PASS +values.someFloat / values.minusZero is values.someFloat / values.minusZero
+PASS +values.someFloat / values.minusZero is -Infinity
+PASS values.someFloat / +values.minusZero is values.someFloat / values.minusZero
+PASS values.someFloat / +values.minusZero is -Infinity
+PASS +values.someFloat / +values.minusZero is values.someFloat / values.minusZero
+PASS +values.someFloat / +values.minusZero is -Infinity
+PASS +values.someFloat - values.minusZero is values.someFloat - values.minusZero
+PASS +values.someFloat - values.minusZero is 42.42
+PASS values.someFloat - +values.minusZero is values.someFloat - values.minusZero
+PASS values.someFloat - +values.minusZero is 42.42
+PASS +values.someFloat - +values.minusZero is values.someFloat - values.minusZero
+PASS +values.someFloat - +values.minusZero is 42.42
+PASS +values.someFloat * values.infinity is values.someFloat * values.infinity
+PASS +values.someFloat * values.infinity is Infinity
+PASS values.someFloat * +values.infinity is values.someFloat * values.infinity
+PASS values.someFloat * +values.infinity is Infinity
+PASS +values.someFloat * +values.infinity is values.someFloat * values.infinity
+PASS +values.someFloat * +values.infinity is Infinity
+PASS +values.someFloat / values.infinity is values.someFloat / values.infinity
+PASS +values.someFloat / values.infinity is 0
+PASS values.someFloat / +values.infinity is values.someFloat / values.infinity
+PASS values.someFloat / +values.infinity is 0
+PASS +values.someFloat / +values.infinity is values.someFloat / values.infinity
+PASS +values.someFloat / +values.infinity is 0
+PASS +values.someFloat - values.infinity is values.someFloat - values.infinity
+PASS +values.someFloat - values.infinity is -Infinity
+PASS values.someFloat - +values.infinity is values.someFloat - values.infinity
+PASS values.someFloat - +values.infinity is -Infinity
+PASS +values.someFloat - +values.infinity is values.someFloat - values.infinity
+PASS +values.someFloat - +values.infinity is -Infinity
+PASS +values.someFloat * values.minusInfinity is values.someFloat * values.minusInfinity
+PASS +values.someFloat * values.minusInfinity is -Infinity
+PASS values.someFloat * +values.minusInfinity is values.someFloat * values.minusInfinity
+PASS values.someFloat * +values.minusInfinity is -Infinity
+PASS +values.someFloat * +values.minusInfinity is values.someFloat * values.minusInfinity
+PASS +values.someFloat * +values.minusInfinity is -Infinity
+PASS +values.someFloat / values.minusInfinity is values.someFloat / values.minusInfinity
+PASS +values.someFloat / values.minusInfinity is -0
+PASS values.someFloat / +values.minusInfinity is values.someFloat / values.minusInfinity
+PASS values.someFloat / +values.minusInfinity is -0
+PASS +values.someFloat / +values.minusInfinity is values.someFloat / values.minusInfinity
+PASS +values.someFloat / +values.minusInfinity is -0
+PASS +values.someFloat - values.minusInfinity is values.someFloat - values.minusInfinity
+PASS +values.someFloat - values.minusInfinity is Infinity
+PASS values.someFloat - +values.minusInfinity is values.someFloat - values.minusInfinity
+PASS values.someFloat - +values.minusInfinity is Infinity
+PASS +values.someFloat - +values.minusInfinity is values.someFloat - values.minusInfinity
+PASS +values.someFloat - +values.minusInfinity is Infinity
+PASS +values.someFloat * values.notANumber is values.someFloat * values.notANumber
+PASS +values.someFloat * values.notANumber is NaN
+PASS values.someFloat * +values.notANumber is values.someFloat * values.notANumber
+PASS values.someFloat * +values.notANumber is NaN
+PASS +values.someFloat * +values.notANumber is values.someFloat * values.notANumber
+PASS +values.someFloat * +values.notANumber is NaN
+PASS +values.someFloat / values.notANumber is values.someFloat / values.notANumber
+PASS +values.someFloat / values.notANumber is NaN
+PASS values.someFloat / +values.notANumber is values.someFloat / values.notANumber
+PASS values.someFloat / +values.notANumber is NaN
+PASS +values.someFloat / +values.notANumber is values.someFloat / values.notANumber
+PASS +values.someFloat / +values.notANumber is NaN
+PASS +values.someFloat - values.notANumber is values.someFloat - values.notANumber
+PASS +values.someFloat - values.notANumber is NaN
+PASS values.someFloat - +values.notANumber is values.someFloat - values.notANumber
+PASS values.someFloat - +values.notANumber is NaN
+PASS +values.someFloat - +values.notANumber is values.someFloat - values.notANumber
+PASS +values.someFloat - +values.notANumber is NaN
+PASS +values.someFloat * values.nonNumberString is values.someFloat * values.nonNumberString
+PASS +values.someFloat * values.nonNumberString is NaN
+PASS values.someFloat * +values.nonNumberString is values.someFloat * values.nonNumberString
+PASS values.someFloat * +values.nonNumberString is NaN
+PASS +values.someFloat * +values.nonNumberString is values.someFloat * values.nonNumberString
+PASS +values.someFloat * +values.nonNumberString is NaN
+PASS +values.someFloat / values.nonNumberString is values.someFloat / values.nonNumberString
+PASS +values.someFloat / values.nonNumberString is NaN
+PASS values.someFloat / +values.nonNumberString is values.someFloat / values.nonNumberString
+PASS values.someFloat / +values.nonNumberString is NaN
+PASS +values.someFloat / +values.nonNumberString is values.someFloat / values.nonNumberString
+PASS +values.someFloat / +values.nonNumberString is NaN
+PASS +values.someFloat - values.nonNumberString is values.someFloat - values.nonNumberString
+PASS +values.someFloat - values.nonNumberString is NaN
+PASS values.someFloat - +values.nonNumberString is values.someFloat - values.nonNumberString
+PASS values.someFloat - +values.nonNumberString is NaN
+PASS +values.someFloat - +values.nonNumberString is values.someFloat - values.nonNumberString
+PASS +values.someFloat - +values.nonNumberString is NaN
+PASS +values.someFloat * values.someFloatString is values.someFloat * values.someFloatString
+PASS +values.someFloat * values.someFloatString is 1799.4564000000003
+PASS values.someFloat * +values.someFloatString is values.someFloat * values.someFloatString
+PASS values.someFloat * +values.someFloatString is 1799.4564000000003
+PASS +values.someFloat * +values.someFloatString is values.someFloat * values.someFloatString
+PASS +values.someFloat * +values.someFloatString is 1799.4564000000003
+PASS +values.someFloat / values.someFloatString is values.someFloat / values.someFloatString
+PASS +values.someFloat / values.someFloatString is 1
+PASS values.someFloat / +values.someFloatString is values.someFloat / values.someFloatString
+PASS values.someFloat / +values.someFloatString is 1
+PASS +values.someFloat / +values.someFloatString is values.someFloat / values.someFloatString
+PASS +values.someFloat / +values.someFloatString is 1
+PASS +values.someFloat - values.someFloatString is values.someFloat - values.someFloatString
+PASS +values.someFloat - values.someFloatString is 0
+PASS values.someFloat - +values.someFloatString is values.someFloat - values.someFloatString
+PASS values.someFloat - +values.someFloatString is 0
+PASS +values.someFloat - +values.someFloatString is values.someFloat - values.someFloatString
+PASS +values.someFloat - +values.someFloatString is 0
+PASS +values.one * values.someInt is values.one * values.someInt
+PASS +values.one * values.someInt is 42
+PASS values.one * +values.someInt is values.one * values.someInt
+PASS values.one * +values.someInt is 42
+PASS +values.one * +values.someInt is values.one * values.someInt
+PASS +values.one * +values.someInt is 42
+PASS +values.one / values.someInt is values.one / values.someInt
+PASS +values.one / values.someInt is 0.023809523809523808
+PASS values.one / +values.someInt is values.one / values.someInt
+PASS values.one / +values.someInt is 0.023809523809523808
+PASS +values.one / +values.someInt is values.one / values.someInt
+PASS +values.one / +values.someInt is 0.023809523809523808
+PASS +values.one - values.someInt is values.one - values.someInt
+PASS +values.one - values.someInt is -41
+PASS values.one - +values.someInt is values.one - values.someInt
+PASS values.one - +values.someInt is -41
+PASS +values.one - +values.someInt is values.one - values.someInt
+PASS +values.one - +values.someInt is -41
+PASS +values.one * values.someFloat is values.one * values.someFloat
+PASS +values.one * values.someFloat is 42.42
+PASS values.one * +values.someFloat is values.one * values.someFloat
+PASS values.one * +values.someFloat is 42.42
+PASS +values.one * +values.someFloat is values.one * values.someFloat
+PASS +values.one * +values.someFloat is 42.42
+PASS +values.one / values.someFloat is values.one / values.someFloat
+PASS +values.one / values.someFloat is 0.023573785950023574
+PASS values.one / +values.someFloat is values.one / values.someFloat
+PASS values.one / +values.someFloat is 0.023573785950023574
+PASS +values.one / +values.someFloat is values.one / values.someFloat
+PASS +values.one / +values.someFloat is 0.023573785950023574
+PASS +values.one - values.someFloat is values.one - values.someFloat
+PASS +values.one - values.someFloat is -41.42
+PASS values.one - +values.someFloat is values.one - values.someFloat
+PASS values.one - +values.someFloat is -41.42
+PASS +values.one - +values.someFloat is values.one - values.someFloat
+PASS +values.one - +values.someFloat is -41.42
+PASS +values.one * values.one is values.one * values.one
+PASS +values.one * values.one is 1
+PASS values.one * +values.one is values.one * values.one
+PASS values.one * +values.one is 1
+PASS +values.one * +values.one is values.one * values.one
+PASS +values.one * +values.one is 1
+PASS +values.one / values.one is values.one / values.one
+PASS +values.one / values.one is 1
+PASS values.one / +values.one is values.one / values.one
+PASS values.one / +values.one is 1
+PASS +values.one / +values.one is values.one / values.one
+PASS +values.one / +values.one is 1
+PASS +values.one - values.one is values.one - values.one
+PASS +values.one - values.one is 0
+PASS values.one - +values.one is values.one - values.one
+PASS values.one - +values.one is 0
+PASS +values.one - +values.one is values.one - values.one
+PASS +values.one - +values.one is 0
+PASS +values.one * values.minusOne is values.one * values.minusOne
+PASS +values.one * values.minusOne is -1
+PASS values.one * +values.minusOne is values.one * values.minusOne
+PASS values.one * +values.minusOne is -1
+PASS +values.one * +values.minusOne is values.one * values.minusOne
+PASS +values.one * +values.minusOne is -1
+PASS +values.one / values.minusOne is values.one / values.minusOne
+PASS +values.one / values.minusOne is -1
+PASS values.one / +values.minusOne is values.one / values.minusOne
+PASS values.one / +values.minusOne is -1
+PASS +values.one / +values.minusOne is values.one / values.minusOne
+PASS +values.one / +values.minusOne is -1
+PASS +values.one - values.minusOne is values.one - values.minusOne
+PASS +values.one - values.minusOne is 2
+PASS values.one - +values.minusOne is values.one - values.minusOne
+PASS values.one - +values.minusOne is 2
+PASS +values.one - +values.minusOne is values.one - values.minusOne
+PASS +values.one - +values.minusOne is 2
+PASS +values.one * values.zero is values.one * values.zero
+PASS +values.one * values.zero is 0
+PASS values.one * +values.zero is values.one * values.zero
+PASS values.one * +values.zero is 0
+PASS +values.one * +values.zero is values.one * values.zero
+PASS +values.one * +values.zero is 0
+PASS +values.one / values.zero is values.one / values.zero
+PASS +values.one / values.zero is Infinity
+PASS values.one / +values.zero is values.one / values.zero
+PASS values.one / +values.zero is Infinity
+PASS +values.one / +values.zero is values.one / values.zero
+PASS +values.one / +values.zero is Infinity
+PASS +values.one - values.zero is values.one - values.zero
+PASS +values.one - values.zero is 1
+PASS values.one - +values.zero is values.one - values.zero
+PASS values.one - +values.zero is 1
+PASS +values.one - +values.zero is values.one - values.zero
+PASS +values.one - +values.zero is 1
+PASS +values.one * values.minusZero is values.one * values.minusZero
+PASS +values.one * values.minusZero is -0
+PASS values.one * +values.minusZero is values.one * values.minusZero
+PASS values.one * +values.minusZero is -0
+PASS +values.one * +values.minusZero is values.one * values.minusZero
+PASS +values.one * +values.minusZero is -0
+PASS +values.one / values.minusZero is values.one / values.minusZero
+PASS +values.one / values.minusZero is -Infinity
+PASS values.one / +values.minusZero is values.one / values.minusZero
+PASS values.one / +values.minusZero is -Infinity
+PASS +values.one / +values.minusZero is values.one / values.minusZero
+PASS +values.one / +values.minusZero is -Infinity
+PASS +values.one - values.minusZero is values.one - values.minusZero
+PASS +values.one - values.minusZero is 1
+PASS values.one - +values.minusZero is values.one - values.minusZero
+PASS values.one - +values.minusZero is 1
+PASS +values.one - +values.minusZero is values.one - values.minusZero
+PASS +values.one - +values.minusZero is 1
+PASS +values.one * values.infinity is values.one * values.infinity
+PASS +values.one * values.infinity is Infinity
+PASS values.one * +values.infinity is values.one * values.infinity
+PASS values.one * +values.infinity is Infinity
+PASS +values.one * +values.infinity is values.one * values.infinity
+PASS +values.one * +values.infinity is Infinity
+PASS +values.one / values.infinity is values.one / values.infinity
+PASS +values.one / values.infinity is 0
+PASS values.one / +values.infinity is values.one / values.infinity
+PASS values.one / +values.infinity is 0
+PASS +values.one / +values.infinity is values.one / values.infinity
+PASS +values.one / +values.infinity is 0
+PASS +values.one - values.infinity is values.one - values.infinity
+PASS +values.one - values.infinity is -Infinity
+PASS values.one - +values.infinity is values.one - values.infinity
+PASS values.one - +values.infinity is -Infinity
+PASS +values.one - +values.infinity is values.one - values.infinity
+PASS +values.one - +values.infinity is -Infinity
+PASS +values.one * values.minusInfinity is values.one * values.minusInfinity
+PASS +values.one * values.minusInfinity is -Infinity
+PASS values.one * +values.minusInfinity is values.one * values.minusInfinity
+PASS values.one * +values.minusInfinity is -Infinity
+PASS +values.one * +values.minusInfinity is values.one * values.minusInfinity
+PASS +values.one * +values.minusInfinity is -Infinity
+PASS +values.one / values.minusInfinity is values.one / values.minusInfinity
+PASS +values.one / values.minusInfinity is -0
+PASS values.one / +values.minusInfinity is values.one / values.minusInfinity
+PASS values.one / +values.minusInfinity is -0
+PASS +values.one / +values.minusInfinity is values.one / values.minusInfinity
+PASS +values.one / +values.minusInfinity is -0
+PASS +values.one - values.minusInfinity is values.one - values.minusInfinity
+PASS +values.one - values.minusInfinity is Infinity
+PASS values.one - +values.minusInfinity is values.one - values.minusInfinity
+PASS values.one - +values.minusInfinity is Infinity
+PASS +values.one - +values.minusInfinity is values.one - values.minusInfinity
+PASS +values.one - +values.minusInfinity is Infinity
+PASS +values.one * values.notANumber is values.one * values.notANumber
+PASS +values.one * values.notANumber is NaN
+PASS values.one * +values.notANumber is values.one * values.notANumber
+PASS values.one * +values.notANumber is NaN
+PASS +values.one * +values.notANumber is values.one * values.notANumber
+PASS +values.one * +values.notANumber is NaN
+PASS +values.one / values.notANumber is values.one / values.notANumber
+PASS +values.one / values.notANumber is NaN
+PASS values.one / +values.notANumber is values.one / values.notANumber
+PASS values.one / +values.notANumber is NaN
+PASS +values.one / +values.notANumber is values.one / values.notANumber
+PASS +values.one / +values.notANumber is NaN
+PASS +values.one - values.notANumber is values.one - values.notANumber
+PASS +values.one - values.notANumber is NaN
+PASS values.one - +values.notANumber is values.one - values.notANumber
+PASS values.one - +values.notANumber is NaN
+PASS +values.one - +values.notANumber is values.one - values.notANumber
+PASS +values.one - +values.notANumber is NaN
+PASS +values.one * values.nonNumberString is values.one * values.nonNumberString
+PASS +values.one * values.nonNumberString is NaN
+PASS values.one * +values.nonNumberString is values.one * values.nonNumberString
+PASS values.one * +values.nonNumberString is NaN
+PASS +values.one * +values.nonNumberString is values.one * values.nonNumberString
+PASS +values.one * +values.nonNumberString is NaN
+PASS +values.one / values.nonNumberString is values.one / values.nonNumberString
+PASS +values.one / values.nonNumberString is NaN
+PASS values.one / +values.nonNumberString is values.one / values.nonNumberString
+PASS values.one / +values.nonNumberString is NaN
+PASS +values.one / +values.nonNumberString is values.one / values.nonNumberString
+PASS +values.one / +values.nonNumberString is NaN
+PASS +values.one - values.nonNumberString is values.one - values.nonNumberString
+PASS +values.one - values.nonNumberString is NaN
+PASS values.one - +values.nonNumberString is values.one - values.nonNumberString
+PASS values.one - +values.nonNumberString is NaN
+PASS +values.one - +values.nonNumberString is values.one - values.nonNumberString
+PASS +values.one - +values.nonNumberString is NaN
+PASS +values.one * values.someFloatString is values.one * values.someFloatString
+PASS +values.one * values.someFloatString is 42.42
+PASS values.one * +values.someFloatString is values.one * values.someFloatString
+PASS values.one * +values.someFloatString is 42.42
+PASS +values.one * +values.someFloatString is values.one * values.someFloatString
+PASS +values.one * +values.someFloatString is 42.42
+PASS +values.one / values.someFloatString is values.one / values.someFloatString
+PASS +values.one / values.someFloatString is 0.023573785950023574
+PASS values.one / +values.someFloatString is values.one / values.someFloatString
+PASS values.one / +values.someFloatString is 0.023573785950023574
+PASS +values.one / +values.someFloatString is values.one / values.someFloatString
+PASS +values.one / +values.someFloatString is 0.023573785950023574
+PASS +values.one - values.someFloatString is values.one - values.someFloatString
+PASS +values.one - values.someFloatString is -41.42
+PASS values.one - +values.someFloatString is values.one - values.someFloatString
+PASS values.one - +values.someFloatString is -41.42
+PASS +values.one - +values.someFloatString is values.one - values.someFloatString
+PASS +values.one - +values.someFloatString is -41.42
+PASS +values.minusOne * values.someInt is values.minusOne * values.someInt
+PASS +values.minusOne * values.someInt is -42
+PASS values.minusOne * +values.someInt is values.minusOne * values.someInt
+PASS values.minusOne * +values.someInt is -42
+PASS +values.minusOne * +values.someInt is values.minusOne * values.someInt
+PASS +values.minusOne * +values.someInt is -42
+PASS +values.minusOne / values.someInt is values.minusOne / values.someInt
+PASS +values.minusOne / values.someInt is -0.023809523809523808
+PASS values.minusOne / +values.someInt is values.minusOne / values.someInt
+PASS values.minusOne / +values.someInt is -0.023809523809523808
+PASS +values.minusOne / +values.someInt is values.minusOne / values.someInt
+PASS +values.minusOne / +values.someInt is -0.023809523809523808
+PASS +values.minusOne - values.someInt is values.minusOne - values.someInt
+PASS +values.minusOne - values.someInt is -43
+PASS values.minusOne - +values.someInt is values.minusOne - values.someInt
+PASS values.minusOne - +values.someInt is -43
+PASS +values.minusOne - +values.someInt is values.minusOne - values.someInt
+PASS +values.minusOne - +values.someInt is -43
+PASS +values.minusOne * values.someFloat is values.minusOne * values.someFloat
+PASS +values.minusOne * values.someFloat is -42.42
+PASS values.minusOne * +values.someFloat is values.minusOne * values.someFloat
+PASS values.minusOne * +values.someFloat is -42.42
+PASS +values.minusOne * +values.someFloat is values.minusOne * values.someFloat
+PASS +values.minusOne * +values.someFloat is -42.42
+PASS +values.minusOne / values.someFloat is values.minusOne / values.someFloat
+PASS +values.minusOne / values.someFloat is -0.023573785950023574
+PASS values.minusOne / +values.someFloat is values.minusOne / values.someFloat
+PASS values.minusOne / +values.someFloat is -0.023573785950023574
+PASS +values.minusOne / +values.someFloat is values.minusOne / values.someFloat
+PASS +values.minusOne / +values.someFloat is -0.023573785950023574
+PASS +values.minusOne - values.someFloat is values.minusOne - values.someFloat
+PASS +values.minusOne - values.someFloat is -43.42
+PASS values.minusOne - +values.someFloat is values.minusOne - values.someFloat
+PASS values.minusOne - +values.someFloat is -43.42
+PASS +values.minusOne - +values.someFloat is values.minusOne - values.someFloat
+PASS +values.minusOne - +values.someFloat is -43.42
+PASS +values.minusOne * values.one is values.minusOne * values.one
+PASS +values.minusOne * values.one is -1
+PASS values.minusOne * +values.one is values.minusOne * values.one
+PASS values.minusOne * +values.one is -1
+PASS +values.minusOne * +values.one is values.minusOne * values.one
+PASS +values.minusOne * +values.one is -1
+PASS +values.minusOne / values.one is values.minusOne / values.one
+PASS +values.minusOne / values.one is -1
+PASS values.minusOne / +values.one is values.minusOne / values.one
+PASS values.minusOne / +values.one is -1
+PASS +values.minusOne / +values.one is values.minusOne / values.one
+PASS +values.minusOne / +values.one is -1
+PASS +values.minusOne - values.one is values.minusOne - values.one
+PASS +values.minusOne - values.one is -2
+PASS values.minusOne - +values.one is values.minusOne - values.one
+PASS values.minusOne - +values.one is -2
+PASS +values.minusOne - +values.one is values.minusOne - values.one
+PASS +values.minusOne - +values.one is -2
+PASS +values.minusOne * values.minusOne is values.minusOne * values.minusOne
+PASS +values.minusOne * values.minusOne is 1
+PASS values.minusOne * +values.minusOne is values.minusOne * values.minusOne
+PASS values.minusOne * +values.minusOne is 1
+PASS +values.minusOne * +values.minusOne is values.minusOne * values.minusOne
+PASS +values.minusOne * +values.minusOne is 1
+PASS +values.minusOne / values.minusOne is values.minusOne / values.minusOne
+PASS +values.minusOne / values.minusOne is 1
+PASS values.minusOne / +values.minusOne is values.minusOne / values.minusOne
+PASS values.minusOne / +values.minusOne is 1
+PASS +values.minusOne / +values.minusOne is values.minusOne / values.minusOne
+PASS +values.minusOne / +values.minusOne is 1
+PASS +values.minusOne - values.minusOne is values.minusOne - values.minusOne
+PASS +values.minusOne - values.minusOne is 0
+PASS values.minusOne - +values.minusOne is values.minusOne - values.minusOne
+PASS values.minusOne - +values.minusOne is 0
+PASS +values.minusOne - +values.minusOne is values.minusOne - values.minusOne
+PASS +values.minusOne - +values.minusOne is 0
+PASS +values.minusOne * values.zero is values.minusOne * values.zero
+PASS +values.minusOne * values.zero is -0
+PASS values.minusOne * +values.zero is values.minusOne * values.zero
+PASS values.minusOne * +values.zero is -0
+PASS +values.minusOne * +values.zero is values.minusOne * values.zero
+PASS +values.minusOne * +values.zero is -0
+PASS +values.minusOne / values.zero is values.minusOne / values.zero
+PASS +values.minusOne / values.zero is -Infinity
+PASS values.minusOne / +values.zero is values.minusOne / values.zero
+PASS values.minusOne / +values.zero is -Infinity
+PASS +values.minusOne / +values.zero is values.minusOne / values.zero
+PASS +values.minusOne / +values.zero is -Infinity
+PASS +values.minusOne - values.zero is values.minusOne - values.zero
+PASS +values.minusOne - values.zero is -1
+PASS values.minusOne - +values.zero is values.minusOne - values.zero
+PASS values.minusOne - +values.zero is -1
+PASS +values.minusOne - +values.zero is values.minusOne - values.zero
+PASS +values.minusOne - +values.zero is -1
+PASS +values.minusOne * values.minusZero is values.minusOne * values.minusZero
+PASS +values.minusOne * values.minusZero is 0
+PASS values.minusOne * +values.minusZero is values.minusOne * values.minusZero
+PASS values.minusOne * +values.minusZero is 0
+PASS +values.minusOne * +values.minusZero is values.minusOne * values.minusZero
+PASS +values.minusOne * +values.minusZero is 0
+PASS +values.minusOne / values.minusZero is values.minusOne / values.minusZero
+PASS +values.minusOne / values.minusZero is Infinity
+PASS values.minusOne / +values.minusZero is values.minusOne / values.minusZero
+PASS values.minusOne / +values.minusZero is Infinity
+PASS +values.minusOne / +values.minusZero is values.minusOne / values.minusZero
+PASS +values.minusOne / +values.minusZero is Infinity
+PASS +values.minusOne - values.minusZero is values.minusOne - values.minusZero
+PASS +values.minusOne - values.minusZero is -1
+PASS values.minusOne - +values.minusZero is values.minusOne - values.minusZero
+PASS values.minusOne - +values.minusZero is -1
+PASS +values.minusOne - +values.minusZero is values.minusOne - values.minusZero
+PASS +values.minusOne - +values.minusZero is -1
+PASS +values.minusOne * values.infinity is values.minusOne * values.infinity
+PASS +values.minusOne * values.infinity is -Infinity
+PASS values.minusOne * +values.infinity is values.minusOne * values.infinity
+PASS values.minusOne * +values.infinity is -Infinity
+PASS +values.minusOne * +values.infinity is values.minusOne * values.infinity
+PASS +values.minusOne * +values.infinity is -Infinity
+PASS +values.minusOne / values.infinity is values.minusOne / values.infinity
+PASS +values.minusOne / values.infinity is -0
+PASS values.minusOne / +values.infinity is values.minusOne / values.infinity
+PASS values.minusOne / +values.infinity is -0
+PASS +values.minusOne / +values.infinity is values.minusOne / values.infinity
+PASS +values.minusOne / +values.infinity is -0
+PASS +values.minusOne - values.infinity is values.minusOne - values.infinity
+PASS +values.minusOne - values.infinity is -Infinity
+PASS values.minusOne - +values.infinity is values.minusOne - values.infinity
+PASS values.minusOne - +values.infinity is -Infinity
+PASS +values.minusOne - +values.infinity is values.minusOne - values.infinity
+PASS +values.minusOne - +values.infinity is -Infinity
+PASS +values.minusOne * values.minusInfinity is values.minusOne * values.minusInfinity
+PASS +values.minusOne * values.minusInfinity is Infinity
+PASS values.minusOne * +values.minusInfinity is values.minusOne * values.minusInfinity
+PASS values.minusOne * +values.minusInfinity is Infinity
+PASS +values.minusOne * +values.minusInfinity is values.minusOne * values.minusInfinity
+PASS +values.minusOne * +values.minusInfinity is Infinity
+PASS +values.minusOne / values.minusInfinity is values.minusOne / values.minusInfinity
+PASS +values.minusOne / values.minusInfinity is 0
+PASS values.minusOne / +values.minusInfinity is values.minusOne / values.minusInfinity
+PASS values.minusOne / +values.minusInfinity is 0
+PASS +values.minusOne / +values.minusInfinity is values.minusOne / values.minusInfinity
+PASS +values.minusOne / +values.minusInfinity is 0
+PASS +values.minusOne - values.minusInfinity is values.minusOne - values.minusInfinity
+PASS +values.minusOne - values.minusInfinity is Infinity
+PASS values.minusOne - +values.minusInfinity is values.minusOne - values.minusInfinity
+PASS values.minusOne - +values.minusInfinity is Infinity
+PASS +values.minusOne - +values.minusInfinity is values.minusOne - values.minusInfinity
+PASS +values.minusOne - +values.minusInfinity is Infinity
+PASS +values.minusOne * values.notANumber is values.minusOne * values.notANumber
+PASS +values.minusOne * values.notANumber is NaN
+PASS values.minusOne * +values.notANumber is values.minusOne * values.notANumber
+PASS values.minusOne * +values.notANumber is NaN
+PASS +values.minusOne * +values.notANumber is values.minusOne * values.notANumber
+PASS +values.minusOne * +values.notANumber is NaN
+PASS +values.minusOne / values.notANumber is values.minusOne / values.notANumber
+PASS +values.minusOne / values.notANumber is NaN
+PASS values.minusOne / +values.notANumber is values.minusOne / values.notANumber
+PASS values.minusOne / +values.notANumber is NaN
+PASS +values.minusOne / +values.notANumber is values.minusOne / values.notANumber
+PASS +values.minusOne / +values.notANumber is NaN
+PASS +values.minusOne - values.notANumber is values.minusOne - values.notANumber
+PASS +values.minusOne - values.notANumber is NaN
+PASS values.minusOne - +values.notANumber is values.minusOne - values.notANumber
+PASS values.minusOne - +values.notANumber is NaN
+PASS +values.minusOne - +values.notANumber is values.minusOne - values.notANumber
+PASS +values.minusOne - +values.notANumber is NaN
+PASS +values.minusOne * values.nonNumberString is values.minusOne * values.nonNumberString
+PASS +values.minusOne * values.nonNumberString is NaN
+PASS values.minusOne * +values.nonNumberString is values.minusOne * values.nonNumberString
+PASS values.minusOne * +values.nonNumberString is NaN
+PASS +values.minusOne * +values.nonNumberString is values.minusOne * values.nonNumberString
+PASS +values.minusOne * +values.nonNumberString is NaN
+PASS +values.minusOne / values.nonNumberString is values.minusOne / values.nonNumberString
+PASS +values.minusOne / values.nonNumberString is NaN
+PASS values.minusOne / +values.nonNumberString is values.minusOne / values.nonNumberString
+PASS values.minusOne / +values.nonNumberString is NaN
+PASS +values.minusOne / +values.nonNumberString is values.minusOne / values.nonNumberString
+PASS +values.minusOne / +values.nonNumberString is NaN
+PASS +values.minusOne - values.nonNumberString is values.minusOne - values.nonNumberString
+PASS +values.minusOne - values.nonNumberString is NaN
+PASS values.minusOne - +values.nonNumberString is values.minusOne - values.nonNumberString
+PASS values.minusOne - +values.nonNumberString is NaN
+PASS +values.minusOne - +values.nonNumberString is values.minusOne - values.nonNumberString
+PASS +values.minusOne - +values.nonNumberString is NaN
+PASS +values.minusOne * values.someFloatString is values.minusOne * values.someFloatString
+PASS +values.minusOne * values.someFloatString is -42.42
+PASS values.minusOne * +values.someFloatString is values.minusOne * values.someFloatString
+PASS values.minusOne * +values.someFloatString is -42.42
+PASS +values.minusOne * +values.someFloatString is values.minusOne * values.someFloatString
+PASS +values.minusOne * +values.someFloatString is -42.42
+PASS +values.minusOne / values.someFloatString is values.minusOne / values.someFloatString
+PASS +values.minusOne / values.someFloatString is -0.023573785950023574
+PASS values.minusOne / +values.someFloatString is values.minusOne / values.someFloatString
+PASS values.minusOne / +values.someFloatString is -0.023573785950023574
+PASS +values.minusOne / +values.someFloatString is values.minusOne / values.someFloatString
+PASS +values.minusOne / +values.someFloatString is -0.023573785950023574
+PASS +values.minusOne - values.someFloatString is values.minusOne - values.someFloatString
+PASS +values.minusOne - values.someFloatString is -43.42
+PASS values.minusOne - +values.someFloatString is values.minusOne - values.someFloatString
+PASS values.minusOne - +values.someFloatString is -43.42
+PASS +values.minusOne - +values.someFloatString is values.minusOne - values.someFloatString
+PASS +values.minusOne - +values.someFloatString is -43.42
+PASS +values.zero * values.someInt is values.zero * values.someInt
+PASS +values.zero * values.someInt is 0
+PASS values.zero * +values.someInt is values.zero * values.someInt
+PASS values.zero * +values.someInt is 0
+PASS +values.zero * +values.someInt is values.zero * values.someInt
+PASS +values.zero * +values.someInt is 0
+PASS +values.zero / values.someInt is values.zero / values.someInt
+PASS +values.zero / values.someInt is 0
+PASS values.zero / +values.someInt is values.zero / values.someInt
+PASS values.zero / +values.someInt is 0
+PASS +values.zero / +values.someInt is values.zero / values.someInt
+PASS +values.zero / +values.someInt is 0
+PASS +values.zero - values.someInt is values.zero - values.someInt
+PASS +values.zero - values.someInt is -42
+PASS values.zero - +values.someInt is values.zero - values.someInt
+PASS values.zero - +values.someInt is -42
+PASS +values.zero - +values.someInt is values.zero - values.someInt
+PASS +values.zero - +values.someInt is -42
+PASS +values.zero * values.someFloat is values.zero * values.someFloat
+PASS +values.zero * values.someFloat is 0
+PASS values.zero * +values.someFloat is values.zero * values.someFloat
+PASS values.zero * +values.someFloat is 0
+PASS +values.zero * +values.someFloat is values.zero * values.someFloat
+PASS +values.zero * +values.someFloat is 0
+PASS +values.zero / values.someFloat is values.zero / values.someFloat
+PASS +values.zero / values.someFloat is 0
+PASS values.zero / +values.someFloat is values.zero / values.someFloat
+PASS values.zero / +values.someFloat is 0
+PASS +values.zero / +values.someFloat is values.zero / values.someFloat
+PASS +values.zero / +values.someFloat is 0
+PASS +values.zero - values.someFloat is values.zero - values.someFloat
+PASS +values.zero - values.someFloat is -42.42
+PASS values.zero - +values.someFloat is values.zero - values.someFloat
+PASS values.zero - +values.someFloat is -42.42
+PASS +values.zero - +values.someFloat is values.zero - values.someFloat
+PASS +values.zero - +values.someFloat is -42.42
+PASS +values.zero * values.one is values.zero * values.one
+PASS +values.zero * values.one is 0
+PASS values.zero * +values.one is values.zero * values.one
+PASS values.zero * +values.one is 0
+PASS +values.zero * +values.one is values.zero * values.one
+PASS +values.zero * +values.one is 0
+PASS +values.zero / values.one is values.zero / values.one
+PASS +values.zero / values.one is 0
+PASS values.zero / +values.one is values.zero / values.one
+PASS values.zero / +values.one is 0
+PASS +values.zero / +values.one is values.zero / values.one
+PASS +values.zero / +values.one is 0
+PASS +values.zero - values.one is values.zero - values.one
+PASS +values.zero - values.one is -1
+PASS values.zero - +values.one is values.zero - values.one
+PASS values.zero - +values.one is -1
+PASS +values.zero - +values.one is values.zero - values.one
+PASS +values.zero - +values.one is -1
+PASS +values.zero * values.minusOne is values.zero * values.minusOne
+PASS +values.zero * values.minusOne is -0
+PASS values.zero * +values.minusOne is values.zero * values.minusOne
+PASS values.zero * +values.minusOne is -0
+PASS +values.zero * +values.minusOne is values.zero * values.minusOne
+PASS +values.zero * +values.minusOne is -0
+PASS +values.zero / values.minusOne is values.zero / values.minusOne
+PASS +values.zero / values.minusOne is -0
+PASS values.zero / +values.minusOne is values.zero / values.minusOne
+PASS values.zero / +values.minusOne is -0
+PASS +values.zero / +values.minusOne is values.zero / values.minusOne
+PASS +values.zero / +values.minusOne is -0
+PASS +values.zero - values.minusOne is values.zero - values.minusOne
+PASS +values.zero - values.minusOne is 1
+PASS values.zero - +values.minusOne is values.zero - values.minusOne
+PASS values.zero - +values.minusOne is 1
+PASS +values.zero - +values.minusOne is values.zero - values.minusOne
+PASS +values.zero - +values.minusOne is 1
+PASS +values.zero * values.zero is values.zero * values.zero
+PASS +values.zero * values.zero is 0
+PASS values.zero * +values.zero is values.zero * values.zero
+PASS values.zero * +values.zero is 0
+PASS +values.zero * +values.zero is values.zero * values.zero
+PASS +values.zero * +values.zero is 0
+PASS +values.zero / values.zero is values.zero / values.zero
+PASS +values.zero / values.zero is NaN
+PASS values.zero / +values.zero is values.zero / values.zero
+PASS values.zero / +values.zero is NaN
+PASS +values.zero / +values.zero is values.zero / values.zero
+PASS +values.zero / +values.zero is NaN
+PASS +values.zero - values.zero is values.zero - values.zero
+PASS +values.zero - values.zero is 0
+PASS values.zero - +values.zero is values.zero - values.zero
+PASS values.zero - +values.zero is 0
+PASS +values.zero - +values.zero is values.zero - values.zero
+PASS +values.zero - +values.zero is 0
+PASS +values.zero * values.minusZero is values.zero * values.minusZero
+PASS +values.zero * values.minusZero is -0
+PASS values.zero * +values.minusZero is values.zero * values.minusZero
+PASS values.zero * +values.minusZero is -0
+PASS +values.zero * +values.minusZero is values.zero * values.minusZero
+PASS +values.zero * +values.minusZero is -0
+PASS +values.zero / values.minusZero is values.zero / values.minusZero
+PASS +values.zero / values.minusZero is NaN
+PASS values.zero / +values.minusZero is values.zero / values.minusZero
+PASS values.zero / +values.minusZero is NaN
+PASS +values.zero / +values.minusZero is values.zero / values.minusZero
+PASS +values.zero / +values.minusZero is NaN
+PASS +values.zero - values.minusZero is values.zero - values.minusZero
+PASS +values.zero - values.minusZero is 0
+PASS values.zero - +values.minusZero is values.zero - values.minusZero
+PASS values.zero - +values.minusZero is 0
+PASS +values.zero - +values.minusZero is values.zero - values.minusZero
+PASS +values.zero - +values.minusZero is 0
+PASS +values.zero * values.infinity is values.zero * values.infinity
+PASS +values.zero * values.infinity is NaN
+PASS values.zero * +values.infinity is values.zero * values.infinity
+PASS values.zero * +values.infinity is NaN
+PASS +values.zero * +values.infinity is values.zero * values.infinity
+PASS +values.zero * +values.infinity is NaN
+PASS +values.zero / values.infinity is values.zero / values.infinity
+PASS +values.zero / values.infinity is 0
+PASS values.zero / +values.infinity is values.zero / values.infinity
+PASS values.zero / +values.infinity is 0
+PASS +values.zero / +values.infinity is values.zero / values.infinity
+PASS +values.zero / +values.infinity is 0
+PASS +values.zero - values.infinity is values.zero - values.infinity
+PASS +values.zero - values.infinity is -Infinity
+PASS values.zero - +values.infinity is values.zero - values.infinity
+PASS values.zero - +values.infinity is -Infinity
+PASS +values.zero - +values.infinity is values.zero - values.infinity
+PASS +values.zero - +values.infinity is -Infinity
+PASS +values.zero * values.minusInfinity is values.zero * values.minusInfinity
+PASS +values.zero * values.minusInfinity is NaN
+PASS values.zero * +values.minusInfinity is values.zero * values.minusInfinity
+PASS values.zero * +values.minusInfinity is NaN
+PASS +values.zero * +values.minusInfinity is values.zero * values.minusInfinity
+PASS +values.zero * +values.minusInfinity is NaN
+PASS +values.zero / values.minusInfinity is values.zero / values.minusInfinity
+PASS +values.zero / values.minusInfinity is -0
+PASS values.zero / +values.minusInfinity is values.zero / values.minusInfinity
+PASS values.zero / +values.minusInfinity is -0
+PASS +values.zero / +values.minusInfinity is values.zero / values.minusInfinity
+PASS +values.zero / +values.minusInfinity is -0
+PASS +values.zero - values.minusInfinity is values.zero - values.minusInfinity
+PASS +values.zero - values.minusInfinity is Infinity
+PASS values.zero - +values.minusInfinity is values.zero - values.minusInfinity
+PASS values.zero - +values.minusInfinity is Infinity
+PASS +values.zero - +values.minusInfinity is values.zero - values.minusInfinity
+PASS +values.zero - +values.minusInfinity is Infinity
+PASS +values.zero * values.notANumber is values.zero * values.notANumber
+PASS +values.zero * values.notANumber is NaN
+PASS values.zero * +values.notANumber is values.zero * values.notANumber
+PASS values.zero * +values.notANumber is NaN
+PASS +values.zero * +values.notANumber is values.zero * values.notANumber
+PASS +values.zero * +values.notANumber is NaN
+PASS +values.zero / values.notANumber is values.zero / values.notANumber
+PASS +values.zero / values.notANumber is NaN
+PASS values.zero / +values.notANumber is values.zero / values.notANumber
+PASS values.zero / +values.notANumber is NaN
+PASS +values.zero / +values.notANumber is values.zero / values.notANumber
+PASS +values.zero / +values.notANumber is NaN
+PASS +values.zero - values.notANumber is values.zero - values.notANumber
+PASS +values.zero - values.notANumber is NaN
+PASS values.zero - +values.notANumber is values.zero - values.notANumber
+PASS values.zero - +values.notANumber is NaN
+PASS +values.zero - +values.notANumber is values.zero - values.notANumber
+PASS +values.zero - +values.notANumber is NaN
+PASS +values.zero * values.nonNumberString is values.zero * values.nonNumberString
+PASS +values.zero * values.nonNumberString is NaN
+PASS values.zero * +values.nonNumberString is values.zero * values.nonNumberString
+PASS values.zero * +values.nonNumberString is NaN
+PASS +values.zero * +values.nonNumberString is values.zero * values.nonNumberString
+PASS +values.zero * +values.nonNumberString is NaN
+PASS +values.zero / values.nonNumberString is values.zero / values.nonNumberString
+PASS +values.zero / values.nonNumberString is NaN
+PASS values.zero / +values.nonNumberString is values.zero / values.nonNumberString
+PASS values.zero / +values.nonNumberString is NaN
+PASS +values.zero / +values.nonNumberString is values.zero / values.nonNumberString
+PASS +values.zero / +values.nonNumberString is NaN
+PASS +values.zero - values.nonNumberString is values.zero - values.nonNumberString
+PASS +values.zero - values.nonNumberString is NaN
+PASS values.zero - +values.nonNumberString is values.zero - values.nonNumberString
+PASS values.zero - +values.nonNumberString is NaN
+PASS +values.zero - +values.nonNumberString is values.zero - values.nonNumberString
+PASS +values.zero - +values.nonNumberString is NaN
+PASS +values.zero * values.someFloatString is values.zero * values.someFloatString
+PASS +values.zero * values.someFloatString is 0
+PASS values.zero * +values.someFloatString is values.zero * values.someFloatString
+PASS values.zero * +values.someFloatString is 0
+PASS +values.zero * +values.someFloatString is values.zero * values.someFloatString
+PASS +values.zero * +values.someFloatString is 0
+PASS +values.zero / values.someFloatString is values.zero / values.someFloatString
+PASS +values.zero / values.someFloatString is 0
+PASS values.zero / +values.someFloatString is values.zero / values.someFloatString
+PASS values.zero / +values.someFloatString is 0
+PASS +values.zero / +values.someFloatString is values.zero / values.someFloatString
+PASS +values.zero / +values.someFloatString is 0
+PASS +values.zero - values.someFloatString is values.zero - values.someFloatString
+PASS +values.zero - values.someFloatString is -42.42
+PASS values.zero - +values.someFloatString is values.zero - values.someFloatString
+PASS values.zero - +values.someFloatString is -42.42
+PASS +values.zero - +values.someFloatString is values.zero - values.someFloatString
+PASS +values.zero - +values.someFloatString is -42.42
+PASS +values.minusZero * values.someInt is values.minusZero * values.someInt
+PASS +values.minusZero * values.someInt is -0
+PASS values.minusZero * +values.someInt is values.minusZero * values.someInt
+PASS values.minusZero * +values.someInt is -0
+PASS +values.minusZero * +values.someInt is values.minusZero * values.someInt
+PASS +values.minusZero * +values.someInt is -0
+PASS +values.minusZero / values.someInt is values.minusZero / values.someInt
+PASS +values.minusZero / values.someInt is -0
+PASS values.minusZero / +values.someInt is values.minusZero / values.someInt
+PASS values.minusZero / +values.someInt is -0
+PASS +values.minusZero / +values.someInt is values.minusZero / values.someInt
+PASS +values.minusZero / +values.someInt is -0
+PASS +values.minusZero - values.someInt is values.minusZero - values.someInt
+PASS +values.minusZero - values.someInt is -42
+PASS values.minusZero - +values.someInt is values.minusZero - values.someInt
+PASS values.minusZero - +values.someInt is -42
+PASS +values.minusZero - +values.someInt is values.minusZero - values.someInt
+PASS +values.minusZero - +values.someInt is -42
+PASS +values.minusZero * values.someFloat is values.minusZero * values.someFloat
+PASS +values.minusZero * values.someFloat is -0
+PASS values.minusZero * +values.someFloat is values.minusZero * values.someFloat
+PASS values.minusZero * +values.someFloat is -0
+PASS +values.minusZero * +values.someFloat is values.minusZero * values.someFloat
+PASS +values.minusZero * +values.someFloat is -0
+PASS +values.minusZero / values.someFloat is values.minusZero / values.someFloat
+PASS +values.minusZero / values.someFloat is -0
+PASS values.minusZero / +values.someFloat is values.minusZero / values.someFloat
+PASS values.minusZero / +values.someFloat is -0
+PASS +values.minusZero / +values.someFloat is values.minusZero / values.someFloat
+PASS +values.minusZero / +values.someFloat is -0
+PASS +values.minusZero - values.someFloat is values.minusZero - values.someFloat
+PASS +values.minusZero - values.someFloat is -42.42
+PASS values.minusZero - +values.someFloat is values.minusZero - values.someFloat
+PASS values.minusZero - +values.someFloat is -42.42
+PASS +values.minusZero - +values.someFloat is values.minusZero - values.someFloat
+PASS +values.minusZero - +values.someFloat is -42.42
+PASS +values.minusZero * values.one is values.minusZero * values.one
+PASS +values.minusZero * values.one is -0
+PASS values.minusZero * +values.one is values.minusZero * values.one
+PASS values.minusZero * +values.one is -0
+PASS +values.minusZero * +values.one is values.minusZero * values.one
+PASS +values.minusZero * +values.one is -0
+PASS +values.minusZero / values.one is values.minusZero / values.one
+PASS +values.minusZero / values.one is -0
+PASS values.minusZero / +values.one is values.minusZero / values.one
+PASS values.minusZero / +values.one is -0
+PASS +values.minusZero / +values.one is values.minusZero / values.one
+PASS +values.minusZero / +values.one is -0
+PASS +values.minusZero - values.one is values.minusZero - values.one
+PASS +values.minusZero - values.one is -1
+PASS values.minusZero - +values.one is values.minusZero - values.one
+PASS values.minusZero - +values.one is -1
+PASS +values.minusZero - +values.one is values.minusZero - values.one
+PASS +values.minusZero - +values.one is -1
+PASS +values.minusZero * values.minusOne is values.minusZero * values.minusOne
+PASS +values.minusZero * values.minusOne is 0
+PASS values.minusZero * +values.minusOne is values.minusZero * values.minusOne
+PASS values.minusZero * +values.minusOne is 0
+PASS +values.minusZero * +values.minusOne is values.minusZero * values.minusOne
+PASS +values.minusZero * +values.minusOne is 0
+PASS +values.minusZero / values.minusOne is values.minusZero / values.minusOne
+PASS +values.minusZero / values.minusOne is 0
+PASS values.minusZero / +values.minusOne is values.minusZero / values.minusOne
+PASS values.minusZero / +values.minusOne is 0
+PASS +values.minusZero / +values.minusOne is values.minusZero / values.minusOne
+PASS +values.minusZero / +values.minusOne is 0
+PASS +values.minusZero - values.minusOne is values.minusZero - values.minusOne
+PASS +values.minusZero - values.minusOne is 1
+PASS values.minusZero - +values.minusOne is values.minusZero - values.minusOne
+PASS values.minusZero - +values.minusOne is 1
+PASS +values.minusZero - +values.minusOne is values.minusZero - values.minusOne
+PASS +values.minusZero - +values.minusOne is 1
+PASS +values.minusZero * values.zero is values.minusZero * values.zero
+PASS +values.minusZero * values.zero is -0
+PASS values.minusZero * +values.zero is values.minusZero * values.zero
+PASS values.minusZero * +values.zero is -0
+PASS +values.minusZero * +values.zero is values.minusZero * values.zero
+PASS +values.minusZero * +values.zero is -0
+PASS +values.minusZero / values.zero is values.minusZero / values.zero
+PASS +values.minusZero / values.zero is NaN
+PASS values.minusZero / +values.zero is values.minusZero / values.zero
+PASS values.minusZero / +values.zero is NaN
+PASS +values.minusZero / +values.zero is values.minusZero / values.zero
+PASS +values.minusZero / +values.zero is NaN
+PASS +values.minusZero - values.zero is values.minusZero - values.zero
+PASS +values.minusZero - values.zero is -0
+PASS values.minusZero - +values.zero is values.minusZero - values.zero
+PASS values.minusZero - +values.zero is -0
+PASS +values.minusZero - +values.zero is values.minusZero - values.zero
+PASS +values.minusZero - +values.zero is -0
+PASS +values.minusZero * values.minusZero is values.minusZero * values.minusZero
+PASS +values.minusZero * values.minusZero is 0
+PASS values.minusZero * +values.minusZero is values.minusZero * values.minusZero
+PASS values.minusZero * +values.minusZero is 0
+PASS +values.minusZero * +values.minusZero is values.minusZero * values.minusZero
+PASS +values.minusZero * +values.minusZero is 0
+PASS +values.minusZero / values.minusZero is values.minusZero / values.minusZero
+PASS +values.minusZero / values.minusZero is NaN
+PASS values.minusZero / +values.minusZero is values.minusZero / values.minusZero
+PASS values.minusZero / +values.minusZero is NaN
+PASS +values.minusZero / +values.minusZero is values.minusZero / values.minusZero
+PASS +values.minusZero / +values.minusZero is NaN
+PASS +values.minusZero - values.minusZero is values.minusZero - values.minusZero
+PASS +values.minusZero - values.minusZero is 0
+PASS values.minusZero - +values.minusZero is values.minusZero - values.minusZero
+PASS values.minusZero - +values.minusZero is 0
+PASS +values.minusZero - +values.minusZero is values.minusZero - values.minusZero
+PASS +values.minusZero - +values.minusZero is 0
+PASS +values.minusZero * values.infinity is values.minusZero * values.infinity
+PASS +values.minusZero * values.infinity is NaN
+PASS values.minusZero * +values.infinity is values.minusZero * values.infinity
+PASS values.minusZero * +values.infinity is NaN
+PASS +values.minusZero * +values.infinity is values.minusZero * values.infinity
+PASS +values.minusZero * +values.infinity is NaN
+PASS +values.minusZero / values.infinity is values.minusZero / values.infinity
+PASS +values.minusZero / values.infinity is -0
+PASS values.minusZero / +values.infinity is values.minusZero / values.infinity
+PASS values.minusZero / +values.infinity is -0
+PASS +values.minusZero / +values.infinity is values.minusZero / values.infinity
+PASS +values.minusZero / +values.infinity is -0
+PASS +values.minusZero - values.infinity is values.minusZero - values.infinity
+PASS +values.minusZero - values.infinity is -Infinity
+PASS values.minusZero - +values.infinity is values.minusZero - values.infinity
+PASS values.minusZero - +values.infinity is -Infinity
+PASS +values.minusZero - +values.infinity is values.minusZero - values.infinity
+PASS +values.minusZero - +values.infinity is -Infinity
+PASS +values.minusZero * values.minusInfinity is values.minusZero * values.minusInfinity
+PASS +values.minusZero * values.minusInfinity is NaN
+PASS values.minusZero * +values.minusInfinity is values.minusZero * values.minusInfinity
+PASS values.minusZero * +values.minusInfinity is NaN
+PASS +values.minusZero * +values.minusInfinity is values.minusZero * values.minusInfinity
+PASS +values.minusZero * +values.minusInfinity is NaN
+PASS +values.minusZero / values.minusInfinity is values.minusZero / values.minusInfinity
+PASS +values.minusZero / values.minusInfinity is 0
+PASS values.minusZero / +values.minusInfinity is values.minusZero / values.minusInfinity
+PASS values.minusZero / +values.minusInfinity is 0
+PASS +values.minusZero / +values.minusInfinity is values.minusZero / values.minusInfinity
+PASS +values.minusZero / +values.minusInfinity is 0
+PASS +values.minusZero - values.minusInfinity is values.minusZero - values.minusInfinity
+PASS +values.minusZero - values.minusInfinity is Infinity
+PASS values.minusZero - +values.minusInfinity is values.minusZero - values.minusInfinity
+PASS values.minusZero - +values.minusInfinity is Infinity
+PASS +values.minusZero - +values.minusInfinity is values.minusZero - values.minusInfinity
+PASS +values.minusZero - +values.minusInfinity is Infinity
+PASS +values.minusZero * values.notANumber is values.minusZero * values.notANumber
+PASS +values.minusZero * values.notANumber is NaN
+PASS values.minusZero * +values.notANumber is values.minusZero * values.notANumber
+PASS values.minusZero * +values.notANumber is NaN
+PASS +values.minusZero * +values.notANumber is values.minusZero * values.notANumber
+PASS +values.minusZero * +values.notANumber is NaN
+PASS +values.minusZero / values.notANumber is values.minusZero / values.notANumber
+PASS +values.minusZero / values.notANumber is NaN
+PASS values.minusZero / +values.notANumber is values.minusZero / values.notANumber
+PASS values.minusZero / +values.notANumber is NaN
+PASS +values.minusZero / +values.notANumber is values.minusZero / values.notANumber
+PASS +values.minusZero / +values.notANumber is NaN
+PASS +values.minusZero - values.notANumber is values.minusZero - values.notANumber
+PASS +values.minusZero - values.notANumber is NaN
+PASS values.minusZero - +values.notANumber is values.minusZero - values.notANumber
+PASS values.minusZero - +values.notANumber is NaN
+PASS +values.minusZero - +values.notANumber is values.minusZero - values.notANumber
+PASS +values.minusZero - +values.notANumber is NaN
+PASS +values.minusZero * values.nonNumberString is values.minusZero * values.nonNumberString
+PASS +values.minusZero * values.nonNumberString is NaN
+PASS values.minusZero * +values.nonNumberString is values.minusZero * values.nonNumberString
+PASS values.minusZero * +values.nonNumberString is NaN
+PASS +values.minusZero * +values.nonNumberString is values.minusZero * values.nonNumberString
+PASS +values.minusZero * +values.nonNumberString is NaN
+PASS +values.minusZero / values.nonNumberString is values.minusZero / values.nonNumberString
+PASS +values.minusZero / values.nonNumberString is NaN
+PASS values.minusZero / +values.nonNumberString is values.minusZero / values.nonNumberString
+PASS values.minusZero / +values.nonNumberString is NaN
+PASS +values.minusZero / +values.nonNumberString is values.minusZero / values.nonNumberString
+PASS +values.minusZero / +values.nonNumberString is NaN
+PASS +values.minusZero - values.nonNumberString is values.minusZero - values.nonNumberString
+PASS +values.minusZero - values.nonNumberString is NaN
+PASS values.minusZero - +values.nonNumberString is values.minusZero - values.nonNumberString
+PASS values.minusZero - +values.nonNumberString is NaN
+PASS +values.minusZero - +values.nonNumberString is values.minusZero - values.nonNumberString
+PASS +values.minusZero - +values.nonNumberString is NaN
+PASS +values.minusZero * values.someFloatString is values.minusZero * values.someFloatString
+PASS +values.minusZero * values.someFloatString is -0
+PASS values.minusZero * +values.someFloatString is values.minusZero * values.someFloatString
+PASS values.minusZero * +values.someFloatString is -0
+PASS +values.minusZero * +values.someFloatString is values.minusZero * values.someFloatString
+PASS +values.minusZero * +values.someFloatString is -0
+PASS +values.minusZero / values.someFloatString is values.minusZero / values.someFloatString
+PASS +values.minusZero / values.someFloatString is -0
+PASS values.minusZero / +values.someFloatString is values.minusZero / values.someFloatString
+PASS values.minusZero / +values.someFloatString is -0
+PASS +values.minusZero / +values.someFloatString is values.minusZero / values.someFloatString
+PASS +values.minusZero / +values.someFloatString is -0
+PASS +values.minusZero - values.someFloatString is values.minusZero - values.someFloatString
+PASS +values.minusZero - values.someFloatString is -42.42
+PASS values.minusZero - +values.someFloatString is values.minusZero - values.someFloatString
+PASS values.minusZero - +values.someFloatString is -42.42
+PASS +values.minusZero - +values.someFloatString is values.minusZero - values.someFloatString
+PASS +values.minusZero - +values.someFloatString is -42.42
+PASS +values.infinity * values.someInt is values.infinity * values.someInt
+PASS +values.infinity * values.someInt is Infinity
+PASS values.infinity * +values.someInt is values.infinity * values.someInt
+PASS values.infinity * +values.someInt is Infinity
+PASS +values.infinity * +values.someInt is values.infinity * values.someInt
+PASS +values.infinity * +values.someInt is Infinity
+PASS +values.infinity / values.someInt is values.infinity / values.someInt
+PASS +values.infinity / values.someInt is Infinity
+PASS values.infinity / +values.someInt is values.infinity / values.someInt
+PASS values.infinity / +values.someInt is Infinity
+PASS +values.infinity / +values.someInt is values.infinity / values.someInt
+PASS +values.infinity / +values.someInt is Infinity
+PASS +values.infinity - values.someInt is values.infinity - values.someInt
+PASS +values.infinity - values.someInt is Infinity
+PASS values.infinity - +values.someInt is values.infinity - values.someInt
+PASS values.infinity - +values.someInt is Infinity
+PASS +values.infinity - +values.someInt is values.infinity - values.someInt
+PASS +values.infinity - +values.someInt is Infinity
+PASS +values.infinity * values.someFloat is values.infinity * values.someFloat
+PASS +values.infinity * values.someFloat is Infinity
+PASS values.infinity * +values.someFloat is values.infinity * values.someFloat
+PASS values.infinity * +values.someFloat is Infinity
+PASS +values.infinity * +values.someFloat is values.infinity * values.someFloat
+PASS +values.infinity * +values.someFloat is Infinity
+PASS +values.infinity / values.someFloat is values.infinity / values.someFloat
+PASS +values.infinity / values.someFloat is Infinity
+PASS values.infinity / +values.someFloat is values.infinity / values.someFloat
+PASS values.infinity / +values.someFloat is Infinity
+PASS +values.infinity / +values.someFloat is values.infinity / values.someFloat
+PASS +values.infinity / +values.someFloat is Infinity
+PASS +values.infinity - values.someFloat is values.infinity - values.someFloat
+PASS +values.infinity - values.someFloat is Infinity
+PASS values.infinity - +values.someFloat is values.infinity - values.someFloat
+PASS values.infinity - +values.someFloat is Infinity
+PASS +values.infinity - +values.someFloat is values.infinity - values.someFloat
+PASS +values.infinity - +values.someFloat is Infinity
+PASS +values.infinity * values.one is values.infinity * values.one
+PASS +values.infinity * values.one is Infinity
+PASS values.infinity * +values.one is values.infinity * values.one
+PASS values.infinity * +values.one is Infinity
+PASS +values.infinity * +values.one is values.infinity * values.one
+PASS +values.infinity * +values.one is Infinity
+PASS +values.infinity / values.one is values.infinity / values.one
+PASS +values.infinity / values.one is Infinity
+PASS values.infinity / +values.one is values.infinity / values.one
+PASS values.infinity / +values.one is Infinity
+PASS +values.infinity / +values.one is values.infinity / values.one
+PASS +values.infinity / +values.one is Infinity
+PASS +values.infinity - values.one is values.infinity - values.one
+PASS +values.infinity - values.one is Infinity
+PASS values.infinity - +values.one is values.infinity - values.one
+PASS values.infinity - +values.one is Infinity
+PASS +values.infinity - +values.one is values.infinity - values.one
+PASS +values.infinity - +values.one is Infinity
+PASS +values.infinity * values.minusOne is values.infinity * values.minusOne
+PASS +values.infinity * values.minusOne is -Infinity
+PASS values.infinity * +values.minusOne is values.infinity * values.minusOne
+PASS values.infinity * +values.minusOne is -Infinity
+PASS +values.infinity * +values.minusOne is values.infinity * values.minusOne
+PASS +values.infinity * +values.minusOne is -Infinity
+PASS +values.infinity / values.minusOne is values.infinity / values.minusOne
+PASS +values.infinity / values.minusOne is -Infinity
+PASS values.infinity / +values.minusOne is values.infinity / values.minusOne
+PASS values.infinity / +values.minusOne is -Infinity
+PASS +values.infinity / +values.minusOne is values.infinity / values.minusOne
+PASS +values.infinity / +values.minusOne is -Infinity
+PASS +values.infinity - values.minusOne is values.infinity - values.minusOne
+PASS +values.infinity - values.minusOne is Infinity
+PASS values.infinity - +values.minusOne is values.infinity - values.minusOne
+PASS values.infinity - +values.minusOne is Infinity
+PASS +values.infinity - +values.minusOne is values.infinity - values.minusOne
+PASS +values.infinity - +values.minusOne is Infinity
+PASS +values.infinity * values.zero is values.infinity * values.zero
+PASS +values.infinity * values.zero is NaN
+PASS values.infinity * +values.zero is values.infinity * values.zero
+PASS values.infinity * +values.zero is NaN
+PASS +values.infinity * +values.zero is values.infinity * values.zero
+PASS +values.infinity * +values.zero is NaN
+PASS +values.infinity / values.zero is values.infinity / values.zero
+PASS +values.infinity / values.zero is Infinity
+PASS values.infinity / +values.zero is values.infinity / values.zero
+PASS values.infinity / +values.zero is Infinity
+PASS +values.infinity / +values.zero is values.infinity / values.zero
+PASS +values.infinity / +values.zero is Infinity
+PASS +values.infinity - values.zero is values.infinity - values.zero
+PASS +values.infinity - values.zero is Infinity
+PASS values.infinity - +values.zero is values.infinity - values.zero
+PASS values.infinity - +values.zero is Infinity
+PASS +values.infinity - +values.zero is values.infinity - values.zero
+PASS +values.infinity - +values.zero is Infinity
+PASS +values.infinity * values.minusZero is values.infinity * values.minusZero
+PASS +values.infinity * values.minusZero is NaN
+PASS values.infinity * +values.minusZero is values.infinity * values.minusZero
+PASS values.infinity * +values.minusZero is NaN
+PASS +values.infinity * +values.minusZero is values.infinity * values.minusZero
+PASS +values.infinity * +values.minusZero is NaN
+PASS +values.infinity / values.minusZero is values.infinity / values.minusZero
+PASS +values.infinity / values.minusZero is -Infinity
+PASS values.infinity / +values.minusZero is values.infinity / values.minusZero
+PASS values.infinity / +values.minusZero is -Infinity
+PASS +values.infinity / +values.minusZero is values.infinity / values.minusZero
+PASS +values.infinity / +values.minusZero is -Infinity
+PASS +values.infinity - values.minusZero is values.infinity - values.minusZero
+PASS +values.infinity - values.minusZero is Infinity
+PASS values.infinity - +values.minusZero is values.infinity - values.minusZero
+PASS values.infinity - +values.minusZero is Infinity
+PASS +values.infinity - +values.minusZero is values.infinity - values.minusZero
+PASS +values.infinity - +values.minusZero is Infinity
+PASS +values.infinity * values.infinity is values.infinity * values.infinity
+PASS +values.infinity * values.infinity is Infinity
+PASS values.infinity * +values.infinity is values.infinity * values.infinity
+PASS values.infinity * +values.infinity is Infinity
+PASS +values.infinity * +values.infinity is values.infinity * values.infinity
+PASS +values.infinity * +values.infinity is Infinity
+PASS +values.infinity / values.infinity is values.infinity / values.infinity
+PASS +values.infinity / values.infinity is NaN
+PASS values.infinity / +values.infinity is values.infinity / values.infinity
+PASS values.infinity / +values.infinity is NaN
+PASS +values.infinity / +values.infinity is values.infinity / values.infinity
+PASS +values.infinity / +values.infinity is NaN
+PASS +values.infinity - values.infinity is values.infinity - values.infinity
+PASS +values.infinity - values.infinity is NaN
+PASS values.infinity - +values.infinity is values.infinity - values.infinity
+PASS values.infinity - +values.infinity is NaN
+PASS +values.infinity - +values.infinity is values.infinity - values.infinity
+PASS +values.infinity - +values.infinity is NaN
+PASS +values.infinity * values.minusInfinity is values.infinity * values.minusInfinity
+PASS +values.infinity * values.minusInfinity is -Infinity
+PASS values.infinity * +values.minusInfinity is values.infinity * values.minusInfinity
+PASS values.infinity * +values.minusInfinity is -Infinity
+PASS +values.infinity * +values.minusInfinity is values.infinity * values.minusInfinity
+PASS +values.infinity * +values.minusInfinity is -Infinity
+PASS +values.infinity / values.minusInfinity is values.infinity / values.minusInfinity
+PASS +values.infinity / values.minusInfinity is NaN
+PASS values.infinity / +values.minusInfinity is values.infinity / values.minusInfinity
+PASS values.infinity / +values.minusInfinity is NaN
+PASS +values.infinity / +values.minusInfinity is values.infinity / values.minusInfinity
+PASS +values.infinity / +values.minusInfinity is NaN
+PASS +values.infinity - values.minusInfinity is values.infinity - values.minusInfinity
+PASS +values.infinity - values.minusInfinity is Infinity
+PASS values.infinity - +values.minusInfinity is values.infinity - values.minusInfinity
+PASS values.infinity - +values.minusInfinity is Infinity
+PASS +values.infinity - +values.minusInfinity is values.infinity - values.minusInfinity
+PASS +values.infinity - +values.minusInfinity is Infinity
+PASS +values.infinity * values.notANumber is values.infinity * values.notANumber
+PASS +values.infinity * values.notANumber is NaN
+PASS values.infinity * +values.notANumber is values.infinity * values.notANumber
+PASS values.infinity * +values.notANumber is NaN
+PASS +values.infinity * +values.notANumber is values.infinity * values.notANumber
+PASS +values.infinity * +values.notANumber is NaN
+PASS +values.infinity / values.notANumber is values.infinity / values.notANumber
+PASS +values.infinity / values.notANumber is NaN
+PASS values.infinity / +values.notANumber is values.infinity / values.notANumber
+PASS values.infinity / +values.notANumber is NaN
+PASS +values.infinity / +values.notANumber is values.infinity / values.notANumber
+PASS +values.infinity / +values.notANumber is NaN
+PASS +values.infinity - values.notANumber is values.infinity - values.notANumber
+PASS +values.infinity - values.notANumber is NaN
+PASS values.infinity - +values.notANumber is values.infinity - values.notANumber
+PASS values.infinity - +values.notANumber is NaN
+PASS +values.infinity - +values.notANumber is values.infinity - values.notANumber
+PASS +values.infinity - +values.notANumber is NaN
+PASS +values.infinity * values.nonNumberString is values.infinity * values.nonNumberString
+PASS +values.infinity * values.nonNumberString is NaN
+PASS values.infinity * +values.nonNumberString is values.infinity * values.nonNumberString
+PASS values.infinity * +values.nonNumberString is NaN
+PASS +values.infinity * +values.nonNumberString is values.infinity * values.nonNumberString
+PASS +values.infinity * +values.nonNumberString is NaN
+PASS +values.infinity / values.nonNumberString is values.infinity / values.nonNumberString
+PASS +values.infinity / values.nonNumberString is NaN
+PASS values.infinity / +values.nonNumberString is values.infinity / values.nonNumberString
+PASS values.infinity / +values.nonNumberString is NaN
+PASS +values.infinity / +values.nonNumberString is values.infinity / values.nonNumberString
+PASS +values.infinity / +values.nonNumberString is NaN
+PASS +values.infinity - values.nonNumberString is values.infinity - values.nonNumberString
+PASS +values.infinity - values.nonNumberString is NaN
+PASS values.infinity - +values.nonNumberString is values.infinity - values.nonNumberString
+PASS values.infinity - +values.nonNumberString is NaN
+PASS +values.infinity - +values.nonNumberString is values.infinity - values.nonNumberString
+PASS +values.infinity - +values.nonNumberString is NaN
+PASS +values.infinity * values.someFloatString is values.infinity * values.someFloatString
+PASS +values.infinity * values.someFloatString is Infinity
+PASS values.infinity * +values.someFloatString is values.infinity * values.someFloatString
+PASS values.infinity * +values.someFloatString is Infinity
+PASS +values.infinity * +values.someFloatString is values.infinity * values.someFloatString
+PASS +values.infinity * +values.someFloatString is Infinity
+PASS +values.infinity / values.someFloatString is values.infinity / values.someFloatString
+PASS +values.infinity / values.someFloatString is Infinity
+PASS values.infinity / +values.someFloatString is values.infinity / values.someFloatString
+PASS values.infinity / +values.someFloatString is Infinity
+PASS +values.infinity / +values.someFloatString is values.infinity / values.someFloatString
+PASS +values.infinity / +values.someFloatString is Infinity
+PASS +values.infinity - values.someFloatString is values.infinity - values.someFloatString
+PASS +values.infinity - values.someFloatString is Infinity
+PASS values.infinity - +values.someFloatString is values.infinity - values.someFloatString
+PASS values.infinity - +values.someFloatString is Infinity
+PASS +values.infinity - +values.someFloatString is values.infinity - values.someFloatString
+PASS +values.infinity - +values.someFloatString is Infinity
+PASS +values.minusInfinity * values.someInt is values.minusInfinity * values.someInt
+PASS +values.minusInfinity * values.someInt is -Infinity
+PASS values.minusInfinity * +values.someInt is values.minusInfinity * values.someInt
+PASS values.minusInfinity * +values.someInt is -Infinity
+PASS +values.minusInfinity * +values.someInt is values.minusInfinity * values.someInt
+PASS +values.minusInfinity * +values.someInt is -Infinity
+PASS +values.minusInfinity / values.someInt is values.minusInfinity / values.someInt
+PASS +values.minusInfinity / values.someInt is -Infinity
+PASS values.minusInfinity / +values.someInt is values.minusInfinity / values.someInt
+PASS values.minusInfinity / +values.someInt is -Infinity
+PASS +values.minusInfinity / +values.someInt is values.minusInfinity / values.someInt
+PASS +values.minusInfinity / +values.someInt is -Infinity
+PASS +values.minusInfinity - values.someInt is values.minusInfinity - values.someInt
+PASS +values.minusInfinity - values.someInt is -Infinity
+PASS values.minusInfinity - +values.someInt is values.minusInfinity - values.someInt
+PASS values.minusInfinity - +values.someInt is -Infinity
+PASS +values.minusInfinity - +values.someInt is values.minusInfinity - values.someInt
+PASS +values.minusInfinity - +values.someInt is -Infinity
+PASS +values.minusInfinity * values.someFloat is values.minusInfinity * values.someFloat
+PASS +values.minusInfinity * values.someFloat is -Infinity
+PASS values.minusInfinity * +values.someFloat is values.minusInfinity * values.someFloat
+PASS values.minusInfinity * +values.someFloat is -Infinity
+PASS +values.minusInfinity * +values.someFloat is values.minusInfinity * values.someFloat
+PASS +values.minusInfinity * +values.someFloat is -Infinity
+PASS +values.minusInfinity / values.someFloat is values.minusInfinity / values.someFloat
+PASS +values.minusInfinity / values.someFloat is -Infinity
+PASS values.minusInfinity / +values.someFloat is values.minusInfinity / values.someFloat
+PASS values.minusInfinity / +values.someFloat is -Infinity
+PASS +values.minusInfinity / +values.someFloat is values.minusInfinity / values.someFloat
+PASS +values.minusInfinity / +values.someFloat is -Infinity
+PASS +values.minusInfinity - values.someFloat is values.minusInfinity - values.someFloat
+PASS +values.minusInfinity - values.someFloat is -Infinity
+PASS values.minusInfinity - +values.someFloat is values.minusInfinity - values.someFloat
+PASS values.minusInfinity - +values.someFloat is -Infinity
+PASS +values.minusInfinity - +values.someFloat is values.minusInfinity - values.someFloat
+PASS +values.minusInfinity - +values.someFloat is -Infinity
+PASS +values.minusInfinity * values.one is values.minusInfinity * values.one
+PASS +values.minusInfinity * values.one is -Infinity
+PASS values.minusInfinity * +values.one is values.minusInfinity * values.one
+PASS values.minusInfinity * +values.one is -Infinity
+PASS +values.minusInfinity * +values.one is values.minusInfinity * values.one
+PASS +values.minusInfinity * +values.one is -Infinity
+PASS +values.minusInfinity / values.one is values.minusInfinity / values.one
+PASS +values.minusInfinity / values.one is -Infinity
+PASS values.minusInfinity / +values.one is values.minusInfinity / values.one
+PASS values.minusInfinity / +values.one is -Infinity
+PASS +values.minusInfinity / +values.one is values.minusInfinity / values.one
+PASS +values.minusInfinity / +values.one is -Infinity
+PASS +values.minusInfinity - values.one is values.minusInfinity - values.one
+PASS +values.minusInfinity - values.one is -Infinity
+PASS values.minusInfinity - +values.one is values.minusInfinity - values.one
+PASS values.minusInfinity - +values.one is -Infinity
+PASS +values.minusInfinity - +values.one is values.minusInfinity - values.one
+PASS +values.minusInfinity - +values.one is -Infinity
+PASS +values.minusInfinity * values.minusOne is values.minusInfinity * values.minusOne
+PASS +values.minusInfinity * values.minusOne is Infinity
+PASS values.minusInfinity * +values.minusOne is values.minusInfinity * values.minusOne
+PASS values.minusInfinity * +values.minusOne is Infinity
+PASS +values.minusInfinity * +values.minusOne is values.minusInfinity * values.minusOne
+PASS +values.minusInfinity * +values.minusOne is Infinity
+PASS +values.minusInfinity / values.minusOne is values.minusInfinity / values.minusOne
+PASS +values.minusInfinity / values.minusOne is Infinity
+PASS values.minusInfinity / +values.minusOne is values.minusInfinity / values.minusOne
+PASS values.minusInfinity / +values.minusOne is Infinity
+PASS +values.minusInfinity / +values.minusOne is values.minusInfinity / values.minusOne
+PASS +values.minusInfinity / +values.minusOne is Infinity
+PASS +values.minusInfinity - values.minusOne is values.minusInfinity - values.minusOne
+PASS +values.minusInfinity - values.minusOne is -Infinity
+PASS values.minusInfinity - +values.minusOne is values.minusInfinity - values.minusOne
+PASS values.minusInfinity - +values.minusOne is -Infinity
+PASS +values.minusInfinity - +values.minusOne is values.minusInfinity - values.minusOne
+PASS +values.minusInfinity - +values.minusOne is -Infinity
+PASS +values.minusInfinity * values.zero is values.minusInfinity * values.zero
+PASS +values.minusInfinity * values.zero is NaN
+PASS values.minusInfinity * +values.zero is values.minusInfinity * values.zero
+PASS values.minusInfinity * +values.zero is NaN
+PASS +values.minusInfinity * +values.zero is values.minusInfinity * values.zero
+PASS +values.minusInfinity * +values.zero is NaN
+PASS +values.minusInfinity / values.zero is values.minusInfinity / values.zero
+PASS +values.minusInfinity / values.zero is -Infinity
+PASS values.minusInfinity / +values.zero is values.minusInfinity / values.zero
+PASS values.minusInfinity / +values.zero is -Infinity
+PASS +values.minusInfinity / +values.zero is values.minusInfinity / values.zero
+PASS +values.minusInfinity / +values.zero is -Infinity
+PASS +values.minusInfinity - values.zero is values.minusInfinity - values.zero
+PASS +values.minusInfinity - values.zero is -Infinity
+PASS values.minusInfinity - +values.zero is values.minusInfinity - values.zero
+PASS values.minusInfinity - +values.zero is -Infinity
+PASS +values.minusInfinity - +values.zero is values.minusInfinity - values.zero
+PASS +values.minusInfinity - +values.zero is -Infinity
+PASS +values.minusInfinity * values.minusZero is values.minusInfinity * values.minusZero
+PASS +values.minusInfinity * values.minusZero is NaN
+PASS values.minusInfinity * +values.minusZero is values.minusInfinity * values.minusZero
+PASS values.minusInfinity * +values.minusZero is NaN
+PASS +values.minusInfinity * +values.minusZero is values.minusInfinity * values.minusZero
+PASS +values.minusInfinity * +values.minusZero is NaN
+PASS +values.minusInfinity / values.minusZero is values.minusInfinity / values.minusZero
+PASS +values.minusInfinity / values.minusZero is Infinity
+PASS values.minusInfinity / +values.minusZero is values.minusInfinity / values.minusZero
+PASS values.minusInfinity / +values.minusZero is Infinity
+PASS +values.minusInfinity / +values.minusZero is values.minusInfinity / values.minusZero
+PASS +values.minusInfinity / +values.minusZero is Infinity
+PASS +values.minusInfinity - values.minusZero is values.minusInfinity - values.minusZero
+PASS +values.minusInfinity - values.minusZero is -Infinity
+PASS values.minusInfinity - +values.minusZero is values.minusInfinity - values.minusZero
+PASS values.minusInfinity - +values.minusZero is -Infinity
+PASS +values.minusInfinity - +values.minusZero is values.minusInfinity - values.minusZero
+PASS +values.minusInfinity - +values.minusZero is -Infinity
+PASS +values.minusInfinity * values.infinity is values.minusInfinity * values.infinity
+PASS +values.minusInfinity * values.infinity is -Infinity
+PASS values.minusInfinity * +values.infinity is values.minusInfinity * values.infinity
+PASS values.minusInfinity * +values.infinity is -Infinity
+PASS +values.minusInfinity * +values.infinity is values.minusInfinity * values.infinity
+PASS +values.minusInfinity * +values.infinity is -Infinity
+PASS +values.minusInfinity / values.infinity is values.minusInfinity / values.infinity
+PASS +values.minusInfinity / values.infinity is NaN
+PASS values.minusInfinity / +values.infinity is values.minusInfinity / values.infinity
+PASS values.minusInfinity / +values.infinity is NaN
+PASS +values.minusInfinity / +values.infinity is values.minusInfinity / values.infinity
+PASS +values.minusInfinity / +values.infinity is NaN
+PASS +values.minusInfinity - values.infinity is values.minusInfinity - values.infinity
+PASS +values.minusInfinity - values.infinity is -Infinity
+PASS values.minusInfinity - +values.infinity is values.minusInfinity - values.infinity
+PASS values.minusInfinity - +values.infinity is -Infinity
+PASS +values.minusInfinity - +values.infinity is values.minusInfinity - values.infinity
+PASS +values.minusInfinity - +values.infinity is -Infinity
+PASS +values.minusInfinity * values.minusInfinity is values.minusInfinity * values.minusInfinity
+PASS +values.minusInfinity * values.minusInfinity is Infinity
+PASS values.minusInfinity * +values.minusInfinity is values.minusInfinity * values.minusInfinity
+PASS values.minusInfinity * +values.minusInfinity is Infinity
+PASS +values.minusInfinity * +values.minusInfinity is values.minusInfinity * values.minusInfinity
+PASS +values.minusInfinity * +values.minusInfinity is Infinity
+PASS +values.minusInfinity / values.minusInfinity is values.minusInfinity / values.minusInfinity
+PASS +values.minusInfinity / values.minusInfinity is NaN
+PASS values.minusInfinity / +values.minusInfinity is values.minusInfinity / values.minusInfinity
+PASS values.minusInfinity / +values.minusInfinity is NaN
+PASS +values.minusInfinity / +values.minusInfinity is values.minusInfinity / values.minusInfinity
+PASS +values.minusInfinity / +values.minusInfinity is NaN
+PASS +values.minusInfinity - values.minusInfinity is values.minusInfinity - values.minusInfinity
+PASS +values.minusInfinity - values.minusInfinity is NaN
+PASS values.minusInfinity - +values.minusInfinity is values.minusInfinity - values.minusInfinity
+PASS values.minusInfinity - +values.minusInfinity is NaN
+PASS +values.minusInfinity - +values.minusInfinity is values.minusInfinity - values.minusInfinity
+PASS +values.minusInfinity - +values.minusInfinity is NaN
+PASS +values.minusInfinity * values.notANumber is values.minusInfinity * values.notANumber
+PASS +values.minusInfinity * values.notANumber is NaN
+PASS values.minusInfinity * +values.notANumber is values.minusInfinity * values.notANumber
+PASS values.minusInfinity * +values.notANumber is NaN
+PASS +values.minusInfinity * +values.notANumber is values.minusInfinity * values.notANumber
+PASS +values.minusInfinity * +values.notANumber is NaN
+PASS +values.minusInfinity / values.notANumber is values.minusInfinity / values.notANumber
+PASS +values.minusInfinity / values.notANumber is NaN
+PASS values.minusInfinity / +values.notANumber is values.minusInfinity / values.notANumber
+PASS values.minusInfinity / +values.notANumber is NaN
+PASS +values.minusInfinity / +values.notANumber is values.minusInfinity / values.notANumber
+PASS +values.minusInfinity / +values.notANumber is NaN
+PASS +values.minusInfinity - values.notANumber is values.minusInfinity - values.notANumber
+PASS +values.minusInfinity - values.notANumber is NaN
+PASS values.minusInfinity - +values.notANumber is values.minusInfinity - values.notANumber
+PASS values.minusInfinity - +values.notANumber is NaN
+PASS +values.minusInfinity - +values.notANumber is values.minusInfinity - values.notANumber
+PASS +values.minusInfinity - +values.notANumber is NaN
+PASS +values.minusInfinity * values.nonNumberString is values.minusInfinity * values.nonNumberString
+PASS +values.minusInfinity * values.nonNumberString is NaN
+PASS values.minusInfinity * +values.nonNumberString is values.minusInfinity * values.nonNumberString
+PASS values.minusInfinity * +values.nonNumberString is NaN
+PASS +values.minusInfinity * +values.nonNumberString is values.minusInfinity * values.nonNumberString
+PASS +values.minusInfinity * +values.nonNumberString is NaN
+PASS +values.minusInfinity / values.nonNumberString is values.minusInfinity / values.nonNumberString
+PASS +values.minusInfinity / values.nonNumberString is NaN
+PASS values.minusInfinity / +values.nonNumberString is values.minusInfinity / values.nonNumberString
+PASS values.minusInfinity / +values.nonNumberString is NaN
+PASS +values.minusInfinity / +values.nonNumberString is values.minusInfinity / values.nonNumberString
+PASS +values.minusInfinity / +values.nonNumberString is NaN
+PASS +values.minusInfinity - values.nonNumberString is values.minusInfinity - values.nonNumberString
+PASS +values.minusInfinity - values.nonNumberString is NaN
+PASS values.minusInfinity - +values.nonNumberString is values.minusInfinity - values.nonNumberString
+PASS values.minusInfinity - +values.nonNumberString is NaN
+PASS +values.minusInfinity - +values.nonNumberString is values.minusInfinity - values.nonNumberString
+PASS +values.minusInfinity - +values.nonNumberString is NaN
+PASS +values.minusInfinity * values.someFloatString is values.minusInfinity * values.someFloatString
+PASS +values.minusInfinity * values.someFloatString is -Infinity
+PASS values.minusInfinity * +values.someFloatString is values.minusInfinity * values.someFloatString
+PASS values.minusInfinity * +values.someFloatString is -Infinity
+PASS +values.minusInfinity * +values.someFloatString is values.minusInfinity * values.someFloatString
+PASS +values.minusInfinity * +values.someFloatString is -Infinity
+PASS +values.minusInfinity / values.someFloatString is values.minusInfinity / values.someFloatString
+PASS +values.minusInfinity / values.someFloatString is -Infinity
+PASS values.minusInfinity / +values.someFloatString is values.minusInfinity / values.someFloatString
+PASS values.minusInfinity / +values.someFloatString is -Infinity
+PASS +values.minusInfinity / +values.someFloatString is values.minusInfinity / values.someFloatString
+PASS +values.minusInfinity / +values.someFloatString is -Infinity
+PASS +values.minusInfinity - values.someFloatString is values.minusInfinity - values.someFloatString
+PASS +values.minusInfinity - values.someFloatString is -Infinity
+PASS values.minusInfinity - +values.someFloatString is values.minusInfinity - values.someFloatString
+PASS values.minusInfinity - +values.someFloatString is -Infinity
+PASS +values.minusInfinity - +values.someFloatString is values.minusInfinity - values.someFloatString
+PASS +values.minusInfinity - +values.someFloatString is -Infinity
+PASS +values.notANumber * values.someInt is values.notANumber * values.someInt
+PASS +values.notANumber * values.someInt is NaN
+PASS values.notANumber * +values.someInt is values.notANumber * values.someInt
+PASS values.notANumber * +values.someInt is NaN
+PASS +values.notANumber * +values.someInt is values.notANumber * values.someInt
+PASS +values.notANumber * +values.someInt is NaN
+PASS +values.notANumber / values.someInt is values.notANumber / values.someInt
+PASS +values.notANumber / values.someInt is NaN
+PASS values.notANumber / +values.someInt is values.notANumber / values.someInt
+PASS values.notANumber / +values.someInt is NaN
+PASS +values.notANumber / +values.someInt is values.notANumber / values.someInt
+PASS +values.notANumber / +values.someInt is NaN
+PASS +values.notANumber - values.someInt is values.notANumber - values.someInt
+PASS +values.notANumber - values.someInt is NaN
+PASS values.notANumber - +values.someInt is values.notANumber - values.someInt
+PASS values.notANumber - +values.someInt is NaN
+PASS +values.notANumber - +values.someInt is values.notANumber - values.someInt
+PASS +values.notANumber - +values.someInt is NaN
+PASS +values.notANumber * values.someFloat is values.notANumber * values.someFloat
+PASS +values.notANumber * values.someFloat is NaN
+PASS values.notANumber * +values.someFloat is values.notANumber * values.someFloat
+PASS values.notANumber * +values.someFloat is NaN
+PASS +values.notANumber * +values.someFloat is values.notANumber * values.someFloat
+PASS +values.notANumber * +values.someFloat is NaN
+PASS +values.notANumber / values.someFloat is values.notANumber / values.someFloat
+PASS +values.notANumber / values.someFloat is NaN
+PASS values.notANumber / +values.someFloat is values.notANumber / values.someFloat
+PASS values.notANumber / +values.someFloat is NaN
+PASS +values.notANumber / +values.someFloat is values.notANumber / values.someFloat
+PASS +values.notANumber / +values.someFloat is NaN
+PASS +values.notANumber - values.someFloat is values.notANumber - values.someFloat
+PASS +values.notANumber - values.someFloat is NaN
+PASS values.notANumber - +values.someFloat is values.notANumber - values.someFloat
+PASS values.notANumber - +values.someFloat is NaN
+PASS +values.notANumber - +values.someFloat is values.notANumber - values.someFloat
+PASS +values.notANumber - +values.someFloat is NaN
+PASS +values.notANumber * values.one is values.notANumber * values.one
+PASS +values.notANumber * values.one is NaN
+PASS values.notANumber * +values.one is values.notANumber * values.one
+PASS values.notANumber * +values.one is NaN
+PASS +values.notANumber * +values.one is values.notANumber * values.one
+PASS +values.notANumber * +values.one is NaN
+PASS +values.notANumber / values.one is values.notANumber / values.one
+PASS +values.notANumber / values.one is NaN
+PASS values.notANumber / +values.one is values.notANumber / values.one
+PASS values.notANumber / +values.one is NaN
+PASS +values.notANumber / +values.one is values.notANumber / values.one
+PASS +values.notANumber / +values.one is NaN
+PASS +values.notANumber - values.one is values.notANumber - values.one
+PASS +values.notANumber - values.one is NaN
+PASS values.notANumber - +values.one is values.notANumber - values.one
+PASS values.notANumber - +values.one is NaN
+PASS +values.notANumber - +values.one is values.notANumber - values.one
+PASS +values.notANumber - +values.one is NaN
+PASS +values.notANumber * values.minusOne is values.notANumber * values.minusOne
+PASS +values.notANumber * values.minusOne is NaN
+PASS values.notANumber * +values.minusOne is values.notANumber * values.minusOne
+PASS values.notANumber * +values.minusOne is NaN
+PASS +values.notANumber * +values.minusOne is values.notANumber * values.minusOne
+PASS +values.notANumber * +values.minusOne is NaN
+PASS +values.notANumber / values.minusOne is values.notANumber / values.minusOne
+PASS +values.notANumber / values.minusOne is NaN
+PASS values.notANumber / +values.minusOne is values.notANumber / values.minusOne
+PASS values.notANumber / +values.minusOne is NaN
+PASS +values.notANumber / +values.minusOne is values.notANumber / values.minusOne
+PASS +values.notANumber / +values.minusOne is NaN
+PASS +values.notANumber - values.minusOne is values.notANumber - values.minusOne
+PASS +values.notANumber - values.minusOne is NaN
+PASS values.notANumber - +values.minusOne is values.notANumber - values.minusOne
+PASS values.notANumber - +values.minusOne is NaN
+PASS +values.notANumber - +values.minusOne is values.notANumber - values.minusOne
+PASS +values.notANumber - +values.minusOne is NaN
+PASS +values.notANumber * values.zero is values.notANumber * values.zero
+PASS +values.notANumber * values.zero is NaN
+PASS values.notANumber * +values.zero is values.notANumber * values.zero
+PASS values.notANumber * +values.zero is NaN
+PASS +values.notANumber * +values.zero is values.notANumber * values.zero
+PASS +values.notANumber * +values.zero is NaN
+PASS +values.notANumber / values.zero is values.notANumber / values.zero
+PASS +values.notANumber / values.zero is NaN
+PASS values.notANumber / +values.zero is values.notANumber / values.zero
+PASS values.notANumber / +values.zero is NaN
+PASS +values.notANumber / +values.zero is values.notANumber / values.zero
+PASS +values.notANumber / +values.zero is NaN
+PASS +values.notANumber - values.zero is values.notANumber - values.zero
+PASS +values.notANumber - values.zero is NaN
+PASS values.notANumber - +values.zero is values.notANumber - values.zero
+PASS values.notANumber - +values.zero is NaN
+PASS +values.notANumber - +values.zero is values.notANumber - values.zero
+PASS +values.notANumber - +values.zero is NaN
+PASS +values.notANumber * values.minusZero is values.notANumber * values.minusZero
+PASS +values.notANumber * values.minusZero is NaN
+PASS values.notANumber * +values.minusZero is values.notANumber * values.minusZero
+PASS values.notANumber * +values.minusZero is NaN
+PASS +values.notANumber * +values.minusZero is values.notANumber * values.minusZero
+PASS +values.notANumber * +values.minusZero is NaN
+PASS +values.notANumber / values.minusZero is values.notANumber / values.minusZero
+PASS +values.notANumber / values.minusZero is NaN
+PASS values.notANumber / +values.minusZero is values.notANumber / values.minusZero
+PASS values.notANumber / +values.minusZero is NaN
+PASS +values.notANumber / +values.minusZero is values.notANumber / values.minusZero
+PASS +values.notANumber / +values.minusZero is NaN
+PASS +values.notANumber - values.minusZero is values.notANumber - values.minusZero
+PASS +values.notANumber - values.minusZero is NaN
+PASS values.notANumber - +values.minusZero is values.notANumber - values.minusZero
+PASS values.notANumber - +values.minusZero is NaN
+PASS +values.notANumber - +values.minusZero is values.notANumber - values.minusZero
+PASS +values.notANumber - +values.minusZero is NaN
+PASS +values.notANumber * values.infinity is values.notANumber * values.infinity
+PASS +values.notANumber * values.infinity is NaN
+PASS values.notANumber * +values.infinity is values.notANumber * values.infinity
+PASS values.notANumber * +values.infinity is NaN
+PASS +values.notANumber * +values.infinity is values.notANumber * values.infinity
+PASS +values.notANumber * +values.infinity is NaN
+PASS +values.notANumber / values.infinity is values.notANumber / values.infinity
+PASS +values.notANumber / values.infinity is NaN
+PASS values.notANumber / +values.infinity is values.notANumber / values.infinity
+PASS values.notANumber / +values.infinity is NaN
+PASS +values.notANumber / +values.infinity is values.notANumber / values.infinity
+PASS +values.notANumber / +values.infinity is NaN
+PASS +values.notANumber - values.infinity is values.notANumber - values.infinity
+PASS +values.notANumber - values.infinity is NaN
+PASS values.notANumber - +values.infinity is values.notANumber - values.infinity
+PASS values.notANumber - +values.infinity is NaN
+PASS +values.notANumber - +values.infinity is values.notANumber - values.infinity
+PASS +values.notANumber - +values.infinity is NaN
+PASS +values.notANumber * values.minusInfinity is values.notANumber * values.minusInfinity
+PASS +values.notANumber * values.minusInfinity is NaN
+PASS values.notANumber * +values.minusInfinity is values.notANumber * values.minusInfinity
+PASS values.notANumber * +values.minusInfinity is NaN
+PASS +values.notANumber * +values.minusInfinity is values.notANumber * values.minusInfinity
+PASS +values.notANumber * +values.minusInfinity is NaN
+PASS +values.notANumber / values.minusInfinity is values.notANumber / values.minusInfinity
+PASS +values.notANumber / values.minusInfinity is NaN
+PASS values.notANumber / +values.minusInfinity is values.notANumber / values.minusInfinity
+PASS values.notANumber / +values.minusInfinity is NaN
+PASS +values.notANumber / +values.minusInfinity is values.notANumber / values.minusInfinity
+PASS +values.notANumber / +values.minusInfinity is NaN
+PASS +values.notANumber - values.minusInfinity is values.notANumber - values.minusInfinity
+PASS +values.notANumber - values.minusInfinity is NaN
+PASS values.notANumber - +values.minusInfinity is values.notANumber - values.minusInfinity
+PASS values.notANumber - +values.minusInfinity is NaN
+PASS +values.notANumber - +values.minusInfinity is values.notANumber - values.minusInfinity
+PASS +values.notANumber - +values.minusInfinity is NaN
+PASS +values.notANumber * values.notANumber is values.notANumber * values.notANumber
+PASS +values.notANumber * values.notANumber is NaN
+PASS values.notANumber * +values.notANumber is values.notANumber * values.notANumber
+PASS values.notANumber * +values.notANumber is NaN
+PASS +values.notANumber * +values.notANumber is values.notANumber * values.notANumber
+PASS +values.notANumber * +values.notANumber is NaN
+PASS +values.notANumber / values.notANumber is values.notANumber / values.notANumber
+PASS +values.notANumber / values.notANumber is NaN
+PASS values.notANumber / +values.notANumber is values.notANumber / values.notANumber
+PASS values.notANumber / +values.notANumber is NaN
+PASS +values.notANumber / +values.notANumber is values.notANumber / values.notANumber
+PASS +values.notANumber / +values.notANumber is NaN
+PASS +values.notANumber - values.notANumber is values.notANumber - values.notANumber
+PASS +values.notANumber - values.notANumber is NaN
+PASS values.notANumber - +values.notANumber is values.notANumber - values.notANumber
+PASS values.notANumber - +values.notANumber is NaN
+PASS +values.notANumber - +values.notANumber is values.notANumber - values.notANumber
+PASS +values.notANumber - +values.notANumber is NaN
+PASS +values.notANumber * values.nonNumberString is values.notANumber * values.nonNumberString
+PASS +values.notANumber * values.nonNumberString is NaN
+PASS values.notANumber * +values.nonNumberString is values.notANumber * values.nonNumberString
+PASS values.notANumber * +values.nonNumberString is NaN
+PASS +values.notANumber * +values.nonNumberString is values.notANumber * values.nonNumberString
+PASS +values.notANumber * +values.nonNumberString is NaN
+PASS +values.notANumber / values.nonNumberString is values.notANumber / values.nonNumberString
+PASS +values.notANumber / values.nonNumberString is NaN
+PASS values.notANumber / +values.nonNumberString is values.notANumber / values.nonNumberString
+PASS values.notANumber / +values.nonNumberString is NaN
+PASS +values.notANumber / +values.nonNumberString is values.notANumber / values.nonNumberString
+PASS +values.notANumber / +values.nonNumberString is NaN
+PASS +values.notANumber - values.nonNumberString is values.notANumber - values.nonNumberString
+PASS +values.notANumber - values.nonNumberString is NaN
+PASS values.notANumber - +values.nonNumberString is values.notANumber - values.nonNumberString
+PASS values.notANumber - +values.nonNumberString is NaN
+PASS +values.notANumber - +values.nonNumberString is values.notANumber - values.nonNumberString
+PASS +values.notANumber - +values.nonNumberString is NaN
+PASS +values.notANumber * values.someFloatString is values.notANumber * values.someFloatString
+PASS +values.notANumber * values.someFloatString is NaN
+PASS values.notANumber * +values.someFloatString is values.notANumber * values.someFloatString
+PASS values.notANumber * +values.someFloatString is NaN
+PASS +values.notANumber * +values.someFloatString is values.notANumber * values.someFloatString
+PASS +values.notANumber * +values.someFloatString is NaN
+PASS +values.notANumber / values.someFloatString is values.notANumber / values.someFloatString
+PASS +values.notANumber / values.someFloatString is NaN
+PASS values.notANumber / +values.someFloatString is values.notANumber / values.someFloatString
+PASS values.notANumber / +values.someFloatString is NaN
+PASS +values.notANumber / +values.someFloatString is values.notANumber / values.someFloatString
+PASS +values.notANumber / +values.someFloatString is NaN
+PASS +values.notANumber - values.someFloatString is values.notANumber - values.someFloatString
+PASS +values.notANumber - values.someFloatString is NaN
+PASS values.notANumber - +values.someFloatString is values.notANumber - values.someFloatString
+PASS values.notANumber - +values.someFloatString is NaN
+PASS +values.notANumber - +values.someFloatString is values.notANumber - values.someFloatString
+PASS +values.notANumber - +values.someFloatString is NaN
+PASS +values.nonNumberString * values.someInt is values.nonNumberString * values.someInt
+PASS +values.nonNumberString * values.someInt is NaN
+PASS values.nonNumberString * +values.someInt is values.nonNumberString * values.someInt
+PASS values.nonNumberString * +values.someInt is NaN
+PASS +values.nonNumberString * +values.someInt is values.nonNumberString * values.someInt
+PASS +values.nonNumberString * +values.someInt is NaN
+PASS +values.nonNumberString / values.someInt is values.nonNumberString / values.someInt
+PASS +values.nonNumberString / values.someInt is NaN
+PASS values.nonNumberString / +values.someInt is values.nonNumberString / values.someInt
+PASS values.nonNumberString / +values.someInt is NaN
+PASS +values.nonNumberString / +values.someInt is values.nonNumberString / values.someInt
+PASS +values.nonNumberString / +values.someInt is NaN
+PASS +values.nonNumberString - values.someInt is values.nonNumberString - values.someInt
+PASS +values.nonNumberString - values.someInt is NaN
+PASS values.nonNumberString - +values.someInt is values.nonNumberString - values.someInt
+PASS values.nonNumberString - +values.someInt is NaN
+PASS +values.nonNumberString - +values.someInt is values.nonNumberString - values.someInt
+PASS +values.nonNumberString - +values.someInt is NaN
+PASS +values.nonNumberString * values.someFloat is values.nonNumberString * values.someFloat
+PASS +values.nonNumberString * values.someFloat is NaN
+PASS values.nonNumberString * +values.someFloat is values.nonNumberString * values.someFloat
+PASS values.nonNumberString * +values.someFloat is NaN
+PASS +values.nonNumberString * +values.someFloat is values.nonNumberString * values.someFloat
+PASS +values.nonNumberString * +values.someFloat is NaN
+PASS +values.nonNumberString / values.someFloat is values.nonNumberString / values.someFloat
+PASS +values.nonNumberString / values.someFloat is NaN
+PASS values.nonNumberString / +values.someFloat is values.nonNumberString / values.someFloat
+PASS values.nonNumberString / +values.someFloat is NaN
+PASS +values.nonNumberString / +values.someFloat is values.nonNumberString / values.someFloat
+PASS +values.nonNumberString / +values.someFloat is NaN
+PASS +values.nonNumberString - values.someFloat is values.nonNumberString - values.someFloat
+PASS +values.nonNumberString - values.someFloat is NaN
+PASS values.nonNumberString - +values.someFloat is values.nonNumberString - values.someFloat
+PASS values.nonNumberString - +values.someFloat is NaN
+PASS +values.nonNumberString - +values.someFloat is values.nonNumberString - values.someFloat
+PASS +values.nonNumberString - +values.someFloat is NaN
+PASS +values.nonNumberString * values.one is values.nonNumberString * values.one
+PASS +values.nonNumberString * values.one is NaN
+PASS values.nonNumberString * +values.one is values.nonNumberString * values.one
+PASS values.nonNumberString * +values.one is NaN
+PASS +values.nonNumberString * +values.one is values.nonNumberString * values.one
+PASS +values.nonNumberString * +values.one is NaN
+PASS +values.nonNumberString / values.one is values.nonNumberString / values.one
+PASS +values.nonNumberString / values.one is NaN
+PASS values.nonNumberString / +values.one is values.nonNumberString / values.one
+PASS values.nonNumberString / +values.one is NaN
+PASS +values.nonNumberString / +values.one is values.nonNumberString / values.one
+PASS +values.nonNumberString / +values.one is NaN
+PASS +values.nonNumberString - values.one is values.nonNumberString - values.one
+PASS +values.nonNumberString - values.one is NaN
+PASS values.nonNumberString - +values.one is values.nonNumberString - values.one
+PASS values.nonNumberString - +values.one is NaN
+PASS +values.nonNumberString - +values.one is values.nonNumberString - values.one
+PASS +values.nonNumberString - +values.one is NaN
+PASS +values.nonNumberString * values.minusOne is values.nonNumberString * values.minusOne
+PASS +values.nonNumberString * values.minusOne is NaN
+PASS values.nonNumberString * +values.minusOne is values.nonNumberString * values.minusOne
+PASS values.nonNumberString * +values.minusOne is NaN
+PASS +values.nonNumberString * +values.minusOne is values.nonNumberString * values.minusOne
+PASS +values.nonNumberString * +values.minusOne is NaN
+PASS +values.nonNumberString / values.minusOne is values.nonNumberString / values.minusOne
+PASS +values.nonNumberString / values.minusOne is NaN
+PASS values.nonNumberString / +values.minusOne is values.nonNumberString / values.minusOne
+PASS values.nonNumberString / +values.minusOne is NaN
+PASS +values.nonNumberString / +values.minusOne is values.nonNumberString / values.minusOne
+PASS +values.nonNumberString / +values.minusOne is NaN
+PASS +values.nonNumberString - values.minusOne is values.nonNumberString - values.minusOne
+PASS +values.nonNumberString - values.minusOne is NaN
+PASS values.nonNumberString - +values.minusOne is values.nonNumberString - values.minusOne
+PASS values.nonNumberString - +values.minusOne is NaN
+PASS +values.nonNumberString - +values.minusOne is values.nonNumberString - values.minusOne
+PASS +values.nonNumberString - +values.minusOne is NaN
+PASS +values.nonNumberString * values.zero is values.nonNumberString * values.zero
+PASS +values.nonNumberString * values.zero is NaN
+PASS values.nonNumberString * +values.zero is values.nonNumberString * values.zero
+PASS values.nonNumberString * +values.zero is NaN
+PASS +values.nonNumberString * +values.zero is values.nonNumberString * values.zero
+PASS +values.nonNumberString * +values.zero is NaN
+PASS +values.nonNumberString / values.zero is values.nonNumberString / values.zero
+PASS +values.nonNumberString / values.zero is NaN
+PASS values.nonNumberString / +values.zero is values.nonNumberString / values.zero
+PASS values.nonNumberString / +values.zero is NaN
+PASS +values.nonNumberString / +values.zero is values.nonNumberString / values.zero
+PASS +values.nonNumberString / +values.zero is NaN
+PASS +values.nonNumberString - values.zero is values.nonNumberString - values.zero
+PASS +values.nonNumberString - values.zero is NaN
+PASS values.nonNumberString - +values.zero is values.nonNumberString - values.zero
+PASS values.nonNumberString - +values.zero is NaN
+PASS +values.nonNumberString - +values.zero is values.nonNumberString - values.zero
+PASS +values.nonNumberString - +values.zero is NaN
+PASS +values.nonNumberString * values.minusZero is values.nonNumberString * values.minusZero
+PASS +values.nonNumberString * values.minusZero is NaN
+PASS values.nonNumberString * +values.minusZero is values.nonNumberString * values.minusZero
+PASS values.nonNumberString * +values.minusZero is NaN
+PASS +values.nonNumberString * +values.minusZero is values.nonNumberString * values.minusZero
+PASS +values.nonNumberString * +values.minusZero is NaN
+PASS +values.nonNumberString / values.minusZero is values.nonNumberString / values.minusZero
+PASS +values.nonNumberString / values.minusZero is NaN
+PASS values.nonNumberString / +values.minusZero is values.nonNumberString / values.minusZero
+PASS values.nonNumberString / +values.minusZero is NaN
+PASS +values.nonNumberString / +values.minusZero is values.nonNumberString / values.minusZero
+PASS +values.nonNumberString / +values.minusZero is NaN
+PASS +values.nonNumberString - values.minusZero is values.nonNumberString - values.minusZero
+PASS +values.nonNumberString - values.minusZero is NaN
+PASS values.nonNumberString - +values.minusZero is values.nonNumberString - values.minusZero
+PASS values.nonNumberString - +values.minusZero is NaN
+PASS +values.nonNumberString - +values.minusZero is values.nonNumberString - values.minusZero
+PASS +values.nonNumberString - +values.minusZero is NaN
+PASS +values.nonNumberString * values.infinity is values.nonNumberString * values.infinity
+PASS +values.nonNumberString * values.infinity is NaN
+PASS values.nonNumberString * +values.infinity is values.nonNumberString * values.infinity
+PASS values.nonNumberString * +values.infinity is NaN
+PASS +values.nonNumberString * +values.infinity is values.nonNumberString * values.infinity
+PASS +values.nonNumberString * +values.infinity is NaN
+PASS +values.nonNumberString / values.infinity is values.nonNumberString / values.infinity
+PASS +values.nonNumberString / values.infinity is NaN
+PASS values.nonNumberString / +values.infinity is values.nonNumberString / values.infinity
+PASS values.nonNumberString / +values.infinity is NaN
+PASS +values.nonNumberString / +values.infinity is values.nonNumberString / values.infinity
+PASS +values.nonNumberString / +values.infinity is NaN
+PASS +values.nonNumberString - values.infinity is values.nonNumberString - values.infinity
+PASS +values.nonNumberString - values.infinity is NaN
+PASS values.nonNumberString - +values.infinity is values.nonNumberString - values.infinity
+PASS values.nonNumberString - +values.infinity is NaN
+PASS +values.nonNumberString - +values.infinity is values.nonNumberString - values.infinity
+PASS +values.nonNumberString - +values.infinity is NaN
+PASS +values.nonNumberString * values.minusInfinity is values.nonNumberString * values.minusInfinity
+PASS +values.nonNumberString * values.minusInfinity is NaN
+PASS values.nonNumberString * +values.minusInfinity is values.nonNumberString * values.minusInfinity
+PASS values.nonNumberString * +values.minusInfinity is NaN
+PASS +values.nonNumberString * +values.minusInfinity is values.nonNumberString * values.minusInfinity
+PASS +values.nonNumberString * +values.minusInfinity is NaN
+PASS +values.nonNumberString / values.minusInfinity is values.nonNumberString / values.minusInfinity
+PASS +values.nonNumberString / values.minusInfinity is NaN
+PASS values.nonNumberString / +values.minusInfinity is values.nonNumberString / values.minusInfinity
+PASS values.nonNumberString / +values.minusInfinity is NaN
+PASS +values.nonNumberString / +values.minusInfinity is values.nonNumberString / values.minusInfinity
+PASS +values.nonNumberString / +values.minusInfinity is NaN
+PASS +values.nonNumberString - values.minusInfinity is values.nonNumberString - values.minusInfinity
+PASS +values.nonNumberString - values.minusInfinity is NaN
+PASS values.nonNumberString - +values.minusInfinity is values.nonNumberString - values.minusInfinity
+PASS values.nonNumberString - +values.minusInfinity is NaN
+PASS +values.nonNumberString - +values.minusInfinity is values.nonNumberString - values.minusInfinity
+PASS +values.nonNumberString - +values.minusInfinity is NaN
+PASS +values.nonNumberString * values.notANumber is values.nonNumberString * values.notANumber
+PASS +values.nonNumberString * values.notANumber is NaN
+PASS values.nonNumberString * +values.notANumber is values.nonNumberString * values.notANumber
+PASS values.nonNumberString * +values.notANumber is NaN
+PASS +values.nonNumberString * +values.notANumber is values.nonNumberString * values.notANumber
+PASS +values.nonNumberString * +values.notANumber is NaN
+PASS +values.nonNumberString / values.notANumber is values.nonNumberString / values.notANumber
+PASS +values.nonNumberString / values.notANumber is NaN
+PASS values.nonNumberString / +values.notANumber is values.nonNumberString / values.notANumber
+PASS values.nonNumberString / +values.notANumber is NaN
+PASS +values.nonNumberString / +values.notANumber is values.nonNumberString / values.notANumber
+PASS +values.nonNumberString / +values.notANumber is NaN
+PASS +values.nonNumberString - values.notANumber is values.nonNumberString - values.notANumber
+PASS +values.nonNumberString - values.notANumber is NaN
+PASS values.nonNumberString - +values.notANumber is values.nonNumberString - values.notANumber
+PASS values.nonNumberString - +values.notANumber is NaN
+PASS +values.nonNumberString - +values.notANumber is values.nonNumberString - values.notANumber
+PASS +values.nonNumberString - +values.notANumber is NaN
+PASS +values.nonNumberString * values.nonNumberString is values.nonNumberString * values.nonNumberString
+PASS +values.nonNumberString * values.nonNumberString is NaN
+PASS values.nonNumberString * +values.nonNumberString is values.nonNumberString * values.nonNumberString
+PASS values.nonNumberString * +values.nonNumberString is NaN
+PASS +values.nonNumberString * +values.nonNumberString is values.nonNumberString * values.nonNumberString
+PASS +values.nonNumberString * +values.nonNumberString is NaN
+PASS +values.nonNumberString / values.nonNumberString is values.nonNumberString / values.nonNumberString
+PASS +values.nonNumberString / values.nonNumberString is NaN
+PASS values.nonNumberString / +values.nonNumberString is values.nonNumberString / values.nonNumberString
+PASS values.nonNumberString / +values.nonNumberString is NaN
+PASS +values.nonNumberString / +values.nonNumberString is values.nonNumberString / values.nonNumberString
+PASS +values.nonNumberString / +values.nonNumberString is NaN
+PASS +values.nonNumberString - values.nonNumberString is values.nonNumberString - values.nonNumberString
+PASS +values.nonNumberString - values.nonNumberString is NaN
+PASS values.nonNumberString - +values.nonNumberString is values.nonNumberString - values.nonNumberString
+PASS values.nonNumberString - +values.nonNumberString is NaN
+PASS +values.nonNumberString - +values.nonNumberString is values.nonNumberString - values.nonNumberString
+PASS +values.nonNumberString - +values.nonNumberString is NaN
+PASS +values.nonNumberString * values.someFloatString is values.nonNumberString * values.someFloatString
+PASS +values.nonNumberString * values.someFloatString is NaN
+PASS values.nonNumberString * +values.someFloatString is values.nonNumberString * values.someFloatString
+PASS values.nonNumberString * +values.someFloatString is NaN
+PASS +values.nonNumberString * +values.someFloatString is values.nonNumberString * values.someFloatString
+PASS +values.nonNumberString * +values.someFloatString is NaN
+PASS +values.nonNumberString / values.someFloatString is values.nonNumberString / values.someFloatString
+PASS +values.nonNumberString / values.someFloatString is NaN
+PASS values.nonNumberString / +values.someFloatString is values.nonNumberString / values.someFloatString
+PASS values.nonNumberString / +values.someFloatString is NaN
+PASS +values.nonNumberString / +values.someFloatString is values.nonNumberString / values.someFloatString
+PASS +values.nonNumberString / +values.someFloatString is NaN
+PASS +values.nonNumberString - values.someFloatString is values.nonNumberString - values.someFloatString
+PASS +values.nonNumberString - values.someFloatString is NaN
+PASS values.nonNumberString - +values.someFloatString is values.nonNumberString - values.someFloatString
+PASS values.nonNumberString - +values.someFloatString is NaN
+PASS +values.nonNumberString - +values.someFloatString is values.nonNumberString - values.someFloatString
+PASS +values.nonNumberString - +values.someFloatString is NaN
+PASS +values.someFloatString * values.someInt is values.someFloatString * values.someInt
+PASS +values.someFloatString * values.someInt is 1781.64
+PASS values.someFloatString * +values.someInt is values.someFloatString * values.someInt
+PASS values.someFloatString * +values.someInt is 1781.64
+PASS +values.someFloatString * +values.someInt is values.someFloatString * values.someInt
+PASS +values.someFloatString * +values.someInt is 1781.64
+PASS +values.someFloatString / values.someInt is values.someFloatString / values.someInt
+PASS +values.someFloatString / values.someInt is 1.01
+PASS values.someFloatString / +values.someInt is values.someFloatString / values.someInt
+PASS values.someFloatString / +values.someInt is 1.01
+PASS +values.someFloatString / +values.someInt is values.someFloatString / values.someInt
+PASS +values.someFloatString / +values.someInt is 1.01
+PASS +values.someFloatString - values.someInt is values.someFloatString - values.someInt
+PASS +values.someFloatString - values.someInt is 0.4200000000000017
+PASS values.someFloatString - +values.someInt is values.someFloatString - values.someInt
+PASS values.someFloatString - +values.someInt is 0.4200000000000017
+PASS +values.someFloatString - +values.someInt is values.someFloatString - values.someInt
+PASS +values.someFloatString - +values.someInt is 0.4200000000000017
+PASS +values.someFloatString * values.someFloat is values.someFloatString * values.someFloat
+PASS +values.someFloatString * values.someFloat is 1799.4564000000003
+PASS values.someFloatString * +values.someFloat is values.someFloatString * values.someFloat
+PASS values.someFloatString * +values.someFloat is 1799.4564000000003
+PASS +values.someFloatString * +values.someFloat is values.someFloatString * values.someFloat
+PASS +values.someFloatString * +values.someFloat is 1799.4564000000003
+PASS +values.someFloatString / values.someFloat is values.someFloatString / values.someFloat
+PASS +values.someFloatString / values.someFloat is 1
+PASS values.someFloatString / +values.someFloat is values.someFloatString / values.someFloat
+PASS values.someFloatString / +values.someFloat is 1
+PASS +values.someFloatString / +values.someFloat is values.someFloatString / values.someFloat
+PASS +values.someFloatString / +values.someFloat is 1
+PASS +values.someFloatString - values.someFloat is values.someFloatString - values.someFloat
+PASS +values.someFloatString - values.someFloat is 0
+PASS values.someFloatString - +values.someFloat is values.someFloatString - values.someFloat
+PASS values.someFloatString - +values.someFloat is 0
+PASS +values.someFloatString - +values.someFloat is values.someFloatString - values.someFloat
+PASS +values.someFloatString - +values.someFloat is 0
+PASS +values.someFloatString * values.one is values.someFloatString * values.one
+PASS +values.someFloatString * values.one is 42.42
+PASS values.someFloatString * +values.one is values.someFloatString * values.one
+PASS values.someFloatString * +values.one is 42.42
+PASS +values.someFloatString * +values.one is values.someFloatString * values.one
+PASS +values.someFloatString * +values.one is 42.42
+PASS +values.someFloatString / values.one is values.someFloatString / values.one
+PASS +values.someFloatString / values.one is 42.42
+PASS values.someFloatString / +values.one is values.someFloatString / values.one
+PASS values.someFloatString / +values.one is 42.42
+PASS +values.someFloatString / +values.one is values.someFloatString / values.one
+PASS +values.someFloatString / +values.one is 42.42
+PASS +values.someFloatString - values.one is values.someFloatString - values.one
+PASS +values.someFloatString - values.one is 41.42
+PASS values.someFloatString - +values.one is values.someFloatString - values.one
+PASS values.someFloatString - +values.one is 41.42
+PASS +values.someFloatString - +values.one is values.someFloatString - values.one
+PASS +values.someFloatString - +values.one is 41.42
+PASS +values.someFloatString * values.minusOne is values.someFloatString * values.minusOne
+PASS +values.someFloatString * values.minusOne is -42.42
+PASS values.someFloatString * +values.minusOne is values.someFloatString * values.minusOne
+PASS values.someFloatString * +values.minusOne is -42.42
+PASS +values.someFloatString * +values.minusOne is values.someFloatString * values.minusOne
+PASS +values.someFloatString * +values.minusOne is -42.42
+PASS +values.someFloatString / values.minusOne is values.someFloatString / values.minusOne
+PASS +values.someFloatString / values.minusOne is -42.42
+PASS values.someFloatString / +values.minusOne is values.someFloatString / values.minusOne
+PASS values.someFloatString / +values.minusOne is -42.42
+PASS +values.someFloatString / +values.minusOne is values.someFloatString / values.minusOne
+PASS +values.someFloatString / +values.minusOne is -42.42
+PASS +values.someFloatString - values.minusOne is values.someFloatString - values.minusOne
+PASS +values.someFloatString - values.minusOne is 43.42
+PASS values.someFloatString - +values.minusOne is values.someFloatString - values.minusOne
+PASS values.someFloatString - +values.minusOne is 43.42
+PASS +values.someFloatString - +values.minusOne is values.someFloatString - values.minusOne
+PASS +values.someFloatString - +values.minusOne is 43.42
+PASS +values.someFloatString * values.zero is values.someFloatString * values.zero
+PASS +values.someFloatString * values.zero is 0
+PASS values.someFloatString * +values.zero is values.someFloatString * values.zero
+PASS values.someFloatString * +values.zero is 0
+PASS +values.someFloatString * +values.zero is values.someFloatString * values.zero
+PASS +values.someFloatString * +values.zero is 0
+PASS +values.someFloatString / values.zero is values.someFloatString / values.zero
+PASS +values.someFloatString / values.zero is Infinity
+PASS values.someFloatString / +values.zero is values.someFloatString / values.zero
+PASS values.someFloatString / +values.zero is Infinity
+PASS +values.someFloatString / +values.zero is values.someFloatString / values.zero
+PASS +values.someFloatString / +values.zero is Infinity
+PASS +values.someFloatString - values.zero is values.someFloatString - values.zero
+PASS +values.someFloatString - values.zero is 42.42
+PASS values.someFloatString - +values.zero is values.someFloatString - values.zero
+PASS values.someFloatString - +values.zero is 42.42
+PASS +values.someFloatString - +values.zero is values.someFloatString - values.zero
+PASS +values.someFloatString - +values.zero is 42.42
+PASS +values.someFloatString * values.minusZero is values.someFloatString * values.minusZero
+PASS +values.someFloatString * values.minusZero is -0
+PASS values.someFloatString * +values.minusZero is values.someFloatString * values.minusZero
+PASS values.someFloatString * +values.minusZero is -0
+PASS +values.someFloatString * +values.minusZero is values.someFloatString * values.minusZero
+PASS +values.someFloatString * +values.minusZero is -0
+PASS +values.someFloatString / values.minusZero is values.someFloatString / values.minusZero
+PASS +values.someFloatString / values.minusZero is -Infinity
+PASS values.someFloatString / +values.minusZero is values.someFloatString / values.minusZero
+PASS values.someFloatString / +values.minusZero is -Infinity
+PASS +values.someFloatString / +values.minusZero is values.someFloatString / values.minusZero
+PASS +values.someFloatString / +values.minusZero is -Infinity
+PASS +values.someFloatString - values.minusZero is values.someFloatString - values.minusZero
+PASS +values.someFloatString - values.minusZero is 42.42
+PASS values.someFloatString - +values.minusZero is values.someFloatString - values.minusZero
+PASS values.someFloatString - +values.minusZero is 42.42
+PASS +values.someFloatString - +values.minusZero is values.someFloatString - values.minusZero
+PASS +values.someFloatString - +values.minusZero is 42.42
+PASS +values.someFloatString * values.infinity is values.someFloatString * values.infinity
+PASS +values.someFloatString * values.infinity is Infinity
+PASS values.someFloatString * +values.infinity is values.someFloatString * values.infinity
+PASS values.someFloatString * +values.infinity is Infinity
+PASS +values.someFloatString * +values.infinity is values.someFloatString * values.infinity
+PASS +values.someFloatString * +values.infinity is Infinity
+PASS +values.someFloatString / values.infinity is values.someFloatString / values.infinity
+PASS +values.someFloatString / values.infinity is 0
+PASS values.someFloatString / +values.infinity is values.someFloatString / values.infinity
+PASS values.someFloatString / +values.infinity is 0
+PASS +values.someFloatString / +values.infinity is values.someFloatString / values.infinity
+PASS +values.someFloatString / +values.infinity is 0
+PASS +values.someFloatString - values.infinity is values.someFloatString - values.infinity
+PASS +values.someFloatString - values.infinity is -Infinity
+PASS values.someFloatString - +values.infinity is values.someFloatString - values.infinity
+PASS values.someFloatString - +values.infinity is -Infinity
+PASS +values.someFloatString - +values.infinity is values.someFloatString - values.infinity
+PASS +values.someFloatString - +values.infinity is -Infinity
+PASS +values.someFloatString * values.minusInfinity is values.someFloatString * values.minusInfinity
+PASS +values.someFloatString * values.minusInfinity is -Infinity
+PASS values.someFloatString * +values.minusInfinity is values.someFloatString * values.minusInfinity
+PASS values.someFloatString * +values.minusInfinity is -Infinity
+PASS +values.someFloatString * +values.minusInfinity is values.someFloatString * values.minusInfinity
+PASS +values.someFloatString * +values.minusInfinity is -Infinity
+PASS +values.someFloatString / values.minusInfinity is values.someFloatString / values.minusInfinity
+PASS +values.someFloatString / values.minusInfinity is -0
+PASS values.someFloatString / +values.minusInfinity is values.someFloatString / values.minusInfinity
+PASS values.someFloatString / +values.minusInfinity is -0
+PASS +values.someFloatString / +values.minusInfinity is values.someFloatString / values.minusInfinity
+PASS +values.someFloatString / +values.minusInfinity is -0
+PASS +values.someFloatString - values.minusInfinity is values.someFloatString - values.minusInfinity
+PASS +values.someFloatString - values.minusInfinity is Infinity
+PASS values.someFloatString - +values.minusInfinity is values.someFloatString - values.minusInfinity
+PASS values.someFloatString - +values.minusInfinity is Infinity
+PASS +values.someFloatString - +values.minusInfinity is values.someFloatString - values.minusInfinity
+PASS +values.someFloatString - +values.minusInfinity is Infinity
+PASS +values.someFloatString * values.notANumber is values.someFloatString * values.notANumber
+PASS +values.someFloatString * values.notANumber is NaN
+PASS values.someFloatString * +values.notANumber is values.someFloatString * values.notANumber
+PASS values.someFloatString * +values.notANumber is NaN
+PASS +values.someFloatString * +values.notANumber is values.someFloatString * values.notANumber
+PASS +values.someFloatString * +values.notANumber is NaN
+PASS +values.someFloatString / values.notANumber is values.someFloatString / values.notANumber
+PASS +values.someFloatString / values.notANumber is NaN
+PASS values.someFloatString / +values.notANumber is values.someFloatString / values.notANumber
+PASS values.someFloatString / +values.notANumber is NaN
+PASS +values.someFloatString / +values.notANumber is values.someFloatString / values.notANumber
+PASS +values.someFloatString / +values.notANumber is NaN
+PASS +values.someFloatString - values.notANumber is values.someFloatString - values.notANumber
+PASS +values.someFloatString - values.notANumber is NaN
+PASS values.someFloatString - +values.notANumber is values.someFloatString - values.notANumber
+PASS values.someFloatString - +values.notANumber is NaN
+PASS +values.someFloatString - +values.notANumber is values.someFloatString - values.notANumber
+PASS +values.someFloatString - +values.notANumber is NaN
+PASS +values.someFloatString * values.nonNumberString is values.someFloatString * values.nonNumberString
+PASS +values.someFloatString * values.nonNumberString is NaN
+PASS values.someFloatString * +values.nonNumberString is values.someFloatString * values.nonNumberString
+PASS values.someFloatString * +values.nonNumberString is NaN
+PASS +values.someFloatString * +values.nonNumberString is values.someFloatString * values.nonNumberString
+PASS +values.someFloatString * +values.nonNumberString is NaN
+PASS +values.someFloatString / values.nonNumberString is values.someFloatString / values.nonNumberString
+PASS +values.someFloatString / values.nonNumberString is NaN
+PASS values.someFloatString / +values.nonNumberString is values.someFloatString / values.nonNumberString
+PASS values.someFloatString / +values.nonNumberString is NaN
+PASS +values.someFloatString / +values.nonNumberString is values.someFloatString / values.nonNumberString
+PASS +values.someFloatString / +values.nonNumberString is NaN
+PASS +values.someFloatString - values.nonNumberString is values.someFloatString - values.nonNumberString
+PASS +values.someFloatString - values.nonNumberString is NaN
+PASS values.someFloatString - +values.nonNumberString is values.someFloatString - values.nonNumberString
+PASS values.someFloatString - +values.nonNumberString is NaN
+PASS +values.someFloatString - +values.nonNumberString is values.someFloatString - values.nonNumberString
+PASS +values.someFloatString - +values.nonNumberString is NaN
+PASS +values.someFloatString * values.someFloatString is values.someFloatString * values.someFloatString
+PASS +values.someFloatString * values.someFloatString is 1799.4564000000003
+PASS values.someFloatString * +values.someFloatString is values.someFloatString * values.someFloatString
+PASS values.someFloatString * +values.someFloatString is 1799.4564000000003
+PASS +values.someFloatString * +values.someFloatString is values.someFloatString * values.someFloatString
+PASS +values.someFloatString * +values.someFloatString is 1799.4564000000003
+PASS +values.someFloatString / values.someFloatString is values.someFloatString / values.someFloatString
+PASS +values.someFloatString / values.someFloatString is 1
+PASS values.someFloatString / +values.someFloatString is values.someFloatString / values.someFloatString
+PASS values.someFloatString / +values.someFloatString is 1
+PASS +values.someFloatString / +values.someFloatString is values.someFloatString / values.someFloatString
+PASS +values.someFloatString / +values.someFloatString is 1
+PASS +values.someFloatString - values.someFloatString is values.someFloatString - values.someFloatString
+PASS +values.someFloatString - values.someFloatString is 0
+PASS values.someFloatString - +values.someFloatString is values.someFloatString - values.someFloatString
+PASS values.someFloatString - +values.someFloatString is 0
+PASS +values.someFloatString - +values.someFloatString is values.someFloatString - values.someFloatString
+PASS +values.someFloatString - +values.someFloatString is 0
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

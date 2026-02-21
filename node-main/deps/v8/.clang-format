@@ -1,0 +1,17 @@
+# Defines the Google C++ style for automatic reformatting.
+# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Google
+DerivePointerAlignment: false
+MaxEmptyLinesToKeep: 1
+IfMacros:
+  - IF
+  - IF_NOT
+Macros:
+  # Make clang-format think TurboShaft `ELSE` expands to just `else`, so that
+  # it formats well alongside `if`
+  - ELSE=else
+  - FOR_WITH_HANDLE_SCOPE(isolate, init, loop_var, limit_check, increment)=for(init; loop_var; increment)
+  - WHILE_WITH_HANDLE_SCOPE(isolate, limit_check)=while(limit_check)
+StatementMacros:
+  - DECL_CAST
+  - DECL_VERIFIER

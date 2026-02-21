@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test that disabled is honored immediately in presence of dynamic changes</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Andreas Farre" href="mailto:afarre@mozilla.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#enabling-and-disabling-form-controls:-the-disabled-attribute">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1405087">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<input type="button" value="Click" disabled>
+<script>
+async_test(t => {
+  // NOTE: This test will timeout if it fails.
+  window.addEventListener('load', t.step_func(() => {
+    let e = document.querySelector('input');
+    e.disabled = false;
+    e.onclick = t.step_func_done(() => {});
+    e.click();
+  }));
+}, "disabled is honored properly in presence of dynamic changes");
+</script>

@@ -1,0 +1,4 @@
+{
+  "crash_type": "CHECK failure",
+  "crash_state": "marking_state_->IsBlack(heap_object) in mark-compact.cc"
+}

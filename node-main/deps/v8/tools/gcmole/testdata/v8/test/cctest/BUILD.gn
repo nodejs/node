@@ -1,0 +1,12 @@
+# Copyright 2022 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Test data for gcmole.
+
+some_sources = [
+  ### gcmole(x64) ###
+  "foo-x64-file1.cc",
+  "test-x64-file1.cc",
+  "test-x64-file2.cc",
+]

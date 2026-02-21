@@ -1,0 +1,5 @@
+{
+  "name": "package-cjs-named-error",
+  "main": "index.mjs",
+  "type": "module"
+}

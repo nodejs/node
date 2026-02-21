@@ -1,0 +1,18 @@
+*test-fatal-error.js:*
+throw err;
+^
+
+TypeError: foobar
+    at Object.<anonymous> [90m(*test-fatal-error.js:*:*[90m)[39m
+[90m    at *(node:internal*loader:*:*)[39m
+[90m    at *(node:internal*loader:*:*)[39m
+[90m    at *(node:internal*loader:*:*)[39m
+[90m    at *(node:internal*loader:*:*)[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m {
+  bla: [33mtrue[39m
+}
+
+Node.js *

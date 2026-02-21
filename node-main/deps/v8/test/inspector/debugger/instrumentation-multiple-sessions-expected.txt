@@ -1,0 +1,64 @@
+Checks instrumentation pause with multiple sessions
+
+Running test: testTwoInstrumentationBreaksResume
+Created two sessions.
+Paused 1: instrumentation
+Paused 2: instrumentation
+Resumed session 1
+Resumed session 2
+Evaluation result: 42
+Evaluation finished
+
+Running test: testInstrumentedSessionNotification
+Created two sessions.
+Session 1 paused (instrumentation)
+Session 2 paused (other)
+Resumed session 1
+Resumed session 2
+Evaluation result: 42
+Evaluation finished
+
+Running test: testNonInstrumentedSessionCannotsResumeInstrumentationPause
+Created two sessions.
+Session 1 paused (instrumentation)
+Session 2 paused (other)
+Called "resume" on session 2
+Called "resume" on session 1
+Resumed session 1
+Resumed session 2
+Evaluation result: 42
+Evaluation finished
+
+Running test: testEvaluationFromNonInstrumentedSession
+Created two sessions.
+Session 1 paused (instrumentation)
+Session 2 paused (other)
+Called "resume" on session 1
+Resumed session 1
+Resumed session 2
+Evaluation result: 42
+Evaluation finished
+
+Running test: testTransparentEvaluationFromNonInstrumentedSessionDuringPause
+Created two sessions.
+Session 1 paused (instrumentation)
+Session 2 paused (other)
+Resumed session 1
+Session 2 evaluation result: 42
+
+Running test: testInstrumentationStopResumesWithOtherSessions
+Created two sessions.
+Session 1 paused (instrumentation)
+Stopped session 1
+Resumed session 2
+Session 2 evaluation result: 42
+
+Running test: testInstrumentationPauseAndNormalPause
+Created two sessions.
+Session 1 paused (instrumentation)
+Session 2 paused (other)
+Session 2 pause requested
+Session 1 instrumentation resume requested
+Session 2 paused (other)
+Session 2 resumed
+Session 1 evaluation result: 42

@@ -1,0 +1,166 @@
+#
+# Copyright 2017 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load(
+    "//absl:copts/configure_copts.bzl",
+    "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
+    "ABSL_TEST_COPTS",
+)
+
+package(
+    default_visibility = ["//visibility:public"],
+    features = [
+        "header_modules",
+        "layering_check",
+        "parse_headers",
+    ],
+)
+
+licenses(["notice"])
+
+cc_library(
+    name = "any",
+    hdrs = ["any.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "bad_any_cast",
+    deprecation = "bad_any_cast dependency is empty can be removed",
+)
+
+cc_library(
+    name = "span",
+    srcs = [
+        "internal/span.h",
+    ],
+    hdrs = [
+        "span.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/algorithm",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:nullability",
+        "//absl/base:throw_delegate",
+        "//absl/hash:weakly_mixed_integer",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "span_test",
+    size = "small",
+    srcs = ["span_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":span",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:exception_testing",
+        "//absl/container:fixed_array",
+        "//absl/container:inlined_vector",
+        "//absl/hash",
+        "//absl/hash:hash_testing",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "optional",
+    hdrs = ["optional.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "bad_optional_access",
+    deprecation = "bad_optional_access dependency is empty can be removed",
+)
+
+cc_library(
+    name = "variant",
+    hdrs = ["variant.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "bad_variant_access",
+    deprecation = "bad_variant_access dependency is empty can be removed",
+)
+
+cc_test(
+    name = "variant_test",
+    size = "small",
+    srcs = ["variant_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":variant",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "compare",
+    hdrs = ["compare.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "compare_test",
+    size = "small",
+    srcs = [
+        "compare_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":compare",
+        "//absl/base",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

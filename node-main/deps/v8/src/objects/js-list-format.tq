@@ -1,0 +1,18 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-list-format.h'
+
+type JSListFormatStyle extends int32 constexpr 'JSListFormat::Style';
+type JSListFormatType extends int32 constexpr 'JSListFormat::Type';
+bitfield struct JSListFormatFlags extends uint31 {
+  style: JSListFormatStyle: 2 bit;
+  Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
+}
+
+extern class JSListFormat extends JSObject {
+  locale: String;
+  icu_formatter: Foreign;  // Managed<icu::ListFormatter>
+  flags: SmiTagged<JSListFormatFlags>;
+}

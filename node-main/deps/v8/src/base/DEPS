@@ -1,0 +1,13 @@
+include_rules = [
+  "-include",
+  "+include/v8config.h",
+  "+include/v8-platform.h",
+  "-src",
+  "+src/base",
+]
+
+specific_include_rules = {
+  "ieee754.h": [
+    "+third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h"
+  ],
+}

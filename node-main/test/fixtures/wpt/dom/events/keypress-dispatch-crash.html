@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Robert Flack" href="mailto:flackr@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1209098">
+
+<!-- No crash should occur if a keypress is dispatched to a constructed document. -->
+
+<script>
+var newDoc = document.implementation.createDocument( "", null);
+var testNode = newDoc.createElement('div');
+newDoc.append(testNode);
+
+var syntheticEvent = document.createEvent('KeyboardEvents');
+syntheticEvent.initKeyboardEvent("keypress");
+testNode.dispatchEvent(syntheticEvent)
+</script>

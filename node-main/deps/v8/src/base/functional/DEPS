@@ -1,0 +1,6 @@
+specific_include_rules = {
+  "function-ref.h": [
+    # base::FunctionRef is implemented as a wrapper around absl::FunctionRef
+    "+absl/functional/function_ref.h"
+  ],
+}

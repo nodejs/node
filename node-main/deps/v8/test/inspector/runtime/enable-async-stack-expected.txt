@@ -1,0 +1,45 @@
+Checks that async stack is captured when Runtime.setAsyncCallStackDepth is called with an argument greater than zero.
+{
+    callFrames : [
+        [0] : {
+            columnNumber : 8
+            functionName : 
+            lineNumber : 0
+            scriptId : <scriptId>
+            url : 
+        }
+    ]
+    parent : {
+        callFrames : [
+            [0] : {
+                columnNumber : 2
+                functionName : test
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : test.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 0
+                scriptId : <scriptId>
+                url : expr.js
+            }
+        ]
+        description : setTimeout
+    }
+}
+{
+    callFrames : [
+        [0] : {
+            columnNumber : 32
+            functionName : 
+            lineNumber : 0
+            scriptId : <scriptId>
+            url : 
+        }
+    ]
+    parentId : {
+        id : <id>
+    }
+}

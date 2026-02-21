@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>URL Test</title>
+    <meta name="variant" content="?include=file"/>
+    <meta name="variant" content="?include=javascript"/>
+    <meta name="variant" content="?include=mailto"/>
+    <meta name="variant" content="?exclude=(file|javascript|mailto)"/>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/subset-tests-by-key.js"></script>
+    <base id="base"/>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script src="resources/a-element.js"></script>
+  </body>
+</html>
+<!--
+  Other dependencies:
+  * resources/urltestdata.json,
+  * resources/urltestdata-javascript-only.json,
+-->
