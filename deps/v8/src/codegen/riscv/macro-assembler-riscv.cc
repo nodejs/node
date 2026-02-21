@@ -6036,9 +6036,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
-  addi(sp, fp, 2 * kSystemPointerSize);
+  Move(sp, fp);
   LoadWord(ra, MemOperand(fp, 1 * kSystemPointerSize));
   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
+  AddWord(sp, sp, 2 * kSystemPointerSize);
 }
 
 void MacroAssembler::EnterExitFrame(int stack_space,
