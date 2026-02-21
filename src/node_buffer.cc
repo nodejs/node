@@ -618,12 +618,12 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
+uint64_t FastCopy(Local<Value> receiver,
                   Local<Value> source_obj,
                   Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
+                  uint64_t target_start,
+                  uint64_t source_start,
+                  uint64_t to_copy,
                   // NOLINTNEXTLINE(runtime/references)
                   FastApiCallbackOptions& options) {
   HandleScope scope(options.isolate);
