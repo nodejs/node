@@ -5,6 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61262
+    description: SQLite is now a release candidate.
   - version:
     - v23.4.0
     - v22.13.0
@@ -12,7 +15,7 @@ changes:
     description: SQLite is no longer behind `--experimental-sqlite` but still experimental.
 -->
 
-> Stability: 1.1 - Active development.
+> Stability: 1.2 - Release candidate.
 
 <!-- source_link=lib/sqlite.js -->
 
