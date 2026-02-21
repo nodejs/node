@@ -946,7 +946,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Application
+Type: Application (non-`node_modules` code only)
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
