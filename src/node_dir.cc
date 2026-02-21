@@ -321,10 +321,8 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
                            static_cast<int>(req_wrap_sync.req.result),
                            encoding)
              .ToLocal(&js_array)) {
-      // TODO(anonrig): Initializing BufferValue here is wasteful.
       CHECK(try_catch.CanContinue());
-      BufferValue error_payload(isolate, try_catch.Exception());
-      env->ThrowError(error_payload.out());
+      try_catch.ReThrow();
       return;
     }
 
