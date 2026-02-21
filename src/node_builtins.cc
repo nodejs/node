@@ -128,8 +128,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #endif  // !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
 
 #if !HAVE_OPENSSL
-        "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "crypto", "crypto/promises", "https", "http2", "tls",
+        "internal/tls/parse-cert-string", "internal/tls/common",
         "internal/tls/wrap", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
