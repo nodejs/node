@@ -12,7 +12,6 @@ const compressedGzip = new Uint8Array([
 
 test('DecompressionStream accepts ArrayBuffer chunks', async () => {
   const ds = new DecompressionStream('gzip');
-  const reader = ds.readable.getReader();
   const writer = ds.writable.getWriter();
 
   const writePromise = writer.write(compressedGzip.buffer);
