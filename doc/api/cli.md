@@ -3349,6 +3349,10 @@ added:
   - v16.19.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59478
+    description: support glob patterns in paths
+  - version:
     - v22.0.0
     - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52074
