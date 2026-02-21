@@ -160,11 +160,11 @@ platforms. This is true regardless of entries in the table below.
 
 Depending on the host platform, the selection of toolchains may vary.
 
-| Operating System | Compiler Versions                                              |
-| ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 10.1                                                    |
-| Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 13 (Apple LLVM >= 12)                                 |
+| Operating System | Compiler Versions                                           |
+| ---------------- | ----------------------------------------------------------- |
+| Linux            | GCC >= 10.1                                                 |
+| Windows          | Visual Studio 2022 with the Windows 10 SDK on a 64-bit host |
+| macOS            | Xcode >= 13 (Apple LLVM >= 12)                              |
 
 ### Official binary platforms and toolchains
 
@@ -686,7 +686,7 @@ Optional requirements to build the MSI installer package:
 
 Optional requirements for compiling for Windows on ARM (ARM64):
 
-* Visual Studio 17.6.0 or newer
+* Visual Studio 2022 (17.6.0 or newer)
   > **Note:** There is [a bug](https://github.com/nodejs/build/issues/3739) in `17.10.x`
   > preventing Node.js from compiling.
 * Visual Studio optional components
