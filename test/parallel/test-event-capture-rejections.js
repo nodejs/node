@@ -1,13 +1,7 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const { EventEmitter, captureRejectionSymbol } = require('events');
-const { inherits } = require('util');
-
-// Inherits from EE without a call to the
-// parent constructor.
-function NoConstructor() {
-}
+const assert = require('node:assert');
+const { EventEmitter, captureRejectionSymbol } = require('node:events');
 
 // captureRejections param validation
 {
@@ -24,7 +18,7 @@ function NoConstructor() {
   });
 }
 
-inherits(NoConstructor, EventEmitter);
+class NoConstructor extends EventEmitter {}
 
 function captureRejections() {
   const ee = new EventEmitter({ captureRejections: true });
