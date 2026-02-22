@@ -2470,6 +2470,9 @@ callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
 
+Note: `fs.copyFile()` always dereferences symbolic links.
+If `src` is a symbolic link, the contents of the target file will be copied rather than the link itself.
+
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
