@@ -3531,6 +3531,47 @@ added: v6.11.0
 
 When set to `1`, process warnings are silenced.
 
+### `NODE_OTEL=value`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When set to a non-empty value, enables the built-in OpenTelemetry tracing
+subsystem using the default collector endpoint (`http://localhost:4318`). Also
+makes the `node:otel` module available without the `--experimental-otel` flag.
+If `NODE_OTEL_ENDPOINT` is also set, it takes precedence for the endpoint. See
+the [`node:otel`][] documentation for details.
+
+### `NODE_OTEL_ENDPOINT=url`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When set to a non-empty value, enables the built-in OpenTelemetry tracing
+subsystem and directs spans to the specified OTLP/HTTP collector endpoint. The
+`/v1/traces` path is appended automatically. Also makes the `node:otel` module
+available without the `--experimental-otel` flag. See the [`node:otel`][]
+documentation for details.
+
+### `NODE_OTEL_FILTER=module[,…]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Comma-separated list of core modules to instrument when OpenTelemetry tracing
+is active. When not set, all supported modules are instrumented. Supported
+values: `node:http`, `node:undici`, `node:fetch`. See the [`node:otel`][]
+documentation for details.
+
 ### `NODE_OPTIONS=options...`
 
 <!-- YAML
@@ -4240,6 +4281,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
+[`node:otel`]: otel.md
 [`node:sqlite`]: sqlite.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version

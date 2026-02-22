@@ -124,6 +124,7 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
+  bool experimental_otel = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
