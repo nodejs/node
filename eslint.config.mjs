@@ -100,7 +100,6 @@ export default [
       parser: babelEslintParser,
       parserOptions: {
         babelOptions: {
-          parserOpts: { createImportExpressions: true },
           plugins: [
             babelPluginSyntaxImportSource,
           ],
