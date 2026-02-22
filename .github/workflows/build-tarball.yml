@@ -64,7 +64,7 @@ jobs:
           compression-level: 0
   test-tarball-linux:
     needs: build-tarball
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     env:
       CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++

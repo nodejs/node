@@ -22,7 +22,7 @@ jobs:
   analysis:
     name: Scorecard analysis
     # cannot use ubuntu-slim here because ossf/scorecard-action is dockerized
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write
