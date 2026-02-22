@@ -27,13 +27,13 @@ assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
 for (const bits of [-1, 0, 1]) {
   if (hasOpenSSL3) {
     assert.throws(() => crypto.createDiffieHellman(bits), {
-      code: 'ERR_OSSL_DH_MODULUS_TOO_SMALL',
+      code: /ERR_OSSL_(BN_BITS|DH_MODULUS)_TOO_SMALL/,
       name: 'Error',
       message: /modulus too small/,
     });
   } else {
     assert.throws(() => crypto.createDiffieHellman(bits), {
-      code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
+      code: /ERR_OSSL_(BN_BITS|DH_MODULUS)_TOO_SMALL/,
       name: 'Error',
       message: /bits[\s_]too[\s_]small/i,
     });

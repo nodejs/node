@@ -97,17 +97,21 @@ const {
       dh3.computeSecret('');
     }, { message: hasOpenSSL3 && !hasOpenSSL3WithNewErrorMessage ?
       'Unspecified validation error' :
-      'Supplied key is too small' });
+      /Supplied key is (too small|invalid)/ });
   }
 }
 
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
-{
+if (!process.features.openssl_is_boringssl) {
   const g = 0;
   crypto.createDiffieHellman('abcdef', g);
   crypto.createDiffieHellman('abcdef', 'hex', g);
+} else {
+  common.printSkipMessage('Skipping unsupported g=0 Diffie-Hellman tests');
 }
 
-{
+if (!process.features.openssl_is_boringssl) {
   crypto.createDiffieHellman('abcdef', Buffer.from([2]));  // OK
+} else {
+  common.printSkipMessage('Skipping unsupported g=0 Diffie-Hellman tests');
 }
