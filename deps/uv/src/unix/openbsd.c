@@ -59,54 +59,13 @@ void uv_loadavg(double avg[3]) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
-  int mib[4];
-  char **argsbuf = NULL;
-  size_t argsbuf_size = 100U;
-  size_t exepath_size;
-  pid_t mypid;
-  int err;
-
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
-  mypid = getpid();
-  for (;;) {
-    err = UV_ENOMEM;
-    argsbuf = uv__reallocf(argsbuf, argsbuf_size);
-    if (argsbuf == NULL)
-      goto out;
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_PROC_ARGS;
-    mib[2] = mypid;
-    mib[3] = KERN_PROC_ARGV;
-    if (sysctl(mib, ARRAY_SIZE(mib), argsbuf, &argsbuf_size, NULL, 0) == 0) {
-      break;
-    }
-    if (errno != ENOMEM) {
-      err = UV__ERR(errno);
-      goto out;
-    }
-    argsbuf_size *= 2U;
-  }
+  if (uv_saved_argv0 == NULL)
+    return UV_EINVAL;
 
-  if (argsbuf[0] == NULL) {
-    err = UV_EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
-    goto out;
-  }
-
-  *size -= 1;
-  exepath_size = strlen(argsbuf[0]);
-  if (*size > exepath_size)
-    *size = exepath_size;
-
-  memcpy(buffer, argsbuf[0], *size);
-  buffer[*size] = '\0';
-  err = 0;
-
-out:
-  uv__free(argsbuf);
-
-  return err;
+  return uv__search_path(uv_saved_argv0, buffer, size);
 }
 
 

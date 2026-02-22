@@ -505,11 +505,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 }
 
 
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-                                 int count) {
-  uv__free(addresses);
-}
-
 char** uv_setup_args(int argc, char** argv) {
   char exepath[UV__PATH_MAX];
   char* s;
@@ -542,4 +537,10 @@ int uv_get_process_title(char* buffer, size_t size) {
 }
 
 void uv__process_title_cleanup(void) {
+}
+
+void uv__ahafs_event(uv_loop_t* loop,
+                     uv__io_t* event_watch,
+                     unsigned int fflags) {
+  /* Stub function to satisfy the linker. */
 }

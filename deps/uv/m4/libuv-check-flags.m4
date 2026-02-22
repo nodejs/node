@@ -50,6 +50,24 @@ AC_DEFUN([CC_CHECK_CFLAGS_SILENT], [
     [$2], [$3])
 ])
 
+dnl Check if the flag is supported by compiler with werror
+dnl CC_CHECK_CFLAGS_SILENT_WERROR([FLAG], [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
+
+AC_DEFUN([CC_CHECK_CFLAGS_SILENT_WERROR], [
+  AC_REQUIRE([CC_CHECK_WERROR])
+  AC_CACHE_VAL(AS_TR_SH([cc_cv_cflags_werror_$1]),
+    [ac_save_CFLAGS="$CFLAGS"
+     CFLAGS="$CFLAGS $cc_cv_werror $1"
+     AC_COMPILE_IFELSE([AC_LANG_SOURCE([int a;])],
+       [eval "AS_TR_SH([cc_cv_cflags_werror_$1])='yes'"],
+       [eval "AS_TR_SH([cc_cv_cflags_werror_$1])='no'"])
+     CFLAGS="$ac_save_CFLAGS"
+    ])
+
+  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_werror_$1])[ = xyes],
+    [$2], [$3])
+])
+
 dnl Check if the flag is supported by compiler (cacheable)
 dnl CC_CHECK_CFLAGS([FLAG], [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
 
@@ -67,11 +85,11 @@ dnl CC_CHECK_CFLAG_APPEND(FLAG, [action-if-found], [action-if-not-found])
 dnl Check for CFLAG and appends them to AM_CFLAGS if supported
 AC_DEFUN([CC_CHECK_CFLAG_APPEND], [
   AC_CACHE_CHECK([if $CC supports $1 flag],
-    AS_TR_SH([cc_cv_cflags_$1]),
-    CC_CHECK_CFLAGS_SILENT([$1]) dnl Don't execute actions here!
+    AS_TR_SH([cc_cv_cflags_werror_$1]),
+    CC_CHECK_CFLAGS_SILENT_WERROR([$1]) dnl Don't execute actions here!
   )
 
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_$1])[ = xyes],
+  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_werror_$1])[ = xyes],
     [AM_CFLAGS="$AM_CFLAGS $1"; DEBUG_CFLAGS="$DEBUG_CFLAGS $1"; $2], [$3])
 
   AC_SUBST([AM_CFLAGS])
@@ -266,24 +284,6 @@ AC_DEFUN([CC_ATTRIBUTE_CONST], [
     [const], ,
     [int __attribute__((const)) twopow(int n) { return 1 << n; } ],
     [$1], [$2])
-])
-
-AC_DEFUN([CC_FLAG_VISIBILITY], [
-  AC_REQUIRE([CC_CHECK_WERROR])
-  AC_CACHE_CHECK([if $CC supports -fvisibility=hidden],
-    [cc_cv_flag_visibility],
-    [cc_flag_visibility_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $cc_cv_werror"
-     CC_CHECK_CFLAGS_SILENT([-fvisibility=hidden],
-	cc_cv_flag_visibility='yes',
-	cc_cv_flag_visibility='no')
-     CFLAGS="$cc_flag_visibility_save_CFLAGS"])
-
-  AS_IF([test "x$cc_cv_flag_visibility" = "xyes"],
-    [AC_DEFINE([SUPPORT_FLAG_VISIBILITY], 1,
-       [Define this if the compiler supports the -fvisibility flag])
-     $1],
-    [$2])
 ])
 
 AC_DEFUN([CC_FUNC_EXPECT], [

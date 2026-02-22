@@ -700,6 +700,7 @@ if(LIBUV_BUILD_TESTS)
        test/test-udp-send-immediate.c
        test/test-udp-sendmmsg-error.c
        test/test-udp-send-unreachable.c
+       test/test-udp-recvmsg-unreachable-error.c
        test/test-udp-try-send.c
        test/test-udp-recv-in-a-row.c
        test/test-udp-reuseport.c
@@ -747,6 +748,14 @@ if(LIBUV_BUILD_TESTS)
                        "$<TARGET_FILE:uv_run_tests_a>"
                        "$<TARGET_FILE_DIR:uv_run_tests_a>/uv_run_tests_a_no_ext")
   endif()
+
+  if(QNX)
+    install(TARGETS uv_run_tests uv_run_tests_a uv_run_benchmarks_a
+            DESTINATION ${CMAKE_INSTALL_BINDIR}/libuv_tests)
+
+    install(DIRECTORY test/fixtures
+            DESTINATION ${CMAKE_INSTALL_BINDIR}/libuv_tests)
+  endif()
 endif()
 
 # Now for some gibbering horrors from beyond the stars...
@@ -774,6 +783,11 @@ install(TARGETS uv_a EXPORT libuvConfig
 install(EXPORT libuvConfig
 	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libuv
 	NAMESPACE libuv::)
+write_basic_package_version_file(libuvConfigVersion.cmake
+                                 VERSION ${PACKAGE_VERSION}
+                                 COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libuvConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libuv)
 
 if(LIBUV_BUILD_SHARED)
   # The version in the filename is mirroring the behaviour of autotools.

@@ -28,9 +28,9 @@ TEST_IMPL(process_priority) {
   int r;
   int i;
 
-#if defined(__MVS__)
+#if defined(__MVS__) || defined(__QNX__)
   if (uv_os_setpriority(0, 0) == UV_ENOSYS)
-    RETURN_SKIP("functionality not supported on zOS");
+    RETURN_SKIP("functionality not supported on zOS and QNX");
 #endif
 
   /* Verify that passing a NULL pointer returns UV_EINVAL. */

@@ -1,4 +1,241 @@
-2025.04.25, Version 1.51.0 (Stable)
+2026.02.11, Version 1.52.0 (Stable)
+
+Changes since version 1.51.0:
+
+* src: remove unused include of <assert.h> in timer.c (Juan José Arboleda)
+
+* test: skip `udp_multicast_join` if not system-wide available (Juan José
+  Arboleda)
+
+* test: remove unused include of <limits.h> in runner.h (Juan José Arboleda)
+
+* doc: don't mention UV_LOOP_ENABLE_IO_URING_SQPOLL (Poul T Lomholt)
+
+* unix: fix uv_thread_{get,set}priority error codes (Ryan Liptak)
+
+* build: dedup sanitizer jobs using matrix strategy (Juan José Arboleda)
+
+* doc: update ncurses link (Saúl Ibarra Corretgé)
+
+* tcp: support customizing TCP_KEEPINTVL and TCP_KEEPCNT (Andy Pan)
+
+* linux: fix -Wformat-truncation warning (Ben Noordhuis)
+
+* src: fix nullptr dereference in uv__print_handles (jhnh204)
+
+* build: make automake link libm on bsd-likes (Juan José Arboleda)
+
+* include: remove unused macro undefs from uv.h (Juan José Arboleda)
+
+* win: handle empty string in uv_get_process_title (Ben Noordhuis)
+
+* win: use WSA_FLAG_NO_HANDLE_INHERIT in WSASocketW (chemodax)
+
+* unix: handle possible `ENOMEM` in `uv__tcp_listen` (Juan José Arboleda)
+
+* win: replace GetModuleHandleA with GetModuleHandleW (chemodax)
+
+* qnx: add qnx 8 support (Deep C)
+
+* mailmap: update email address for Richard Lau (Richard Lau)
+
+* win: remove obsolete comment (Ben Noordhuis)
+
+* unix: handle possible `ENOMEM` in `uv__pipe_listen` (Juan José Arboleda)
+
+* unix: deduplicate uv_free_interface_addresses (Juan José Arboleda)
+
+* test: pass correct string type to GetModuleHandleW (Ben Noordhuis)
+
+* win: remove unnecessary inlining from fs.c (Ben Noordhuis)
+
+* win: move uv__process_reqs to core.c (Ben Noordhuis)
+
+* win: remove unnecessary inlining from header file (Ben Noordhuis)
+
+* test: skip slow process title test on asan+macos (Ben Noordhuis)
+
+* win: dissolve atomicops-inl.h (Ben Noordhuis)
+
+* win: move uv__process_endgames to core.c (Ben Noordhuis)
+
+* win: move uv__insert_pending_req to core.c (Ben Noordhuis)
+
+* win: replace inline asm with compiler intrinsic (Ben Noordhuis)
+
+* win,pipe: minimal fix to uv_read_cb->uv_read_start recursion bug (Jameson
+  Nash)
+
+* doc: make requirements work with newer python (Luca Saccarola)
+
+* win: fix -Wcast-function-type warnings in winapi.c (Ben Noordhuis)
+
+* win: fix -Wsign-compare warnings (Ben Noordhuis)
+
+* test: simplify ASSERT_OK macro for static analysis (Jameson Nash)
+
+* win: add arm64 machine type to uv_os_uname (wisemanny)
+
+* win: use ProcessPrng (Ben Noordhuis)
+
+* win: work around wine bug in uv_fs_{unlink,rmdir} (Keno Fischer)
+
+* doc: fix return value for uv_pipe_connect2 (Sean Dewar)
+
+* unix: fix udp sendmmsg fallback path (Ben Noordhuis)
+
+* doc: add binding `C framework` uv_coroutine to LINKS.md (Lawrence Stubbs)
+
+* linux: handle cgroups cpu.max with limit < period (Ben Noordhuis)
+
+* doc: update link, repo name change to c-asio (Lawrence Stubbs)
+
+* build(deps): bump actions/download-artifact from 4 to 5 (dependabot[bot])
+
+* doc: remove nodeuv from LINKS.md (Ben Noordhuis)
+
+* test: use relative paths for pipes and unix sockets (Emily)
+
+* build(deps): bump actions/checkout from 4 to 5 (dependabot[bot])
+
+* unix: improve uv__cpu_relax() on arm (Anton Kirilov)
+
+* win: fix compiler warnings (Savas Sahin)
+
+* unix: replace uv__io_t callback pointer with enum (Ben Noordhuis)
+
+* test,win: fix -Wunused-function warnings (Ben Noordhuis)
+
+* test,win: fix -Wcast-function-type warnings (Ben Noordhuis)
+
+* test,win: fix -Wattributes warnings (Ben Noordhuis)
+
+* win: shrink fd hash table from 2592k to 162k (Ben Noordhuis)
+
+* unix: fix build on the bsds (Ben Noordhuis)
+
+* netbsd: fix thread affinity compilation error (Santiago Gimeno)
+
+* unix: remove UV__SIGNAL_EVENT dispatch from uv__io_cb (Juan José Arboleda)
+
+* build: add -Werror when testing -Wflags (Jameson Nash)
+
+* win: fix path size calculation (Ben Noordhuis)
+
+* doc: correct uv_cancel return value (m0cg)
+
+* unix,win: look up UV_THREADPOOL_SIZE with uv_os_getenv (moe li)
+
+* build(deps): bump actions/setup-python from 5 to 6 (dependabot[bot])
+
+* unix: fix uv__signal_loop_cleanup call in init (Jameson Nash)
+
+* aix: fix nullptr check in uv__skip_lines (Ben Noordhuis)
+
+* unix: add neoverse-v2 cpu identifier (green-br)
+
+* test: make `thread_priority` robust against system default nice levels
+
+ (Juan José Arboleda)
+
+* unix,win: implement `uv_udp_open_ex` (Juan José Arboleda)
+
+* aix: add stub function to satisfy linker (Ben Noordhuis)
+
+* linux: add MSG_ERRQUEUE ipv4/ipv6 udp support (Juan José Arboleda)
+
+* ibmi: add stub function to satisfy linker (Ben Noordhuis)
+
+* darwin: better heuristic for available memory (Christian Guinard)
+
+* build(deps): bump actions/download-artifact from 5 to 6 (dependabot[bot])
+
+* build(deps): bump actions/upload-artifact from 4 to 5 (dependabot[bot])
+
+* unix: fix use of uninitialized variable (Ben Noordhuis)
+
+* doc: fix documentation for uv_utf16_to_wtf8() function (Gang Zhuo)
+
+* win: rename minimal_windows10_version1709() for libuv's convention (Andy Pan)
+
+* build(deps): bump actions/checkout from 5 to 6 (dependabot[bot])
+
+* win: fix race in uv_fs_event_start() (Ben Noordhuis)
+
+* unix: support nanosecond resolution in uv__fs_to_timespec (Ayush Kumar)
+
+* win: handle sshfs-win quirk in uv_fs_readdir() (Ben Noordhuis)
+
+* unix,win: fix leak in uv_os_environ error path (Ambuj Vashistha)
+
+* test: add macros to run fs tests with io_uring (Santiago Gimeno)
+
+* linux: fix uv_fs_ftruncate io_uring implementation (Santiago Gimeno)
+
+* Update OS X reference to macOS in README (Bart Louwers)
+
+* ci: update macos runner images (Ben Noordhuis)
+
+* doc: add example usage for uv_sleep (Kartik Puri)
+
+* ci: add macos-15-intel to matrix (Ben Noordhuis)
+
+* win: Optimize file/directory delete. (chemodax)
+
+* build(deps): bump actions/download-artifact from 6 to 7 (dependabot[bot])
+
+* build(deps): bump actions/upload-artifact from 5 to 6 (dependabot[bot])
+
+* test: run more fs tests using io_uring too (Santiago Gimeno)
+
+* doc: add handle and request usage guidelines (Ben Noordhuis)
+
+* unix: remove handle from queue on uv_spawn() error (Oblivionsage)
+
+* doc: remove hp-ux from supported platforms list (Ben Noordhuis)
+
+* unix,win: add f_frsize field to uv_statfs_t (Ben Noordhuis)
+
+* test: fix -Wuninitialized-const-pointer warning (Ben Noordhuis)
+
+* test: fix -Wstringop-overread warning (Ben Noordhuis)
+
+* test: make pty test work under asan (Ben Noordhuis)
+
+* win: readlink support for IO_REPARSE_TAG_LX_SYMLINK (Cody Tapscott)
+
+* unix: fix partial read handling after POLLHUP (Ben Noordhuis)
+
+* unix: factor out common i/o poll code (Ben Noordhuis)
+
+* test: disable udp_reuseport test under qemu (Ben Noordhuis)
+
+* test: disable tcp_reuseport test under qemu (Ben Noordhuis)
+
+* unix,win: check nbufs argument is reasonable (Ben Noordhuis)
+
+* win: refactor to support large statfs blocks (Santiago Gimeno)
+
+* unix: remove sunpro references (Ben Noordhuis)
+
+* idna: fix assert in wtf8_to_utf16 conversion (tobil4sk)
+
+* aix,ibmi: fix test suite build breakage (Ben Noordhuis)
+
+* unix: implement cpu_relax() for riscv64 (Han Gao)
+
+* doc: add setuid warning to uv_exepath (Ben Noordhuis)
+
+* unix: make OpenBSD uv_exepath work (mischief)
+
+* win: fix uv_get_process_title (StefanStojanovic)
+
+* unix,udp: fix -Wgnu-folding-constant warning (Saúl Ibarra Corretgé)
+
+* cmake: add libuvConfigVersion.cmake file (Przemysław Sobala)
+
+
+2025.04.25, Version 1.51.0 (Stable), 5152db2cbfeb5582e9c27c5ea1dba2cd9e10759b
 
 Changes since version 1.50.0:
 

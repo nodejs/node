@@ -83,7 +83,7 @@ int uv_loop_init(uv_loop_t* loop) {
   uv__signal_global_once_init();
   err = uv__process_init(loop);
   if (err)
-    goto fail_signal_init;
+    goto fail_process_init;
   uv__queue_init(&loop->process_handles);
 
   err = uv_rwlock_init(&loop->cloexec_lock);
@@ -110,9 +110,8 @@ fail_mutex_init:
   uv_rwlock_destroy(&loop->cloexec_lock);
 
 fail_rwlock_init:
+fail_process_init:
   uv__signal_loop_cleanup(loop);
-
-fail_signal_init:
   uv__platform_loop_delete(loop);
 
   if (loop->backend_fd != -1) {

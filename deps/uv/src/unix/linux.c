@@ -267,9 +267,6 @@ struct watcher_root {
 };
 
 static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root);
-static void uv__inotify_read(uv_loop_t* loop,
-                             uv__io_t* w,
-                             unsigned int revents);
 static int compare_watchers(const struct watcher_list* a,
                             const struct watcher_list* b);
 static void maybe_free_watcher_list(struct watcher_list* w,
@@ -878,7 +875,7 @@ int uv__iou_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req) {
     return 0;
 
   sqe->fd = req->file;
-  sqe->len = req->off;
+  sqe->off = req->off;
   sqe->opcode = UV__IORING_OP_FTRUNCATE;
   uv__iou_submit(iou);
 
@@ -1450,25 +1447,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       while (*ctl->sqhead != *ctl->sqtail)
         uv__epoll_ctl_flush(epollfd, ctl, &prep);
 
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    /* Store the current timeout in a location that's globally accessible so
-     * other locations like uv__work_done() can determine whether the queue
-     * of events in the callback were waiting when poll was called.
-     */
-    lfields->current_timeout = timeout;
-
+    uv__io_poll_prepare(loop, NULL, timeout);
     nfds = epoll_pwait(epollfd, events, ARRAY_SIZE(events), timeout, sigmask);
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__io_poll_check(loop, NULL);
 
     if (nfds == -1)
       assert(errno == EINTR);
@@ -1562,7 +1543,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           have_signals = 1;
         } else {
           uv__metrics_update_idle_time(loop);
-          w->cb(loop, w, pe->events);
+          uv__io_cb(loop, w, pe->events);
         }
 
         nevents++;
@@ -1578,7 +1559,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     lfields->inv = NULL;
@@ -1750,7 +1731,7 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count) {
     "0xd0b\nCortex-A76\n"   "0xd0c\nNeoverse-N1\n"  "0xd0d\nCortex-A77\n"
     "0xd0e\nCortex-A76AE\n" "0xd13\nCortex-R52\n"   "0xd20\nCortex-M23\n"
     "0xd21\nCortex-M33\n"   "0xd41\nCortex-A78\n"   "0xd42\nCortex-A78AE\n"
-    "0xd4a\nNeoverse-E1\n"  "0xd4b\nCortex-A78C\n"
+    "0xd4a\nNeoverse-E1\n"  "0xd4b\nCortex-A78C\n"  "0xd4f\nNeoverse-V2\n"
 #endif
     "";
   struct cpu {
@@ -2045,13 +2026,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 }
 
 
-/* TODO(bnoordhuis) share with bsd-ifaddrs.c */
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-                                 int count) {
-  uv__free(addresses);
-}
-
-
 void uv__set_process_title(const char* title) {
 #if defined(PR_SET_NAME)
   prctl(PR_SET_NAME, title);  /* Only copies first 16 characters. */
@@ -2309,8 +2283,8 @@ static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
   static const char cgroup_mount[] = "/sys/fs/cgroup";
   const char* cgroup_trimmed;
   char buf[1024];
-  char full_path[256];
   char path[256];
+  char full_path[sizeof(path) + sizeof("/cpu.max")];
   char quota_buf[16];
   char* last_slash;
   int cgroup_size;
@@ -2370,6 +2344,8 @@ static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
       goto next;
 
     *quota = limit / period;
+    if (*quota == 0)
+        *quota = 1;
     if (*quota < min_quota)
       min_quota = *quota;
 
@@ -2499,7 +2475,7 @@ static int init_inotify(uv_loop_t* loop) {
   if (fd < 0)
     return UV__ERR(errno);
 
-  err = uv__io_init_start(loop, &loop->inotify_read_watcher, uv__inotify_read,
+  err = uv__io_init_start(loop, &loop->inotify_read_watcher, UV__INOTIFY_READ,
                           fd, POLLIN);
   if (err) {
     uv__close(fd);
@@ -2595,9 +2571,7 @@ static void maybe_free_watcher_list(struct watcher_list* w, uv_loop_t* loop) {
 }
 
 
-static void uv__inotify_read(uv_loop_t* loop,
-                             uv__io_t* dummy,
-                             unsigned int events) {
+void uv__inotify_read(uv_loop_t* loop, uv__io_t* dummy, unsigned int events) {
   const struct inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;

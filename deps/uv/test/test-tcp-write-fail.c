@@ -91,12 +91,27 @@ static void connect_cb(uv_connect_t* req, int status) {
 TEST_IMPL(tcp_write_fail) {
   struct sockaddr_in addr;
   uv_tcp_t client;
+  uv_buf_t buf;
   int r;
 
   ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &client);
   ASSERT_OK(r);
+
+  r = uv_write(&write_req,
+               (uv_stream_t*) &client,
+               &buf,
+               0,  /* Illegal. Worse, senseless. */
+               write_cb);
+  ASSERT_EQ(UV_EINVAL, r);
+
+  r = uv_write(&write_req,
+               (uv_stream_t*) &client,
+               &buf,
+               -42,  /* Undergoes sign conversion. */
+               write_cb);
+  ASSERT_EQ(UV_EINVAL, r);
 
   r = uv_tcp_connect(&connect_req,
                      &client,

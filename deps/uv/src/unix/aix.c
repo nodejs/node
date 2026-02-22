@@ -229,28 +229,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   }
 
   for (;;) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    /* Store the current timeout in a location that's globally accessible so
-     * other locations like uv__work_done() can determine whether the queue
-     * of events in the callback were waiting when poll was called.
-     */
-    lfields->current_timeout = timeout;
-
+    uv__io_poll_prepare(loop, NULL, timeout);
     nfds = pollset_poll(loop->backend_fd,
                         events,
                         ARRAY_SIZE(events),
                         timeout);
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__io_poll_check(loop, NULL);
 
     if (nfds == 0) {
       if (reset_timeout != 0) {
@@ -324,7 +308,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         have_signals = 1;
       } else {
         uv__metrics_update_idle_time(loop);
-        w->cb(loop, w, pe->revents);
+        uv__io_cb(loop, w, pe->revents);
       }
 
       nevents++;
@@ -339,7 +323,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->watchers[loop->nwatchers] = NULL;
@@ -632,7 +616,7 @@ static int uv__skip_lines(char **p, int n) {
 
   while(n > 0) {
     *p = strchr(*p, '\n');
-    if (!p)
+    if (!*p)
       return lines;
 
     (*p)++;
@@ -716,7 +700,7 @@ static int uv__parse_data(char *buf, int *events, uv_fs_event_t* handle) {
 
 
 /* This is the internal callback */
-static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int fflags) {
+void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int fflags) {
   char   result_data[RDWR_BUF_SIZE];
   int bytes, rc = 0;
   uv_fs_event_t* handle;
@@ -767,7 +751,11 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
 
   handle->cb(handle, fname, events, 0);
 }
-#endif
+#else  /* !HAVE_SYS_AHAFS_EVPRODS_H */
+void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int fflags) {
+  /* Stub function to satisfy the linker. */
+}
+#endif  /* HAVE_SYS_AHAFS_EVPRODS_H */
 
 
 int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
@@ -828,7 +816,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   /* Setup/Initialize all the libuv routines */
   uv__handle_start(handle);
-  uv__io_init(&handle->event_watcher, uv__ahafs_event, fd);
+  uv__io_init(&handle->event_watcher, UV__AHAFS_EVENT, fd);
   handle->path = uv__strdup(filename);
   handle->cb = cb;
   handle->dir_filename = NULL;
@@ -1285,12 +1273,6 @@ cleanup:
     uv__close(sock6fd);
   uv__free(ifc.ifc_req);
   return r;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-                                 int count) {
-  uv__free(addresses);
 }
 
 

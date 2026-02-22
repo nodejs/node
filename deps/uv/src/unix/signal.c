@@ -45,7 +45,6 @@ static int uv__signal_start(uv_signal_t* handle,
                             uv_signal_cb signal_cb,
                             int signum,
                             int oneshot);
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
 static void uv__signal_unregister_handler(int signum);
@@ -271,7 +270,7 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
   if (err)
     return err;
 
-  err = uv__io_init_start(loop, &loop->signal_io_watcher, uv__signal_event,
+  err = uv__io_init_start(loop, &loop->signal_io_watcher, UV__SIGNAL_EVENT,
                           pipefd[0], POLLIN);
   if (err) {
     uv__close(pipefd[0]);
@@ -436,9 +435,7 @@ static int uv__signal_start(uv_signal_t* handle,
 }
 
 
-static void uv__signal_event(uv_loop_t* loop,
-                             uv__io_t* w,
-                             unsigned int events) {
+void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   uv__signal_msg_t* msg;
   uv_signal_t* handle;
   char buf[sizeof(uv__signal_msg_t) * 32];
