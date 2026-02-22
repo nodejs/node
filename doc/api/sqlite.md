@@ -323,7 +323,7 @@ This method allows one or more SQL statements to be executed without returning
 any results. This method is useful when executing SQL statements read from a
 file. This method is a wrapper around [`sqlite3_exec()`][].
 
-### `database.function(name[, options], function)`
+### `database.function(name[, options], fn)`
 
 <!-- YAML
 added:
@@ -345,10 +345,10 @@ added:
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
     `function` must be invoked with exactly `function.length` arguments.
     **Default:** `false`.
-* `function` {Function} The JavaScript function to call when the SQLite
-  function is invoked. The return value of this function should be a valid
-  SQLite data type: see [Type conversion between JavaScript and SQLite][].
-  The result defaults to `NULL` if the return value is `undefined`.
+* `fn` {Function} The JavaScript function to call when the SQLite function is
+  invoked. The return value of this function should be a valid SQLite data type:
+  see [Type conversion between JavaScript and SQLite][]. The result defaults to
+  `NULL` if the return value is `undefined`.
 
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
