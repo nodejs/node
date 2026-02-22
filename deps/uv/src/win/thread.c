@@ -284,7 +284,7 @@ int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
 static void uv__thread_name_init_once(void) {
   HMODULE m;
 
-  m = GetModuleHandleA("api-ms-win-core-processthreads-l1-1-3.dll");
+  m = GetModuleHandleW(L"api-ms-win-core-processthreads-l1-1-3.dll");
   if (m != NULL) {
     pGetThreadDescription = (void*) GetProcAddress(m, "GetThreadDescription");
     pSetThreadDescription = (void*) GetProcAddress(m, "SetThreadDescription");

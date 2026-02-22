@@ -210,12 +210,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   }
 
   for (;;) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
     if (timeout != -1) {
       spec.tv_sec = timeout / 1000;
       spec.tv_nsec = (timeout % 1000) * 1000000;
@@ -227,17 +221,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     nfds = 1;
     saved_errno = 0;
 
-    if (pset != NULL)
-      pthread_sigmask(SIG_BLOCK, pset, NULL);
-
+    uv__io_poll_prepare(loop, pset, timeout);
     err = port_getn(loop->backend_fd,
                     events,
                     ARRAY_SIZE(events),
                     &nfds,
                     timeout == -1 ? NULL : &spec);
-
-    if (pset != NULL)
-      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+    uv__io_poll_check(loop, pset);
 
     if (err) {
       /* Work around another kernel bug: port_getn() may return events even
@@ -250,12 +240,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         abort();
       }
     }
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
 
     if (events[0].portev_source == 0) {
       if (reset_timeout != 0) {
@@ -307,7 +291,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         have_signals = 1;
       } else {
         uv__metrics_update_idle_time(loop);
-        w->cb(loop, w, pe->portev_events);
+        uv__io_cb(loop, w, pe->portev_events);
       }
 
       nevents++;
@@ -329,7 +313,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->watchers[loop->nwatchers] = NULL;
@@ -446,9 +430,7 @@ static int uv__fs_event_rearm(uv_fs_event_t *handle) {
 }
 
 
-static void uv__fs_event_read(uv_loop_t* loop,
-                              uv__io_t* w,
-                              unsigned int revents) {
+void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, unsigned int revents) {
   uv_fs_event_t *handle = NULL;
   timespec_t timeout;
   port_event_t pe;
@@ -548,7 +530,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (first_run) {
     err = uv__io_init_start(handle->loop,
                              &handle->loop->fs_event_watcher,
-                             uv__fs_event_read,
+                             UV__FS_EVENT_READ,
                              portfd,
                              POLLIN);
     if (err)
@@ -897,11 +879,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   return 0;
 }
 #endif  /* SUNOS_NO_IFADDRS */
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-                                 int count) {
-  uv__free(addresses);
-}
 
 
 #if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L

@@ -83,7 +83,10 @@ static void recv_cb(uv_udp_t* handle,
   recv_cb_called++;
 
   if (nread < 0) {
-    ASSERT(0 && "unexpected error");
+    if (flags && can_recverr)
+      ASSERT(flags & UV_UDP_LINUX_RECVERR);
+    else
+      ASSERT(0 && "unexpected error");
   } else if (nread == 0) {
     /* Returning unused buffer */
     ASSERT_NULL(addr);
