@@ -581,10 +581,6 @@ class Cache {
           // 4.2.5.1
           requestResponses = this.#queryCache(operation.request, operation.options)
 
-          // TODO: the spec is wrong, this is needed to pass WPTs
-          if (requestResponses.length === 0) {
-            return []
-          }
 
           // 4.2.5.2
           for (const requestResponse of requestResponses) {

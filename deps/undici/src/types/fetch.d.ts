@@ -34,23 +34,6 @@ export class BodyMixin {
   readonly arrayBuffer: () => Promise<ArrayBuffer>
   readonly blob: () => Promise<Blob>
   readonly bytes: () => Promise<Uint8Array>
-  /**
-   * @deprecated This method is not recommended for parsing multipart/form-data bodies in server environments.
-   * It is recommended to use a library such as [@fastify/busboy](https://www.npmjs.com/package/@fastify/busboy) as follows:
-   *
-   * @example
-   * ```js
-   * import { Busboy } from '@fastify/busboy'
-   * import { Readable } from 'node:stream'
-   *
-   * const response = await fetch('...')
-   * const busboy = new Busboy({ headers: { 'content-type': response.headers.get('content-type') } })
-   *
-   * // handle events emitted from `busboy`
-   *
-   * Readable.fromWeb(response.body).pipe(busboy)
-   * ```
-   */
   readonly formData: () => Promise<FormData>
   readonly json: () => Promise<unknown>
   readonly text: () => Promise<string>
