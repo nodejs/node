@@ -935,15 +935,13 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
       return std::nullopt;
     }
     if (key == "builder") {
-      std::string builder_path;
-      if (field.value().get_string().get(builder_path) ||
-          builder_path.empty()) {
+      if (field.value().get_string().get(result.builder_script_path) ||
+          result.builder_script_path.empty()) {
         FPrintF(stderr,
                 "\"builder\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
-      result.builder_script_path = builder_path;
     } else if (key == "withoutCodeCache") {
       bool without_code_cache_value = false;
       if (field.value().get_bool().get(without_code_cache_value)) {
