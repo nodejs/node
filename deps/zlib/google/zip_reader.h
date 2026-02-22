@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -39,7 +40,7 @@ class WriterDelegate {
 
   // Invoked to write the next chunk of data. Return false on failure to cancel
   // extraction.
-  virtual bool WriteBytes(const char* data, int num_bytes) { return true; }
+  virtual bool WriteBytes(base::span<const uint8_t> data) { return true; }
 
   // Sets the last-modified time of the data.
   virtual void SetTimeModified(const base::Time& time) {}
@@ -377,9 +378,9 @@ class FileWriterDelegate : public WriterDelegate {
   // Returns true if the file handle passed to the constructor is valid.
   bool PrepareOutput() override;
 
-  // Writes |num_bytes| bytes of |data| to the file, returning false on error or
-  // if not all bytes could be written.
-  bool WriteBytes(const char* data, int num_bytes) override;
+  // Writes |data| to the file, returning false on error or if not all bytes
+  // could be written.
+  bool WriteBytes(base::span<const uint8_t> data) override;
 
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
