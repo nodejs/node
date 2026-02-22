@@ -987,6 +987,20 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-randomize",
+            "run tests in a random order",
+            &EnvironmentOptions::test_randomize,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption(
+      "[has_test_random_seed]", "", &EnvironmentOptions::has_test_random_seed);
+  AddOption("--test-random-seed",
+            "seed used to randomize test execution order",
+            &EnvironmentOptions::test_random_seed,
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  Implies("--test-random-seed", "[has_test_random_seed]");
   AddOption("--test-rerun-failures",
             "specifies the path to the rerun state file",
             &EnvironmentOptions::test_rerun_failures_path,

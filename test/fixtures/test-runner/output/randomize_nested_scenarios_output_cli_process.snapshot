@@ -1,0 +1,213 @@
+▶ nested-scenarios
+  ▶ scenario describe-it
+    ▶ describe-it block
+      ▶ describe-it 1
+        ▶ describe-it 1-1
+          ✔ describe-it 1-1-1 (*ms)
+          ✔ describe-it 1-1-3 (*ms)
+          ✔ describe-it 1-1-2 (*ms)
+        ✔ describe-it 1-1 (*ms)
+        ▶ describe-it 1-3
+          ✔ describe-it 1-3-1 (*ms)
+          ✔ describe-it 1-3-3 (*ms)
+          ✔ describe-it 1-3-2 (*ms)
+        ✔ describe-it 1-3 (*ms)
+        ▶ describe-it 1-2
+          ✔ describe-it 1-2-1 (*ms)
+          ✔ describe-it 1-2-3 (*ms)
+          ✔ describe-it 1-2-2 (*ms)
+        ✔ describe-it 1-2 (*ms)
+      ✔ describe-it 1 (*ms)
+      ▶ describe-it 3
+        ▶ describe-it 3-1
+          ✔ describe-it 3-1-1 (*ms)
+          ✔ describe-it 3-1-3 (*ms)
+          ✔ describe-it 3-1-2 (*ms)
+        ✔ describe-it 3-1 (*ms)
+        ▶ describe-it 3-3
+          ✔ describe-it 3-3-1 (*ms)
+          ✔ describe-it 3-3-3 (*ms)
+          ✔ describe-it 3-3-2 (*ms)
+        ✔ describe-it 3-3 (*ms)
+        ▶ describe-it 3-2
+          ✔ describe-it 3-2-1 (*ms)
+          ✔ describe-it 3-2-3 (*ms)
+          ✔ describe-it 3-2-2 (*ms)
+        ✔ describe-it 3-2 (*ms)
+      ✔ describe-it 3 (*ms)
+      ▶ describe-it 2
+        ▶ describe-it 2-1
+          ✔ describe-it 2-1-1 (*ms)
+          ✔ describe-it 2-1-3 (*ms)
+          ✔ describe-it 2-1-2 (*ms)
+        ✔ describe-it 2-1 (*ms)
+        ▶ describe-it 2-3
+          ✔ describe-it 2-3-1 (*ms)
+          ✔ describe-it 2-3-3 (*ms)
+          ✔ describe-it 2-3-2 (*ms)
+        ✔ describe-it 2-3 (*ms)
+        ▶ describe-it 2-2
+          ✔ describe-it 2-2-1 (*ms)
+          ✔ describe-it 2-2-3 (*ms)
+          ✔ describe-it 2-2-2 (*ms)
+        ✔ describe-it 2-2 (*ms)
+      ✔ describe-it 2 (*ms)
+    ✔ describe-it block (*ms)
+  ✔ scenario describe-it (*ms)
+  ▶ scenario static-no-await
+    ▶ static-no-await block
+      ▶ static-no-await 1
+        ▶ static-no-await 1-1
+          ✔ static-no-await 1-1-1 (*ms)
+          ✔ static-no-await 1-1-3 (*ms)
+          ✔ static-no-await 1-1-2 (*ms)
+        ✔ static-no-await 1-1 (*ms)
+        ▶ static-no-await 1-3
+          ✔ static-no-await 1-3-1 (*ms)
+          ✔ static-no-await 1-3-3 (*ms)
+          ✔ static-no-await 1-3-2 (*ms)
+        ✔ static-no-await 1-3 (*ms)
+        ▶ static-no-await 1-2
+          ✔ static-no-await 1-2-1 (*ms)
+          ✔ static-no-await 1-2-3 (*ms)
+          ✔ static-no-await 1-2-2 (*ms)
+        ✔ static-no-await 1-2 (*ms)
+      ✔ static-no-await 1 (*ms)
+      ▶ static-no-await 3
+        ▶ static-no-await 3-1
+          ✔ static-no-await 3-1-1 (*ms)
+          ✔ static-no-await 3-1-3 (*ms)
+          ✔ static-no-await 3-1-2 (*ms)
+        ✔ static-no-await 3-1 (*ms)
+        ▶ static-no-await 3-3
+          ✔ static-no-await 3-3-1 (*ms)
+          ✔ static-no-await 3-3-3 (*ms)
+          ✔ static-no-await 3-3-2 (*ms)
+        ✔ static-no-await 3-3 (*ms)
+        ▶ static-no-await 3-2
+          ✔ static-no-await 3-2-1 (*ms)
+          ✔ static-no-await 3-2-3 (*ms)
+          ✔ static-no-await 3-2-2 (*ms)
+        ✔ static-no-await 3-2 (*ms)
+      ✔ static-no-await 3 (*ms)
+      ▶ static-no-await 2
+        ▶ static-no-await 2-1
+          ✔ static-no-await 2-1-1 (*ms)
+          ✔ static-no-await 2-1-3 (*ms)
+          ✔ static-no-await 2-1-2 (*ms)
+        ✔ static-no-await 2-1 (*ms)
+        ▶ static-no-await 2-3
+          ✔ static-no-await 2-3-1 (*ms)
+          ✔ static-no-await 2-3-3 (*ms)
+          ✔ static-no-await 2-3-2 (*ms)
+        ✔ static-no-await 2-3 (*ms)
+        ▶ static-no-await 2-2
+          ✔ static-no-await 2-2-1 (*ms)
+          ✔ static-no-await 2-2-3 (*ms)
+          ✔ static-no-await 2-2-2 (*ms)
+        ✔ static-no-await 2-2 (*ms)
+      ✔ static-no-await 2 (*ms)
+    ✔ static-no-await block (*ms)
+  ✔ scenario static-no-await (*ms)
+  ▶ scenario static-await
+    ▶ static-await block
+      ▶ static-await 1
+        ▶ static-await 1-1
+          ✔ static-await 1-1-1 (*ms)
+          ✔ static-await 1-1-2 (*ms)
+          ✔ static-await 1-1-3 (*ms)
+        ✔ static-await 1-1 (*ms)
+        ▶ static-await 1-2
+          ✔ static-await 1-2-1 (*ms)
+          ✔ static-await 1-2-2 (*ms)
+          ✔ static-await 1-2-3 (*ms)
+        ✔ static-await 1-2 (*ms)
+        ▶ static-await 1-3
+          ✔ static-await 1-3-1 (*ms)
+          ✔ static-await 1-3-2 (*ms)
+          ✔ static-await 1-3-3 (*ms)
+        ✔ static-await 1-3 (*ms)
+      ✔ static-await 1 (*ms)
+      ▶ static-await 2
+        ▶ static-await 2-1
+          ✔ static-await 2-1-1 (*ms)
+          ✔ static-await 2-1-2 (*ms)
+          ✔ static-await 2-1-3 (*ms)
+        ✔ static-await 2-1 (*ms)
+        ▶ static-await 2-2
+          ✔ static-await 2-2-1 (*ms)
+          ✔ static-await 2-2-2 (*ms)
+          ✔ static-await 2-2-3 (*ms)
+        ✔ static-await 2-2 (*ms)
+        ▶ static-await 2-3
+          ✔ static-await 2-3-1 (*ms)
+          ✔ static-await 2-3-2 (*ms)
+          ✔ static-await 2-3-3 (*ms)
+        ✔ static-await 2-3 (*ms)
+      ✔ static-await 2 (*ms)
+      ▶ static-await 3
+        ▶ static-await 3-1
+          ✔ static-await 3-1-1 (*ms)
+          ✔ static-await 3-1-2 (*ms)
+          ✔ static-await 3-1-3 (*ms)
+        ✔ static-await 3-1 (*ms)
+        ▶ static-await 3-2
+          ✔ static-await 3-2-1 (*ms)
+          ✔ static-await 3-2-2 (*ms)
+          ✔ static-await 3-2-3 (*ms)
+        ✔ static-await 3-2 (*ms)
+        ▶ static-await 3-3
+          ✔ static-await 3-3-1 (*ms)
+          ✔ static-await 3-3-2 (*ms)
+          ✔ static-await 3-3-3 (*ms)
+        ✔ static-await 3-3 (*ms)
+      ✔ static-await 3 (*ms)
+    ✔ static-await block (*ms)
+  ✔ scenario static-await (*ms)
+  ▶ scenario mixed-await-normal
+    ▶ mixed-await-normal block
+      ▶ mixed-await-normal 1
+        ✔ mixed-await-normal 1-1-sync-before (*ms)
+        ✔ mixed-await-normal 1-1-awaited (*ms)
+        ✔ mixed-await-normal 1-1-sync-after (*ms)
+        ✔ mixed-await-normal 1-2-awaited (*ms)
+        ✔ mixed-await-normal 1-2-sync-before (*ms)
+        ✔ mixed-await-normal 1-2-sync-after (*ms)
+        ✔ mixed-await-normal 1-3-awaited (*ms)
+        ✔ mixed-await-normal 1-3-sync-before (*ms)
+        ✔ mixed-await-normal 1-3-sync-after (*ms)
+      ✔ mixed-await-normal 1 (*ms)
+      ▶ mixed-await-normal 3
+        ✔ mixed-await-normal 3-1-sync-before (*ms)
+        ✔ mixed-await-normal 3-1-awaited (*ms)
+        ✔ mixed-await-normal 3-1-sync-after (*ms)
+        ✔ mixed-await-normal 3-2-awaited (*ms)
+        ✔ mixed-await-normal 3-2-sync-before (*ms)
+        ✔ mixed-await-normal 3-2-sync-after (*ms)
+        ✔ mixed-await-normal 3-3-awaited (*ms)
+        ✔ mixed-await-normal 3-3-sync-before (*ms)
+        ✔ mixed-await-normal 3-3-sync-after (*ms)
+      ✔ mixed-await-normal 3 (*ms)
+      ▶ mixed-await-normal 2
+        ✔ mixed-await-normal 2-1-sync-before (*ms)
+        ✔ mixed-await-normal 2-1-awaited (*ms)
+        ✔ mixed-await-normal 2-1-sync-after (*ms)
+        ✔ mixed-await-normal 2-2-awaited (*ms)
+        ✔ mixed-await-normal 2-2-sync-before (*ms)
+        ✔ mixed-await-normal 2-2-sync-after (*ms)
+        ✔ mixed-await-normal 2-3-awaited (*ms)
+        ✔ mixed-await-normal 2-3-sync-before (*ms)
+        ✔ mixed-await-normal 2-3-sync-after (*ms)
+      ✔ mixed-await-normal 2 (*ms)
+    ✔ mixed-await-normal block (*ms)
+  ✔ scenario mixed-await-normal (*ms)
+✔ nested-scenarios (*ms)
+ℹ Randomized test order seed: 1
+ℹ tests 144
+ℹ suites 12
+ℹ pass 144
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *

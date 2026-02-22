@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import consumers from 'node:stream/consumers';
@@ -8,6 +8,7 @@ import assert from 'node:assert';
 import util from 'node:util';
 
 const testFixtures = fixtures.path('test-runner');
+const rerunStateFile = join(testFixtures, 'rerun-state.json');
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should run with no tests', async () => {
@@ -343,20 +344,64 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
+  const shardsTestsFixtures = fixtures.path('test-runner', 'shards');
+  const internalOrderTestFile = join(testFixtures, 'randomize', 'internal-order.cjs');
+  const shardFileNames = [
+    'a.cjs',
+    'b.cjs',
+    'c.cjs',
+    'd.cjs',
+    'e.cjs',
+    'f.cjs',
+    'g.cjs',
+    'h.cjs',
+    'i.cjs',
+    'j.cjs',
+  ];
+  const internalTestNames = ['a', 'b', 'c', 'd', 'e'];
+  const shardsTestsFiles = shardFileNames.map((file) => join(shardsTestsFixtures, file));
+
+  async function getExecutedShardOrder(options = {}) {
+    const stream = run({
+      files: shardsTestsFiles,
+      concurrency: false,
+      ...options,
+    });
+    const executedTestFiles = [];
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', (passedTest) => {
+      if (passedTest.nesting === 0) {
+        executedTestFiles.push(basename(passedTest.file));
+      }
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream) ;
+
+    return executedTestFiles;
+  }
+
+  async function getExecutedInternalOrder(options = {}) {
+    const stream = run({
+      files: [internalOrderTestFile],
+      concurrency: false,
+      ...options,
+    });
+    const executionOrder = [];
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', (passedTest) => {
+      if (passedTest.file === internalOrderTestFile && passedTest.name.startsWith('internal ')) {
+        executionOrder.push(passedTest.name.slice('internal '.length));
+      }
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream) ;
+
+    return executionOrder;
+  }
+
   describe('sharding', () => {
-    const shardsTestsFixtures = fixtures.path('test-runner', 'shards');
-    const shardsTestsFiles = [
-      'a.cjs',
-      'b.cjs',
-      'c.cjs',
-      'd.cjs',
-      'e.cjs',
-      'f.cjs',
-      'g.cjs',
-      'h.cjs',
-      'i.cjs',
-      'j.cjs',
-    ].map((file) => join(shardsTestsFixtures, file));
 
     describe('validation', () => {
       it('should require shard.total when having shard option', () => {
@@ -517,6 +562,73 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
     });
+
+  });
+
+  describe('randomization', () => {
+    it('should randomize file order deterministically when using the same seed', async () => {
+      const firstOrder = await getExecutedShardOrder({ randomize: true, randomSeed: 12345 });
+      const secondOrder = await getExecutedShardOrder({ randomize: true, randomSeed: 12345 });
+
+      assert.deepStrictEqual(firstOrder, secondOrder);
+      assert.deepStrictEqual([...firstOrder].sort(), [...shardFileNames].sort());
+    });
+
+    it('should randomize file order differently with different seeds', async () => {
+      const firstOrder = await getExecutedShardOrder({ randomize: true, randomSeed: 11111 });
+      const secondOrder = await getExecutedShardOrder({ randomize: true, randomSeed: 22222 });
+
+      assert.notDeepStrictEqual(firstOrder, secondOrder);
+      assert.deepStrictEqual([...firstOrder].sort(), [...shardFileNames].sort());
+      assert.deepStrictEqual([...secondOrder].sort(), [...shardFileNames].sort());
+    });
+
+    it('should randomize file order when only randomSeed is provided', async () => {
+      const firstOrder = await getExecutedShardOrder({ randomSeed: 24680 });
+      const secondOrder = await getExecutedShardOrder({ randomSeed: 24680 });
+
+      assert.deepStrictEqual(firstOrder, secondOrder);
+      assert.deepStrictEqual([...firstOrder].sort(), [...shardFileNames].sort());
+    });
+
+    it('should randomize internal test order deterministically when using the same seed', async () => {
+      const firstOrder = await getExecutedInternalOrder({ randomSeed: 12345 });
+      const secondOrder = await getExecutedInternalOrder({ randomSeed: 12345 });
+
+      assert.deepStrictEqual(firstOrder, secondOrder);
+      assert.deepStrictEqual([...firstOrder].sort(), [...internalTestNames].sort());
+    });
+
+    it('should randomize internal test order differently across seeds', async () => {
+      const orders = [];
+      for (const seed of [11111, 22222, 33333, 44444]) {
+        const order = await getExecutedInternalOrder({ randomSeed: seed });
+        assert.deepStrictEqual([...order].sort(), [...internalTestNames].sort());
+        orders.push(order.join(','));
+      }
+
+      assert.notStrictEqual(new Set(orders).size, 1);
+    });
+
+    it('should emit the randomization seed as a diagnostic message', async () => {
+      const stream = run({
+        files: shardsTestsFiles,
+        concurrency: false,
+        randomize: true,
+      });
+      const diagnostics = [];
+
+      stream.on('test:diagnostic', ({ message }) => {
+        diagnostics.push(message);
+      });
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream) ;
+
+      assert(
+        diagnostics.some((message) => /Randomized test order seed: \d+/.test(message)),
+        `Missing randomization seed diagnostic. Received diagnostics: ${diagnostics.join(', ')}`,
+      );
+    });
   });
 
   describe('validation', () => {
@@ -537,6 +649,40 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     it('should not allow files and globPatterns used together', () => {
       assert.throws(() => run({ files: ['a.js'], globPatterns: ['*.js'] }), {
         code: 'ERR_INVALID_ARG_VALUE'
+      });
+    });
+
+    it('should not allow randomize with watch mode', () => {
+      assert.throws(() => run({ watch: true, randomize: true }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /The property 'options\.randomize' is not supported with watch mode\./,
+      });
+    });
+
+    it('should not allow randomSeed with watch mode', () => {
+      assert.throws(() => run({ watch: true, randomSeed: 12345 }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /The property 'options\.randomSeed' is not supported with watch mode\./,
+      });
+    });
+
+    it('should not allow randomize with rerunFailuresFilePath', () => {
+      assert.throws(() => run({ randomize: true, rerunFailuresFilePath: rerunStateFile }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /The property 'options\.randomize' is not supported with rerun failures mode\./,
+      });
+    });
+
+    it('should not allow randomSeed with rerunFailuresFilePath', () => {
+      assert.throws(() => run({ randomSeed: 12345, rerunFailuresFilePath: rerunStateFile }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /The property 'options\.randomSeed' is not supported with rerun failures mode\./,
+      });
+    });
+
+    it('should not allow decimal randomSeed values', () => {
+      assert.throws(() => run({ randomSeed: 1.5 }), {
+        code: 'ERR_OUT_OF_RANGE',
       });
     });
 
