@@ -143,7 +143,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
     key_map->ClearEntry(entry);
     key_map->ElementRemoved();
   } else {
-    key_map->ValueAtPut(entry, new_key_list_head);
+    key_map->ValueAtPut(entry, new_key_list_head, write_barrier_mode);
     gc_notify_updated_slot(key_map, key_map->RawFieldOfValueAt(entry),
                            new_key_list_head);
   }

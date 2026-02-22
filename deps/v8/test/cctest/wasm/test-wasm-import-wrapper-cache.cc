@@ -43,16 +43,15 @@ TEST(CacheHit) {
   auto* canonical_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
   {
-    std::shared_ptr<wasm::WasmImportWrapperHandle> c1 =
-        CompileImportWrapperForTest(isolate, kind, canonical_sig,
-                                    expected_arity, kNoSuspend);
+    std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+        isolate, kind, canonical_sig, expected_arity, kNoSuspend);
 
     CHECK(c1->has_code());
     CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
-    std::shared_ptr<wasm::WasmImportWrapperHandle> c2 =
-        GetWasmImportWrapperCache()->Get(isolate, kind, expected_arity,
-                                         kNoSuspend, canonical_sig);
+    std::shared_ptr<wasm::WasmWrapperHandle> c2 =
+        GetWasmImportWrapperCache()->Get(
+            isolate, {kind, canonical_sig, expected_arity, kNoSuspend});
 
     CHECK(c2->has_code());
     CHECK_EQ(c1, c2);
@@ -62,7 +61,7 @@ TEST(CacheHit) {
   // (requested via interrupt).
   isolate->stack_guard()->HandleInterrupts();
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
-      kind, type_index, expected_arity, kNoSuspend));
+      kind, canonical_sig, expected_arity, kNoSuspend));
 }
 
 TEST(CacheMissSig) {
@@ -82,16 +81,17 @@ TEST(CacheMissSig) {
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
   CanonicalTypeIndex type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
+  auto* canonical_sig2 =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index2);
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c1 =
-      CompileImportWrapperForTest(isolate, kind, canonical_sig1,
-                                  expected_arity1, kNoSuspend);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig1, expected_arity1, kNoSuspend);
 
   CHECK(c1->has_code());
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
-      kind, type_index2, expected_arity2, kNoSuspend));
+      kind, canonical_sig2, expected_arity2, kNoSuspend));
 }
 
 TEST(CacheMissKind) {
@@ -109,15 +109,14 @@ TEST(CacheMissKind) {
   auto* canonical_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c1 =
-      CompileImportWrapperForTest(isolate, kind1, canonical_sig, expected_arity,
-                                  kNoSuspend);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind1, canonical_sig, expected_arity, kNoSuspend);
 
   CHECK(c1->has_code());
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
-      kind2, type_index, expected_arity, kNoSuspend));
+      kind2, canonical_sig, expected_arity, kNoSuspend));
 }
 
 TEST(CacheHitMissSig) {
@@ -140,32 +139,30 @@ TEST(CacheHitMissSig) {
   auto* canonical_sig2 =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index2);
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c1 =
-      CompileImportWrapperForTest(isolate, kind, canonical_sig1,
-                                  expected_arity1, kNoSuspend);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig1, expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
   CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
-      kind, type_index2, expected_arity2, kNoSuspend));
+      kind, canonical_sig2, expected_arity2, kNoSuspend));
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c2 =
-      CompileImportWrapperForTest(isolate, kind, canonical_sig2,
-                                  expected_arity2, kNoSuspend);
+  std::shared_ptr<wasm::WasmWrapperHandle> c2 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig2, expected_arity2, kNoSuspend);
 
   CHECK_NE(c1, c2);
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c3 =
-      GetWasmImportWrapperCache()->Get(isolate, kind, expected_arity1,
-                                       kNoSuspend, canonical_sig1);
+  std::shared_ptr<wasm::WasmWrapperHandle> c3 =
+      GetWasmImportWrapperCache()->Get(
+          isolate, {kind, canonical_sig1, expected_arity1, kNoSuspend});
 
   CHECK(c3->has_code());
   CHECK_EQ(c1, c3);
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> c4 =
-      GetWasmImportWrapperCache()->Get(isolate, kind, expected_arity2,
-                                       kNoSuspend, canonical_sig2);
+  std::shared_ptr<wasm::WasmWrapperHandle> c4 =
+      GetWasmImportWrapperCache()->Get(
+          isolate, {kind, canonical_sig2, expected_arity2, kNoSuspend});
 
   CHECK(c4->has_code());
   CHECK_EQ(c2, c4);

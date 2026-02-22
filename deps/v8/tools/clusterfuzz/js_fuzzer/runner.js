@@ -131,7 +131,12 @@ class RandomWasmCorpusRunner extends Runner {
     const v8Corpus = corpus.create(settings.input_dir, 'v8_wasm');
     const fuzzilliCorpus = corpus.create(
         settings.input_dir, 'fuzzilli_wasm', false, v8Corpus);
-    this.corpora = [v8Corpus, v8Corpus, fuzzilliCorpus];
+    if (fuzzilliCorpus.isEmpty()) {
+      console.log("Warning: The Fuzzilli corpus has no wasm cases.")
+      this.corpora = [v8Corpus];
+    } else {
+      this.corpora = [v8Corpus, v8Corpus, fuzzilliCorpus];
+    }
   }
 
   *inputGen() {

@@ -220,7 +220,7 @@ CpuFeatureScope::~CpuFeatureScope() {
 bool CpuFeatures::initialized_ = false;
 bool CpuFeatures::supports_wasm_simd_128_ = false;
 bool CpuFeatures::supports_cetss_ = false;
-unsigned CpuFeatures::supported_ = 0;
+CpuFeatureSet CpuFeatures::supported_ = {};
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 unsigned CpuFeatures::vlen_ = 0;

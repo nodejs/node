@@ -99,3 +99,34 @@ describe('Language features', () => {
         'language/features_expected.js');
   });
 });
+
+describe('Transpile', () => {
+  // Test using Babel transpile when loading sources.
+  it('test', () => {
+    const corpusDir = path.join(helpers.BASE_DIR, 'transpile');
+    const v8Corpus = corpus.create(corpusDir, 'v8');
+    const load = (relPath) => {
+      return sourceHelpers.loadSource(v8Corpus, relPath, false, true);
+    };
+    testLoad(
+        // The inputs contain all class-related language features to test the
+        // proper usage of the Babel transpile plugins and our post-processing.
+        'v8/test/mjsunit/test1.js',
+        // The test output contains the inlined non-transpiled dependencies
+        // (here mjsunit.js) and the transpiled test1.js content.
+        'transpile/v8/test/mjsunit/test1_expected.js',
+        load);
+  });
+});
+
+describe('Proto assignments', () => {
+  // Unit test `inlineProtoAssignments`.
+  it('test', () => {
+    const corpusDir = path.join(helpers.BASE_DIR, 'transpile');
+    const v8Corpus = corpus.create(corpusDir, 'v8');
+    const source = sourceHelpers.loadSource(v8Corpus, 'proto1.js');
+    sourceHelpers.inlineProtoAssignments(source.ast);
+    const code = sourceHelpers.generateCode(source, []);
+    helpers.assertExpectedResult('transpile/proto1_expected.js', code);
+  });
+});

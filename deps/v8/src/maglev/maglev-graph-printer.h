@@ -44,6 +44,7 @@ class MaglevPrintingVisitor {
   ProcessResult Process(Phi* phi, const ProcessingState& state);
   ProcessResult Process(Node* node, const ProcessingState& state);
   ProcessResult Process(ControlNode* node, const ProcessingState& state);
+  ProcessResult Process(NodeBase* node, const ProcessingState& state);
 
   std::ostream& os() { return *os_for_additional_info_; }
 
@@ -81,6 +82,9 @@ class MaglevPrintingVisitor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(ControlNode* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     return ProcessResult::kContinue;
   }
 

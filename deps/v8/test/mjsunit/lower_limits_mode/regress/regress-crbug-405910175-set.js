@@ -6,8 +6,7 @@ function TestOverflowSet() {
   const set = new Set();
 
   for (let i = 0; i < 0xFFFFFFFF; i++) {
-    const s = "str_" + i;
-    set.add(s, i);
+    set.add(i);
   }
 }
 

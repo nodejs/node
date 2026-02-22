@@ -422,4 +422,14 @@ TEST(FlagInternalsTest, LookupAllImplicationFlagsByName) {
   }
 }
 
+TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
+  static constexpr char kTestingBoolFlagC[] = "--testing-bool-flag-C";
+  CHECK_EQ(0, FlagList::SetFlagsFromString(kTestingBoolFlagC,
+                                           strlen(kTestingBoolFlagC)));
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.testing_bool_flag_C);
+  CHECK(!v8_flags.testing_bool_flag_B);
+  CHECK(!v8_flags.testing_bool_flag_A);
+}
+
 }  // namespace v8::internal

@@ -392,7 +392,8 @@ OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
     if (newtarget.map(broker).has_prototype_slot() &&
         newtarget.has_initial_map(broker)) {
       MapRef initial_map = newtarget.initial_map(broker);
-      if (initial_map.GetConstructor(broker).equals(target)) {
+      OptionalObjectRef ctor = initial_map.GetConstructor(broker);
+      if (ctor.has_value() && ctor->equals(target)) {
         DCHECK(target.AsJSFunction().map(broker).is_constructor());
         DCHECK(newtarget.map(broker).is_constructor());
         return initial_map;
@@ -417,7 +418,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     // TODO(bmeurer): This can be removed once the Array.prototype and
     // Object.prototype have NO_ELEMENTS elements kind.
     if (!ref.IsJSObject() ||
-        !broker->IsArrayOrObjectPrototype(ref.AsJSObject())) {
+        !ref.AsJSObject().IsArrayOrObjectPrototype(broker)) {
       if (ref.map(broker).is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.

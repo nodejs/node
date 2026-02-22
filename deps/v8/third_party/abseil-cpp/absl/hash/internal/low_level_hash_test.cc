@@ -361,9 +361,48 @@ TEST(LowLevelHashTest, VerifyGolden) {
 #if defined(ABSL_IS_BIG_ENDIAN) || !defined(ABSL_HAVE_INTRINSIC_INT128) || \
     UINTPTR_MAX != UINT64_MAX
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {};
-  GTEST_SKIP()
-      << "We only maintain golden data for little endian 64 bit systems with "
-         "128 bit intristics.";
+  // This conditional is to avoid an unreachable code warning.
+  bool skip = true;
+  if (skip) {
+    GTEST_SKIP()
+        << "We only maintain golden data for little endian 64 bit systems with "
+           "128 bit intristics.";
+  }
+#elif defined(__SSE4_2__) && defined(__AES__)
+  constexpr uint64_t kGolden[kNumGoldenOutputs] = {
+      0xd6bdb2c9ba5e55f2, 0xffd3e23d4115a8ae, 0x2c3218ef486127de,
+      0x554fa7f3a262b886, 0x06304cbf82e312d3, 0x490b3fb5af80622c,
+      0x7398a90b8cc59c5d, 0x65fb3168b98030ab, 0xd4564363c53617bb,
+      0x0545c26351925fe7, 0xc30700723b634bf4, 0xfb23a140a76dbe94,
+      0x2fa1467fe218a47c, 0x92e05ec3a7b966eb, 0x6112b56e5624dd50,
+      0x8760801365f9d722, 0x41f7187b61db0e5e, 0x7fe9188a1f5f50ad,
+      0x25800bd4c2002ef1, 0x91fecd33a78ef0aa, 0x93986ad71e983613,
+      0xe4c78173c7ea537b, 0x0bbdc2bcabdb50b1, 0xd9aa134df2d87623,
+      0x6c4907c9477a9409, 0xc3e418a5dbda52e5, 0x4d24f3e9d0dda93a,
+      0xcdb565a363dbe45f, 0xa95f228c8ee57478, 0x6b8f00bab5130227,
+      0x2d05a0f44818b67a, 0xd6bf7d990b5f44cb, 0xa3608bdb4712861a,
+      0xf20c33e5e355330b, 0xbc86e1b13130180d, 0x0848221b397b839a,
+      0x17cc0acf44a7e210, 0xc18c6dc584fe0f62, 0x896c7858a59f991d,
+      0xeab1e6d7d2856ed7, 0x7e4b2d99c23edc51, 0x9aeeeb7fa46e7cf0,
+      0x161b9f2e3611790f, 0x5f82aae18d971b36, 0x8d0dd9965881e162,
+      0x56700ea26285895a, 0xcd919c86c29a053e, 0x3e5d589282d9a722,
+      0x92caee9f48a66604, 0x7e1a2fd9b06f14b0, 0xce1d5293f95b0178,
+      0x8101361290e70a11, 0x570e3e9c9eafc1c6, 0x77b6241926a7a568,
+      0x313e5cb34f346699, 0xab8ebeab0514b82b, 0x6e0a43763a310408,
+      0x761b76ec22b2e440, 0x4238c84a9ec00528, 0xb9ea1f6d4d5552af,
+      0xd21f8f110b9dc060, 0xb3d3842b69ac3689, 0xd0a88aa1dcf59869,
+      0xf3f69f637b123403, 0xf5f34b1068cac7da, 0xe69a08d604774abf,
+      0x57648d3a73332437, 0x9762947f5013d00d, 0x35c5d734a0015922,
+      0xbee2fe5a104ce209, 0xedb060efa6efca34, 0x5ccf0f4786d97bc2,
+      0x1ef8ed72e80d7bef, 0x58522deb49c5e30f, 0xde97cd2a6f8bd13b,
+      0x3fae37c6f9855d09, 0xea99ae786feca261, 0x8c6d1d46670b0943,
+      0x84658b2a232c7bfb, 0x7058b7a7968de394, 0x0d44fba68e25aa8f,
+      0xc7f687020f8eb00b, 0xbf9671e1196153d6, 0x1009be891b7f83e7,
+      0x4f9457fb4aa12865, 0x30a49d9563643b32, 0x0302e2c5b46d5a3a,
+      0x77553f42fb0bfbf7, 0x26b95e89f0077110, 0x76ce68ebe01191ba,
+      0x724110fb509e4376, 0xebe74b016b5cfb88, 0x3b0fe11dcf175fc9,
+      0x20b737b9c0490538, 0x0db21c429b45fd17,
+  };
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
       0x669da02f8d009e0f, 0xceb19bf2255445cd, 0x0e746992d6d43a7c,
@@ -403,7 +442,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
 
   auto hash_fn = [](absl::string_view s, uint64_t state) {
     return absl::hash_internal::CombineLargeContiguousImplOn64BitLengthGt32(
-        reinterpret_cast<const unsigned char*>(s.data()), s.size(), state);
+        state, reinterpret_cast<const unsigned char*>(s.data()), s.size());
   };
 
 #if UPDATE_GOLDEN

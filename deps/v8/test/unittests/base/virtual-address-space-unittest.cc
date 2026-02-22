@@ -7,6 +7,10 @@
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#ifdef V8_OS_LINUX
+#include "src/base/platform/platform-linux.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -102,17 +106,17 @@ void TestParentSpaceCannotAllocateInChildSpace(v8::VirtualAddressSpace* parent,
 void TestSharedPageAllocation(v8::VirtualAddressSpace* space) {
   const size_t size = 2 * space->allocation_granularity();
 
-  PlatformSharedMemoryHandle handle =
+  std::optional<SharedMemoryHandle> handle =
       OS::CreateSharedMemoryHandleForTesting(size);
-  if (handle == kInvalidSharedMemoryHandle) return;
+  if (!handle.has_value()) return;
 
   Address mapping1 =
       space->AllocateSharedPages(VirtualAddressSpace::kNoHint, size,
-                                 PagePermissions::kReadWrite, handle, 0);
+                                 PagePermissions::kReadWrite, *handle, 0);
   ASSERT_NE(kNullAddress, mapping1);
   Address mapping2 =
       space->AllocateSharedPages(VirtualAddressSpace::kNoHint, size,
-                                 PagePermissions::kReadWrite, handle, 0);
+                                 PagePermissions::kReadWrite, *handle, 0);
   ASSERT_NE(kNullAddress, mapping2);
   ASSERT_NE(mapping1, mapping2);
 
@@ -124,7 +128,7 @@ void TestSharedPageAllocation(v8::VirtualAddressSpace* space) {
   space->FreeSharedPages(mapping1, size);
   space->FreeSharedPages(mapping2, size);
 
-  OS::DestroySharedMemoryHandle(handle);
+  OS::DestroySharedMemoryHandle(*handle);
 }
 
 TEST(VirtualAddressSpaceTest, TestPagePermissionSubsets) {
@@ -261,6 +265,60 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
   // allocate pages in it, so no TestParentSpaceCannotAllocateInChildSpace.
   TestSharedPageAllocation(&subspace);
 }
+
+#ifdef V8_OS_LINUX
+// Test uses SignalSafeMapsParser, which is only available on Linux.
+TEST(VirtualAddressSpaceTest, TestSubspaceNaming) {
+  constexpr size_t kSubspaceSize = 32 * MB;
+
+  VirtualAddressSpace rootspace;
+  if (!rootspace.CanAllocateSubspaces()) GTEST_SKIP();
+
+  size_t subspace_alignment = rootspace.allocation_granularity();
+  auto subspace = rootspace.AllocateSubspace(VirtualAddressSpace::kNoHint,
+                                             kSubspaceSize, subspace_alignment,
+                                             PagePermissions::kReadWrite);
+  ASSERT_TRUE(subspace);
+
+  const std::string kName = "v8-test-subspace";
+  if (!subspace->SetName(kName)) {
+    GTEST_SKIP() << "Memory region naming not supported.";
+  }
+
+  size_t page_size = subspace->page_size();
+
+  auto has_name = [&](Address addr, const std::string& expected_name) {
+    base::SignalSafeMapsParser parser;
+    EXPECT_TRUE(parser.IsValid());
+    while (auto entry = parser.Next()) {
+      if (addr >= entry->start && addr < entry->end) {
+        return strstr(entry->pathname, expected_name.c_str()) != nullptr;
+      }
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(has_name(subspace->base(), kName));
+  EXPECT_TRUE(has_name(subspace->base() + subspace->size() - 1, kName));
+
+  // Allocate a page and check that it has the correct name.
+  Address page =
+      subspace->AllocatePages(VirtualAddressSpace::kNoHint, page_size,
+                              page_size, PagePermissions::kReadWrite);
+  ASSERT_NE(kNullAddress, page);
+  EXPECT_TRUE(has_name(page, kName));
+
+  // Free the page and check that the address range still has the correct name.
+  subspace->FreePages(page, page_size);
+  EXPECT_TRUE(has_name(page, kName));
+
+  // Reallocate the same page and check that it still has the correct name.
+  Address reallocated_page = subspace->AllocatePages(
+      page, page_size, page_size, PagePermissions::kReadWrite);
+  ASSERT_EQ(reallocated_page, page);
+  EXPECT_TRUE(has_name(reallocated_page, kName));
+}
+#endif  // V8_OS_LINUX
 
 }  // namespace base
 }  // namespace v8

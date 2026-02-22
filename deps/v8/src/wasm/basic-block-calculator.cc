@@ -85,8 +85,8 @@ void BasicBlockCalculator::ComputeBasicBlocks() {
       case kExprBrOnNonNull:
       case kExprBrOnCast:
       case kExprBrOnCastFail:
-      case kExprBrOnCastDesc:
-      case kExprBrOnCastDescFail:
+      case kExprBrOnCastDescEq:
+      case kExprBrOnCastDescEqFail:
       case kExprReturnCall:
       case kExprReturnCallIndirect:
       case kExprReturnCallRef:

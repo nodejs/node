@@ -796,63 +796,6 @@ BUILTIN(LocalePrototypeGetWeekInfo) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetWeekInfo(isolate, locale));
 }
 
-BUILTIN(LocalePrototypeCalendars) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.calendars");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetCalendars(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeCollations) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.collations");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetCollations(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeHourCycles) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.hourCycles");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetHourCycles(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeNumberingSystems) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.numberingSystems");
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSLocale::GetNumberingSystems(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeTextInfo) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.textInfo");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetTextInfo(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeTimeZones) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.timeZones");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetTimeZones(isolate, locale));
-}
-
-BUILTIN(LocalePrototypeWeekInfo) {
-  HandleScope scope(isolate);
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kLocaleInfoObsoletedGetters);
-  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.weekInfo");
-  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetWeekInfo(isolate, locale));
-}
-
 BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -1296,11 +1239,13 @@ BUILTIN(SegmentsPrototypeIterator) {
   const char* const method_name = "%SegmentIsPrototype%[@@iterator]";
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
+  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator(
+      segments->icu_break_iterator(), isolate);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSSegmentIterator::Create(
-          isolate, direct_handle(segments->raw_string(), isolate),
-          segments->icu_break_iterator()->raw(), segments->granularity()));
+      isolate, JSSegmentIterator::Create(
+                   isolate, direct_handle(segments->raw_string(), isolate),
+                   managed_break_iterator, segments->granularity()));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

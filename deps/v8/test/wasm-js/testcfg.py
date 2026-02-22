@@ -18,6 +18,10 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 proposal_flags = {
     # currently none; if needed add entries in this form:
     # 'exception-handling': ['--experimental-wasm-exnref'],
+    'custom-descriptors': [
+        '--experimental-wasm-custom-descriptors',
+        '--experimental-wasm-js-interop',
+    ],
 }
 
 # Flags per WPT subdirectory.

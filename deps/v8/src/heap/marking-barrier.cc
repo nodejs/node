@@ -19,7 +19,7 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
@@ -146,8 +146,11 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   DCHECK(HeapLayout::InReadOnlySpace(descriptor_array->map()));
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
-  // Only major GC uses custom liveness.
-  if (is_minor() || IsStrongDescriptorArray(descriptor_array)) {
+  // Only major GC uses custom liveness, and only when DescriptorArrays can be
+  // trimmed.
+  if (!v8_flags.trim_descriptor_arrays_in_gc ||
+      !v8_flags.trim_descriptor_arrays_in_gc_with_stack || is_minor() ||
+      IsStrongDescriptorArray(descriptor_array)) {
     MarkValueLocal(descriptor_array);
     return;
   }
@@ -171,7 +174,7 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
       DCHECK_EQ(target_worklist.value(),
                 MarkingHelper::WorklistTarget::kRegular);
     } else {
-      DCHECK(HeapLayout::InBlackAllocatedPage(descriptor_array));
+      DCHECK(TrustedHeapLayout::InBlackAllocatedPage(descriptor_array));
     }
 #endif  // DEBUG
     gc_epoch = major_collector_->epoch();
@@ -440,7 +443,7 @@ void MarkingBarrier::PublishIfNeeded() {
   if (is_activated_) {
     current_worklists_->Publish();
     for (auto& it : typed_slots_map_) {
-      MutablePageMetadata* memory_chunk = it.first;
+      MutablePage* memory_chunk = it.first;
       // Access to TypeSlots need to be protected, since LocalHeaps might
       // publish code in the background thread.
       base::MutexGuard guard(memory_chunk->mutex());

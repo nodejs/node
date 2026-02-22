@@ -93,13 +93,13 @@ void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
     return;
   }
 
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
 }
 
 void EvacuationVerifier::VerifyEvacuation(PagedSpaceBase* space) {
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     if (p->Chunk()->IsEvacuationCandidate()) continue;
     VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }

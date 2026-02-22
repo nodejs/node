@@ -1230,16 +1230,16 @@ TEST(CordRepBtreeTest, Dump) {
 
     if (api != 3) {
       // Does not contain contents
-      EXPECT_THAT(str, Not(AnyOf((HasSubstr("data = \"Hello world\""),
-                                  HasSubstr("data = \"Hello external\""),
-                                  HasSubstr("data = \"ello w\""),
-                                  HasSubstr("data = \"llo ext\"")))));
+      EXPECT_THAT(str, Not(AnyOf(HasSubstr("data = \"Hello world\""),
+                                 HasSubstr("data = \"Hello external\""),
+                                 HasSubstr("data = \"ello w\""),
+                                 HasSubstr("data = \"llo ext\""))));
     } else {
       // Contains contents
-      EXPECT_THAT(str, AllOf((HasSubstr("data = \"Hello world\""),
-                              HasSubstr("data = \"Hello external\""),
-                              HasSubstr("data = \"ello w\""),
-                              HasSubstr("data = \"llo ext\""))));
+      EXPECT_THAT(str, AllOf(HasSubstr("data = \"Hello world\""),
+                             HasSubstr("data = \"Hello external\""),
+                             HasSubstr("data = \"ello w\""),
+                             HasSubstr("data = \"llo ext\"")));
     }
   }
 

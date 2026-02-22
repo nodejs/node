@@ -16,6 +16,9 @@ type ManagedWasmNativeModule extends Foreign
 @useParentTypeChecker
 type TrustedManagedWasmJSFunctionOffheapData extends TrustedForeign
     constexpr 'TrustedManaged<WasmJSFunctionData::OffheapData>';
+@useParentTypeChecker
+type ManagedBackingStore extends Foreign
+    constexpr 'Managed<BackingStore>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
@@ -24,7 +27,11 @@ extern enum AddressType extends uint8 constexpr 'wasm::AddressType' {
   kI64
 }
 
-type WasmCodePointer = uint32;
+type WasmCodePointer extends uint32;
+
+Convert<uintptr, WasmCodePointer>(p: WasmCodePointer): uintptr {
+  return Convert<uintptr>(Convert<uint32>(p));
+}
 
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
@@ -227,12 +234,20 @@ extern class WasmTableObject extends JSObject {
 }
 
 extern class WasmMemoryObject extends JSObject {
-  array_buffer: JSArrayBuffer;
+  // Either a JSArrayBuffer or undefined if a new JSArrayBuffer needs to be
+  // allocated on the next access.
+  array_buffer: JSArrayBuffer|Undefined;
+  // A Managed<BackingStore> to allocate a new JSArrayBuffer from on demand.
+  // If we ever remove this, then `BackingStore::PerIsolateAccountingLength()`
+  // needs to be changed to properly account for the external memory.
+  // LINT.IfChange(WasmMemoryAccounting)
+  managed_backing_store: ManagedBackingStore;
+  // LINT.ThenChange(src/objects/backing-store.h:PerIsolateAccountingLength)
   maximum_pages: Smi;
   instances: WeakArrayList;
   address_type: AddressType;  // 1 byte.
-  needs_new_buffer: uint8;    // 1 byte, used as bool.
   // TODO(clemensb): Support fixed-sized arrays in torque.
+  padding_for_flags_0: uint8;
   padding_for_flags_1: uint16;
   @if(TAGGED_SIZE_8_BYTES) padding_for_flags_2: uint32;
 }
@@ -265,7 +280,6 @@ extern class WasmGlobalObject extends JSObject {
 }
 
 extern class WasmTagObject extends JSObject {
-  serialized_signature: PodArrayOfWasmValueType;
   tag: HeapObject;
   canonical_type_index: Smi;
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;

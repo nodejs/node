@@ -555,7 +555,7 @@ MaybeDirectHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
   icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
   result.minimizeSubtags(status);
-  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+  if (strcmp(source.getBaseName(), result.getBaseName()) != 0) {
     // Base name is changed
     if (strlen(source.getBaseName()) != strlen(source.getName())) {
       // the source has extensions, get the extensions from the source.
@@ -601,8 +601,12 @@ MaybeDirectHandle<JSArray> GetKeywordValuesFromLocale(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  return Intl::ToJSArray(isolate, unicode_key, enumeration.get(), removes,
-                         sort);
+  return Intl::ToJSArray(
+      isolate,
+      [unicode_key](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType(unicode_key, value));
+      },
+      enumeration.get(), removes, sort);
 }
 
 namespace {

@@ -74,7 +74,14 @@ class Function:
     # Compiled function #6 using TurboFan, took 0 ms and 14440 / 44656
     # 12        13     14       15 16       17 18   19
     # max/total bytes; bodysize 12 codesize 24 name wasm-function#6
-    self.time_tf = int(words[6])
+    time_factor = 1
+    if words[7] == "ms":
+      time_factor = 1000
+    elif words[7] == "μs":
+      pass  # Default.
+    else:
+      assert False, "Time must be in 'ms' or 'μs'."
+    self.time_tf = int(words[6]) * time_factor
     self.mem_tf_max = int(words[9])
     self.mem_tf_total = int(words[11])
     self.size_tf = int(words[17])
@@ -88,7 +95,14 @@ class Function:
     # Compiled function #6 using Liftoff, took 0 ms and 968 bytes; bodysize 4
     # 13       14
     # codesize 68
-    self.time_lo = int(words[6])
+    time_factor = 1
+    if words[7] == "ms":
+      time_factor = 1000
+    elif words[7] == "μs":
+      pass  # Default.
+    else:
+      assert False, "Time must be in 'ms' or 'μs'."
+    self.time_lo = int(words[6]) * time_factor
     self.mem_lo = int(words[9])
     self.size_lo = int(words[14])
     self.size_wasm = int(words[12])
@@ -135,7 +149,7 @@ for f in funcs_list:
   if f.size_lo > 0:
     total_lo_size += f.size_lo
 
-print("Total TF time: %d" % total_tf_time)
+print("Total TF time: %d ms" % (total_tf_time / 1000))
 print("Total TF size: %d" % total_tf_size)
-print("Total LO time: %d" % total_lo_time)
+print("Total LO time: %d ms" % (total_lo_time / 1000))
 print("Total LO size: %d" % total_lo_size)

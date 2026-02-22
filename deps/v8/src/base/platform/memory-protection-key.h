@@ -140,8 +140,10 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // Tag the stack of the current thread with the given key.
   //
   // This will attempt to determine the start and size of the current thread's
-  // stack, then tag that memory with the given key.
-  static bool SetKeyForCurrentThreadsStack(int key);
+  // stack, then tag that memory with the given key. If a limit_adress is
+  // specified, only the pages up to and including that address will be tagged.
+  static bool SetKeyForCurrentThreadsStack(int key,
+                                           void* limit_address = nullptr);
 };
 
 }  // namespace base

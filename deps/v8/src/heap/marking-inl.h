@@ -10,9 +10,9 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/spaces.h"
 
 namespace v8::internal {
@@ -152,8 +152,8 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 MarkingBitmap* MarkingBitmap::FromAddress(const Isolate* isolate,
                                           Address address) {
   Address metadata_address =
-      MutablePageMetadata::FromAddress(isolate, address)->MetadataAddress();
-  return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
+      MutablePage::FromAddress(isolate, address)->MetadataAddress();
+  return Cast(metadata_address + MutablePage::MarkingBitmapOffset());
 }
 
 // static
@@ -197,7 +197,7 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
+inline Address MarkingBitmap::FindPreviousValidObject(const NormalPage* page,
                                                       Address maybe_inner_ptr) {
   DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();
@@ -290,52 +290,41 @@ MarkBit MarkBit::From(const Isolate* isolate, Tagged<HeapObject> heap_object) {
 // static
 std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
     Heap* heap, Tagged<HeapObject> object) {
-  const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (flags & MemoryChunk::READ_ONLY_HEAP) {
+  switch (GetLivenessMode(heap, object)) {
+    case LivenessMode::kAlwaysLive:
+      return {};
+    case LivenessMode::kMarkbit:
+      return {MarkingHelper::WorklistTarget::kRegular};
+  }
+
+  if (HeapLayout::InReadOnlySpace(object)) {
     return {};
   }
-  if (v8_flags.black_allocated_pages &&
-      V8_UNLIKELY(flags & MemoryChunk::BLACK_ALLOCATED)) {
-    DCHECK(!(flags & MemoryChunk::kIsInYoungGenerationMask));
-    return {};
-  }
-  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
-    return {MarkingHelper::WorklistTarget::kRegular};
-  }
-  // Object in shared writable space. Only mark it if the Isolate is owning the
-  // shared space.
-  //
-  // TODO(340989496): Speed up check here by keeping the flag on Heap.
-  if (heap->isolate()->is_shared_space_isolate()) {
-    return {MarkingHelper::WorklistTarget::kRegular};
-  }
-  return {};
 }
 
 // static
 MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
     const Heap* heap, Tagged<HeapObject> object) {
+  if (HeapLayout::InReadOnlySpace(object)) {
+    return MarkingHelper::LivenessMode::kAlwaysLive;
+  }
   const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (flags & MemoryChunk::READ_ONLY_HEAP) {
-    return MarkingHelper::LivenessMode::kAlwaysLive;
+  if (chunk->IsBlackAllocatedOrWritableShared()) [[unlikely]] {
+    if (chunk->IsBlackAllocated()) {
+      DCHECK(!chunk->InYoungGeneration());
+      DCHECK(v8_flags.black_allocated_pages);
+      return MarkingHelper::LivenessMode::kAlwaysLive;
+    }
+    DCHECK(chunk->InWritableSharedSpace());
+    // Object in shared writable space. Only mark it if the Isolate is owning
+    // the shared space.
+    //
+    // TODO(340989496): Speed up check here by keeping the flag on Heap.
+    if (!heap->isolate()->is_shared_space_isolate()) {
+      return MarkingHelper::LivenessMode::kAlwaysLive;
+    }
   }
-  if (v8_flags.black_allocated_pages &&
-      (flags & MemoryChunk::BLACK_ALLOCATED)) {
-    return MarkingHelper::LivenessMode::kAlwaysLive;
-  }
-  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
-    return MarkingHelper::LivenessMode::kMarkbit;
-  }
-  // Object in shared writable space. Only mark it if the Isolate is owning the
-  // shared space.
-  //
-  // TODO(340989496): Speed up check here by keeping the flag on Heap.
-  if (heap->isolate()->is_shared_space_isolate()) {
-    return MarkingHelper::LivenessMode::kMarkbit;
-  }
-  return MarkingHelper::LivenessMode::kAlwaysLive;
+  return MarkingHelper::LivenessMode::kMarkbit;
 }
 
 // static

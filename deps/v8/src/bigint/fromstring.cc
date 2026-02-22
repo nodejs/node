@@ -65,10 +65,10 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 //   - one initially holds the parts and is overwritten with the new multipliers
 //   Parts and multipliers both grow in each iteration, and get fewer, so we
 //   use the space of two adjacent old chunks for one new chunk.
-//   Since the {heap_parts_} vectors has the right size, and so does the
-//   result {Z}, we can use that memory, and only need to allocate one scratch
-//   vector. If the final result ends up in the wrong bucket, we have to copy it
-//   to the correct one.
+//   Since the {heap_parts_} vector has the right size, we can use that memory.
+//   {Z} is also big enough, but in-sandbox, so to guard against concurrent
+//   modifications we don't use it for temporary values, only for the final
+//   result. So we need to allocate two scratch vectors.
 // - We don't have to keep track of the positions and sizes of the chunks,
 //   because we can deduce their precise placement from the iteration index.
 //
@@ -96,9 +96,9 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
   // OOB writes into {multipliers_storage} (allocated below).
   CHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
-  Storage multipliers_storage(num_parts);
-  RWDigits multipliers(multipliers_storage.get(), num_parts);
-  RWDigits temp(Z, 0, num_parts);
+  Storage temp_storage(num_parts * 2);
+  RWDigits multipliers(temp_storage.get(), num_parts);
+  RWDigits temp(temp_storage.get() + num_parts, num_parts);
   // Unrolled and specialized first iteration: part_len == 1, so instead of
   // Digits sub-vectors we have individual digit_t values, and the multipliers
   // are known up front.
@@ -148,7 +148,8 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
 
   // Remaining iterations.
   while (num_parts > 1) {
-    RWDigits new_parts = temp;
+    // In the very last iteration, write into {Z}.
+    RWDigits new_parts = num_parts == 2 ? Z : temp;
     RWDigits new_multipliers = parts;
     uint32_t new_part_len = part_len * 2;
     uint32_t i = 0;
@@ -209,13 +210,8 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
     multipliers = new_multipliers;
     temp = new_temp;
   }
-  // Copy the result to Z, if it doesn't happen to be there already.
-  if (parts.digits() != Z.digits()) {
-    uint32_t i = 0;
-    for (; i < parts.len(); i++) Z[i] = parts[i];
-    // Z might be bigger than we requested; be robust towards that.
-    for (; i < Z.len(); i++) Z[i] = 0;
-  }
+  // Z might be bigger than we requested; be robust towards that.
+  for (uint32_t i = part_len; i < Z.len(); i++) Z[i] = 0;
 }
 
 // Specialized algorithms for power-of-two radixes. Designed to work with

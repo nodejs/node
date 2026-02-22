@@ -21,6 +21,7 @@ class Isolate;
 namespace wasm {
 
 class StackMemory;
+class CanonicalSig;
 
 using Address = uintptr_t;
 
@@ -202,8 +203,10 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw);
+                             Address cont_raw, Address return_buffer,
+                             const CanonicalSig* sig);
 void return_stack(Isolate* isolate, wasm::StackMemory* to);
+void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

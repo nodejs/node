@@ -46,6 +46,22 @@ class TestFuzzerProcHelpers(unittest.TestCase):
     old_flags = []
     check(['--flag', '--no-baz'], old_flags, ['--flag', '--no-baz'])
 
+  def test_extra_flags(self):
+    class FakeRandom():
+      def random(self):
+        return 0.5
+
+    def check(extra_flags, expected_flags):
+      self.assertEqual(
+        fuzzer.random_extra_flags(rng=FakeRandom(), extra_flags=extra_flags),
+        expected_flags)
+
+    check([], [])
+    check([(1, '--f1')], ['--f1'])
+    check([(0.7, '--f1'), (0.3, '--f2'), (0.9, '--f3')], ['--f1', '--f3'])
+    check([(0.7, '--f1 --f2'), (0.3, '--f3'), (1, '--f4 --f5 --f6')],
+          ['--f1', '--f2', '--f4', '--f5', '--f6'])
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -211,6 +211,11 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 
+  size_t GetLoopOpCount(const Block* loop_header) {
+    DCHECK(loop_header->IsLoop());
+    return loop_finder_.GetLoopInfo(loop_header).op_count;
+  }
+
   // The returned unroll count is the total number of copies of the loop body
   // in the resulting graph, i.e., an unroll count of N means N-1 copies of the
   // body which were partially unrolled, and 1 for the original/remaining body.
@@ -383,14 +388,12 @@ class LoopUnrollingReducer : public Next {
       // header (note that loop headers only have 2 predecessor, including the
       // backedge), and that isn't the backedge.
       if (ShouldSkipOptimizationStep()) goto no_change;
-      if (analyzer_.ShouldRemoveLoop(dst)) {
-        RemoveLoop(dst);
+      if (analyzer_.ShouldRemoveLoop(dst) && RemoveLoop(dst)) {
         return {};
-      } else if (analyzer_.ShouldFullyUnrollLoop(dst)) {
-        FullyUnrollLoop(dst);
+      } else if (analyzer_.ShouldFullyUnrollLoop(dst) && FullyUnrollLoop(dst)) {
         return {};
-      } else if (analyzer_.ShouldPartiallyUnrollLoop(dst)) {
-        PartiallyUnrollLoop(dst);
+      } else if (analyzer_.ShouldPartiallyUnrollLoop(dst) &&
+                 PartiallyUnrollLoop(dst)) {
         return {};
       }
     } else if ((unrolling_ == UnrollingStatus::kUnrolling) &&
@@ -467,9 +470,9 @@ class LoopUnrollingReducer : public Next {
     // and would like to not emit the loop body that follows.
     kRemoveLoop,
   };
-  void RemoveLoop(const Block* header);
-  void FullyUnrollLoop(const Block* header);
-  void PartiallyUnrollLoop(const Block* header);
+  bool RemoveLoop(const Block* header);
+  bool FullyUnrollLoop(const Block* header);
+  bool PartiallyUnrollLoop(const Block* header);
   void FixLoopPhis(const Block* input_graph_loop, Block* output_graph_loop,
                    const Block* backedge_block);
   bool IsRunningBuiltinPipeline() {
@@ -508,10 +511,16 @@ class LoopUnrollingReducer : public Next {
 };
 
 template <class Next>
-void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
+bool LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   TRACE("LoopUnrolling: partially unrolling loop at " << header->index().id());
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
   DCHECK(!skip_next_stack_check_);
+
+  if (!__ CanCreateNVariables(analyzer_.GetLoopOpCount(header))) {
+    TRACE("> Too many variables, skipping unrolling");
+    return false;
+  }
+
   unrolling_ = UnrollingStatus::kUnrolling;
 
   auto loop_body = analyzer_.GetLoopBody(header);
@@ -533,7 +542,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
       __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true);
   if (StopUnrollingIfUnreachable(output_graph_header)) {
     TRACE("> Next iteration is unreachable, stopping unrolling");
-    return;
+    return true;
   }
 
   // Emitting the subsequent folded iterations. We set `unrolling_` to
@@ -549,7 +558,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
     if (StopUnrollingIfUnreachable(output_graph_header)) {
       TRACE("> Next iteration is unreachable, stopping unrolling");
-      return;
+      return true;
     }
   }
 
@@ -567,6 +576,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
 
   unrolling_ = UnrollingStatus::kNotUnrolling;
   TRACE("> Finished partially unrolling loop " << header->index().id());
+  return true;
 }
 
 template <class Next>
@@ -622,10 +632,20 @@ void LoopUnrollingReducer<Next>::FixLoopPhis(const Block* input_graph_loop,
 }
 
 template <class Next>
-void LoopUnrollingReducer<Next>::RemoveLoop(const Block* header) {
+bool LoopUnrollingReducer<Next>::RemoveLoop(const Block* header) {
   TRACE("LoopUnrolling: removing loop at " << header->index().id());
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
   DCHECK(!skip_next_stack_check_);
+
+  if (!__ CanCreateNVariables(analyzer_.GetLoopOpCount(header))) {
+    TRACE("> Too many variables, skipping removal");
+    // TODO(dmercadier): in theory, RemoveLoop shouldn't need Variables, since
+    // it cannot be called while unrolling an outer loop, since we only unroll
+    // innermost loops. We should teach CloneAndInlineBlock that it doesn't
+    // always need to introduce Variables, and then remove this bailout.
+    return false;
+  }
+
   // When removing a loop, we still need to emit the header (since it has to
   // always be executed before the 1st iteration anyways), but by setting
   // {unrolling_} to `kRemoveLoop`, the final Branch of the loop will become a
@@ -633,14 +653,20 @@ void LoopUnrollingReducer<Next>::RemoveLoop(const Block* header) {
   unrolling_ = UnrollingStatus::kRemoveLoop;
   __ CloneAndInlineBlock(header);
   unrolling_ = UnrollingStatus::kNotUnrolling;
+  return true;
 }
 
 template <class Next>
-void LoopUnrollingReducer<Next>::FullyUnrollLoop(const Block* header) {
+bool LoopUnrollingReducer<Next>::FullyUnrollLoop(const Block* header) {
   TRACE("LoopUnrolling: fully unrolling loop at " << header->index().id());
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
   DCHECK(!skip_next_stack_check_);
   ScopedModification<bool> skip_stack_checks(&skip_next_stack_check_, true);
+
+  if (!__ CanCreateNVariables(analyzer_.GetLoopOpCount(header))) {
+    TRACE("> Too many variables, skipping unrolling");
+    return false;
+  }
 
   size_t iter_count = analyzer_.GetIterationCount(header).exact_count();
   TRACE("> iter_count: " << iter_count);
@@ -654,7 +680,7 @@ void LoopUnrollingReducer<Next>::FullyUnrollLoop(const Block* header) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
     if (StopUnrollingIfUnreachable()) {
       TRACE("> Next iteration is unreachable, stopping unrolling");
-      return;
+      return true;
     }
   }
 
@@ -667,6 +693,7 @@ void LoopUnrollingReducer<Next>::FullyUnrollLoop(const Block* header) {
 
   unrolling_ = UnrollingStatus::kNotUnrolling;
   TRACE("> Finished fully unrolling loop " << header->index().id());
+  return true;
 }
 
 #undef TRACE

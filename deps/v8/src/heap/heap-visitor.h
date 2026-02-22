@@ -79,6 +79,7 @@ class MaybeObjectSize final {
   V(PropertyArray)                    \
   V(PropertyCell)                     \
   V(PrototypeInfo)                    \
+  V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \
   V(RegExpDataWrapper)                \
   V(SeqOneByteString)                 \
@@ -162,6 +163,7 @@ class MaybeObjectSize final {
   V(PropertyArray)                                        \
   V(PropertyCell)                                         \
   V(PrototypeInfo)                                        \
+  V(PrototypeSharedClosureInfo)                           \
   V(RegExpBoilerplateDescription)                         \
   V(RegExpDataWrapper)                                    \
   V(ScopeInfo)                                            \

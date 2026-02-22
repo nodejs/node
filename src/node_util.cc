@@ -93,7 +93,7 @@ static void GetExternalValue(
   Isolate* isolate = args.GetIsolate();
   Local<External> external = args[0].As<External>();
 
-  void* ptr = external->Value();
+  void* ptr = external->Value(v8::kExternalPointerTypeTagDefault);
   uint64_t value = reinterpret_cast<uint64_t>(ptr);
   Local<BigInt> ret = BigInt::NewFromUnsigned(isolate, value);
   args.GetReturnValue().Set(ret);
@@ -366,7 +366,7 @@ static void DefineLazyPropertiesGetter(
   // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
   // returns a nullptr and retrieve the creation context via `this` object and
   // get the creation Realm.
-  Local<Value> receiver_val = info.This();
+  Local<Value> receiver_val = info.HolderV2();
   if (!receiver_val->IsObject()) {
     THROW_ERR_INVALID_INVOCATION(isolate);
     return;

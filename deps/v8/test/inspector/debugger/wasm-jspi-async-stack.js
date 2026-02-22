@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-staging --async-stack-traces
+// Flags: --wasm-stack-switching-stack-size=100
 
 utils.load('test/inspector/wasm-inspector-test.js');
 

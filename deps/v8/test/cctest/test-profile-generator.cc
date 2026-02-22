@@ -857,11 +857,11 @@ TEST(ProfileNodeScriptId) {
 
   current = PickChild(current, "b");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_b->GetUnboundScript()->GetId(), current->GetScriptId());
+  CHECK_EQ(script_b->ScriptId(), current->GetScriptId());
 
   current = PickChild(current, "a");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_a->GetUnboundScript()->GetId(), current->GetScriptId());
+  CHECK_EQ(script_a->ScriptId(), current->GetScriptId());
 }
 
 static const char* line_number_test_source_existing_functions =

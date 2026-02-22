@@ -10,7 +10,7 @@ const kBuiltinNameSome: constexpr string = '%TypedArray%.prototype.some';
 // https://tc39.es/ecma262/#sec-%typedarray%.prototype.some
 transitioning macro SomeAllElements(
     implicit context: Context)(
-    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
     callbackfn: Callable, thisArg: JSAny): Boolean {
   let witness =
       typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
@@ -62,16 +62,17 @@ transitioning javascript builtin TypedArrayPrototypeSome(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
     return SomeAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameSome);
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSome);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameSome);
   } label NotCallable deferred {
     ThrowCalledNonCallable(arguments[0]);
   }

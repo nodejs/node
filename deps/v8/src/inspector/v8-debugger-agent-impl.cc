@@ -2286,7 +2286,6 @@ void V8DebuggerAgentImpl::didPause(
   if (!response.IsSuccess())
     protocolCallFrames = std::make_unique<Array<CallFrame>>();
 
-  v8::debug::NotifyDebuggerPausedEventSent(m_debugger->isolate());
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace(), currentExternalStackTrace());

@@ -169,6 +169,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvFloat32RoundTiesEven:
     case kRiscvFloat32RoundTruncate:
     case kRiscvFloat32RoundUp:
+    case kRiscvFloat64ToFloat16RawBits:
+    case kRiscvFloat16RawBitsToFloat64:
     case kRiscvFloat64ExtractLowWord32:
     case kRiscvFloat64ExtractHighWord32:
     case kRiscvFloat64InsertLowWord32:
@@ -307,6 +309,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLhu:
     case kRiscvLw:
     case kRiscvLoadFloat:
+    case kRiscvLoadHalf:
     case kRiscvRvvLd:
     case kRiscvPeek:
     case kRiscvUld:
@@ -354,6 +357,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvStoreToStackSlot:
     case kRiscvSw:
     case kRiscvStoreFloat:
+    case kRiscvStoreHalf:
     case kRiscvUStoreDouble:
     case kRiscvUsh:
     case kRiscvUsw:
@@ -1287,6 +1291,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvFloat32RoundTruncate:
     case kRiscvFloat32RoundUp:
     case kRiscvFloat32RoundTiesEven:
+    case kRiscvFloat64ToFloat16RawBits:
+    case kRiscvFloat16RawBitsToFloat64:
       return Float32RoundLatency();
     case kRiscvFloat32Max:
       return Float32MaxLatency();
@@ -1389,10 +1395,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvSh:
     case kRiscvSw:
       return AlignedMemoryLatency();
+    case kRiscvLoadHalf:
     case kRiscvLoadFloat:
       return ULoadFloatLatency();
     case kRiscvLoadDouble:
       return LoadDoubleLatency();
+    case kRiscvStoreHalf:
     case kRiscvStoreFloat:
       return StoreFloatLatency();
     case kRiscvStoreDouble:

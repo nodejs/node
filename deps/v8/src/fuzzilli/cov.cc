@@ -17,7 +17,7 @@
 #include "src/base/platform/memory.h"
 #include "src/sandbox/hardware-support.h"
 
-#define SHM_SIZE 0x100000
+#define SHM_SIZE 0x200000
 #define MAX_EDGES ((SHM_SIZE - 4) * 8)
 
 struct shmem_data {
@@ -31,14 +31,14 @@ uint32_t *edges_start, *edges_stop;
 uint32_t builtins_start;
 uint32_t builtins_edge_count;
 
-void sanitizer_cov_reset_edgeguards() {
+__attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
   uint32_t N = 0;
   for (uint32_t* x = edges_start; x < edges_stop && N < MAX_EDGES; x++)
     *x = ++N;
 }
 
-extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
-                                                    uint32_t* stop) {
+__attribute__((visibility("default"))) extern "C" void
+__sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
   // We should initialize the shared memory region only once. We can initialize
   // it multiple times if it's the same region, which is something that appears
   // to happen on e.g. macOS. If we ever see a different region, we will likely
@@ -89,32 +89,58 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
 }
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-void sanitizer_cov_prepare_for_hardware_sandbox() {
-  // We need to allow the coverage instrumentation to run in sandboxed
-  // execution mode, for example to be able to run sandboxed C++ code. For that
-  // to work, we need to make both the shared memory region and the edge guards
-  // sandbox-accessible as they are both written to from
-  // __sanitizer_cov_trace_pc_guard (which would then run in sandboxed mode).
-  v8::internal::SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
-      reinterpret_cast<uintptr_t>(shmem), SHM_SIZE);
-
-  // While the shared memory region is guaranteed to be page-aligned, the
-  // edge guards are not so we need to do some rounding and will thereby also
-  // make some unrelated memory sandbox-accessible. Since this is just used
-  // in fuzzer builds, that should be fine.
-  const size_t kPageSize = sysconf(_SC_PAGESIZE);
-  const uintptr_t kPageMask = ~(kPageSize - 1);
-  uintptr_t edge_guards_start = reinterpret_cast<uintptr_t>(edges_start);
-  uintptr_t edge_guards_end = reinterpret_cast<uintptr_t>(edges_stop);
-  edge_guards_start &= kPageMask;
-  edge_guards_end = (edge_guards_end - 1 + kPageSize) & kPageMask;
-  size_t edge_guards_size = edge_guards_end - edge_guards_start;
-  v8::internal::SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
-      edge_guards_start, edge_guards_size);
+// We need to allow the coverage instrumentation to run in sandboxed execution
+// mode, for example to be able to run sandboxed C++ code. As the coverage
+// bitmap and the edge guards are tagged with the default pkey, we may need to
+// temporarily grant access to the default pkey. These helper functions take
+// care of this. We use inline assembly and avoid any function calls to
+// minimize performance impact.
+// Changing the pkey state frequently is fairly expensive. However, at the
+// moment we have very very little C++ code that actually runs in sandboxed
+// execution mode. As an alternative approach, we could also tag the coverage
+// bitmap as "sandbox extension" memory such that both sandboxed and privileged
+// code can access them. However, this interacts badly with signal handlers as
+// they run without pkey access. As such, for that to work we would probably
+// have to replace all signal handlers with an assembly trampoline that first
+// restores full pkey access before jumping to the real handler code, or
+// disable coverage instrumentation for signal handlers (probably not great).
+static inline uint32_t GrantDefaultPkeyAccessIfNecessary() {
+  uint32_t pkru;
+  asm volatile(
+      "xor %%ecx, %%ecx\n"
+      "rdpkru\n"
+      : "=a"(pkru)
+      :
+      : "ecx", "edx");
+  if (pkru & 3) {
+    // We don't have (write) access to the default pkey currently.
+    uint32_t new_pkru = pkru & ~3;
+    asm volatile(
+        "xor %%ecx, %%ecx\n"
+        "xor %%edx, %%edx\n"
+        "wrpkru\n"
+        :
+        : "a"(new_pkru)
+        : "ecx", "edx");
+  }
+  return pkru;
 }
-#endif
 
-uint32_t sanitizer_cov_count_discovered_edges() {
+static inline void RestorePreviousPkeyAccessIfNecessary(uint32_t old_pkru) {
+  if (old_pkru & 3) {
+    asm volatile(
+        "xor %%ecx, %%ecx\n"
+        "xor %%edx, %%edx\n"
+        "wrpkru\n"
+        :
+        : "a"(old_pkru)
+        : "ecx", "edx");
+  }
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+__attribute__((visibility("default"))) uint32_t
+sanitizer_cov_count_discovered_edges() {
   uint32_t on_edges_counter = 0;
   for (uint32_t i = 1; i < builtins_start; ++i) {
     const uint32_t byteIndex = i >> 3;  // Divide by 8 using a shift operation
@@ -127,15 +153,33 @@ uint32_t sanitizer_cov_count_discovered_edges() {
   return on_edges_counter;
 }
 
-extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
-  // There's a small race condition here: if this function executes in two
-  // threads for the same edge at the same time, the first thread might disable
-  // the edge (by setting the guard to zero) before the second thread fetches
-  // the guard value (and thus the index). However, our instrumentation ignores
-  // the first edge (see libcoverage.c) and so the race is unproblematic.
+__attribute__((visibility("default"))) extern "C" void
+__sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   uint32_t index = *guard;
+
+  // This check is useful for two reasons:
+  // * It can sometimes happen that this callback is invoked before coverage
+  //   feedback is initialized, in which case shmem is likely nullptr (and the
+  //   edges are all zero). So in that case this check prevents a crash.
+  // * We can get here even for a disabled edge (*guard == 0), either because
+  //   the compiler didn't insert a guard check already (it doesn't have to
+  //   according to the documentation) or because of a small race: if this
+  //   function executes in two threads for the same edge at the same time, the
+  //   first thread might disable the edge (by setting the guard to zero) before
+  //   the second thread fetches the guard value. In that case the second thread
+  //   will see an index of zero here.
+  if (!index) return;
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  uint32_t old_pkru = GrantDefaultPkeyAccessIfNecessary();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   shmem->edges[index / 8] |= 1 << (index % 8);
   *guard = 0;
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  RestorePreviousPkeyAccessIfNecessary(old_pkru);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 void cov_init_builtins_edges(uint32_t num_edges) {

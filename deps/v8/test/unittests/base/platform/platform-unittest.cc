@@ -16,6 +16,7 @@
 #include <sys/sysmacros.h>
 
 #include "src/base/platform/platform-linux.h"
+#include "src/base/virtual-address-space.h"
 #endif
 
 #ifdef V8_OS_WIN
@@ -77,73 +78,6 @@ TEST(OS, RemapPages) {
 }
 
 #ifdef V8_TARGET_OS_LINUX
-TEST(OS, ParseProcMaps) {
-  // Truncated
-  std::string line = "00000000-12345678 r--p";
-  EXPECT_FALSE(MemoryRegion::FromMapsLine(line.c_str()));
-
-  // Constants below are for 64 bit architectures.
-#ifdef V8_TARGET_ARCH_64_BIT
-  // File-backed.
-  line =
-      "7f861d1e3000-7f861d33b000 r-xp 00026000 fe:01 12583839                  "
-      " /lib/x86_64-linux-gnu/libc-2.33.so";
-  auto region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x7f861d1e3000u);
-  EXPECT_EQ(region->end, 0x7f861d33b000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("r-xp"));
-  EXPECT_EQ(region->offset, 0x00026000u);
-  EXPECT_EQ(region->dev, makedev(0xfe, 0x01));
-  EXPECT_EQ(region->inode, 12583839u);
-  EXPECT_EQ(region->pathname,
-            std::string("/lib/x86_64-linux-gnu/libc-2.33.so"));
-
-  // Large device numbers. (The major device number 0x103 is from a real
-  // system, the minor device number 0x104 is synthetic.)
-  line =
-      "556bea200000-556beaa1c000 r--p 00000000 103:104 22                      "
-      " /usr/local/bin/node";
-  region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_EQ(region->start, 0x556bea200000u);
-  EXPECT_EQ(region->end, 0x556beaa1c000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("r--p"));
-  EXPECT_EQ(region->offset, 0x00000000);
-  EXPECT_EQ(region->dev, makedev(0x103, 0x104));
-  EXPECT_EQ(region->inode, 22u);
-  EXPECT_EQ(region->pathname, std::string("/usr/local/bin/node"));
-
-  // Anonymous, but named.
-  line =
-      "5611cc7eb000-5611cc80c000 rw-p 00000000 00:00 0                         "
-      " [heap]";
-  region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x5611cc7eb000u);
-  EXPECT_EQ(region->end, 0x5611cc80c000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("rw-p"));
-  EXPECT_EQ(region->offset, 0u);
-  EXPECT_EQ(region->dev, makedev(0x0, 0x0));
-  EXPECT_EQ(region->inode, 0u);
-  EXPECT_EQ(region->pathname, std::string("[heap]"));
-
-  // Anonymous, not named.
-  line = "5611cc7eb000-5611cc80c000 rw-p 00000000 00:00 0";
-  region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x5611cc7eb000u);
-  EXPECT_EQ(region->end, 0x5611cc80c000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("rw-p"));
-  EXPECT_EQ(region->offset, 0u);
-  EXPECT_EQ(region->dev, makedev(0x0, 0x0));
-  EXPECT_EQ(region->inode, 0u);
-  EXPECT_EQ(region->pathname, std::string(""));
-#endif  // V8_TARGET_ARCH_64_BIT
-}
-
 TEST(OS, GetSharedLibraryAddresses) {
   FILE* fp = tmpfile();
   ASSERT_TRUE(fp);
@@ -170,6 +104,169 @@ TEST(OS, GetSharedLibraryAddresses) {
 #else
   EXPECT_EQ(shared_library_addresses[1].start, 0x12430000u - 0x62000);
 #endif
+}
+
+TEST(OS, SignalSafeMapsParserForCurrentProcess) {
+  SignalSafeMapsParser parser;
+  ASSERT_TRUE(parser.IsValid());
+
+  int stack_var = 42;
+  auto heap_var = std::make_unique<int>(42);
+  uintptr_t stack_addr = reinterpret_cast<uintptr_t>(&stack_var);
+  uintptr_t heap_addr = reinterpret_cast<uintptr_t>(heap_var.get());
+
+  bool found_stack = false;
+  bool found_heap = false;
+  bool found_entry = false;
+
+  while (auto entry = parser.Next()) {
+    found_entry = true;
+    EXPECT_LT(entry->start, entry->end);
+
+    if (stack_addr >= entry->start && stack_addr < entry->end) {
+      found_stack = true;
+      EXPECT_TRUE(entry->permissions == PagePermissions::kReadWrite);
+    }
+    if (heap_addr >= entry->start && heap_addr < entry->end) {
+      found_heap = true;
+      EXPECT_TRUE(entry->permissions == PagePermissions::kReadWrite);
+    }
+  }
+  EXPECT_TRUE(found_entry);
+  EXPECT_TRUE(found_stack);
+  EXPECT_TRUE(found_heap);
+}
+
+#if V8_TARGET_ARCH_64_BIT
+// This test assumes a 64-bit architecture due to the 64-bit addresses.
+TEST(OS, SignalSafeMapsParserForCustomMapsFile) {
+  FILE* fp = tmpfile();
+  ASSERT_TRUE(fp);
+
+  const char* valid_content =
+      "123456000000-123456001000 r-xp 00026000 fe:01 12583839                  "
+      " /lib/x86_64-linux-gnu/libc-2.33.so\n"
+      "123456100000-123456200000 r--p 00000000 103:104 22                      "
+      " /usr/local/bin/node\n"
+      "123456300000-123456302000 rw-p 00000000 00:00 0                         "
+      " [heap]\n"
+      "123456400000-123458400000 rw-p 00000000 00:00 0\n"
+      "123458500000-123458501000 -w-- 00000000 00:00 0\n"
+      "123458600000-123458610000 --x- 00000000 00:00 0\n"
+      "123458700000-123458703000 -wx- 00000000 00:00 0\n"
+      "123458800000-123458900000 ---p 00000000 00:00 0\n";
+
+  fprintf(fp, "%s", valid_content);
+  // Add a truncated line at the end.
+  fprintf(fp, "00000000-12345678 r--p");
+  rewind(fp);
+
+  SignalSafeMapsParser parser(fileno(fp), false);
+
+  // 1. File backed (4KB)
+  auto region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123456000000u);
+  EXPECT_EQ(region->end, 0x123456001000u);
+  EXPECT_EQ(std::string(region->raw_permissions), "r-xp");
+  EXPECT_EQ(region->permissions, PagePermissions::kReadExecute);
+  EXPECT_EQ(region->offset, 0x00026000u);
+  EXPECT_EQ(region->dev, makedev(0xfe, 0x01));
+  EXPECT_EQ(region->inode, 12583839u);
+  EXPECT_STREQ(region->pathname, "/lib/x86_64-linux-gnu/libc-2.33.so");
+
+  // 2. Large dev (1MB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123456100000u);
+  EXPECT_EQ(region->end, 0x123456200000u);
+  EXPECT_EQ(std::string(region->raw_permissions), "r--p");
+  EXPECT_EQ(region->permissions, PagePermissions::kRead);
+  EXPECT_EQ(region->dev, makedev(0x103, 0x104));
+  EXPECT_EQ(region->inode, 22u);
+  EXPECT_STREQ(region->pathname, "/usr/local/bin/node");
+
+  // 3. Heap (8KB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123456300000u);
+  EXPECT_EQ(region->end, 0x123456302000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kReadWrite);
+  EXPECT_STREQ(region->pathname, "[heap]");
+
+  // 4. Anonymous (32MB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123456400000u);
+  EXPECT_EQ(region->end, 0x123458400000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kReadWrite);
+  EXPECT_STREQ(region->pathname, "");
+
+  // 5. Write only (4KB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123458500000u);
+  EXPECT_EQ(region->end, 0x123458501000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kWrite);
+
+  // 6. Execute only (64KB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123458600000u);
+  EXPECT_EQ(region->end, 0x123458610000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kExecute);
+
+  // 7. WriteExecute (12KB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123458700000u);
+  EXPECT_EQ(region->end, 0x123458703000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kWriteExecute);
+
+  // 8. No access (PROT_NONE) (1MB)
+  region = parser.Next();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->start, 0x123458800000u);
+  EXPECT_EQ(region->end, 0x123458900000u);
+  EXPECT_EQ(region->permissions, PagePermissions::kNoAccess);
+
+  // 9. Truncated
+  region = parser.Next();
+  EXPECT_FALSE(region);  // Should fail to parse
+
+  fclose(fp);
+}
+#endif  // V8_TARGET_ARCH_64_BIT
+
+TEST(OS, SignalSafeMapsParserCustomName) {
+  VirtualAddressSpace vas;
+  // This test only works if virtual memory subspaces can be allocated.
+  if (!vas.CanAllocateSubspaces()) return;
+
+  const char* kName = "v8-test-name";
+  auto subspace = vas.AllocateSubspace(
+      0, vas.allocation_granularity(), vas.allocation_granularity(),
+      PagePermissions::kReadWrite, std::nullopt, std::nullopt);
+
+  // If we can't allocate a subspace, we can't run this test.
+  if (!subspace) return;
+
+  // If setting the name fails (e.g. due to missing kernel support for custom
+  // names), we can't run this test.
+  if (!subspace->SetName(kName)) return;
+
+  SignalSafeMapsParser parser;
+  ASSERT_TRUE(parser.IsValid());
+
+  bool found = false;
+  while (auto entry = parser.Next()) {
+    if (strstr(entry->pathname, kName)) {
+      found = true;
+      EXPECT_EQ(entry->start, subspace->base());
+      break;
+    }
+  }
+  EXPECT_TRUE(found);
 }
 #endif  // V8_TARGET_OS_LINUX
 

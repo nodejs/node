@@ -9,6 +9,7 @@
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
+#include "src/execution/isolate-data-fields.h"
 #include "src/logging/counters-definitions.h"
 
 namespace v8 {
@@ -34,7 +35,7 @@ class ExternalReferenceTable {
   static constexpr int kRuntimeReferenceCount =
       Runtime::kNumFunctions -
       Runtime::kNumInlineFunctions;  // Don't count dupe kInline... functions.
-  static constexpr int kIsolateAddressReferenceCount = kIsolateAddressCount;
+  static constexpr int kIsolateFieldReferenceCount = kNumIsolateFieldIds;
   static constexpr int kAccessorReferenceCount =
       Accessors::kAccessorInfoCount + Accessors::kAccessorGetterCount +
       Accessors::kAccessorSetterCount + Accessors::kAccessorCallbackCount;
@@ -50,7 +51,7 @@ class ExternalReferenceTable {
       kAccessorReferenceCount;
   static constexpr int kSize =
       kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-      kIsolateAddressReferenceCount + kStubCacheReferenceCount +
+      kIsolateFieldReferenceCount + kStubCacheReferenceCount +
       kStatsCountersReferenceCount;
   static constexpr uint32_t kEntrySize =
       static_cast<uint32_t>(kSystemPointerSize);
@@ -108,7 +109,7 @@ class ExternalReferenceTable {
   void CopyIsolateIndependentReferences(
       int* index, MemorySpan<Address> shared_external_references);
   void AddIsolateDependentReferences(Isolate* isolate, int* index);
-  void AddIsolateAddresses(Isolate* isolate, int* index);
+  void AddIsolateFields(Isolate* isolate, int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
   Address GetStatsCounterAddress(StatsCounter* counter);

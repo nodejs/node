@@ -105,7 +105,9 @@ found in the LICENSE file. -->
 <div id="root">
   <div id="fileReader" class="panel" tabindex="1">
     <span id="label">
-      Drag and drop a v8.log file into this area, or click to choose from disk.
+      <slot name="label">
+        Drag and drop a v8.log file into this area, or click to choose from disk.
+      </slot>
     </span>
     <input id="file" type="file" name="file" />
   </div>

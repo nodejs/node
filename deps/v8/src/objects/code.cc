@@ -183,12 +183,12 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
   }
   JSDispatchHandle handle = js_dispatch_handle();
   if (handle != kNullJSDispatchHandle) {
-    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-    Tagged<Code> cur = jdt->GetCode(handle);
+    JSDispatchTable& jdt = isolate->js_dispatch_table();
+    Tagged<Code> cur = jdt.GetCode(handle);
     if (SafeEquals(cur)) {
       if (v8_flags.reopt_after_lazy_deopts &&
           isolate->concurrent_recompilation_enabled()) {
-        jdt->SetCodeNoWriteBarrier(
+        jdt.SetCodeNoWriteBarrier(
             handle, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
         // Somewhat arbitrary list of lazy deopt reasons which we expect to be
         // stable enough to warrant either immediate re-optimization, or
@@ -211,7 +211,7 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
           case LazyDeoptimizeReason::kFieldTypeChange:
           case LazyDeoptimizeReason::kInitialMapChange:
           case LazyDeoptimizeReason::kMapDeprecated:
-            jdt->SetTieringRequest(
+            jdt.SetTieringRequest(
                 handle, TieringBuiltin::kMarkReoptimizeLazyDeoptimized,
                 isolate);
             break;
@@ -219,12 +219,12 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
             // TODO(olivf): This trampoline is just used to reset the budget. If
             // we knew the feedback cell and the bytecode size here, we could
             // directly reset the budget.
-            jdt->SetTieringRequest(handle, TieringBuiltin::kMarkLazyDeoptimized,
-                                   isolate);
+            jdt.SetTieringRequest(handle, TieringBuiltin::kMarkLazyDeoptimized,
+                                  isolate);
             break;
         }
       } else {
-        jdt->SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
+        jdt.SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
       }
     }
     // Ensure we don't try to patch the entry multiple times.

@@ -50,11 +50,15 @@ ABSL_NAMESPACE_BEGIN
 bool SimpleAtof(absl::string_view str, float* absl_nonnull out) {
   *out = 0.0;
   str = StripAsciiWhitespace(str);
+  if (str.empty()) {
+    // absl::from_chars doesn't accept empty strings.
+    return false;
+  }
   // std::from_chars doesn't accept an initial +, but SimpleAtof does, so if one
   // is present, skip it, while avoiding accepting "+-0" as valid.
-  if (!str.empty() && str[0] == '+') {
+  if (str[0] == '+') {
     str.remove_prefix(1);
-    if (!str.empty() && str[0] == '-') {
+    if (str.empty() || str[0] == '-') {
       return false;
     }
   }
@@ -238,6 +242,18 @@ inline uint64_t PrepareEightDigits(uint32_t i) {
   return tens;
 }
 
+
+// Encodes v to buffer as 16 digits padded with leading zeros.
+// Pre-condition: v must be < 10^16.
+inline char* EncodePadded16(uint64_t v, char* absl_nonnull buffer) {
+  constexpr uint64_t k1e8 = 100000000;
+  uint32_t hi = static_cast<uint32_t>(v / k1e8);
+  uint32_t lo = static_cast<uint32_t>(v % k1e8);
+  little_endian::Store64(buffer, PrepareEightDigits(hi) + kEightZeroBytes);
+  little_endian::Store64(buffer + 8, PrepareEightDigits(lo) + kEightZeroBytes);
+  return buffer + 16;
+}
+
 inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* absl_nonnull EncodeFullU32(
     uint32_t n, char* absl_nonnull out_str) {
   if (n < 10) {
@@ -261,19 +277,19 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* absl_nonnull EncodeFullU32(
   return out_str + sizeof(bottom);
 }
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* EncodeFullU64(uint64_t i,
-                                                        char* buffer) {
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* absl_nonnull EncodeFullU64(
+    uint64_t i, char* absl_nonnull buffer) {
   if (i <= std::numeric_limits<uint32_t>::max()) {
     return EncodeFullU32(static_cast<uint32_t>(i), buffer);
   }
   uint32_t mod08;
   if (i < 1'0000'0000'0000'0000ull) {
     uint32_t div08 = static_cast<uint32_t>(i / 100'000'000ull);
-    mod08 =  static_cast<uint32_t>(i % 100'000'000ull);
+    mod08 = static_cast<uint32_t>(i % 100'000'000ull);
     buffer = EncodeFullU32(div08, buffer);
   } else {
     uint64_t div08 = i / 100'000'000ull;
-    mod08 =  static_cast<uint32_t>(i % 100'000'000ull);
+    mod08 = static_cast<uint32_t>(i % 100'000'000ull);
     uint32_t div016 = static_cast<uint32_t>(div08 / 100'000'000ull);
     uint32_t div08mod08 = static_cast<uint32_t>(div08 % 100'000'000ull);
     uint64_t mid_result = PrepareEightDigits(div08mod08) + kEightZeroBytes;
@@ -284,6 +300,30 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* EncodeFullU64(uint64_t i,
   uint64_t mod_result = PrepareEightDigits(mod08) + kEightZeroBytes;
   little_endian::Store64(buffer, mod_result);
   return buffer + sizeof(mod_result);
+}
+
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* absl_nonnull EncodeFullU128(
+    uint128 i, char* absl_nonnull buffer) {
+  if (absl::Uint128High64(i) == 0) {
+    return EncodeFullU64(absl::Uint128Low64(i), buffer);
+  }
+  // We divide the number into 16-digit chunks because `EncodePadded16` is
+  // optimized to handle 16 digits at a time (as two 8-digit chunks).
+  constexpr uint64_t k1e16 = uint64_t{10'000'000'000'000'000};
+  uint128 high = i / k1e16;
+  uint64_t low = absl::Uint128Low64(i % k1e16);
+  uint64_t mid = absl::Uint128Low64(high % k1e16);
+  high /= k1e16;
+
+  if (high == 0) {
+    buffer = EncodeFullU64(mid, buffer);
+    buffer = EncodePadded16(low, buffer);
+  } else {
+    buffer = EncodeFullU64(absl::Uint128Low64(high), buffer);
+    buffer = EncodePadded16(mid, buffer);
+    buffer = EncodePadded16(low, buffer);
+  }
+  return buffer;
 }
 
 }  // namespace
@@ -337,6 +377,25 @@ char* absl_nonnull numbers_internal::FastIntToBuffer(
     u = 0 - u;
   }
   buffer = EncodeFullU64(u, buffer);
+  *buffer = '\0';
+  return buffer;
+}
+
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    uint128 i, char* absl_nonnull buffer) {
+  buffer = EncodeFullU128(i, buffer);
+  *buffer = '\0';
+  return buffer;
+}
+
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    int128 i, char* absl_nonnull buffer) {
+  uint128 u = static_cast<uint128>(i);
+  if (i < 0) {
+    *buffer++ = '-';
+    u = -u;
+  }
+  buffer = EncodeFullU128(u, buffer);
   *buffer = '\0';
   return buffer;
 }

@@ -2173,7 +2173,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
     // SHRD (double-precision shift)
     AppendToBuffer("%s ", mnemonic);
     current += PrintRightOperand(current);
-    if (opcode == 0xAB) {
+    if (opcode == 0xAB || opcode == 0xA3) {
+      // bt and bts don't use the cl register.
       AppendToBuffer(",%s", NameOfCPURegister(regop));
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
@@ -2840,21 +2841,24 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
 
 //------------------------------------------------------------------------------
 
-static const char* const cpu_regs[16] = {
-    "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
-    "r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15"};
+#define MAKE_REG_NAME(name) #name,
 
-static const char* const byte_cpu_regs[16] = {
+static constexpr const char* const cpu_regs[]{GENERAL_REGISTERS(MAKE_REG_NAME)};
+
+static constexpr const char* const byte_cpu_regs[]{
     "al",  "cl",  "dl",   "bl",   "spl",  "bpl",  "sil",  "dil",
     "r8l", "r9l", "r10l", "r11l", "r12l", "r13l", "r14l", "r15l"};
 
-static const char* const xmm_regs[16] = {
-    "xmm0", "xmm1", "xmm2",  "xmm3",  "xmm4",  "xmm5",  "xmm6",  "xmm7",
-    "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"};
+static constexpr const char* const xmm_regs[]{DOUBLE_REGISTERS(MAKE_REG_NAME)};
 
-static const char* const ymm_regs[16] = {
-    "ymm0", "ymm1", "ymm2",  "ymm3",  "ymm4",  "ymm5",  "ymm6",  "ymm7",
-    "ymm8", "ymm9", "ymm10", "ymm11", "ymm12", "ymm13", "ymm14", "ymm15"};
+static constexpr const char* const ymm_regs[]{YMM_REGISTERS(MAKE_REG_NAME)};
+
+static_assert(arraysize(cpu_regs) == 16);
+static_assert(arraysize(byte_cpu_regs) == 16);
+static_assert(arraysize(xmm_regs) == 16);
+static_assert(arraysize(ymm_regs) == 16);
+
+#undef MAKE_REG_NAME
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));

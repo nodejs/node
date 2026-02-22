@@ -34,7 +34,7 @@ namespace internal {
   DECL_ACCESSORS(field, Tagged<Managed<RustType_>>)       \
   inline void initialize_with_wrapped_rust_value(         \
       Tagged<Managed<RustType_>> handle);                 \
-  inline const RustType_& wrapped_rust() const;
+  inline const std::shared_ptr<const RustType_> wrapped_rust() const;
 
 // Adds JSTemporalFoo::GetConstructorTarget()
 // that can be used to obtain a constructor target/new_target for constructing

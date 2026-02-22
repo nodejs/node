@@ -9,14 +9,14 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-inl.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/objects/instance-type-inl.h"
 
 namespace v8::internal {
 
 LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
 
-LiveObjectRange::iterator::iterator(const PageMetadata* page)
+LiveObjectRange::iterator::iterator(const NormalPage* page)
     : page_(page),
       cells_(page->marking_bitmap()->cells()),
       cage_base_(page->heap()->isolate()),

@@ -171,15 +171,6 @@ class CompileTimeImports {
     constants_module_ = std::move(other.constants_module_);
     return *this;
   }
-  static CompileTimeImports FromSerialized(
-      CompileTimeImportFlags::StorageType flags,
-      base::Vector<const char> constants_module) {
-    CompileTimeImports result;
-    result.bits_ = CompileTimeImportFlags::FromIntegral(flags);
-    result.constants_module_.assign(constants_module.begin(),
-                                    constants_module.end());
-    return result;
-  }
 
   bool empty() const { return bits_.empty(); }
   bool has_string_constants(base::Vector<const uint8_t> name) const {

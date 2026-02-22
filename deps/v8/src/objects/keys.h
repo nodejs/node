@@ -16,6 +16,7 @@ namespace internal {
 class AccessCheckInfo;
 class FastKeyAccumulator;
 class JSProxy;
+class PropertyCallbackArguments;
 
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
@@ -96,32 +97,28 @@ class KeyAccumulator final {
  private:
   enum IndexedOrNamed { kIndexed, kNamed };
 
-  V8_WARN_UNUSED_RESULT ExceptionStatus CollectPrivateNames(
-      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object);
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  CollectPrivateNames(DirectHandle<JSObject> object);
   Maybe<bool> CollectAccessCheckInterceptorKeys(
       DirectHandle<AccessCheckInfo> access_check_info,
-      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object);
+      DirectHandle<JSObject> object);
 
   Maybe<bool> CollectInterceptorKeysInternal(
-      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
-      DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type);
-  Maybe<bool> CollectInterceptorKeys(DirectHandle<JSReceiver> receiver,
-                                     DirectHandle<JSObject> object,
+      DirectHandle<JSObject> object, DirectHandle<InterceptorInfo> interceptor,
+      IndexedOrNamed type);
+  Maybe<bool> CollectInterceptorKeys(DirectHandle<JSObject> object,
                                      IndexedOrNamed type);
 
-  Maybe<bool> CollectOwnElementIndices(DirectHandle<JSReceiver> receiver,
-                                       DirectHandle<JSObject> object);
-  Maybe<bool> CollectOwnPropertyNames(DirectHandle<JSReceiver> receiver,
-                                      DirectHandle<JSObject> object);
-  Maybe<bool> CollectOwnKeys(DirectHandle<JSReceiver> receiver,
-                             DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnElementIndices(DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnPropertyNames(DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnKeys(DirectHandle<JSObject> object);
   Maybe<bool> CollectOwnJSProxyKeys(DirectHandle<JSReceiver> receiver,
                                     DirectHandle<JSProxy> proxy);
   Maybe<bool> CollectOwnJSProxyTargetKeys(DirectHandle<JSProxy> proxy,
                                           DirectHandle<JSReceiver> target);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
-      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
+      PropertyCallbackArguments& args,
       DirectHandle<InterceptorInfo> interceptor, DirectHandle<JSObject> result,
       IndexedOrNamed type);
 

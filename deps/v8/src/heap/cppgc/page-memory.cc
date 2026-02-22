@@ -31,14 +31,6 @@ V8_WARN_UNUSED_RESULT bool TryUnprotect(PageAllocator& allocator,
                                   PageAllocator::Permission::kReadWrite);
 }
 
-V8_WARN_UNUSED_RESULT bool TryDiscard(PageAllocator& allocator,
-                                      const MemoryRegion& memory_region) {
-  // See Unprotect().
-  CHECK_EQ(0u, memory_region.size() % allocator.CommitPageSize());
-  return allocator.DiscardSystemPages(memory_region.base(),
-                                      memory_region.size());
-}
-
 std::optional<MemoryRegion> ReserveMemoryRegion(PageAllocator& allocator,
                                                 size_t allocation_size) {
   void* region_memory =
@@ -134,7 +126,6 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
   const size_t size = entry.region->region().size();
   ASAN_UNPOISON_MEMORY_REGION(base, size);
 
-  DCHECK_IMPLIES(!decommit_pooled_pages_, !entry.is_decommitted);
   if (entry.is_decommitted) {
     // Also need to make the pages accessible.
     CHECK(entry.region->allocator().RecommitPages(
@@ -178,19 +169,11 @@ void NormalPageMemoryPool::ReleasePooledPages(PageAllocator& page_allocator) {
     size_t size = entry.region->region().size();
     // Unpoison the memory before giving back to the OS.
     ASAN_UNPOISON_MEMORY_REGION(base, size);
-    if (decommit_pooled_pages_) {
-      if (entry.is_decommitted) {
-        continue;
-      }
-      CHECK(page_allocator.DecommitPages(base, size));
-      entry.is_decommitted = true;
-    } else {
-      if (entry.is_discarded) {
-        continue;
-      }
-      CHECK(TryDiscard(page_allocator, entry.region->region()));
-      entry.is_discarded = true;
+    if (entry.is_decommitted) {
+      continue;
     }
+    CHECK(page_allocator.DecommitPages(base, size));
+    entry.is_decommitted = true;
   }
 }
 
