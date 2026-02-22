@@ -2696,6 +2696,30 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
 
+## `process.loadedModules`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string\[]}
+  The `process.loadedModules` property returns an array of core modules that
+  were loaded during the current Node.js process execution.
+
+```mjs
+import process from 'node:process';
+
+console.log(process.loadedModules);
+// ['events', 'buffer', 'diagnostics_channel', 'async_hooks', ...]
+```
+
+```cjs
+const process = require('node:process');
+
+console.log(process.loadedModules);
+// ['events', 'buffer', 'diagnostics_channel', 'async_hooks', ...]
+```
+
 ## `process.loadEnvFile(path)`
 
 <!-- YAML
