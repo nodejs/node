@@ -305,95 +305,8 @@ suite('StatementSync.prototype.expandedSQL', () => {
   });
 });
 
-suite('StatementSync.prototype.setReadBigInts()', () => {
-  test('BigInts support can be toggled', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(`
-      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
-      INSERT INTO data (key, val) VALUES (1, 42);
-    `);
-    t.assert.strictEqual(setup, undefined);
-
-    const query = db.prepare('SELECT val FROM data');
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
-    t.assert.strictEqual(query.setReadBigInts(true), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
-    t.assert.strictEqual(query.setReadBigInts(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
-
-    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
-    t.assert.deepStrictEqual(
-      insert.run(10),
-      { changes: 1, lastInsertRowid: 10 },
-    );
-    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
-    t.assert.deepStrictEqual(
-      insert.run(20),
-      { changes: 1n, lastInsertRowid: 20n },
-    );
-    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
-    t.assert.deepStrictEqual(
-      insert.run(30),
-      { changes: 1, lastInsertRowid: 30 },
-    );
-  });
-
-  test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(
-      'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO types (key, val) VALUES ($k, $v)');
-    t.assert.throws(() => {
-      stmt.setReadBigInts();
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "readBigInts" argument must be a boolean/,
-    });
-  });
-
-  test('BigInt is required for reading large integers', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
-    t.assert.throws(() => {
-      bad.get();
-    }, {
-      code: 'ERR_OUT_OF_RANGE',
-      message: /^Value is too large to be represented as a JavaScript number: 9007199254740992$/,
-    });
-    const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
-    good.setReadBigInts(true);
-    t.assert.deepStrictEqual(good.get(), {
-      __proto__: null,
-      [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
-    });
-  });
-});
-
-suite('StatementSync.prototype.setReturnArrays()', () => {
-  test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('SELECT key, val FROM data');
-    t.assert.throws(() => {
-      stmt.setReturnArrays();
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "returnArrays" argument must be a boolean/,
-    });
-  });
-});
-
 suite('StatementSync.prototype.get() with array output', () => {
-  test('returns array row when setReturnArrays is true', (t) => {
+  test('returns array row when returnArrays is true', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
@@ -402,14 +315,8 @@ suite('StatementSync.prototype.get() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
-
-    query.setReturnArrays(true);
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1', { returnArrays: true });
     t.assert.deepStrictEqual(query.get(), [1, 'one']);
-
-    query.setReturnArrays(false);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
   });
 
   test('returns array rows with BigInts when both flags are set', (t) => {
@@ -422,9 +329,7 @@ suite('StatementSync.prototype.get() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT id, big_num FROM big_data');
-    query.setReturnArrays(true);
-    query.setReadBigInts(true);
+    const query = db.prepare('SELECT id, big_num FROM big_data', { returnArrays: true, readBigInts: true });
 
     const row = query.get();
     t.assert.deepStrictEqual(row, expected);
@@ -432,7 +337,7 @@ suite('StatementSync.prototype.get() with array output', () => {
 });
 
 suite('StatementSync.prototype.all() with array output', () => {
-  test('returns array rows when setReturnArrays is true', (t) => {
+  test('returns array rows when returnArrays is true', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
@@ -442,22 +347,11 @@ suite('StatementSync.prototype.all() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
-    t.assert.deepStrictEqual(query.all(), [
-      { __proto__: null, key: 1, val: 'one' },
-      { __proto__: null, key: 2, val: 'two' },
-    ]);
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key', { returnArrays: true });
 
-    query.setReturnArrays(true);
     t.assert.deepStrictEqual(query.all(), [
       [1, 'one'],
       [2, 'two'],
-    ]);
-
-    query.setReturnArrays(false);
-    t.assert.deepStrictEqual(query.all(), [
-      { __proto__: null, key: 1, val: 'one' },
-      { __proto__: null, key: 2, val: 'two' },
     ]);
   });
 
@@ -488,8 +382,7 @@ suite('StatementSync.prototype.all() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT * FROM wide_table');
-    query.setReturnArrays(true);
+    const query = db.prepare('SELECT * FROM wide_table', { returnArrays: true });
 
     const results = query.all();
     t.assert.strictEqual(results.length, 1);
@@ -498,7 +391,7 @@ suite('StatementSync.prototype.all() with array output', () => {
 });
 
 suite('StatementSync.prototype.iterate() with array output', () => {
-  test('iterates array rows when setReturnArrays is true', (t) => {
+  test('iterates array rows when returnArrays is true', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
@@ -508,20 +401,8 @@ suite('StatementSync.prototype.iterate() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key', { returnArrays: true });
 
-    // Test with objects first
-    const objectRows = [];
-    for (const row of query.iterate()) {
-      objectRows.push(row);
-    }
-    t.assert.deepStrictEqual(objectRows, [
-      { __proto__: null, key: 1, val: 'one' },
-      { __proto__: null, key: 2, val: 'two' },
-    ]);
-
-    // Test with arrays
-    query.setReturnArrays(true);
     const arrayRows = [];
     for (const row of query.iterate()) {
       arrayRows.push(row);
@@ -545,8 +426,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
       INSERT INTO test (key, val) VALUES ('key1', 'val1');
       INSERT INTO test (key, val) VALUES ('key2', 'val2');
     `);
-    const stmt = db.prepare('SELECT key, val FROM test');
-    stmt.setReturnArrays(true);
+    const stmt = db.prepare('SELECT key, val FROM test', { returnArrays: true });
 
     const iterator = stmt.iterate();
     const results = [];
@@ -563,50 +443,6 @@ suite('StatementSync.prototype.iterate() with array output', () => {
       iterator.next(),
       { __proto__: null, done: true, value: null },
     );
-  });
-});
-
-suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
-  test('bare named parameter support can be toggled', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.deepStrictEqual(
-      stmt.run({ k: 1, v: 2 }),
-      { changes: 1, lastInsertRowid: 1 },
-    );
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), undefined);
-    t.assert.throws(() => {
-      stmt.run({ k: 2, v: 4 });
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Unknown named parameter 'k'/,
-    });
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
-    t.assert.deepStrictEqual(
-      stmt.run({ k: 3, v: 6 }),
-      { changes: 1, lastInsertRowid: 3 },
-    );
-  });
-
-  test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.throws(() => {
-      stmt.setAllowBareNamedParameters();
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "allowBareNamedParameters" argument must be a boolean/,
-    });
   });
 });
 
@@ -650,21 +486,6 @@ suite('options.readBigInts', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.readBigInts" argument must be a boolean/,
     });
-  });
-
-  test('setReadBigInts can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(`
-      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
-      INSERT INTO data (key, val) VALUES (1, 42);
-    `);
-    t.assert.strictEqual(setup, undefined);
-
-    const query = db.prepare('SELECT val FROM data', { readBigInts: true });
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
-    t.assert.strictEqual(query.setReadBigInts(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
   });
 });
 
@@ -714,24 +535,6 @@ suite('options.returnArrays', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.returnArrays" argument must be a boolean/,
     });
-  });
-
-  test('setReturnArrays can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(`
-      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
-      INSERT INTO data (key, val) VALUES (1, 'one');
-    `);
-    t.assert.strictEqual(setup, undefined);
-
-    const query = db.prepare(
-      'SELECT key, val FROM data WHERE key = 1',
-      { returnArrays: true }
-    );
-    t.assert.deepStrictEqual(query.get(), [1, 'one']);
-    t.assert.strictEqual(query.setReturnArrays(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
   });
 
   test('all() returns arrays when input is true', (t) => {
@@ -828,29 +631,5 @@ suite('options.allowBareNamedParameters', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.allowBareNamedParameters" argument must be a boolean/,
     });
-  });
-
-  test('setAllowBareNamedParameters can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const setup = db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare(
-      'INSERT INTO data (key, val) VALUES ($k, $v)',
-      { allowBareNamedParameters: false }
-    );
-    t.assert.throws(() => {
-      stmt.run({ k: 1, v: 2 });
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Unknown named parameter 'k'/,
-    });
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
-    t.assert.deepStrictEqual(
-      stmt.run({ k: 2, v: 4 }),
-      { changes: 1, lastInsertRowid: 2 },
-    );
   });
 });
