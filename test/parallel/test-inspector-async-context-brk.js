@@ -35,7 +35,7 @@ async function test() {
   await new Promise((resolve, reject) => {
     session.post('Debugger.setBreakpointByUrl', {
       'lineNumber': 22,
-      'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
+      'url': decodeURIComponent(pathToFileURL(path.resolve(__dirname, __filename)).toString()),
       'columnNumber': 0,
       'condition': ''
     }, (error, result) => {
