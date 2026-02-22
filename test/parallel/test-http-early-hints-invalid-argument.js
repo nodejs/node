@@ -47,3 +47,44 @@ const testResBody = 'response content\n';
     req.on('information', common.mustNotCall());
   }));
 }
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints with CRLF injection...');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: '</styles.css>; rel=preload; as=style',
+        'X-Custom': 'valid\r\nSet-Cookie: session=evil',
+      });
+    }, (err) => err.code === 'ERR_INVALID_CHAR');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: '</styles.css>; rel=preload; as=style',
+        'X-Custom\r\nSet-Cookie: session=evil': 'value',
+      });
+    }, (err) => err.code === 'ERR_INVALID_HTTP_TOKEN');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: '</styles.css\r\nSet-Cookie: session=evil>; rel=preload; as=style',
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+    server.close();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+
+    req.end();
+    debug('Client sending request...');
+
+    req.on('information', common.mustNotCall());
+  }));
+}
