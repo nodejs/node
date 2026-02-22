@@ -17,6 +17,8 @@ const {
 } = internalBinding('builtins');
 
 for (const key of canBeRequired) {
+  // Skip experimental modules that require a flag
+  if (key === 'logger') continue;
   require(`node:${key}`);
 }
 
