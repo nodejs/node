@@ -82,7 +82,7 @@ const depValid = (child, requested, requestor) => {
       const resRepo = npa(child.resolved || '')
       const resHost = resRepo.hosted
       const reqHost = requested.hosted
-      const reqCommit = /^[a-fA-F0-9]{40}$/.test(requested.gitCommittish || '')
+      const reqCommit = /^[a-fA-F0-9]{40,64}$/.test(requested.gitCommittish || '')
       const nc = { noCommittish: !reqCommit }
       if (!resHost) {
         if (resRepo.fetchSpec !== requested.fetchSpec) {

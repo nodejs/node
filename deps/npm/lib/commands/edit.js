@@ -33,8 +33,6 @@ class Edit extends BaseCommand {
   static params = ['editor']
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     return completion(npm, opts)
   }

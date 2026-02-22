@@ -103,6 +103,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "name": null,
   "maxsockets": 15,
   "message": "%s",
+  "min-release-age": null,
   "node-gyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "node-options": null,
   "noproxy": [
@@ -280,6 +281,7 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
+min-release-age = null
 name = null
 node-gyp = "{CWD}/node_modules/node-gyp/bin/node-gyp.js"
 node-options = null
@@ -449,6 +451,6 @@ registry = "https://some.registry"
 
 exports[`test/lib/commands/config.js TAP config list with publishConfig local > warns about unknown config 1`] = `
 Array [
-  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm.",
+  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm. See \`npm help npmrc\` for supported config options.",
 ]
 `

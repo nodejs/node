@@ -1,7 +1,7 @@
 ---
 title: Logging
 section: 7
-description: Why, What & How We Log
+description: Why, What & How we Log
 ---
 
 ### Description
