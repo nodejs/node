@@ -106,6 +106,8 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
   if (!bio) [[unlikely]]
     return {};
   BUF_MEM* mem = bio;
+  if (!mem) [[unlikely]]
+    return {};
   Local<Value> ret;
   if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
@@ -120,6 +122,8 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
   if (!bio) [[unlikely]]
     return {};
   BUF_MEM* mem = bio;
+  if (!mem) [[unlikely]]
+    return {};
   Local<Value> ret;
   if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
@@ -134,6 +138,8 @@ MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
   if (bio == nullptr || !*bio) [[unlikely]]
     return {};
   BUF_MEM* mem = *bio;
+  if (!mem) [[unlikely]]
+    return {};
 #ifdef V8_ENABLE_SANDBOX
   // If the v8 sandbox is enabled, then all array buffers must be allocated
   // via the isolate. External buffers are not allowed. So, instead of wrapping
