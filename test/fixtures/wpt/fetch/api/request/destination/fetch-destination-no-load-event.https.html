@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<title>Fetch destination tests for resources with no load event</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScope = 'resources/';
+    const kFrame = 'resources/empty.https.html';
+    const kScript = 'resources/fetch-destination-worker-no-load-event.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          add_completion_callback(() => {
+              registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kFrame);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => { f.remove(); });
+        });
+  }, 'Initialize global state');
+
+var waitOnMessageFromSW = async t => {
+    await new Promise((resolve, reject) => {
+        frame.contentWindow.navigator.serviceWorker.onmessage = t.step_func(event => {
+            if (event.data == "PASS") {
+                resolve();
+            } else {
+                reject();
+            }
+        });
+    }).catch(() => {;
+        assert_unreached("Wrong destination.");
+    });
+    t.add_cleanup(() => { frame.contentWindow.navigator.serviceWorker.onmessage = null; });
+}
+// Actual tests
+
+// Image destination
+////////////////////
+
+// CSS background image - image destination
+promise_test(async t => {
+    let node = frame.contentWindow.document.createElement("div");
+    node.style = "background-image: url(dummy.png?t=bg2&dest=image)";
+    frame.contentWindow.document.body.appendChild(node);
+
+    await waitOnMessageFromSW(t);
+}, 'Background image fetches with an "image" Request.destination');
+
+// SVG use element - image destination
+// See for discussion https://github.com/whatwg/fetch/issues/1012.
+promise_test(async t => {
+    const doc = frame.contentWindow.document;
+
+    let svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+    let use = doc.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "dummy.svg?t=use&dest=image#ref");
+    svg.appendChild(use);
+    doc.body.appendChild(svg);
+
+    await waitOnMessageFromSW(t);
+}, 'SVG use element fetches with an "image" Request.destination');
+
+// Font destination
+///////////////////
+
+// Font loading API - font destination
+promise_test(async t => {
+    let font = new frame.contentWindow.FontFace("foo", "url(dummy.ttf?t=api&dest=font)");
+    font.load();
+
+    await waitOnMessageFromSW(t);
+}, 'Font loading API fetches with an "font" Request.destination');
+
+// CSS font - font destination
+promise_test(async t => {
+    let style = frame.contentWindow.document.createElement("style");
+    style.innerHTML = "@font-face { font-family: foo; src: url(dummy.ttf?t=css&dest=font); }";
+    style.innerHTML += "div {font-family: foo; }";
+    let div = frame.contentWindow.document.createElement("div");
+    div.innerHTML = "bar";
+    frame.contentWindow.document.body.appendChild(style);
+    frame.contentWindow.document.body.appendChild(div);
+
+    await waitOnMessageFromSW(t);
+}, 'CSS font fetches with an "font" Request.destination');
+
+// Empty string destination
+///////////////////////////
+
+// sendBeacon() - empty string destination
+promise_test(async t => {
+    frame.contentWindow.navigator.sendBeacon("dummy?t=beacon&dest=", "foobar");
+
+    await waitOnMessageFromSW(t);
+}, 'sendBeacon() fetches with an empty string Request.destination');
+
+// Cache.add() - empty string destination
+promise_test(async t => {
+    frame.contentWindow.caches.open("foo").then(cache => {
+        cache.add("dummy?t=cache&dest=");
+    });
+
+    await waitOnMessageFromSW(t);
+}, 'Cache.add() fetches with an empty string Request.destination');
+
+// script destination
+/////////////////////
+
+// importScripts() - script destination
+promise_test(async t => {
+    let worker = new frame.contentWindow.Worker("importer.js");
+
+    await waitOnMessageFromSW(t);
+}, 'importScripts() fetches with a "script" Request.destination');
+
+// style destination
+/////////////////////
+// @import - style destination
+promise_test(async t => {
+    let node = frame.contentWindow.document.createElement("style");
+    node.innerHTML = '@import url("dummy?t=import&dest=style")';
+    frame.contentWindow.document.body.appendChild(node);
+
+    await waitOnMessageFromSW(t);
+}, '@import fetches with a "style" Request.destination');
+
+</script>

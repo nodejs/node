@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset=windows-1252>
+<title>Fetch: URL encoding</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script>
+const expectedURL = new URL("?%C3%9F", location.href).href;
+const expectedURL2 = new URL("?%EF%BF%BD", location.href).href;
+test(() => {
+  let r = new Request("?\u00DF");
+  assert_equals(r.url, expectedURL);
+
+  r = new Request("?\uD83D");
+  assert_equals(r.url, expectedURL2);
+}, "URL encoding and Request");
+
+promise_test(() => {
+  return fetch("?\u00DF").then(res => {
+    assert_equals(res.url, expectedURL);
+    return fetch("?\uD83D").then(res2 => {
+      assert_equals(res2.url, expectedURL2);
+    });
+  });
+}, "URL encoding and fetch()");
+</script>

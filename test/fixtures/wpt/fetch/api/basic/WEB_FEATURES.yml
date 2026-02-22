@@ -1,0 +1,21 @@
+features:
+- name: fetch
+  files:
+  - "*"
+  - "!request-upload*"
+  - "!request-private-network-headers.tentative.any.js"
+- name: fetch-request-streams
+  files:
+  - request-upload*
+- name: private-network-access
+  files:
+  - request-private-network-headers.tentative.any.js
+- name: early-data
+  files:
+  # Note: Test coverage for this feature is very incomplete
+  - http-response-code.any.js
+# The following classifier for "http2" intentionally overlaps with the above
+# classifier for "fetch" because "statusText" is a Fetch API concept.
+- name: http2
+  files:
+  - status.h2.any.js

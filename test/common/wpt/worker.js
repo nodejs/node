@@ -16,6 +16,7 @@ if (workerData.needsGc) {
 globalThis.self = global;
 globalThis.GLOBAL = {
   isWindow() { return false; },
+  isWorker() { return false; },
   isShadowRealm() { return false; },
 };
 globalThis.require = require;

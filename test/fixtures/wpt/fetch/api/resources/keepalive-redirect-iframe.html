@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<script>
+const SEARCH_PARAMS = new URL(location.href).searchParams;
+const ORIGIN1 = SEARCH_PARAMS.get('origin1') || '';
+const ORIGIN2 = SEARCH_PARAMS.get('origin2') || '';
+const WITH_HEADERS = !!SEARCH_PARAMS.has('with-headers');
+const TOKEN = SEARCH_PARAMS.get('token') || '';
+
+const url =
+    `${ORIGIN1}/fetch/api/resources/redirect.py?` +
+    `delay=500&` +
+    `allow_headers=foo&` +
+    `location=${ORIGIN2}/fetch/api/resources/stash-put.py?key=${TOKEN}%26value=on`;
+
+addEventListener('load', () => {
+  const headers = WITH_HEADERS ? {'foo': 'bar'} : undefined;
+  let p = fetch(url, {keepalive: true, headers});
+  window.parent.postMessage(TOKEN, '*');
+});
+</script>
+</html>

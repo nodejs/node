@@ -624,6 +624,7 @@ class WPTRunner {
     switch (name) {
       case 'Window': {
         this.globalThisInitScripts.push('globalThis.Window = Object.getPrototypeOf(globalThis).constructor;');
+        this.globalThisInitScripts.push('globalThis.GLOBAL.isWindow = () => true;');
         break;
       }
 

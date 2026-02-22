@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body></body>
+<script>
+
+const createDataUrlIframe = (url, cors) => {
+  const iframe = document.createElement("iframe");
+  const fetchURL = new URL(url, location.href) +
+      `${cors === 'null-origin'
+           ? '?pipe=header(Access-Control-Allow-Origin, null)' : ''}`;
+  const tag_name = 'script';
+  iframe.src =
+      `data:text/html, <${tag_name}>` +
+      `async function test() {` +
+      `  let allowed = true;` +
+      `  try {` +
+      `    await fetch('${fetchURL}');` +
+      `  } catch (e) {` +
+      `    allowed = false;` +
+      `  }` +
+      `  parent.postMessage({allowed}, '*');` +
+      `}` +
+      `test(); </${tag_name}>`;
+  return iframe;
+};
+
+const fetch_from_data_url_iframe_test =
+    (url, cors, expectation, description) => {
+  promise_test(async () => {
+    const iframe = createDataUrlIframe(url, cors);
+    document.body.appendChild(iframe);
+    const msgEvent = await new Promise(resolve => window.onmessage = resolve);
+    assert_equals(msgEvent.data.allowed ? 'allowed' : 'rejected', expectation);
+  }, description);
+};
+
+fetch_from_data_url_iframe_test(
+  '../resources/top.txt',
+  'acao-omitted',
+  'rejected',
+  'fetching "top.txt" without ACAO should be rejected.'
+);
+fetch_from_data_url_iframe_test(
+  '../resources/top.txt',
+  'null-origin',
+  'allowed',
+  'fetching "top.txt" with CORS allowing null origin should be allowed.'
+);
+fetch_from_data_url_iframe_test(
+  'data:text/plain, top',
+  'acao-omitted',
+  'allowed',
+  'fetching data url script should be allowed.'
+);
+
+</script>

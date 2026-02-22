@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<script>
+async function no_cors_should_be_rejected() {
+  let thrown = false;
+  try {
+    const resp = await fetch('top.txt');
+  } catch (e) {
+    thrown = true;
+  }
+  if (!thrown) {
+    throw Error('fetching "top.txt" should be rejected.');
+  }
+}
+
+async function null_origin_should_be_accepted() {
+  const url = 'top.txt?pipe=header(access-control-allow-origin,null)|' +
+              'header(cache-control,no-store)';
+  const resp = await fetch(url);
+}
+
+async function test() {
+  try {
+    await no_cors_should_be_rejected();
+    await null_origin_should_be_accepted();
+    parent.postMessage('PASS', '*');
+  } catch (e) {
+    parent.postMessage(e.message, '*');
+  }
+}
+
+test();
+</script>
+</html>

@@ -1,0 +1,33 @@
+<!-- Based on /html/infrastructure/urls/resolving-urls/query-encoding/location.sub.html -->
+<!doctype html>
+<meta charset={{GET[encoding]}}> <!-- ends up as <meta charset> by default which is windows-1252 -->
+<meta name=variant content="?encoding=windows-1252">
+<meta name=variant content="?encoding=x-cp1251">
+<meta name=variant content="?encoding=utf8">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+function expected(encoding) {
+  return {
+    "UTF-8": "%C3%BF",
+    "windows-1251": "%26%23255%3B",
+    "windows-1252": "%FF"
+  }[encoding];
+}
+
+test(() => {
+  const request = new Request("?\u00FF");
+  assert_equals(request.url.split("?")[1], expected("UTF-8"));
+}, "Request uses the UTF-8 URL parser");
+
+test(() => {
+  const request = new Request("about:blank", { referrer: "?\u00FF" });
+  assert_equals(request.referrer.split("?")[1], expected("UTF-8"));
+}, "Request's referrer uses the UTF-8 URL parser");
+
+test(() => {
+  const response = Response.redirect("?\u00FF");
+  assert_equals(response.headers.get("Location").split("?")[1], expected("UTF-8"));
+}, "Response.redirect() uses the UTF-8 URL parser");
+</script>

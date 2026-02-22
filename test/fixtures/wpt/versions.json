@@ -23,6 +23,10 @@
     "commit": "1ac8deee082ecfb5d3b6f9c56cf9d1688a2fc218",
     "path": "encoding"
   },
+  "fetch/api": {
+    "commit": "75b487b9ed041ee69e4a240ef8d675fac8845603",
+    "path": "fetch/api"
+  },
   "fetch/data-urls/resources": {
     "commit": "7c79d998ff42e52de90290cb847d1b515b3b58f7",
     "path": "fetch/data-urls/resources"
@@ -52,7 +56,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "e1b27be06b43787a001b7297c4e0fabdd276560f",
+    "commit": "b619cb7f23b949daab02c576ac299036ade097b5",
     "path": "interfaces"
   },
   "performance-timeline": {

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script>
+  new Response(new ReadableStream({
+    start(c) {
+
+      for (const i of new Array(40000).fill()) {
+        c.enqueue(new Uint8Array(0));
+      }
+      c.close();
+
+    }
+  })).text();
+</script>

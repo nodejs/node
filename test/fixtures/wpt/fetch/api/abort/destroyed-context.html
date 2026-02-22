@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+// This is a regression test for crbug.com/860063.
+window.controller = new AbortController();
+async_test(t => {
+  onmessage = t.step_func(event => {
+    assert_equals(event.data, 'started');
+    const iframe = document.querySelector('iframe');
+    document.body.removeChild(iframe);
+    controller.abort();
+    t.done();
+  });
+}, 'aborting a fetch in a destroyed context should not crash');
+</script>
+<iframe srcdoc="
+                <!DOCTYPE html>
+                <meta charset=utf-8>
+                <script>
+                fetch('../resources/infinite-slow-response.py', { signal: parent.controller.signal }).then(() => {
+                  parent.postMessage('started', '*');
+                });
+                </script>
+                ">
+</iframe>

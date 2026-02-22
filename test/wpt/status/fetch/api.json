@@ -1,0 +1,356 @@
+{
+  "abort/cache.https.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "abort/general.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "abort/request.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/accept-header.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/conditional-get.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/error-after-response.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/header-value-combining.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/header-value-null-byte.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/http-response-code.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/integrity.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/keepalive.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/mediasource.window.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/mode-no-cors.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/mode-same-origin.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/referrer.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-forbidden-headers.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-head.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-headers-case.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-headers-nonascii.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-headers.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-private-network-headers.tentative.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-referrer.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-upload.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/request-upload.h2.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/response-null-body.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/response-url.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/scheme-about.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/scheme-blob.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/scheme-data.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/scheme-others.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/status.h2.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/stream-response.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/stream-safe-creation.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "basic/text-utf8.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-basic.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-cookies-redirect.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-cookies.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-expose-star.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-filtering.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-keepalive.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-multiple-origins.sub.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-no-preflight.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-origin.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-cache.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-not-cors-safelisted.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-redirect.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-referrer.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-response-validation.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-star.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight-status.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-preflight.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-redirect-credentials.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-redirect-preflight.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "cors/cors-redirect.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "crashtests/huge-fetch.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "credentials/authentication-basic.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "credentials/authentication-redirection.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "credentials/cookies.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "headers/header-setcookie.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "headers/header-values-normalize.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "headers/header-values.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "headers/headers-no-cors.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "idlharness.https.any.js": {
+    "fail": {
+      "expected": [
+        "Headers interface: existence and properties of interface object",
+        "Request interface: existence and properties of interface object",
+        "Response interface: existence and properties of interface object",
+        "FetchLaterResult interface: existence and properties of interface object",
+        "FetchLaterResult interface object length",
+        "FetchLaterResult interface object name",
+        "FetchLaterResult interface: existence and properties of interface prototype object",
+        "FetchLaterResult interface: existence and properties of interface prototype object's \"constructor\" property",
+        "FetchLaterResult interface: existence and properties of interface prototype object's @@unscopables property",
+        "FetchLaterResult interface: attribute activated",
+        "Window interface: operation fetchLater(RequestInfo, optional DeferredRequestInit)",
+        "Window interface: window must inherit property \"fetchLater(RequestInfo, optional DeferredRequestInit)\" with the proper type",
+        "Window interface: calling fetchLater(RequestInfo, optional DeferredRequestInit) on window with too few arguments must throw TypeError",
+        "Window interface: window must inherit property \"fetch(RequestInfo, optional RequestInit)\" with the proper type",
+        "Window interface: calling fetch(RequestInfo, optional RequestInit) on window with too few arguments must throw TypeError"
+      ]
+    }
+  },
+  "redirect/redirect-back-to-original-origin.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-count.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-empty-location.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-keepalive.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-keepalive.https.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-location-escape.tentative.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-location.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-method.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-mode.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-origin.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-referrer-override.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-referrer.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-schemes.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-to-dataurl.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "redirect/redirect-upload.h2.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/multi-globals/construct-in-detached-frame.window.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-bad-port.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-default-conditional.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-default.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-force-cache.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-no-cache.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-no-store.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-only-if-cached.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-cache-reload.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-consume-empty.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-consume.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-disturbed.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-error.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-headers.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-init-002.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-init-priority.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-init-stream.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-keepalive.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "request/request-structure.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/json.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-arraybuffer-realm.window.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-blob-realm.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-cancel-stream.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-clone-iframe.window.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-clone.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-consume-empty.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-consume-stream.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-headers-guard.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-disturbed-1.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-disturbed-2.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-disturbed-3.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-disturbed-4.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-disturbed-5.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  },
+  "response/response-stream-with-broken-then.any.js": {
+    "skip": "Requires a WPT HTTP server"
+  }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>Fetch destination tests for resources with no load event</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+const kScope = 'resources/dummy.html?dest=iframe';
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScript = 'resources/fetch-destination-worker-iframe.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          add_completion_callback(() => {
+              registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        });
+  }, 'Initialize global state');
+
+var waitOnMessageFromSW = async t => {
+    await new Promise((resolve, reject) => {
+        navigator.serviceWorker.onmessage = t.step_func(event => {
+            if (event.data == "PASS") {
+                resolve();
+            } else {
+                reject();
+            }
+        });
+    }).catch(() => {;
+        assert_unreached("Wrong destination.");
+    });
+    t.add_cleanup(() => { frame.contentWindow.navigator.serviceWorker.onmessage = null; });
+}
+
+// Document destination
+///////////////////////
+promise_test(async t => {
+    var f = document.createElement('iframe');
+    frame = f;
+    f.className = 'test-iframe';
+    f.src = kScope;
+    document.body.appendChild(f);
+    await waitOnMessageFromSW(t);
+    add_completion_callback(() => { f.remove(); });
+}, 'iframe fetches with a "iframe" Request.destination');
+
+</script>

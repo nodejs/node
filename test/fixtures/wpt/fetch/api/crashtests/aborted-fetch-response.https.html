@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script type="module">
+  const abort = new AbortController();
+  const resp = await fetch("5401a7dfd80adbd578b3e91b86fdc6966a752de7.vtt", {
+    signal: abort.signal,
+  });
+  abort.abort();
+  await resp.body.closed;
+  const cache = await caches.open("cache_name_0");
+  await cache.put("bb4ea079adb4fe423f1d6cec18bc1caf78ac4cd6.ico", resp);
+</script>

@@ -22,12 +22,17 @@ interface PerformanceResourceTiming : PerformanceEntry {
     readonly attribute DOMHighResTimeStamp firstInterimResponseStart;
     readonly attribute DOMHighResTimeStamp responseStart;
     readonly attribute DOMHighResTimeStamp responseEnd;
+    readonly attribute DOMHighResTimeStamp workerRouterEvaluationStart;
+    readonly attribute DOMHighResTimeStamp workerCacheLookupStart;
+    readonly attribute DOMString workerMatchedRouterSource;
+    readonly attribute DOMString workerFinalRouterSource;
     readonly attribute unsigned long long  transferSize;
     readonly attribute unsigned long long  encodedBodySize;
     readonly attribute unsigned long long  decodedBodySize;
     readonly attribute unsigned short responseStatus;
     readonly attribute RenderBlockingStatusType renderBlockingStatus;
     readonly attribute DOMString contentType;
+    readonly attribute DOMString contentEncoding;
     [Default] object toJSON();
 };
 

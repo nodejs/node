@@ -1,0 +1,317 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Response consume</title>
+    <meta name="help" href="https://fetch.spec.whatwg.org/#response">
+    <meta name="help" href="https://fetch.spec.whatwg.org/#body-mixin">
+    <meta name="author" title="Canon Research France" href="https://www.crf.canon.fr">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="../resources/utils.js"></script>
+  </head>
+  <body>
+    <script>
+    function blobToFormDataResponse(name, blob) {
+      var formData = new FormData();
+      formData.append(name, blob);
+      return new Response(formData);
+    }
+
+    function readBlobAsArrayBuffer(blob) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          resolve(reader.result);
+        };
+        reader.onerror = function(evt) {
+          reject("Blob's reader failed");
+        };
+        reader.readAsArrayBuffer(blob);
+      });
+    }
+
+    function blobToTypeViaFetch(blob) {
+      var url = URL.createObjectURL(blob);
+      return fetch(url).then(function(response) {
+        return response.headers.get('Content-Type');
+      });
+    }
+
+    function responsePromise(body, responseInit) {
+      return new Promise(function(resolve, reject) {
+        resolve(new Response(body, responseInit));
+      });
+    }
+
+    function responseStringToMultipartFormTextData(response, name, value) {
+        assert_true(response.headers.has("Content-Type"), "Response contains Content-Type header");
+        var boundaryMatches = response.headers.get("Content-Type").match(/;\s*boundary=("?)([^";\s]*)\1/);
+        assert_true(!!boundaryMatches, "Response contains boundary parameter");
+        return stringToMultipartFormTextData(boundaryMatches[2], name, value);
+    }
+
+    function streamResponsePromise(streamData, responseInit) {
+      return new Promise(function(resolve, reject) {
+        var stream = new ReadableStream({
+          start: function(controller) {
+            controller.enqueue(stringToArray(streamData));
+            controller.close();
+          }
+        });
+        resolve(new Response(stream, responseInit));
+      });
+    }
+
+    function stringToMultipartFormTextData(multipartBoundary, name, value) {
+      return ('--' + multipartBoundary + '\r\n' +
+              'Content-Disposition: form-data;name="' + name + '"\r\n' +
+              '\r\n' +
+              value + '\r\n' +
+              '--' + multipartBoundary + '--\r\n');
+    }
+
+    function checkBodyText(test, response, expectedBody) {
+      return response.text().then( function(bodyAsText) {
+        assert_equals(bodyAsText, expectedBody, "Retrieve and verify response's body");
+        assert_true(response.bodyUsed, "body as text: bodyUsed turned true");
+      });
+    }
+
+    function checkBodyBlob(test, response, expectedBody, expectedType) {
+      return response.blob().then(function(bodyAsBlob) {
+        assert_equals(bodyAsBlob.type, expectedType || "text/plain", "Blob body type should be computed from the response Content-Type");
+
+        var promise = blobToTypeViaFetch(bodyAsBlob).then(function(type) {
+          assert_equals(type, expectedType || "text/plain", 'Type via blob URL');
+          return new Promise( function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+              resolve(reader.result)
+            };
+            reader.onerror = function () {
+              reject("Blob's reader failed");
+            };
+            reader.readAsText(bodyAsBlob);
+          });
+        });
+        return promise.then(function(body) {
+          assert_equals(body, expectedBody, "Retrieve and verify response's body");
+          assert_true(response.bodyUsed, "body as blob: bodyUsed turned true");
+        });
+      });
+    }
+
+    function checkBodyArrayBuffer(test, response, expectedBody) {
+      return response.arrayBuffer().then( function(bodyAsArrayBuffer) {
+        validateBufferFromString(bodyAsArrayBuffer, expectedBody, "Retrieve and verify response's body");
+        assert_true(response.bodyUsed, "body as arrayBuffer: bodyUsed turned true");
+      });
+    }
+
+    function checkBodyJSON(test, response, expectedBody) {
+      return response.json().then(function(bodyAsJSON) {
+        var strBody = JSON.stringify(bodyAsJSON)
+        assert_equals(strBody, expectedBody, "Retrieve and verify response's body");
+        assert_true(response.bodyUsed, "body as json: bodyUsed turned true");
+      });
+    }
+
+    function checkBodyFormDataMultipart(test, response, expectedBody) {
+      return response.formData().then(function(bodyAsFormData) {
+        assert_true(bodyAsFormData instanceof FormData, "Should receive a FormData");
+        var entryName = "name";
+        var strBody = responseStringToMultipartFormTextData(response, entryName, bodyAsFormData.get(entryName));
+        assert_equals(strBody, expectedBody, "Retrieve and verify response's body");
+        assert_true(response.bodyUsed, "body as formData: bodyUsed turned true");
+     });
+    }
+
+    function checkBodyFormDataUrlencoded(test, response, expectedBody) {
+      return response.formData().then(function(bodyAsFormData) {
+        assert_true(bodyAsFormData instanceof FormData, "Should receive a FormData");
+        var entryName = "name";
+        var strBody = entryName + "=" + bodyAsFormData.get(entryName);
+        assert_equals(strBody, expectedBody, "Retrieve and verify response's body");
+        assert_true(response.bodyUsed, "body as formData: bodyUsed turned true");
+     });
+    }
+
+    function checkBodyFormDataError(test, response, expectedBody) {
+      return promise_rejects_js(test, TypeError, response.formData()).then(function() {
+        assert_true(response.bodyUsed, "body as formData: bodyUsed turned true");
+      });
+    }
+
+    function checkResponseBody(responsePromise, expectedBody, checkFunction, bodyTypes) {
+      promise_test(function(test) {
+        return responsePromise.then(function(response) {
+          assert_false(response.bodyUsed, "bodyUsed is false at init");
+          return checkFunction(test, response, expectedBody);
+        });
+      }, "Consume response's body: " + bodyTypes);
+    }
+
+    var textData = JSON.stringify("This is response's body");
+    var textResponseInit = { "headers": [["Content-Type", "text/PLAIN"]] };
+    var blob = new Blob([textData], { "type": "application/octet-stream" });
+    var multipartBoundary = "boundary-" + Math.random();
+    var formData = new FormData();
+    var formTextResponseInit = { "headers": [["Content-Type", 'multipart/FORM-data; boundary="' + multipartBoundary + '"']] };
+    var formTextData = stringToMultipartFormTextData(multipartBoundary, "name", textData);
+    var formBlob = new Blob([formTextData]);
+    var urlSearchParamsData = "name=value";
+    var urlSearchParams = new URLSearchParams(urlSearchParamsData);
+    var urlSearchParamsType = "application/x-www-form-urlencoded;charset=UTF-8";
+    var urlSearchParamsResponseInit = { "headers": [["Content-Type", urlSearchParamsType]] };
+    var urlSearchParamsBlob = new Blob([urlSearchParamsData], { "type": urlSearchParamsType });
+    formData.append("name", textData);
+
+    // https://fetch.spec.whatwg.org/#concept-body-package-data
+    // "UTF-8 decoded without BOM" is used for formData(), either in
+    // "multipart/form-data" and "application/x-www-form-urlencoded" cases,
+    // so BOMs in the values should be kept.
+    // (The "application/x-www-form-urlencoded" cases are tested in
+    // url/urlencoded-parser.any.js)
+    var textDataWithBom = "\uFEFFquick\uFEFFfox\uFEFF";
+    var formTextDataWithBom = stringToMultipartFormTextData(multipartBoundary, "name", textDataWithBom);
+    var formTextDataWithBomExpectedForMultipartFormData = stringToMultipartFormTextData(multipartBoundary, "name", textDataWithBom);
+
+    checkResponseBody(responsePromise(textData, textResponseInit), textData, checkBodyText, "from text to text");
+    checkResponseBody(responsePromise(textData, textResponseInit), textData, checkBodyBlob, "from text to blob");
+    checkResponseBody(responsePromise(textData, textResponseInit), textData, checkBodyArrayBuffer, "from text to arrayBuffer");
+    checkResponseBody(responsePromise(textData, textResponseInit), textData, checkBodyJSON, "from text to json");
+    checkResponseBody(responsePromise(formTextData, formTextResponseInit), formTextData, checkBodyFormDataMultipart, "from text with correct multipart type to formData");
+    checkResponseBody(responsePromise(formTextDataWithBom, formTextResponseInit), formTextDataWithBomExpectedForMultipartFormData, checkBodyFormDataMultipart, "from text with correct multipart type to formData with BOM");
+    checkResponseBody(responsePromise(formTextData, textResponseInit), undefined, checkBodyFormDataError, "from text without correct multipart type to formData (error case)");
+    checkResponseBody(responsePromise(urlSearchParamsData, urlSearchParamsResponseInit), urlSearchParamsData, checkBodyFormDataUrlencoded, "from text with correct urlencoded type to formData");
+    checkResponseBody(responsePromise(urlSearchParamsData, textResponseInit), undefined, checkBodyFormDataError, "from text without correct urlencoded type to formData (error case)");
+
+    checkResponseBody(responsePromise(blob, textResponseInit), textData, checkBodyBlob, "from blob to blob");
+    checkResponseBody(responsePromise(blob), textData, checkBodyText, "from blob to text");
+    checkResponseBody(responsePromise(blob), textData, checkBodyArrayBuffer, "from blob to arrayBuffer");
+    checkResponseBody(responsePromise(blob), textData, checkBodyJSON, "from blob to json");
+    checkResponseBody(responsePromise(formBlob, formTextResponseInit), formTextData, checkBodyFormDataMultipart, "from blob with correct multipart type to formData");
+    checkResponseBody(responsePromise(formBlob, textResponseInit), undefined, checkBodyFormDataError, "from blob without correct multipart type to formData (error case)");
+    checkResponseBody(responsePromise(urlSearchParamsBlob, urlSearchParamsResponseInit), urlSearchParamsData, checkBodyFormDataUrlencoded, "from blob with correct urlencoded type to formData");
+    checkResponseBody(responsePromise(urlSearchParamsBlob, textResponseInit), undefined, checkBodyFormDataError, "from blob without correct urlencoded type to formData (error case)");
+
+    function checkFormDataResponseBody(responsePromise, expectedName, expectedValue, checkFunction, bodyTypes) {
+      promise_test(function(test) {
+        return responsePromise.then(function(response) {
+          assert_false(response.bodyUsed, "bodyUsed is false at init");
+          var expectedBody = responseStringToMultipartFormTextData(response, expectedName, expectedValue);
+          return Promise.resolve().then(function() {
+            if (checkFunction === checkBodyFormDataMultipart)
+              return expectedBody;
+            // Modify expectedBody to use the same spacing for
+            // Content-Disposition parameters as Response and FormData does.
+            var response2 = new Response(formData);
+            return response2.text().then(function(formDataAsText) {
+              var reName = /[ \t]*;[ \t]*name=/;
+              var nameMatches = formDataAsText.match(reName);
+              return expectedBody.replace(reName, nameMatches[0]);
+            });
+          }).then(function(expectedBody) {
+            return checkFunction(test, response, expectedBody);
+          });
+        });
+      }, "Consume response's body: " + bodyTypes);
+    }
+
+    checkFormDataResponseBody(responsePromise(formData), "name", textData, checkBodyFormDataMultipart, "from FormData to formData");
+    checkResponseBody(responsePromise(formData, textResponseInit), undefined, checkBodyFormDataError, "from FormData without correct type to formData (error case)");
+    checkFormDataResponseBody(responsePromise(formData), "name", textData, function(test, response, expectedBody) { return checkBodyBlob(test, response, expectedBody, response.headers.get('Content-Type').toLowerCase()); }, "from FormData to blob");
+    checkFormDataResponseBody(responsePromise(formData), "name", textData, checkBodyText, "from FormData to text");
+    checkFormDataResponseBody(responsePromise(formData), "name", textData, checkBodyArrayBuffer, "from FormData to arrayBuffer");
+
+    checkResponseBody(responsePromise(urlSearchParams), urlSearchParamsData, checkBodyFormDataUrlencoded, "from URLSearchParams to formData");
+    checkResponseBody(responsePromise(urlSearchParams, textResponseInit), urlSearchParamsData, checkBodyFormDataError, "from URLSearchParams without correct type to formData (error case)");
+    checkResponseBody(responsePromise(urlSearchParams), urlSearchParamsData, function(test, response, expectedBody) { return checkBodyBlob(test, response, expectedBody, "application/x-www-form-urlencoded;charset=utf-8"); }, "from URLSearchParams to blob");
+    checkResponseBody(responsePromise(urlSearchParams), urlSearchParamsData, checkBodyText, "from URLSearchParams to text");
+    checkResponseBody(responsePromise(urlSearchParams), urlSearchParamsData, checkBodyArrayBuffer, "from URLSearchParams to arrayBuffer");
+
+    checkResponseBody(streamResponsePromise(textData, textResponseInit), textData, checkBodyBlob, "from stream to blob");
+    checkResponseBody(streamResponsePromise(textData), textData, checkBodyText, "from stream to text");
+    checkResponseBody(streamResponsePromise(textData), textData, checkBodyArrayBuffer, "from stream to arrayBuffer");
+    checkResponseBody(streamResponsePromise(textData), textData, checkBodyJSON, "from stream to json");
+    checkResponseBody(streamResponsePromise(formTextData, formTextResponseInit), formTextData, checkBodyFormDataMultipart, "from stream with correct multipart type to formData");
+    checkResponseBody(streamResponsePromise(formTextData), formTextData, checkBodyFormDataError, "from stream without correct multipart type to formData (error case)");
+    checkResponseBody(streamResponsePromise(urlSearchParamsData, urlSearchParamsResponseInit), urlSearchParamsData, checkBodyFormDataUrlencoded, "from stream with correct urlencoded type to formData");
+    checkResponseBody(streamResponsePromise(urlSearchParamsData), urlSearchParamsData, checkBodyFormDataError, "from stream without correct urlencoded type to formData (error case)");
+
+    checkResponseBody(fetch("../resources/top.txt"), "top", checkBodyBlob, "from fetch to blob");
+    checkResponseBody(fetch("../resources/top.txt"), "top", checkBodyText, "from fetch to text");
+    checkResponseBody(fetch("../resources/top.txt"), "top", checkBodyArrayBuffer, "from fetch to arrayBuffer");
+    checkResponseBody(fetch("../resources/top.txt"), "top", checkBodyFormDataError, "from fetch without correct type to formData (error case)");
+
+    promise_test(function(test) {
+      var response = new Response(new Blob([
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=string\r\n",
+        "\r\nvalue", new Uint8Array([0xC2, 0xA0]), "1\r\n",
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=string-with-default-charset\r\n",
+        "Content-Type: text/plain; charset=utf-8\r\n",
+        "\r\nvalue", new Uint8Array([0xC2, 0xA0]), "2\r\n",
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=string-with-non-default-charset\r\n",
+        "Content-Type: text/plain; charset=iso-8859-1\r\n",
+        "\r\nvalue", new Uint8Array([0xC2, 0xA0]), "3\r\n",
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=string-with-non-default-type\r\n",
+        "Content-Type: application/octet-stream\r\n",
+        "\r\nvalue", new Uint8Array([0xC2, 0xA0]), "4\r\n",
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=file; filename=file1\r\n",
+        "Content-Type: application/octet-stream; x-param=x-value\r\n",
+        "\r\n", new Uint8Array([5, 0x0, 0xFF]), "\r\n",
+        "--boundary\r\n",
+        "Content-Disposition: form-data; name=\"file-without-type\"; filename=\"file2\"\r\n",
+        "\r\n", new Uint8Array([6, 0x0, 0x7F, 0xFF]), "\r\n",
+        "--boundary--\r\n"
+      ]), { "headers": [["Content-Type", 'multipart/form-data; boundary="boundary"']] });
+      return response.formData().then(function(bodyAsFormData) {
+        // Non-file parts must always be decoded using utf-8 encoding.
+        assert_equals(bodyAsFormData.get("string"), "value\u00A01", "Retrieve and verify response's 1st entry value");
+        assert_equals(bodyAsFormData.get("string-with-default-charset"), "value\u00A02", "Retrieve and verify response's 2nd entry value");
+        assert_equals(bodyAsFormData.get("string-with-non-default-charset"), "value\u00A03", "Retrieve and verify response's 3rd entry value");
+        assert_equals(bodyAsFormData.get("string-with-non-default-type"), "value\u00A04", "Retrieve and verify response's 4th entry value");
+        // The name of a File must be taken from the filename parameter in
+        // the Content-Disposition header field.
+        assert_equals(bodyAsFormData.get("file").name, "file1", "Retrieve and verify response's 5th entry name property");
+        assert_equals(bodyAsFormData.get("file-without-type").name, "file2", "Retrieve and verify response's 6th entry name property");
+        // The type of a File must be taken from the Content-Type header field
+        // which defaults to "text/plain".
+        assert_equals(bodyAsFormData.get("file").type, "application/octet-stream; x-param=x-value", "Retrieve and verify response's 5th entry type property");
+        assert_equals(bodyAsFormData.get("file-without-type").type, "text/plain", "Retrieve and verify response's 6th entry type property");
+
+        return Promise.resolve().then(function() {
+          return blobToFormDataResponse("file", bodyAsFormData.get("file")).text().then(function(bodyAsText) {
+            // Verify that filename, name and type are preserved.
+            assert_regexp_match(bodyAsText, /\r\nContent-Disposition: *form-data;([^\r\n]*;)* *filename=("?)file1\2[;\r]/i, "Retrieve and verify response's 5th entry filename parameter");
+            assert_regexp_match(bodyAsText, /\r\nContent-Disposition: *form-data;([^\r\n]*;)* *name=("?)file\2[;\r]/i, "Retrieve and verify response's 5th entry name parameter");
+            assert_regexp_match(bodyAsText, /\r\nContent-Type: *application\/octet-stream; x-param=x-value\r\n/i, "Retrieve and verify response's 5th entry type field");
+            // Verify that the content is preserved.
+            return readBlobAsArrayBuffer(bodyAsFormData.get("file")).then(function(arrayBuffer) {
+              assert_array_equals(new Uint8Array(arrayBuffer), new Uint8Array([5, 0x0, 0xFF]), "Retrieve and verify response's 5th entry content");
+            });
+          });
+        }).then(function() {
+          return blobToFormDataResponse("file-without-type", bodyAsFormData.get("file-without-type")).text().then(function(bodyAsText) {
+            // Verify that filename, name and type are preserved.
+            assert_regexp_match(bodyAsText, /\r\nContent-Disposition: *form-data;([^\r\n]*;)* *filename=("?)file2\2[;\r]/i, "Retrieve and verify response's 6th entry filename parameter");
+            assert_regexp_match(bodyAsText, /\r\nContent-Disposition: *form-data;([^\r\n]*;)* *name=("?)file-without-type\2[;\r]/i, "Retrieve and verify response's 6th entry name parameter");
+            assert_regexp_match(bodyAsText, /\r\nContent-Type: *text\/plain\r\n/i, "Retrieve and verify response's 6th entry type field");
+            // Verify that the content is preserved.
+            return readBlobAsArrayBuffer(bodyAsFormData.get("file-without-type")).then(function(arrayBuffer) {
+              assert_array_equals(new Uint8Array(arrayBuffer), new Uint8Array([6, 0x0, 0x7F, 0xFF]), "Retrieve and verify response's 6th entry content");
+            });
+          });
+        });
+      });
+    }, "Consume response's body: from multipart form data blob to formData");
+
+    </script>
+  </body>
+</html>

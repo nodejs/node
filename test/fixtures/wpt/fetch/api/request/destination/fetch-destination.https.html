@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<title>Fetch destination tests</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/media.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScope = 'resources/empty.https.html';
+    const kScript = 'resources/fetch-destination-worker.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          add_completion_callback(() => {
+              registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kScope);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => { f.remove(); });
+        });
+  }, 'Initialize global state');
+
+// Actual tests
+
+// Image destination
+////////////////////
+
+// HTMLImageElement - image destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("img");
+      node.onload = resolve;
+      node.onerror = reject;
+      node.src = "dummy.png?dest=image";
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLImageElement fetches with an "image" Request.destination');
+
+// HTMLImageElement with srcset attribute - image destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("img");
+      node.onload = resolve;
+      node.onerror = reject;
+      node.srcset = "dummy.png?t=srcset&dest=image";
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLImageElement with srcset attribute fetches with an "image" Request.destination');
+
+// HTMLImageElement with srcset attribute - image destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let img = frame.contentWindow.document.createElement("img");
+      let picture = frame.contentWindow.document.createElement("picture");
+      let source = frame.contentWindow.document.createElement("source");
+      picture.appendChild(source);
+      picture.appendChild(img);
+      img.onload = resolve;
+      img.onerror = reject;
+      source.srcset = "dummy.png?t=picture&dest=image";
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLImageElement with a HTMLPictureElement parent attribute fetches with an "image" Request.destination');
+
+// SVGImageElement - image destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let svg = frame.contentWindow.document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttributeNS('http://www.w3.org/2000/svg','xlink','http://www.w3.org/1999/xlink');
+      let svgimg = frame.contentWindow.document.createElementNS('http://www.w3.org/2000/svg','image');
+      svgimg.onload = resolve;
+      svgimg.onerror = reject;
+      svgimg.setAttributeNS('http://www.w3.org/1999/xlink','href','dummy.png?t=svg&dest=image');
+      svg.appendChild(svgimg);
+      frame.contentWindow.document.documentElement.appendChild(svg);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'SVGImageElement fetches with an "image" Request.destination');
+
+// Empty string destination
+///////////////////////////
+
+// fetch() - empty string destination
+promise_test(async t => {
+  let response = await frame.contentWindow.fetch("dummy?dest=");
+  assert_true(response.ok);
+}, 'fetch() fetches with an empty string Request.destination');
+
+// XMLHttpRequest - empty string destination
+promise_test(async t => {
+  let xhr;
+  await new Promise((resolve, reject) => {
+      xhr = new frame.contentWindow.XMLHttpRequest();
+      xhr.onload = resolve;
+      xhr.onerror = reject;
+      xhr.open("GET", "dummy?t=xhr&dest=");
+      xhr.send();
+    }).catch(() => {
+      assert_unreached("Fetch errored.");
+    });
+  assert_equals(xhr.status, 200);
+}, 'XMLHttpRequest() fetches with an empty string Request.destination');
+
+// EventSource - empty string destination
+promise_test(async t => {
+  let xhr;
+  await new Promise((resolve, reject) => {
+      eventSource = new frame.contentWindow.EventSource("dummy.es?t=eventsource&dest=");
+      eventSource.onopen = resolve;
+      eventSource.onerror = reject;
+    }).catch(() => {
+      assert_unreached("Fetch errored.");
+    });
+}, 'EventSource() fetches with an empty string Request.destination');
+
+// HTMLAudioElement - audio destination
+///////////////////////////////////////
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let audioURL = getAudioURI("dummy_audio");
+      let node = frame.contentWindow.document.createElement("audio");
+      node.onloadeddata = resolve;
+      node.onerror = reject;
+      node.src = audioURL + "?dest=audio";
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLAudioElement fetches with an "audio" Request.destination');
+
+// HTMLVideoElement - video destination
+///////////////////////////////////////
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let videoURL = getVideoURI("dummy_video");
+      let node = frame.contentWindow.document.createElement("video");
+      node.onloadeddata = resolve;
+      node.onerror = reject;
+      node.src = videoURL + "?dest=video";
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLVideoElement fetches with a "video" Request.destination');
+
+// script destinations
+//////////////////////
+
+// HTMLScriptElement - script destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("script");
+      node.onload = resolve;
+      node.onerror = reject;
+      node.src = "dummy?dest=script";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLScriptElement fetches with a "script" Request.destination');
+
+// audioworklet destination
+//////////////////////
+promise_test(async t => {
+  let audioContext = new frame.contentWindow.AudioContext();
+  await audioContext.audioWorklet.addModule("dummy?dest=audioworklet");
+}, 'AudioWorklet module fetches with a "audioworklet" Request.destination');
+
+// Style destination
+////////////////////
+
+// HTMLLinkElement with rel=stylesheet - style destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "stylesheet";
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=style";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=stylesheet fetches with a "style" Request.destination');
+
+// Import declaration with `type: "css"` - style destination
+promise_test(t => {
+  return new Promise((resolve, reject) => {
+      frame.contentWindow.onerror = reject;
+
+      let node = frame.contentWindow.document.createElement("script");
+      node.onload = resolve;
+      node.onerror = reject;
+      node.src = "import-declaration-type-css.js";
+      node.type = "module";
+      frame.contentWindow.document.body.appendChild(node);
+  }).then(() => {
+    frame.contentWindow.onerror = null;
+  });
+}, 'Import declaration with `type: "css"` fetches with a "style" Request.destination');
+
+// JSON destination
+///////////////////
+
+// Import declaration with `type: "json"` - json destination
+promise_test(t => {
+  return new Promise((resolve, reject) => {
+      frame.contentWindow.onerror = reject;
+      let node = frame.contentWindow.document.createElement("script");
+      node.onload = resolve;
+      node.onerror = reject;
+      node.src = "import-declaration-type-json.js";
+      node.type = "module";
+      frame.contentWindow.document.body.appendChild(node);
+  }).then(() => {
+    frame.contentWindow.onerror = null;
+  });
+}, 'Import declaration with `type: "json"` fetches with a "json" Request.destination');
+
+// Preload tests
+////////////////
+// HTMLLinkElement with rel=preload and as=fetch - empty string destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "fetch";
+      if (node.as != "fetch") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?t=2&dest=";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=fetch fetches with an empty string Request.destination');
+
+// HTMLLinkElement with rel=preload and as=style - style destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "style";
+      if (node.as != "style") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?t=2&dest=style";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=style fetches with a "style" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=json - json destination
+promise_test(t => {
+  return new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "json";
+      if (node.as != "json") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy.json?t=2&dest=json";
+      frame.contentWindow.document.body.appendChild(node);
+  });
+}, 'HTMLLinkElement with rel=preload and as=json fetches with a "json" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=script - script destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "script";
+      if (node.as != "script") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?t=2&dest=script";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=script fetches with a "script" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=font - font destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "font";
+      if (node.as != "font") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?t=2&dest=font";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=font fetches with a "font" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=image - image destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "image";
+      if (node.as != "image") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy.png?t=2&dest=image";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=image fetches with a "image" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=audio - audio destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let audioURL = getAudioURI("dummy_audio");
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "audio";
+      if (node.as != "audio") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = audioURL + "?dest=audio";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=audio fetches with a "audio" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=video - video destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let videoURL = getVideoURI("dummy_video");
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "video";
+      if (node.as != "video") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = videoURL + "?dest=video";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=video fetches with a "video" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=track - track destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "track";
+      if (node.as != "track") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=track";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=track fetches with a "track" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=document - document destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "document";
+      if (node.as != "document") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=document";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=document fetches with a "document" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=worker - worker destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "worker";
+      if (node.as != "worker") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=worker";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=worker fetches with a "worker" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=sharedworker - sharedworker destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "sharedworker";
+      if (node.as != "sharedworker") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=sharedworker";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=sharedworker fetches with a "sharedworker" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=xslt - xslt destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "xslt";
+      if (node.as != "xslt") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=xslt";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=xslt fetches with a "xslt" Request.destination');
+
+// HTMLLinkElement with rel=preload and as=manifest - manifest destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "preload";
+      node.as = "manifest";
+      if (node.as != "manifest") {
+        resolve();
+      }
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=manifest";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=preload and as=manifest fetches with a "manifest" Request.destination');
+
+</script>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<script src="/common/utils.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+const TOKEN = token();
+const {
+  HTTP_NOTSAMESITE_ORIGIN,
+  HTTP_REMOTE_ORIGIN,
+  HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT
+} = get_host_info();
+
+const SEARCH_PARAMS = new URL(location.href).searchParams;
+const WITH_HEADERS = !!SEARCH_PARAMS.has('with-headers');
+const ORIGIN1 = SEARCH_PARAMS.get('origin1') || '';
+const ORIGIN2 = SEARCH_PARAMS.get('origin2') || '';
+const URL2 = SEARCH_PARAMS.get('url2') || '';
+
+const REDIRECT_DESTINATION = URL2 ? URL2 :
+  `${ORIGIN2}/fetch/api/resources/stash-put.py` +
+  `?key=${TOKEN}&value=on`;
+const FROM_URL =
+    `${ORIGIN1}/fetch/api/resources/redirect.py?` +
+    `delay=500&` +
+    `allow_headers=foo&` +
+    `location=${encodeURIComponent(REDIRECT_DESTINATION)}`;
+
+addEventListener('load', () => {
+  const headers = WITH_HEADERS ? {'foo': 'bar'} : undefined;
+  const iframe = document.createElement('iframe');
+  document.body.appendChild(iframe);
+  iframe.contentWindow.addEventListener('unload', () => {
+    iframe.contentWindow.fetch(FROM_URL, {keepalive: true, headers});
+  });
+
+  window.opener.postMessage(TOKEN, '*');
+  // Do NOT remove `iframe` here. We want to check the case where the nested
+  // frame is implicitly closed by window closure.
+});
+</script>
+</html>

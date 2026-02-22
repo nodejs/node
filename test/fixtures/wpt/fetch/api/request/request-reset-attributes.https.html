@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const worker = 'resources/request-reset-attributes-worker.js';
+
+function wait(ms) {
+  return new Promise(resolve => step_timeout(resolve, ms));
+}
+
+promise_test(async (t) => {
+    const scope = 'resources/hello.txt?name=isReloadNavigation';
+    let frame;
+    let reg;
+
+    try {
+      reg = await service_worker_unregister_and_register(t, worker, scope);
+      await wait_for_state(t, reg.installing, 'activated');
+      frame = await with_iframe(scope);
+      assert_equals(frame.contentDocument.body.textContent,
+                    'old: false, new: false');
+      await new Promise((resolve) => {
+        frame.onload = resolve;
+        frame.contentWindow.location.reload();
+      });
+      assert_equals(frame.contentDocument.body.textContent,
+                    'old: true, new: false');
+    } finally {
+      if (frame) {
+        frame.remove();
+      }
+      if (reg) {
+        await reg.unregister();
+      }
+    }
+  }, 'Request.isReloadNavigation is reset with non-empty RequestInit');
+
+promise_test(async (t) => {
+    const scope = 'resources/hello.html?name=isHistoryNavigation';
+    let frame;
+    let reg;
+
+    try {
+      reg = await service_worker_unregister_and_register(t, worker, scope);
+      await wait_for_state(t, reg.installing, 'activated');
+      frame = await with_iframe(scope);
+      assert_equals(frame.contentDocument.body.textContent,
+                    'old: false, new: false');
+      // Use step_timeout(0) to ensure the history entry is created for Blink
+      // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+      await wait(0);
+      await new Promise((resolve) => {
+        frame.onload = resolve;
+        frame.src = 'resources/hello.html?ignore';
+      });
+      await wait(0);
+      await new Promise((resolve) => {
+        frame.onload = resolve;
+        frame.contentWindow.history.go(-1);
+      });
+      assert_equals(frame.contentDocument.body.textContent,
+                    'old: true, new: false');
+    } finally {
+      if (frame) {
+        frame.remove();
+      }
+      if (reg) {
+        await reg.unregister();
+      }
+    }
+}, 'Request.isHistoryNavigation is reset with non-empty RequestInit');
+
+promise_test(async (t) => {
+    const scope = 'resources/hello.txt?name=mode';
+    let frame;
+    let reg;
+
+    try {
+      reg = await service_worker_unregister_and_register(t, worker, scope);
+      await wait_for_state(t, reg.installing, 'activated');
+      frame = await with_iframe(scope);
+      assert_equals(frame.contentDocument.body.textContent,
+                    'old: navigate, new: same-origin');
+    } finally {
+      if (frame) {
+        frame.remove();
+      }
+      if (reg) {
+        await reg.unregister();
+      }
+    }
+  }, 'Request.mode is reset with non-empty RequestInit when it\'s "navigate"');
+</script>

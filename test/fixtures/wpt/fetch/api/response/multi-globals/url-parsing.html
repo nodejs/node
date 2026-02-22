@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Response.redirect URL parsing, with multiple globals in play</title>
+<link rel="help" href="https://fetch.spec.whatwg.org/#dom-response-redirect">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<!-- This is the entry global -->
+
+<iframe src="incumbent/incumbent.html"></iframe>
+
+<script>
+'use strict';
+
+const loadPromise = new Promise(resolve => {
+    window.addEventListener("load", () => resolve());
+});
+
+promise_test(() => {
+    return loadPromise.then(() => {
+        const res = document.querySelector('iframe').contentWindow.createRedirectResponse("url");
+
+        assert_equals(res.headers.get("Location"), new URL("current/success/url", location.href).href);
+    });
+}, "should parse the redirect Location URL relative to the current settings object");
+
+</script>

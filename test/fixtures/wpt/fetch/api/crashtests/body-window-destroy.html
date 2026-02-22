@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<iframe srcdoc='
+  <script>
+    let a = new Blob(["a", "ð¢¾"], {})
+    let b = new Response(a)
+    try { let _ = b.body } catch (e) { }
+    frameElement.remove()
+    b.json().catch(() => {})
+  </script>
+'></iframe>

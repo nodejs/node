@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>Fetch destination test for prefetching</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/media.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScope = 'resources/empty.https.html';
+    const kScript = 'resources/fetch-destination-worker.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          add_completion_callback(() => {
+              registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kScope);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => { f.remove(); });
+        });
+  }, 'Initialize global state');
+
+// HTMLLinkElement with rel=prefetch - empty string destination
+promise_test(async t => {
+  await new Promise((resolve, reject) => {
+      let node = frame.contentWindow.document.createElement("link");
+      node.rel = "prefetch";
+      node.onload = resolve;
+      node.onerror = reject;
+      node.href = "dummy?dest=";
+      frame.contentWindow.document.body.appendChild(node);
+  }).catch(() => {
+      assert_unreached("Fetch errored.");
+  });
+}, 'HTMLLinkElement with rel=prefetch fetches with an empty string Request.destination');
+
+</script>
