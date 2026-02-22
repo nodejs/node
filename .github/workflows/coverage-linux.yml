@@ -65,11 +65,11 @@ jobs:
         run: npx envinfo
       - name: Install gcovr
         run: pip install gcovr==7.2
-      - name: Build
-        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
+      - name: Configure
+        run: ./configure --verbose --error-on-warn --coverage
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
-      - name: Test
+      - name: Build and test
         run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots  --measure-flakiness 9" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
