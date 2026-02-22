@@ -769,6 +769,54 @@ test('spies on an object method', (t) => {
 });
 ```
 
+The following example creates a mock function that throws an error, and
+asserts that the error was thrown using `assert.throws()`. It also demonstrates
+how to inspect the thrown error using the mock call's `error` property.
+
+```mjs
+import assert from 'node:assert';
+import { mock, test } from 'node:test';
+
+test('mocks a function that throws an error', () => {
+  const fn = mock.fn(() => {
+    throw new Error('mock error');
+  });
+
+  // Assert that calling the function throws
+  assert.throws(fn, /mock error/);
+
+  // The error is also tracked in the mock calls
+  assert.strictEqual(fn.mock.callCount(), 1);
+  const call = fn.mock.calls[0];
+  assert.strictEqual(call.error.message, 'mock error');
+  assert.strictEqual(call.result, undefined);
+
+  mock.reset();
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { mock, test } = require('node:test');
+
+test('mocks a function that throws an error', () => {
+  const fn = mock.fn(() => {
+    throw new Error('mock error');
+  });
+
+  // Assert that calling the function throws
+  assert.throws(fn, /mock error/);
+
+  // The error is also tracked in the mock calls
+  assert.strictEqual(fn.mock.callCount(), 1);
+  const call = fn.mock.calls[0];
+  assert.strictEqual(call.error.message, 'mock error');
+  assert.strictEqual(call.result, undefined);
+
+  mock.reset();
+});
+```
+
 ### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
