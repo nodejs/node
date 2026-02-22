@@ -566,3 +566,47 @@ test('coverage with directory and file named "file"', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
   assert(result.stdout.toString().includes('start of coverage report'));
 });
+
+// Regression test for https://github.com/nodejs/node/issues/61586
+test('coverage ignore comments exclude branches in LCOV output', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage-ignore-branch', 'test.js');
+  const args = [
+    '--experimental-test-coverage',
+    '--test-reporter', 'lcov',
+    '--test-coverage-exclude=!test/fixtures/test-runner/coverage-ignore-branch/**',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const lcov = result.stdout.toString();
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  // Extract the source.js section from LCOV output
+  const sourceSection = lcov.split('end_of_record').find((s) => s.includes('source.js'));
+  assert(sourceSection, 'LCOV should contain source.js coverage');
+
+  // Verify that all branches are reported as covered (BRH should equal BRF)
+  // The ignored branch should not penalize coverage
+  const brfMatch = sourceSection.match(/BRF:(\d+)/);
+  const brhMatch = sourceSection.match(/BRH:(\d+)/);
+  assert.match(sourceSection, /BRF:(\d+)/, 'LCOV should contain BRF');
+  assert.match(sourceSection, /BRH:(\d+)/, 'LCOV should contain BRH');
+  assert.strictEqual(
+    brfMatch[1],
+    brhMatch[1],
+    `All branches should be covered when ignored code is not executed. BRF=${brfMatch[1]}, BRH=${brhMatch[1]}`,
+  );
+
+  // Verify no BRDA entries show 0 (uncovered) for the ignored branch
+  // The branch at the if statement should be covered, not penalized by the ignored return
+  const brdaEntries = sourceSection.match(/BRDA:\d+,\d+,\d+,(\d+)/g) || [];
+  for (const entry of brdaEntries) {
+    const count = entry.match(/BRDA:\d+,\d+,\d+,(\d+)/)[1];
+    assert.notStrictEqual(
+      count,
+      '0',
+      `No branch should show 0 coverage when the uncovered path is ignored: ${entry}`,
+    );
+  }
+});
