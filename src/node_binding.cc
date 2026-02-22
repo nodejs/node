@@ -48,6 +48,7 @@
   V(constants)                                                                 \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(errors)                                                                    \
   V(fs)                                                                        \
