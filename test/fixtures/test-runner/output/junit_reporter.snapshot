@@ -23,13 +23,8 @@
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync fail todo
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:42:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -40,13 +35,8 @@
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync fail todo with message
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:47:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -64,13 +54,8 @@
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync throw fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:63:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -84,13 +69,8 @@
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from async throw fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:75:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -101,13 +81,8 @@
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from async throw fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:80:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -123,13 +98,9 @@ true !== false
 
   true !== false
 
-      *
-      *
-      *
-      *
-      *
-      *
-      * {
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:85:10)
+      at <node-internal-frames>
+      at <node-internal-frames> {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -147,13 +118,8 @@ true !== false
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: rejected from reject fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:93:25)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -166,21 +132,15 @@ true !== false
 		<testcase name="+sync throw fail" time="*" classname="test" file="*" failure="thrown from subtest sync throw fail">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
-    *
-    * {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:125:11)
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fail
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:127:11)
+      at <node-internal-frames>
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:125:11)
+      at <node-internal-frames>
 }
 			</failure>
 		</testcase>
@@ -216,13 +176,8 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: this should be executed
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:212:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -247,8 +202,8 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: callback failure
-      *
-      *
+      at Immediate.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:245:10)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -266,21 +221,16 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from callback throw
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:267:9)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
 	<testcase name="callback called twice" time="*" classname="test" file="*" failure="callback invoked multiple times">
 		<failure type="multipleCallbackInvocations" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
-    *
-    * {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:272:3)
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'multipleCallbackInvocations',
   cause: 'callback invoked multiple times'
@@ -291,11 +241,11 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 	<testcase name="callback called twice in future tick" time="*" classname="test" file="*" failure="callback invoked multiple times">
 		<failure type="uncaughtException" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
-    * {
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error [ERR_TEST_FAILURE]: callback invoked multiple times
-      * {
+      at Immediate.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:283:5) {
     code: 'ERR_TEST_FAILURE',
     failureType: 'multipleCallbackInvocations',
     cause: 'callback invoked multiple times'
@@ -306,12 +256,12 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 	<testcase name="callback async throw" time="*" classname="test" file="*" failure="thrown from callback async throw">
 		<failure type="uncaughtException" message="thrown from callback async throw">
 Error [ERR_TEST_FAILURE]: thrown from callback async throw
-    * {
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error: thrown from callback async throw
-      *
-      *
+      at Immediate.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:289:11)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -342,39 +292,29 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		<testcase name="sync throw fails at first" time="*" classname="test" file="*" failure="thrown from subtest sync throw fails at first">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
-    *
-    * {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:334:11)
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fails at first
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:335:11)
+      at <node-internal-frames>
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:334:11)
+      at <node-internal-frames>
 }
 			</failure>
 		</testcase>
 		<testcase name="sync throw fails at second" time="*" classname="test" file="*" failure="thrown from subtest sync throw fails at second">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at second">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
-    * {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:337:11) {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fails at second
-      *
-      *
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:338:11)
+      at <node-internal-frames>
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:337:11)
+      at <node-internal-frames>
 }
 			</failure>
 		</testcase>
@@ -400,26 +340,24 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
 	<testcase name="unfinished test with uncaughtException" time="*" classname="test" file="*" failure="foo">
 		<failure type="uncaughtException" message="foo">
 Error [ERR_TEST_FAILURE]: foo
-    * {
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error: foo
-      *
-      *
-      *
+      at Timeout._onTimeout (<project-root>/test/fixtures/test-runner/output/output.js:393:30)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
 	<testcase name="unfinished test with unhandledRejection" time="*" classname="test" file="*" failure="bar">
 		<failure type="unhandledRejection" message="bar">
 Error [ERR_TEST_FAILURE]: bar
-    * {
+    at <node-internal-frames> {
   code: 'ERR_TEST_FAILURE',
   failureType: 'unhandledRejection',
   cause: Error: bar
-      *
-      *
-      *
+      at Timeout._onTimeout (<project-root>/test/fixtures/test-runner/output/output.js:399:37)
+      at <node-internal-frames>
 }
 		</failure>
 	</testcase>
@@ -497,7 +435,7 @@ should loosely deep-equal
       c: [Circular *1]
     }
   }
-      * {
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:425:12) {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: [Object],
@@ -511,7 +449,7 @@ should loosely deep-equal
 	<testcase name="invalid subtest fail" time="*" classname="test" file="*" failure="test could not be started because its parent finished">
 		<failure type="parentAlreadyFinished" message="test could not be started because its parent finished">
 Error [ERR_TEST_FAILURE]: test could not be started because its parent finished
-    * {
+    at Immediate.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:197:7) {
   code: 'ERR_TEST_FAILURE',
   failureType: 'parentAlreadyFinished',
   cause: 'test could not be started because its parent finished'

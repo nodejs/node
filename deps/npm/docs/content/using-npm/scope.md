@@ -1,5 +1,5 @@
 ---
-title: scope
+title: Scope
 section: 7
 description: Scoped packages
 ---

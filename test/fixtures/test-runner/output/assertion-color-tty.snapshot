@@ -10,7 +10,7 @@
 
 [31m✖ failing tests:[39m
 
-*
+test at test/fixtures/test-runner/output/assertion-color-tty.mjs:4:1
 [31m✖ failing assertion [90m(*ms)[39m[39m
   [AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   [32mactual[39m [31mexpected[39m

@@ -16,27 +16,16 @@
 
 [31m✖ failing tests:[39m
 
-*
+test at test/fixtures/test-runner/output/default_output.js:10:1
 [31m✖ should fail [90m(*ms)[39m[39m
   Error: fail
-      *[39m
-  *[39m
-  *[39m
-  *[39m
-  *[39m
-  *[39m
-  *[39m
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:10:35[90m)[39m
+  [90m    at <node-internal-frames>[39m
 
-*
+test at test/fixtures/test-runner/output/default_output.js:13:5
 [31m✖ should fail [90m(*ms)[39m[39m
   Error: fail
-      *[39m
-  *[39m
-  *[39m
-  *[39m
-  *[39m
-      *[39m
-  *[39m
-  *[39m
-  *[39m
-  *[39m
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:13:39[90m)[39m
+  [90m    at <node-internal-frames>[39m
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:13:5[90m)[39m
+  [90m    at <node-internal-frames>[39m

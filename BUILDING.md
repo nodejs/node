@@ -38,7 +38,6 @@ file a new issue.
     * [Windows Prerequisites](#windows-prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with WinGet](#option-2-automated-install-with-winget)
-      * [Option 3: Automated install with Boxstarter](#option-3-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
       * [Using ccache](#using-ccache)
   * [Android](#android)
@@ -115,6 +114,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
 | GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
+| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
 | macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4] |
@@ -779,55 +779,36 @@ first and then reinstalling them.
 
 ##### Option 2: Automated install with WinGet
 
-[WinGet configuration files](https://github.com/nodejs/node/tree/main/.configurations)
+[WinGet configuration files](./.configurations)
 can be used to install all the required prerequisites for Node.js development
 easily. These files will install the following
 [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/) packages:
 
 * Git for Windows with the `git` and Unix tools added to the `PATH`
 * `Python 3.14`
-* `Visual Studio 2022` (Community, Enterprise or Professional)
-* `Visual Studio 2022 Build Tools` with Visual C++ workload, Clang and ClangToolset
+* `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
+  "Desktop development with C++" workload, Clang and ClangToolset optional components
 * `NetWide Assembler`
 
-To install Node.js prerequisites from PowerShell Terminal:
+The following Desired State Configuration (DSC) files are available:
+
+| Edition      | DSC Configuration                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| Build Tools  | [configuration.vsBuildTools.dsc.yaml](./.configurations/configuration.vsBuildTools.dsc.yaml)     |
+| Community    | [configuration.dsc.yaml](./.configurations/configuration.dsc.yaml)                               |
+| Professional | [configuration.vsProfessional.dsc.yaml](./.configurations/configuration.vsProfessional.dsc.yaml) |
+| Enterprise   | [configuration.vsEnterprise.dsc.yaml](./.configurations/configuration.vsEnterprise.dsc.yaml)     |
+
+Use one of the above DSC files with
+[winget configure](https://learn.microsoft.com/en-us/windows/package-manager/winget/configure#configure-subcommands)
+in a PowerShell Terminal to install Node.js prerequisites.
+For example, using the DSC file for Visual Studio Community Edition, execute the following command line:
 
 ```powershell
 winget configure .\.configurations\configuration.dsc.yaml
 ```
 
-##### Option 3: Automated install with Boxstarter
-
-A [Boxstarter](https://boxstarter.org/) script can be used for easy setup of
-Windows systems with all the required prerequisites for Node.js development.
-This script will install the following [Chocolatey](https://chocolatey.org/)
-packages:
-
-* [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
-  Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python)
-* [Visual Studio 2022 Build Tools](https://chocolatey.org/packages/visualstudio2022buildtools)
-  with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2022-workload-vctools)
-* [NetWide Assembler](https://chocolatey.org/packages/nasm)
-
-To install Node.js prerequisites using
-[Boxstarter WebLauncher](https://boxstarter.org/weblauncher), visit
-<https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
-with a supported browser.
-
-Alternatively, you can use PowerShell. Run those commands from
-an elevated (Administrator) PowerShell terminal:
-
-```powershell
-Set-ExecutionPolicy Unrestricted -Force
-iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
-get-boxstarter -Force
-Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
-refreshenv
-```
-
-The entire installation using Boxstarter will take up approximately 10 GB of
-disk space.
+To add optional components for MSI or ARM64 builds, refer to [Option 1: Manual install](#option-1-manual-install).
 
 #### Building Node.js
 

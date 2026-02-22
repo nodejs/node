@@ -893,4 +893,33 @@ process.on('message', (message) => {
       await done();
     }
   });
+
+  it('should respect the order for --env-file and --env-file-if-exists', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+
+    const envFile = createTmpFile(`${envKey}=base`, '.env');
+    const envFileIfExists = createTmpFile(`${envKey}=override`, '.env');
+
+    const { done, restart } = runInBackground({
+      args: [
+        '--watch',
+        `--env-file=${envFile}`,
+        `--env-file-if-exists=${envFileIfExists}`,
+        jsFile,
+      ],
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        'ENV: override',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
 });

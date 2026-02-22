@@ -55,7 +55,7 @@ t.test('respects publishConfig.registry, runs appropriate scripts', async t => {
   t.equal(fs.existsSync(path.join(prefix, 'scripts-prepublish')), false, 'did not run prepublish')
   t.equal(fs.existsSync(path.join(prefix, 'scripts-publish')), true, 'ran publish')
   t.equal(fs.existsSync(path.join(prefix, 'scripts-postpublish')), true, 'ran postpublish')
-  t.same(logs.warn, ['Unknown publishConfig config "other". This will stop working in the next major version of npm.'])
+  t.same(logs.warn, ['Unknown publishConfig config "other". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.'])
 })
 
 t.test('re-loads publishConfig.registry if added during script process', async t => {

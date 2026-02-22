@@ -17,7 +17,7 @@ Last update:
 - dom/events: https://github.com/web-platform-tests/wpt/tree/0a811c5161/dom/events
 - encoding: https://github.com/web-platform-tests/wpt/tree/1ac8deee08/encoding
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
-- FileAPI: https://github.com/web-platform-tests/wpt/tree/cceaf3628d/FileAPI
+- FileAPI: https://github.com/web-platform-tests/wpt/tree/7f51301888/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
 - html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
@@ -28,13 +28,13 @@ Last update:
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/1d2c5fb36a/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/bc9dcbbf1a/streams
-- url: https://github.com/web-platform-tests/wpt/tree/e3c46fdf55/url
+- url: https://github.com/web-platform-tests/wpt/tree/efb889eb4c/url
 - urlpattern: https://github.com/web-platform-tests/wpt/tree/a2e15ad405/urlpattern
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - web-locks: https://github.com/web-platform-tests/wpt/tree/10a122a6bc/web-locks
-- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/1e4933113d/WebCryptoAPI
+- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/7cbe7e8ed9/WebCryptoAPI
 - webidl: https://github.com/web-platform-tests/wpt/tree/63ca529a02/webidl
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/2f96fa1996/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/6495c91853/webmessaging/broadcastchannel

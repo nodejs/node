@@ -105,7 +105,7 @@ const main = () => {
   versions = versions.map((v) => {
     return coerce ? (semver.coerce(v, options) || { version: v }).version : v
   }).filter((v) => {
-    return semver.valid(v)
+    return semver.valid(v, options)
   })
   if (!versions.length) {
     return fail()

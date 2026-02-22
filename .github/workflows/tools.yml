@@ -38,6 +38,7 @@ on:
           - root-certificates
           - simdjson
           - sqlite
+          - test426-fixtures
           - undici
           - uvwasi
           - zlib
@@ -52,7 +53,7 @@ permissions:
 jobs:
   tools-deps-update:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     strategy:
       fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
@@ -252,6 +253,14 @@ jobs:
             label: dependencies, sqlite
             run: |
               ./tools/dep_updaters/update-sqlite.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: test426-fixtures
+            subsystem: test
+            label: test
+            run: |
+              bash tools/dep_updaters/update-test426-fixtures.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

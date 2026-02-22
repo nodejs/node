@@ -1280,10 +1280,16 @@ def try_check_compiler(cc, lang):
                      b'__clang_major__ __clang_minor__ __clang_patchlevel__ '
                      b'__APPLE__')
 
+    cc_out = proc.communicate()
+    cc_stdout = to_utf8(cc_out[0])
     if sys.platform == 'zos':
-      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:8]
+      values = (cc_stdout.split('\n')[-2].split() + ['0'] * 7)[0:8]
     else:
-      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:8]
+      values = (cc_stdout.split() + ['0'] * 7)[0:8]
+
+  if len(values) < 8:
+    cc_stderr = to_utf8(cc_out[1]) if cc_out[1] else ''
+    raise Exception(f'Could not determine compiler version info. \nstdout:\n{cc_stdout}\nstderr:\n{cc_stderr}')
 
   is_clang = values[0] == '1'
   gcc_version = tuple(map(int, values[1:1+3]))
@@ -1953,7 +1959,16 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
-  o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
+  is_gdbjit_supported_arch = (
+      'x64' in o['variables']['target_arch'] or
+      'ia32' in o['variables']['target_arch'] or
+      'ppc64' in o['variables']['target_arch']
+  )
+  is_linux = flavor == 'linux'
+  if (options.gdb is not None):
+    o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
+  else:
+    o['variables']['v8_enable_gdbjit'] = 1 if is_gdbjit_supported_arch and is_linux else 0
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
   o['variables']['dcheck_always_on'] = 1 if options.v8_with_dchecks else 0
   o['variables']['v8_enable_object_print'] = 0 if options.v8_disable_object_print else 1
@@ -1986,10 +2001,16 @@ def configure_v8(o, configs):
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
-  if options.without_bundled_v8 and options.enable_d8:
-    raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
-  if options.without_bundled_v8 and options.enable_v8windbg:
-    raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+  if options.without_bundled_v8:
+    if options.enable_d8:
+      raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+    if options.enable_v8windbg:
+      raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+    (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
+    if pkg_libs and pkg_libpath:
+      output['libraries'] += [pkg_libpath] + pkg_libs.split()
+    if pkg_cflags:
+      output['include_dirs'] += [flag for flag in [flag.strip() for flag in pkg_cflags.split('-I')] if flag]
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
   if flavor != 'linux' and options.v8_enable_hugepage:

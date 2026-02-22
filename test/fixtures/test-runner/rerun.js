@@ -1,4 +1,4 @@
-const { test } = require('node:test')
+const { test, describe } = require('node:test')
 
 test('should fail on first two attempts', ({ attempt }) => {
   if (attempt < 2) {
@@ -38,3 +38,11 @@ function nestedAmbiguousTest(expectedAttempts) {
 
 test('nested ambiguous (expectedAttempts=0)', nestedAmbiguousTest(0));
 test('nested ambiguous (expectedAttempts=1)', nestedAmbiguousTest(2));
+
+
+describe('describe rerun', { timeout: 1000, concurrency: 1000 }, () => {
+  test('passed on first attempt', async (t) => {
+    await t.test('nested', async () => {});
+  });
+  test('a');
+});

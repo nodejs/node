@@ -31,8 +31,8 @@ into the `node` binary. During start up, the program checks if anything has been
 injected. If the blob is found, it executes the script in the blob. Otherwise
 Node.js operates as it normally does.
 
-The single executable application feature currently only supports running a
-single embedded script using the [CommonJS][] module system.
+The single executable application feature supports running a
+single embedded script using the [CommonJS][] or the [ECMAScript Modules][] module system.
 
 Users can create a single executable application from their bundled script
 with the `node` binary itself and any tool which can inject resources into the
@@ -110,6 +110,7 @@ The configuration currently reads the following top-level fields:
 ```json
 {
   "main": "/path/to/bundled/script.js",
+  "mainFormat": "commonjs", // Default: "commonjs", options: "commonjs", "module"
   "executable": "/path/to/node/binary", // Optional, if not specified, uses the current Node.js binary
   "output": "/path/to/write/the/generated/executable",
   "disableExperimentalSEAWarning": true, // Default: false
@@ -290,14 +291,12 @@ This would be equivalent to running:
 node --no-warnings --trace-exit /path/to/bundled/script.js user-arg1 user-arg2
 ```
 
-## In the injected main script
-
-### Single-executable application API
+## Single-executable application API
 
 The `node:sea` builtin allows interaction with the single-executable application
 from the JavaScript main script embedded into the executable.
 
-#### `sea.isSea()`
+### `sea.isSea()`
 
 <!-- YAML
 added:
@@ -383,24 +382,47 @@ This method can be used to retrieve an array of all the keys of assets
 embedded into the single-executable application.
 An error is thrown when not running inside a single-executable application.
 
-### `require(id)` in the injected main script is not file based
+## In the injected main script
 
-`require()` in the injected main script is not the same as the [`require()`][]
-available to modules that are not injected. It also does not have any of the
-properties that non-injected [`require()`][] has except [`require.main`][]. It
-can only be used to load built-in modules. Attempting to load a module that can
-only be found in the file system will throw an error.
+### Module format of the injected main script
 
-Instead of relying on a file based `require()`, users can bundle their
-application into a standalone JavaScript file to inject into the executable.
-This also ensures a more deterministic dependency graph.
+To specify how Node.js should interpret the injected main script, use the
+`mainFormat` field in the single-executable application configuration.
+The accepted values are:
 
-However, if a file based `require()` is still needed, that can also be achieved:
+* `"commonjs"`: The injected main script is treated as a CommonJS module.
+* `"module"`: The injected main script is treated as an ECMAScript module.
+
+If the `mainFormat` field is not specified, it defaults to `"commonjs"`.
+
+Currently, `"mainFormat": "module"` cannot be used together with `"useSnapshot"`
+or `"useCodeCache"`.
+
+### Module loading in the injected main script
+
+In the injected main script, module loading does not read from the file system.
+By default, both `require()` and `import` statements would only be able to load
+the built-in modules. Attempting to load a module that can only be found in the
+file system will throw an error.
+
+Users can bundle their application into a standalone JavaScript file to inject
+into the executable. This also ensures a more deterministic dependency graph.
+
+To load modules from the file system in the injected main script, users can
+create a `require` function that can load from the file system using
+`module.createRequire()`. For example, in a CommonJS entry point:
 
 ```js
 const { createRequire } = require('node:module');
 require = createRequire(__filename);
 ```
+
+### `require()` in the injected main script
+
+`require()` in the injected main script is not the same as the [`require()`][]
+available to modules that are not injected.
+Currently, it does not have any of the properties that non-injected
+[`require()`][] has except [`require.main`][].
 
 ### `__filename` and `module.filename` in the injected main script
 
@@ -411,6 +433,26 @@ are equal to [`process.execPath`][].
 
 The value of `__dirname` in the injected main script is equal to the directory
 name of [`process.execPath`][].
+
+### `import.meta` in the injected main script
+
+When using `"mainFormat": "module"`, `import.meta` is available in the
+injected main script with the following properties:
+
+* `import.meta.url`: A `file:` URL corresponding to [`process.execPath`][].
+* `import.meta.filename`: Equal to [`process.execPath`][].
+* `import.meta.dirname`: The directory name of [`process.execPath`][].
+* `import.meta.main`: `true`.
+
+`import.meta.resolve` is currently not supported.
+
+### `import()` in the injected main script
+
+<!-- TODO(joyeecheung): support and document module.registerHooks -->
+
+When using `"mainFormat": "module"`, `import()` can be used to dynamically
+load built-in modules. Attempting to use `import()` to load modules from
+the file system will throw an error.
 
 ### Using native addons in the injected main script
 
@@ -599,6 +641,7 @@ start a discussion at <https://github.com/nodejs/single-executable/discussions>
 to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
+[ECMAScript Modules]: esm.md#modules-ecmascript-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 [Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
