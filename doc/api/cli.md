@@ -4051,6 +4051,15 @@ Wed May 12 2021 20:30:48 GMT+0100 (Irish Standard Time)
 
 ### `UV_THREADPOOL_SIZE=size`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61533
+    description: Node.js now automatically sets `UV_THREADPOOL_SIZE` to the
+                 available CPU parallelism (with a minimum of 4 and a maximum
+                 of 1024) when the environment variable is not already set.
+-->
+
 Set the number of threads used in libuv's threadpool to `size` threads.
 
 Asynchronous system APIs are used by Node.js whenever possible, but where they
@@ -4064,15 +4073,22 @@ on synchronous system APIs. Node.js APIs that use the threadpool are:
 * `dns.lookup()`
 * all `zlib` APIs, other than those that are explicitly synchronous
 
+If this environment variable is not set, Node.js automatically sizes the
+threadpool based on the available CPU parallelism, using a minimum of `4`
+threads and a maximum of `1024`. This ensures better default performance on
+machines with many CPU cores, where the previous fixed default of `4` threads
+could become a bottleneck.
+
 Because libuv's threadpool has a fixed size, it means that if for whatever
 reason any of these APIs takes a long time, other (seemingly unrelated) APIs
 that run in libuv's threadpool will experience degraded performance. In order to
 mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
-greater than `4` (its current default value). However, setting this from inside
-the process using `process.env.UV_THREADPOOL_SIZE=size` is not guranteed to work
-as the threadpool would have been created as part of the runtime initialisation
-much before user code is run. For more information, see the [libuv threadpool documentation][].
+greater than the automatically computed default. However, setting this from
+inside the process using `process.env.UV_THREADPOOL_SIZE=size` is not guaranteed
+to work as the threadpool would have been created as part of the runtime
+initialisation much before user code is run. For more information, see the
+[libuv threadpool documentation][].
 
 ## Useful V8 options
 
