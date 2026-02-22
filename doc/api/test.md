@@ -3351,7 +3351,7 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:interrupted'`
 
 <!-- YAML
-added: REPLACEME
+added: v25.7.0
 -->
 
 * `data` {Object}

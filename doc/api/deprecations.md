@@ -4404,7 +4404,7 @@ import { opendir } from 'node:fs/promises';
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Documentation-only deprecation.
 -->
@@ -4419,7 +4419,7 @@ type of the readable half of the constructed readable-writable pair, use the
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Documentation-only deprecation.
 -->

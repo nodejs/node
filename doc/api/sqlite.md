@@ -5,7 +5,7 @@
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61262
     description: SQLite is now a release candidate.
   - version:
