@@ -116,6 +116,7 @@ The configuration currently reads the following top-level fields:
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
+  "useVfs": true, // Default: false
   "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
@@ -174,6 +175,74 @@ const raw = getRawAsset('a.jpg');
 
 See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 [`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
+
+### Virtual File System (VFS) for assets
+
+> Stability: 1 - Experimental
+
+In addition to using the `node:sea` API to access individual assets, you can use
+the Virtual File System (VFS) to access bundled assets through standard `fs`
+APIs. To enable VFS, set `"useVfs": true` in the SEA configuration. When
+enabled, the VFS is automatically initialized and mounted at `/sea`. All
+assets defined in the SEA configuration are accessible through this virtual
+path.
+
+```cjs
+const fs = require('node:fs');
+
+// Assets are automatically available at /sea when running as SEA
+const rawConfig = fs.readFileSync('/sea/config.json', 'utf8');
+const data = fs.readFileSync('/sea/data/file.txt');
+
+const config = JSON.parse(rawConfig);
+
+// Directory operations work too
+const files = fs.readdirSync('/sea/assets');
+
+// Check if a bundled file exists
+if (fs.existsSync('/sea/optional.json')) {
+  // ...
+}
+```
+
+The VFS supports all common `fs` operations for reading files and directories.
+Since the SEA VFS is read-only, write operations are not supported. See the
+[VFS documentation][] for the full list of supported and unsupported operations.
+
+#### Loading modules from VFS in SEA
+
+When `useVfs` is enabled, `require()` in the injected main script uses the
+registered module hooks to load modules from the virtual file system. This
+supports both absolute VFS paths and relative requires (e.g.,
+`require('./helper.js')` from a VFS module), as well as `node_modules` package
+lookups.
+
+```cjs
+// Require bundled modules using relative paths
+const myModule = require('./lib/mymodule.js');
+const utils = require('./utils/helpers.js');
+
+// Absolute VFS paths also work
+const config = require('/sea/config.json');
+```
+
+When `useVfs` is enabled, `__filename` and `__dirname` in the injected main
+script reflect VFS paths (e.g., `/sea/main.js`) instead of
+[`process.execPath`][].
+
+#### Code caching limitations
+
+The `useCodeCache` option in the SEA configuration does not currently apply to
+modules loaded from the VFS. This is a current limitation due to incomplete
+implementation, not a technical impossibility. Consider bundling the application
+to enable code caching and do not rely on module loading in VFS.
+
+#### Native addon limitations
+
+Native addons (`.node` files) cannot be loaded directly from the VFS because
+`process.dlopen()` requires files on the real file system. To use native
+addons in a SEA with VFS, write the asset to a temporary file first. See
+[Using native addons in the injected main script][] for an example.
 
 ### Startup snapshot support
 
@@ -646,6 +715,8 @@ to help us document them.
 [Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
+[VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid

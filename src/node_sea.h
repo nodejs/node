@@ -30,6 +30,7 @@ enum class SeaFlags : uint32_t {
   kUseCodeCache = 1 << 2,
   kIncludeAssets = 1 << 3,
   kIncludeExecArgv = 1 << 4,
+  kEnableVfs = 1 << 5,
 };
 
 enum class SeaExecArgvExtension : uint8_t {

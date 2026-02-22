@@ -166,6 +166,12 @@ const customTypesMap = {
   'fs.StatWatcher': 'fs.html#class-fsstatwatcher',
   'fs.WriteStream': 'fs.html#class-fswritestream',
 
+  'VirtualFileSystem': 'vfs.html#class-virtualfilesystem',
+  'VirtualProvider': 'vfs.html#class-virtualprovider',
+  'MemoryProvider': 'vfs.html#class-memoryprovider',
+  'SEAProvider': 'vfs.html#class-seaprovider',
+  'RealFSProvider': 'vfs.html#class-realfsprovider',
+
   'http.Agent': 'http.html#class-httpagent',
   'http.ClientRequest': 'http.html#class-httpclientrequest',
   'http.IncomingMessage': 'http.html#class-httpincomingmessage',
@@ -251,6 +257,7 @@ const customTypesMap = {
   'Timer': 'timers.html#timers',
 
   'TestsStream': 'test.html#class-testsstream',
+  'MockFSContext': 'test.html#class-mockfscontext',
 
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',

@@ -1,0 +1,13 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "useVfs": true,
+  "assets": {
+    "config.json": "config.json",
+    "data/greeting.txt": "greeting.txt",
+    "modules/math.js": "math.js",
+    "modules/calculator.js": "calculator.js",
+    "node_modules/test-pkg/package.json": "test-pkg-package.json",
+    "node_modules/test-pkg/index.js": "test-pkg-index.js"
+  }
+}

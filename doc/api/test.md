@@ -2341,6 +2341,94 @@ test('mocks a counting function', (t) => {
 });
 ```
 
+### `mock.fs([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `options` {Object} Optional configuration options for the mock file system.
+  The following properties are supported:
+  * `prefix` {string} The mount point prefix for the virtual file system.
+    **Default:** `'/mock'`.
+  * `files` {Object} An optional object where keys are file paths (relative to
+    the VFS root) and values are the file contents. Contents can be strings,
+    Buffers, or functions that return strings/Buffers.
+* Returns: {MockFSContext} An object that can be used to manage the mock file
+  system.
+
+This function creates a mock file system using the [Virtual File System (VFS)][].
+The mock file system is automatically cleaned up when the test completes.
+
+## Class: `MockFSContext`
+
+The `MockFSContext` object is returned by `mock.fs()` and provides the
+following methods and properties:
+
+* `vfs` {VirtualFileSystem} The underlying VFS instance.
+* `prefix` {string} The mount prefix.
+* `addFile(path, content)` Adds a file to the mock file system.
+* `addDirectory(path[, populate])` Adds a directory to the mock file system.
+* `existsSync(path)` Checks if a path exists (path is relative to prefix).
+* `restore()` Manually restores the file system to its original state.
+
+The following example demonstrates how to create a mock file system for testing:
+
+```js
+const { test } = require('node:test');
+const assert = require('node:assert');
+const fs = require('node:fs');
+
+test('reads configuration from mock file', (t) => {
+  const mockFs = t.mock.fs({
+    prefix: '/app',
+    files: {
+      '/config.json': JSON.stringify({ debug: true }),
+      '/data/users.txt': 'user1\nuser2\nuser3',
+    },
+  });
+
+  // Files are accessible via standard fs APIs
+  const config = JSON.parse(fs.readFileSync('/app/config.json', 'utf8'));
+  assert.strictEqual(config.debug, true);
+
+  // Check file existence
+  assert.strictEqual(fs.existsSync('/app/config.json'), true);
+  assert.strictEqual(fs.existsSync('/app/missing.txt'), false);
+
+  // Use mockFs.existsSync for paths relative to prefix
+  assert.strictEqual(mockFs.existsSync('/config.json'), true);
+});
+
+test('supports dynamic file content', (t) => {
+  let counter = 0;
+  const mockFs = t.mock.fs({ prefix: '/dynamic' });
+
+  mockFs.addFile('/counter.txt', () => {
+    counter++;
+    return String(counter);
+  });
+
+  // Each read calls the function
+  assert.strictEqual(fs.readFileSync('/dynamic/counter.txt', 'utf8'), '1');
+  assert.strictEqual(fs.readFileSync('/dynamic/counter.txt', 'utf8'), '2');
+});
+
+test('supports require from mock files', (t) => {
+  t.mock.fs({
+    prefix: '/modules',
+    files: {
+      '/math.js': 'module.exports = { add: (a, b) => a + b };',
+    },
+  });
+
+  const math = require('/modules/math.js');
+  assert.strictEqual(math.add(2, 3), 5);
+});
+```
+
 ### `mock.getter(object, methodName[, implementation][, options])`
 
 <!-- YAML
@@ -4167,3 +4255,4 @@ Can be used to abort test subtasks when the test has been aborted.
 [suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model
+[virtual file system (vfs)]: vfs.md
