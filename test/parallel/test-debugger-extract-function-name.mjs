@@ -10,7 +10,7 @@ import assert from 'assert';
 const cli = startCLI([fixtures.path('debugger', 'three-lines.js')]);
 
 try {
-  await cli.waitForInitialBreak();
+  await cli.waitFor(/Debugger attached\./);
   await cli.waitForPrompt();
   await cli.command('exec a = function func() {}; a;');
   assert.match(cli.output, /\[Function: func\]/);

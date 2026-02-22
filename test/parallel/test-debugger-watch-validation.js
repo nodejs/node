@@ -11,7 +11,8 @@ const assert = require('assert');
 const cli = startCLI([fixtures.path('debugger/break.js')]);
 
 (async () => {
-  await cli.waitForInitialBreak();
+  await cli.waitFor(/Debugger attached\./);
+  await cli.waitForPrompt();
   await cli.command('watch()');
   await cli.waitFor(/ERR_INVALID_ARG_TYPE/);
   assert.match(cli.output, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "expression" argument must be of type string\. Received undefined/);
