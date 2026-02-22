@@ -9,6 +9,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_options.h"
+#include "node_process-inl.h"
 #include "util.h"
 #include "v8.h"
 
@@ -1084,16 +1085,36 @@ template <typename It>
 MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
                                         It first,
                                         It last,
-                                        size_t size) {
+                                        size_t size,
+                                        bool skip_on_error = false) {
   ClearErrorOnReturn clear_error_on_return;
   EscapableHandleScope scope(env->isolate());
 
-  LocalVector<Value> result(env->isolate(), size);
-  size_t i = 0;
-  for (It cur = first; cur != last; ++cur, ++i) {
+  LocalVector<Value> result(env->isolate());
+  result.reserve(size);
+  size_t skipped = 0;
+  for (It cur = first; cur != last; ++cur) {
     X509View view(*cur);
     auto pem_bio = view.toPEM();
     if (!pem_bio) {
+      if (skip_on_error) {
+        auto subject_bio = view.getSubject();
+        char* subject_data = nullptr;
+        std::string subject_str = "<unknown>";
+        if (subject_bio) {
+          auto subject_size =
+              BIO_get_mem_data(subject_bio.get(), &subject_data);
+          if (subject_size > 0 && subject_data) {
+            subject_str = std::string(subject_data, subject_size);
+          }
+        }
+        per_process::Debug(DebugCategory::CRYPTO,
+                           "Skipping system certificate with subject "
+                           "'%s' because X509 to PEM conversion failed\n",
+                           subject_str.c_str());
+        skipped++;
+        continue;
+      }
       ThrowCryptoError(env, ERR_get_error(), "X509 to PEM conversion");
       return MaybeLocal<Array>();
     }
@@ -1101,18 +1122,37 @@ MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
     char* pem_data = nullptr;
     auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
     if (pem_size <= 0 || !pem_data) {
+      if (skip_on_error) {
+        per_process::Debug(DebugCategory::CRYPTO,
+                           "Skipping a system certificate "
+                           "because reading PEM data failed\n");
+        skipped++;
+        continue;
+      }
       ThrowCryptoError(env, ERR_get_error(), "Reading PEM data");
       return MaybeLocal<Array>();
     }
+
+    Local<Value> str;
     // PEM is base64-encoded, so it must be one-byte.
     if (!String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<uint8_t*>(pem_data),
                                 v8::NewStringType::kNormal,
                                 pem_size)
-             .ToLocal(&result[i])) {
+             .ToLocal(&str)) {
       return MaybeLocal<Array>();
     }
+    result.push_back(str);
   }
+
+  if (skipped > 0) {
+    ProcessEmitWarning(
+        env,
+        "Skipped %zu system certificate(s) that could not be converted "
+        "to PEM format. Use NODE_DEBUG=crypto for details.",
+        skipped);
+  }
+
   return scope.Escape(Array::New(env->isolate(), result.data(), result.size()));
 }
 
@@ -1196,7 +1236,7 @@ void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Array> results;
   std::vector<X509*>& certs = GetSystemStoreCACertificates();
-  if (X509sToArrayOfStrings(env, certs.begin(), certs.end(), certs.size())
+  if (X509sToArrayOfStrings(env, certs.begin(), certs.end(), certs.size(), true)
           .ToLocal(&results)) {
     args.GetReturnValue().Set(results);
   }
