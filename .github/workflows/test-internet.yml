@@ -63,7 +63,7 @@ jobs:
         if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
-          version: v0.12.0
+          version: v0.14.0
       - name: Environment Information
         run: npx envinfo
       - name: Build
