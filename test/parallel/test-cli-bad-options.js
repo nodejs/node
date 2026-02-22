@@ -17,6 +17,8 @@ requiresArgument('--eval');
 missingOption('--allow-fs-read=*', '--permission');
 missingOption('--allow-fs-write=*', '--permission');
 
+forbidsArgument('--check');
+
 function missingOption(option, requiredOption) {
   const r = spawnSync(process.execPath, [option], { encoding: 'utf8' });
   assert.strictEqual(r.status, 1);
@@ -34,5 +36,17 @@ function requiresArgument(option) {
   assert.strictEqual(
     msg,
     `${process.execPath}: ${option} requires an argument`
+  );
+}
+
+function forbidsArgument(option) {
+  const r = spawnSync(process.execPath, [`${option}=invalid`], { encoding: 'utf8' });
+
+  assert.strictEqual(r.status, 9);
+
+  const msg = r.stderr.split(/\r?\n/)[0];
+  assert.strictEqual(
+    msg,
+    `${process.execPath}: ${option} does not take an argument`
   );
 }
