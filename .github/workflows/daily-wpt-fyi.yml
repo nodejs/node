@@ -36,7 +36,7 @@ jobs:
       matrix:
         node-version: ${{ fromJSON(needs.collect-versions.outputs.matrix) }}
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0

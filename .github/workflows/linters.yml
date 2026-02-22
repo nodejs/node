@@ -206,6 +206,7 @@ jobs:
   lint-codeowners:
     if: github.event.pull_request.draft == false
     # cannot use ubuntu-slim here because mszostok/codeowners-validator is dockerized
+    # cannot use ubuntu-24.04-arm here because the docker image is x86 only
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
