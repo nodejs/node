@@ -5,5 +5,5 @@
   "sources": ["foo.js"],
   "sourcesContent": ["\"foo\""],
   "mappings": "AAA",
-  "rangeMappings": "B"
+  "rangeMappings": "C"
 }
