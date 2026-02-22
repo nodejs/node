@@ -2011,10 +2011,9 @@ changes:
 
 > Stability: 1.2 - Release candidate
 
-* Type: {boolean|string}
+* Type: {boolean}
 
-A value that is `"strip"` by default,
-`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
+A value that is `true` by default, and `false` if
 Node.js is run with `--no-strip-types`.
 
 ## `process.features.uv`
