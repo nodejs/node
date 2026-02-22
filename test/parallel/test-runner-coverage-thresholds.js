@@ -170,4 +170,25 @@ for (const coverage of coverages) {
     assert.strictEqual(result.status, 1);
     assert(!findCoverageFileForPid(result.pid));
   });
+
+  test(`test failing ${coverage.flag} with dot reporter`, () => {
+    const result = spawnSync(process.execPath, [
+      '--test',
+      '--experimental-test-coverage',
+      '--test-coverage-exclude=!test/**',
+      `${coverage.flag}=99`,
+      '--test-reporter', 'dot',
+      fixture,
+    ]);
+
+    const stdout = result.stdout.toString();
+    assert.match(
+      stdout,
+      RegExp(`Error: ${coverage.actual.toFixed(2)}% ${coverage.name} coverage does not meet threshold of 99%`)
+    );
+    assert.match(stdout, /start of coverage report/);
+    assert.match(stdout, /end of coverage report/);
+    assert.strictEqual(result.status, 1);
+    assert(!findCoverageFileForPid(result.pid));
+  });
 }
