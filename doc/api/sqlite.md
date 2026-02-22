@@ -161,6 +161,23 @@ changes:
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
     **Default:** `true`.
+  * `limits` {Object} Configuration for various SQLite limits. These limits
+    can be used to prevent excessive resource consumption when handling
+    potentially malicious input. See [Run-Time Limits][] and [Limit Constants][]
+    in the SQLite documentation for details. Default values are determined by
+    SQLite's compile-time defaults and may vary depending on how SQLite was
+    built. The following properties are supported:
+    * `length` {number} Maximum length of a string or BLOB.
+    * `sqlLength` {number} Maximum length of an SQL statement.
+    * `column` {number} Maximum number of columns.
+    * `exprDepth` {number} Maximum depth of an expression tree.
+    * `compoundSelect` {number} Maximum number of terms in a compound SELECT.
+    * `vdbeOp` {number} Maximum number of VDBE instructions.
+    * `functionArg` {number} Maximum number of function arguments.
+    * `attach` {number} Maximum number of attached databases.
+    * `likePatternLength` {number} Maximum length of a LIKE pattern.
+    * `variableNumber` {number} Maximum number of SQL variables.
+    * `triggerDepth` {number} Maximum trigger recursion depth.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -448,6 +465,36 @@ added:
 
 * Type: {boolean} Whether the database is currently within a transaction. This method
   is a wrapper around [`sqlite3_get_autocommit()`][].
+
+### `database.limits`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+An object for getting and setting SQLite database limits at runtime.
+Each property corresponds to an SQLite limit and can be read or written.
+
+```js
+const db = new DatabaseSync(':memory:');
+
+// Read current limit
+console.log(db.limits.length);
+
+// Set a new limit
+db.limits.sqlLength = 100000;
+
+// Reset a limit to its compile-time maximum
+db.limits.sqlLength = Infinity;
+```
+
+Available properties: `length`, `sqlLength`, `column`, `exprDepth`,
+`compoundSelect`, `vdbeOp`, `functionArg`, `attach`, `likePatternLength`,
+`variableNumber`, `triggerDepth`.
+
+Setting a property to `Infinity` resets the limit to its compile-time maximum value.
 
 ### `database.open()`
 
@@ -1476,6 +1523,8 @@ callback function to indicate what type of operation is being authorized.
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
+[Limit Constants]: https://www.sqlite.org/c3ref/c_limit_attached.html
+[Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
