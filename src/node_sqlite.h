@@ -242,7 +242,9 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
+  uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
+  inline int ResetStatement();
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
@@ -272,6 +274,7 @@ class StatementSyncIterator : public BaseObject {
   ~StatementSyncIterator() override;
   BaseObjectPtr<StatementSync> stmt_;
   bool done_;
+  uint64_t statement_reset_generation_;
 };
 
 using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
