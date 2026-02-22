@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.20.1">20.20.1</a><br/>
 <a href="#20.20.0">20.20.0</a><br/>
 <a href="#20.19.6">20.19.6</a><br/>
 <a href="#20.19.5">20.19.5</a><br/>
@@ -75,6 +76,26 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.20.1"></a>
+
+## 2026-02-24, Version 20.20.1 'Iron' (LTS), @aduh95
+
+### Notable Changes
+
+### Commits
+
+* \[[`cc4f7af6f3`](https://github.com/nodejs/node/commit/cc4f7af6f3)] - **build**: skip sscache action on non-main branches (Joyee Cheung) [#61790](https://github.com/nodejs/node/pull/61790)
+* \[[`2ea16d3bd6`](https://github.com/nodejs/node/commit/2ea16d3bd6)] - **deps**: update corepack to 0.34.6 (Node.js GitHub Bot) [#61510](https://github.com/nodejs/node/pull/61510)
+* \[[`622f973d1c`](https://github.com/nodejs/node/commit/622f973d1c)] - **deps**: update corepack to 0.34.5 (Node.js GitHub Bot) [#60842](https://github.com/nodejs/node/pull/60842)
+* \[[`2cd265d8b9`](https://github.com/nodejs/node/commit/2cd265d8b9)] - **deps**: update corepack to 0.34.4 (Node.js GitHub Bot) [#60643](https://github.com/nodejs/node/pull/60643)
+* \[[`65e839687b`](https://github.com/nodejs/node/commit/65e839687b)] - **deps**: update corepack to 0.34.2 (Node.js GitHub Bot) [#60550](https://github.com/nodejs/node/pull/60550)
+* \[[`8fdde5d110`](https://github.com/nodejs/node/commit/8fdde5d110)] - **doc**: fix v20 changelog after security release (Marco Ippolito) [#61371](https://github.com/nodejs/node/pull/61371)
+* \[[`3f37e22c04`](https://github.com/nodejs/node/commit/3f37e22c04)] - **test**: mark `test-strace-openat-openssl` as flaky (Antoine du Hamel) [#61921](https://github.com/nodejs/node/pull/61921)
+* \[[`5cb26f8697`](https://github.com/nodejs/node/commit/5cb26f8697)] - **tools**: switch to ARM runners on GHA jobs (Antoine du Hamel) [#61903](https://github.com/nodejs/node/pull/61903)
+* \[[`1abada9c34`](https://github.com/nodejs/node/commit/1abada9c34)] - **tools**: avoid building twice in coverage jobs (Antoine du Hamel) [#61899](https://github.com/nodejs/node/pull/61899)
+* \[[`f260e40127`](https://github.com/nodejs/node/commit/f260e40127)] - **tools**: use ubuntu-slim runner in GHA (Antoine du Hamel) [#61759](https://github.com/nodejs/node/pull/61759)
+* \[[`64beca5e01`](https://github.com/nodejs/node/commit/64beca5e01)] - **tools**: use ubuntu-slim runner in GHA (Antoine du Hamel) [#61734](https://github.com/nodejs/node/pull/61734)
 
 <a id="20.20.0"></a>
 
