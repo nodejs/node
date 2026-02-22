@@ -167,7 +167,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     }
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), offset, length));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
   } else if (value->IsSharedArrayBuffer()) {
     // We aren't going to allow use of SharedArrayBuffer as a data source.
     // The reason is that SharedArrayBuffer memory is possibly shared with
@@ -201,7 +201,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     auto length = view->ByteLength();
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), offset, length));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
   } else if (Blob::HasInstance(env, value)) {
     Blob* blob;
     ASSIGN_OR_RETURN_UNWRAP(
@@ -214,9 +214,17 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     memcpy(backing->Data(), *str, str.length());
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), 0, backing->ByteLength()));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
+  } else if (DataQueueFeeder::HasInstance(env, value)) {
+    // a DataQueueFeeder
+    DataQueueFeeder* dataQueueFeeder;
+    ASSIGN_OR_RETURN_UNWRAP(
+        &dataQueueFeeder, value, Nothing<std::shared_ptr<DataQueue>>());
+    std::shared_ptr<DataQueue> dataQueue = DataQueue::Create(env);
+    dataQueueFeeder->setDataQueue(dataQueue);
+    return Just(dataQueue);
   }
-  // TODO(jasnell): Add streaming sources...
+
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
   return Nothing<std::shared_ptr<DataQueue>>();
 }
@@ -367,9 +375,13 @@ struct Stream::Impl {
 
   // Returns a Blob::Reader that can be used to read data that has been
   // received on the stream.
+  // returns undefined if local unidirectional stream
   JS_METHOD(GetReader) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    if (stream->is_local_unidirectional()) {
+      return args.GetReturnValue().SetUndefined();
+    }
     BaseObjectPtr<Blob::Reader> reader = stream->get_reader();
     if (reader) return args.GetReturnValue().Set(reader->object());
     THROW_ERR_INVALID_STATE(Environment::GetCurrent(args),
@@ -385,6 +397,13 @@ class Stream::Outbound final : public MemoryRetainer {
       : stream_(stream),
         queue_(std::move(queue)),
         reader_(queue_->get_reader()) {}
+
+  ~Outbound() {
+    // we need to clear all pending next's from the queue, as it holds pointers
+    // to Stream and Session, which will be invalidated and may cause use after
+    // free otherwise
+    if (queue_) queue_->clearPendingNext();
+  }
 
   void Acknowledge(size_t amount) {
     size_t remaining = std::min(amount, total_ - uncommitted_);
@@ -500,19 +519,28 @@ class Stream::Outbound final : public MemoryRetainer {
     // that the pull is sync but allow for it to be async.
     int ret = reader_->Pull(
         [this](auto status, auto vecs, auto count, auto done) {
-          // Always make sure next_pending_ is false when we're done.
-          auto on_exit = OnScopeLeave([this] { next_pending_ = false; });
+          const bool last_next_pending_state = next_pending_;
+          next_pending_ = false;
+          // this ensures that next_pending is reset to false
+          // Note that for example ResumeStream below, may again call Pull
+          // so we have to erase next_pending_ to not block this call.
+          // Therefore the previous OnScopeLeave lead to a race condition.
+
+          // We need to hold a reference to stream and session
+          // so that it can not go away during the next calls.
+          BaseObjectPtr<Stream> stream = BaseObjectPtr<Stream>(stream_);
+          BaseObjectPtr<Session> session =
+              BaseObjectPtr<Session>(&stream_->session());
 
           // The status should never be wait here.
           DCHECK_NE(status, bob::Status::STATUS_WAIT);
 
           if (status < 0) {
-            // If next_pending_ is true then a pull from the reader ended up
+            // If next_pending_ was true then a pull from the reader ended up
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
-            if (next_pending_) {
-              stream_->Destroy(
-                  QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+            if (last_next_pending_state) {
+              stream->Destroy(QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
               // since we are immediately destroying the stream which will
               // release the outbound buffer anyway.
@@ -529,8 +557,8 @@ class Stream::Outbound final : public MemoryRetainer {
             // Here, there is no more data to read, but we will might have data
             // in the uncommitted queue. We'll resume the stream so that the
             // session will try to read from it again.
-            if (next_pending_) {
-              stream_->session().ResumeStream(stream_->id());
+            if (last_next_pending_state) {
+              session->ResumeStream(stream_->id());
             }
             return;
           }
@@ -549,12 +577,12 @@ class Stream::Outbound final : public MemoryRetainer {
           // bytes in the queue.
           Append(vecs, count, std::move(done));
 
-          // If next_pending_ is true, then a pull from the reader ended up
+          // If next_pending_ was true, then a pull from the reader ended up
           // being asynchronous, our stream is blocking waiting for the data.
           // Now that we have data, let's resume the stream so the session will
           // pull from it again.
-          if (next_pending_) {
-            stream_->session().ResumeStream(stream_->id());
+          if (last_next_pending_state) {
+            stream->session().ResumeStream(stream_->id());
           }
         },
         bob::OPTIONS_SYNC,
@@ -836,7 +864,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()),
+      inbound_(DataQueue::Create(env())),
       headers_(env()->isolate()) {
   MakeWeak();
   DCHECK(id < kMaxStreamId);
@@ -866,7 +894,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()),
+      inbound_(DataQueue::Create(env())),
       maybe_pending_stream_(
           std::make_unique<PendingStream>(direction, this, session_)),
       headers_(env()->isolate()) {
@@ -1038,6 +1066,8 @@ void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   if (!source || !is_writable()) return;
   Debug(this, "Setting the outbound data source");
   DCHECK_NULL(outbound_);
+  // sets us as notifier, to be alerted if new data is there
+  source->SetNotifier(this);
   outbound_ = std::make_unique<Outbound>(this, std::move(source));
   state_->has_outbound = 1;
   if (!is_pending()) session_->ResumeStream(id());
@@ -1112,10 +1142,7 @@ void Stream::Acknowledge(size_t datalen) {
 
   Debug(this, "Acknowledging %zu bytes", datalen);
 
-  // ngtcp2 guarantees that offset must always be greater than the previously
-  // received offset.
-  DCHECK_GE(datalen, STAT_GET(Stats, max_offset_ack));
-  STAT_SET(Stats, max_offset_ack, datalen);
+  STAT_SET(Stats, max_offset_ack, STAT_GET(Stats, max_offset_ack) + datalen);
 
   // Consumes the given number of bytes in the buffer.
   outbound_->Acknowledge(datalen);
@@ -1216,7 +1243,9 @@ void Stream::ReceiveData(const uint8_t* data,
   inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
       std::move(backing), 0, len));
 
-  if (flags.fin) EndReadable();
+  if (flags.fin) {
+    EndReadable();
+  }
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
@@ -1307,6 +1336,10 @@ void Stream::EmitWantTrailers() {
 
 // ============================================================================
 
+void Stream::newDataOrCloseAdded() {
+  session_->ResumeStream(id());
+}
+
 void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
   Debug(this, "Scheduled");
@@ -1319,6 +1352,7 @@ void Stream::Unschedule() {
 }
 
 }  // namespace quic
+
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC

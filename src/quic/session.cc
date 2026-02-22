@@ -63,6 +63,7 @@ namespace quic {
   V(DATAGRAM, datagram, uint8_t)                                               \
   V(SESSION_TICKET, session_ticket, uint8_t)                                   \
   V(CLOSING, closing, uint8_t)                                                 \
+  V(FINISH_CLOSING, finish_closing, uint8_t)                                   \
   V(GRACEFUL_CLOSE, graceful_close, uint8_t)                                   \
   V(SILENT_CLOSE, silent_close, uint8_t)                                       \
   V(STATELESS_RESET, stateless_reset, uint8_t)                                 \
@@ -542,7 +543,13 @@ struct Session::Impl final : public MemoryRetainer {
         local_address_(config.local_address),
         remote_address_(config.remote_address),
         application_(SelectApplication(session, config_)),
-        timer_(session_->env(), [this] { session_->OnTimeout(); }) {
+        timer_(session_->env(), [this] {
+          BaseObjectPtr<Session> session = BaseObjectPtr<Session>(session_);
+          // we hold a reference to session,
+          // as the reference from session to us may go away otherwise
+          // while we call OnTimeout
+          session_->OnTimeout();
+        }) {
     timer_.Unref();
   }
   DISALLOW_COPY_AND_MOVE(Impl)
@@ -558,13 +565,18 @@ struct Session::Impl final : public MemoryRetainer {
     state_->closing = 1;
     STAT_RECORD_TIMESTAMP(Stats, closing_at);
 
+    // we hold a reference to our session,
+    // as the reference from session to us may go away otherwise
+    // while we destroy streams
+    BaseObjectPtr<Session> session = BaseObjectPtr<Session>(session_);
+
     // Iterate through all of the known streams and close them. The streams
     // will remove themselves from the Session as soon as they are closed.
     // Note: we create a copy because the streams will remove themselves
     // while they are cleaning up which will invalidate the iterator.
     StreamsMap streams = streams_;
     for (auto& stream : streams) stream.second->Destroy(last_error_);
-    DCHECK(streams.empty());
+    DCHECK(streams_.empty());  // do not check our local copy
 
     // Clear the pending streams.
     while (!pending_bidi_stream_queue_.IsEmpty()) {
@@ -1393,14 +1405,10 @@ bool Session::is_destroyed_or_closing() const {
 
 void Session::Close(CloseMethod method) {
   if (is_destroyed()) return;
-  auto& stats_ = impl_->stats_;
 
   if (impl_->last_error_) {
     Debug(this, "Closing with error: %s", impl_->last_error_);
   }
-
-  STAT_RECORD_TIMESTAMP(Stats, closing_at);
-  impl_->state_->closing = 1;
 
   // With both the DEFAULT and SILENT options, we will proceed to closing
   // the session immediately. All open streams will be immediately destroyed
@@ -1448,10 +1456,13 @@ void Session::Close(CloseMethod method) {
 }
 
 void Session::FinishClose() {
-  // FinishClose() should be called only after, and as a result of, Close()
+  if (impl_->state_->finish_closing) return;
+  // we were already called, avoids calling it twice
+  impl_->state_->finish_closing = 1;
+  // FinishClose() should be called only after,
+  // and as a result of, Close()
   // being called first.
   DCHECK(!is_destroyed());
-  DCHECK(impl_->state_->closing);
 
   // If impl_->Close() returns true, then the session can be destroyed
   // immediately without round-tripping through JavaScript.
@@ -1465,12 +1476,12 @@ void Session::FinishClose() {
 }
 
 void Session::Destroy() {
-  // Destroy() should be called only after, and as a result of, Close()
+  // Destroy() should be called only after,
+  // and as a result of, Close()
   // being called first.
   DCHECK(impl_);
   DCHECK(impl_->state_->closing);
   Debug(this, "Session destroyed");
-  impl_.reset();
   if (qlog_stream_ || keylog_stream_) {
     env()->SetImmediate(
         [qlog = qlog_stream_, keylog = keylog_stream_](Environment*) {
@@ -1480,6 +1491,9 @@ void Session::Destroy() {
   }
   qlog_stream_.reset();
   keylog_stream_.reset();
+  impl_.reset();  // This can cause the session (so us) object to be garbage
+                  // collected, so the session object may not be valid after
+                  // this call.
 }
 
 PendingStream::PendingStreamQueue& Session::pending_bidi_stream_queue() const {
@@ -1942,6 +1956,8 @@ BaseObjectPtr<Stream> Session::CreateStream(
   if (auto stream = Stream::Create(this, id, std::move(data_source)))
       [[likely]] {
     AddStream(stream, option);
+    ResumeStream(id);  // ok, we need to resume, as the Resume before fails
+    // as the stream was not added yet
     return stream;
   }
   return {};
@@ -2091,7 +2107,8 @@ void Session::RemoveStream(stream_id id) {
   // returns.
   if (impl_->state_->closing && impl_->state_->graceful_close) {
     FinishClose();
-    CHECK(is_destroyed());
+    // CHECK(is_destroyed());
+    // this will not work, our this pointer may not be valid anymore!
   }
 }
 
@@ -2233,6 +2250,10 @@ void Session::ExtendOffset(size_t amount) {
 
 void Session::UpdateDataStats() {
   Debug(this, "Updating data stats");
+  if (!impl_) {
+    Debug(this, "Updating data stats failed, impl gone!");
+    return;
+  }
   auto& stats_ = impl_->stats_;
   ngtcp2_conn_info info;
   ngtcp2_conn_get_conn_info(*this, &info);
