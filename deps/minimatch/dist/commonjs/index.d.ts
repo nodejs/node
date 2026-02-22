@@ -1,26 +1,76 @@
 import { AST } from './ast.js';
 export type Platform = 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd';
 export interface MinimatchOptions {
+    /** do not expand `{x,y}` style braces */
     nobrace?: boolean;
+    /** do not treat patterns starting with `#` as a comment */
     nocomment?: boolean;
+    /** do not treat patterns starting with `!` as a negation */
     nonegate?: boolean;
+    /** print LOTS of debugging output */
     debug?: boolean;
+    /** treat `**` the same as `*` */
     noglobstar?: boolean;
+    /** do not expand extglobs like `+(a|b)` */
     noext?: boolean;
+    /** return the pattern if nothing matches */
     nonull?: boolean;
+    /** treat `\\` as a path separator, not an escape character */
     windowsPathsNoEscape?: boolean;
+    /**
+     * inverse of {@link MinimatchOptions.windowsPathsNoEscape}
+     * @deprecated
+     */
     allowWindowsEscape?: boolean;
+    /**
+     * Compare a partial path to a pattern. As long as the parts
+     * of the path that are present are not contradicted by the
+     * pattern, it will be treated as a match. This is useful in
+     * applications where you're walking through a folder structure,
+     * and don't yet have the full path, but want to ensure that you
+     * do not walk down paths that can never be a match.
+     */
     partial?: boolean;
+    /** allow matches that start with `.` even if the pattern does not */
     dot?: boolean;
+    /** ignore case */
     nocase?: boolean;
+    /** ignore case only in wildcard patterns */
     nocaseMagicOnly?: boolean;
+    /** consider braces to be "magic" for the purpose of `hasMagic` */
     magicalBraces?: boolean;
+    /**
+     * If set, then patterns without slashes will be matched
+     * against the basename of the path if it contains slashes.
+     * For example, `a?b` would match the path `/xyz/123/acb`, but
+     * not `/xyz/acb/123`.
+     */
     matchBase?: boolean;
+    /** invert the results of negated matches */
     flipNegate?: boolean;
+    /** do not collapse multiple `/` into a single `/` */
     preserveMultipleSlashes?: boolean;
+    /**
+     * A number indicating the level of optimization that should be done
+     * to the pattern prior to parsing and using it for matches.
+     */
     optimizationLevel?: number;
+    /** operating system platform */
     platform?: Platform;
+    /**
+     * When a pattern starts with a UNC path or drive letter, and in
+     * `nocase:true` mode, do not convert the root portions of the
+     * pattern into a case-insensitive regular expression, and instead
+     * leave them as strings.
+     *
+     * This is the default when the platform is `win32` and
+     * `nocase:true` is set.
+     */
     windowsNoMagicRoot?: boolean;
+    /**
+     * max number of `{...}` patterns to expand. Default 100_000.
+     */
+    braceExpandMax?: number;
 }
 export declare const minimatch: {
     (p: string, pattern: string, options?: MinimatchOptions): boolean;
