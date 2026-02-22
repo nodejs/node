@@ -1,4 +1,3 @@
-const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 const { output } = require('proc-log')
 const { otplease } = require('../utils/auth.js')
@@ -131,9 +130,11 @@ class Team extends BaseCommand {
       output.standard(users.join('\n'))
     } else if (!this.npm.silent) {
       const plural = users.length === 1 ? '' : 's'
-      const more = users.length === 0 ? '' : ':\n'
-      output.standard(`\n@${entity} has ${users.length} user${plural}${more}`)
-      output.standard(columns(users, { padding: 1 }))
+      const more = users.length === 0 ? '' : ':'
+      output.standard(`@${entity} has ${users.length} user${plural}${more}`)
+      for (const user of users) {
+        output.standard(user)
+      }
     }
   }
 
@@ -145,9 +146,11 @@ class Team extends BaseCommand {
       output.standard(teams.join('\n'))
     } else if (!this.npm.silent) {
       const plural = teams.length === 1 ? '' : 's'
-      const more = teams.length === 0 ? '' : ':\n'
-      output.standard(`\n@${entity} has ${teams.length} team${plural}${more}`)
-      output.standard(columns(teams.map(t => `@${t}`), { padding: 1 }))
+      const more = teams.length === 0 ? '' : ':'
+      output.standard(`@${entity} has ${teams.length} team${plural}${more}`)
+      for (const team of teams) {
+        output.standard(`@${team}`)
+      }
     }
   }
 }

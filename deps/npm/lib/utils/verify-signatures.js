@@ -70,7 +70,7 @@ class VerifySignatures {
     const timing = `audited ${this.auditedWithKeysCount} package${auditedPlural} in ` +
       `${Math.floor(Number(elapsed) / 1e9)}s`
     output.standard(timing)
-    output.standard('')
+    output.standard()
 
     const verifiedBold = this.npm.chalk.bold('verified')
     if (this.verifiedSignatureCount) {
@@ -79,7 +79,7 @@ class VerifySignatures {
       } else {
         output.standard(`${this.verifiedSignatureCount} packages have ${verifiedBold} registry signatures`)
       }
-      output.standard('')
+      output.standard()
     }
 
     if (this.verifiedAttestationCount) {
@@ -88,7 +88,7 @@ class VerifySignatures {
       } else {
         output.standard(`${this.verifiedAttestationCount} packages have ${verifiedBold} attestations`)
       }
-      output.standard('')
+      output.standard()
     }
 
     if (missing.length) {
@@ -98,7 +98,7 @@ class VerifySignatures {
       } else {
         output.standard(`${missing.length} packages have ${missingClr} registry signatures but the registry is providing signing keys:`)
       }
-      output.standard('')
+      output.standard()
       missing.map(m =>
         output.standard(`${this.npm.chalk.red(`${m.name}@${m.version}`)} (${m.registry})`)
       )
@@ -106,7 +106,7 @@ class VerifySignatures {
 
     if (invalid.length) {
       if (missing.length) {
-        output.standard('')
+        output.standard()
       }
       const invalidClr = this.npm.chalk.redBright('invalid')
       // We can have either invalid signatures or invalid provenance
@@ -117,11 +117,11 @@ class VerifySignatures {
         } else {
           output.standard(`${invalidSignatures.length} packages have ${invalidClr} registry signatures:`)
         }
-        output.standard('')
+        output.standard()
         invalidSignatures.map(i =>
           output.standard(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
         )
-        output.standard('')
+        output.standard()
       }
 
       const invalidAttestations = this.invalid.filter(i => i.code === 'EATTESTATIONVERIFY')
@@ -131,11 +131,11 @@ class VerifySignatures {
         } else {
           output.standard(`${invalidAttestations.length} packages have ${invalidClr} attestations:`)
         }
-        output.standard('')
+        output.standard()
         invalidAttestations.map(i =>
           output.standard(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
         )
-        output.standard('')
+        output.standard()
       }
 
       if (invalid.length === 1) {
@@ -143,7 +143,7 @@ class VerifySignatures {
       } else {
         output.standard(`Someone might have tampered with these packages since they were published on the registry!`)
       }
-      output.standard('')
+      output.standard()
     }
   }
 
