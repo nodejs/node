@@ -1084,11 +1084,11 @@ util.inspect({ hasOwnProperty: null });
 
   assert.strictEqual(util.inspect(subject), '{ baz: \'quux\' }');
 
-  subject[inspect] = (depth, opts) => {
+  subject[inspect] = common.mustCall((depth, opts) => {
     assert.strictEqual(opts.customInspectOptions, true);
     assert.strictEqual(opts.seen, null);
     return {};
-  };
+  });
 
   util.inspect(subject, { customInspectOptions: true, seen: null });
 }
@@ -3190,11 +3190,10 @@ assert.strictEqual(
       frame.replaceAll('/', '\\'))
     ).join('\n');
   }
-  const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
-  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
+  util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
     let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
-    }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
+    }).replaceAll(new RegExp(`(\\(?${RegExp.escape(process.cwd())}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
     });
     if (expected.includes(process.cwd()) && expected.endsWith(')')) {
@@ -3208,7 +3207,7 @@ assert.strictEqual(
       expected = expected.replaceAll('/', '\\');
     }
     assert.strictEqual(line, expected);
-  });
+  }));
 
   // Check ESM
   const encodedCwd = url.pathToFileURL(process.cwd());
@@ -3422,9 +3421,9 @@ assert.strictEqual(
 {
   // Cross platform checks.
   const err = new Error('foo');
-  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
+  util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
     assert(i < 2 || line.startsWith('\u001b[90m'));
-  });
+  }));
 }
 
 {

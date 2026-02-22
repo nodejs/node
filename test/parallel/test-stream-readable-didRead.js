@@ -30,12 +30,12 @@ function check(readable, data, fn) {
   }
   readable.on('close', common.mustCall());
   fn();
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     assert.strictEqual(readable.readableDidRead, data > 0);
     if (data > 0) {
       assert.strictEqual(isDisturbed(readable), true);
     }
-  });
+  }));
 }
 
 {

@@ -89,6 +89,38 @@ callbackFunction((err, ret) => {
 });
 ```
 
+## `util.convertProcessSignalToExitCode(signalCode)`
+
+<!-- YAML
+added: v24.14.0
+-->
+
+* `signalCode` {string} A signal name (e.g., `'SIGTERM'`, `'SIGKILL'`).
+* Returns: {number|null} The exit code, or `null` if the signal is invalid.
+
+The `util.convertProcessSignalToExitCode()` method converts a signal name to its
+corresponding POSIX exit code. Following the POSIX standard, the exit code
+for a process terminated by a signal is calculated as `128 + signal number`.
+
+```mjs
+import { convertProcessSignalToExitCode } from 'node:util';
+
+console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
+console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
+console.log(convertProcessSignalToExitCode('INVALID')); // null
+```
+
+```cjs
+const { convertProcessSignalToExitCode } = require('node:util');
+
+console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
+console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
+console.log(convertProcessSignalToExitCode('INVALID')); // null
+```
+
+This is particularly useful when working with processes to determine
+the exit code based on the signal that terminated the process.
+
 ## `util.debuglog(section[, callback])`
 
 <!-- YAML
@@ -3741,6 +3773,12 @@ Node.js modules. The community found and used it anyway.
 
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`][].
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
 
 ### `util.isArray(object)`
 

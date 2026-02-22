@@ -43,6 +43,6 @@ const assert = require('assert');
   const mod = require('../fixtures/es-modules/data-import.mjs');
   common.expectRequiredModule(mod, {
     data: { hello: 'world' },
-    id: 'data:text/javascript,export default %7B%20hello%3A%20%22world%22%20%7D'
+    id: 'data:text/javascript,export default %7B%20hello%3A%20%22world%22%20%7D',
   });
 }

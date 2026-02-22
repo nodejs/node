@@ -39,13 +39,13 @@ permissions:
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -57,36 +57,38 @@ jobs:
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
           ./configure && make tar -j4 SKIP_XZ=1
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: tarballs
           path: '*.tar.gz'
           compression-level: 0
   test-tarball-linux:
     needs: build-tarball
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     env:
-      CC: sccache clang
-      CXX: sccache clang++
-      SCCACHE_GHA_ENABLED: 'true'
+      CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang
+      CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++
+      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      SCCACHE_IDLE_TIMEOUT: '0'
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/install-clang
           sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           name: tarballs
           path: tarballs

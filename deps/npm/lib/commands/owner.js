@@ -63,6 +63,7 @@ class Owner extends BaseCommand {
       const data = await pacote.packument(spec, {
         ...npm.flatOptions,
         fullMetadata: true,
+        _isRoot: true,
       })
       if (data && data.maintainers && data.maintainers.length) {
         return data.maintainers.map(m => m.name)
@@ -112,7 +113,13 @@ class Owner extends BaseCommand {
     const spec = npa(pkg)
 
     try {
-      const packumentOpts = { ...this.npm.flatOptions, fullMetadata: true, preferOnline: true }
+      const packumentOpts = {
+        ...this.npm.flatOptions,
+        fullMetadata:
+        true,
+        preferOnline: true,
+        _isRoot: true,
+      }
       const { maintainers } = await pacote.packument(spec, packumentOpts)
       if (!maintainers || !maintainers.length) {
         output.standard('no admin found')
@@ -166,6 +173,7 @@ class Owner extends BaseCommand {
       ...this.npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
+      _isRoot: true,
     })
 
     const owners = data.maintainers || []

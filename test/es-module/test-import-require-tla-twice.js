@@ -16,6 +16,6 @@ spawnSyncAndAssert(
     stdout(output) {
       const matches = output.matchAll(/e\.code === ERR_REQUIRE_ASYNC_MODULE true/g);
       assert.strictEqual([...matches].length, 2);
-    }
+    },
   }
 );

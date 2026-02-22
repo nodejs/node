@@ -322,6 +322,8 @@ class CustomAggregate {
 
     auto recv = Undefined(isolate);
     LocalVector<Value> js_argv(isolate);
+    js_argv.reserve(argc + 1);
+
     js_argv.emplace_back(Local<Value>::New(isolate, agg->value));
 
     for (int i = 0; i < argc; ++i) {
@@ -625,6 +627,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   auto recv = Undefined(isolate);
   auto fn = self->fn_.Get(isolate);
   LocalVector<Value> js_argv(isolate);
+  js_argv.reserve(argc);
 
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
@@ -1147,6 +1150,92 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  std::optional<bool> return_arrays;
+  std::optional<bool> use_big_ints;
+  std::optional<bool> allow_bare_named_params;
+  std::optional<bool> allow_unknown_named_params;
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+    Local<Object> options = args[1].As<Object>();
+
+    Local<Value> return_arrays_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "returnArrays"))
+             .ToLocal(&return_arrays_v)) {
+      return;
+    }
+    if (!return_arrays_v->IsUndefined()) {
+      if (!return_arrays_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.returnArrays\" argument must be a boolean.");
+        return;
+      }
+      return_arrays = return_arrays_v->IsTrue();
+    }
+
+    Local<Value> read_big_ints_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts"))
+             .ToLocal(&read_big_ints_v)) {
+      return;
+    }
+    if (!read_big_ints_v->IsUndefined()) {
+      if (!read_big_ints_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readBigInts\" argument must be a boolean.");
+        return;
+      }
+      use_big_ints = read_big_ints_v->IsTrue();
+    }
+
+    Local<Value> allow_bare_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowBareNamedParameters"))
+             .ToLocal(&allow_bare_named_params_v)) {
+      return;
+    }
+    if (!allow_bare_named_params_v->IsUndefined()) {
+      if (!allow_bare_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowBareNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      allow_bare_named_params = allow_bare_named_params_v->IsTrue();
+    }
+
+    Local<Value> allow_unknown_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowUnknownNamedParameters"))
+             .ToLocal(&allow_unknown_named_params_v)) {
+      return;
+    }
+    if (!allow_unknown_named_params_v->IsUndefined()) {
+      if (!allow_unknown_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowUnknownNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
+    }
+  }
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, nullptr);
@@ -1155,6 +1244,20 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
   db->statements_.insert(stmt.get());
+
+  if (return_arrays.has_value()) {
+    stmt->return_arrays_ = return_arrays.value();
+  }
+  if (use_big_ints.has_value()) {
+    stmt->use_big_ints_ = use_big_ints.value();
+  }
+  if (allow_bare_named_params.has_value()) {
+    stmt->allow_bare_named_params_ = allow_bare_named_params.value();
+  }
+  if (allow_unknown_named_params.has_value()) {
+    stmt->allow_unknown_named_params_ = allow_unknown_named_params.value();
+  }
+
   args.GetReturnValue().Set(stmt->object());
 }
 
@@ -1963,18 +2066,16 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   CHECK(cb->IsFunction());
 
   Local<Function> callback = cb.As<Function>();
-  LocalVector<Value> js_argv(isolate);
 
-  // Convert SQLite authorizer parameters to JavaScript values
-  js_argv.emplace_back(Integer::New(isolate, action_code));
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
+  LocalVector<Value> js_argv(
+      isolate,
+      {
+          Integer::New(isolate, action_code),
+          NullableSQLiteStringToValue(isolate, param1).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param2).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param3).ToLocalChecked(),
+          NullableSQLiteStringToValue(isolate, param4).ToLocalChecked(),
+      });
 
   MaybeLocal<Value> retval = callback->Call(
       context, Undefined(isolate), js_argv.size(), js_argv.data());
@@ -2160,20 +2261,38 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
   // original type.
+  Isolate* isolate = env()->isolate();
   int r;
   if (value->IsNumber()) {
-    double val = value.As<Number>()->Value();
+    const double val = value.As<Number>()->Value();
     r = sqlite3_bind_double(statement_, index, val);
   } else if (value->IsString()) {
-    Utf8Value val(env()->isolate(), value.As<String>());
-    r = sqlite3_bind_text(
-        statement_, index, *val, val.length(), SQLITE_TRANSIENT);
+    Utf8Value val(isolate, value.As<String>());
+    if (val.IsAllocated()) {
+      // Avoid an extra SQLite copy for large strings by transferring ownership
+      // of the malloc()'d buffer to SQLite.
+      char* data = *val;
+      const sqlite3_uint64 length = static_cast<sqlite3_uint64>(val.length());
+      val.Release();
+      r = sqlite3_bind_text64(
+          statement_, index, data, length, std::free, SQLITE_UTF8);
+    } else {
+      r = sqlite3_bind_text64(statement_,
+                              index,
+                              *val,
+                              static_cast<sqlite3_uint64>(val.length()),
+                              SQLITE_TRANSIENT,
+                              SQLITE_UTF8);
+    }
   } else if (value->IsNull()) {
     r = sqlite3_bind_null(statement_, index);
   } else if (value->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob(
-        statement_, index, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    r = sqlite3_bind_blob64(statement_,
+                            index,
+                            buf.data(),
+                            static_cast<sqlite3_uint64>(buf.length()),
+                            SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -2184,13 +2303,13 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     r = sqlite3_bind_int64(statement_, index, as_int);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
-        env()->isolate(),
+        isolate,
         "Provided value cannot be bound to SQLite parameter %d.",
         index);
     return false;
   }
 
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(isolate, db_.get(), r, SQLITE_OK, false);
   return true;
 }
 
@@ -2305,7 +2424,7 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
-  Local<Object> result = Object::New(isolate);
+
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
   Local<Value> last_insert_rowid_val;
@@ -2319,13 +2438,18 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
     changes_val = Number::New(isolate, changes);
   }
 
-  if (result
-          ->Set(env->context(),
-                env->last_insert_rowid_string(),
-                last_insert_rowid_val)
-          .IsNothing() ||
-      result->Set(env->context(), env->changes_string(), changes_val)
-          .IsNothing()) {
+  auto run_result_template = env->sqlite_run_result_template();
+  if (run_result_template.IsEmpty()) {
+    static constexpr std::string_view run_result_keys[] = {"changes",
+                                                           "lastInsertRowid"};
+    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
+    env->set_sqlite_run_result_template(run_result_template);
+  }
+
+  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
+  Local<Object> result;
+  if (!NewDictionaryInstance(env->context(), run_result_template, values)
+           .ToLocal(&result)) {
     return MaybeLocal<Object>();
   }
 
@@ -2718,6 +2842,7 @@ BaseObjectPtr<SQLTagStore> SQLTagStore::Create(
            .ToLocal(&obj)) {
     return nullptr;
   }
+  obj->SetInternalField(kDatabaseObject, database->object());
   return MakeBaseObject<SQLTagStore>(env, obj, std::move(database), capacity);
 }
 
@@ -2728,9 +2853,8 @@ void SQLTagStore::CapacityGetter(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::DatabaseGetter(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
-  args.GetReturnValue().Set(store->database_->object());
+  args.GetReturnValue().Set(
+      args.This()->GetInternalField(kDatabaseObject).As<Value>());
 }
 
 void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {

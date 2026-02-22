@@ -242,7 +242,8 @@ class Response {
     const clonedResponse = cloneResponse(this.#state)
 
     // Note: To re-register because of a new stream.
-    if (this.#state.body?.stream) {
+    // Don't set finalizers other than for fetch responses.
+    if (this.#state.urlList.length !== 0 && this.#state.body?.stream) {
       streamRegistry.register(this, new WeakRef(this.#state.body.stream))
     }
 
@@ -555,7 +556,8 @@ function fromInnerResponse (innerResponse, guard) {
   setHeadersList(headers, innerResponse.headersList)
   setHeadersGuard(headers, guard)
 
-  if (innerResponse.body?.stream) {
+  // Note: If innerResponse's urlList contains a URL, it is a fetch response.
+  if (innerResponse.urlList.length !== 0 && innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
     // the held value provided for it (innerResponse.body.stream). The held value can be any value:
     // a primitive or an object, even undefined. If the held value is an object, the registry keeps

@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --no-warnings
 'use strict';
 
-const { hasQuic } = require('../common');
+const { hasQuic, mustCall } = require('../common');
 const { Buffer } = require('node:buffer');
 
 const {
@@ -33,50 +33,47 @@ describe('quic basic server/client handshake works', { skip }, async () => {
     connect,
   } = require('node:quic');
 
-  const {
-    strictEqual,
-    ok,
-  } = require('node:assert');
+  const assert = require('node:assert');
 
   it('a quic client can connect to a quic server in the same process', async () => {
     const p1 = Promise.withResolvers();
     const p2 = Promise.withResolvers();
     const p3 = Promise.withResolvers();
 
-    const serverEndpoint = await listen((serverSession) => {
+    const serverEndpoint = await listen(mustCall((serverSession) => {
 
       serverSession.opened.then((info) => {
-        strictEqual(info.servername, 'localhost');
-        strictEqual(info.protocol, 'h3');
-        strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
+        assert.strictEqual(info.servername, 'localhost');
+        assert.strictEqual(info.protocol, 'h3');
+        assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
         p1.resolve();
-      });
+      }).then(mustCall());
 
-      serverSession.onstream = (stream) => {
+      serverSession.onstream = mustCall((stream) => {
         readAll(stream.readable, p3.resolve).then(() => {
           serverSession.close();
-        });
-      };
-    }, { keys, certs });
+        }).then(mustCall());
+      });
+    }), { keys, certs });
 
-    ok(serverEndpoint.address !== undefined);
+    assert.ok(serverEndpoint.address !== undefined);
 
     const clientSession = await connect(serverEndpoint.address);
     clientSession.opened.then((info) => {
-      strictEqual(info.servername, 'localhost');
-      strictEqual(info.protocol, 'h3');
-      strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
+      assert.strictEqual(info.servername, 'localhost');
+      assert.strictEqual(info.protocol, 'h3');
+      assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
       p2.resolve();
-    });
+    }).then(mustCall());
 
     const body = new Blob(['hello']);
     const stream = await clientSession.createUnidirectionalStream({
       body,
     });
-    ok(stream);
+    assert.ok(stream);
 
     const { 2: data } = await Promise.all([p1.promise, p2.promise, p3.promise]);
     clientSession.close();
-    strictEqual(Buffer.from(data).toString(), 'hello');
+    assert.strictEqual(Buffer.from(data).toString(), 'hello');
   });
 });

@@ -9,7 +9,7 @@ async function test() {
   assert.throws(() => {
     require('../fixtures/es-modules/tla/export-async.mjs');
   }, {
-    code: 'ERR_REQUIRE_ASYNC_MODULE'
+    code: 'ERR_REQUIRE_ASYNC_MODULE',
   });
   const newNs = await import('../fixtures/es-modules/tla/export-async.mjs');
   if (ns === undefined) {
@@ -22,4 +22,4 @@ async function test() {
 }
 
 // Run the test twice to check consistency after caching.
-test().then(common.mustCall(test));
+test().then(test).then(common.mustCall());

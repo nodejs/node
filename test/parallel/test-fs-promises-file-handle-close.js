@@ -27,9 +27,8 @@ async function doOpen() {
   return fh;
 }
 
-doOpen().then(common.mustCall((fd) => {
+doOpen().then((fd) => {
   assert.strictEqual(typeof fd, 'object');
-})).then(common.mustCall(() => {
   setImmediate(common.mustCall(() => {
     // The FileHandle should be out-of-scope and no longer accessed now.
     globalThis.gc();
@@ -38,4 +37,4 @@ doOpen().then(common.mustCall((fd) => {
     // native layer in an unref()'ed setImmediate() callback.
     setImmediate(common.mustCall());
   }));
-}));
+}).then(common.mustCall());

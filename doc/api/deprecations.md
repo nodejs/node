@@ -741,6 +741,12 @@ Type: Runtime
 The [`SlowBuffer`][] class is deprecated. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/slow-buffer-to-buffer-alloc-unsafe-slow)).
+
+```bash
+npx codemod@latest @nodejs/slow-buffer-to-buffer-alloc-unsafe-slow
+```
+
 ### DEP0031: `ecdh.setPublicKey()`
 
 <!-- YAML
@@ -780,6 +786,9 @@ The [`domain`][] module is deprecated and should not be used.
 
 <!-- YAML
 changes:
+  - version: v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
   - version:
     - v6.12.0
     - v4.8.6
@@ -790,10 +799,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Revoked
 
-The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
+provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+deprecation was revoked because this function has been repurposed to also
+accept {EventTarget} arguments.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -1557,6 +1568,12 @@ The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### DEP0061: `fs.SyncWriteStream`
 
 <!-- YAML
@@ -1697,6 +1714,12 @@ the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 The `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties were never documented as
 officially supported properties.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-outgoingmessage-headers)):
+
+```bash
+npx codemod@latest @nodejs/http-outgoingmessage-headers
+```
 
 ### DEP0067: `OutgoingMessage.prototype._renderHeaders`
 
@@ -2320,10 +2343,10 @@ Type: End-of-Life
 
 This was never a documented feature.
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-assert-to-node-assert)).
 
 ```bash
-npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+npx codemod@latest @nodejs/process-assert-to-node-assert
 ```
 
 ### DEP0101: `--with-lttng`
@@ -3701,6 +3724,9 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
+Passing a string argument to [`url.format()`][] invokes `url.parse()`
+internally, and is therefore also covered by this deprecation.
+
 ### DEP0170: Invalid port when using `url.parse()`
 
 <!-- YAML
@@ -3868,6 +3894,12 @@ Type: End-of-Life
 
 The `dirent.path` property has been removed due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/dirent-path-to-parent-path)):
+
+```bash
+npx codemod@latest @nodejs/dirent-path-to-parent-path
+```
 
 ### DEP0179: `Hash` constructor
 
@@ -4344,7 +4376,7 @@ import { opendir } from 'node:fs/promises';
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
-[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback

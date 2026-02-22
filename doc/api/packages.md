@@ -187,7 +187,7 @@ or `import()` expressions (available in both CommonJS and ES Modules):
   * Any other file extensions will result in a  [`ERR_UNKNOWN_FILE_EXTENSION`][] error.
     Additional file extensions can be facilitated via [customization hooks][].
   * `import`/`import()` can be used to load JavaScript [CommonJS modules][commonjs].
-    Such modules are passed through the `cjs-module-lexer` to try to identify named
+    Such modules are passed through [merve][] to try to identify named
     exports, which are available if they can be determined through static analysis.
 
 Regardless of how a module is requested, the resolution and loading process can be customized
@@ -527,6 +527,10 @@ can be written:
 added:
   - v14.6.0
   - v12.19.0
+changes:
+  - version: v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/60864
+    description: Allow subpath imports that start with `#/`.
 -->
 
 In addition to the [`"exports"`][] field, there is a package `"imports"` field
@@ -1180,6 +1184,7 @@ This field defines [subpath imports][] for the current package.
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
+[merve]: https://github.com/anonrig/merve
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports

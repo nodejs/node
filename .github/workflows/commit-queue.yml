@@ -26,7 +26,7 @@ jobs:
     permissions:
       pull-requests: read
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
     steps:
@@ -57,9 +57,9 @@ jobs:
   commitQueue:
     needs: get_mergeable_prs
     if: needs.get_mergeable_prs.outputs.numbers != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land. It needs
@@ -69,7 +69,7 @@ jobs:
 
       # Install dependencies
       - name: Install Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils

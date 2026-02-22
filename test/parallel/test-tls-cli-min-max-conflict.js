@@ -8,7 +8,7 @@ const assert = require('assert');
 const child_process = require('child_process');
 
 const args = ['--tls-min-v1.3', '--tls-max-v1.2', '-p', 'process.version'];
-child_process.execFile(process.argv[0], args, (err) => {
+child_process.execFile(process.argv[0], args, common.mustCall((err) => {
   assert(err);
   assert.match(err.message, /not both/);
-});
+}));

@@ -2,8 +2,9 @@
 
 require('../../common');
 const { spawnSync } = require('child_process');
+const fixtures = require('../../common/fixtures');
 
-const four = require('../../common/fixtures')
+const four = fixtures
   .readSync('async-error.js')
   .toString()
   .split('\n')

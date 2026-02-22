@@ -76,7 +76,7 @@ function createBase64URL(mime, body) {
       import('data:application/json;foo="test,",0',
         { with: { type: 'json' } }), {
       name: 'SyntaxError',
-      message: /Unterminated string in JSON at position 3/
+      message: /Unterminated string in JSON at position 3/,
     });
   }
   {

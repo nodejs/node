@@ -15,5 +15,5 @@ assert.throws(
   () => require('../fixtures/es-modules/loose.js'),
   {
     name: 'SyntaxError',
-    message: /Unexpected token 'export'/
+    message: /Unexpected token 'export'/,
   });

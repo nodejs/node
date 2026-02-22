@@ -16,14 +16,14 @@ const hooks = initHooks();
 hooks.enable();
 
 const p = new Promise(common.mustCall(executor));
-p.then(function afterResolution(val) {
+p.then(common.mustCall(function afterResolution(val) {
   assert.strictEqual(val, 5);
   const as = hooks.activitiesOfTypes('PROMISE');
   assert.strictEqual(as.length, 2);
   checkInvocations(as[0], { init: 1 }, 'after resolution parent promise');
   checkInvocations(as[1], { init: 1, before: 1 },
                    'after resolution child promise');
-});
+}));
 
 function executor(resolve) {
   const as = hooks.activitiesOfTypes('PROMISE');

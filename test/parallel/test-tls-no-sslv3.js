@@ -21,7 +21,7 @@ const server = tls.createServer({ cert, key }, common.mustNotCall());
 const errors = [];
 let stderr = '';
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', common.mustCall(function() {
   const address = `${this.address().address}:${this.address().port}`;
   const args = ['s_client',
                 '-ssl3',
@@ -37,7 +37,7 @@ server.listen(0, '127.0.0.1', function() {
     assert.strictEqual(exitCode, 1);
     server.close();
   }));
-});
+}));
 
 server.on('tlsClientError', (err) => errors.push(err));
 

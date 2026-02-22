@@ -22,22 +22,22 @@ const tlsServer = tls.createServer(
     cert: fixtures.readKey('rsa_cert.crt'),
     ca: [fixtures.readKey('rsa_ca.crt')],
   },
-  (socket) => {
+  common.mustCall((socket) => {
     socket.on('close', common.mustCall());
     socket.write(CONTENT);
     socket.destroy();
 
-    socket.on('error', (err) => {
+    socket.on('error', common.mustCallAtLeast((err) => {
       // destroy() is sync, write() is async, whether write completes depends
       // on the protocol, it is not guaranteed by stream API.
       if (err.code === 'ERR_STREAM_DESTROYED')
         return;
       assert.ifError(err);
-    });
-  },
+    }, 0));
+  }),
 );
 
-const server = net.createServer((conn) => {
+const server = net.createServer(common.mustCall((conn) => {
   conn.on('error', common.mustNotCall());
   // Assume that we want to use data to determine what to do with connections.
   conn.once('data', common.mustCall((chunk) => {
@@ -61,17 +61,17 @@ const server = net.createServer((conn) => {
 
     tlsServer.emit('connection', serverSide);
   }));
-});
+}));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const port = server.address().port;
-  const conn = tls.connect({ port, rejectUnauthorized: false }, () => {
+  const conn = tls.connect({ port, rejectUnauthorized: false }, common.mustCall(() => {
     // Whether the server's write() completed before its destroy() is
     // indeterminate, but if data was written, we should receive it correctly.
-    conn.on('data', (data) => {
+    conn.on('data', common.mustCallAtLeast((data) => {
       assert.strictEqual(data.toString('utf8'), CONTENT);
-    });
+    }, 0));
     conn.on('error', common.mustNotCall());
     conn.on('close', common.mustCall(() => server.close()));
-  });
-});
+  }));
+}));

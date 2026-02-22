@@ -40,8 +40,7 @@ function sha256(s) {
 connect({
   client: { rejectUnauthorized: false },
   server: keys.agent1,
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   const socket = pair.client.conn;
   const localCert = socket.getCertificate();
   assert.deepStrictEqual(localCert, {});
@@ -98,13 +97,12 @@ connect({
   assert.strictEqual(issuer.serialNumber, '4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229');
 
   return cleanup();
-});
+}));
 
 connect({
   client: { rejectUnauthorized: false },
   server: keys.ec,
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   const socket = pair.client.conn;
   let peerCert = socket.getPeerCertificate(true);
   assert.ok(peerCert.issuerCertificate);
@@ -149,4 +147,4 @@ connect({
   assert.strictEqual(issuer.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
 
   return cleanup();
-});
+}));

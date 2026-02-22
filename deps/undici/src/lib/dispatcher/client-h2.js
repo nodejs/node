@@ -24,7 +24,10 @@ const {
   kStrictContentLength,
   kOnError,
   kMaxConcurrentStreams,
+  kPingInterval,
   kHTTP2Session,
+  kHTTP2InitialWindowSize,
+  kHTTP2ConnectionWindowSize,
   kResume,
   kSize,
   kHTTPContext,
@@ -32,7 +35,8 @@ const {
   kBodyTimeout,
   kEnableConnectProtocol,
   kRemoteSettings,
-  kHTTP2Stream
+  kHTTP2Stream,
+  kHTTP2SessionState
 } = require('../core/symbols.js')
 const { channels } = require('../core/diagnostics.js')
 
@@ -87,25 +91,39 @@ function parseH2Headers (headers) {
 function connectH2 (client, socket) {
   client[kSocket] = socket
 
+  const http2InitialWindowSize = client[kHTTP2InitialWindowSize]
+  const http2ConnectionWindowSize = client[kHTTP2ConnectionWindowSize]
+
   const session = http2.connect(client[kUrl], {
     createConnection: () => socket,
     peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
     settings: {
       // TODO(metcoder95): add support for PUSH
-      enablePush: false
+      enablePush: false,
+      ...(http2InitialWindowSize != null ? { initialWindowSize: http2InitialWindowSize } : null)
     }
   })
 
+  client[kSocket] = socket
   session[kOpenStreams] = 0
   session[kClient] = client
   session[kSocket] = socket
-  session[kHTTP2Session] = null
+  session[kHTTP2SessionState] = {
+    ping: {
+      interval: client[kPingInterval] === 0 ? null : setInterval(onHttp2SendPing, client[kPingInterval], session).unref()
+    }
+  }
   // We set it to true by default in a best-effort; however once connected to an H2 server
   // we will check if extended CONNECT protocol is supported or not
   // and set this value accordingly.
   session[kEnableConnectProtocol] = false
   // States whether or not we have received the remote settings from the server
   session[kRemoteSettings] = false
+
+  // Apply connection-level flow control once connected (if supported).
+  if (http2ConnectionWindowSize) {
+    util.addListener(session, 'connect', applyConnectionWindowSize.bind(session, http2ConnectionWindowSize))
+  }
 
   util.addListener(session, 'error', onHttp2SessionError)
   util.addListener(session, 'frameError', onHttp2FrameError)
@@ -211,6 +229,16 @@ function resumeH2 (client) {
   }
 }
 
+function applyConnectionWindowSize (connectionWindowSize) {
+  try {
+    if (typeof this.setLocalWindowSize === 'function') {
+      this.setLocalWindowSize(connectionWindowSize)
+    }
+  } catch {
+    // Best-effort only.
+  }
+}
+
 function onHttp2RemoteSettings (settings) {
   // Fallbacks are a safe bet, remote setting will always override
   this[kClient][kMaxConcurrentStreams] = settings.maxConcurrentStreams ?? this[kClient][kMaxConcurrentStreams]
@@ -230,6 +258,31 @@ function onHttp2RemoteSettings (settings) {
   this[kEnableConnectProtocol] = settings.enableConnectProtocol ?? this[kEnableConnectProtocol]
   this[kRemoteSettings] = true
   this[kClient][kResume]()
+}
+
+function onHttp2SendPing (session) {
+  const state = session[kHTTP2SessionState]
+  if ((session.closed || session.destroyed) && state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+    return
+  }
+
+  // If no ping sent, do nothing
+  session.ping(onPing.bind(session))
+
+  function onPing (err, duration) {
+    const client = this[kClient]
+    const socket = this[kClient]
+
+    if (err != null) {
+      const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`)
+      socket[kError] = error
+      client[kOnError](error)
+    } else {
+      client.emit('ping', duration)
+    }
+  }
 }
 
 function onHttp2SessionError (err) {
@@ -295,13 +348,18 @@ function onHttp2SessionGoAway (errorCode) {
 }
 
 function onHttp2SessionClose () {
-  const { [kClient]: client } = this
+  const { [kClient]: client, [kHTTP2SessionState]: state } = this
   const { [kSocket]: socket } = client
 
   const err = this[kSocket][kError] || this[kError] || new SocketError('closed', util.getSocketInfo(socket))
 
   client[kSocket] = null
   client[kHTTPContext] = null
+
+  if (state.ping.interval != null) {
+    clearInterval(state.ping.interval)
+    state.ping.interval = null
+  }
 
   if (client.destroyed) {
     assert(client[kPending] === 0)
@@ -621,9 +679,13 @@ function writeH2 (client, request) {
   ++session[kOpenStreams]
   stream.setTimeout(requestTimeout)
 
+  // Track whether we received a response (headers)
+  let responseReceived = false
+
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
     request.onResponseStarted()
+    responseReceived = true
 
     // Due to the stream nature, it is possible we face a race condition
     // where the stream has been assigned, but the request has been aborted
@@ -646,14 +708,10 @@ function writeH2 (client, request) {
     }
   })
 
-  stream.once('end', (err) => {
+  stream.once('end', () => {
     stream.removeAllListeners('data')
-    // When state is null, it means we haven't consumed body and the stream still do not have
-    // a state.
-    // Present specially when using pipeline or stream
-    if (stream.state?.state == null || stream.state.state < 6) {
-      // Do not complete the request if it was aborted
-      // Not prone to happen for as safety net to avoid race conditions with 'trailers'
+    // If we received a response, this is a normal completion
+    if (responseReceived) {
       if (!request.aborted && !request.completed) {
         request.onComplete({})
       }
@@ -661,15 +719,9 @@ function writeH2 (client, request) {
       client[kQueue][client[kRunningIdx]++] = null
       client[kResume]()
     } else {
-      // Stream is closed or half-closed-remote (6), decrement counter and cleanup
-      // It does not have sense to continue working with the stream as we do not
-      // have yet RST_STREAM support on client-side
-      --session[kOpenStreams]
-      if (session[kOpenStreams] === 0) {
-        session.unref()
-      }
-
-      abort(err ?? new InformationalError('HTTP/2: stream half-closed (remote)'))
+      // Stream ended without receiving a response - this is an error
+      // (e.g., server destroyed the stream before sending headers)
+      abort(new InformationalError('HTTP/2: stream half-closed (remote)'))
       client[kQueue][client[kRunningIdx]++] = null
       client[kPendingIdx] = client[kRunningIdx]
       client[kResume]()

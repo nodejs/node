@@ -24,7 +24,7 @@ server.getsockname(port);
 
 server.listen(128);
 
-server.onconnection = (err, client) => {
+server.onconnection = common.mustCall((err, client) => {
   assert.strictEqual(client.writeQueueSize, 0);
   console.log('got connection');
 
@@ -82,7 +82,7 @@ server.onconnection = (err, client) => {
       maybeCloseClient();
     }
   }, 2);
-};
+});
 
 const net = require('net');
 

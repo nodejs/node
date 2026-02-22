@@ -224,6 +224,57 @@ test('todo() method with message', (t) => {
 });
 ```
 
+## Expecting tests to fail
+
+<!-- YAML
+added:
+ - v24.14.0
+-->
+
+This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
+in order to "pass"; a test/test-case that does not throw, fails.
+
+In the following, `doTheThing()` returns _currently_ `false` (`false` does not equal `true`, causing
+`strictEqual` to throw, so the test-case passes).
+
+```js
+it.expectFailure('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+`skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
+will "win" when both are applied (`skip` wins against both, and `todo` wins
+against `expectFailure`).
+
+These tests will be skipped (and not run):
+
+```js
+it.expectFailure('should do the thing', { skip: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.skip('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+These tests will be marked "todo" (silencing errors):
+
+```js
+it.expectFailure('should do the thing', { todo: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.todo('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
 ## `describe()` and `it()` aliases
 
 Suites and tests can also be written using the `describe()` and `it()`
@@ -1384,6 +1435,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/61367
+    description: Add the `env` option.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59443
     description: Added a rerunFailuresFilePath option.
@@ -1504,6 +1558,10 @@ changes:
   * `functionCoverage` {number} Require a minimum percent of covered functions. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
+  * `env` {Object} Specify environment variables to be passed along to the test process.
+    This options is not compatible with `isolation='none'`. These variables will override
+    those from the main process, and are not merged with `process.env`.
+    **Default:** `process.env`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across

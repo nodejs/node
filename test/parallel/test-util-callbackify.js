@@ -188,6 +188,7 @@ const values = [
   for (const value of values) {
     const iAmThis = {
       fn(arg) {
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(this, iAmThis);
         return Promise.resolve(arg);
       },
@@ -200,6 +201,7 @@ const values = [
 
     const iAmThat = {
       async fn(arg) {
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(this, iAmThat);
         return arg;
       },
@@ -289,11 +291,11 @@ const values = [
 
   const cbPromiseFn = callbackify(promiseFn);
 
-  cbPromiseFn(null, (err) => {
+  cbPromiseFn(null, common.mustCall((err) => {
     assert.strictEqual(err.message, 'Promise was rejected with falsy value');
     assert.strictEqual(err.code, 'ERR_FALSY_VALUE_REJECTION');
     assert.strictEqual(err.reason, null);
     const stack = err.stack.split(/[\r\n]+/);
     assert.match(stack[1], /at process\.processTicksAndRejections/);
-  });
+  }));
 }

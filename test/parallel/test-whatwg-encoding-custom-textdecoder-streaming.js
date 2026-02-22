@@ -21,9 +21,8 @@ const octets = {
     0xFF, 0xDF]
 };
 
-Object.keys(octets).forEach((encoding) => {
+for (const [encoding, encoded] of Object.entries(octets)) {
   for (let len = 1; len <= 5; ++len) {
-    const encoded = octets[encoding];
     const decoder = new TextDecoder(encoding);
     let out = '';
     for (let i = 0; i < encoded.length; i += len) {
@@ -35,4 +34,4 @@ Object.keys(octets).forEach((encoding) => {
     out += decoder.decode();
     assert.strictEqual(out, string);
   }
-});
+}

@@ -58,9 +58,7 @@ icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(e
 maglev_enabled_architectures = ('x64', 'arm', 'arm64')
 
 # builtins may be removed later if they have been disabled by options
-shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
-                     'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
-                     'undici/undici': 'deps/undici/undici.js',
+shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
                      'amaro/dist/index': 'deps/amaro/dist/index.js'
 }
 
@@ -257,6 +255,50 @@ parser.add_argument('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+shared_optgroup.add_argument('--shared-gtest',
+    action='store_true',
+    dest='shared_gtest',
+    default=None,
+    help='link to a shared googletest DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-gtest-includes',
+    action='store',
+    dest='shared_gtest_includes',
+    help='directory containing googletest header files')
+
+shared_optgroup.add_argument('--shared-gtest-libname',
+    action='store',
+    dest='shared_gtest_libname',
+    default='gtest',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-gtest-libpath',
+    action='store',
+    dest='shared_gtest_libpath',
+    help='a directory to search for the shared googletest DLL')
+
+shared_optgroup.add_argument('--shared-hdr-histogram',
+    action='store_true',
+    dest='shared_hdr_histogram',
+    default=None,
+    help='link to a shared HdrHistogram DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-includes',
+    action='store',
+    dest='shared_hdr_histogram_includes',
+    help='directory containing HdrHistogram header files')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-libname',
+    action='store',
+    dest='shared_hdr_histogram_libname',
+    default='hdr_histogram',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
+    action='store',
+    dest='shared_hdr_histogram_libpath',
+    help='a directory to search for the shared HdrHistogram DLL')
+
 parser.add_argument('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
@@ -306,6 +348,28 @@ shared_optgroup.add_argument('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
+
+shared_optgroup.add_argument('--shared-nbytes',
+    action='store_true',
+    dest='shared_nbytes',
+    default=None,
+    help='link to a shared nbytes DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-nbytes-includes',
+    action='store',
+    dest='shared_nbytes_includes',
+    help='directory containing nbytes header files')
+
+shared_optgroup.add_argument('--shared-nbytes-libname',
+    action='store',
+    dest='shared_nbytes_libname',
+    default='nbytes',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-nbytes-libpath',
+    action='store',
+    dest='shared_nbytes_libpath',
+    help='a directory to search for the shared nbytes DLL')
 
 shared_optgroup.add_argument('--shared-nghttp2',
     action='store_true',
@@ -484,7 +548,6 @@ shared_optgroup.add_argument('--shared-simdutf-libpath',
     dest='shared_simdutf_libpath',
     help='a directory to search for the shared simdutf DLL')
 
-
 shared_optgroup.add_argument('--shared-ada',
     action='store_true',
     dest='shared_ada',
@@ -506,6 +569,28 @@ shared_optgroup.add_argument('--shared-ada-libpath',
     action='store',
     dest='shared_ada_libpath',
     help='a directory to search for the shared ada DLL')
+
+shared_optgroup.add_argument('--shared-merve',
+    action='store_true',
+    dest='shared_merve',
+    default=None,
+    help='link to a shared merve DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-merve-includes',
+    action='store',
+    dest='shared_merve_includes',
+    help='directory containing merve header files')
+
+shared_optgroup.add_argument('--shared-merve-libname',
+    action='store',
+    dest='shared_merve_libname',
+    default='merve',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-merve-libpath',
+    action='store',
+    dest='shared_merve_libpath',
+    help='a directory to search for the shared merve DLL')
 
 shared_optgroup.add_argument('--shared-brotli',
     action='store_true',
@@ -2298,6 +2383,10 @@ configure_library('simdjson', output)
 configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
+configure_library('gtest', output)
+configure_library('hdr_histogram', output)
+configure_library('merve', output)
+configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')

@@ -1,5 +1,6 @@
 'use strict'
 
+const assert = require('node:assert')
 const { types, inspect } = require('node:util')
 const { runtimeFeatures } = require('../../util/runtime-features')
 
@@ -540,6 +541,57 @@ webidl.is.BufferSource = function (V) {
     ArrayBuffer.isView(V) &&
     types.isArrayBuffer(V.buffer)
   )
+}
+
+// https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy
+webidl.util.getCopyOfBytesHeldByBufferSource = function (bufferSource) {
+  // 1. Let jsBufferSource be the result of converting bufferSource to a JavaScript value.
+  const jsBufferSource = bufferSource
+
+  // 2. Let jsArrayBuffer be jsBufferSource.
+  let jsArrayBuffer = jsBufferSource
+
+  // 3. Let offset be 0.
+  let offset = 0
+
+  // 4. Let length be 0.
+  let length = 0
+
+  // 5. If jsBufferSource has a [[ViewedArrayBuffer]] internal slot, then:
+  if (types.isTypedArray(jsBufferSource) || types.isDataView(jsBufferSource)) {
+    // 5.1. Set jsArrayBuffer to jsBufferSource.[[ViewedArrayBuffer]].
+    jsArrayBuffer = jsBufferSource.buffer
+
+    // 5.2. Set offset to jsBufferSource.[[ByteOffset]].
+    offset = jsBufferSource.byteOffset
+
+    // 5.3. Set length to jsBufferSource.[[ByteLength]].
+    length = jsBufferSource.byteLength
+  } else {
+    // 6. Otherwise:
+
+    // 6.1. Assert: jsBufferSource is an ArrayBuffer or SharedArrayBuffer object.
+    assert(types.isAnyArrayBuffer(jsBufferSource))
+
+    // 6.2. Set length to jsBufferSource.[[ArrayBufferByteLength]].
+    length = jsBufferSource.byteLength
+  }
+
+  // 7. If IsDetachedBuffer(jsArrayBuffer) is true, then return the empty byte sequence.
+  if (jsArrayBuffer.detached) {
+    return new Uint8Array(0)
+  }
+
+  // 8. Let bytes be a new byte sequence of length equal to length.
+  const bytes = new Uint8Array(length)
+
+  // 9. For i in the range offset to offset + length − 1, inclusive,
+  //    set bytes[i − offset] to GetValueFromBuffer(jsArrayBuffer, i, Uint8, true, Unordered).
+  const view = new Uint8Array(jsArrayBuffer, offset, length)
+  bytes.set(view)
+
+  // 10. Return bytes.
+  return bytes
 }
 
 // https://webidl.spec.whatwg.org/#es-DOMString

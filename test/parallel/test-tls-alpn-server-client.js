@@ -235,7 +235,7 @@ function TestALPNCallback() {
     ALPNProtocols: ['a'],
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, common.mustCall((results) => {
     // Callback picks 2nd preference => picks 'b'
     checkResults(results[0],
                  { server: { ALPN: 'b' },
@@ -247,7 +247,7 @@ function TestALPNCallback() {
     assert.ok(allowedErrors.includes(results[1].client.error.code), `'${results[1].client.error.code}' was not one of ${allowedErrors}.`);
 
     TestBadALPNCallback();
-  });
+  }));
 }
 
 function TestBadALPNCallback() {
