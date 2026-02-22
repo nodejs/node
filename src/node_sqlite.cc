@@ -72,7 +72,8 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-#define SQLITE_VALUE_TO_JS(from, isolate, use_big_int_args, result, ...)       \
+#define SQLITE_VALUE_TO_JS(from, isolate, use_big_int_args,                    \
+                           read_null_as_undef, result, ...)                    \
   do {                                                                         \
     switch (sqlite3_##from##_type(__VA_ARGS__)) {                              \
       case SQLITE_INTEGER: {                                                   \
@@ -101,7 +102,9 @@ using v8::Value;
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
-        (result) = Null((isolate));                                            \
+        (result) = (read_null_as_undef)                                        \
+          ? Undefined((isolate))                                               \
+          : Null((isolate));                                                   \
         break;                                                                 \
       }                                                                        \
       case SQLITE_BLOB: {                                                      \
@@ -329,7 +332,7 @@ class CustomAggregate {
     for (int i = 0; i < argc; ++i) {
       sqlite3_value* value = argv[i];
       MaybeLocal<Value> js_val;
-      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
+      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
       if (js_val.IsEmpty()) {
         // Ignore the SQLite error because a JavaScript exception is pending.
         self->db_->SetIgnoreNextSQLiteError(true);
@@ -632,7 +635,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
     MaybeLocal<Value> js_val = MaybeLocal<Value>();
-    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
+    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
     if (js_val.IsEmpty()) {
       // Ignore the SQLite error because a JavaScript exception is pending.
       self->db_->SetIgnoreNextSQLiteError(true);
@@ -1077,6 +1080,23 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
+    Local<Value> read_null_as_undefined_v;
+    if (options->Get(env->context(),
+                     FIXED_ONE_BYTE_STRING(env->isolate(),
+                                           "readNullAsUndefined"))
+            .ToLocal(&read_null_as_undefined_v)) {
+      if (!read_null_as_undefined_v->IsUndefined()) {
+        if (!read_null_as_undefined_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.readNullAsUndefined" argument must be a boolean.)");
+          return;
+        }
+        open_config.set_read_null_as_undefined(
+            read_null_as_undefined_v.As<Boolean>()->Value());
+      }
+    }
+
     Local<Value> defensive_v;
     if (!options->Get(env->context(), env->defensive_string())
              .ToLocal(&defensive_v)) {
@@ -1154,6 +1174,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   std::optional<bool> use_big_ints;
   std::optional<bool> allow_bare_named_params;
   std::optional<bool> allow_unknown_named_params;
+  std::optional<bool> read_null_as_undefined;
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
@@ -1234,6 +1255,23 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
       }
       allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
     }
+
+    Local<Value> read_null_as_undefined_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "readNullAsUndefined"))
+             .ToLocal(&read_null_as_undefined_v)) {
+      return;
+    }
+    if (!read_null_as_undefined_v->IsUndefined()) {
+      if (!read_null_as_undefined_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readNullAsUndefined\" argument must be a boolean.");
+        return;
+      }
+      read_null_as_undefined = read_null_as_undefined_v->IsTrue();
+    }
   }
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
@@ -1257,7 +1295,9 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   if (allow_unknown_named_params.has_value()) {
     stmt->allow_unknown_named_params_ = allow_unknown_named_params.value();
   }
-
+  if (read_null_as_undefined.has_value()) {
+    stmt->read_null_as_undefined_ = read_null_as_undefined.value();
+  }
   args.GetReturnValue().Set(stmt->object());
 }
 
@@ -2133,6 +2173,7 @@ StatementSync::StatementSync(Environment* env,
   return_arrays_ = db_->return_arrays();
   allow_bare_named_params_ = db_->allow_bare_named_params();
   allow_unknown_named_params_ = db_->allow_unknown_named_params();
+  read_null_as_undefined_ = db_->read_null_as_undefined();
 
   bare_named_params_ = std::nullopt;
 }
@@ -2315,7 +2356,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
 
 MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
   return StatementExecutionHelper::ColumnToValue(
-      env(), statement_, column, use_big_ints_);
+      env(), statement_, column, use_big_ints_, read_null_as_undefined_);
 }
 
 MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
@@ -2331,10 +2372,12 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
 MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
                                                           sqlite3_stmt* stmt,
                                                           const int column,
-                                                          bool use_big_ints) {
+                                                          bool use_big_ints,
+                                                          bool read_null_as_undefined) {
   Isolate* isolate = env->isolate();
   MaybeLocal<Value> js_val = MaybeLocal<Value>();
-  SQLITE_VALUE_TO_JS(column, isolate, use_big_ints, js_val, stmt, column);
+  SQLITE_VALUE_TO_JS(
+      column, isolate, use_big_ints, read_null_as_undefined, js_val, stmt, column);
   return js_val;
 }
 
@@ -2356,12 +2399,13 @@ Maybe<void> ExtractRowValues(Environment* env,
                              sqlite3_stmt* stmt,
                              int num_cols,
                              bool use_big_ints,
+                             bool read_null_as_undefined,
                              LocalVector<Value>* row_values) {
   row_values->clear();
   row_values->reserve(num_cols);
   for (int i = 0; i < num_cols; ++i) {
     Local<Value> val;
-    if (!StatementExecutionHelper::ColumnToValue(env, stmt, i, use_big_ints)
+    if (!StatementExecutionHelper::ColumnToValue(env, stmt, i, use_big_ints, read_null_as_undefined)
              .ToLocal(&val)) {
       return Nothing<void>();
     }
@@ -2374,7 +2418,8 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
                                                 DatabaseSync* db,
                                                 sqlite3_stmt* stmt,
                                                 bool return_arrays,
-                                                bool use_big_ints) {
+                                                bool use_big_ints,
+                                                bool read_null_as_undefined) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   int r;
@@ -2384,7 +2429,7 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   LocalVector<Name> row_keys(isolate);
 
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
-    if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
+    if (ExtractRowValues(env, stmt, num_cols, use_big_ints, read_null_as_undefined, &row_values)
             .IsNothing()) {
       return MaybeLocal<Value>();
     }
@@ -2494,7 +2539,8 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
                                                 DatabaseSync* db,
                                                 sqlite3_stmt* stmt,
                                                 bool return_arrays,
-                                                bool use_big_ints) {
+                                                bool use_big_ints,
+                                                bool read_null_as_undefined) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt); });
@@ -2512,7 +2558,7 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
   }
 
   LocalVector<Value> row_values(isolate);
-  if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
+  if (ExtractRowValues(env, stmt, num_cols, use_big_ints, read_null_as_undefined, &row_values)
           .IsNothing()) {
     return MaybeLocal<Value>();
   }
@@ -2558,7 +2604,8 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->db_.get(),
                                     stmt->statement_,
                                     stmt->return_arrays_,
-                                    stmt->use_big_ints_)
+                                    stmt->use_big_ints_,
+                                    stmt->read_null_as_undefined_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -2605,7 +2652,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
                                     stmt->db_.get(),
                                     stmt->statement_,
                                     stmt->return_arrays_,
-                                    stmt->use_big_ints_)
+                                    stmt->use_big_ints_,
+                                    stmt->read_null_as_undefined_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -2760,6 +2808,22 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   }
 
   stmt->use_big_ints_ = args[0]->IsTrue();
+}
+
+void StatementSync::SetReadNullAsUndefined(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  if (!args[0]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"readNullAsUndefined\" argument must be a boolean.");
+    return;
+  }
+
+  stmt->read_null_as_undefined_ = args[0]->IsTrue();
 }
 
 void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
@@ -2964,7 +3028,8 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
                                     stmt->db_.get(),
                                     stmt->statement_,
                                     stmt->return_arrays_,
-                                    stmt->use_big_ints_)
+                                    stmt->use_big_ints_,
+                                    stmt->read_null_as_undefined_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -3004,7 +3069,8 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->db_.get(),
                                     stmt->statement_,
                                     stmt->return_arrays_,
-                                    stmt->use_big_ints_)
+                                    stmt->use_big_ints_,
+                                    stmt->read_null_as_undefined_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -3138,6 +3204,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
         isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
+    SetProtoMethod(
+        isolate, tmpl, "setReadNullAsUndefined", StatementSync::SetReadNullAsUndefined);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
@@ -3243,6 +3311,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
                        iter->stmt_->statement_,
                        num_cols,
                        iter->stmt_->use_big_ints_,
+                       iter->stmt_->read_null_as_undefined_,
                        &row_values)
           .IsNothing()) {
     return;

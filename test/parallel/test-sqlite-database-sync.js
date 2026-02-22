@@ -282,6 +282,29 @@ suite('DatabaseSync() constructor', () => {
     );
   });
 
+  test('throws if options.readNullAsUndefined is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readNullAsUndefined: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.readNullAsUndefined" argument must be a boolean.',
+    });
+  });
+
+  test('allows reading NULL as undefined', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readNullAsUndefined: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: undefined });
+  });
+
   test('has sqlite-type symbol property', (t) => {
     const dbPath = nextDb();
     const db = new DatabaseSync(dbPath);

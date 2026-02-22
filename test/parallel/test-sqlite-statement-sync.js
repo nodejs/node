@@ -854,3 +854,243 @@ suite('options.allowBareNamedParameters', () => {
     );
   });
 });
+
+suite('StatementSync.prototype.setReadNullAsUndefined()', () => {
+  test('NULL conversion can be toggled', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+
+    const query = db.prepare('SELECT val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: null });
+
+    t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: undefined });
+
+    t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: null });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+
+    const stmt = db.prepare('SELECT val FROM data');
+    t.assert.throws(() => {
+      stmt.setReadNullAsUndefined();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "readNullAsUndefined" argument must be a boolean/,
+    });
+  });
+
+  test('returns array rows with undefined when both flags are set', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    query.setReturnArrays(true);
+    query.setReadNullAsUndefined(true);
+
+    t.assert.deepStrictEqual(query.get(), [1, undefined]);
+  });
+
+  test('applies to all()', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL), (2, 'two');
+    `);
+
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
+    query.setReadNullAsUndefined(true);
+
+    t.assert.deepStrictEqual(query.all(), [
+      { __proto__: null, key: 1, val: undefined },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+  });
+
+  test('applies to iterate()', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL), (2, NULL);
+    `);
+
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
+    query.setReadNullAsUndefined(true);
+
+    const iter = query.iterate();
+    t.assert.deepStrictEqual(iter.next().value, { __proto__: null, key: 1, val: undefined });
+    t.assert.deepStrictEqual(iter.next().value, { __proto__: null, key: 2, val: undefined });
+    t.assert.strictEqual(iter.next().done, true);
+  });
+
+  test('does not change NULL passed to user-defined functions', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    db.exec('CREATE TABLE data(val TEXT) STRICT; INSERT INTO data VALUES (NULL);');
+
+    let seen;
+    db.function('echo', (x) => { seen = x; return x; });
+
+    const query = db.prepare('SELECT echo(val) AS out FROM data');
+    query.setReadNullAsUndefined(true);
+
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, out: undefined });
+    t.assert.strictEqual(seen, null);
+  });
+});
+
+suite('options.readNullAsUndefined', () => {
+  test('undefined is returned when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT val FROM data WHERE key = 1',
+      { readNullAsUndefined: true }
+    );
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: undefined });
+  });
+
+  test('null is returned when input is false', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT val FROM data WHERE key = 1',
+      { readNullAsUndefined: false }
+    );
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: null });
+  });
+
+  test('null is returned by default', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: null });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    t.assert.throws(() => {
+      db.prepare('SELECT val FROM data', { readNullAsUndefined: 'true' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readNullAsUndefined" argument must be a boolean/,
+    });
+  });
+
+  test('setReadNullAsUndefined can override prepare option', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT val FROM data WHERE key = 1',
+      { readNullAsUndefined: true }
+    );
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: undefined });
+    t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: null });
+  });
+
+  test('all() returns undefined when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data ORDER BY key',
+      { readNullAsUndefined: true }
+    );
+    t.assert.deepStrictEqual(query.all(), [
+      { __proto__: null, key: 1, val: undefined },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+  });
+
+  test('iterate() returns undefined when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+      INSERT INTO data (key, val) VALUES (2, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data ORDER BY key',
+      { readNullAsUndefined: true }
+    );
+    t.assert.deepStrictEqual(query.iterate().toArray(), [
+      { __proto__: null, key: 1, val: undefined },
+      { __proto__: null, key: 2, val: undefined },
+    ]);
+  });
+
+  test('works with returnArrays option', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data WHERE key = 1',
+      { readNullAsUndefined: true, returnArrays: true }
+    );
+    t.assert.deepStrictEqual(query.get(), [1, undefined]);
+  });
+});

@@ -65,6 +65,14 @@ class DatabaseOpenConfiguration {
     return allow_unknown_named_params_;
   }
 
+  inline void set_read_null_as_undefined(bool flag) {
+    read_null_as_undefined_ = flag;
+  }
+
+  inline bool get_read_null_as_undefined() const {
+    return read_null_as_undefined_;
+  }
+
   inline void set_enable_defensive(bool flag) { defensive_ = flag; }
 
   inline bool get_enable_defensive() const { return defensive_; }
@@ -79,6 +87,7 @@ class DatabaseOpenConfiguration {
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
+  bool read_null_as_undefined_ = false;
   bool defensive_ = true;
 };
 
@@ -93,7 +102,8 @@ class StatementExecutionHelper {
                                        DatabaseSync* db,
                                        sqlite3_stmt* stmt,
                                        bool return_arrays,
-                                       bool use_big_ints);
+                                       bool use_big_ints,
+                                       bool read_null_as_undefined);
   static v8::MaybeLocal<v8::Object> Run(Environment* env,
                                         DatabaseSync* db,
                                         sqlite3_stmt* stmt,
@@ -103,7 +113,8 @@ class StatementExecutionHelper {
   static v8::MaybeLocal<v8::Value> ColumnToValue(Environment* env,
                                                  sqlite3_stmt* stmt,
                                                  const int column,
-                                                 bool use_big_ints);
+                                                 bool use_big_ints,
+                                                 bool read_null_as_undefined);
   static v8::MaybeLocal<v8::Name> ColumnNameToName(Environment* env,
                                                    sqlite3_stmt* stmt,
                                                    const int column);
@@ -111,7 +122,8 @@ class StatementExecutionHelper {
                                        DatabaseSync* db,
                                        sqlite3_stmt* stmt,
                                        bool return_arrays,
-                                       bool use_big_ints);
+                                       bool use_big_ints,
+                                       bool read_null_as_undefined);
 };
 
 class DatabaseSync : public BaseObject {
@@ -167,6 +179,9 @@ class DatabaseSync : public BaseObject {
   }
   bool allow_unknown_named_params() const {
     return open_config_.get_allow_unknown_named_params();
+  }
+  bool read_null_as_undefined() const {
+    return open_config_.get_read_null_as_undefined();
   }
   sqlite3* Connection();
 
@@ -226,6 +241,8 @@ class StatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReadNullAsUndefined(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   void Finalize();
@@ -242,6 +259,7 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
+  bool read_null_as_undefined_;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);

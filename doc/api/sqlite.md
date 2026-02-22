@@ -157,6 +157,8 @@ changes:
     character (e.g., `foo` instead of `:foo`). **Default:** `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
     If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
+  * `readNullAsUndefined` {boolean} If `true`, SQL `NULL` values are returned as `undefined` instead
+    of `null`. **Default:** `false`.
   * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
@@ -476,6 +478,8 @@ added: v22.5.0
     database options or `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
     are ignored. **Default:** inherited from database options or `false`.
+  * `readNullAsUndefined` {boolean} If `true`, SQL `NULL` values are returned
+    as `undefined` instead of `null`. **Default:** `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
@@ -999,6 +1003,21 @@ JavaScript numbers are capable of representing. In such cases, this method can
 be used to read `INTEGER` data using JavaScript `BigInt`s. This method has no
 impact on database write operations where numbers and `BigInt`s are both
 supported at all times.
+
+### `statement.setReadNullAsUndefined(enabled)`
+
+<!-- YAML
+added:
+-->
+
+* `enabled` {boolean} Enables or disables returning SQL `NULL` values as
+  JavaScript `undefined` when reading from the database.
+
+When reading from the database, SQLite `NULL` values are mapped to JavaScript
+`null` by default. This method can be used to instead return `undefined` for
+`NULL` values when materialising result rows. This setting only affects how
+result rows are returned and does not impact values passed to user-defined
+functions or aggregate functions.
 
 ### `statement.sourceSQL`
 
