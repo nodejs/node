@@ -165,3 +165,26 @@ class TestWritable extends Writable {
   const writer = writableStream.getWriter();
   writer.closed.then(common.mustCall());
 }
+
+{
+  // Test that the stream doesn't hang when the underlying Writable
+  // emits 'drain' synchronously during write().
+  // Fixes: https://github.com/nodejs/node/issues/61145
+  const writable = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    },
+  });
+
+  // Force synchronous 'drain' emission during write()
+  // to simulate a stream that doesn't have Node.js's built-in kSync protection.
+  writable.write = function(chunk) {
+    this.emit('drain');
+    return false;
+  };
+
+  const writableStream = newWritableStreamFromStreamWritable(writable);
+  const writer = writableStream.getWriter();
+  writer.write(new Uint8Array([1, 2, 3])).then(common.mustCall());
+  writer.write(new Uint8Array([4, 5, 6])).then(common.mustCall());
+}
