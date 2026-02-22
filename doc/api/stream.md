@@ -3180,7 +3180,7 @@ Returns whether the stream has been read from or cancelled.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.14.0
     pr-url: https://github.com/nodejs/node/pull/58664
     description: Add 'type' option to specify 'bytes'.
   - version: v24.0.0
@@ -3376,7 +3376,7 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.14.0
     pr-url: https://github.com/nodejs/node/pull/58664
     description: Add 'type' option to specify 'bytes'.
   - version: v24.0.0

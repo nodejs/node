@@ -1693,7 +1693,7 @@ buffer(readable).then((data) => {
 #### `streamConsumers.bytes(stream)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.14.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}

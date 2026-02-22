@@ -92,7 +92,7 @@ callbackFunction((err, ret) => {
 ## `util.convertProcessSignalToExitCode(signalCode)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.14.0
 -->
 
 * `signalCode` {string} A signal name (e.g., `'SIGTERM'`, `'SIGKILL'`).
