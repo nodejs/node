@@ -298,7 +298,7 @@
         # once node-gyp supports them.
         'conditions': [
           ['clang==1', {
-            'LanguageStandard': 'stdcpp20',
+            'LanguageStandard': 'stdcpp23',
             'LanguageStandard_C': 'stdc11',
             'AdditionalOptions': [
               '/Zc:__cplusplus',
@@ -308,8 +308,8 @@
           }, {
             'AdditionalOptions': [
               '/Zc:__cplusplus',
-              # The following option enables c++20 on Windows. This is needed for V8 v12.4+
-              '-std:c++20',
+              # The following option enables c++23 on Windows.
+              '-std:c++23',
               # The following option reduces the "error C1060: compiler is out of heap space"
               '/Zm2000',
             ],
@@ -502,7 +502,7 @@
           '-fno-rtti',
           '-fno-exceptions',
           '-fno-strict-aliasing',
-          '-std=gnu++20',
+          '-std=gnu++23',
         ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
@@ -675,7 +675,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++20',  # -std=gnu++20
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++23',  # -std=gnu++23
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
