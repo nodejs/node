@@ -107,7 +107,7 @@ platforms. This is true regardless of entries in the table below.
 | Operating System | Architectures    | Versions                          | Support Type | Notes                                |
 | ---------------- | ---------------- | --------------------------------- | ------------ | ------------------------------------ |
 | GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
+| GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4      | Experimental | e.g. Alpine 3.19                     |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
 | GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24          |
