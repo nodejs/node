@@ -165,7 +165,7 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15  # v31.9.0
+      - uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
         with:
           extra_nix_config: sandbox = true
 
