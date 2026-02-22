@@ -97,6 +97,7 @@ const allExpectedKeys = new Set([
   'modules',
   'name',
   'napiVersion',
+  'optional',
   'options',
   'params',
   'pr-url',
@@ -158,5 +159,5 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
   assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));
 }
 
-assert.strictEqual(numberOfDeprecatedSections, 39); // Increase this number every time a new API is deprecated.
+assert.strictEqual(numberOfDeprecatedSections, 44); // Increase this number every time a new API is deprecated.
 assert.strictEqual(numberOfRemovedAPIs, 46); // Increase this number every time a section is marked as removed.
