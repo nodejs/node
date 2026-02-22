@@ -3118,5 +3118,13 @@
     "expected_match": {
       "hostname": { "input": "localhost", "groups": { "domain" : "localhost"} }
     }
+  },
+  {
+    "pattern": ["((?R)):"],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": ["(\\H):"],
+    "expected_obj": "error"
   }
 ]
