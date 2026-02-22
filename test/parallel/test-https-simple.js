@@ -55,15 +55,7 @@ for (const option of invalid_options) {
 
 const server = https.createServer(options, serverCallback);
 
-server.listen(0, common.mustCall(() => {
-  let tests = 0;
-
-  function done() {
-    if (--tests === 0)
-      server.close();
-  }
-
-  // Do a request ignoring the unauthorized server certs
+server.listen(0, common.mustCall(async () => {
   const port = server.address().port;
 
   const options = {
@@ -73,27 +65,28 @@ server.listen(0, common.mustCall(() => {
     method: 'GET',
     rejectUnauthorized: false
   };
-  tests++;
-  const req = https.request(options, common.mustCall((res) => {
-    let responseBody = '';
-    res.on('data', function(d) {
-      responseBody = responseBody + d;
-    });
 
-    res.on('end', common.mustCall(() => {
-      assert.strictEqual(responseBody, body);
-      done();
-    }));
-  }));
-  req.end();
+  // Do a request ignoring the unauthorized server certs
+  {
+    const req = https.request(options);
+    req.end();
+    const res = await new Promise((resolve) => req.on('response', resolve));
+    let responseBody = '';
+    res.setEncoding('utf8');
+    for await (const d of res) {
+      responseBody += d;
+    }
+    assert.strictEqual(responseBody, body);
+  }
 
   // Do a request that errors due to the invalid server certs
-  options.rejectUnauthorized = true;
-  tests++;
-  const checkCertReq = https.request(options, common.mustNotCall()).end();
+  {
+    options.rejectUnauthorized = true;
+    const req = https.request(options, common.mustNotCall());
+    req.end();
+    const err = await new Promise((resolve) => req.on('error', resolve));
+    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  }
 
-  checkCertReq.on('error', common.mustCall((e) => {
-    assert.strictEqual(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-    done();
-  }));
+  server.close();
 }));

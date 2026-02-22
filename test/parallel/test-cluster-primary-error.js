@@ -23,6 +23,8 @@
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
+const net = require('net');
+const { once } = require('events');
 
 const totalWorkers = 2;
 
@@ -30,6 +32,14 @@ const totalWorkers = 2;
 if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {}).listen(0, '127.0.0.1');
+
+  // Connect to the tracker server to signal liveness
+  const trackerPort = process.env.TRACKER_PORT;
+  if (trackerPort) {
+    net.connect(trackerPort).on('error', () => {
+      // Ignore errors, we just want to keep the connection open
+    });
+  }
 } else if (process.argv[2] === 'cluster') {
   // Send PID to testcase process
   let forkNum = 0;
@@ -67,38 +77,45 @@ if (cluster.isWorker) {
 } else {
   // This is the testcase
 
-  const fork = require('child_process').fork;
+  (async () => {
+    const tracker = net.createServer().listen(0);
+    await once(tracker, 'listening');
+    const { port } = tracker.address();
 
-  // List all workers
-  const workers = [];
+    let workersAlive = 0;
+    const workerDead = new Promise((resolve) => {
+      tracker.on('connection', (socket) => {
+        workersAlive++;
+        socket.on('error', () => {});
+        socket.on('close', () => {
+          if (--workersAlive === 0) {
+            resolve();
+          }
+        });
+      });
+    });
 
-  // Spawn a cluster process
-  const primary = fork(process.argv[1], ['cluster'], { silent: true });
+    const { fork } = require('child_process');
 
-  // Handle messages from the cluster
-  primary.on('message', common.mustCall((data) => {
-    // Add worker pid to list and progress tracker
-    if (data.cmd === 'worker') {
-      workers.push(data.workerPID);
-    }
-  }, totalWorkers));
+    // Spawn a cluster process
+    const primary = fork(process.argv[1], ['cluster'], {
+      silent: true,
+      env: { ...process.env, TRACKER_PORT: port }
+    });
 
-  // When cluster is dead
-  primary.on('exit', common.mustCall((code) => {
+    // Handle messages from the cluster
+    primary.on('message', common.mustCall((data) => {
+      // No longer need to track workers via PID for liveness
+    }, totalWorkers));
+
+    // When cluster is dead
+    const [code] = await once(primary, 'exit');
     // Check that the cluster died accidentally (non-zero exit code)
     assert.strictEqual(code, 1);
 
-    // XXX(addaleax): The fact that this uses raw PIDs makes the test inherently
-    // flaky – another process might end up being started right after the
-    // workers finished and receive the same PID.
-    const pollWorkers = () => {
-      // When primary is dead all workers should be dead too
-      if (workers.some((pid) => common.isAlive(pid))) {
-        setTimeout(pollWorkers, 50);
-      }
-    };
-
-    // Loop indefinitely until worker exit
-    pollWorkers();
-  }));
+    // Wait for all workers to close their connections to the tracker
+    // This ensures they are actually dead without relying on PIDs.
+    await workerDead;
+    tracker.close();
+  })().then(common.mustCall());
 }
