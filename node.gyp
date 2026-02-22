@@ -197,6 +197,7 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
+      'src/node_json_parser.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',

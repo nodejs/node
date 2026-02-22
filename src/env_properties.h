@@ -443,6 +443,9 @@
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
+  V(json_document_constructor_template, v8::FunctionTemplate)                  \
+  V(json_value_constructor_template, v8::FunctionTemplate)                     \
+  V(json_array_iterator_constructor_template, v8::FunctionTemplate)            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(txt_record_template, v8::DictionaryTemplate)                               \
   V(urlpatterncomponentresult_template, v8::DictionaryTemplate)                \
