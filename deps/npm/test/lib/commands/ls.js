@@ -5285,3 +5285,19 @@ t.test('ls --package-lock-only', async t => {
     })
   })
 })
+
+t.test('completion', async t => {
+  const { ls } = await mockNpm(t, {
+    command: 'ls',
+    prefixDir: {
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
+        },
+      },
+      'package.json': JSON.stringify({ name: 'project', version: '1.0.0' }),
+    },
+  })
+  const res = await ls.completion({ conf: { argv: { remain: ['npm', 'ls'] } } })
+  t.type(res, Array)
+})

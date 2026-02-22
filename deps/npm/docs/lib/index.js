@@ -22,7 +22,38 @@ const assertPlaceholder = (src, path, placeholder) => {
   return placeholder
 }
 
-const getCommandByDoc = (docFile, docExt) => {
+// Default command loader - loads commands from lib/commands
+const defaultCommandLoader = (name) => {
+  return require(`../../lib/commands/${name}`)
+}
+
+// Load a command using the provided loader or default
+const getCommand = (name, commandLoader = defaultCommandLoader) => {
+  return commandLoader(name)
+}
+
+// Resolve definitions for a command - use definitions if present, otherwise build from params
+const resolveDefinitions = (command) => {
+  // If command has definitions, use them directly (ignore params)
+  if (command.definitions && Object.keys(command.definitions).length > 0) {
+    return command.definitions
+  }
+
+  // Otherwise build from params using global definitions
+  if (command.params) {
+    const resolved = {}
+    for (const param of command.params) {
+      if (definitions[param]) {
+        resolved[param] = definitions[param]
+      }
+    }
+    return resolved
+  }
+
+  return {}
+}
+
+const getCommandByDoc = (docFile, docExt, commandLoader = defaultCommandLoader) => {
   // Grab the command name from the *.md filename
   // NOTE: We cannot use the name property command file because in the case of
   // `npx` the file being used is `lib/commands/exec.js`
@@ -31,7 +62,7 @@ const getCommandByDoc = (docFile, docExt) => {
   if (name === 'npm') {
     return {
       name,
-      params: null,
+      definitions: [],
       usage: 'npm',
     }
   }
@@ -40,15 +71,20 @@ const getCommandByDoc = (docFile, docExt) => {
   // `npx` is not technically a command in and of itself,
   // so it just needs the usage of npm exec
   const srcName = name === 'npx' ? 'exec' : name
-  const { params, usage = [''], workspaces } = require(`../../lib/commands/${srcName}`)
+  const command = getCommand(srcName, commandLoader)
+  const { usage = [''], workspaces } = command
   const usagePrefix = name === 'npx' ? 'npx' : `npm ${name}`
-  if (params) {
-    for (const param of params) {
-      if (definitions[param].exclusive) {
-        for (const e of definitions[param].exclusive) {
-          if (!params.includes(e)) {
-            params.splice(params.indexOf(param) + 1, 0, e)
-          }
+
+  // Resolve definitions - handles exclusive params expansion
+  const commandDefs = resolveDefinitions(command)
+  const resolvedDefs = {}
+  for (const [key, def] of Object.entries(commandDefs)) {
+    resolvedDefs[key] = def
+    // Handle exclusive params
+    if (def.exclusive) {
+      for (const e of def.exclusive) {
+        if (!resolvedDefs[e] && definitions[e]) {
+          resolvedDefs[e] = definitions[e]
         }
       }
     }
@@ -57,16 +93,16 @@ const getCommandByDoc = (docFile, docExt) => {
   return {
     name,
     workspaces,
-    params: name === 'npx' ? null : params,
+    definitions: name === 'npx' ? {} : resolvedDefs,
     usage: usage.map(u => `${usagePrefix} ${u}`.trim()).join('\n'),
   }
 }
 
 const replaceVersion = (src) => src.replace(/@VERSION@/g, version)
 
-const replaceUsage = (src, { path }) => {
+const replaceUsage = (src, { path, commandLoader }) => {
   const replacer = assertPlaceholder(src, path, TAGS.USAGE)
-  const { usage, name, workspaces } = getCommandByDoc(path, DOC_EXT)
+  const { usage, name, workspaces } = getCommandByDoc(path, DOC_EXT, commandLoader)
 
   const synopsis = ['```bash', usage]
 
@@ -92,17 +128,95 @@ const replaceUsage = (src, { path }) => {
   return src.replace(replacer, synopsis.join('\n'))
 }
 
-const replaceParams = (src, { path }) => {
-  const { params } = getCommandByDoc(path, DOC_EXT)
-  const replacer = params && assertPlaceholder(src, path, TAGS.CONFIG)
+// Helper to generate a markdown table from definitions
+const generateFlagsTable = (definitionPool) => {
+  const rows = Object.keys(definitionPool).map((n) => {
+    const def = definitionPool[n]
+    const flags = [`\`--${def.key}\``]
+    if (def.alias) {
+      flags.push(...def.alias.map(a => `\`--${a}\``))
+    }
+    if (def.short) {
+      flags.push(`\`-${def.short}\``)
+    }
+    const flagsStr = flags.join(', ')
+    let defaultVal = def.defaultDescription
+    if (!defaultVal) {
+      defaultVal = String(def.default)
+    }
+    let typeVal = def.typeDescription || String(def.type)
+    if (def.required) {
+      typeVal = `${typeVal} (required)`
+    }
+    const desc = (def.description || '').replace(/\n/g, ' ').trim()
+    return `| ${flagsStr} | ${defaultVal} | ${typeVal} | ${desc} |`
+  })
 
-  if (!params) {
+  return [
+    '| Flag | Default | Type | Description |',
+    '| --- | --- | --- | --- |',
+    ...rows,
+  ].join('\n')
+}
+
+const replaceDefinitions = (src, { path, commandLoader }) => {
+  const { definitions: commandDefs, name } = getCommandByDoc(path, DOC_EXT, commandLoader)
+
+  let subcommands = {}
+  try {
+    const command = getCommand(name, commandLoader)
+    subcommands = command.subcommands || {}
+  } catch {
+    // Command doesn't exist
+  }
+
+  // If no definitions and no subcommands, nothing to replace
+  if (Object.keys(commandDefs).length === 0 && Object.keys(subcommands).length === 0) {
     return src
   }
 
-  const paramsConfig = params.map((n) => definitions[n].describe())
+  // Assert placeholder is present
+  const replacer = assertPlaceholder(src, path, TAGS.CONFIG)
 
-  return src.replace(replacer, paramsConfig.join('\n\n'))
+  // If command has subcommands, generate sections for each subcommand
+  if (Object.keys(subcommands).length > 0) {
+    const subcommandSections = Object.entries(subcommands).map(([subName, SubCommand]) => {
+      const subUsage = SubCommand.usage || []
+      const subDefs = resolveDefinitions(SubCommand)
+
+      const parts = [`### \`npm ${name} ${subName}\``, '']
+
+      if (SubCommand.description) {
+        parts.push(SubCommand.description, '')
+      }
+
+      // Add usage/synopsis
+      if (subUsage.length > 0) {
+        parts.push('#### Synopsis', '', '```bash')
+        subUsage.forEach(u => {
+          parts.push(`npm ${name} ${subName} ${u}`.trim())
+        })
+        parts.push('```', '')
+      }
+
+      // Add flags section if definitions exist
+      if (Object.keys(subDefs).length > 0) {
+        parts.push('#### Flags', '')
+        parts.push(generateFlagsTable(subDefs), '')
+      }
+
+      return parts.join('\n')
+    })
+
+    return src.replace(replacer, subcommandSections.join('\n'))
+  }
+
+  // For commands without subcommands - commandDefs must be non-empty here
+  // (we would have returned early at line 175 if both were empty)
+  const paramDescriptions = Object.values(commandDefs)
+    .map(def => def.describe())
+
+  return src.replace(replacer, paramDescriptions.join('\n\n'))
 }
 
 const replaceConfig = (src, { path }) => {
@@ -177,7 +291,7 @@ module.exports = {
     md: resolve(__dirname, '..', 'content'),
   },
   usage: replaceUsage,
-  params: replaceParams,
+  definitions: replaceDefinitions,
   config: replaceConfig,
   shorthands: replaceShorthands,
   version: replaceVersion,

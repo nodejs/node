@@ -134,9 +134,9 @@ silly logfile done cleaning log files
 verbose stack Error: The developer of this package has specified the following through devEngines
 verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
-verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
+verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:244:27)
+verbose stack     at MockNpm.execCommandClass ({CWD}/lib/npm.js:310:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:209:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid devEngines.runtime
@@ -199,9 +199,9 @@ warn EBADDEVENGINES }
 verbose stack Error: The developer of this package has specified the following through devEngines
 verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
-verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
+verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:244:27)
+verbose stack     at MockNpm.execCommandClass ({CWD}/lib/npm.js:310:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:209:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid devEngines.runtime
@@ -225,9 +225,9 @@ silly logfile done cleaning log files
 verbose stack Error: The developer of this package has specified the following through devEngines
 verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
-verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
+verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:244:27)
+verbose stack     at MockNpm.execCommandClass ({CWD}/lib/npm.js:310:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:209:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid devEngines.runtime

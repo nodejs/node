@@ -337,7 +337,7 @@ class Display {
         log.resume()
         // For silent prompts (like password), add newline to preserve output
         if (meta?.silent) {
-          output.standard('')
+          output.standard()
         }
         output.flush()
         this.#progress.resume()
@@ -360,7 +360,7 @@ class Display {
           })
           .catch((error) => {
             // If user hits ctrl+c, add newline to preserve output.
-            output.standard('')
+            output.standard()
             input.end()
             rej(error)
           })

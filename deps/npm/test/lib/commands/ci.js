@@ -308,3 +308,142 @@ t.test('should use --workspace flag', async t => {
   assert.packageMissing('node_modules/abbrev@1.1.0')
   assert.packageInstalled('node_modules/lodash@1.1.1')
 })
+
+// Issue #8726 - npm ci fails because npm install produces an out-of-sync lockfile
+// https://github.com/npm/cli/issues/8726
+//
+// Root cause: an optional peerDependency at an exact version causes buildIdealTree() to resolve a different version than what's in the lockfile.
+//
+// Pattern (mirrors real-world addons-linter / htmlhint / node-fetch scenario):
+//   - scanner@1.0.0 has optional peerDep: fetcher@1.0.0 (exact version)
+//   - hint@1.0.0 has regular dep: fetcher@^1.0.0 (semver range)
+//   - npm install resolves fetcher to 1.1.0 (latest matching ^1.0.0)
+//   - npm ci's buildIdealTree sees fetcher@1.1.0 doesn't satisfy the exact peerDep "1.0.0", treats it as a problem edge, resolves fetcher to 1.0.0
+//   - validateLockfile: lockfile has 1.1.0, ideal tree has 1.0.0 → MISMATCH
+
+t.test('issue-8726: npm ci with optional peerDep causing lockfile version mismatch', async t => {
+  // Pre-built lockfile locks fetcher@1.1.0 (what npm install would pick).
+  // scanner has optional peerDep fetcher@1.0.0 (exact version).
+  // buildIdealTree should respect the lockfile version, but the bug causes it to resolve fetcher to 1.0.0, failing validateLockfile.
+  const { npm, registry } = await loadMockNpm(t, {
+    config: { audit: false, 'ignore-scripts': true },
+    strictRegistryNock: false,
+    prefixDir: {
+      'linter-tarball': {
+        'package.json': JSON.stringify({
+          name: 'linter',
+          version: '1.0.0',
+          dependencies: { scanner: '1.0.0' },
+        }),
+      },
+      'scanner-tarball': {
+        'package.json': JSON.stringify({
+          name: 'scanner',
+          version: '1.0.0',
+          peerDependencies: { fetcher: '1.0.0' },
+          peerDependenciesMeta: { fetcher: { optional: true } },
+        }),
+      },
+      'hint-tarball': {
+        'package.json': JSON.stringify({
+          name: 'hint',
+          version: '1.0.0',
+          dependencies: { fetcher: '^1.0.0' },
+        }),
+      },
+      'fetcher-1.0.0-tarball': {
+        'package.json': JSON.stringify({ name: 'fetcher', version: '1.0.0' }),
+      },
+      'fetcher-1.1.0-tarball': {
+        'package.json': JSON.stringify({ name: 'fetcher', version: '1.1.0' }),
+      },
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+        devDependencies: {
+          linter: '1.0.0',
+          hint: '1.0.0',
+        },
+      }),
+      'package-lock.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: {
+          '': {
+            name: 'test-package',
+            version: '1.0.0',
+            devDependencies: { linter: '1.0.0', hint: '1.0.0' },
+          },
+          'node_modules/linter': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/linter/-/linter-1.0.0.tgz',
+            dev: true,
+            dependencies: { scanner: '1.0.0' },
+          },
+          'node_modules/scanner': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/scanner/-/scanner-1.0.0.tgz',
+            dev: true,
+            peerDependencies: { fetcher: '1.0.0' },
+            peerDependenciesMeta: { fetcher: { optional: true } },
+          },
+          'node_modules/hint': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/hint/-/hint-1.0.0.tgz',
+            dev: true,
+            dependencies: { fetcher: '^1.0.0' },
+          },
+          'node_modules/fetcher': {
+            version: '1.1.0',
+            resolved: 'https://registry.npmjs.org/fetcher/-/fetcher-1.1.0.tgz',
+            dev: true,
+          },
+        },
+      }),
+    },
+  })
+
+  // With the fix, buildIdealTree no longer treats the invalid peerOptional edge as a problem, so npm ci proceeds to reification and needs tarballs.
+  const linterManifest = registry.manifest({ name: 'linter' })
+  await registry.tarball({
+    manifest: linterManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'linter-tarball'),
+  })
+
+  const scannerManifest = registry.manifest({ name: 'scanner' })
+  await registry.tarball({
+    manifest: scannerManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'scanner-tarball'),
+  })
+
+  const hintManifest = registry.manifest({ name: 'hint' })
+  await registry.tarball({
+    manifest: hintManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'hint-tarball'),
+  })
+
+  const fetcherManifest = registry.manifest({
+    name: 'fetcher',
+    versions: ['1.0.0', '1.1.0'],
+  })
+  await registry.tarball({
+    manifest: fetcherManifest.versions['1.1.0'],
+    tarball: path.join(npm.prefix, 'fetcher-1.1.0-tarball'),
+  })
+
+  // npm ci should succeed - the lockfile is valid and the fix ensures the peerOptional edge doesn't cause a version mismatch.
+  await npm.exec('ci', [])
+
+  const installedFetcher = JSON.parse(
+    fs.readFileSync(
+      path.join(npm.prefix, 'node_modules', 'fetcher', 'package.json'), 'utf8'
+    )
+  )
+  t.equal(
+    installedFetcher.version,
+    '1.1.0',
+    'installed the locked fetcher version, not the peer dep version'
+  )
+})

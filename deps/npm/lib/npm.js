@@ -26,7 +26,7 @@ class Npm {
         command: c,
       })
     }
-    return require(`./commands/${command}.js`)
+    return require(`./commands/${command}`)
   }
 
   unrefPromises = []
@@ -72,6 +72,7 @@ class Npm {
       shorthands,
       argv: [...process.argv, ...argv],
       excludeNpmCwd,
+      warn: false,
     })
   }
 
@@ -227,8 +228,64 @@ class Npm {
       process.env.npm_command = this.command
     }
 
+    // Only log warnings for legacy commands without definitions or subcommands
+    // Commands with definitions will handle warnings in base-cmd flags()
+    // Commands with subcommands will delegate to the subcommand to handle warnings
+    if (!Command.definitions && !Command.subcommands) {
+      this.config.logWarnings()
+    }
+
+    // this needs to be rest after because some commands run
+    // this.npm.config.checkUnknown('publishConfig', key)
+    this.config.warn = true
+
+    return this.execCommandClass(command, args, [cmd])
+  }
+
+  // Unified command execution for both top-level commands and subcommands
+  // Supports n-depth subcommands, workspaces, and definitions
+  async execCommandClass (commandInstance, args, commandPath = []) {
+    const Command = commandInstance.constructor
+    const commandName = commandPath.join(':')
+
+    // Handle subcommands if present
+    if (Command.subcommands) {
+      const subcommandName = args[0]
+
+      // If help is requested without a subcommand, show main command help
+      if (this.config.get('usage') && !subcommandName) {
+        return output.standard(commandInstance.usage)
+      }
+
+      // If no subcommand provided, show usage error
+      if (!subcommandName) {
+        throw commandInstance.usageError()
+      }
+
+      // Check if the subcommand exists
+      const SubCommand = Command.subcommands[subcommandName]
+      if (!SubCommand) {
+        throw commandInstance.usageError(`Unknown subcommand: ${subcommandName}`)
+      }
+
+      // Check if help is requested for the subcommand
+      if (this.config.get('usage')) {
+        const parentName = commandPath[0]
+        return output.standard(SubCommand.getUsage(parentName))
+      }
+
+      // Create subcommand instance and recurse
+      const subcommandInstance = new SubCommand(this)
+      const subcommandArgs = args.slice(1) // Remove subcommand name from args
+      const subcommandPath = [...commandPath, subcommandName]
+
+      return time.start(`command:${subcommandPath.join(':')}`, () =>
+        this.execCommandClass(subcommandInstance, subcommandArgs, subcommandPath))
+    }
+
+    // No subcommands - execute this command
     if (this.config.get('usage')) {
-      return output.standard(command.usage)
+      return output.standard(commandInstance.usage)
     }
 
     let execWorkspaces = false
@@ -248,12 +305,26 @@ class Npm {
       execWorkspaces = true
     }
 
-    if (command.checkDevEngines && !this.global) {
-      await command.checkDevEngines()
+    // Check dev engines if needed
+    if (commandInstance.checkDevEngines && !this.global) {
+      await commandInstance.checkDevEngines()
     }
 
-    return time.start(`command:${cmd}`, () =>
-      execWorkspaces ? command.execWorkspaces(args) : command.exec(args))
+    // Execute command with or without definitions
+    if (Command.definitions) {
+      // config.argv contains the full argv with flags (set by Config in production, by MockNpm in tests)
+      // Pass depth so flags() knows how many command names to skip
+      const [flags, positionalArgs] = commandInstance.flags(commandPath.length)
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces
+          ? commandInstance.execWorkspaces(positionalArgs, flags)
+          : commandInstance.exec(positionalArgs, flags))
+    } else {
+      // Legacy commands without definitions
+      this.config.logWarnings()
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces ? commandInstance.execWorkspaces(args) : commandInstance.exec(args))
+    }
   }
 
   // This gets called at the end of the exit handler and

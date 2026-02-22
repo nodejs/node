@@ -470,14 +470,20 @@ const DirFetcher = require('./dir.js')
 const RemoteFetcher = require('./remote.js')
 
 // possible values for allow: 'all', 'root', 'none'
-const canUseGit = (allow = 'all', isRoot = false) => {
+const canUse = ({ allow = 'all', isRoot = false, allowType, spec }) => {
   if (allow === 'all') {
     return true
   }
   if (allow !== 'none' && isRoot) {
     return true
   }
-  return false
+  throw Object.assign(
+    new Error(`Fetching${allow === 'root' ? ' non-root' : ''} packages of type "${allowType}" have been disabled`),
+    {
+      code: `EALLOW${allowType.toUpperCase()}`,
+      package: spec.toString(),
+    }
+  )
 }
 
 // Get an appropriate fetcher object from a spec and options
@@ -485,18 +491,11 @@ FetcherBase.get = (rawSpec, opts = {}) => {
   const spec = npa(rawSpec, opts.where)
   switch (spec.type) {
     case 'git':
-      if (!canUseGit(opts.allowGit, opts._isRoot)) {
-        throw Object.assign(
-          new Error(`Fetching${opts.allowGit === 'root' ? ' non-root' : ''} packages from git has been disabled`),
-          {
-            code: 'EALLOWGIT',
-            package: spec.toString(),
-          }
-        )
-      }
+      canUse({ allow: opts.allowGit, isRoot: opts._isRoot, allowType: 'git', spec })
       return new GitFetcher(spec, opts)
 
     case 'remote':
+      canUse({ allow: opts.allowRemote, isRoot: opts._isRoot, allowType: 'remote', spec })
       return new RemoteFetcher(spec, opts)
 
     case 'version':
@@ -506,9 +505,11 @@ FetcherBase.get = (rawSpec, opts = {}) => {
       return new RegistryFetcher(spec.subSpec || spec, opts)
 
     case 'file':
+      canUse({ allow: opts.allowFile, isRoot: opts._isRoot, allowType: 'file', spec })
       return new FileFetcher(spec, opts)
 
     case 'directory':
+      canUse({ allow: opts.allowDirectory, isRoot: opts._isRoot, allowType: 'directory', spec })
       return new DirFetcher(spec, opts)
 
     default:
