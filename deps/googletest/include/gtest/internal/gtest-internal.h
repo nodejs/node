@@ -1452,8 +1452,7 @@ class [[nodiscard]] NeverThrown {
     ;                                                                 \
   else                                                                \
     fail(::testing::internal::GetBoolAssertionFailureMessage(         \
-             gtest_ar_, text, #actual, #expected)                     \
-             .c_str())
+        gtest_ar_, text, #actual, #expected))
 
 #define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail)               \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_                                     \
