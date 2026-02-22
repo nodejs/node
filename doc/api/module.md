@@ -66,6 +66,46 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.customConditions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Set<string>}
+
+The custom resolution conditions specified by the user. The default Node.js conditions are not included.
+
+For example, assuming the following script for `module-customconditions.js`:
+
+```mjs
+import module from 'node:module';
+
+if (module.customConditions.has('development')) {
+  console.warn('warning: running in development mode');
+}
+```
+
+```cjs
+const module = require('node:module');
+
+if (module.customConditions.has('development')) {
+  console.warn('warning: running in development mode');
+}
+```
+
+Launching the Node.js process as:
+
+```console
+$ node -C development module-customconditions.js
+```
+
+Would generate the output:
+
+```text
+warning: running in development mode
+```
+
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
