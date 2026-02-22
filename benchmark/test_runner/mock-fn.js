@@ -4,13 +4,20 @@ const common = require('../common');
 const assert = require('node:assert');
 const { test } = require('node:test');
 
-const bench = common.createBenchmark(main, {
-  n: [1e6],
-  mode: ['define', 'execute'],
-}, {
-  // We don't want to test the reporter here
-  flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    n: [1e6],
+    mode: ['define', 'execute'],
+  },
+  {
+    // We don't want to test the reporter here
+    flags: [
+      '--test-reporter=./benchmark/fixtures/empty-test-reporter.js',
+      '--test-reporter-destination=stdout',
+    ],
+  },
+);
 
 const noop = () => {};
 
