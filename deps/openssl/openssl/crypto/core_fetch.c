@@ -57,8 +57,8 @@ static int ossl_method_construct_unreserve_store(void *cbdata)
 }
 
 static int ossl_method_construct_precondition(OSSL_PROVIDER *provider,
-                                              int operation_id, int no_store,
-                                              void *cbdata, int *result)
+    int operation_id, int no_store,
+    void *cbdata, int *result)
 {
     if (!ossl_assert(result != NULL)) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
@@ -84,8 +84,8 @@ static int ossl_method_construct_precondition(OSSL_PROVIDER *provider,
 }
 
 static int ossl_method_construct_postcondition(OSSL_PROVIDER *provider,
-                                               int operation_id, int no_store,
-                                               void *cbdata, int *result)
+    int operation_id, int no_store,
+    void *cbdata, int *result)
 {
     if (!ossl_assert(result != NULL)) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
@@ -100,8 +100,8 @@ static int ossl_method_construct_postcondition(OSSL_PROVIDER *provider,
 }
 
 static void ossl_method_construct_this(OSSL_PROVIDER *provider,
-                                       const OSSL_ALGORITHM *algo,
-                                       int no_store, void *cbdata)
+    const OSSL_ALGORITHM *algo,
+    int no_store, void *cbdata)
 {
     struct construct_data_st *data = cbdata;
     void *method = NULL;
@@ -121,16 +121,16 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
      * of the passed method.
      */
     data->mcm->put(no_store ? data->store : NULL,
-                   method, provider, algo->algorithm_names,
-                   algo->property_definition, data->mcm_data);
+        method, provider, algo->algorithm_names,
+        algo->property_definition, data->mcm_data);
 
     /* refcnt-- because we're dropping the reference */
     data->mcm->destruct(method, data->mcm_data);
 }
 
 void *ossl_method_construct(OSSL_LIB_CTX *libctx, int operation_id,
-                            OSSL_PROVIDER **provider_rw, int force_store,
-                            OSSL_METHOD_CONSTRUCT_METHOD *mcm, void *mcm_data)
+    OSSL_PROVIDER **provider_rw, int force_store,
+    OSSL_METHOD_CONSTRUCT_METHOD *mcm, void *mcm_data)
 {
     void *method = NULL;
     OSSL_PROVIDER *provider = provider_rw != NULL ? *provider_rw : NULL;
@@ -152,17 +152,17 @@ void *ossl_method_construct(OSSL_LIB_CTX *libctx, int operation_id,
     cbdata.mcm = mcm;
     cbdata.mcm_data = mcm_data;
     ossl_algorithm_do_all(libctx, operation_id, provider,
-                          ossl_method_construct_precondition,
-                          ossl_method_construct_reserve_store,
-                          ossl_method_construct_this,
-                          ossl_method_construct_unreserve_store,
-                          ossl_method_construct_postcondition,
-                          &cbdata);
+        ossl_method_construct_precondition,
+        ossl_method_construct_reserve_store,
+        ossl_method_construct_this,
+        ossl_method_construct_unreserve_store,
+        ossl_method_construct_postcondition,
+        &cbdata);
 
     /* If there is a temporary store, try there first */
     if (cbdata.store != NULL)
         method = mcm->get(cbdata.store, (const OSSL_PROVIDER **)provider_rw,
-                          mcm_data);
+            mcm_data);
 
     /* If no method was found yet, try the global store */
     if (method == NULL)

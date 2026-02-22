@@ -26,7 +26,7 @@
 
 #ifndef OPENSSL_NO_SM2
 
-# include "crypto/sm2.h"
+#include "crypto/sm2.h"
 
 static fake_random_generate_cb get_faked_bytes;
 
@@ -36,8 +36,8 @@ static size_t fake_rand_bytes_offset = 0;
 static size_t fake_rand_size = 0;
 
 static int get_faked_bytes(unsigned char *buf, size_t num,
-                           ossl_unused const char *name,
-                           ossl_unused EVP_RAND_CTX *ctx)
+    ossl_unused const char *name,
+    ossl_unused EVP_RAND_CTX *ctx)
 {
     if (!TEST_ptr(fake_rand_bytes) || !TEST_size_t_gt(fake_rand_size, 0))
         return 0;
@@ -62,7 +62,6 @@ static int start_fake_rand(const char *hex_bytes)
     /* use own random function */
     fake_rand_set_public_private_callbacks(NULL, get_faked_bytes);
     return 1;
-
 }
 
 static void restore_rand(void)
@@ -74,9 +73,9 @@ static void restore_rand(void)
 }
 
 static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
-                                 const char *b_hex, const char *x_hex,
-                                 const char *y_hex, const char *order_hex,
-                                 const char *cof_hex)
+    const char *b_hex, const char *x_hex,
+    const char *y_hex, const char *order_hex,
+    const char *cof_hex)
 {
     BIGNUM *p = NULL;
     BIGNUM *a = NULL;
@@ -90,8 +89,8 @@ static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
     int ok = 0;
 
     if (!TEST_true(BN_hex2bn(&p, p_hex))
-            || !TEST_true(BN_hex2bn(&a, a_hex))
-            || !TEST_true(BN_hex2bn(&b, b_hex)))
+        || !TEST_true(BN_hex2bn(&a, a_hex))
+        || !TEST_true(BN_hex2bn(&b, b_hex)))
         goto done;
 
     group = EC_GROUP_new_curve_GFp(p, a, b, NULL);
@@ -103,14 +102,14 @@ static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
         goto done;
 
     if (!TEST_true(BN_hex2bn(&g_x, x_hex))
-            || !TEST_true(BN_hex2bn(&g_y, y_hex))
-            || !TEST_true(EC_POINT_set_affine_coordinates(group, generator, g_x,
-                                                          g_y, NULL)))
+        || !TEST_true(BN_hex2bn(&g_y, y_hex))
+        || !TEST_true(EC_POINT_set_affine_coordinates(group, generator, g_x,
+            g_y, NULL)))
         goto done;
 
     if (!TEST_true(BN_hex2bn(&order, order_hex))
-            || !TEST_true(BN_hex2bn(&cof, cof_hex))
-            || !TEST_true(EC_GROUP_set_generator(group, generator, order, cof)))
+        || !TEST_true(BN_hex2bn(&cof, cof_hex))
+        || !TEST_true(EC_GROUP_set_generator(group, generator, order, cof)))
         goto done;
 
     ok = 1;
@@ -132,10 +131,10 @@ done:
 }
 
 static int test_sm2_crypt(const EC_GROUP *group,
-                          const EVP_MD *digest,
-                          const char *privkey_hex,
-                          const char *message,
-                          const char *k_hex, const char *ctext_hex)
+    const EVP_MD *digest,
+    const char *privkey_hex,
+    const char *message,
+    const char *k_hex, const char *ctext_hex)
 {
     const size_t msg_len = strlen(message);
     BIGNUM *priv = NULL;
@@ -150,21 +149,21 @@ static int test_sm2_crypt(const EC_GROUP *group,
     int rc = 0;
 
     if (!TEST_ptr(expected)
-            || !TEST_true(BN_hex2bn(&priv, privkey_hex)))
+        || !TEST_true(BN_hex2bn(&priv, privkey_hex)))
         goto done;
 
     key = EC_KEY_new();
     if (!TEST_ptr(key)
-            || !TEST_true(EC_KEY_set_group(key, group))
-            || !TEST_true(EC_KEY_set_private_key(key, priv)))
+        || !TEST_true(EC_KEY_set_group(key, group))
+        || !TEST_true(EC_KEY_set_private_key(key, priv)))
         goto done;
 
     pt = EC_POINT_new(group);
     if (!TEST_ptr(pt)
-            || !TEST_true(EC_POINT_mul(group, pt, priv, NULL, NULL, NULL))
-            || !TEST_true(EC_KEY_set_public_key(key, pt))
-            || !TEST_true(ossl_sm2_ciphertext_size(key, digest, msg_len,
-                                                   &ctext_len)))
+        || !TEST_true(EC_POINT_mul(group, pt, priv, NULL, NULL, NULL))
+        || !TEST_true(EC_KEY_set_public_key(key, pt))
+        || !TEST_true(ossl_sm2_ciphertext_size(key, digest, msg_len,
+            &ctext_len)))
         goto done;
 
     ctext = OPENSSL_zalloc(ctext_len);
@@ -173,8 +172,8 @@ static int test_sm2_crypt(const EC_GROUP *group,
 
     start_fake_rand(k_hex);
     if (!TEST_true(ossl_sm2_encrypt(key, digest,
-                                    (const uint8_t *)message, msg_len,
-                                    ctext, &ctext_len))) {
+            (const uint8_t *)message, msg_len,
+            ctext, &ctext_len))) {
         restore_rand();
         goto done;
     }
@@ -184,19 +183,19 @@ static int test_sm2_crypt(const EC_GROUP *group,
         goto done;
 
     if (!TEST_true(ossl_sm2_plaintext_size(ctext, ctext_len, &ptext_len))
-            || !TEST_int_eq(ptext_len, msg_len))
+        || !TEST_int_eq(ptext_len, msg_len))
         goto done;
 
     recovered = OPENSSL_zalloc(ptext_len);
     if (!TEST_ptr(recovered)
-            || !TEST_true(ossl_sm2_decrypt(key, digest, ctext, ctext_len,
-                                           recovered, &recovered_len))
-            || !TEST_int_eq(recovered_len, msg_len)
-            || !TEST_mem_eq(recovered, recovered_len, message, msg_len))
+        || !TEST_true(ossl_sm2_decrypt(key, digest, ctext, ctext_len,
+            recovered, &recovered_len))
+        || !TEST_int_eq(recovered_len, msg_len)
+        || !TEST_mem_eq(recovered, recovered_len, message, msg_len))
         goto done;
 
     rc = 1;
- done:
+done:
     BN_free(priv);
     EC_POINT_free(pt);
     OPENSSL_free(ctext);
@@ -210,15 +209,13 @@ static int sm2_crypt_test(void)
 {
     int testresult = 0;
     EC_GROUP *gm_group = NULL;
-    EC_GROUP *test_group =
-        create_EC_group
-        ("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3",
-         "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498",
-         "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A",
-         "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D",
-         "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2",
-         "8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7",
-         "1");
+    EC_GROUP *test_group = create_EC_group("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3",
+        "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498",
+        "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A",
+        "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D",
+        "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2",
+        "8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7",
+        "1");
 
     if (!TEST_ptr(test_group))
         goto done;
@@ -254,13 +251,13 @@ static int sm2_crypt_test(void)
 
     /* From Annex C in both GM/T0003.5-2012 and GB/T 32918.5-2016.*/
     gm_group = create_EC_group(
-         "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff",
-         "fffffffeffffffffffffffffffffffffffffffff00000000fffffffffffffffc",
-         "28e9fa9e9d9f5e344d5a9e4bcf6509a7f39789f515ab8f92ddbcbd414d940e93",
-         "32c4ae2c1f1981195f9904466a39c9948fe30bbff2660be1715a4589334c74c7",
-         "bc3736a2f4f6779c59bdcee36b692153d0a9877cc62a474002df32e52139f0a0",
-         "fffffffeffffffffffffffffffffffff7203df6b21c6052b53bbf40939d54123",
-         "1");
+        "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff",
+        "fffffffeffffffffffffffffffffffffffffffff00000000fffffffffffffffc",
+        "28e9fa9e9d9f5e344d5a9e4bcf6509a7f39789f515ab8f92ddbcbd414d940e93",
+        "32c4ae2c1f1981195f9904466a39c9948fe30bbff2660be1715a4589334c74c7",
+        "bc3736a2f4f6779c59bdcee36b692153d0a9877cc62a474002df32e52139f0a0",
+        "fffffffeffffffffffffffffffffffff7203df6b21c6052b53bbf40939d54123",
+        "1");
 
     if (!TEST_ptr(gm_group))
         goto done;
@@ -280,19 +277,19 @@ static int sm2_crypt_test(void)
              * in GM/T 0009-2012 (Sec. 7.2).
              */
             "307C" /* SEQUENCE, 0x7c bytes */
-              "0220" /* INTEGER, 0x20 bytes */
-                "04EBFC718E8D1798620432268E77FEB6415E2EDE0E073C0F4F640ECD2E149A73"
-              "0221" /* INTEGER, 0x21 bytes */
-                "00" /* leading 00 due to DER for pos. int with topmost bit set */
-                "E858F9D81E5430A57B36DAAB8F950A3C64E6EE6A63094D99283AFF767E124DF0"
-              "0420" /* OCTET STRING, 0x20 bytes */
-                "59983C18F809E262923C53AEC295D30383B54E39D609D160AFCB1908D0BD8766"
-              "0413" /* OCTET STRING, 0x13 bytes */
-                "21886CA989CA9C7D58087307CA93092D651EFA"))
+            "0220" /* INTEGER, 0x20 bytes */
+            "04EBFC718E8D1798620432268E77FEB6415E2EDE0E073C0F4F640ECD2E149A73"
+            "0221" /* INTEGER, 0x21 bytes */
+            "00" /* leading 00 due to DER for pos. int with topmost bit set */
+            "E858F9D81E5430A57B36DAAB8F950A3C64E6EE6A63094D99283AFF767E124DF0"
+            "0420" /* OCTET STRING, 0x20 bytes */
+            "59983C18F809E262923C53AEC295D30383B54E39D609D160AFCB1908D0BD8766"
+            "0413" /* OCTET STRING, 0x13 bytes */
+            "21886CA989CA9C7D58087307CA93092D651EFA"))
         goto done;
 
     testresult = 1;
- done:
+done:
     EC_GROUP_free(test_group);
     EC_GROUP_free(gm_group);
 
@@ -300,13 +297,13 @@ static int sm2_crypt_test(void)
 }
 
 static int test_sm2_sign(const EC_GROUP *group,
-                         const char *userid,
-                         const char *privkey_hex,
-                         const char *message,
-                         const char *k_hex,
-                         const char *r_hex,
-                         const char *s_hex,
-                         int omit_pubkey)
+    const char *userid,
+    const char *privkey_hex,
+    const char *message,
+    const char *k_hex,
+    const char *r_hex,
+    const char *s_hex,
+    int omit_pubkey)
 {
     const size_t msg_len = strlen(message);
     int ok = 0;
@@ -324,21 +321,21 @@ static int test_sm2_sign(const EC_GROUP *group,
 
     key = EC_KEY_new();
     if (!TEST_ptr(key)
-            || !TEST_true(EC_KEY_set_group(key, group))
-            || !TEST_true(EC_KEY_set_private_key(key, priv)))
+        || !TEST_true(EC_KEY_set_group(key, group))
+        || !TEST_true(EC_KEY_set_private_key(key, priv)))
         goto done;
 
     if (omit_pubkey == 0) {
         pt = EC_POINT_new(group);
         if (!TEST_ptr(pt)
-                || !TEST_true(EC_POINT_mul(group, pt, priv, NULL, NULL, NULL))
-                || !TEST_true(EC_KEY_set_public_key(key, pt)))
+            || !TEST_true(EC_POINT_mul(group, pt, priv, NULL, NULL, NULL))
+            || !TEST_true(EC_KEY_set_public_key(key, pt)))
             goto done;
     }
 
     start_fake_rand(k_hex);
     sig = ossl_sm2_do_sign(key, EVP_sm3(), (const uint8_t *)userid,
-                           strlen(userid), (const uint8_t *)message, msg_len);
+        strlen(userid), (const uint8_t *)message, msg_len);
     if (!TEST_ptr(sig)) {
         restore_rand();
         goto done;
@@ -348,18 +345,18 @@ static int test_sm2_sign(const EC_GROUP *group,
     ECDSA_SIG_get0(sig, &sig_r, &sig_s);
 
     if (!TEST_true(BN_hex2bn(&r, r_hex))
-            || !TEST_true(BN_hex2bn(&s, s_hex))
-            || !TEST_BN_eq(r, sig_r)
-            || !TEST_BN_eq(s, sig_s))
+        || !TEST_true(BN_hex2bn(&s, s_hex))
+        || !TEST_BN_eq(r, sig_r)
+        || !TEST_BN_eq(s, sig_s))
         goto done;
 
     ok = ossl_sm2_do_verify(key, EVP_sm3(), sig, (const uint8_t *)userid,
-                            strlen(userid), (const uint8_t *)message, msg_len);
+        strlen(userid), (const uint8_t *)message, msg_len);
 
     /* We goto done whether this passes or fails */
     TEST_true(ok);
 
- done:
+done:
     ECDSA_SIG_free(sig);
     EC_POINT_free(pt);
     EC_KEY_free(key);
@@ -374,51 +371,49 @@ static int sm2_sig_test(void)
 {
     int testresult = 0;
     /* From draft-shen-sm2-ecdsa-02 */
-    EC_GROUP *test_group =
-        create_EC_group
-        ("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3",
-         "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498",
-         "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A",
-         "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D",
-         "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2",
-         "8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7",
-         "1");
+    EC_GROUP *test_group = create_EC_group("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3",
+        "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498",
+        "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A",
+        "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D",
+        "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2",
+        "8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7",
+        "1");
 
     if (!TEST_ptr(test_group))
         goto done;
 
     if (!TEST_true(test_sm2_sign(
-                        test_group,
-                        "ALICE123@YAHOO.COM",
-                        "128B2FA8BD433C6C068C8D803DFF79792A519A55171B1B650C23661D15897263",
-                        "message digest",
-                        "006CB28D99385C175C94F94E934817663FC176D925DD72B727260DBAAE1FB2F96F"
-                        "007c47811054c6f99613a578eb8453706ccb96384fe7df5c171671e760bfa8be3a",
-                        "40F1EC59F793D9F49E09DCEF49130D4194F79FB1EED2CAA55BACDB49C4E755D1",
-                        "6FC6DAC32C5D5CF10C77DFB20F7C2EB667A457872FB09EC56327A67EC7DEEBE7", 0)))
+            test_group,
+            "ALICE123@YAHOO.COM",
+            "128B2FA8BD433C6C068C8D803DFF79792A519A55171B1B650C23661D15897263",
+            "message digest",
+            "006CB28D99385C175C94F94E934817663FC176D925DD72B727260DBAAE1FB2F96F"
+            "007c47811054c6f99613a578eb8453706ccb96384fe7df5c171671e760bfa8be3a",
+            "40F1EC59F793D9F49E09DCEF49130D4194F79FB1EED2CAA55BACDB49C4E755D1",
+            "6FC6DAC32C5D5CF10C77DFB20F7C2EB667A457872FB09EC56327A67EC7DEEBE7", 0)))
         goto done;
 
     /* Make sure we fail if we omit the public portion of the key */
     if (!TEST_false(test_sm2_sign(
-                     test_group,
-                     /* the default ID specified in GM/T 0009-2012 (Sec. 10).*/
-                     SM2_DEFAULT_USERID,
-                     /* privkey */
-                     "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8",
-                     /* plaintext message */
-                     "message digest",
-                     /* ephemeral nonce k */
-                     "59276E27D506861A16680F3AD9C02DCCEF3CC1FA3CDBE4CE6D54B80DEAC1BC21",
-                     /* expected signature, */
-                     /* signature R, 0x20 bytes */
-                     "F5A03B0648D2C4630EEAC513E1BB81A15944DA3827D5B74143AC7EACEEE720B3",
-                     /* signature S, 0x20 bytes */
-                     "B1B6AA29DF212FD8763182BC0D421CA1BB9038FD1F7F42D4840B69C485BBC1AA", 1)))
+            test_group,
+            /* the default ID specified in GM/T 0009-2012 (Sec. 10).*/
+            SM2_DEFAULT_USERID,
+            /* privkey */
+            "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8",
+            /* plaintext message */
+            "message digest",
+            /* ephemeral nonce k */
+            "59276E27D506861A16680F3AD9C02DCCEF3CC1FA3CDBE4CE6D54B80DEAC1BC21",
+            /* expected signature, */
+            /* signature R, 0x20 bytes */
+            "F5A03B0648D2C4630EEAC513E1BB81A15944DA3827D5B74143AC7EACEEE720B3",
+            /* signature S, 0x20 bytes */
+            "B1B6AA29DF212FD8763182BC0D421CA1BB9038FD1F7F42D4840B69C485BBC1AA", 1)))
         goto done;
 
     testresult = 1;
 
- done:
+done:
     EC_GROUP_free(test_group);
 
     return testresult;

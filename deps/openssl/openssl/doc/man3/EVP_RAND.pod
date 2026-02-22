@@ -151,11 +151,8 @@ operating system.  If I<prediction_resistance> is specified, fresh entropy
 from a live source will be sought.  This call operates as per NIST SP 800-90A
 and SP 800-90C.
 
-EVP_RAND_nonce() creates a nonce in I<out> of maximum length I<outlen>
-bytes from the RAND I<ctx>. The function returns the length of the generated
-nonce. If I<out> is NULL, the length is still returned but no generation
-takes place. This allows a caller to dynamically allocate a buffer of the
-appropriate size.
+EVP_RAND_nonce() creates a nonce in I<out> of length I<outlen>
+bytes from the RAND I<ctx>.
 
 EVP_RAND_enable_locking() enables locking for the RAND I<ctx> and all of
 its parents.  After this I<ctx> will operate in a thread safe manner, albeit
@@ -376,7 +373,7 @@ B<EVP_RAND_CTX> structure or NULL if an error occurred.
 
 EVP_RAND_CTX_free() does not return a value.
 
-EVP_RAND_nonce() returns the length of the nonce.
+EVP_RAND_nonce() returns 1 on success, 0 on error.
 
 EVP_RAND_get_strength() returns the strength of the random number generator
 in bits.
@@ -406,7 +403,7 @@ This functionality was added to OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -9,22 +9,22 @@
  */
 
 #ifndef OSSL_CRYPTO_DSAERR_H
-# define OSSL_CRYPTO_DSAERR_H
-# pragma once
+#define OSSL_CRYPTO_DSAERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
 
 int ossl_err_load_DSA_strings(void);
-# endif
+#endif
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

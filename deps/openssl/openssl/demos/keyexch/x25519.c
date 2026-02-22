@@ -48,11 +48,11 @@ static const unsigned char expected_result[32] = {
 };
 
 typedef struct peer_data_st {
-    const char *name;               /* name of peer */
-    EVP_PKEY *privk;                /* privk generated for peer */
-    unsigned char pubk_data[32];    /* generated pubk to send to other peer */
+    const char *name; /* name of peer */
+    EVP_PKEY *privk; /* privk generated for peer */
+    unsigned char pubk_data[32]; /* generated pubk to send to other peer */
 
-    unsigned char *secret;          /* allocated shared secret buffer */
+    unsigned char *secret; /* allocated shared secret buffer */
     size_t secret_len;
 } PEER_DATA;
 
@@ -70,10 +70,9 @@ static int keyexch_x25519_before(
 
     /* Generate or load X25519 key for the peer */
     if (kat_privk_data != NULL)
-        local_peer->privk =
-            EVP_PKEY_new_raw_private_key_ex(libctx, "X25519", propq,
-                                            kat_privk_data,
-                                            sizeof(peer1_privk_data));
+        local_peer->privk = EVP_PKEY_new_raw_private_key_ex(libctx, "X25519", propq,
+            kat_privk_data,
+            sizeof(peer1_privk_data));
     else
         local_peer->privk = EVP_PKEY_Q_keygen(libctx, propq, "X25519");
 
@@ -84,10 +83,11 @@ static int keyexch_x25519_before(
 
     /* Get public key corresponding to the private key */
     if (EVP_PKEY_get_octet_string_param(local_peer->privk,
-                                        OSSL_PKEY_PARAM_PUB_KEY,
-                                        local_peer->pubk_data,
-                                        sizeof(local_peer->pubk_data),
-                                        &pubk_data_len) == 0) {
+            OSSL_PKEY_PARAM_PUB_KEY,
+            local_peer->pubk_data,
+            sizeof(local_peer->pubk_data),
+            &pubk_data_len)
+        == 0) {
         fprintf(stderr, "EVP_PKEY_get_octet_string_param() failed\n");
         goto end;
     }
@@ -95,7 +95,7 @@ static int keyexch_x25519_before(
     /* X25519 public keys are always 32 bytes */
     if (pubk_data_len != 32) {
         fprintf(stderr, "EVP_PKEY_get_octet_string_param() "
-                "yielded wrong length\n");
+                        "yielded wrong length\n");
         goto end;
     }
 
@@ -127,9 +127,8 @@ static int keyexch_x25519_after(
     local_peer->secret = NULL;
 
     /* Load public key for remote peer. */
-    remote_peer_pubk =
-        EVP_PKEY_new_raw_public_key_ex(libctx, "X25519", propq,
-                                       remote_peer_pubk_data, 32);
+    remote_peer_pubk = EVP_PKEY_new_raw_public_key_ex(libctx, "X25519", propq,
+        remote_peer_pubk_data, 32);
     if (remote_peer_pubk == NULL) {
         fprintf(stderr, "EVP_PKEY_new_raw_public_key_ex() failed\n");
         goto end;
@@ -179,7 +178,8 @@ static int keyexch_x25519_after(
 
     /* Derive the shared secret. */
     if (EVP_PKEY_derive(ctx, local_peer->secret,
-                        &local_peer->secret_len) == 0) {
+            &local_peer->secret_len)
+        == 0) {
         fprintf(stderr, "EVP_PKEY_derive() failed\n");
         goto end;
     }
@@ -204,7 +204,7 @@ static int keyexch_x25519(int use_kat)
 {
     int rv = 0;
     OSSL_LIB_CTX *libctx = NULL;
-    PEER_DATA peer1 = {"peer 1"}, peer2 = {"peer 2"};
+    PEER_DATA peer1 = { "peer 1" }, peer2 = { "peer 2" };
 
     /*
      * Each peer generates its private key and sends its public key
@@ -212,11 +212,13 @@ static int keyexch_x25519(int use_kat)
      * later use.
      */
     if (keyexch_x25519_before(libctx, use_kat ? peer1_privk_data : NULL,
-                              &peer1) == 0)
+            &peer1)
+        == 0)
         return 0;
 
     if (keyexch_x25519_before(libctx, use_kat ? peer2_privk_data : NULL,
-                              &peer2) == 0)
+            &peer2)
+        == 0)
         return 0;
 
     /*
@@ -244,8 +246,7 @@ static int keyexch_x25519(int use_kat)
     }
 
     /* If we are doing the KAT, the secret should equal our reference result. */
-    if (use_kat && CRYPTO_memcmp(peer1.secret, expected_result,
-                                 peer1.secret_len) != 0) {
+    if (use_kat && CRYPTO_memcmp(peer1.secret, expected_result, peer1.secret_len) != 0) {
         fprintf(stderr, "Did not get expected result\n");
         goto end;
     }

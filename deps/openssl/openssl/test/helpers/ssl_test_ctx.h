@@ -14,7 +14,7 @@
 #include <openssl/ssl.h>
 
 typedef enum {
-    SSL_TEST_SUCCESS = 0,  /* Default */
+    SSL_TEST_SUCCESS = 0, /* Default */
     SSL_TEST_SERVER_FAIL,
     SSL_TEST_CLIENT_FAIL,
     SSL_TEST_INTERNAL_ERROR,
@@ -37,7 +37,7 @@ typedef enum {
 } ssl_servername_t;
 
 typedef enum {
-    SSL_TEST_SERVERNAME_CB_NONE = 0,  /* Default */
+    SSL_TEST_SERVERNAME_CB_NONE = 0, /* Default */
     SSL_TEST_SERVERNAME_IGNORE_MISMATCH,
     SSL_TEST_SERVERNAME_REJECT_MISMATCH,
     SSL_TEST_SERVERNAME_CLIENT_HELLO_IGNORE_MISMATCH,
@@ -236,7 +236,7 @@ const char *ssl_protocol_name(int protocol);
 const char *ssl_verify_callback_name(ssl_verify_callback_t verify_callback);
 const char *ssl_servername_name(ssl_servername_t server);
 const char *ssl_servername_callback_name(ssl_servername_callback_t
-                                         servername_callback);
+        servername_callback);
 const char *ssl_session_ticket_name(ssl_session_ticket_t server);
 const char *ssl_session_id_name(ssl_session_id_t server);
 const char *ssl_test_method_name(ssl_test_method_t method);
@@ -250,10 +250,10 @@ const char *ssl_max_fragment_len_name(int MFL_mode);
  * See test/README.ssltest.md for details on the conf file format.
  */
 SSL_TEST_CTX *SSL_TEST_CTX_create(const CONF *conf, const char *test_section,
-                                  OSSL_LIB_CTX *libctx);
+    OSSL_LIB_CTX *libctx);
 
 SSL_TEST_CTX *SSL_TEST_CTX_new(OSSL_LIB_CTX *libctx);
 
 void SSL_TEST_CTX_free(SSL_TEST_CTX *ctx);
 
-#endif  /* OSSL_TEST_SSL_TEST_CTX_H */
+#endif /* OSSL_TEST_SSL_TEST_CTX_H */

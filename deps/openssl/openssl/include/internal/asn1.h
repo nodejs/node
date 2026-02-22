@@ -8,8 +8,8 @@
  */
 
 #ifndef OSSL_INTERNAL_ASN1_H
-# define OSSL_INTERNAL_ASN1_H
-# pragma once
+#define OSSL_INTERNAL_ASN1_H
+#pragma once
 
 int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb);
 

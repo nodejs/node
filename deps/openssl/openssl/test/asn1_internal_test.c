@@ -54,7 +54,7 @@ static int test_tbl_standard(void)
     TEST_info("asn1 tbl_standard: out of order");
     for (tmp = tbl_standard, i = 0; i < OSSL_NELEM(tbl_standard); i++, tmp++)
         TEST_note("asn1 tbl_standard: Index %zu, NID %d, Name=%s",
-                  i, tmp->nid, OBJ_nid2ln(tmp->nid));
+            i, tmp->nid, OBJ_nid2ln(tmp->nid));
 
     return 0;
 }
@@ -76,7 +76,7 @@ static int test_standard_methods(void)
     int ok = 1;
 
     for (tmp = standard_methods, i = 0; i < OSSL_NELEM(standard_methods);
-         i++, tmp++) {
+        i++, tmp++) {
         if ((*tmp)->pkey_id < last_pkey_id) {
             last_pkey_id = 0;
             break;
@@ -92,9 +92,9 @@ static int test_standard_methods(void)
          * Anything else is an error and may lead to a corrupt ASN1 method table
          */
         if (!TEST_true(((*tmp)->pem_str == NULL && ((*tmp)->pkey_flags & ASN1_PKEY_ALIAS) != 0)
-                       || ((*tmp)->pem_str != NULL && ((*tmp)->pkey_flags & ASN1_PKEY_ALIAS) == 0))) {
+                || ((*tmp)->pem_str != NULL && ((*tmp)->pkey_flags & ASN1_PKEY_ALIAS) == 0))) {
             TEST_note("asn1 standard methods: Index %zu, pkey ID %d, Name=%s",
-                      i, (*tmp)->pkey_id, OBJ_nid2sn((*tmp)->pkey_id));
+                i, (*tmp)->pkey_id, OBJ_nid2sn((*tmp)->pkey_id));
             ok = 0;
         }
     }
@@ -106,9 +106,9 @@ static int test_standard_methods(void)
 
     TEST_note("asn1 standard methods: out of order");
     for (tmp = standard_methods, i = 0; i < OSSL_NELEM(standard_methods);
-         i++, tmp++)
+        i++, tmp++)
         TEST_note("asn1 standard methods: Index %zu, pkey ID %d, Name=%s",
-                  i, (*tmp)->pkey_id, OBJ_nid2sn((*tmp)->pkey_id));
+            i, (*tmp)->pkey_id, OBJ_nid2sn((*tmp)->pkey_id));
 
     return 0;
 }
@@ -134,7 +134,7 @@ static int test_empty_nonoptional_content(void)
         || !TEST_true(RSA_set0_key(rsa, n, e, NULL)))
         goto end;
 
-    n = e = NULL;                /* They are now "owned" by |rsa| */
+    n = e = NULL; /* They are now "owned" by |rsa| */
 
     /*
      * This SHOULD fail, as we're trying to encode a public key as a private
@@ -143,7 +143,7 @@ static int test_empty_nonoptional_content(void)
     if (TEST_int_le(i2d_RSAPrivateKey(rsa, NULL), 0))
         ok = 1;
 
- end:
+end:
     RSA_free(rsa);
     BN_free(n);
     BN_free(e);
@@ -163,8 +163,8 @@ static int test_unicode(const unsigned char *univ, size_t len, int expected)
 
     for (; univ < end; univ += 4) {
         if (!TEST_int_eq(ASN1_mbstring_copy(NULL, univ, 4, MBSTRING_UNIV,
-                                            B_ASN1_UTF8STRING),
-                         expected))
+                             B_ASN1_UTF8STRING),
+                expected))
             ok = 0;
     }
     return ok;
@@ -190,11 +190,28 @@ static int test_unicode_range(void)
     return ok;
 }
 
+static int test_mbstring_ncopy(void)
+{
+    ASN1_STRING *str = NULL;
+    const unsigned char in[] = { 0xFF, 0xFE, 0xFF, 0xFE };
+    int inlen = 4;
+    int inform = MBSTRING_UNIV;
+
+    if (!TEST_int_eq(ASN1_mbstring_ncopy(&str, in, inlen, inform, B_ASN1_GENERALSTRING, 0, 0), -1)
+        || !TEST_int_eq(ASN1_mbstring_ncopy(&str, in, inlen, inform, B_ASN1_VISIBLESTRING, 0, 0), -1)
+        || !TEST_int_eq(ASN1_mbstring_ncopy(&str, in, inlen, inform, B_ASN1_VIDEOTEXSTRING, 0, 0), -1)
+        || !TEST_int_eq(ASN1_mbstring_ncopy(&str, in, inlen, inform, B_ASN1_GENERALIZEDTIME, 0, 0), -1))
+        return 0;
+
+    return 1;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_tbl_standard);
     ADD_TEST(test_standard_methods);
     ADD_TEST(test_empty_nonoptional_content);
     ADD_TEST(test_unicode_range);
+    ADD_TEST(test_mbstring_ncopy);
     return 1;
 }

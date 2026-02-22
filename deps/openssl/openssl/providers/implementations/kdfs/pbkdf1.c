@@ -48,9 +48,9 @@ typedef struct {
  */
 
 static int kdf_pbkdf1_do_derive(const unsigned char *pass, size_t passlen,
-                                const unsigned char *salt, size_t saltlen,
-                                uint64_t iter, const EVP_MD *md_type,
-                                unsigned char *out, size_t n)
+    const unsigned char *salt, size_t saltlen,
+    uint64_t iter, const EVP_MD *md_type,
+    unsigned char *out, size_t n)
 {
     uint64_t i;
     int mdsize, ret = 0;
@@ -137,7 +137,7 @@ static void kdf_pbkdf1_reset(void *vctx)
 }
 
 static int kdf_pbkdf1_set_membuf(unsigned char **buffer, size_t *buflen,
-                             const OSSL_PARAM *p)
+    const OSSL_PARAM *p)
 {
     OPENSSL_clear_free(*buffer, *buflen);
     *buffer = NULL;
@@ -156,7 +156,7 @@ static int kdf_pbkdf1_set_membuf(unsigned char **buffer, size_t *buflen,
 }
 
 static int kdf_pbkdf1_derive(void *vctx, unsigned char *key, size_t keylen,
-                             const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     KDF_PBKDF1 *ctx = (KDF_PBKDF1 *)vctx;
     const EVP_MD *md;
@@ -176,7 +176,7 @@ static int kdf_pbkdf1_derive(void *vctx, unsigned char *key, size_t keylen,
 
     md = ossl_prov_digest_md(&ctx->digest);
     return kdf_pbkdf1_do_derive(ctx->pass, ctx->pass_len, ctx->salt, ctx->salt_len,
-                                ctx->iter, md, key, keylen);
+        ctx->iter, md, key, keylen);
 }
 
 static int kdf_pbkdf1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
@@ -193,7 +193,7 @@ static int kdf_pbkdf1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SALT)) != NULL)
-        if (!kdf_pbkdf1_set_membuf(&ctx->salt, &ctx->salt_len,p))
+        if (!kdf_pbkdf1_set_membuf(&ctx->salt, &ctx->salt_len, p))
             return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ITER)) != NULL)
@@ -203,7 +203,7 @@ static int kdf_pbkdf1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pbkdf1_settable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
@@ -226,7 +226,7 @@ static int kdf_pbkdf1_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pbkdf1_gettable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
@@ -236,15 +236,15 @@ static const OSSL_PARAM *kdf_pbkdf1_gettable_ctx_params(ossl_unused void *ctx,
 }
 
 const OSSL_DISPATCH ossl_kdf_pbkdf1_functions[] = {
-    { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))kdf_pbkdf1_new },
-    { OSSL_FUNC_KDF_FREECTX, (void(*)(void))kdf_pbkdf1_free },
-    { OSSL_FUNC_KDF_RESET, (void(*)(void))kdf_pbkdf1_reset },
-    { OSSL_FUNC_KDF_DERIVE, (void(*)(void))kdf_pbkdf1_derive },
+    { OSSL_FUNC_KDF_NEWCTX, (void (*)(void))kdf_pbkdf1_new },
+    { OSSL_FUNC_KDF_FREECTX, (void (*)(void))kdf_pbkdf1_free },
+    { OSSL_FUNC_KDF_RESET, (void (*)(void))kdf_pbkdf1_reset },
+    { OSSL_FUNC_KDF_DERIVE, (void (*)(void))kdf_pbkdf1_derive },
     { OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pbkdf1_settable_ctx_params },
-    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))kdf_pbkdf1_set_ctx_params },
+        (void (*)(void))kdf_pbkdf1_settable_ctx_params },
+    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void (*)(void))kdf_pbkdf1_set_ctx_params },
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pbkdf1_gettable_ctx_params },
-    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))kdf_pbkdf1_get_ctx_params },
+        (void (*)(void))kdf_pbkdf1_gettable_ctx_params },
+    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void (*)(void))kdf_pbkdf1_get_ctx_params },
     { 0, NULL }
 };

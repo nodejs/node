@@ -33,29 +33,158 @@
 static int dsa_cb(int p, int n, BN_GENCB *arg);
 
 static unsigned char out_p[] = {
-    0x8d, 0xf2, 0xa4, 0x94, 0x49, 0x22, 0x76, 0xaa,
-    0x3d, 0x25, 0x75, 0x9b, 0xb0, 0x68, 0x69, 0xcb,
-    0xea, 0xc0, 0xd8, 0x3a, 0xfb, 0x8d, 0x0c, 0xf7,
-    0xcb, 0xb8, 0x32, 0x4f, 0x0d, 0x78, 0x82, 0xe5,
-    0xd0, 0x76, 0x2f, 0xc5, 0xb7, 0x21, 0x0e, 0xaf,
-    0xc2, 0xe9, 0xad, 0xac, 0x32, 0xab, 0x7a, 0xac,
-    0x49, 0x69, 0x3d, 0xfb, 0xf8, 0x37, 0x24, 0xc2,
-    0xec, 0x07, 0x36, 0xee, 0x31, 0xc8, 0x02, 0x91,
+    0x8d,
+    0xf2,
+    0xa4,
+    0x94,
+    0x49,
+    0x22,
+    0x76,
+    0xaa,
+    0x3d,
+    0x25,
+    0x75,
+    0x9b,
+    0xb0,
+    0x68,
+    0x69,
+    0xcb,
+    0xea,
+    0xc0,
+    0xd8,
+    0x3a,
+    0xfb,
+    0x8d,
+    0x0c,
+    0xf7,
+    0xcb,
+    0xb8,
+    0x32,
+    0x4f,
+    0x0d,
+    0x78,
+    0x82,
+    0xe5,
+    0xd0,
+    0x76,
+    0x2f,
+    0xc5,
+    0xb7,
+    0x21,
+    0x0e,
+    0xaf,
+    0xc2,
+    0xe9,
+    0xad,
+    0xac,
+    0x32,
+    0xab,
+    0x7a,
+    0xac,
+    0x49,
+    0x69,
+    0x3d,
+    0xfb,
+    0xf8,
+    0x37,
+    0x24,
+    0xc2,
+    0xec,
+    0x07,
+    0x36,
+    0xee,
+    0x31,
+    0xc8,
+    0x02,
+    0x91,
 };
 static unsigned char out_q[] = {
-    0xc7, 0x73, 0x21, 0x8c, 0x73, 0x7e, 0xc8, 0xee,
-    0x99, 0x3b, 0x4f, 0x2d, 0xed, 0x30, 0xf4, 0x8e,
-    0xda, 0xce, 0x91, 0x5f,
+    0xc7,
+    0x73,
+    0x21,
+    0x8c,
+    0x73,
+    0x7e,
+    0xc8,
+    0xee,
+    0x99,
+    0x3b,
+    0x4f,
+    0x2d,
+    0xed,
+    0x30,
+    0xf4,
+    0x8e,
+    0xda,
+    0xce,
+    0x91,
+    0x5f,
 };
 static unsigned char out_g[] = {
-    0x62, 0x6d, 0x02, 0x78, 0x39, 0xea, 0x0a, 0x13,
-    0x41, 0x31, 0x63, 0xa5, 0x5b, 0x4c, 0xb5, 0x00,
-    0x29, 0x9d, 0x55, 0x22, 0x95, 0x6c, 0xef, 0xcb,
-    0x3b, 0xff, 0x10, 0xf3, 0x99, 0xce, 0x2c, 0x2e,
-    0x71, 0xcb, 0x9d, 0xe5, 0xfa, 0x24, 0xba, 0xbf,
-    0x58, 0xe5, 0xb7, 0x95, 0x21, 0x92, 0x5c, 0x9c,
-    0xc4, 0x2e, 0x9f, 0x6f, 0x46, 0x4b, 0x08, 0x8c,
-    0xc5, 0x72, 0xaf, 0x53, 0xe6, 0xd7, 0x88, 0x02,
+    0x62,
+    0x6d,
+    0x02,
+    0x78,
+    0x39,
+    0xea,
+    0x0a,
+    0x13,
+    0x41,
+    0x31,
+    0x63,
+    0xa5,
+    0x5b,
+    0x4c,
+    0xb5,
+    0x00,
+    0x29,
+    0x9d,
+    0x55,
+    0x22,
+    0x95,
+    0x6c,
+    0xef,
+    0xcb,
+    0x3b,
+    0xff,
+    0x10,
+    0xf3,
+    0x99,
+    0xce,
+    0x2c,
+    0x2e,
+    0x71,
+    0xcb,
+    0x9d,
+    0xe5,
+    0xfa,
+    0x24,
+    0xba,
+    0xbf,
+    0x58,
+    0xe5,
+    0xb7,
+    0x95,
+    0x21,
+    0x92,
+    0x5c,
+    0x9c,
+    0xc4,
+    0x2e,
+    0x9f,
+    0x6f,
+    0x46,
+    0x4b,
+    0x08,
+    0x8c,
+    0xc5,
+    0x72,
+    0xaf,
+    0x53,
+    0xe6,
+    0xd7,
+    0x88,
+    0x02,
 };
 
 static int dsa_test(void)
@@ -73,9 +202,26 @@ static int dsa_test(void)
      * PUB 186 and also appear in Appendix 5 to FIPS PIB 186-1
      */
     static unsigned char seed[20] = {
-        0xd5, 0x01, 0x4e, 0x4b, 0x60, 0xef, 0x2b, 0xa8,
-        0xb6, 0x21, 0x1b, 0x40, 0x62, 0xba, 0x32, 0x24,
-        0xe0, 0x42, 0x7d, 0xd3,
+        0xd5,
+        0x01,
+        0x4e,
+        0x4b,
+        0x60,
+        0xef,
+        0x2b,
+        0xa8,
+        0xb6,
+        0x21,
+        0x1b,
+        0x40,
+        0x62,
+        0xba,
+        0x32,
+        0x24,
+        0xe0,
+        0x42,
+        0x7d,
+        0xd3,
     };
     static const unsigned char str1[] = "12345678901234567890";
 
@@ -85,7 +231,7 @@ static int dsa_test(void)
     BN_GENCB_set(cb, dsa_cb, NULL);
     if (!TEST_ptr(dsa = DSA_new())
         || !TEST_true(DSA_generate_parameters_ex(dsa, 512, seed, 20,
-                                                &counter, &h, cb)))
+            &counter, &h, cb)))
         goto end;
 
     if (!TEST_int_eq(counter, 105))
@@ -115,7 +261,7 @@ static int dsa_test(void)
         goto end;
     if (TEST_int_gt(DSA_verify(0, str1, 20, sig, siglen, dsa), 0))
         ret = 1;
- end:
+end:
     DSA_free(dsa);
     BN_GENCB_free(cb);
     return ret;
@@ -137,14 +283,14 @@ static int dsa_cb(int p, int n, BN_GENCB *arg)
     return 1;
 }
 
-# define P      0
-# define Q      1
-# define G      2
-# define SEED   3
-# define PCOUNT 4
-# define GINDEX 5
-# define HCOUNT 6
-# define GROUP  7
+#define P 0
+#define Q 1
+#define G 2
+#define SEED 3
+#define PCOUNT 4
+#define GINDEX 5
+#define HCOUNT 6
+#define GROUP 7
 
 static int dsa_keygen_test(void)
 {
@@ -164,7 +310,7 @@ static int dsa_keygen_test(void)
         0x95, 0x26, 0x3f, 0x03, 0xdc, 0x00, 0x3f, 0x44,
         0x7b, 0x2a, 0xc7, 0x29
     };
-    static const unsigned char expected_p[]= {
+    static const unsigned char expected_p[] = {
         0xdb, 0x47, 0x07, 0xaf, 0xf0, 0x06, 0x49, 0x55,
         0xc9, 0xbb, 0x09, 0x41, 0xb8, 0xdb, 0x1f, 0xbc,
         0xa8, 0xed, 0x12, 0x06, 0x7f, 0x88, 0x49, 0xb8,
@@ -198,13 +344,13 @@ static int dsa_keygen_test(void)
         0xb1, 0x1b, 0x0d, 0xfc, 0x70, 0xec, 0x85, 0xc2,
         0xc5, 0xba, 0xb9, 0x69, 0x3f, 0x88, 0xbc, 0xcb
     };
-    static const unsigned char expected_q[]= {
+    static const unsigned char expected_q[] = {
         0x99, 0xb6, 0xa0, 0xee, 0xb3, 0xa6, 0x99, 0x1a,
         0xb6, 0x67, 0x8d, 0xc1, 0x2b, 0x9b, 0xce, 0x2b,
         0x01, 0x72, 0x5a, 0x65, 0x76, 0x3d, 0x93, 0x69,
         0xe2, 0x56, 0xae, 0xd7
     };
-    static const unsigned char expected_g[]= {
+    static const unsigned char expected_g[] = {
         0x63, 0xf8, 0xb6, 0xee, 0x2a, 0x27, 0xaf, 0x4f,
         0x4c, 0xf6, 0x08, 0x28, 0x87, 0x4a, 0xe7, 0x1f,
         0x45, 0x46, 0x27, 0x52, 0x3b, 0x7f, 0x6f, 0xd2,
@@ -250,14 +396,14 @@ static int dsa_keygen_test(void)
         || !TEST_ptr_null(EVP_PKEY_CTX_gettable_params(pg_ctx))
         || !TEST_ptr(settables = EVP_PKEY_CTX_settable_params(pg_ctx))
         || !TEST_ptr(OSSL_PARAM_locate_const(settables,
-                                             OSSL_PKEY_PARAM_FFC_PBITS))
+            OSSL_PKEY_PARAM_FFC_PBITS))
         || !TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_type(pg_ctx, "fips186_4"))
         || !TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_bits(pg_ctx, 2048))
         || !TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_q_bits(pg_ctx, 224))
         || !TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_seed(pg_ctx, seed_data,
-                                                         sizeof(seed_data)))
+            sizeof(seed_data)))
         || !TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_md_props(pg_ctx, "SHA256",
-                                                             ""))
+            ""))
         || !TEST_int_gt(EVP_PKEY_generate(pg_ctx, &param_key), 0)
         || !TEST_ptr(kg_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, param_key, NULL))
         || !TEST_int_gt(EVP_PKEY_keygen_init(kg_ctx), 0)
@@ -271,23 +417,23 @@ static int dsa_keygen_test(void)
         || !TEST_true(EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_FFC_G, &g_out))
         || !TEST_BN_eq(g_in, g_out)
         || !TEST_true(EVP_PKEY_get_octet_string_param(
-                          key, OSSL_PKEY_PARAM_FFC_SEED, seed_out,
-                          sizeof(seed_out), &len))
+            key, OSSL_PKEY_PARAM_FFC_SEED, seed_out,
+            sizeof(seed_out), &len))
         || !TEST_mem_eq(seed_out, len, seed_data, sizeof(seed_data))
         || !TEST_true(EVP_PKEY_get_int_param(key, OSSL_PKEY_PARAM_FFC_GINDEX,
-                                             &gindex_out))
+            &gindex_out))
         || !TEST_int_eq(gindex_out, -1)
         || !TEST_true(EVP_PKEY_get_int_param(key, OSSL_PKEY_PARAM_FFC_H,
-                                             &hcount_out))
+            &hcount_out))
         || !TEST_int_eq(hcount_out, expected_h)
         || !TEST_true(EVP_PKEY_get_int_param(key,
-                                             OSSL_PKEY_PARAM_FFC_PCOUNTER,
-                                             &pcount_out))
+            OSSL_PKEY_PARAM_FFC_PCOUNTER,
+            &pcount_out))
         || !TEST_int_eq(pcount_out, expected_c)
         || !TEST_false(EVP_PKEY_get_utf8_string_param(key,
-                                                      OSSL_PKEY_PARAM_GROUP_NAME,
-                                                      group_out,
-                                                      sizeof(group_out), &len)))
+            OSSL_PKEY_PARAM_GROUP_NAME,
+            group_out,
+            sizeof(group_out), &len)))
         goto end;
     ret = 1;
 end:
@@ -312,12 +458,12 @@ static int test_dsa_default_paramgen_validate(int i)
     EVP_PKEY *params = NULL;
 
     ret = TEST_ptr(gen_ctx = EVP_PKEY_CTX_new_from_name(NULL, "DSA", NULL))
-          && TEST_int_gt(EVP_PKEY_paramgen_init(gen_ctx), 0)
-          && (i == 0
-              || TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_bits(gen_ctx, 512)))
-          && TEST_int_gt(EVP_PKEY_generate(gen_ctx, &params), 0)
-          && TEST_ptr(check_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, params, NULL))
-          && TEST_int_gt(EVP_PKEY_param_check(check_ctx), 0);
+        && TEST_int_gt(EVP_PKEY_paramgen_init(gen_ctx), 0)
+        && (i == 0
+            || TEST_true(EVP_PKEY_CTX_set_dsa_paramgen_bits(gen_ctx, 512)))
+        && TEST_int_gt(EVP_PKEY_generate(gen_ctx, &params), 0)
+        && TEST_ptr(check_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, params, NULL))
+        && TEST_int_gt(EVP_PKEY_param_check(check_ctx), 0);
 
     EVP_PKEY_free(params);
     EVP_PKEY_CTX_free(check_ctx);

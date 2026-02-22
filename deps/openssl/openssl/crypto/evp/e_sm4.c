@@ -13,45 +13,45 @@
 
 #include "internal/cryptlib.h"
 #ifndef OPENSSL_NO_SM4
-# include <openssl/evp.h>
-# include <openssl/modes.h>
-# include "crypto/sm4.h"
-# include "crypto/evp.h"
-# include "evp_local.h"
+#include <openssl/evp.h>
+#include <openssl/modes.h>
+#include "crypto/sm4.h"
+#include "crypto/evp.h"
+#include "evp_local.h"
 
 typedef struct {
     SM4_KEY ks;
 } EVP_SM4_KEY;
 
 static int sm4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                        const unsigned char *iv, int enc)
+    const unsigned char *iv, int enc)
 {
     ossl_sm4_set_key(key, EVP_CIPHER_CTX_get_cipher_data(ctx));
     return 1;
 }
 
 static void sm4_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const SM4_KEY *key,
-                            unsigned char *ivec, const int enc)
+    size_t len, const SM4_KEY *key,
+    unsigned char *ivec, const int enc)
 {
     if (enc)
         CRYPTO_cbc128_encrypt(in, out, len, key, ivec,
-                              (block128_f)ossl_sm4_encrypt);
+            (block128_f)ossl_sm4_encrypt);
     else
         CRYPTO_cbc128_decrypt(in, out, len, key, ivec,
-                              (block128_f)ossl_sm4_decrypt);
+            (block128_f)ossl_sm4_decrypt);
 }
 
 static void sm4_cfb128_encrypt(const unsigned char *in, unsigned char *out,
-                               size_t length, const SM4_KEY *key,
-                               unsigned char *ivec, int *num, const int enc)
+    size_t length, const SM4_KEY *key,
+    unsigned char *ivec, int *num, const int enc)
 {
     CRYPTO_cfb128_encrypt(in, out, length, key, ivec, num, enc,
-                          (block128_f)ossl_sm4_encrypt);
+        (block128_f)ossl_sm4_encrypt);
 }
 
 static void sm4_ecb_encrypt(const unsigned char *in, unsigned char *out,
-                            const SM4_KEY *key, const int enc)
+    const SM4_KEY *key, const int enc)
 {
     if (enc)
         ossl_sm4_encrypt(in, out, key);
@@ -60,19 +60,19 @@ static void sm4_ecb_encrypt(const unsigned char *in, unsigned char *out,
 }
 
 static void sm4_ofb128_encrypt(const unsigned char *in, unsigned char *out,
-                               size_t length, const SM4_KEY *key,
-                               unsigned char *ivec, int *num)
+    size_t length, const SM4_KEY *key,
+    unsigned char *ivec, int *num)
 {
     CRYPTO_ofb128_encrypt(in, out, length, key, ivec, num,
-                          (block128_f)ossl_sm4_encrypt);
+        (block128_f)ossl_sm4_encrypt);
 }
 
 IMPLEMENT_BLOCK_CIPHER(sm4, ks, sm4, EVP_SM4_KEY, NID_sm4,
-                       16, 16, 16, 128, EVP_CIPH_FLAG_DEFAULT_ASN1,
-                       sm4_init_key, 0, 0, 0, 0)
+    16, 16, 16, 128, EVP_CIPH_FLAG_DEFAULT_ASN1,
+    sm4_init_key, 0, 0, 0, 0)
 
 static int sm4_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                          const unsigned char *in, size_t len)
+    const unsigned char *in, size_t len)
 {
     int n = EVP_CIPHER_CTX_get_num(ctx);
     unsigned int num;
@@ -83,8 +83,8 @@ static int sm4_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     num = (unsigned int)n;
 
     CRYPTO_ctr128_encrypt(in, out, len, &dat->ks, ctx->iv,
-                          EVP_CIPHER_CTX_buf_noconst(ctx), &num,
-                          (block128_f)ossl_sm4_encrypt);
+        EVP_CIPHER_CTX_buf_noconst(ctx), &num,
+        (block128_f)ossl_sm4_encrypt);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }

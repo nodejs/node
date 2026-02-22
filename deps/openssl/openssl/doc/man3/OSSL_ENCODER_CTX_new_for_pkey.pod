@@ -60,6 +60,10 @@ zero).  This helps the caller to distinguish between an error when creating
 the B<OSSL_ENCODER_CTX> and missing encoder implementation, and allows it to
 act accordingly.
 
+Note that OSSL_ENCODER_CTX_new_for_pkey() finalises the OSSL_ENCODER_CTX;
+after that the OSSL_ENCODER_CTX_set_* and OSSL_ENCODER_CTX_add_* functions
+described in L<OSSL_ENCODER_CTX(3)> shouldn't be called.
+
 OSSL_ENCODER_CTX_set_cipher() tells the implementation what cipher
 should be used to encrypt encoded keys.  The cipher is given by
 name I<cipher_name>.  The interpretation of that I<cipher_name> is

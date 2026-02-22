@@ -6,10 +6,6 @@ README.md  This file
 [fingerprints.txt](fingerprints.txt)
         PGP fingerprints of authorised release signers
 
-standards.txt
-standards.txt
-        Moved to the web, <https://www.openssl.org/docs/standards.html>
-
 [HOWTO/](HOWTO/)
         A few how-to documents; not necessarily up-to-date
 
@@ -27,4 +23,4 @@ standards.txt
         Algorithm specific EVP_PKEY documentation.
 
 Formatted versions of the manpages (apps,ssl,crypto) can be found at
-        <https://www.openssl.org/docs/manpages.html>
+        <https://docs.openssl.org/master/>

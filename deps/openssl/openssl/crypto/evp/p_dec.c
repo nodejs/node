@@ -19,7 +19,7 @@
 #include "crypto/evp.h"
 
 int EVP_PKEY_decrypt_old(unsigned char *key, const unsigned char *ek, int ekl,
-                         EVP_PKEY *priv)
+    EVP_PKEY *priv)
 {
     int ret = -1;
     RSA *rsa = NULL;
@@ -33,8 +33,7 @@ int EVP_PKEY_decrypt_old(unsigned char *key, const unsigned char *ek, int ekl,
     if (rsa == NULL)
         goto err;
 
-    ret =
-        RSA_private_decrypt(ekl, ek, key, rsa, RSA_PKCS1_PADDING);
- err:
+    ret = RSA_private_decrypt(ekl, ek, key, rsa, RSA_PKCS1_PADDING);
+err:
     return ret;
 }

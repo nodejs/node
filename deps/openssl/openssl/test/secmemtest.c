@@ -81,8 +81,7 @@ static int test_sec_mem(void)
      * If init fails, then initialized should be false, if not, this
      * could cause an infinite loop secure_malloc, but we don't test it
      */
-    if (TEST_false(CRYPTO_secure_malloc_init(16, 16)) &&
-        !TEST_false(CRYPTO_secure_malloc_initialized())) {
+    if (TEST_false(CRYPTO_secure_malloc_init(16, 16)) && !TEST_false(CRYPTO_secure_malloc_initialized())) {
         TEST_true(CRYPTO_secure_malloc_done());
         goto end;
     }
@@ -103,7 +102,7 @@ static int test_sec_mem(void)
      * to make sure that infinite loop is fixed, they can enable the
      * code below.
      */
-# if 0
+#if 0
     /*-
      * On Linux and BSD this test has a chance to complete in minimal
      * time and with minimum side effects, because mlock is likely to
@@ -116,11 +115,11 @@ static int test_sec_mem(void)
         if (TEST_true(CRYPTO_secure_malloc_init((size_t)1<<34, 1<<4) != 0))
             TEST_true(CRYPTO_secure_malloc_done());
     }
-# endif
+#endif
 
     /* this can complete - it was not really secure */
     testresult = 1;
- end:
+end:
     OPENSSL_secure_free(p);
     OPENSSL_free(q);
     OPENSSL_secure_free(r);
@@ -141,7 +140,7 @@ static int test_sec_mem_clear(void)
     int i, res = 0;
 
     if (!TEST_true(CRYPTO_secure_malloc_init(4096, 32))
-            || !TEST_ptr(p = OPENSSL_secure_malloc(size)))
+        || !TEST_ptr(p = OPENSSL_secure_malloc(size)))
         goto err;
 
     for (i = 0; i < size; i++)

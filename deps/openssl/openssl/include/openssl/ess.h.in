@@ -9,40 +9,44 @@
  * https://www.openssl.org/source/license.html
  */
 
+/* clang-format off */
 {-
 use OpenSSL::stackhash qw(generate_stack_macros);
 -}
+/* clang-format on */
 
 #ifndef OPENSSL_ESS_H
-# define OPENSSL_ESS_H
-# pragma once
+#define OPENSSL_ESS_H
+#pragma once
 
-# include <openssl/opensslconf.h>
+#include <openssl/opensslconf.h>
 
-# include <openssl/safestack.h>
-# include <openssl/x509.h>
-# include <openssl/esserr.h>
+#include <openssl/safestack.h>
+#include <openssl/x509.h>
+#include <openssl/esserr.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
-
+#endif
 
 typedef struct ESS_issuer_serial ESS_ISSUER_SERIAL;
 typedef struct ESS_cert_id ESS_CERT_ID;
 typedef struct ESS_signing_cert ESS_SIGNING_CERT;
 
+/* clang-format off */
 {-
     generate_stack_macros("ESS_CERT_ID");
 -}
-
+/* clang-format on */
 
 typedef struct ESS_signing_cert_v2_st ESS_SIGNING_CERT_V2;
 typedef struct ESS_cert_id_v2_st ESS_CERT_ID_V2;
 
+/* clang-format off */
 {-
     generate_stack_macros("ESS_CERT_ID_V2");
 -}
+/* clang-format on */
 
 DECLARE_ASN1_ALLOC_FUNCTIONS(ESS_ISSUER_SERIAL)
 DECLARE_ASN1_ENCODE_FUNCTIONS_only(ESS_ISSUER_SERIAL, ESS_ISSUER_SERIAL)
@@ -63,19 +67,18 @@ DECLARE_ASN1_FUNCTIONS(ESS_SIGNING_CERT_V2)
 DECLARE_ASN1_DUP_FUNCTION(ESS_SIGNING_CERT_V2)
 
 ESS_SIGNING_CERT *OSSL_ESS_signing_cert_new_init(const X509 *signcert,
-                                                 const STACK_OF(X509) *certs,
-                                                 int set_issuer_serial);
+    const STACK_OF(X509) *certs,
+    int set_issuer_serial);
 ESS_SIGNING_CERT_V2 *OSSL_ESS_signing_cert_v2_new_init(const EVP_MD *hash_alg,
-                                                       const X509 *signcert,
-                                                       const
-                                                       STACK_OF(X509) *certs,
-                                                       int set_issuer_serial);
+    const X509 *signcert,
+    const STACK_OF(X509) *certs,
+    int set_issuer_serial);
 int OSSL_ESS_check_signing_certs(const ESS_SIGNING_CERT *ss,
-                                 const ESS_SIGNING_CERT_V2 *ssv2,
-                                 const STACK_OF(X509) *chain,
-                                 int require_signing_cert);
+    const ESS_SIGNING_CERT_V2 *ssv2,
+    const STACK_OF(X509) *chain,
+    int require_signing_cert);
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

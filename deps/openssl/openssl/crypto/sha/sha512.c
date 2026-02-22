@@ -59,20 +59,16 @@
 #include "internal/cryptlib.h"
 #include "crypto/sha.h"
 
-#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || \
-    defined(__x86_64) || defined(_M_AMD64) || defined(_M_X64) || \
-    defined(__s390__) || defined(__s390x__) || \
-    defined(__aarch64__) || \
-    defined(SHA512_ASM)
-# define SHA512_BLOCK_CAN_MANAGE_UNALIGNED_DATA
+#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || defined(__x86_64) || defined(_M_AMD64) || defined(_M_X64) || defined(__s390__) || defined(__s390x__) || defined(__aarch64__) || defined(SHA512_ASM)
+#define SHA512_BLOCK_CAN_MANAGE_UNALIGNED_DATA
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
-# define U64(C)     C##UI64
+#define U64(C) C##UI64
 #elif defined(__arch64__)
-# define U64(C)     C##UL
+#define U64(C) C##UL
 #else
-# define U64(C)     C##ULL
+#define U64(C) C##ULL
 #endif
 
 int sha512_224_init(SHA512_CTX *c)
@@ -150,14 +146,14 @@ int SHA512_Init(SHA512_CTX *c)
 #ifndef SHA512_ASM
 static
 #endif
-void sha512_block_data_order(SHA512_CTX *ctx, const void *in, size_t num);
+    void sha512_block_data_order(SHA512_CTX *ctx, const void *in, size_t num);
 
 int SHA512_Final(unsigned char *md, SHA512_CTX *c)
 {
     unsigned char *p = (unsigned char *)c->u.p;
     size_t n = c->num;
 
-    p[n] = 0x80;                /* There always is a room for one */
+    p[n] = 0x80; /* There always is a room for one */
     n++;
     if (n > (sizeof(c->u) - 16)) {
         memset(p + n, 0, sizeof(c->u) - n);
@@ -166,7 +162,7 @@ int SHA512_Final(unsigned char *md, SHA512_CTX *c)
     }
 
     memset(p + n, 0, sizeof(c->u) - 16 - n);
-#ifdef  B_ENDIAN
+#ifdef B_ENDIAN
     c->u.d[SHA_LBLOCK - 2] = c->Nh;
     c->u.d[SHA_LBLOCK - 1] = c->Nl;
 #else
@@ -285,11 +281,11 @@ int SHA512_Update(SHA512_CTX *c, const void *_data, size_t len)
     if (len == 0)
         return 1;
 
-    l = (c->Nl + (((SHA_LONG64) len) << 3)) & U64(0xffffffffffffffff);
+    l = (c->Nl + (((SHA_LONG64)len) << 3)) & U64(0xffffffffffffffff);
     if (l < c->Nl)
         c->Nh++;
     if (sizeof(len) >= 8)
-        c->Nh += (((SHA_LONG64) len) >> 61);
+        c->Nh += (((SHA_LONG64)len) >> 61);
     c->Nl = l;
 
     if (c->num != 0) {
@@ -310,12 +306,12 @@ int SHA512_Update(SHA512_CTX *c, const void *_data, size_t len)
         if ((size_t)data % sizeof(c->u.d[0]) != 0)
             while (len >= sizeof(c->u))
                 memcpy(p, data, sizeof(c->u)),
-                sha512_block_data_order(c, p, 1),
-                len -= sizeof(c->u), data += sizeof(c->u);
+                    sha512_block_data_order(c, p, 1),
+                    len -= sizeof(c->u), data += sizeof(c->u);
         else
 #endif
             sha512_block_data_order(c, data, len / sizeof(c->u)),
-            data += len, len %= sizeof(c->u), data -= len;
+                data += len, len %= sizeof(c->u), data -= len;
     }
 
     if (len != 0)
@@ -382,111 +378,97 @@ static const SHA_LONG64 K512[80] = {
     U64(0x5fcb6fab3ad6faec), U64(0x6c44198c4a475817)
 };
 
-# ifndef PEDANTIC
-#  if defined(__GNUC__) && __GNUC__>=2 && \
-      !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
-#   if defined(__x86_64) || defined(__x86_64__)
-#    define ROTR(a,n)    ({ SHA_LONG64 ret;             \
+#ifndef PEDANTIC
+#if defined(__GNUC__) && __GNUC__ >= 2 && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#if defined(__x86_64) || defined(__x86_64__)
+#define ROTR(a, n) ({ SHA_LONG64 ret;             \
                                 asm ("rorq %1,%0"       \
                                 : "=r"(ret)             \
                                 : "J"(n),"0"(a)         \
-                                : "cc"); ret;           })
-#    if !defined(B_ENDIAN)
-#     define PULL64(x) ({ SHA_LONG64 ret=*((const SHA_LONG64 *)(&(x)));  \
+                                : "cc"); ret; })
+#if !defined(B_ENDIAN)
+#define PULL64(x) ({ SHA_LONG64 ret=*((const SHA_LONG64 *)(&(x)));  \
                                 asm ("bswapq    %0"             \
                                 : "=r"(ret)                     \
-                                : "0"(ret)); ret;               })
-#    endif
-#   elif (defined(__i386) || defined(__i386__)) && !defined(B_ENDIAN)
-#    if defined(I386_ONLY)
-#     define PULL64(x) ({ const unsigned int *p=(const unsigned int *)(&(x));\
+                                : "0"(ret)); ret; })
+#endif
+#elif (defined(__i386) || defined(__i386__)) && !defined(B_ENDIAN)
+#if defined(I386_ONLY)
+#define PULL64(x) ({ const unsigned int *p=(const unsigned int *)(&(x));\
                           unsigned int hi=p[0],lo=p[1];          \
                                 asm("xchgb %%ah,%%al;xchgb %%dh,%%dl;"\
                                     "roll $16,%%eax; roll $16,%%edx; "\
                                     "xchgb %%ah,%%al;xchgb %%dh,%%dl;"\
                                 : "=a"(lo),"=d"(hi)             \
                                 : "0"(lo),"1"(hi) : "cc");      \
-                                ((SHA_LONG64)hi)<<32|lo;        })
-#    else
-#     define PULL64(x) ({ const unsigned int *p=(const unsigned int *)(&(x));\
+                                ((SHA_LONG64)hi)<<32|lo; })
+#else
+#define PULL64(x) ({ const unsigned int *p=(const unsigned int *)(&(x));\
                           unsigned int hi=p[0],lo=p[1];         \
                                 asm ("bswapl %0; bswapl %1;"    \
                                 : "=r"(lo),"=r"(hi)             \
                                 : "0"(lo),"1"(hi));             \
-                                ((SHA_LONG64)hi)<<32|lo;        })
-#    endif
-#   elif (defined(_ARCH_PPC) && defined(__64BIT__)) || defined(_ARCH_PPC64)
-#    define ROTR(a,n)    ({ SHA_LONG64 ret;             \
+                                ((SHA_LONG64)hi)<<32|lo; })
+#endif
+#elif (defined(_ARCH_PPC) && defined(__64BIT__)) || defined(_ARCH_PPC64)
+#define ROTR(a, n) ({ SHA_LONG64 ret;             \
                                 asm ("rotrdi %0,%1,%2"  \
                                 : "=r"(ret)             \
-                                : "r"(a),"K"(n)); ret;  })
-#   elif defined(__aarch64__)
-#    define ROTR(a,n)    ({ SHA_LONG64 ret;             \
+                                : "r"(a),"K"(n)); ret; })
+#elif defined(__aarch64__)
+#define ROTR(a, n) ({ SHA_LONG64 ret;             \
                                 asm ("ror %0,%1,%2"     \
                                 : "=r"(ret)             \
-                                : "r"(a),"I"(n)); ret;  })
-#    if  defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
-        __BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__
-#     define PULL64(x)   ({ SHA_LONG64 ret;                     \
+                                : "r"(a),"I"(n)); ret; })
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define PULL64(x) ({ SHA_LONG64 ret;                     \
                                 asm ("rev       %0,%1"          \
                                 : "=r"(ret)                     \
                                 : "r"(*((const SHA_LONG64 *)(&(x))))); ret; })
-#    endif
-#   endif
-#  elif defined(_MSC_VER)
-#   if defined(_WIN64)         /* applies to both IA-64 and AMD64 */
-#    pragma intrinsic(_rotr64)
-#    define ROTR(a,n)    _rotr64((a),n)
-#   endif
-#   if defined(_M_IX86) && !defined(OPENSSL_NO_ASM) && \
-       !defined(OPENSSL_NO_INLINE_ASM)
-#    if defined(I386_ONLY)
+#endif
+#endif
+#elif defined(_MSC_VER)
+#if defined(_WIN64) /* applies to both IA-64 and AMD64 */
+#pragma intrinsic(_rotr64)
+#define ROTR(a, n) _rotr64((a), n)
+#endif
+#if defined(_M_IX86) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#if defined(I386_ONLY)
 static SHA_LONG64 __fastcall __pull64be(const void *x)
 {
-    _asm mov  edx,[ecx + 0]
-    _asm mov  eax,[ecx + 4]
-    _asm xchg dh, dl
-    _asm xchg ah, al
-    _asm rol  edx, 16
-    _asm rol  eax, 16
-    _asm xchg dh, dl
-    _asm xchg ah, al
+    _asm mov edx, [ecx + 0] _asm mov eax, [ecx + 4] _asm xchg dh, dl _asm xchg ah, al _asm rol edx, 16 _asm rol eax, 16 _asm xchg dh, dl _asm xchg ah, al
 }
-#    else
-static SHA_LONG64 __fastcall __pull64be(const void *x)
-{
-    _asm mov   edx,[ecx + 0]
-    _asm mov   eax,[ecx + 4]
-    _asm bswap edx
-    _asm bswap eax
+#else
+static SHA_LONG64 __fastcall __pull64be(const void *x) {
+    _asm mov edx, [ecx + 0] _asm mov eax, [ecx + 4] _asm bswap edx _asm bswap eax
 }
-#    endif
-#    define PULL64(x) __pull64be(&(x))
-#   endif
-#  endif
-# endif
-# ifndef PULL64
-#  define B(x,j)    (((SHA_LONG64)(*(((const unsigned char *)(&x))+j)))<<((7-j)*8))
-#  define PULL64(x) (B(x,0)|B(x,1)|B(x,2)|B(x,3)|B(x,4)|B(x,5)|B(x,6)|B(x,7))
-# endif
-# ifndef ROTR
-#  define ROTR(x,s)       (((x)>>s) | (x)<<(64-s))
-# endif
-# define Sigma0(x)       (ROTR((x),28) ^ ROTR((x),34) ^ ROTR((x),39))
-# define Sigma1(x)       (ROTR((x),14) ^ ROTR((x),18) ^ ROTR((x),41))
-# define sigma0(x)       (ROTR((x),1)  ^ ROTR((x),8)  ^ ((x)>>7))
-# define sigma1(x)       (ROTR((x),19) ^ ROTR((x),61) ^ ((x)>>6))
-# define Ch(x,y,z)       (((x) & (y)) ^ ((~(x)) & (z)))
-# define Maj(x,y,z)      (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#endif
+#define PULL64(x) __pull64be(&(x))
+#endif
+#endif
+#endif
+#ifndef PULL64
+#define B(x, j) (((SHA_LONG64)(*(((const unsigned char *)(&x)) + j))) << ((7 - j) * 8))
+#define PULL64(x) (B(x, 0) | B(x, 1) | B(x, 2) | B(x, 3) | B(x, 4) | B(x, 5) | B(x, 6) | B(x, 7))
+#endif
+#ifndef ROTR
+#define ROTR(x, s) (((x) >> s) | (x) << (64 - s))
+#endif
+#define Sigma0(x) (ROTR((x), 28) ^ ROTR((x), 34) ^ ROTR((x), 39))
+#define Sigma1(x) (ROTR((x), 14) ^ ROTR((x), 18) ^ ROTR((x), 41))
+#define sigma0(x) (ROTR((x), 1) ^ ROTR((x), 8) ^ ((x) >> 7))
+#define sigma1(x) (ROTR((x), 19) ^ ROTR((x), 61) ^ ((x) >> 6))
+#define Ch(x, y, z) (((x) & (y)) ^ ((~(x)) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
 
-# if defined(__i386) || defined(__i386__) || defined(_M_IX86)
+#if defined(__i386) || defined(__i386__) || defined(_M_IX86)
 /*
  * This code should give better results on 32-bit CPU with less than
  * ~24 registers, both size and performance wise...
  */
 
 static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
-                                    size_t num)
+    size_t num)
 {
     const SHA_LONG64 *W = in;
     SHA_LONG64 A, E, T;
@@ -506,11 +488,11 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
         F[7] = ctx->h[7];
 
         for (i = 0; i < 16; i++, F--) {
-#  ifdef B_ENDIAN
+#ifdef B_ENDIAN
             T = W[i];
-#  else
+#else
             T = PULL64(W[i]);
-#  endif
+#endif
             F[0] = A;
             F[4] = E;
             F[8] = T;
@@ -545,10 +527,10 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
     }
 }
 
-# elif defined(OPENSSL_SMALL_FOOTPRINT)
+#elif defined(OPENSSL_SMALL_FOOTPRINT)
 
 static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
-                                    size_t num)
+    size_t num)
 {
     const SHA_LONG64 *W = in;
     SHA_LONG64 a, b, c, d, e, f, g, h, s0, s1, T1, T2;
@@ -567,11 +549,11 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
         h = ctx->h[7];
 
         for (i = 0; i < 16; i++) {
-#  ifdef B_ENDIAN
+#ifdef B_ENDIAN
             T1 = X[i] = W[i];
-#  else
+#else
             T1 = X[i] = PULL64(W[i]);
-#  endif
+#endif
             T1 += h + Sigma1(e) + Ch(e, f, g) + K512[i];
             T2 = Sigma0(a) + Maj(a, b, c);
             h = g;
@@ -616,20 +598,27 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
     }
 }
 
-# else
-#  define ROUND_00_15(i,a,b,c,d,e,f,g,h)        do {    \
-        T1 += h + Sigma1(e) + Ch(e,f,g) + K512[i];      \
-        h = Sigma0(a) + Maj(a,b,c);                     \
-        d += T1;        h += T1;                        } while (0)
+#else
+#define ROUND_00_15(i, a, b, c, d, e, f, g, h)       \
+    do {                                             \
+        T1 += h + Sigma1(e) + Ch(e, f, g) + K512[i]; \
+        h = Sigma0(a) + Maj(a, b, c);                \
+        d += T1;                                     \
+        h += T1;                                     \
+    } while (0)
 
-#  define ROUND_16_80(i,j,a,b,c,d,e,f,g,h,X)    do {    \
-        s0 = X[(j+1)&0x0f];     s0 = sigma0(s0);        \
-        s1 = X[(j+14)&0x0f];    s1 = sigma1(s1);        \
-        T1 = X[(j)&0x0f] += s0 + s1 + X[(j+9)&0x0f];    \
-        ROUND_00_15(i+j,a,b,c,d,e,f,g,h);               } while (0)
+#define ROUND_16_80(i, j, a, b, c, d, e, f, g, h, X)       \
+    do {                                                   \
+        s0 = X[(j + 1) & 0x0f];                            \
+        s0 = sigma0(s0);                                   \
+        s1 = X[(j + 14) & 0x0f];                           \
+        s1 = sigma1(s1);                                   \
+        T1 = X[(j) & 0x0f] += s0 + s1 + X[(j + 9) & 0x0f]; \
+        ROUND_00_15(i + j, a, b, c, d, e, f, g, h);        \
+    } while (0)
 
 static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
-                                    size_t num)
+    size_t num)
 {
     const SHA_LONG64 *W = in;
     SHA_LONG64 a, b, c, d, e, f, g, h, s0, s1, T1;
@@ -647,7 +636,7 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
         g = ctx->h[6];
         h = ctx->h[7];
 
-#  ifdef B_ENDIAN
+#ifdef B_ENDIAN
         T1 = X[0] = W[0];
         ROUND_00_15(0, a, b, c, d, e, f, g, h);
         T1 = X[1] = W[1];
@@ -680,7 +669,7 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
         ROUND_00_15(14, c, d, e, f, g, h, a, b);
         T1 = X[15] = W[15];
         ROUND_00_15(15, b, c, d, e, f, g, h, a);
-#  else
+#else
         T1 = X[0] = PULL64(W[0]);
         ROUND_00_15(0, a, b, c, d, e, f, g, h);
         T1 = X[1] = PULL64(W[1]);
@@ -713,7 +702,7 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
         ROUND_00_15(14, c, d, e, f, g, h, a, b);
         T1 = X[15] = PULL64(W[15]);
         ROUND_00_15(15, b, c, d, e, f, g, h, a);
-#  endif
+#endif
 
         for (i = 16; i < 80; i += 16) {
             ROUND_16_80(i, 0, a, b, c, d, e, f, g, h, X);
@@ -747,6 +736,6 @@ static void sha512_block_data_order(SHA512_CTX *ctx, const void *in,
     }
 }
 
-# endif
+#endif
 
-#endif                         /* SHA512_ASM */
+#endif /* SHA512_ASM */

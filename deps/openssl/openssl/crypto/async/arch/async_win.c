@@ -12,8 +12,8 @@
 
 #ifdef ASYNC_WIN
 
-# include <windows.h>
-# include "internal/cryptlib.h"
+#include <windows.h>
+#include "internal/cryptlib.h"
 
 int ASYNC_is_capable(void)
 {
@@ -34,11 +34,11 @@ void async_local_cleanup(void)
 
 int async_fibre_init_dispatcher(async_fibre *fibre)
 {
-# if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x600
+#if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x600
     fibre->fibre = ConvertThreadToFiberEx(NULL, FIBER_FLAG_FLOAT_SWITCH);
-# else
+#else
     fibre->fibre = ConvertThreadToFiber(NULL);
-# endif
+#endif
     if (fibre->fibre == NULL) {
         fibre->converted = 0;
         fibre->fibre = GetCurrentFiber();

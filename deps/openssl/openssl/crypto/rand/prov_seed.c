@@ -13,8 +13,8 @@
 #include <openssl/err.h>
 
 size_t ossl_rand_get_entropy(ossl_unused const OSSL_CORE_HANDLE *handle,
-                             unsigned char **pout, int entropy,
-                             size_t min_len, size_t max_len)
+    unsigned char **pout, int entropy,
+    size_t min_len, size_t max_len)
 {
     size_t ret = 0;
     size_t entropy_available;
@@ -30,7 +30,7 @@ size_t ossl_rand_get_entropy(ossl_unused const OSSL_CORE_HANDLE *handle,
     entropy_available = ossl_pool_acquire_entropy(pool);
 
     if (entropy_available > 0) {
-        ret   = ossl_rand_pool_length(pool);
+        ret = ossl_rand_pool_length(pool);
         *pout = ossl_rand_pool_detach(pool);
     }
 
@@ -39,14 +39,14 @@ size_t ossl_rand_get_entropy(ossl_unused const OSSL_CORE_HANDLE *handle,
 }
 
 void ossl_rand_cleanup_entropy(ossl_unused const OSSL_CORE_HANDLE *handle,
-                               unsigned char *buf, size_t len)
+    unsigned char *buf, size_t len)
 {
     OPENSSL_secure_clear_free(buf, len);
 }
 
 size_t ossl_rand_get_nonce(ossl_unused const OSSL_CORE_HANDLE *handle,
-                           unsigned char **pout, size_t min_len, size_t max_len,
-                           const void *salt, size_t salt_len)
+    unsigned char **pout, size_t min_len, size_t max_len,
+    const void *salt, size_t salt_len)
 {
     size_t ret = 0;
     RAND_POOL *pool;
@@ -62,15 +62,15 @@ size_t ossl_rand_get_nonce(ossl_unused const OSSL_CORE_HANDLE *handle,
 
     if (salt != NULL && !ossl_rand_pool_add(pool, salt, salt_len, 0))
         goto err;
-    ret   = ossl_rand_pool_length(pool);
+    ret = ossl_rand_pool_length(pool);
     *pout = ossl_rand_pool_detach(pool);
- err:
+err:
     ossl_rand_pool_free(pool);
     return ret;
 }
 
 void ossl_rand_cleanup_nonce(ossl_unused const OSSL_CORE_HANDLE *handle,
-                             unsigned char *buf, size_t len)
+    unsigned char *buf, size_t len)
 {
     OPENSSL_clear_free(buf, len);
 }

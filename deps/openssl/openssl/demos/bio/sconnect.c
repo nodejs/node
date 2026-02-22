@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
     ssl = SSL_new(ssl_ctx);
     SSL_set_connect_state(ssl);
 
-
     /* Use it inside an SSL BIO */
     ssl_bio = BIO_new(BIO_f_ssl());
     BIO_set_ssl(ssl_bio, ssl, BIO_CLOSE);
@@ -69,8 +68,10 @@ int main(int argc, char *argv[])
 
     /* The BIO has parsed the host:port and even IPv6 literals in [] */
     hostname = BIO_get_conn_hostname(out);
-    if (!hostname || SSL_set1_host(ssl, hostname) <= 0)
+    if (!hostname || SSL_set1_host(ssl, hostname) <= 0) {
+        BIO_free(ssl_bio);
         goto err;
+    }
 
     BIO_set_nbio(out, 1);
     out = BIO_push(ssl_bio, out);
@@ -114,14 +115,14 @@ int main(int argc, char *argv[])
     ret = EXIT_SUCCESS;
     goto done;
 
- err:
+err:
     if (ERR_peek_error() == 0) { /* system call error */
         fprintf(stderr, "errno=%d ", errno);
         perror("error");
     } else {
         ERR_print_errors_fp(stderr);
     }
- done:
+done:
     BIO_free_all(out);
     SSL_CTX_free(ssl_ctx);
     return ret;

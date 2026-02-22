@@ -35,7 +35,7 @@ static unsigned char password[] = {
 static unsigned char pbkdf2_salt[] = {
     'N', 'a', 'C', 'l'
 };
-    
+
 /*
  * The iteration parameter can be variable or hard coded.  The disadvantage with
  * hard coding them is that they cannot easily be adjusted for future
@@ -86,15 +86,15 @@ int main(int argc, char **argv)
 
     /* Set password */
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD, password,
-                                             sizeof(password));
+        sizeof(password));
     /* Set salt */
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, pbkdf2_salt,
-                                             sizeof(pbkdf2_salt));
+        sizeof(pbkdf2_salt));
     /* Set iteration count (default 2048) */
     *p++ = OSSL_PARAM_construct_uint(OSSL_KDF_PARAM_ITER, &pbkdf2_iterations);
     /* Set the underlying hash function used to derive the key */
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                            "SHA256", 0);
+        "SHA256", 0);
     *p = OSSL_PARAM_construct_end();
 
     /* Derive the key */

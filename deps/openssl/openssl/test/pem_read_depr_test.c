@@ -32,7 +32,7 @@ static BIO *getfile(const char *filename)
         goto err;
     infile = BIO_new_file(paramsfile, "r");
 
- err:
+err:
     OPENSSL_free(paramsfile);
     return infile;
 }
@@ -53,7 +53,7 @@ static int test_read_dh_params(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     DH_free(dh);
     return testresult;
@@ -74,7 +74,7 @@ static int test_read_dh_x942_params(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     DH_free(dh);
     return testresult;
@@ -97,7 +97,7 @@ static int test_read_dsa_params(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     DSA_free(dsa);
     return testresult;
@@ -118,7 +118,7 @@ static int test_read_dsa_private(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     DSA_free(dsa);
     return testresult;
@@ -139,7 +139,7 @@ static int test_read_dsa_public(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     DSA_free(dsa);
     return testresult;
@@ -161,7 +161,7 @@ static int test_read_rsa_private(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     RSA_free(rsa);
     return testresult;
@@ -182,7 +182,7 @@ static int test_read_rsa_public(void)
 
     testresult = 1;
 
- err:
+err:
     BIO_free(infile);
     RSA_free(rsa);
     return testresult;

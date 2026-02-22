@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -603,7 +603,7 @@ my @disable_cascades = (
     # Without shared libraries, dynamic engines aren't possible.
     # This is due to them having to link with libcrypto and register features
     # using the ENGINE functionality, and since that relies on global tables,
-    # those *have* to be exacty the same as the ones accessed from the app,
+    # those *have* to be exactly the same as the ones accessed from the app,
     # which cannot be guaranteed if shared libraries aren't present.
     # (note that even with shared libraries, both the app and dynamic engines
     # must be linked with the same library)
@@ -1792,7 +1792,7 @@ my %skipdir = ();
 my %disabled_info = ();         # For configdata.pm
 foreach my $what (sort keys %disabled) {
     # There are deprecated disablables that translate to themselves.
-    # They cause disabling cascades, but should otherwise not regiter.
+    # They cause disabling cascades, but should otherwise not register.
     next if $deprecated_disablables{$what};
     # The generated $disabled{"deprecated-x.y"} entries are special
     # and treated properly elsewhere

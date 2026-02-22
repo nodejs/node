@@ -223,7 +223,7 @@
 #define PROV_NAMES_SHAKE_256 "SHAKE-256:SHAKE256:2.16.840.1.101.3.4.2.12"
 
 /*
- * KECCAK-KMAC-128 and KECCAK-KMAC-256 as hashes are mostly useful for 
+ * KECCAK-KMAC-128 and KECCAK-KMAC-256 as hashes are mostly useful for
  * KMAC128 and KMAC256.
  */
 #define PROV_NAMES_KECCAK_KMAC_128 "KECCAK-KMAC-128:KECCAK-KMAC128"

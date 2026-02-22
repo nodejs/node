@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,42 +8,42 @@
  */
 
 #ifndef OSSL_HTTP_SERVER_H
-# define OSSL_HTTP_SERVER_H
+#define OSSL_HTTP_SERVER_H
 
-# include "apps.h"
+#include "apps.h"
 
-# ifndef HAVE_FORK
-#  if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
-#   define HAVE_FORK 0
-#  else
-#   define HAVE_FORK 1
-#  endif
-# endif
+#ifndef HAVE_FORK
+#if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
+#define HAVE_FORK 0
+#else
+#define HAVE_FORK 1
+#endif
+#endif
 
-# if HAVE_FORK
-#  undef NO_FORK
-# else
-#  define NO_FORK
-# endif
+#if HAVE_FORK
+#undef NO_FORK
+#else
+#define NO_FORK
+#endif
 
-# if !defined(NO_FORK) && !defined(OPENSSL_NO_SOCK) \
+#if !defined(NO_FORK) && !defined(OPENSSL_NO_SOCK) \
     && !defined(OPENSSL_NO_POSIX_IO)
-#  define HTTP_DAEMON
-#  include <sys/types.h>
-#  include <sys/wait.h>
-#  include <syslog.h>
-#  include <signal.h>
-#  define MAXERRLEN 1000 /* limit error text sent to syslog to 1000 bytes */
-# else
-#  undef LOG_DEBUG
-#  undef LOG_INFO
-#  undef LOG_WARNING
-#  undef LOG_ERR
-#  define LOG_DEBUG     7
-#  define LOG_INFO      6
-#  define LOG_WARNING   4
-#  define LOG_ERR       3
-# endif
+#define HTTP_DAEMON
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <syslog.h>
+#include <signal.h>
+#define MAXERRLEN 1000 /* limit error text sent to syslog to 1000 bytes */
+#else
+#undef LOG_DEBUG
+#undef LOG_INFO
+#undef LOG_WARNING
+#undef LOG_ERR
+#define LOG_DEBUG 7
+#define LOG_INFO 6
+#define LOG_WARNING 4
+#define LOG_ERR 3
+#endif
 
 /*-
  * Log a message to syslog if multi-threaded HTTP_DAEMON, else to bio_err
@@ -54,7 +54,7 @@
  */
 void log_message(const char *prog, int level, const char *fmt, ...);
 
-# ifndef OPENSSL_NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 /*-
  * Initialize an HTTP server by setting up its listening BIO
  * prog: the name of the current app
@@ -84,24 +84,24 @@ BIO *http_server_init_bio(const char *prog, const char *port);
  * The caller must free any non-NULL *preq, *ppath, and *pcbio pointers.
  */
 int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
-                             char **ppath, BIO **pcbio, BIO *acbio,
-                             int *found_keep_alive,
-                             const char *prog, const char *port,
-                             int accept_get, int timeout);
+    char **ppath, BIO **pcbio, BIO *acbio,
+    int *found_keep_alive,
+    const char *prog, const char *port,
+    int accept_get, int timeout);
 
 /*-
  * Send an ASN.1-formatted HTTP response
  * cbio: destination BIO (typically as returned by http_server_get_asn1_req())
  *       note: cbio should not do an encoding that changes the output length
- * keep_alive: grant persistent connnection
+ * keep_alive: grant persistent connection
  * content_type: string identifying the type of the response
  * it: the response ASN.1 type
  * resp: the response to send
  * returns 1 on success, 0 on failure
  */
 int http_server_send_asn1_resp(BIO *cbio, int keep_alive,
-                               const char *content_type,
-                               const ASN1_ITEM *it, const ASN1_VALUE *resp);
+    const char *content_type,
+    const ASN1_ITEM *it, const ASN1_VALUE *resp);
 
 /*-
  * Send a trivial HTTP response, typically to report an error or OK
@@ -112,14 +112,14 @@ int http_server_send_asn1_resp(BIO *cbio, int keep_alive,
  */
 int http_server_send_status(BIO *cbio, int status, const char *reason);
 
-# endif
+#endif
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
 extern int multi;
 extern int acfd;
 
 void socket_timeout(int signum);
 void spawn_loop(const char *prog);
-# endif
+#endif
 
 #endif

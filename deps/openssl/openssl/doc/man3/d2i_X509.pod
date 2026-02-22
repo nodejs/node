@@ -500,8 +500,9 @@ freed in the event of error and I<*a> is set to NULL.
 B<i2d_I<TYPE>>() returns the number of bytes successfully encoded or a negative
 value if an error occurs.
 
-B<i2d_I<TYPE>_bio>() and B<i2d_I<TYPE>_fp>() return 1 for success and 0 if an
-error occurs.
+B<i2d_I<TYPE>_bio>() and B<i2d_I<TYPE>_fp>(),
+as well as i2d_ASN1_bio_stream(),
+return 1 for success and 0 if an error occurs.
 
 =head1 EXAMPLES
 
@@ -617,7 +618,7 @@ efficiency reasons.
 
 =head1 COPYRIGHT
 
-Copyright 1998-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

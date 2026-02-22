@@ -65,8 +65,9 @@ static int read_lebn(const unsigned char **in, unsigned int nbyte, BIGNUM **r)
  * (EVP_PKEY_RSA or EVP_PKEY_DSA), even if the resulting EVP_PKEY wasn't
  * created.
  */
-#define isdss_to_evp_type(isdss)                                \
-    (isdss == 0 ? EVP_PKEY_RSA : isdss == 1 ? EVP_PKEY_DSA : EVP_PKEY_NONE)
+#define isdss_to_evp_type(isdss)                           \
+    (isdss == 0 ? EVP_PKEY_RSA : isdss == 1 ? EVP_PKEY_DSA \
+                                            : EVP_PKEY_NONE)
 static EVP_PKEY *evp_pkey_new0_key(void *key, int evp_type)
 {
     EVP_PKEY *pkey = NULL;
@@ -120,27 +121,27 @@ static EVP_PKEY *evp_pkey_new0_key(void *key, int evp_type)
 
 /* Convert private key blob to EVP_PKEY: RSA and DSA keys supported */
 
-# define MS_PUBLICKEYBLOB        0x6
-# define MS_PRIVATEKEYBLOB       0x7
-# define MS_RSA1MAGIC            0x31415352L
-# define MS_RSA2MAGIC            0x32415352L
-# define MS_DSS1MAGIC            0x31535344L
-# define MS_DSS2MAGIC            0x32535344L
+#define MS_PUBLICKEYBLOB 0x6
+#define MS_PRIVATEKEYBLOB 0x7
+#define MS_RSA1MAGIC 0x31415352L
+#define MS_RSA2MAGIC 0x32415352L
+#define MS_DSS1MAGIC 0x31535344L
+#define MS_DSS2MAGIC 0x32535344L
 
-# define MS_KEYALG_RSA_KEYX      0xa400
-# define MS_KEYALG_DSS_SIGN      0x2200
+#define MS_KEYALG_RSA_KEYX 0xa400
+#define MS_KEYALG_DSS_SIGN 0x2200
 
-# define MS_KEYTYPE_KEYX         0x1
-# define MS_KEYTYPE_SIGN         0x2
+#define MS_KEYTYPE_KEYX 0x1
+#define MS_KEYTYPE_SIGN 0x2
 
 /* The PVK file magic number: seems to spell out "bobsfile", who is Bob? */
-# define MS_PVKMAGIC             0xb0b5f11eL
+#define MS_PVKMAGIC 0xb0b5f11eL
 /* Salt length for PVK files */
-# define PVK_SALTLEN             0x10
+#define PVK_SALTLEN 0x10
 /* Maximum length in PVK header */
-# define PVK_MAX_KEYLEN          102400
+#define PVK_MAX_KEYLEN 102400
 /* Maximum salt length */
-# define PVK_MAX_SALTLEN         10240
+#define PVK_MAX_SALTLEN 10240
 
 /*
  * Read the MSBLOB header and get relevant data from it.
@@ -157,8 +158,8 @@ static EVP_PKEY *evp_pkey_new0_key(void *key, int evp_type)
  *      header data.
  */
 int ossl_do_blob_header(const unsigned char **in, unsigned int length,
-                        unsigned int *pmagic, unsigned int *pbitlen,
-                        int *pisdss, int *pispub)
+    unsigned int *pmagic, unsigned int *pbitlen,
+    int *pisdss, int *pispub)
 {
     const unsigned char *p = *in;
 
@@ -276,11 +277,10 @@ unsigned int ossl_blob_length(unsigned bitlen, int isdss, int ispub)
              */
             return 4 + 2 * nbyte + 5 * hnbyte;
     }
-
 }
 
 static void *do_b2i_key(const unsigned char **in, unsigned int length,
-                        int *isdss, int *ispub)
+    int *isdss, int *ispub)
 {
     const unsigned char *p = *in;
     unsigned int bitlen, magic;
@@ -364,14 +364,14 @@ EVP_PKEY *ossl_b2i_bio(BIO *in, int *ispub)
     }
 
     pkey = evp_pkey_new0_key(key, isdss_to_evp_type(isdss));
- err:
+err:
     OPENSSL_free(buf);
     return pkey;
 }
 
 #ifndef OPENSSL_NO_DSA
 DSA *ossl_b2i_DSA_after_header(const unsigned char **in, unsigned int bitlen,
-                               int ispub)
+    int ispub)
 {
     const unsigned char *p = *in;
     DSA *dsa = NULL;
@@ -425,7 +425,7 @@ DSA *ossl_b2i_DSA_after_header(const unsigned char **in, unsigned int bitlen,
     *in = p;
     return dsa;
 
- memerr:
+memerr:
     ERR_raise(ERR_LIB_PEM, ERR_R_MALLOC_FAILURE);
     DSA_free(dsa);
     BN_free(pbn);
@@ -439,7 +439,7 @@ DSA *ossl_b2i_DSA_after_header(const unsigned char **in, unsigned int bitlen,
 #endif
 
 RSA *ossl_b2i_RSA_after_header(const unsigned char **in, unsigned int bitlen,
-                               int ispub)
+    int ispub)
 {
     const unsigned char *pin = *in;
     BIGNUM *e = NULL, *n = NULL, *d = NULL;
@@ -484,7 +484,7 @@ RSA *ossl_b2i_RSA_after_header(const unsigned char **in, unsigned int bitlen,
 
     *in = pin;
     return rsa;
- memerr:
+memerr:
     ERR_raise(ERR_LIB_PEM, ERR_R_MALLOC_FAILURE);
     BN_free(e);
     BN_free(n);
@@ -602,7 +602,7 @@ static int do_i2b(unsigned char **out, const EVP_PKEY *pk, int ispub)
 #endif
     if (!noinc)
         *out += outlen;
- end:
+end:
     return outlen;
 }
 
@@ -656,7 +656,7 @@ static int check_bitlen_rsa(const RSA *rsa, int ispub, unsigned int *pmagic)
             goto badkey;
     }
     return bitlen;
- badkey:
+badkey:
     ERR_raise(ERR_LIB_PEM, PEM_R_UNSUPPORTED_KEY_COMPONENTS);
     return 0;
 }
@@ -707,7 +707,7 @@ static int check_bitlen_dsa(const DSA *dsa, int ispub, unsigned int *pmagic)
     }
 
     return bitlen;
- badkey:
+badkey:
     ERR_raise(ERR_LIB_PEM, PEM_R_UNSUPPORTED_KEY_COMPONENTS);
     return 0;
 }
@@ -746,8 +746,8 @@ int i2b_PublicKey_bio(BIO *out, const EVP_PKEY *pk)
 }
 
 int ossl_do_PVK_header(const unsigned char **in, unsigned int length,
-                       int skip_magic,
-                       unsigned int *psaltlen, unsigned int *pkeylen)
+    int skip_magic,
+    unsigned int *psaltlen, unsigned int *pkeylen)
 {
     const unsigned char *p = *in;
     unsigned int pvk_magic, is_encrypted;
@@ -772,7 +772,8 @@ int ossl_do_PVK_header(const unsigned char **in, unsigned int length,
     p += 4;
     /*
      * keytype =
-     */ read_ledword(&p);
+     */
+    read_ledword(&p);
     is_encrypted = read_ledword(&p);
     *psaltlen = read_ledword(&p);
     *pkeylen = read_ledword(&p);
@@ -791,9 +792,9 @@ int ossl_do_PVK_header(const unsigned char **in, unsigned int length,
 
 #ifndef OPENSSL_NO_RC4
 static int derive_pvk_key(unsigned char *key,
-                          const unsigned char *salt, unsigned int saltlen,
-                          const unsigned char *pass, int passlen,
-                          OSSL_LIB_CTX *libctx, const char *propq)
+    const unsigned char *salt, unsigned int saltlen,
+    const unsigned char *pass, int passlen,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_MD_CTX *mctx = EVP_MD_CTX_new();
     int rv = 0;
@@ -818,10 +819,10 @@ err:
 #endif
 
 static void *do_PVK_body_key(const unsigned char **in,
-                             unsigned int saltlen, unsigned int keylen,
-                             pem_password_cb *cb, void *u,
-                             int *isdss, int *ispub,
-                             OSSL_LIB_CTX *libctx, const char *propq)
+    unsigned int saltlen, unsigned int keylen,
+    pem_password_cb *cb, void *u,
+    int *isdss, int *ispub,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     const unsigned char *p = *in;
     unsigned char *enctmp = NULL;
@@ -858,7 +859,7 @@ static void *do_PVK_body_key(const unsigned char **in,
             goto err;
         }
         if (!derive_pvk_key(keybuf, p, saltlen,
-                            (unsigned char *)psbuf, inlen, libctx, propq))
+                (unsigned char *)psbuf, inlen, libctx, propq))
             goto err;
         p += saltlen;
         /* Copy BLOBHEADER across, decrypt rest */
@@ -902,7 +903,7 @@ static void *do_PVK_body_key(const unsigned char **in,
     }
 
     key = do_b2i_key(&p, keylen, isdss, ispub);
- err:
+err:
     EVP_CIPHER_CTX_free(cctx);
 #ifndef OPENSSL_NO_RC4
     EVP_CIPHER_free(rc4);
@@ -915,8 +916,8 @@ static void *do_PVK_body_key(const unsigned char **in,
 }
 
 static void *do_PVK_key_bio(BIO *in, pem_password_cb *cb, void *u,
-                            int *isdss, int *ispub,
-                            OSSL_LIB_CTX *libctx, const char *propq)
+    int *isdss, int *ispub,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     unsigned char pvk_hdr[24], *buf = NULL;
     const unsigned char *p;
@@ -945,17 +946,17 @@ static void *do_PVK_key_bio(BIO *in, pem_password_cb *cb, void *u,
     }
     key = do_PVK_body_key(&p, saltlen, keylen, cb, u, isdss, ispub, libctx, propq);
 
- err:
+err:
     OPENSSL_clear_free(buf, buflen);
     return key;
 }
 
 #ifndef OPENSSL_NO_DSA
 DSA *b2i_DSA_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
-                        OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int isdss = 1;
-    int ispub = 0;               /* PVK keys are always private */
+    int ispub = 0; /* PVK keys are always private */
 
     return do_PVK_key_bio(in, cb, u, &isdss, &ispub, libctx, propq);
 }
@@ -967,10 +968,10 @@ DSA *b2i_DSA_PVK_bio(BIO *in, pem_password_cb *cb, void *u)
 #endif
 
 RSA *b2i_RSA_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
-                        OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int isdss = 0;
-    int ispub = 0;               /* PVK keys are always private */
+    int ispub = 0; /* PVK keys are always private */
 
     return do_PVK_key_bio(in, cb, u, &isdss, &ispub, libctx, propq);
 }
@@ -981,7 +982,7 @@ RSA *b2i_RSA_PVK_bio(BIO *in, pem_password_cb *cb, void *u)
 }
 
 EVP_PKEY *b2i_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
-                         OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int isdss = -1;
     int ispub = -1;
@@ -996,8 +997,8 @@ EVP_PKEY *b2i_PVK_bio(BIO *in, pem_password_cb *cb, void *u)
 }
 
 static int i2b_PVK(unsigned char **out, const EVP_PKEY *pk, int enclevel,
-                   pem_password_cb *cb, void *u, OSSL_LIB_CTX *libctx,
-                   const char *propq)
+    pem_password_cb *cb, void *u, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     int ret = -1;
     int outlen = 24, pklen;
@@ -1064,7 +1065,7 @@ static int i2b_PVK(unsigned char **out, const EVP_PKEY *pk, int enclevel,
             goto error;
         }
         if (!derive_pvk_key(keybuf, salt, PVK_SALTLEN,
-                            (unsigned char *)psbuf, inlen, libctx, propq))
+                (unsigned char *)psbuf, inlen, libctx, propq))
             goto error;
         if ((rc4 = EVP_CIPHER_fetch(libctx, "RC4", propq)) == NULL)
             goto error;
@@ -1087,7 +1088,7 @@ static int i2b_PVK(unsigned char **out, const EVP_PKEY *pk, int enclevel,
     if (*out == NULL)
         *out = start;
     ret = outlen;
- error:
+error:
     EVP_CIPHER_CTX_free(cctx);
 #ifndef OPENSSL_NO_RC4
     EVP_CIPHER_free(rc4);
@@ -1099,8 +1100,8 @@ static int i2b_PVK(unsigned char **out, const EVP_PKEY *pk, int enclevel,
 }
 
 int i2b_PVK_bio_ex(BIO *out, const EVP_PKEY *pk, int enclevel,
-                   pem_password_cb *cb, void *u, OSSL_LIB_CTX *libctx,
-                   const char *propq)
+    pem_password_cb *cb, void *u, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     unsigned char *tmp = NULL;
     int outlen, wrlen;
@@ -1118,8 +1119,7 @@ int i2b_PVK_bio_ex(BIO *out, const EVP_PKEY *pk, int enclevel,
 }
 
 int i2b_PVK_bio(BIO *out, const EVP_PKEY *pk, int enclevel,
-                pem_password_cb *cb, void *u)
+    pem_password_cb *cb, void *u)
 {
     return i2b_PVK_bio_ex(out, pk, enclevel, cb, u, NULL, NULL);
 }
-

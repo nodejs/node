@@ -85,14 +85,14 @@ static int test_extension_list(void)
         if (!TEST_size_t_eq(i, ext_list[i].idx)) {
             retval = 0;
             TEST_error("TLSEXT_IDX_%s=%zd, found at=%zd\n",
-                       ext_list[i].name, ext_list[i].idx, i);
+                ext_list[i].name, ext_list[i].idx, i);
         }
         type = ossl_get_extension_type(ext_list[i].idx);
         if (!TEST_uint_eq(type, ext_list[i].type)) {
             retval = 0;
             TEST_error("TLSEXT_IDX_%s=%zd expected=0x%05X got=0x%05X",
-                       ext_list[i].name, ext_list[i].idx, ext_list[i].type,
-                       type);
+                ext_list[i].name, ext_list[i].idx, ext_list[i].type,
+                type);
         }
     }
     return retval;

@@ -41,7 +41,7 @@ int i2a_ASN1_STRING(BIO *bp, const ASN1_STRING *a, int type)
         }
     }
     return n;
- err:
+err:
     return -1;
 }
 
@@ -128,7 +128,7 @@ int a2i_ASN1_STRING(BIO *bp, ASN1_STRING *bs, char *buf, int size)
     bs->data = s;
     return 1;
 
- err:
+err:
     ERR_raise(ERR_LIB_ASN1, ASN1_R_SHORT_LINE);
     OPENSSL_free(s);
     return 0;

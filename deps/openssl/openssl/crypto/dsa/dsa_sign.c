@@ -87,7 +87,7 @@ int i2d_DSA_SIG(const DSA_SIG *sig, unsigned char **ppout)
             return -1;
     } else if (*ppout == NULL) {
         if ((buf = BUF_MEM_new()) == NULL
-                || !WPACKET_init_len(&pkt, buf, 0)) {
+            || !WPACKET_init_len(&pkt, buf, 0)) {
             BUF_MEM_free(buf);
             return -1;
         }
@@ -97,8 +97,8 @@ int i2d_DSA_SIG(const DSA_SIG *sig, unsigned char **ppout)
     }
 
     if (!ossl_encode_der_dsa_sig(&pkt, sig->r, sig->s)
-            || !WPACKET_get_total_written(&pkt, &encoded_len)
-            || !WPACKET_finish(&pkt)) {
+        || !WPACKET_get_total_written(&pkt, &encoded_len)
+        || !WPACKET_finish(&pkt)) {
         BUF_MEM_free(buf);
         WPACKET_cleanup(&pkt);
         return -1;
@@ -152,7 +152,7 @@ int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 }
 
 int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
-                      unsigned char *sig, unsigned int *siglen, DSA *dsa)
+    unsigned char *sig, unsigned int *siglen, DSA *dsa)
 {
     DSA_SIG *s;
 
@@ -176,7 +176,7 @@ int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
 }
 
 int DSA_sign(int type, const unsigned char *dgst, int dlen,
-             unsigned char *sig, unsigned int *siglen, DSA *dsa)
+    unsigned char *sig, unsigned int *siglen, DSA *dsa)
 {
     return ossl_dsa_sign_int(type, dgst, dlen, sig, siglen, dsa);
 }
@@ -189,7 +189,7 @@ int DSA_sign(int type, const unsigned char *dgst, int dlen,
  *     -1: error
  */
 int DSA_verify(int type, const unsigned char *dgst, int dgst_len,
-               const unsigned char *sigbuf, int siglen, DSA *dsa)
+    const unsigned char *sigbuf, int siglen, DSA *dsa)
 {
     DSA_SIG *s;
     const unsigned char *p = sigbuf;
@@ -207,7 +207,7 @@ int DSA_verify(int type, const unsigned char *dgst, int dgst_len,
     if (derlen != siglen || memcmp(sigbuf, der, derlen))
         goto err;
     ret = DSA_do_verify(dgst, dgst_len, s, dsa);
- err:
+err:
     OPENSSL_clear_free(der, derlen);
     DSA_SIG_free(s);
     return ret;

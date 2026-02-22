@@ -10,7 +10,7 @@
 #include "ssl_local.h"
 
 int dtls1_write_app_data_bytes(SSL *s, int type, const void *buf_, size_t len,
-                               size_t *written)
+    size_t *written)
 {
     int i;
 
@@ -35,7 +35,7 @@ int dtls1_write_app_data_bytes(SSL *s, int type, const void *buf_, size_t len,
 int dtls1_dispatch_alert(SSL *s)
 {
     int i, j;
-    void (*cb) (const SSL *ssl, int type, int val) = NULL;
+    void (*cb)(const SSL *ssl, int type, int val) = NULL;
     unsigned char buf[DTLS1_AL_HEADER_LENGTH];
     unsigned char *ptr = &buf[0];
     size_t written;
@@ -55,7 +55,7 @@ int dtls1_dispatch_alert(SSL *s)
 
         if (s->msg_callback)
             s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3.send_alert,
-                            2, s, s->msg_callback_arg);
+                2, s, s->msg_callback_arg);
 
         if (s->info_callback != NULL)
             cb = s->info_callback;

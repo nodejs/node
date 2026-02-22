@@ -8,7 +8,7 @@
  */
 
 #ifdef OPENSSL_NO_CT
-# error "CT is disabled"
+#error "CT is disabled"
 #endif
 
 #include <stddef.h>
@@ -84,9 +84,9 @@ __owur static int ct_x509_cert_fixup(X509 *cert, X509 *presigner)
         return 1;
 
     preidx = ct_x509_get_ext(presigner, NID_authority_key_identifier,
-                             &pre_akid_ext_is_dup);
+        &pre_akid_ext_is_dup);
     certidx = ct_x509_get_ext(cert, NID_authority_key_identifier,
-                              &cert_akid_ext_is_dup);
+        &cert_akid_ext_is_dup);
 
     /* An error occurred whilst searching for the extension */
     if (preidx < -1 || certidx < -1)
@@ -112,8 +112,7 @@ __owur static int ct_x509_cert_fixup(X509 *cert, X509 *presigner)
         if (preext == NULL || certext == NULL)
             return 0;
         preextdata = X509_EXTENSION_get_data(preext);
-        if (preextdata == NULL ||
-            !X509_EXTENSION_set_data(certext, preextdata))
+        if (preextdata == NULL || !X509_EXTENSION_set_data(certext, preextdata))
             return 0;
     }
     return 1;
@@ -202,7 +201,7 @@ err:
 }
 
 __owur static int ct_public_key_hash(SCT_CTX *sctx, X509_PUBKEY *pkey,
-                                     unsigned char **hash, size_t *hash_len)
+    unsigned char **hash, size_t *hash_len)
 {
     int ret = 0;
     unsigned char *md = NULL, *der = NULL;
@@ -238,7 +237,7 @@ __owur static int ct_public_key_hash(SCT_CTX *sctx, X509_PUBKEY *pkey,
 
     md = NULL;
     ret = 1;
- err:
+err:
     EVP_MD_free(sha256);
     OPENSSL_free(md);
     OPENSSL_free(der);

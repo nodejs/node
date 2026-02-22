@@ -66,7 +66,7 @@ static int test_string_tbl(void)
     }
 
     rv = 1;
- out:
+out:
     return rv;
 }
 

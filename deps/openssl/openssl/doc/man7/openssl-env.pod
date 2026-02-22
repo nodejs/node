@@ -61,7 +61,7 @@ Unless OpenSSL tracing support is generally disabled,
 enable trace output of specific parts of OpenSSL libraries, by name.
 This output usually makes sense only if you know OpenSSL internals well.
 
-The value of this environment varialble is a comma-separated list of names,
+The value of this environment variable is a comma-separated list of names,
 with the following available:
 
 =over 4
@@ -184,7 +184,7 @@ See L<OSSL_HTTP_parse_url(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

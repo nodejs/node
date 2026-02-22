@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,7 +42,7 @@ struct ossl_lib_ctx_st {
     int run_once_done[OSSL_LIB_CTX_MAX_RUN_ONCE];
     int run_once_ret[OSSL_LIB_CTX_MAX_RUN_ONCE];
     struct ossl_lib_ctx_onfree_list_st *onfreelist;
-    unsigned int ischild:1;
+    unsigned int ischild : 1;
 };
 
 int ossl_lib_ctx_write_lock(OSSL_LIB_CTX *ctx)
@@ -95,7 +95,7 @@ static int context_init(OSSL_LIB_CTX *ctx)
     exdata_done = 1;
 
     if (!ossl_crypto_new_ex_data_ex(ctx, CRYPTO_EX_INDEX_OSSL_LIB_CTX, NULL,
-                                    &ctx->data))
+            &ctx->data))
         goto err;
 
     /* Everything depends on properties, so we also pre-initialise that */
@@ -103,7 +103,7 @@ static int context_init(OSSL_LIB_CTX *ctx)
         goto err;
 
     return 1;
- err:
+err:
     if (exdata_done)
         ossl_crypto_cleanup_all_ex_data_int(ctx);
     for (i = 0; i < OSSL_LIB_CTX_MAX_INDEXES; i++)
@@ -200,7 +200,7 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_new(void)
 
 #ifndef FIPS_MODULE
 OSSL_LIB_CTX *OSSL_LIB_CTX_new_from_dispatch(const OSSL_CORE_HANDLE *handle,
-                                             const OSSL_DISPATCH *in)
+    const OSSL_DISPATCH *in)
 {
     OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
 
@@ -216,7 +216,7 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_new_from_dispatch(const OSSL_CORE_HANDLE *handle,
 }
 
 OSSL_LIB_CTX *OSSL_LIB_CTX_new_child(const OSSL_CORE_HANDLE *handle,
-                                     const OSSL_DISPATCH *in)
+    const OSSL_DISPATCH *in)
 {
     OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new_from_dispatch(handle, in);
 
@@ -316,8 +316,8 @@ int ossl_lib_ctx_is_global_default(OSSL_LIB_CTX *ctx)
 }
 
 static void ossl_lib_ctx_generic_new(void *parent_ign, void *ptr_ign,
-                                     CRYPTO_EX_DATA *ad, int index,
-                                     long argl_ign, void *argp)
+    CRYPTO_EX_DATA *ad, int index,
+    long argl_ign, void *argp)
 {
     const OSSL_LIB_CTX_METHOD *meth = argp;
     OSSL_LIB_CTX *ctx = ossl_crypto_ex_data_get_ossl_lib_ctx(ad);
@@ -335,8 +335,8 @@ static void ossl_lib_ctx_generic_new(void *parent_ign, void *ptr_ign,
     }
 }
 static void ossl_lib_ctx_generic_free(void *parent_ign, void *ptr,
-                                      CRYPTO_EX_DATA *ad, int index,
-                                      long argl_ign, void *argp)
+    CRYPTO_EX_DATA *ad, int index,
+    long argl_ign, void *argp)
 {
     const OSSL_LIB_CTX_METHOD *meth = argp;
 
@@ -344,7 +344,7 @@ static void ossl_lib_ctx_generic_free(void *parent_ign, void *ptr,
 }
 
 static int ossl_lib_ctx_init_index(OSSL_LIB_CTX *ctx, int static_index,
-                                   const OSSL_LIB_CTX_METHOD *meth)
+    const OSSL_LIB_CTX_METHOD *meth)
 {
     int idx;
 
@@ -353,10 +353,10 @@ static int ossl_lib_ctx_init_index(OSSL_LIB_CTX *ctx, int static_index,
         return 0;
 
     idx = ossl_crypto_get_ex_new_index_ex(ctx, CRYPTO_EX_INDEX_OSSL_LIB_CTX, 0,
-                                          (void *)meth,
-                                          ossl_lib_ctx_generic_new,
-                                          NULL, ossl_lib_ctx_generic_free,
-                                          meth->priority);
+        (void *)meth,
+        ossl_lib_ctx_generic_new,
+        NULL, ossl_lib_ctx_generic_free,
+        meth->priority);
     if (idx < 0)
         return 0;
 
@@ -365,7 +365,7 @@ static int ossl_lib_ctx_init_index(OSSL_LIB_CTX *ctx, int static_index,
 }
 
 void *ossl_lib_ctx_get_data(OSSL_LIB_CTX *ctx, int index,
-                            const OSSL_LIB_CTX_METHOD *meth)
+    const OSSL_LIB_CTX_METHOD *meth)
 {
     void *data = NULL;
     int dynidx;
@@ -419,14 +419,14 @@ void *ossl_lib_ctx_get_data(OSSL_LIB_CTX *ctx, int index,
      * The alloc call ensures there's a value there. We release the ctx->lock
      * for this, because the allocation itself may recursively call
      * ossl_lib_ctx_get_data for other indexes (never this one). The allocation
-     * will itself aquire the ctx->lock when it actually comes to store the
+     * will itself acquire the ctx->lock when it actually comes to store the
      * allocated data (see ossl_lib_ctx_generic_new() above). We call
      * ossl_crypto_alloc_ex_data_intern() here instead of CRYPTO_alloc_ex_data().
      * They do the same thing except that the latter calls CRYPTO_get_ex_data()
      * as well - which we must not do without holding the ctx->lock.
      */
     if (ossl_crypto_alloc_ex_data_intern(CRYPTO_EX_INDEX_OSSL_LIB_CTX, NULL,
-                                         &ctx->data, ctx->dyn_indexes[index])) {
+            &ctx->data, ctx->dyn_indexes[index])) {
         if (!CRYPTO_THREAD_read_lock(ctx->lock))
             goto end;
         data = CRYPTO_get_ex_data(&ctx->data, ctx->dyn_indexes[index]);
@@ -447,7 +447,7 @@ OSSL_EX_DATA_GLOBAL *ossl_lib_ctx_get_ex_data_global(OSSL_LIB_CTX *ctx)
 }
 
 int ossl_lib_ctx_run_once(OSSL_LIB_CTX *ctx, unsigned int idx,
-                          ossl_lib_ctx_run_once_fn run_once_fn)
+    ossl_lib_ctx_run_once_fn run_once_fn)
 {
     int done = 0, ret = 0;
 

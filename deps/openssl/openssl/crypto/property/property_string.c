@@ -83,7 +83,8 @@ static void property_string_data_free(void *vpropdata)
     OPENSSL_free(propdata);
 }
 
-static void *property_string_data_new(OSSL_LIB_CTX *ctx) {
+static void *property_string_data_new(OSSL_LIB_CTX *ctx)
+{
     PROPERTY_STRING_DATA *propdata = OPENSSL_zalloc(sizeof(*propdata));
 
     if (propdata == NULL)
@@ -94,12 +95,12 @@ static void *property_string_data_new(OSSL_LIB_CTX *ctx) {
         goto err;
 
     propdata->prop_names = lh_PROPERTY_STRING_new(&property_hash,
-                                                  &property_cmp);
+        &property_cmp);
     if (propdata->prop_names == NULL)
         goto err;
 
     propdata->prop_values = lh_PROPERTY_STRING_new(&property_hash,
-                                                   &property_cmp);
+        &property_cmp);
     if (propdata->prop_values == NULL)
         goto err;
 
@@ -117,7 +118,7 @@ static const OSSL_LIB_CTX_METHOD property_string_data_method = {
 };
 
 static PROPERTY_STRING *new_property_string(const char *s,
-                                            OSSL_PROPERTY_IDX *pidx)
+    OSSL_PROPERTY_IDX *pidx)
 {
     const size_t l = strlen(s);
     PROPERTY_STRING *ps = OPENSSL_malloc(sizeof(*ps) + l);
@@ -135,9 +136,9 @@ static PROPERTY_STRING *new_property_string(const char *s,
 }
 
 static OSSL_PROPERTY_IDX ossl_property_string(CRYPTO_RWLOCK *lock,
-                                              PROP_TABLE *t,
-                                              OSSL_PROPERTY_IDX *pidx,
-                                              const char *s)
+    PROP_TABLE *t,
+    OSSL_PROPERTY_IDX *pidx,
+    const char *s)
 {
     PROPERTY_STRING p, *ps, *ps_new;
 
@@ -182,12 +183,12 @@ static void find_str_fn(PROPERTY_STRING *prop, void *vfindstr)
 }
 
 static const char *ossl_property_str(int name, OSSL_LIB_CTX *ctx,
-                                     OSSL_PROPERTY_IDX idx)
+    OSSL_PROPERTY_IDX idx)
 {
     struct find_str_st findstr;
     PROPERTY_STRING_DATA *propdata
         = ossl_lib_ctx_get_data(ctx, OSSL_LIB_CTX_PROPERTY_STRING_INDEX,
-                                &property_string_data_method);
+            &property_string_data_method);
 
     if (propdata == NULL)
         return NULL;
@@ -201,24 +202,24 @@ static const char *ossl_property_str(int name, OSSL_LIB_CTX *ctx,
     }
     lh_PROPERTY_STRING_doall_arg(name ? propdata->prop_names
                                       : propdata->prop_values,
-                                 find_str_fn, &findstr);
+        find_str_fn, &findstr);
     CRYPTO_THREAD_unlock(propdata->lock);
 
     return findstr.str;
 }
 
 OSSL_PROPERTY_IDX ossl_property_name(OSSL_LIB_CTX *ctx, const char *s,
-                                     int create)
+    int create)
 {
     PROPERTY_STRING_DATA *propdata
         = ossl_lib_ctx_get_data(ctx, OSSL_LIB_CTX_PROPERTY_STRING_INDEX,
-                                &property_string_data_method);
+            &property_string_data_method);
 
     if (propdata == NULL)
         return 0;
     return ossl_property_string(propdata->lock, propdata->prop_names,
-                                create ? &propdata->prop_name_idx : NULL,
-                                s);
+        create ? &propdata->prop_name_idx : NULL,
+        s);
 }
 
 const char *ossl_property_name_str(OSSL_LIB_CTX *ctx, OSSL_PROPERTY_IDX idx)
@@ -227,17 +228,17 @@ const char *ossl_property_name_str(OSSL_LIB_CTX *ctx, OSSL_PROPERTY_IDX idx)
 }
 
 OSSL_PROPERTY_IDX ossl_property_value(OSSL_LIB_CTX *ctx, const char *s,
-                                      int create)
+    int create)
 {
     PROPERTY_STRING_DATA *propdata
         = ossl_lib_ctx_get_data(ctx, OSSL_LIB_CTX_PROPERTY_STRING_INDEX,
-                                &property_string_data_method);
+            &property_string_data_method);
 
     if (propdata == NULL)
         return 0;
     return ossl_property_string(propdata->lock, propdata->prop_values,
-                                create ? &propdata->prop_value_idx : NULL,
-                                s);
+        create ? &propdata->prop_value_idx : NULL,
+        s);
 }
 
 const char *ossl_property_value_str(OSSL_LIB_CTX *ctx, OSSL_PROPERTY_IDX idx)

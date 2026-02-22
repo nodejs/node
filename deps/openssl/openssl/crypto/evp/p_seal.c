@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,8 +18,8 @@
 #include <openssl/evp.h>
 
 int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-                 unsigned char **ek, int *ekl, unsigned char *iv,
-                 EVP_PKEY **pubk, int npubk)
+    unsigned char **ek, int *ekl, unsigned char *iv,
+    EVP_PKEY **pubk, int npubk)
 {
     unsigned char key[EVP_MAX_KEY_LENGTH];
     const OSSL_PROVIDER *prov;
@@ -35,7 +35,7 @@ int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
             return 0;
     }
     if ((cipher = EVP_CIPHER_CTX_get0_cipher(ctx)) != NULL
-            && (prov = EVP_CIPHER_get0_provider(cipher)) != NULL)
+        && (prov = EVP_CIPHER_get0_provider(cipher)) != NULL)
         libctx = ossl_provider_libctx(prov);
     if ((npubk <= 0) || !pubk)
         return 1;
@@ -56,6 +56,7 @@ int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
 
     for (i = 0; i < npubk; i++) {
         size_t keylen = len;
+        size_t outlen = EVP_PKEY_get_size(pubk[i]);
 
         pctx = EVP_PKEY_CTX_new_from_pkey(libctx, pubk[i], NULL);
         if (pctx == NULL) {
@@ -64,9 +65,9 @@ int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
         }
 
         if (EVP_PKEY_encrypt_init(pctx) <= 0
-            || EVP_PKEY_encrypt(pctx, ek[i], &keylen, key, keylen) <= 0)
+            || EVP_PKEY_encrypt(pctx, ek[i], &outlen, key, keylen) <= 0)
             goto err;
-        ekl[i] = (int)keylen;
+        ekl[i] = (int)outlen;
         EVP_PKEY_CTX_free(pctx);
     }
     pctx = NULL;

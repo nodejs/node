@@ -65,9 +65,9 @@ int SHA224_Final(unsigned char *md, SHA256_CTX *c)
 
 #define DATA_ORDER_IS_BIG_ENDIAN
 
-#define HASH_LONG               SHA_LONG
-#define HASH_CTX                SHA256_CTX
-#define HASH_CBLOCK             SHA_CBLOCK
+#define HASH_LONG SHA_LONG
+#define HASH_CTX SHA256_CTX
+#define HASH_CBLOCK SHA_CBLOCK
 
 /*
  * Note that FIPS180-2 discusses "Truncation of the Hash Function Output."
@@ -77,35 +77,42 @@ int SHA224_Final(unsigned char *md, SHA256_CTX *c)
  * Idea behind separate cases for pre-defined lengths is to let the
  * compiler decide if it's appropriate to unroll small loops.
  */
-#define HASH_MAKE_STRING(c,s)   do {    \
-        unsigned long ll;               \
-        unsigned int  nn;               \
-        switch ((c)->md_len)            \
-        {   case SHA224_DIGEST_LENGTH:  \
-                for (nn=0;nn<SHA224_DIGEST_LENGTH/4;nn++)       \
-                {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }  \
-                break;                  \
-            case SHA256_DIGEST_LENGTH:  \
-                for (nn=0;nn<SHA256_DIGEST_LENGTH/4;nn++)       \
-                {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }  \
-                break;                  \
-            default:                    \
-                if ((c)->md_len > SHA256_DIGEST_LENGTH) \
-                    return 0;                           \
-                for (nn=0;nn<(c)->md_len/4;nn++)                \
-                {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }  \
-                break;                  \
-        }                               \
-        } while (0)
+#define HASH_MAKE_STRING(c, s)                                  \
+    do {                                                        \
+        unsigned long ll;                                       \
+        unsigned int nn;                                        \
+        switch ((c)->md_len) {                                  \
+        case SHA224_DIGEST_LENGTH:                              \
+            for (nn = 0; nn < SHA224_DIGEST_LENGTH / 4; nn++) { \
+                ll = (c)->h[nn];                                \
+                (void)HOST_l2c(ll, (s));                        \
+            }                                                   \
+            break;                                              \
+        case SHA256_DIGEST_LENGTH:                              \
+            for (nn = 0; nn < SHA256_DIGEST_LENGTH / 4; nn++) { \
+                ll = (c)->h[nn];                                \
+                (void)HOST_l2c(ll, (s));                        \
+            }                                                   \
+            break;                                              \
+        default:                                                \
+            if ((c)->md_len > SHA256_DIGEST_LENGTH)             \
+                return 0;                                       \
+            for (nn = 0; nn < (c)->md_len / 4; nn++) {          \
+                ll = (c)->h[nn];                                \
+                (void)HOST_l2c(ll, (s));                        \
+            }                                                   \
+            break;                                              \
+        }                                                       \
+    } while (0)
 
-#define HASH_UPDATE             SHA256_Update
-#define HASH_TRANSFORM          SHA256_Transform
-#define HASH_FINAL              SHA256_Final
-#define HASH_BLOCK_DATA_ORDER   sha256_block_data_order
+#define HASH_UPDATE SHA256_Update
+#define HASH_TRANSFORM SHA256_Transform
+#define HASH_FINAL SHA256_Final
+#define HASH_BLOCK_DATA_ORDER sha256_block_data_order
 #ifndef SHA256_ASM
 static
 #endif
-void sha256_block_data_order(SHA256_CTX *ctx, const void *in, size_t num);
+    void sha256_block_data_order(SHA256_CTX *ctx, const void *in, size_t num);
 
 #include "crypto/md32_common.h"
 
@@ -134,18 +141,18 @@ static const SHA_LONG K256[64] = {
  * is left one. This is why you might notice that rotation coefficients
  * differ from those observed in FIPS document by 32-N...
  */
-# define Sigma0(x)       (ROTATE((x),30) ^ ROTATE((x),19) ^ ROTATE((x),10))
-# define Sigma1(x)       (ROTATE((x),26) ^ ROTATE((x),21) ^ ROTATE((x),7))
-# define sigma0(x)       (ROTATE((x),25) ^ ROTATE((x),14) ^ ((x)>>3))
-# define sigma1(x)       (ROTATE((x),15) ^ ROTATE((x),13) ^ ((x)>>10))
+#define Sigma0(x) (ROTATE((x), 30) ^ ROTATE((x), 19) ^ ROTATE((x), 10))
+#define Sigma1(x) (ROTATE((x), 26) ^ ROTATE((x), 21) ^ ROTATE((x), 7))
+#define sigma0(x) (ROTATE((x), 25) ^ ROTATE((x), 14) ^ ((x) >> 3))
+#define sigma1(x) (ROTATE((x), 15) ^ ROTATE((x), 13) ^ ((x) >> 10))
 
-# define Ch(x,y,z)       (((x) & (y)) ^ ((~(x)) & (z)))
-# define Maj(x,y,z)      (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define Ch(x, y, z) (((x) & (y)) ^ ((~(x)) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
 
-# ifdef OPENSSL_SMALL_FOOTPRINT
+#ifdef OPENSSL_SMALL_FOOTPRINT
 
 static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
-                                    size_t num)
+    size_t num)
 {
     unsigned MD32_REG_T a, b, c, d, e, f, g, h, s0, s1, T1, T2;
     SHA_LONG X[16], l;
@@ -205,25 +212,31 @@ static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
         ctx->h[5] += f;
         ctx->h[6] += g;
         ctx->h[7] += h;
-
     }
 }
 
-# else
+#else
 
-#  define ROUND_00_15(i,a,b,c,d,e,f,g,h)          do {    \
-        T1 += h + Sigma1(e) + Ch(e,f,g) + K256[i];      \
-        h = Sigma0(a) + Maj(a,b,c);                     \
-        d += T1;        h += T1;                } while (0)
+#define ROUND_00_15(i, a, b, c, d, e, f, g, h)       \
+    do {                                             \
+        T1 += h + Sigma1(e) + Ch(e, f, g) + K256[i]; \
+        h = Sigma0(a) + Maj(a, b, c);                \
+        d += T1;                                     \
+        h += T1;                                     \
+    } while (0)
 
-#  define ROUND_16_63(i,a,b,c,d,e,f,g,h,X)        do {    \
-        s0 = X[(i+1)&0x0f];     s0 = sigma0(s0);        \
-        s1 = X[(i+14)&0x0f];    s1 = sigma1(s1);        \
-        T1 = X[(i)&0x0f] += s0 + s1 + X[(i+9)&0x0f];    \
-        ROUND_00_15(i,a,b,c,d,e,f,g,h);         } while (0)
+#define ROUND_16_63(i, a, b, c, d, e, f, g, h, X)          \
+    do {                                                   \
+        s0 = X[(i + 1) & 0x0f];                            \
+        s0 = sigma0(s0);                                   \
+        s1 = X[(i + 14) & 0x0f];                           \
+        s1 = sigma1(s1);                                   \
+        T1 = X[(i) & 0x0f] += s0 + s1 + X[(i + 9) & 0x0f]; \
+        ROUND_00_15(i, a, b, c, d, e, f, g, h);            \
+    } while (0)
 
 static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
-                                    size_t num)
+    size_t num)
 {
     unsigned MD32_REG_T a, b, c, d, e, f, g, h, s0, s1, T1;
     SHA_LONG X[16];
@@ -352,9 +365,8 @@ static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
         ctx->h[5] += f;
         ctx->h[6] += g;
         ctx->h[7] += h;
-
     }
 }
 
-# endif
-#endif                         /* SHA256_ASM */
+#endif
+#endif /* SHA256_ASM */

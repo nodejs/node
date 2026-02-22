@@ -63,9 +63,9 @@ static unsigned char key_block[104];
 static EVP_MD_CTX *handshake_md;
 
 static int do_PRF(const void *seed1, int seed1_len,
-                  const void *seed2, int seed2_len,
-                  const void *seed3, int seed3_len,
-                  unsigned char *out, int olen)
+    const void *seed2, int seed2_len,
+    const void *seed3, int seed3_len,
+    unsigned char *out, int olen)
 {
     EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_TLS1_PRF, NULL);
     size_t outlen = olen;
@@ -85,24 +85,105 @@ static int do_PRF(const void *seed1, int seed1_len,
 static SSL_SESSION *client_session(void)
 {
     static unsigned char session_asn1[] = {
-        0x30, 0x5F,              /* SEQUENCE, length 0x5F */
-        0x02, 0x01, 0x01,        /* INTEGER, SSL_SESSION_ASN1_VERSION */
-        0x02, 0x02, 0x01, 0x00,  /* INTEGER, DTLS1_BAD_VER */
-        0x04, 0x02, 0x00, 0x2F,  /* OCTET_STRING, AES128-SHA */
-        0x04, 0x20,              /* OCTET_STRING, session id */
+        0x30,
+        0x5F, /* SEQUENCE, length 0x5F */
+        0x02,
+        0x01,
+        0x01, /* INTEGER, SSL_SESSION_ASN1_VERSION */
+        0x02,
+        0x02,
+        0x01,
+        0x00, /* INTEGER, DTLS1_BAD_VER */
+        0x04,
+        0x02,
+        0x00,
+        0x2F, /* OCTET_STRING, AES128-SHA */
+        0x04,
+        0x20, /* OCTET_STRING, session id */
 #define SS_SESSID_OFS 15 /* Session ID goes here */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x04, 0x30,              /* OCTET_STRING, master secret */
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x04,
+        0x30, /* OCTET_STRING, master secret */
 #define SS_SECRET_OFS 49 /* Master secret goes here */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
     };
     const unsigned char *p = session_asn1;
 
@@ -153,8 +234,7 @@ static int validate_client_hello(BIO *wbio)
         return 0;
 
     /* Check session id length and content */
-    if (!PACKET_get_length_prefixed_1(&pkt, &pkt2) ||
-        !PACKET_equal(&pkt2, session_id, sizeof(session_id)))
+    if (!PACKET_get_length_prefixed_1(&pkt, &pkt2) || !PACKET_equal(&pkt2, session_id, sizeof(session_id)))
         return 0;
 
     /* Check cookie */
@@ -183,8 +263,7 @@ static int validate_client_hello(BIO *wbio)
         return 0;
 
     /* Update handshake MAC for second ClientHello (with cookie) */
-    if (cookie_found && !EVP_DigestUpdate(handshake_md, data + MAC_OFFSET,
-                                          len - MAC_OFFSET))
+    if (cookie_found && !EVP_DigestUpdate(handshake_md, data + MAC_OFFSET, len - MAC_OFFSET))
         return 0;
 
     (void)BIO_reset(wbio);
@@ -196,21 +275,54 @@ static int send_hello_verify(BIO *rbio)
 {
     static unsigned char hello_verify[] = {
         0x16, /* Handshake */
-        0x01, 0x00, /* DTLS1_BAD_VER */
-        0x00, 0x00, /* Epoch 0 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* Seq# 0 */
-        0x00, 0x23, /* Length */
+        0x01,
+        0x00, /* DTLS1_BAD_VER */
+        0x00,
+        0x00, /* Epoch 0 */
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00, /* Seq# 0 */
+        0x00,
+        0x23, /* Length */
         0x03, /* Hello Verify */
-        0x00, 0x00, 0x17, /* Length */
-        0x00, 0x00, /* Seq# 0 */
-        0x00, 0x00, 0x00, /* Fragment offset */
-        0x00, 0x00, 0x17, /* Fragment length */
-        0x01, 0x00, /* DTLS1_BAD_VER */
+        0x00,
+        0x00,
+        0x17, /* Length */
+        0x00,
+        0x00, /* Seq# 0 */
+        0x00,
+        0x00,
+        0x00, /* Fragment offset */
+        0x00,
+        0x00,
+        0x17, /* Fragment length */
+        0x01,
+        0x00, /* DTLS1_BAD_VER */
         0x14, /* Cookie length */
 #define HV_COOKIE_OFS 28 /* Cookie goes here */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
     };
 
     memcpy(hello_verify + HV_COOKIE_OFS, cookie, sizeof(cookie));
@@ -224,44 +336,127 @@ static int send_server_hello(BIO *rbio)
 {
     static unsigned char server_hello[] = {
         0x16, /* Handshake */
-        0x01, 0x00, /* DTLS1_BAD_VER */
-        0x00, 0x00, /* Epoch 0 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x01, /* Seq# 1 */
-        0x00, 0x52, /* Length */
+        0x01,
+        0x00, /* DTLS1_BAD_VER */
+        0x00,
+        0x00, /* Epoch 0 */
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01, /* Seq# 1 */
+        0x00,
+        0x52, /* Length */
         0x02, /* Server Hello */
-        0x00, 0x00, 0x46, /* Length */
-        0x00, 0x01, /* Seq# */
-        0x00, 0x00, 0x00, /* Fragment offset */
-        0x00, 0x00, 0x46, /* Fragment length */
-        0x01, 0x00, /* DTLS1_BAD_VER */
+        0x00,
+        0x00,
+        0x46, /* Length */
+        0x00,
+        0x01, /* Seq# */
+        0x00,
+        0x00,
+        0x00, /* Fragment offset */
+        0x00,
+        0x00,
+        0x46, /* Fragment length */
+        0x01,
+        0x00, /* DTLS1_BAD_VER */
 #define SH_RANDOM_OFS 27 /* Server random goes here */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
         0x20, /* Session ID length */
 #define SH_SESSID_OFS 60 /* Session ID goes here */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x2f, /* Cipher suite AES128-SHA */
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x2f, /* Cipher suite AES128-SHA */
         0x00, /* Compression null */
     };
     static unsigned char change_cipher_spec[] = {
         0x14, /* Change Cipher Spec */
-        0x01, 0x00, /* DTLS1_BAD_VER */
-        0x00, 0x00, /* Epoch 0 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x02, /* Seq# 2 */
-        0x00, 0x03, /* Length */
-        0x01, 0x00, 0x02, /* Message */
+        0x01,
+        0x00, /* DTLS1_BAD_VER */
+        0x00,
+        0x00, /* Epoch 0 */
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x02, /* Seq# 2 */
+        0x00,
+        0x03, /* Length */
+        0x01,
+        0x00,
+        0x02, /* Message */
     };
 
     memcpy(server_hello + SH_RANDOM_OFS, server_random, sizeof(server_random));
     memcpy(server_hello + SH_SESSID_OFS, session_id, sizeof(session_id));
 
     if (!EVP_DigestUpdate(handshake_md, server_hello + MAC_OFFSET,
-                          sizeof(server_hello) - MAC_OFFSET))
+            sizeof(server_hello) - MAC_OFFSET))
         return 0;
 
     BIO_write(rbio, server_hello, sizeof(server_hello));
@@ -272,7 +467,7 @@ static int send_server_hello(BIO *rbio)
 
 /* Create header, HMAC, pad, encrypt and send a record */
 static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
-                       const void *msg, size_t len)
+    const void *msg, size_t len)
 {
     /* Note that the order of the record header fields on the wire,
      * and in the HMAC, is different. So we just keep them in separate
@@ -307,21 +502,21 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
 
     /* Append HMAC to data */
     if (!TEST_ptr(hmac = EVP_MAC_fetch(NULL, "HMAC", NULL))
-            || !TEST_ptr(ctx = EVP_MAC_CTX_new(hmac)))
+        || !TEST_ptr(ctx = EVP_MAC_CTX_new(hmac)))
         goto end;
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
-                                                 "SHA1", 0);
+        "SHA1", 0);
     params[1] = OSSL_PARAM_construct_end();
     lenbytes[0] = (unsigned char)(len >> 8);
     lenbytes[1] = (unsigned char)(len);
     if (!EVP_MAC_init(ctx, mac_key, 20, params)
-            || !EVP_MAC_update(ctx, epoch, 2)
-            || !EVP_MAC_update(ctx, seq, 6)
-            || !EVP_MAC_update(ctx, &type, 1)
-            || !EVP_MAC_update(ctx, ver, 2)      /* Version */
-            || !EVP_MAC_update(ctx, lenbytes, 2) /* Length */
-            || !EVP_MAC_update(ctx, enc, len)    /* Finally the data itself */
-            || !EVP_MAC_final(ctx, enc + len, NULL, SHA_DIGEST_LENGTH))
+        || !EVP_MAC_update(ctx, epoch, 2)
+        || !EVP_MAC_update(ctx, seq, 6)
+        || !EVP_MAC_update(ctx, &type, 1)
+        || !EVP_MAC_update(ctx, ver, 2) /* Version */
+        || !EVP_MAC_update(ctx, lenbytes, 2) /* Length */
+        || !EVP_MAC_update(ctx, enc, len) /* Finally the data itself */
+        || !EVP_MAC_final(ctx, enc + len, NULL, SHA_DIGEST_LENGTH))
         goto end;
 
     /* Append padding bytes */
@@ -332,10 +527,10 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
 
     /* Generate IV, and encrypt */
     if (!TEST_int_gt(RAND_bytes(iv, sizeof(iv)), 0)
-            || !TEST_ptr(enc_ctx = EVP_CIPHER_CTX_new())
-            || !TEST_true(EVP_CipherInit_ex(enc_ctx, EVP_aes_128_cbc(), NULL,
-                                            enc_key, iv, 1))
-            || !TEST_int_ge(EVP_Cipher(enc_ctx, enc, enc, len), 0))
+        || !TEST_ptr(enc_ctx = EVP_CIPHER_CTX_new())
+        || !TEST_true(EVP_CipherInit_ex(enc_ctx, EVP_aes_128_cbc(), NULL,
+            enc_key, iv, 1))
+        || !TEST_int_ge(EVP_Cipher(enc_ctx, enc, enc, len), 0))
         goto end;
 
     /* Finally write header (from fragmented variables), IV and encrypted record */
@@ -350,7 +545,7 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
     BIO_write(rbio, iv, sizeof(iv));
     BIO_write(rbio, enc, len);
     ret = 1;
- end:
+end:
     EVP_MAC_free(hmac);
     EVP_MAC_CTX_free(ctx);
     EVP_CIPHER_CTX_free(enc_ctx);
@@ -360,34 +555,40 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
 
 static int send_finished(SSL *s, BIO *rbio)
 {
-    static unsigned char finished_msg[DTLS1_HM_HEADER_LENGTH +
-                                      TLS1_FINISH_MAC_LENGTH] = {
+    static unsigned char finished_msg[DTLS1_HM_HEADER_LENGTH + TLS1_FINISH_MAC_LENGTH] = {
         0x14, /* Finished */
-        0x00, 0x00, 0x0c, /* Length */
-        0x00, 0x03, /* Seq# 3 */
-        0x00, 0x00, 0x00, /* Fragment offset */
-        0x00, 0x00, 0x0c, /* Fragment length */
+        0x00,
+        0x00,
+        0x0c, /* Length */
+        0x00,
+        0x03, /* Seq# 3 */
+        0x00,
+        0x00,
+        0x00, /* Fragment offset */
+        0x00,
+        0x00,
+        0x0c, /* Fragment length */
         /* Finished MAC (12 bytes) */
     };
     unsigned char handshake_hash[EVP_MAX_MD_SIZE];
 
     /* Derive key material */
     do_PRF(TLS_MD_KEY_EXPANSION_CONST, TLS_MD_KEY_EXPANSION_CONST_SIZE,
-           server_random, SSL3_RANDOM_SIZE,
-           client_random, SSL3_RANDOM_SIZE,
-           key_block, sizeof(key_block));
+        server_random, SSL3_RANDOM_SIZE,
+        client_random, SSL3_RANDOM_SIZE,
+        key_block, sizeof(key_block));
 
     /* Generate Finished MAC */
     if (!EVP_DigestFinal_ex(handshake_md, handshake_hash, NULL))
         return 0;
 
     do_PRF(TLS_MD_SERVER_FINISH_CONST, TLS_MD_SERVER_FINISH_CONST_SIZE,
-           handshake_hash, EVP_MD_CTX_get_size(handshake_md),
-           NULL, 0,
-           finished_msg + DTLS1_HM_HEADER_LENGTH, TLS1_FINISH_MAC_LENGTH);
+        handshake_hash, EVP_MD_CTX_get_size(handshake_md),
+        NULL, 0,
+        finished_msg + DTLS1_HM_HEADER_LENGTH, TLS1_FINISH_MAC_LENGTH);
 
     return send_record(rbio, SSL3_RT_HANDSHAKE, 0,
-                       finished_msg, sizeof(finished_msg));
+        finished_msg, sizeof(finished_msg));
 }
 
 static int validate_ccs(BIO *wbio)
@@ -442,7 +643,7 @@ static int validate_ccs(BIO *wbio)
 }
 
 #define NODROP(x) { x##UL, 0 }
-#define DROP(x)   { x##UL, 1 }
+#define DROP(x) { x##UL, 1 }
 
 static struct {
     uint64_t seq;
@@ -486,29 +687,29 @@ static int test_bad_dtls(void)
 
     handshake_md = EVP_MD_CTX_new();
     if (!TEST_ptr(handshake_md)
-            || !TEST_true(EVP_DigestInit_ex(handshake_md, EVP_md5_sha1(),
-                                            NULL)))
+        || !TEST_true(EVP_DigestInit_ex(handshake_md, EVP_md5_sha1(),
+            NULL)))
         goto end;
 
     ctx = SSL_CTX_new(DTLS_client_method());
     if (!TEST_ptr(ctx)
-            || !TEST_true(SSL_CTX_set_min_proto_version(ctx, DTLS1_BAD_VER))
-            || !TEST_true(SSL_CTX_set_max_proto_version(ctx, DTLS1_BAD_VER))
-            || !TEST_true(SSL_CTX_set_options(ctx,
-                                              SSL_OP_LEGACY_SERVER_CONNECT))
-            || !TEST_true(SSL_CTX_set_cipher_list(ctx, "AES128-SHA")))
+        || !TEST_true(SSL_CTX_set_min_proto_version(ctx, DTLS1_BAD_VER))
+        || !TEST_true(SSL_CTX_set_max_proto_version(ctx, DTLS1_BAD_VER))
+        || !TEST_true(SSL_CTX_set_options(ctx,
+            SSL_OP_LEGACY_SERVER_CONNECT))
+        || !TEST_true(SSL_CTX_set_cipher_list(ctx, "AES128-SHA")))
         goto end;
 
     con = SSL_new(ctx);
     if (!TEST_ptr(con)
-            || !TEST_true(SSL_set_session(con, sess)))
+        || !TEST_true(SSL_set_session(con, sess)))
         goto end;
 
     rbio = BIO_new(BIO_s_mem());
     wbio = BIO_new(BIO_s_mem());
 
     if (!TEST_ptr(rbio)
-            || !TEST_ptr(wbio))
+        || !TEST_ptr(wbio))
         goto end;
 
     SSL_set_bio(con, rbio, wbio);
@@ -532,27 +733,27 @@ static int test_bad_dtls(void)
     /* Send initial ClientHello */
     ret = SSL_do_handshake(con);
     if (!TEST_int_le(ret, 0)
-            || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
-            || !TEST_int_eq(validate_client_hello(wbio), 1)
-            || !TEST_true(send_hello_verify(rbio)))
+        || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
+        || !TEST_int_eq(validate_client_hello(wbio), 1)
+        || !TEST_true(send_hello_verify(rbio)))
         goto end;
 
     ret = SSL_do_handshake(con);
     if (!TEST_int_le(ret, 0)
-            || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
-            || !TEST_int_eq(validate_client_hello(wbio), 2)
-            || !TEST_true(send_server_hello(rbio)))
+        || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
+        || !TEST_int_eq(validate_client_hello(wbio), 2)
+        || !TEST_true(send_server_hello(rbio)))
         goto end;
 
     ret = SSL_do_handshake(con);
     if (!TEST_int_le(ret, 0)
-            || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
-            || !TEST_true(send_finished(con, rbio)))
+        || !TEST_int_eq(SSL_get_error(con, ret), SSL_ERROR_WANT_READ)
+        || !TEST_true(send_finished(con, rbio)))
         goto end;
 
     ret = SSL_do_handshake(con);
     if (!TEST_int_gt(ret, 0)
-            || !TEST_true(validate_ccs(wbio)))
+        || !TEST_true(validate_ccs(wbio)))
         goto end;
 
     /* While we're here and crafting packets by hand, we might as well do a
@@ -564,9 +765,9 @@ static int test_bad_dtls(void)
         uint64_t recv_buf[2];
 
         if (!TEST_true(send_record(rbio, SSL3_RT_APPLICATION_DATA, tests[i].seq,
-                                   &tests[i].seq, sizeof(uint64_t)))) {
+                &tests[i].seq, sizeof(uint64_t)))) {
             TEST_error("Failed to send data seq #0x%x%08x (%d)\n",
-                       (unsigned int)(tests[i].seq >> 32), (unsigned int)tests[i].seq, i);
+                (unsigned int)(tests[i].seq >> 32), (unsigned int)tests[i].seq, i);
             goto end;
         }
 
@@ -576,7 +777,7 @@ static int test_bad_dtls(void)
         ret = SSL_read(con, recv_buf, 2 * sizeof(uint64_t));
         if (!TEST_int_eq(ret, (int)sizeof(uint64_t))) {
             TEST_error("SSL_read failed or wrong size on seq#0x%x%08x (%d)\n",
-                       (unsigned int)(tests[i].seq >> 32), (unsigned int)tests[i].seq, i);
+                (unsigned int)(tests[i].seq >> 32), (unsigned int)tests[i].seq, i);
             goto end;
         }
         if (!TEST_true(recv_buf[0] == tests[i].seq))
@@ -584,12 +785,12 @@ static int test_bad_dtls(void)
     }
 
     /* The last test cannot be DROP() */
-    if (!TEST_false(tests[i-1].drop))
+    if (!TEST_false(tests[i - 1].drop))
         goto end;
 
     testresult = 1;
 
- end:
+end:
     SSL_SESSION_free(sess);
     BIO_free(rbio);
     BIO_free(wbio);

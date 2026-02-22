@@ -14,11 +14,11 @@
 #include "testutil.h"
 
 #ifndef PATH_MAX
-# if defined(_WIN32) && defined(_MAX_PATH)
-#  define PATH_MAX _MAX_PATH
-# else
-#  define PATH_MAX 4096
-# endif
+#if defined(_WIN32) && defined(_MAX_PATH)
+#define PATH_MAX _MAX_PATH
+#else
+#define PATH_MAX 4096
+#endif
 #endif
 
 typedef enum OPTION_choice {
@@ -45,12 +45,12 @@ static int test_store_open(void)
     char *input = test_mk_file_path(inputdir, infile);
 
     ret = TEST_ptr(input)
-          && TEST_ptr(search = OSSL_STORE_SEARCH_by_alias("nothing"))
-          && TEST_ptr(ui_method= UI_create_method("DummyUI"))
-          && TEST_ptr(sctx = OSSL_STORE_open_ex(input, NULL, NULL, ui_method,
-                                                NULL, NULL, NULL, NULL))
-          && TEST_false(OSSL_STORE_find(sctx, NULL))
-          && TEST_true(OSSL_STORE_find(sctx, search));
+        && TEST_ptr(search = OSSL_STORE_SEARCH_by_alias("nothing"))
+        && TEST_ptr(ui_method = UI_create_method("DummyUI"))
+        && TEST_ptr(sctx = OSSL_STORE_open_ex(input, NULL, NULL, ui_method,
+                        NULL, NULL, NULL, NULL))
+        && TEST_false(OSSL_STORE_find(sctx, NULL))
+        && TEST_true(OSSL_STORE_find(sctx, search));
     UI_destroy_method(ui_method);
     OSSL_STORE_SEARCH_free(search);
     OSSL_STORE_close(sctx);
@@ -64,7 +64,7 @@ static int test_store_search_by_key_fingerprint_fail(void)
     OSSL_STORE_SEARCH *search = NULL;
 
     ret = TEST_ptr_null(search = OSSL_STORE_SEARCH_by_key_fingerprint(
-                                     EVP_sha256(), NULL, 0));
+                            EVP_sha256(), NULL, 0));
     OSSL_STORE_SEARCH_free(search);
     return ret;
 }
@@ -81,8 +81,8 @@ static int get_params(const char *uri, const char *type)
         goto err;
 
     while (!OSSL_STORE_eof(ctx)
-            && (info = OSSL_STORE_load(ctx)) != NULL
-            && pkey == NULL) {
+        && (info = OSSL_STORE_load(ctx)) != NULL
+        && pkey == NULL) {
         if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PARAMS) {
             pkey = OSSL_STORE_INFO_get1_PARAMS(info);
         }
@@ -94,7 +94,7 @@ static int get_params(const char *uri, const char *type)
         ret = EVP_PKEY_is_a(pkey, type);
     EVP_PKEY_free(pkey);
 
- err:
+err:
     OSSL_STORE_close(ctx);
     return ret;
 }
@@ -105,7 +105,7 @@ static int test_store_get_params(int idx)
     const char *urifmt;
     char uri[PATH_MAX];
 
-    switch(idx) {
+    switch (idx) {
 #ifndef OPENSSL_NO_DH
     case 0:
         type = "DH";
@@ -163,14 +163,14 @@ static int test_store_attach_unregistered_scheme(void)
     char *input = test_mk_file_path(inputdir, sm2file);
 
     ret = TEST_ptr(input)
-          && TEST_ptr(libctx = OSSL_LIB_CTX_new())
-          && TEST_ptr(provider = OSSL_PROVIDER_load(libctx, "default"))
-          && TEST_ptr(bio = BIO_new_file(input, "r"))
-          && TEST_ptr(store_ctx = OSSL_STORE_attach(bio, "file", libctx, NULL,
-                                                    NULL, NULL, NULL, NULL, NULL))
-          && TEST_int_ne(ERR_GET_LIB(ERR_peek_error()), ERR_LIB_OSSL_STORE)
-          && TEST_int_ne(ERR_GET_REASON(ERR_peek_error()),
-                         OSSL_STORE_R_UNREGISTERED_SCHEME);
+        && TEST_ptr(libctx = OSSL_LIB_CTX_new())
+        && TEST_ptr(provider = OSSL_PROVIDER_load(libctx, "default"))
+        && TEST_ptr(bio = BIO_new_file(input, "r"))
+        && TEST_ptr(store_ctx = OSSL_STORE_attach(bio, "file", libctx, NULL,
+                        NULL, NULL, NULL, NULL, NULL))
+        && TEST_int_ne(ERR_GET_LIB(ERR_peek_error()), ERR_LIB_OSSL_STORE)
+        && TEST_int_ne(ERR_GET_REASON(ERR_peek_error()),
+            OSSL_STORE_R_UNREGISTERED_SCHEME);
 
     BIO_free(bio);
     OSSL_STORE_close(store_ctx);
@@ -212,7 +212,7 @@ int setup_tests(void)
             datadir = opt_arg();
             break;
         case OPT_TEST_CASES:
-           break;
+            break;
         default:
         case OPT_ERR:
             return 0;

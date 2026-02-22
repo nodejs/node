@@ -32,8 +32,8 @@ typedef struct crng_test_global_st {
 } CRNG_TEST_GLOBAL;
 
 static int crngt_get_entropy(PROV_CTX *provctx, const EVP_MD *digest,
-                             unsigned char *buf, unsigned char *md,
-                             unsigned int *md_size)
+    unsigned char *buf, unsigned char *md,
+    unsigned int *md_size)
 {
     int r;
     size_t n;
@@ -89,8 +89,8 @@ static const OSSL_LIB_CTX_METHOD rand_crng_ossl_ctx_method = {
 };
 
 static int prov_crngt_compare_previous(const unsigned char *prev,
-                                       const unsigned char *cur,
-                                       size_t sz)
+    const unsigned char *cur,
+    size_t sz)
 {
     const int res = memcmp(prev, cur, sz) != 0;
 
@@ -100,9 +100,9 @@ static int prov_crngt_compare_previous(const unsigned char *prev,
 }
 
 size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
-                              unsigned char **pout,
-                              int entropy, size_t min_len, size_t max_len,
-                              int prediction_resistance)
+    unsigned char **pout,
+    int entropy, size_t min_len, size_t max_len,
+    int prediction_resistance)
 {
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned char buf[CRNGT_BUFSIZ];
@@ -114,7 +114,7 @@ size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
     OSSL_LIB_CTX *libctx = ossl_prov_ctx_get0_libctx(drbg->provctx);
     CRNG_TEST_GLOBAL *crngt_glob
         = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_RAND_CRNGT_INDEX,
-                                &rand_crng_ossl_ctx_method);
+            &rand_crng_ossl_ctx_method);
     OSSL_CALLBACK *stcb = NULL;
     void *stcbarg = NULL;
     OSSL_SELF_TEST *st = NULL;
@@ -127,7 +127,7 @@ size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
 
     if (!crngt_glob->preloaded) {
         if (!crngt_get_entropy(drbg->provctx, crngt_glob->md, buf,
-                               crngt_glob->crngt_prev, NULL)) {
+                crngt_glob->crngt_prev, NULL)) {
             OPENSSL_cleanse(buf, sizeof(buf));
             goto unlock_return;
         }
@@ -154,7 +154,7 @@ size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
         if (st == NULL)
             goto err;
         OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_CRNG,
-                               OSSL_SELF_TEST_DESC_RNG);
+            OSSL_SELF_TEST_DESC_RNG);
     }
 
     for (t = bytes_needed; t > 0;) {
@@ -181,18 +181,18 @@ size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
     *pout = ent;
     ent = NULL;
 
- err:
+err:
     OSSL_SELF_TEST_onend(st, crng_test_pass);
     OSSL_SELF_TEST_free(st);
     OPENSSL_secure_clear_free(ent, bytes_needed);
 
- unlock_return:
+unlock_return:
     CRYPTO_THREAD_unlock(crngt_glob->lock);
     return r;
 }
 
 void ossl_crngt_cleanup_entropy(ossl_unused PROV_DRBG *drbg,
-                                unsigned char *out, size_t outlen)
+    unsigned char *out, size_t outlen)
 {
     OPENSSL_secure_clear_free(out, outlen);
 }

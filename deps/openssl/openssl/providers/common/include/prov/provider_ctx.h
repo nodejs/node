@@ -8,16 +8,16 @@
  */
 
 #ifndef OSSL_PROV_PROVIDER_CTX_H
-# define OSSL_PROV_PROVIDER_CTX_H
+#define OSSL_PROV_PROVIDER_CTX_H
 
-# include <openssl/types.h>
-# include <openssl/crypto.h>
-# include <openssl/bio.h>
-# include <openssl/core.h>
+#include <openssl/types.h>
+#include <openssl/crypto.h>
+#include <openssl/bio.h>
+#include <openssl/core.h>
 
 typedef struct prov_ctx_st {
     const OSSL_CORE_HANDLE *handle;
-    OSSL_LIB_CTX *libctx;         /* For all provider modules */
+    OSSL_LIB_CTX *libctx; /* For all provider modules */
     BIO_METHOD *corebiometh;
 } PROV_CTX;
 
@@ -25,7 +25,7 @@ typedef struct prov_ctx_st {
  * To be used anywhere the library context needs to be passed, such as to
  * fetching functions.
  */
-# define PROV_LIBCTX_OF(provctx)        \
+#define PROV_LIBCTX_OF(provctx) \
     ossl_prov_ctx_get0_libctx((provctx))
 
 PROV_CTX *ossl_prov_ctx_new(void);

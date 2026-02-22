@@ -30,14 +30,14 @@
 DEFINE_LHASH_OF(int);
 
 static int int_tests[] = { 65537, 13, 1, 3, -5, 6, 7, 4, -10, -12, -14, 22, 9,
-                           -17, 16, 17, -23, 35, 37, 173, 11 };
+    -17, 16, 17, -23, 35, 37, 173, 11 };
 static const unsigned int n_int_tests = OSSL_NELEM(int_tests);
 static short int_found[OSSL_NELEM(int_tests)];
 static short int_not_found;
 
 static unsigned long int int_hash(const int *p)
 {
-    return 3 & *p;      /* To force collisions */
+    return 3 & *p; /* To force collisions */
 }
 
 static int int_cmp(const int *p, const int *q)
@@ -83,12 +83,12 @@ static int test_int_lhash(void)
         int data;
         int null;
     } dels[] = {
-        { 65537,    0 },
-        { 173,      0 },
-        { 999,      1 },
-        { 37,       0 },
-        { 1,        0 },
-        { 34,       1 }
+        { 65537, 0 },
+        { 173, 0 },
+        { 999, 1 },
+        { 37, 0 },
+        { 1, 0 },
+        { 34, 1 }
     };
     const unsigned int n_dels = OSSL_NELEM(dels);
     LHASH_OF(int) *h = lh_int_new(&int_hash, &int_cmp);
@@ -164,7 +164,7 @@ static int test_int_lhash(void)
     /* delete */
     for (i = 0; i < n_dels; i++) {
         const int b = lh_int_delete(h, &dels[i].data) == NULL;
-        if (!TEST_int_eq(b ^ dels[i].null,  0)) {
+        if (!TEST_int_eq(b ^ dels[i].null, 0)) {
             TEST_info("lhash int delete %d", i);
             goto end;
         }
@@ -208,7 +208,7 @@ static int test_stress(void)
 
     /* num_items */
     if (!TEST_int_eq(lh_int_num_items(h), n))
-            goto end;
+        goto end;
 
     TEST_info("hash full statistics:");
     OPENSSL_LH_stats_bio((OPENSSL_LHASH *)h, bio_err);

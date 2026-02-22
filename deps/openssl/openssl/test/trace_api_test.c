@@ -22,29 +22,29 @@ static int test_trace_categories(void)
         int expected_ret;
 
         switch (cat_num) {
-#define CASE(name) \
-        case OSSL_TRACE_CATEGORY_##name: \
-            is_cat_name_eq = TEST_str_eq(cat_name, #name); \
-            break
+#define CASE(name)                                     \
+    case OSSL_TRACE_CATEGORY_##name:                   \
+        is_cat_name_eq = TEST_str_eq(cat_name, #name); \
+        break
 
-        CASE(ALL);
-        CASE(TRACE);
-        CASE(INIT);
-        CASE(TLS);
-        CASE(TLS_CIPHER);
-        CASE(CONF);
-        CASE(ENGINE_TABLE);
-        CASE(ENGINE_REF_COUNT);
-        CASE(PKCS5V2);
-        CASE(PKCS12_KEYGEN);
-        CASE(PKCS12_DECRYPT);
-        CASE(X509V3_POLICY);
-        CASE(BN_CTX);
-        CASE(CMP);
-        CASE(STORE);
-        CASE(DECODER);
-        CASE(ENCODER);
-        CASE(REF_COUNT);
+            CASE(ALL);
+            CASE(TRACE);
+            CASE(INIT);
+            CASE(TLS);
+            CASE(TLS_CIPHER);
+            CASE(CONF);
+            CASE(ENGINE_TABLE);
+            CASE(ENGINE_REF_COUNT);
+            CASE(PKCS5V2);
+            CASE(PKCS12_KEYGEN);
+            CASE(PKCS12_DECRYPT);
+            CASE(X509V3_POLICY);
+            CASE(BN_CTX);
+            CASE(CMP);
+            CASE(STORE);
+            CASE(DECODER);
+            CASE(ENCODER);
+            CASE(REF_COUNT);
 #undef CASE
         default:
             is_cat_name_eq = TEST_ptr_null(cat_name);
@@ -53,8 +53,7 @@ static int test_trace_categories(void)
 
         if (!TEST_true(is_cat_name_eq))
             return 0;
-        ret_cat_num =
-            OSSL_trace_get_category_num(cat_name);
+        ret_cat_num = OSSL_trace_get_category_num(cat_name);
         expected_ret = cat_name != NULL ? cat_num : -1;
         if (!TEST_int_eq(expected_ret, ret_cat_num))
             return 0;
@@ -66,10 +65,12 @@ static int test_trace_categories(void)
 #ifndef OPENSSL_NO_TRACE
 static void put_trace_output(void)
 {
-    OSSL_TRACE_BEGIN(REF_COUNT) {
+    OSSL_TRACE_BEGIN(REF_COUNT)
+    {
         BIO_printf(trc_out, "Hello World\n");
         BIO_printf(trc_out, "Good Bye Universe\n");
-    } OSSL_TRACE_END(REF_COUNT);
+    }
+    OSSL_TRACE_END(REF_COUNT);
 }
 
 static int test_trace_channel(void)
@@ -105,7 +106,7 @@ static int test_trace_channel(void)
     bio = NULL;
 
     ret = 1;
- end:
+end:
     BIO_free(bio);
     return ret;
 }
@@ -114,7 +115,7 @@ static int trace_cb_failure;
 static int trace_cb_called;
 
 static size_t trace_cb(const char *buffer, size_t count,
-                       int category, int cmd, void *data)
+    int category, int cmd, void *data)
 {
     trace_cb_called = 1;
     if (!TEST_true(category == OSSL_TRACE_CATEGORY_TRACE))
@@ -127,7 +128,7 @@ static int test_trace_callback(void)
     int ret = 0;
 
     if (!TEST_true(OSSL_trace_set_callback(OSSL_TRACE_CATEGORY_TRACE, trace_cb,
-                                           NULL)))
+            NULL)))
         goto end;
 
     put_trace_output();
@@ -136,7 +137,7 @@ static int test_trace_callback(void)
         goto end;
 
     ret = 1;
- end:
+end:
     return ret;
 }
 #endif

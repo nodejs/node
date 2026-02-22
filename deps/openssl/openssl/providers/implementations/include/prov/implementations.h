@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -197,7 +197,7 @@ extern const OSSL_DISPATCH ossl_rc2128ofb128_functions[];
 #ifndef OPENSSL_NO_DES
 extern const OSSL_DISPATCH ossl_tdes_ede3_ecb_functions[];
 extern const OSSL_DISPATCH ossl_tdes_ede3_cbc_functions[];
-# ifndef FIPS_MODULE
+#ifndef FIPS_MODULE
 extern const OSSL_DISPATCH ossl_tdes_ede3_ofb_functions[];
 extern const OSSL_DISPATCH ossl_tdes_ede3_cfb_functions[];
 extern const OSSL_DISPATCH ossl_tdes_ede3_cfb8_functions[];
@@ -217,23 +217,22 @@ extern const OSSL_DISPATCH ossl_des_ofb64_functions[];
 extern const OSSL_DISPATCH ossl_des_cfb64_functions[];
 extern const OSSL_DISPATCH ossl_des_cfb1_functions[];
 extern const OSSL_DISPATCH ossl_des_cfb8_functions[];
-# endif /* FIPS_MODULE */
+#endif /* FIPS_MODULE */
 #endif /* OPENSSL_NO_DES */
 
 #ifndef OPENSSL_NO_RC4
 extern const OSSL_DISPATCH ossl_rc440_functions[];
 extern const OSSL_DISPATCH ossl_rc4128_functions[];
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
 extern const OSSL_DISPATCH ossl_rc4_hmac_ossl_md5_functions[];
-# endif /* OPENSSL_NO_MD5 */
+#endif /* OPENSSL_NO_MD5 */
 #endif /* OPENSSL_NO_RC4 */
 #ifndef OPENSSL_NO_CHACHA
 extern const OSSL_DISPATCH ossl_chacha20_functions[];
-# ifndef OPENSSL_NO_POLY1305
+#ifndef OPENSSL_NO_POLY1305
 extern const OSSL_DISPATCH ossl_chacha20_ossl_poly1305_functions[];
-# endif /* OPENSSL_NO_POLY1305 */
+#endif /* OPENSSL_NO_POLY1305 */
 #endif /* OPENSSL_NO_CHACHA */
-
 
 #ifndef OPENSSL_NO_SIV
 extern const OSSL_DISPATCH ossl_aes128siv_functions[];
@@ -498,6 +497,7 @@ extern const OSSL_DISPATCH ossl_SubjectPublicKeyInfo_der_to_ed448_decoder_functi
 #ifndef OPENSSL_NO_SM2
 extern const OSSL_DISPATCH ossl_PrivateKeyInfo_der_to_sm2_decoder_functions[];
 extern const OSSL_DISPATCH ossl_SubjectPublicKeyInfo_der_to_sm2_decoder_functions[];
+extern const OSSL_DISPATCH ossl_type_specific_no_pub_der_to_sm2_decoder_functions[];
 #endif
 
 extern const OSSL_DISPATCH ossl_PrivateKeyInfo_der_to_rsa_decoder_functions[];

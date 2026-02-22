@@ -71,6 +71,10 @@ zero).  This helps the caller to distinguish between an error when creating
 the B<OSSL_ENCODER_CTX> and missing encoder implementation, and allows it to
 act accordingly.
 
+Note that OSSL_DECODER_CTX_new_for_pkey() finalises the OSSL_DECODER_CTX;
+after that the OSSL_DECODER_CTX_set_* and OSSL_DECODER_CTX_add_* functions
+described in L<OSSL_DECODER_CTX(3)> shouldn't be called.
+
 OSSL_DECODER_CTX_set_passphrase() gives the implementation a pass phrase to
 use when decrypting the encoded private key. Alternatively, a pass phrase
 callback may be specified with the following functions.

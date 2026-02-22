@@ -27,8 +27,22 @@ static const unsigned char cbc_key[] = {
 
 /* Unique initialisation vector */
 static const unsigned char cbc_iv[] = {
-    0x99, 0xaa, 0x3e, 0x68, 0xed, 0x81, 0x73, 0xa0, 0xee, 0xd0, 0x66, 0x84,
-    0x99, 0xaa, 0x3e, 0x68,
+    0x99,
+    0xaa,
+    0x3e,
+    0x68,
+    0xed,
+    0x81,
+    0x73,
+    0xa0,
+    0xee,
+    0xd0,
+    0x66,
+    0x84,
+    0x99,
+    0xaa,
+    0x3e,
+    0x68,
 };
 
 /* Example plaintext to encrypt */
@@ -169,7 +183,7 @@ err:
 int main(int argc, char **argv)
 {
     if (!aria_cbc_encrypt())
-       return 1;
+        return 1;
 
     if (!aria_cbc_decrypt())
         return 1;

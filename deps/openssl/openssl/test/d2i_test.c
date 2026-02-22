@@ -95,7 +95,7 @@ static int test_bad_asn1(void)
     if (TEST_int_eq(expected_error, ASN1_OK))
         ret = 1;
 
- err:
+err:
     /* Don't indicate success for memory allocation errors */
     if (ret == 1
         && !TEST_false(ERR_GET_REASON(ERR_peek_error()) == ERR_R_MALLOC_FAILURE))
@@ -120,11 +120,11 @@ int setup_tests(void)
     size_t i;
 
     static error_enum expected_errors[] = {
-        {"OK", ASN1_OK},
-        {"BIO", ASN1_BIO},
-        {"decode", ASN1_DECODE},
-        {"encode", ASN1_ENCODE},
-        {"compare", ASN1_COMPARE}
+        { "OK", ASN1_OK },
+        { "BIO", ASN1_BIO },
+        { "decode", ASN1_DECODE },
+        { "encode", ASN1_ENCODE },
+        { "compare", ASN1_COMPARE }
     };
 
     if (!test_skip_common_options()) {
@@ -133,8 +133,8 @@ int setup_tests(void)
     }
 
     if (!TEST_ptr(test_type_name = test_get_argument(0))
-            || !TEST_ptr(expected_error_string = test_get_argument(1))
-            || !TEST_ptr(test_file = test_get_argument(2)))
+        || !TEST_ptr(expected_error_string = test_get_argument(1))
+        || !TEST_ptr(test_file = test_get_argument(2)))
         return 0;
 
     item_type = ASN1_ITEM_lookup(test_type_name);

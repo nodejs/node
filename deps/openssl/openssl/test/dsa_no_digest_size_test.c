@@ -101,8 +101,8 @@ static DSA *load_dsa_params(void)
     if (dsa == NULL)
         return NULL;
     if (!DSA_set0_pqg(dsa, p = BN_bin2bn(dsap_2048, sizeof(dsap_2048), NULL),
-                           q = BN_bin2bn(dsaq_2048, sizeof(dsaq_2048), NULL),
-                           g = BN_bin2bn(dsag_2048, sizeof(dsag_2048), NULL))) {
+            q = BN_bin2bn(dsaq_2048, sizeof(dsaq_2048), NULL),
+            g = BN_bin2bn(dsag_2048, sizeof(dsag_2048), NULL))) {
         DSA_free(dsa);
         BN_free(p);
         BN_free(q);
@@ -140,9 +140,7 @@ static int sign_and_verify(int len)
     EVP_PKEY_CTX *ctx = NULL;
     EVP_PKEY *pkey = NULL;
 
-    if (!TEST_ptr(dataToSign) ||
-        !TEST_ptr(paddedData) ||
-        !TEST_int_eq(RAND_bytes(dataToSign, len), 1))
+    if (!TEST_ptr(dataToSign) || !TEST_ptr(paddedData) || !TEST_int_eq(RAND_bytes(dataToSign, len), 1))
         goto end;
 
     memset(paddedData, 0, digestlen);
@@ -212,7 +210,8 @@ end:
     return ok;
 }
 
-static int dsa_exact_size_test(void) {
+static int dsa_exact_size_test(void)
+{
     /*
      * For a 2048-bit p, q should be either 224 or 256 bits per the table in
      * FIPS 186-4 4.2.
@@ -221,11 +220,13 @@ static int dsa_exact_size_test(void) {
     return sign_and_verify(224 / 8) && sign_and_verify(256 / 8);
 }
 
-static int dsa_small_digest_test(void) {
+static int dsa_small_digest_test(void)
+{
     return sign_and_verify(16) && sign_and_verify(1);
 }
 
-static int dsa_large_digest_test(void) {
+static int dsa_large_digest_test(void)
+{
     return sign_and_verify(33) && sign_and_verify(64);
 }
 
@@ -248,4 +249,3 @@ int setup_tests(void)
 #endif
     return 1;
 }
-

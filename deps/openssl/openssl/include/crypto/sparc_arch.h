@@ -8,52 +8,53 @@
  */
 
 #ifndef OSSL_CRYPTO_SPARC_ARCH_H
-# define OSSL_CRYPTO_SPARC_ARCH_H
+#define OSSL_CRYPTO_SPARC_ARCH_H
 
-# define SPARCV9_TICK_PRIVILEGED (1<<0)
-# define SPARCV9_PREFER_FPU      (1<<1)
-# define SPARCV9_VIS1            (1<<2)
-# define SPARCV9_VIS2            (1<<3)/* reserved */
-# define SPARCV9_FMADD           (1<<4)
-# define SPARCV9_BLK             (1<<5)/* VIS1 block copy */
-# define SPARCV9_VIS3            (1<<6)
-# define SPARCV9_RANDOM          (1<<7)
-# define SPARCV9_64BIT_STACK     (1<<8)
-# define SPARCV9_FJAESX          (1<<9)/* Fujitsu SPARC64 X AES */
-# define SPARCV9_FJDESX          (1<<10)/* Fujitsu SPARC64 X DES, reserved */
-# define SPARCV9_FJHPCACE        (1<<11)/* Fujitsu HPC-ACE, reserved */
-# define SPARCV9_IMA             (1<<13)/* reserved */
-# define SPARCV9_VIS4            (1<<14)/* reserved */
+#define SPARCV9_TICK_PRIVILEGED (1 << 0)
+#define SPARCV9_PREFER_FPU (1 << 1)
+#define SPARCV9_VIS1 (1 << 2)
+#define SPARCV9_VIS2 (1 << 3) /* reserved */
+#define SPARCV9_FMADD (1 << 4)
+#define SPARCV9_BLK (1 << 5) /* VIS1 block copy */
+#define SPARCV9_VIS3 (1 << 6)
+#define SPARCV9_RANDOM (1 << 7)
+#define SPARCV9_64BIT_STACK (1 << 8)
+#define SPARCV9_FJAESX (1 << 9) /* Fujitsu SPARC64 X AES */
+#define SPARCV9_FJDESX (1 << 10) /* Fujitsu SPARC64 X DES, reserved */
+#define SPARCV9_FJHPCACE (1 << 11) /* Fujitsu HPC-ACE, reserved */
+#define SPARCV9_IMA (1 << 13) /* reserved */
+#define SPARCV9_VIS4 (1 << 14) /* reserved */
 
 /*
  * OPENSSL_sparcv9cap_P[1] is copy of Compatibility Feature Register,
  * %asr26, SPARC-T4 and later. There is no SPARCV9_CFR bit in
  * OPENSSL_sparcv9cap_P[0], as %cfr copy is sufficient...
  */
-# define CFR_AES         0x00000001/* Supports AES opcodes */
-# define CFR_DES         0x00000002/* Supports DES opcodes */
-# define CFR_KASUMI      0x00000004/* Supports KASUMI opcodes */
-# define CFR_CAMELLIA    0x00000008/* Supports CAMELLIA opcodes */
-# define CFR_MD5         0x00000010/* Supports MD5 opcodes */
-# define CFR_SHA1        0x00000020/* Supports SHA1 opcodes */
-# define CFR_SHA256      0x00000040/* Supports SHA256 opcodes */
-# define CFR_SHA512      0x00000080/* Supports SHA512 opcodes */
-# define CFR_MPMUL       0x00000100/* Supports MPMUL opcodes */
-# define CFR_MONTMUL     0x00000200/* Supports MONTMUL opcodes */
-# define CFR_MONTSQR     0x00000400/* Supports MONTSQR opcodes */
-# define CFR_CRC32C      0x00000800/* Supports CRC32C opcodes */
-# define CFR_XMPMUL      0x00001000/* Supports XMPMUL opcodes */
-# define CFR_XMONTMUL    0x00002000/* Supports XMONTMUL opcodes */
-# define CFR_XMONTSQR    0x00004000/* Supports XMONTSQR opcodes */
+#define CFR_AES 0x00000001 /* Supports AES opcodes */
+#define CFR_DES 0x00000002 /* Supports DES opcodes */
+#define CFR_KASUMI 0x00000004 /* Supports KASUMI opcodes */
+#define CFR_CAMELLIA 0x00000008 /* Supports CAMELLIA opcodes */
+#define CFR_MD5 0x00000010 /* Supports MD5 opcodes */
+#define CFR_SHA1 0x00000020 /* Supports SHA1 opcodes */
+#define CFR_SHA256 0x00000040 /* Supports SHA256 opcodes */
+#define CFR_SHA512 0x00000080 /* Supports SHA512 opcodes */
+#define CFR_MPMUL 0x00000100 /* Supports MPMUL opcodes */
+#define CFR_MONTMUL 0x00000200 /* Supports MONTMUL opcodes */
+#define CFR_MONTSQR 0x00000400 /* Supports MONTSQR opcodes */
+#define CFR_CRC32C 0x00000800 /* Supports CRC32C opcodes */
+#define CFR_XMPMUL 0x00001000 /* Supports XMPMUL opcodes */
+#define CFR_XMONTMUL 0x00002000 /* Supports XMONTMUL opcodes */
+#define CFR_XMONTSQR 0x00004000 /* Supports XMONTSQR opcodes */
 
-# if defined(OPENSSL_PIC) && !defined(__PIC__)
-#  define __PIC__
-# endif
+#if defined(OPENSSL_PIC) && !defined(__PIC__)
+#define __PIC__
+#endif
 
-# if defined(__SUNPRO_C) && defined(__sparcv9) && !defined(__arch64__)
-#  define __arch64__
-# endif
+#if defined(__SUNPRO_C) && defined(__sparcv9) && !defined(__arch64__)
+#define __arch64__
+#endif
 
+/* clang-format off */
 # define SPARC_PIC_THUNK(reg)    \
         .align  32;             \
 .Lpic_thunk:                    \
@@ -74,30 +75,32 @@
         or      reg,%lo(_GLOBAL_OFFSET_TABLE_+4), reg;  \
         add     %o7, reg, reg
 # endif
+/* clang-format on */
 
-# if defined(__arch64__)
+#if defined(__arch64__)
 
-#  define SPARC_LOAD_ADDRESS(SYM, reg)   \
-        setx    SYM, %o7, reg;
-#  define LDPTR          ldx
-#  define SIZE_T_CC      %xcc
-#  define STACK_FRAME    192
-#  define STACK_BIAS     2047
-#  define STACK_7thARG   (STACK_BIAS+176)
+#define SPARC_LOAD_ADDRESS(SYM, reg) \
+    setx SYM, % o7, reg;
+#define LDPTR ldx
+#define SIZE_T_CC % xcc
+#define STACK_FRAME 192
+#define STACK_BIAS 2047
+#define STACK_7thARG (STACK_BIAS + 176)
 
-# else
+#else
 
-#  define SPARC_LOAD_ADDRESS(SYM, reg)   \
-        set     SYM, reg;
-#  define LDPTR          ld
-#  define SIZE_T_CC      %icc
-#  define STACK_FRAME    112
-#  define STACK_BIAS     0
-#  define STACK_7thARG   92
-#  define SPARC_LOAD_ADDRESS_LEAF(SYM,reg,tmp) SPARC_LOAD_ADDRESS(SYM,reg)
+#define SPARC_LOAD_ADDRESS(SYM, reg) \
+    set SYM, reg;
+#define LDPTR ld
+#define SIZE_T_CC % icc
+#define STACK_FRAME 112
+#define STACK_BIAS 0
+#define STACK_7thARG 92
+#define SPARC_LOAD_ADDRESS_LEAF(SYM, reg, tmp) SPARC_LOAD_ADDRESS(SYM, reg)
 
-# endif
+#endif
 
+/* clang-format off */
 # ifdef __PIC__
 #  undef SPARC_LOAD_ADDRESS
 #  undef SPARC_LOAD_ADDRESS_LEAF
@@ -114,9 +117,10 @@
         SPARC_LOAD_ADDRESS(SYM, reg)            \
         mov     tmp, %o7;
 # endif
+/* clang-format on */
 
-# ifndef __ASSEMBLER__
+#ifndef __ASSEMBLER__
 extern unsigned int OPENSSL_sparcv9cap_P[2];
-# endif
+#endif
 
-#endif                          /* OSSL_CRYPTO_SPARC_ARCH_H */
+#endif /* OSSL_CRYPTO_SPARC_ARCH_H */

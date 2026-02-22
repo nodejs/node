@@ -53,11 +53,9 @@ static int test_explicit_provider(void)
     return ok;
 }
 
-
 int setup_tests(void)
 {
     ADD_TEST(test_fallback_provider);
     ADD_TEST(test_explicit_provider);
     return 1;
 }
-
