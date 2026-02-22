@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "names": [],
+  "file": "invalid-vlq-zero.js",
+  "sources": ["empty-original.js"],
+  "sourcesContent": [""],
+  "mappings": "A",
+  "rangeMappings": "A"
+}
