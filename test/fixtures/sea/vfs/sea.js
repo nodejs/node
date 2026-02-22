@@ -55,6 +55,21 @@ const vfsAsset = fs.readFileSync('/sea/data/greeting.txt', 'utf8');
 assert.strictEqual(seaAsset, vfsAsset, 'node:sea and VFS should return the same content');
 console.log('node:sea API and VFS coexistence test passed');
 
+// Test buffer independence: multiple reads return independent copies
+const buf1 = fs.readFileSync('/sea/data/greeting.txt');
+const buf2 = fs.readFileSync('/sea/data/greeting.txt');
+const original = buf1[0];
+buf1[0] = 0xFF;
+assert.strictEqual(buf2[0], original, 'buf2 should be unaffected by buf1 mutation');
+assert.strictEqual(buf1[0], 0xFF, 'buf1 mutation should persist');
+console.log('buffer independence test passed');
+
+// TODO(mcollina): The CJS module loader reads package.json via C++ binding
+// (internalBinding('modules').readPackageJSON), which doesn't go through VFS.
+// This means "exports" conditions in package.json won't work for VFS packages.
+// The test below works because "main": "index.js" matches the default fallback.
+// A follow-up PR should make the C++ package.json reader VFS-aware.
+
 // Test node_modules package lookup via VFS
 const testPkg = require('test-pkg');
 assert.strictEqual(testPkg.name, 'test-pkg', 'package name should match');
