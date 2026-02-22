@@ -108,9 +108,18 @@ function transformPath(dirname, replacement) {
   // On Windows, paths are case-insensitive, so we need to use case-insensitive
   // regex replacement to handle cases where the drive letter case differs.
   const flags = common.isWindows ? 'gi' : 'g';
-  const urlEncodedRegex = new RegExp(RegExp.escape(urlEncoded), flags);
-  const dirnameRegex = new RegExp(RegExp.escape(dirname), flags);
-  const winPathRegex = new RegExp(RegExp.escape(winPath), flags);
+  
+  // Escape and add word boundaries to prevent partial matches
+  // (e.g., /node shouldn't match /node_modules or nodejs.org)
+  const escapedUrlEncoded = RegExp.escape(urlEncoded);
+  const escapedDirname = RegExp.escape(dirname);
+  const escapedWinPath = RegExp.escape(winPath);
+  
+  // Use negative lookahead to prevent matching if followed by alphanumeric or underscore
+  const urlEncodedRegex = new RegExp(escapedUrlEncoded + '(?![\\w/])', flags);
+  const dirnameRegex = new RegExp(escapedDirname + '(?![\\w/])', flags);
+  const winPathRegex = new RegExp(escapedWinPath + '(?![\\w/])', flags);
+  
   return (str) => {
     return str.replaceAll('\\\'', "'")
       // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
