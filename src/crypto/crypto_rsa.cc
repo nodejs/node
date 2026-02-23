@@ -440,7 +440,10 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   }
 
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
-  if (!pkey) return {};
+  if (!pkey) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create key pointer");
+    return {};
+  }
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
