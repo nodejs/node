@@ -64,16 +64,17 @@ assert.strictEqual(buf2[0], original, 'buf2 should be unaffected by buf1 mutatio
 assert.strictEqual(buf1[0], 0xFF, 'buf1 mutation should persist');
 console.log('buffer independence test passed');
 
-// TODO(mcollina): The CJS module loader reads package.json via C++ binding
-// (internalBinding('modules').readPackageJSON), which doesn't go through VFS.
-// This means "exports" conditions in package.json won't work for VFS packages.
-// The test below works because "main": "index.js" matches the default fallback.
-// A follow-up PR should make the C++ package.json reader VFS-aware.
-
-// Test node_modules package lookup via VFS
+// Test node_modules package lookup via VFS (resolved through "exports" field)
 const testPkg = require('test-pkg');
 assert.strictEqual(testPkg.name, 'test-pkg', 'package name should match');
 assert.strictEqual(testPkg.greet('World'), 'Hello, World!', 'package function should work');
 console.log('node_modules package lookup test passed');
+
+// Test exports-only package (no "main" field, entry in subdirectory)
+// This proves the package.json reader is VFS-aware — without it,
+// "exports" would not be consulted and resolution would fail.
+const exportsPkg = require('test-exports-pkg');
+assert.strictEqual(exportsPkg.fromExports, true, 'exports-only package should resolve');
+console.log('exports-only package lookup test passed');
 
 console.log('All SEA VFS tests passed!');
