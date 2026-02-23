@@ -77,10 +77,14 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                   "rejections",
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
-  } else if (event == kPromiseResolveAfterResolved) {
-    value = message.GetValue();
-  } else if (event == kPromiseRejectAfterResolved) {
-    value = message.GetValue();
+  } else if (event == kPromiseResolveAfterResolved ||
+             event == kPromiseRejectAfterResolved) {
+    // Do not notify JS land about these events. These events are triggered
+    // when a promise is resolved/rejected after already being resolved.
+    // Notifying JS land would cause memory leaks in tight loops with
+    // immediately-resolving promises (e.g., Promise.race).
+    // See: https://github.com/nodejs/node/issues/51452
+    return;
   } else {
     return;
   }
