@@ -49,6 +49,7 @@ test-worker-nearheaplimit-deadlock: PASS, FLAKY
 [$system==win32 && $arch==arm64]
 
 [$system==linux]
+test-strace-openat-openssl: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54803
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
