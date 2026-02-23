@@ -127,6 +127,7 @@
       'src/node_file.cc',
       'src/node_file_utils.cc',
       'src/node_http_parser.cc',
+      'src/node_json_parser.cc',
       'src/node_http2.cc',
       'src/node_i18n.cc',
       'src/node_locks.cc',

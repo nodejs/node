@@ -60,6 +60,7 @@
   V(internal_only_v8)                                                          \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
+  V(json_parser)                                                               \
   V(locks)                                                                     \
   V(messaging)                                                                 \
   V(modules)                                                                   \
