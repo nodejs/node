@@ -8,6 +8,7 @@
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
+#include "simdutf.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -63,6 +64,19 @@ using v8::TryCatch;
 using v8::Uint8Array;
 using v8::Value;
 
+inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
+                                                 const char* data,
+                                                 size_t length) {
+  int len = static_cast<int>(length);
+  if (simdutf::validate_ascii(data, length)) {
+    return String::NewFromOneByte(isolate,
+                                  reinterpret_cast<const uint8_t*>(data),
+                                  NewStringType::kNormal,
+                                  len);
+  }
+  return String::NewFromUtf8(isolate, data, NewStringType::kNormal, len);
+}
+
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
   do {                                                                         \
     int r_ = (expr);                                                           \
@@ -105,7 +119,8 @@ using v8::Value;
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
-        (result) = String::NewFromUtf8((isolate), v).As<Value>();              \
+        int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                       \
+        (result) = Utf8StringMaybeOneByte((isolate), v, v_len).As<Value>();    \
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
@@ -2415,6 +2430,7 @@ StatementSync::~StatementSync() {
 void StatementSync::Finalize() {
   sqlite3_finalize(statement_);
   statement_ = nullptr;
+  cached_column_names_.clear();
 }
 
 inline bool StatementSync::IsFinalized() {
@@ -2598,7 +2614,40 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
     return MaybeLocal<Name>();
   }
 
-  return String::NewFromUtf8(env()->isolate(), col_name).As<Name>();
+  return String::NewFromUtf8(
+             env()->isolate(), col_name, NewStringType::kInternalized)
+      .As<Name>();
+}
+
+bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
+  Isolate* isolate = env()->isolate();
+
+  int reprepare_count =
+      sqlite3_stmt_status(statement_, SQLITE_STMTSTATUS_REPREPARE, 0);
+  if (reprepare_count != cached_column_names_reprepare_count_) {
+    cached_column_names_.clear();
+    int num_cols = sqlite3_column_count(statement_);
+    if (num_cols == 0) {
+      cached_column_names_reprepare_count_ = reprepare_count;
+      return true;
+    }
+    cached_column_names_.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      Local<Name> key;
+      if (!ColumnNameToName(i).ToLocal(&key)) {
+        cached_column_names_.clear();
+        return false;
+      }
+      cached_column_names_.emplace_back(Global<Name>(isolate, key));
+    }
+    cached_column_names_reprepare_count_ = reprepare_count;
+  }
+
+  keys->reserve(cached_column_names_.size());
+  for (const auto& name : cached_column_names_) {
+    keys->emplace_back(name.Get(isolate));
+  }
+  return true;
 }
 
 MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
@@ -2620,7 +2669,9 @@ MaybeLocal<Name> StatementExecutionHelper::ColumnNameToName(Environment* env,
     return MaybeLocal<Name>();
   }
 
-  return String::NewFromUtf8(env->isolate(), col_name).As<Name>();
+  return String::NewFromUtf8(
+             env->isolate(), col_name, NewStringType::kInternalized)
+      .As<Name>();
 }
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
@@ -3530,12 +3581,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (iter->stmt_->return_arrays_) {
     row_value = Array::New(isolate, row_values.data(), row_values.size());
   } else {
-    row_keys.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!iter->stmt_->ColumnNameToName(i).ToLocal(&key)) return;
-      row_keys.emplace_back(key);
-    }
+    if (!iter->stmt_->GetCachedColumnNames(&row_keys)) return;
 
     DCHECK_EQ(row_keys.size(), row_values.size());
     row_value = Object::New(
