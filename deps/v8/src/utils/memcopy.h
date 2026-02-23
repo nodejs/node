@@ -32,7 +32,7 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
 }
 
 #if V8_TARGET_BIG_ENDIAN
-inline void MemCopyAndSwitchEndianness(void* dst, void* src,
+inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
                                        size_t num_elements,
                                        size_t element_size) {
   v8::base::MemCopyAndSwitchEndianness(dst, src, num_elements, element_size);
