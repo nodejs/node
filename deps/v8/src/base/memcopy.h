@@ -181,20 +181,20 @@ V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
 }
 
 #if V8_TARGET_BIG_ENDIAN
-inline void MemCopyAndSwitchEndianness(void* dst, void* src,
+inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
                                        size_t num_elements,
                                        size_t element_size) {
-#define COPY_LOOP(type, reverse)                            \
-  {                                                         \
-    for (uint32_t i = 0; i < num_elements; i++) {           \
-      type t;                                               \
-      type* s = reinterpret_cast<type*>(src) + i;           \
-      type* d = reinterpret_cast<type*>(dst) + i;           \
-      memcpy(&t, reinterpret_cast<void*>(s), element_size); \
-      t = reverse(t);                                       \
-      memcpy(reinterpret_cast<void*>(d), &t, element_size); \
-    }                                                       \
-    return;                                                 \
+#define COPY_LOOP(type, reverse)                                  \
+  {                                                               \
+    for (uint32_t i = 0; i < num_elements; i++) {                 \
+      type t;                                                     \
+      const type* s = reinterpret_cast<const type*>(src) + i;     \
+      type* d = reinterpret_cast<type*>(dst) + i;                 \
+      memcpy(&t, reinterpret_cast<const void*>(s), element_size); \
+      t = reverse(t);                                             \
+      memcpy(reinterpret_cast<void*>(d), &t, element_size);       \
+    }                                                             \
+    return;                                                       \
   }
 
   switch (element_size) {
