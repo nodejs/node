@@ -1315,17 +1315,6 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-transform-types`
-
-<!-- YAML
-added: v22.7.0
--->
-
-> Stability: 1.2 - Release candidate
-
-Enables the transformation of TypeScript-only syntax into JavaScript code.
-Implies `--enable-source-maps`.
-
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -3611,7 +3600,6 @@ one is included in the list below.
 * `--experimental-specifier-resolution`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
-* `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--force-context-aware`
