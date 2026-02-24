@@ -65,6 +65,7 @@ const customTypesMap = {
     'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
 
   'AsyncLocalStorage': 'async_context.html#class-asynclocalstorage',
+  'RunScope': 'async_context.html#class-runscope',
 
   'AsyncHook': 'async_hooks.html#async_hookscreatehookoptions',
   'AsyncResource': 'async_hooks.html#class-asyncresource',
@@ -133,6 +134,9 @@ const customTypesMap = {
 
   'Channel': 'diagnostics_channel.html#class-channel',
   'TracingChannel': 'diagnostics_channel.html#class-tracingchannel',
+  'WindowChannel': 'diagnostics_channel.html#class-windowchannel',
+  'WindowChannelScope': 'diagnostics_channel.html#class-windowchannelscope',
+  'RunStoresScope': 'diagnostics_channel.html#class-runstoresscope',
 
   'DatabaseSync': 'sqlite.html#class-databasesync',
   'Domain': 'domain.html#class-domain',
