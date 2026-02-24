@@ -300,6 +300,10 @@ void WorkerThreadsTaskRunner::BlockingDrain() {
   pending_worker_tasks_.Lock().BlockingDrain();
 }
 
+bool WorkerThreadsTaskRunner::TimedBlockingDrain(uint64_t timeout_ns) {
+  return pending_worker_tasks_.Lock().TimedBlockingDrain(timeout_ns);
+}
+
 void WorkerThreadsTaskRunner::Shutdown() {
   pending_worker_tasks_.Lock().Stop();
   delayed_task_scheduler_->Stop();
@@ -580,27 +584,33 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
   if (!per_isolate) return;
 
+  // Use a timed drain instead of blocking indefinitely on outstanding worker
+  // tasks. This fixes the deadlock described in:
+  // https://github.com/nodejs/node/issues/54918
+  //
+  // A kUserBlocking worker task (e.g. Maglev JIT compilation) may post a
+  // foreground task and wait for it to complete. If that foreground task is
+  // posted after we flush the foreground queue but before we enter the wait
+  // inside BlockingDrain(), the main thread sleeps while the worker is also
+  // waiting for its foreground task — a mutual deadlock.
+  //
+  // With a timed drain, the main thread wakes up every kDrainIntervalNs and
+  // flushes any foreground tasks that were posted in that window, allowing
+  // the blocked worker task to proceed. In the common case, tasks complete
+  // before the timeout and NotifyOfOutstandingCompletion() wakes the wait
+  // immediately, so there is no performance regression.
+  //
+  // We still wait only on kUserBlocking tasks (tracked via is_outstanding())
+  // because they are documented to require completion before execution
+  // continues (e.g. wasm async compilation).
+  static constexpr uint64_t kDrainIntervalNs = 1'000'000;  // 1ms in nanoseconds
+
   do {
-    // FIXME(54918): we should not be blocking on the worker tasks on the
-    // main thread in one go. Doing so leads to two problems:
-    // 1. If any of the worker tasks post another foreground task and wait
-    //    for it to complete, and that foreground task is posted right after
-    //    we flush the foreground task queue and before the foreground thread
-    //    goes into sleep, we'll never be able to wake up to execute that
-    //    foreground task and in turn the worker task will never complete, and
-    //    we have a deadlock.
-    // 2. Worker tasks can be posted from any thread, not necessarily associated
-    //    with the current isolate, and we can be blocking on a worker task that
-    //    is associated with a completely unrelated isolate in the event loop.
-    //    This is suboptimal.
-    //
-    // However, not blocking on the worker tasks at all can lead to loss of some
-    // critical user-blocking worker tasks e.g. wasm async compilation tasks,
-    // which should block the main thread until they are completed, as the
-    // documentation suggets. As a compromise, we currently only block on
-    // user-blocking tasks to reduce the chance of deadlocks while making sure
-    // that criticl user-blocking tasks are not lost.
-    worker_thread_task_runner_->BlockingDrain();
+    while (!worker_thread_task_runner_->TimedBlockingDrain(kDrainIntervalNs)) {
+      // Timed out: a worker task may have posted a foreground task and is
+      // waiting for it. Flush the foreground queue now so it can proceed.
+      per_isolate->FlushForegroundTasksInternal();
+    }
   } while (per_isolate->FlushForegroundTasksInternal());
 }
 
@@ -830,6 +840,16 @@ void TaskQueue<T>::Locked::BlockingDrain() {
   while (queue_->outstanding_tasks_ > 0) {
     queue_->outstanding_tasks_drained_.Wait(lock_);
   }
+}
+
+template <class T>
+bool TaskQueue<T>::Locked::TimedBlockingDrain(uint64_t timeout_ns) {
+  while (queue_->outstanding_tasks_ > 0) {
+    if (!queue_->outstanding_tasks_drained_.TimedWait(lock_, timeout_ns)) {
+      return false;  // timed out, outstanding tasks still pending
+    }
+  }
+  return true;
 }
 
 template <class T>
