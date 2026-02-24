@@ -157,7 +157,9 @@ Returns a function that tests its
 supplied argument, suitable for use with `Array.filter`. Example:
 
 ```javascript
-var javascripts = fileList.filter(minimatch.filter('*.js', { matchBase: true }))
+var javascripts = fileList.filter(
+  minimatch.filter('*.js', { matchBase: true }),
+)
 ```
 
 ### minimatch.escape(pattern, options = {})
