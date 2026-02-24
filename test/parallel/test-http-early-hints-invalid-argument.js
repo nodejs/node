@@ -54,14 +54,14 @@ const testResBody = 'response content\n';
 
     assert.throws(() => {
       res.writeEarlyHints({
-        link: '</styles.css>; rel=preload; as=style',
+        'link': '</styles.css>; rel=preload; as=style',
         'X-Custom': 'valid\r\nSet-Cookie: session=evil',
       });
     }, (err) => err.code === 'ERR_INVALID_CHAR');
 
     assert.throws(() => {
       res.writeEarlyHints({
-        link: '</styles.css>; rel=preload; as=style',
+        'link': '</styles.css>; rel=preload; as=style',
         'X-Custom\r\nSet-Cookie: session=evil': 'value',
       });
     }, (err) => err.code === 'ERR_INVALID_HTTP_TOKEN');
