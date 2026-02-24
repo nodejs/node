@@ -214,9 +214,8 @@ Channel* Channel::Get(Environment* env, const char* name) {
       return nullptr;
     }
 
-    binding->channels_[index] =
-        MakeDetachedBaseObject<Channel>(env, wrap, binding, index,
-                                        std::string(name));
+    binding->channels_[index] = MakeDetachedBaseObject<Channel>(
+        env, wrap, binding, index, std::string(name));
   }
 
   Channel* channel = binding->channels_[index].get();
@@ -226,8 +225,7 @@ Channel* Channel::Get(Environment* env, const char* name) {
     Isolate* isolate = env->isolate();
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
-    Local<String> js_name =
-        String::NewFromUtf8(isolate, name).ToLocalChecked();
+    Local<String> js_name = String::NewFromUtf8(isolate, name).ToLocalChecked();
     Local<Value> argv[] = {js_name};
     Local<Value> result;
     if (binding->link_callback_.Get(isolate)
