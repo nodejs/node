@@ -65,16 +65,17 @@ using v8::Uint8Array;
 using v8::Value;
 
 inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
-                                                 const char* data,
-                                                 size_t length) {
-  int len = static_cast<int>(length);
-  if (simdutf::validate_ascii(data, length)) {
-    return String::NewFromOneByte(isolate,
-                                  reinterpret_cast<const uint8_t*>(data),
-                                  NewStringType::kNormal,
-                                  len);
+                                                 std::string_view input) {
+  int len = static_cast<int>(input.size());
+  if (simdutf::validate_ascii(input.data(), input.size())) {
+    return String::NewFromOneByte(
+        isolate,
+        reinterpret_cast<const uint8_t*>(input.data()),
+        NewStringType::kNormal,
+        len);
   }
-  return String::NewFromUtf8(isolate, data, NewStringType::kNormal, len);
+  return String::NewFromUtf8(
+      isolate, input.data(), NewStringType::kNormal, len);
 }
 
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
@@ -120,7 +121,9 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
         int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                       \
-        (result) = Utf8StringMaybeOneByte((isolate), v, v_len).As<Value>();    \
+        (result) =                                                             \
+            Utf8StringMaybeOneByte((isolate), std::string_view(v, v_len))      \
+                .As<Value>();                                                  \
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
@@ -2619,6 +2622,9 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
       .As<Name>();
 }
 
+// Returns cached internalized column name strings for this statement,
+// invalidating the cache when SQLite re-prepares the statement (e.g. after
+// schema changes like ALTER TABLE) detected via SQLITE_STMTSTATUS_REPREPARE.
 bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
   Isolate* isolate = env()->isolate();
 
@@ -3581,6 +3587,8 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (iter->stmt_->return_arrays_) {
     row_value = Array::New(isolate, row_values.data(), row_values.size());
   } else {
+    // Use cached internalized column names to avoid repeated V8 string
+    // creation and enable hidden class sharing across row objects.
     if (!iter->stmt_->GetCachedColumnNames(&row_keys)) return;
 
     DCHECK_EQ(row_keys.size(), row_values.size());
