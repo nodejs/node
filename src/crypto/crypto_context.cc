@@ -1111,7 +1111,7 @@ MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
         per_process::Debug(DebugCategory::CRYPTO,
                            "Skipping system certificate with subject "
                            "'%s' because X509 to PEM conversion failed\n",
-                           subject_str.c_str());
+                           subject_str);
         skipped++;
         continue;
       }
