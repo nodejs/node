@@ -1100,12 +1100,12 @@ MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
       if (skip_on_error) {
         auto subject_bio = view.getSubject();
         char* subject_data = nullptr;
-        std::string subject_str = "<unknown>";
+        std::string_view subject_str = "<unknown>";
         if (subject_bio) {
           auto subject_size =
               BIO_get_mem_data(subject_bio.get(), &subject_data);
           if (subject_size > 0 && subject_data) {
-            subject_str = std::string(subject_data, subject_size);
+            subject_str = std::string_view(subject_data, subject_size);
           }
         }
         per_process::Debug(DebugCategory::CRYPTO,
