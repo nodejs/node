@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -559,5 +559,108 @@ describe('globSync - ENOTDIR', function() {
         // ignore
       }
     }
+  });
+});
+
+describe('glob - encoding option', function() {
+  test('globSync with encoding buffer preserves non-UTF-8 bytes', {
+    skip: common.isWindows || common.isMacOS,
+  }, () => {
+    const cwd = tmpdir.resolve('encoding-buffer-nonutf8');
+    mkdirSync(cwd, { recursive: true });
+    const filename = Buffer.from([0xe9]);
+    const filepath = Buffer.concat([
+      Buffer.from(cwd),
+      Buffer.from(sep),
+      filename,
+    ]);
+    writeFileSync(filepath, '');
+
+    const actual = globSync('[^a-z]', { cwd, encoding: 'buffer' });
+    assert.deepStrictEqual(actual, [filename]);
+  });
+
+  test('globSync with encoding buffer traverses non-UTF-8 directories', {
+    skip: common.isWindows || common.isMacOS,
+  }, () => {
+    const cwd = tmpdir.resolve('encoding-buffer-nonutf8-dir');
+    mkdirSync(cwd, { recursive: true });
+
+    const dir = Buffer.from([0xe9]);
+    const file = Buffer.from('x');
+    const dirPath = Buffer.concat([Buffer.from(cwd), Buffer.from(sep), dir]);
+    const filePath = Buffer.concat([dirPath, Buffer.from(sep), file]);
+
+    mkdirSync(dirPath, { recursive: true });
+    writeFileSync(filePath, '');
+
+    const actual = globSync('*/*', { cwd, encoding: 'buffer' });
+    const expected = Buffer.concat([dir, Buffer.from(sep), file]);
+    assert.deepStrictEqual(actual, [expected]);
+  });
+
+  test('globSync with encoding buffer returns Buffer results', () => {
+    const actual = globSync('a/**', { cwd: fixtureDir, encoding: 'buffer' });
+    assert.ok(actual.length > 0);
+    assert.ok(actual.every((item) => Buffer.isBuffer(item)));
+  });
+
+  test('glob with encoding buffer returns Buffer results', async () => {
+    const promisified = promisify(glob);
+    const actual = await promisified('a/**', { cwd: fixtureDir, encoding: 'buffer' });
+    assert.ok(actual.length > 0);
+    assert.ok(actual.every((item) => Buffer.isBuffer(item)));
+  });
+
+  test('fsPromises.glob with encoding buffer returns Buffer results', async () => {
+    const actual = [];
+    for await (const item of asyncGlob('a/**', { cwd: fixtureDir, encoding: 'buffer' })) {
+      actual.push(item);
+    }
+    assert.ok(actual.length > 0);
+    assert.ok(actual.every((item) => Buffer.isBuffer(item)));
+  });
+
+  test('fsPromises.glob with encoding buffer traverses non-UTF-8 directories', {
+    skip: common.isWindows || common.isMacOS,
+  }, async () => {
+    const cwd = tmpdir.resolve('encoding-buffer-nonutf8-dir-async');
+    mkdirSync(cwd, { recursive: true });
+
+    const dir = Buffer.from([0xe9]);
+    const file = Buffer.from('x');
+    const dirPath = Buffer.concat([Buffer.from(cwd), Buffer.from(sep), dir]);
+    const filePath = Buffer.concat([dirPath, Buffer.from(sep), file]);
+
+    mkdirSync(dirPath, { recursive: true });
+    writeFileSync(filePath, '');
+
+    const actual = [];
+    for await (const item of asyncGlob('*/*', { cwd, encoding: 'buffer' })) {
+      actual.push(item);
+    }
+
+    const expected = Buffer.concat([dir, Buffer.from(sep), file]);
+    assert.deepStrictEqual(actual, [expected]);
+  });
+
+  test('globSync with encoding buffer and withFileTypes returns Dirents with Buffer names', () => {
+    const actual = globSync('a/**', { cwd: fixtureDir, encoding: 'buffer', withFileTypes: true });
+    assert.ok(actual.length > 0);
+    assertDirents(actual);
+    assert.ok(actual.every((item) => Buffer.isBuffer(item.name)));
+  });
+
+  test('globSync with invalid encoding throws error', () => {
+    assert.throws(
+      () => globSync('a/**', { cwd: fixtureDir, encoding: 'invalid' }),
+      { code: 'ERR_INVALID_ARG_VALUE' }
+    );
+  });
+
+  test('globSync with encoding utf8 returns string results', () => {
+    const actual = globSync('a/**', { cwd: fixtureDir, encoding: 'utf8' });
+    assert.ok(actual.length > 0);
+    assert.ok(actual.every((item) => typeof item === 'string'));
   });
 });

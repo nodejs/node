@@ -1115,6 +1115,9 @@ changes:
     If a string array is provided, each string should be a glob pattern that
     specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
     not supported.
+  * `encoding` {string} The path encoding. If set to `'buffer'`, the iterator
+    yields `Buffer` paths (or `Dirent` entries with `Buffer` names when
+    `withFileTypes` is `true`). **Default:** `'utf8'`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -3222,11 +3225,15 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `encoding` {string} The path encoding. If set to `'buffer'`, `matches`
+    contains `Buffer` paths (or `Dirent` entries with `Buffer` names when
+    `withFileTypes` is `true`). **Default:** `'utf8'`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 
 * `callback` {Function}
   * `err` {Error}
+  * `matches` {string\[]|Buffer\[]|fs.Dirent\[]}
 
 * Retrieves the files matching the specified pattern.
 
@@ -5786,9 +5793,12 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `encoding` {string} The path encoding. If set to `'buffer'`, returns
+    `Buffer` paths (or `Dirent` entries with `Buffer` names when
+    `withFileTypes` is `true`). **Default:** `'utf8'`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {string\[]} paths of files that match the pattern.
+* Returns: {string\[]|Buffer\[]|fs.Dirent\[]} paths of files that match the pattern.
 
 ```mjs
 import { globSync } from 'node:fs';
