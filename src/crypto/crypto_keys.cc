@@ -126,7 +126,7 @@ MaybeLocal<Value> WritePublicKey(
     const EVPKeyPointer::PublicKeyEncodingConfig& config) {
   if (!pkey) return {};
   auto res = pkey.writePublicKey(config);
-  if (res) return ToV8Value(env, std::move(res.value), config);
+  if (res) return ToV8Value(env, res.value, config);
 
   ThrowCryptoError(
       env, res.openssl_error.value_or(0), "Failed to encode public key");
