@@ -156,6 +156,81 @@ const vfs = require('node:vfs');
   }));
 }
 
+// Test callback-based writeFile
+{
+  const myVfs = vfs.create();
+
+  myVfs.writeFile('/cb-write.txt', 'callback written', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/cb-write.txt', 'utf8'), 'callback written');
+  }));
+
+  // Overwrite existing
+  myVfs.writeFileSync('/cb-overwrite.txt', 'old');
+  myVfs.writeFile('/cb-overwrite.txt', 'new', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/cb-overwrite.txt', 'utf8'), 'new');
+  }));
+
+  // Write with Buffer
+  myVfs.writeFile('/cb-buf.txt', Buffer.from('buf data'), common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/cb-buf.txt', 'utf8'), 'buf data');
+  }));
+}
+
+// Test callback-based readlink
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/link-target.txt', 'content');
+  myVfs.symlinkSync('/link-target.txt', '/my-link.txt');
+
+  myVfs.readlink('/my-link.txt', common.mustCall((err, target) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(target, '/link-target.txt');
+  }));
+
+  myVfs.readlink('/link-target.txt', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EINVAL');
+  }));
+}
+
+// Test callback-based open, read, fstat, close
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/fd-test.txt', 'fd content');
+
+  myVfs.open('/fd-test.txt', 'r', common.mustCall((err, fd) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(typeof fd, 'number');
+
+    // fstat
+    myVfs.fstat(fd, common.mustCall((err, stats) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(stats.isFile(), true);
+      assert.strictEqual(stats.size, 10);
+    }));
+
+    // read
+    const buf = Buffer.alloc(10);
+    myVfs.read(fd, buf, 0, 10, 0, common.mustCall((err, bytesRead, buffer) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(bytesRead, 10);
+      assert.strictEqual(buffer.toString(), 'fd content');
+    }));
+
+    // close
+    myVfs.close(fd, common.mustCall((err) => {
+      assert.strictEqual(err, null);
+    }));
+  }));
+
+  // open non-existent
+  myVfs.open('/nonexistent.txt', 'r', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+  }));
+}
+
 // ==================== Promise API Tests ====================
 
 // Test promises.readFile
