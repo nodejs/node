@@ -178,7 +178,8 @@ struct LibuvMutexTraits {
     uv_cond_wait(cond, mutex);
   }
 
-  static inline int cond_timedwait(CondT* cond, MutexT* mutex,
+  static inline int cond_timedwait(CondT* cond,
+                                   MutexT* mutex,
                                    uint64_t timeout) {
     return uv_cond_timedwait(cond, mutex, timeout);
   }
@@ -259,9 +260,9 @@ void ConditionVariableBase<Traits>::Wait(const ScopedLock& scoped_lock) {
 
 template <typename Traits>
 bool ConditionVariableBase<Traits>::TimedWait(const ScopedLock& scoped_lock,
-                                               uint64_t timeout_ns) {
+                                              uint64_t timeout_ns) {
   return Traits::cond_timedwait(
-      &cond_, &scoped_lock.mutex_.mutex_, timeout_ns) == 0;
+             &cond_, &scoped_lock.mutex_.mutex_, timeout_ns) == 0;
 }
 
 template <typename Traits>
