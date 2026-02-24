@@ -836,6 +836,11 @@ out/doc/api: doc/api
 
 # Generate all doc files (individual and all.html/all.json) in a single doc-kit call
 # Using grouped targets (&:) so Make knows one command produces all outputs
+ifeq ($(OSTYPE),aix)
+# TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
+else
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $@ (no crypto and/or no ICU)"; \
@@ -853,6 +858,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 			--type-map doc/type-map.json \
 		) \
 	fi
+endif
 
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
