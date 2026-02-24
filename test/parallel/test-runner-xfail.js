@@ -108,11 +108,10 @@ if (process.env.CHILD_PROCESS === 'true') {
   });
 
   // 6. Edge Case: Empty Object (Should throw ERR_INVALID_ARG_VALUE during creation)
-  try {
-    test('invalid empty object', { expectFailure: {} }, () => {});
-  } catch (e) {
-    console.log(`CAUGHT_INVALID_ARG: ${e.code}`);
-  }
+  test('invalid empty object throws', () => {
+    // eslint-disable-next-line no-restricted-syntax
+    assert.throws(() => test('invalid empty object', { expectFailure: {} }, () => {}));
+  });
 
   // 7. Primitives and Truthiness
   test('fails with boolean true', { expectFailure: true }, () => {
@@ -251,7 +250,7 @@ if (process.env.CHILD_PROCESS === 'true') {
     assert.match(stdout, /ok \d+ - suite subtest match suite expectation # EXPECTED FAILURE/);
 
     // Empty object error
-    assert.match(stdout, /CAUGHT_INVALID_ARG: ERR_INVALID_ARG_VALUE/);
+    assert.match(stdout, /ok \d+ - invalid empty object throws/);
     assert.match(stdout, /ok \d+ - correct config with label and match object # EXPECTED FAILURE Bug \\#124/);
     assert.match(stdout, /not ok \d+ - fails with ambiguous config \(mixed props\) # EXPECTED FAILURE/);
     assert.match(stdout, /not ok \d+ - fails with ambiguous config \(mixed props with match\) # EXPECTED FAILURE/);
