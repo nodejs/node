@@ -467,7 +467,36 @@ void OptionsParser<Options>::Parse(
 
         value = args.pop_first();
 
-        if (!value.empty() && value[0] == '-') {
+        bool is_eval_expression = false;
+        if (name == "--eval" && !value.empty() && value[0] == '-') {
+          std::string eval_value_name = value;
+          const size_t equals_index = value.find('=');
+          if (equals_index != std::string::npos) {
+            eval_value_name = value.substr(0, equals_index);
+          }
+
+          bool is_option_name =
+              options_.contains(eval_value_name) ||
+              aliases_.contains(eval_value_name) ||
+              aliases_.contains(eval_value_name + "=") ||
+              aliases_.contains(eval_value_name + " <arg>");
+
+          if (!is_option_name && eval_value_name.starts_with("--no-")) {
+            const std::string non_negated_name =
+                "--" + eval_value_name.substr(5);
+            is_option_name =
+                options_.contains(non_negated_name) ||
+                aliases_.contains(non_negated_name) ||
+                aliases_.contains(non_negated_name + "=") ||
+                aliases_.contains(non_negated_name + " <arg>");
+          }
+
+          is_eval_expression = !is_option_name;
+        }
+
+        if (!value.empty() &&
+            value[0] == '-' &&
+            !is_eval_expression) {
           missing_argument();
           break;
         } else {

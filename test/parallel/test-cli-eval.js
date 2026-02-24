@@ -115,6 +115,39 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "\\-42"`, common.
   assert.strictEqual(stderr, '');
 }));
 
+// Unary-negative eval expressions should not be rejected as missing arguments.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -pe -42`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, '-42\n');
+  assert.strictEqual(stderr, '');
+}));
+
+// Edge case: negative zero should preserve its sign when printed.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -pe -0`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, '-0\n');
+  assert.strictEqual(stderr, '');
+}));
+
+// Expressions like -NaN should be treated as eval input, not options.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -pe -NaN`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, 'NaN\n');
+  assert.strictEqual(stderr, '');
+}));
+
+// A bare '-' should be passed to eval and fail with a syntax error.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -pe -`, common.mustCall((err, stdout, stderr) => {
+  assert.notStrictEqual(err.code, 9);
+  assert.strictEqual(stdout, '');
+  assert.match(stderr, /SyntaxError/);
+}));
+
+// Nearby-path safety: option-looking values should still be rejected.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -e -p`, common.mustCall((err, stdout, stderr) => {
+  assert.strictEqual(err.code, 9);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr.trim(),
+                     `${process.execPath}: -e requires an argument`);
+}));
+
 // Long output should not be truncated.
 child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "'1'.repeat(1e5)"`, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout, `${'1'.repeat(1e5)}\n`);
