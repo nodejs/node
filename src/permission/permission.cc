@@ -223,7 +223,8 @@ bool Permission::is_scope_granted(Environment* env,
         v8::Isolate* isolate = env->isolate();
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context = env->context();
-        v8::Local<v8::Object> msg = v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+        v8::Local<v8::Object> msg =
+            v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
         const char* perm_str = PermissionToString(permission);
         msg->Set(context,
                  FIXED_ONE_BYTE_STRING(isolate, "permission"),
@@ -246,8 +247,7 @@ bool Permission::is_scope_granted(Environment* env,
   return result;
 }
 
-BaseObjectPtr<diagnostics_channel::Channel>
-Permission::GetOrCreateChannel(
+BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
     Environment* env, PermissionScope scope) const {
   auto it = channels_.find(scope);
   if (it != channels_.end()) {
@@ -260,7 +260,8 @@ Permission::GetOrCreateChannel(
   diagnostics_channel::Channel* ch =
       diagnostics_channel::Channel::Get(env, channel_name.data());
   if (ch != nullptr) {
-    channels_.emplace(scope, BaseObjectWeakPtr<diagnostics_channel::Channel>(ch));
+    channels_.emplace(scope,
+                      BaseObjectWeakPtr<diagnostics_channel::Channel>(ch));
     return BaseObjectPtr<diagnostics_channel::Channel>(ch);
   }
   return {};

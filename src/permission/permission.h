@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "debug_utils.h"
+#include "node_diagnostics_channel.h"
 #include "node_options.h"
 #include "permission/addon_permission.h"
 #include "permission/child_process_permission.h"
@@ -13,7 +14,6 @@
 #include "permission/permission_base.h"
 #include "permission/wasi_permission.h"
 #include "permission/worker_permission.h"
-#include "node_diagnostics_channel.h"
 #include "v8.h"
 
 #include <string_view>
