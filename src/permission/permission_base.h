@@ -35,6 +35,8 @@ namespace permission {
 #define ADDON_PERMISSIONS(V)                                                   \
   V(Addon, "addon", PermissionsRoot, "--allow-addons")
 
+#define FFI_PERMISSIONS(V) V(FFI, "ffi", PermissionsRoot, "--allow-ffi")
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
@@ -42,7 +44,8 @@ namespace permission {
   WORKER_THREADS_PERMISSIONS(V)                                                \
   INSPECTOR_PERMISSIONS(V)                                                     \
   NET_PERMISSIONS(V)                                                           \
-  ADDON_PERMISSIONS(V)
+  ADDON_PERMISSIONS(V)                                                         \
+  FFI_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {

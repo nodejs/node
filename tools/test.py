@@ -969,6 +969,7 @@ class Context(object):
     self.abort_on_timeout = abort_on_timeout
     self.v8_enable_inspector = True
     self.node_has_crypto = True
+    self.node_has_ffi = True
     self.use_error_reporter = False
 
   def GetVm(self, arch, mode):
@@ -1763,6 +1764,11 @@ def Main():
       '-p', 'process.versions.openssl'], context)
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
+
+  has_ffi = Execute([vm,
+      '-p', 'process.config.variables.node_use_ffi'], context)
+  if has_ffi.stdout.rstrip() != 'true':
+    context.node_has_ffi = False
 
   if options.cat:
     visited = set()

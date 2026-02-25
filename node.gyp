@@ -24,6 +24,7 @@
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
     'node_shared_sqlite%': 'false',
+    'node_shared_ffi%': 'false',
     'node_shared_temporal_capi%': 'false',
     'node_shared_uvwasi%': 'false',
     'node_shared_zlib%': 'false',
@@ -37,6 +38,7 @@
     'node_use_openssl%': 'true',
     'node_use_quic%': 'false',
     'node_use_sqlite%': 'true',
+    'node_use_ffi%': 'false',
     'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
     'node_write_snapshot_as_string_literals': 'true',
@@ -170,6 +172,7 @@
       'src/node_zlib.cc',
       'src/path.cc',
       'src/permission/child_process_permission.cc',
+      'src/permission/ffi_permission.cc',
       'src/permission/fs_permission.cc',
       'src/permission/inspector_permission.cc',
       'src/permission/permission.cc',
@@ -305,6 +308,7 @@
       'src/node_worker.h',
       'src/path.h',
       'src/permission/child_process_permission.h',
+      'src/permission/ffi_permission.h',
       'src/permission/fs_permission.h',
       'src/permission/inspector_permission.h',
       'src/permission/permission.h',
@@ -459,6 +463,14 @@
       'src/node_webstorage.cc',
       'src/node_sqlite.h',
       'src/node_webstorage.h',
+    ],
+    'node_ffi_sources': [
+      'src/node_ffi.cc',
+      'src/node_ffi.h',
+      'src/ffi/data.cc',
+      'src/ffi/data.h',
+      'src/ffi/types.cc',
+      'src/ffi/types.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
@@ -989,6 +1001,29 @@
             '<@(node_sqlite_sources)',
           ],
         }],
+        [ 'node_use_ffi=="true"', {
+          'sources': [
+            '<@(node_ffi_sources)',
+          ],
+          'conditions': [
+            [ 'node_shared_ffi=="false"', {
+              'dependencies': [
+                'deps/libffi/libffi.gyp:libffi',
+              ],
+              'conditions': [
+                [ 'OS=="win"', {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj/libffi',
+                  ],
+                }, {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj.target/libffi/geni',
+                  ],
+                }],
+              ],
+            }],
+          ],
+        }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
           'xcode_settings': {
@@ -1042,6 +1077,29 @@
         [ 'node_use_sqlite=="true"', {
           'sources': [
             '<@(node_sqlite_sources)',
+          ],
+        }],
+        [ 'node_use_ffi=="true"', {
+          'sources': [
+            '<@(node_ffi_sources)',
+          ],
+          'conditions': [
+            [ 'node_shared_ffi=="false"', {
+              'dependencies': [
+                'deps/libffi/libffi.gyp:libffi',
+              ],
+              'conditions': [
+                [ 'OS=="win"', {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj/libffi',
+                  ],
+                }, {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj.target/libffi/geni',
+                  ],
+                }],
+              ],
+            }],
           ],
         }],
         [ 'node_use_quic=="true"', {

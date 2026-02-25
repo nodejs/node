@@ -938,6 +938,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
     }
+    if (!options_->allow_ffi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
+    }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);

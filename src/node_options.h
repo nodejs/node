@@ -125,6 +125,7 @@ class EnvironmentOptions : public Options {
   bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
+  bool experimental_ffi = false;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
   bool experimental_stream_iter = false;
@@ -145,6 +146,7 @@ class EnvironmentOptions : public Options {
   bool allow_child_process = false;
   bool allow_net = false;
   bool allow_wasi = false;
+  bool allow_ffi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;

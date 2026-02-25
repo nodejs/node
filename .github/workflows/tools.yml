@@ -26,6 +26,7 @@ on:
           - histogram
           - icu
           - inspector_protocol
+          - libffi
           - libuv
           - llhttp
           - minimatch
@@ -158,6 +159,14 @@ jobs:
             label: dependencies, inspector
             run: |
               ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: libffi
+            subsystem: deps
+            label: dependencies, ffi
+            run: |
+              ./tools/dep_updaters/update-libffi.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

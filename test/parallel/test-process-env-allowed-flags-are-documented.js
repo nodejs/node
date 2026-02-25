@@ -49,6 +49,11 @@ if (!hasOpenSSL3) {
   documented.delete('--openssl-shared-config');
 }
 
+if (!common.hasFFI) {
+  documented.delete('--allow-ffi');
+  documented.delete('--experimental-ffi');
+}
+
 const isV8Sandboxed = process.config.variables.v8_enable_sandbox;
 
 // Filter out options that are conditionally present.

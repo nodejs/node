@@ -191,6 +191,36 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use FFI
+APIs by default. Attempts to use FFI APIs will throw an `ERR_ACCESS_DENIED`
+exception unless the user explicitly passes the `--allow-ffi` flag when
+starting Node.js. The [`node:ffi`][] module also requires the
+`--experimental-ffi` flag and is only available in builds with FFI support.
+
+Example:
+
+```js
+const { DynamicLibrary } = require('node:ffi');
+const lib = new DynamicLibrary('mylib.so');
+```
+
+```console
+$ node --permission --experimental-ffi index.js
+Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FFI'
+}
+```
+
 ### `--allow-fs-read`
 
 <!-- YAML
@@ -233,9 +263,9 @@ $ node --permission -r custom-require.js -r custom-require-2.js index.js
   by default in the allowed read list.
 
 ```js
-process.has('fs.read', 'index.js'); // true
-process.has('fs.read', 'custom-require.js'); // true
-process.has('fs.read', 'custom-require-2.js'); // true
+process.permission.has('fs.read', 'index.js'); // true
+process.permission.has('fs.read', 'custom-require.js'); // true
+process.permission.has('fs.read', 'custom-require-2.js'); // true
 ```
 
 ### `--allow-fs-write`
@@ -1145,6 +1175,18 @@ added:
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
+
+### `--experimental-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:ffi`][] module.
+
+This flag is only available in builds with FFI support.
 
 ### `--experimental-import-meta-resolve`
 
@@ -2172,6 +2214,7 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
+* FFI - manageable through [`--allow-ffi`](#--allow-ffi) flag
 
 ### `--permission-audit`
 
@@ -3616,6 +3659,7 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-write`
 * `--allow-inspector`
@@ -3641,6 +3685,7 @@ one is included in the list below.
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
+* `--experimental-ffi`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -4291,6 +4336,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
+[`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn

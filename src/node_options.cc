@@ -588,6 +588,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
+#if HAVE_FFI
+  AddOption("--experimental-ffi",
+            "experimental node:ffi module",
+            &EnvironmentOptions::experimental_ffi,
+            kAllowedInEnvvar,
+            false);
+#endif  // HAVE_FFI
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
@@ -673,6 +680,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+#if HAVE_FFI
+  AddOption("--allow-ffi",
+            "allow use of FFI when any permissions are set",
+            &EnvironmentOptions::allow_ffi,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
+#endif  // HAVE_FFI
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,

@@ -1,0 +1,4 @@
+@set UPDATED 2 August 2025
+@set UPDATED-MONTH August 2025
+@set EDITION 3.5.2
+@set VERSION 3.5.2

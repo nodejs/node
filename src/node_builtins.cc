@@ -140,12 +140,13 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
 #endif                  // !OPENSSL_NO_QUIC
+        "ffi",          // Experimental.
         "quic",         // Experimental.
         "sqlite",       // Experimental.
         "stream/iter",  // Experimental.
-        "zlib/iter",    // Experimental.
         "sys",          // Deprecated.
         "wasi",         // Experimental.
+        "zlib/iter",    // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
         "internal/inspector/webstorage",

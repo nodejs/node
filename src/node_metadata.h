@@ -88,6 +88,12 @@ namespace node {
 #define NODE_VERSIONS_KEY_SQLITE(V)
 #endif
 
+#if HAVE_FFI
+#define NODE_VERSIONS_KEY_LIBFFI(V) V(libffi)
+#else
+#define NODE_VERSIONS_KEY_LIBFFI(V)
+#endif
+
 #if HAVE_LIEF
 #define NODE_VERSIONS_KEY_LIEF(V) V(lief)
 #else
@@ -99,6 +105,7 @@ namespace node {
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
   NODE_VERSIONS_KEY_SQLITE(V)                                                  \
+  NODE_VERSIONS_KEY_LIBFFI(V)                                                  \
   NODE_VERSIONS_KEY_LIEF(V)
 
 #define V(key) +1
