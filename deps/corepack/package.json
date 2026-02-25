@@ -30,7 +30,7 @@
     "clipanion": "patch:clipanion@npm%3A3.2.1#~/.yarn/patches/clipanion-npm-3.2.1-fc9187f56c.patch",
     "debug": "^4.1.1",
     "esbuild": "^0.25.0",
-    "eslint": "^10.0.0",
+    "eslint": "^9.22.0",
     "proxy-from-env": "^1.1.0",
     "semver": "^7.6.3",
     "supports-color": "^10.0.0",
