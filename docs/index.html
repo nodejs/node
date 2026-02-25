@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Book Quotes" />
-  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <title>Book Quotes</title>
@@ -14,13 +14,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #1a1a2e;
-      --surface: #16213e;
-      --card: #0f3460;
-      --accent: #e94560;
-      --accent2: #f5a623;
-      --text: #eaeaea;
-      --text-muted: #9a9ab0;
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --card: #ffffff;
+      --accent: #52b788;
+      --accent-dark: #2d7a52;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
       --radius: 14px;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -33,6 +34,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
     }
 
     #app {
@@ -50,14 +52,16 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     header h1 {
       font-size: 22px;
       font-weight: 700;
       letter-spacing: -0.3px;
+      color: var(--text);
     }
 
     header h1 span { color: var(--accent); }
@@ -65,7 +69,8 @@
     #quote-count {
       font-size: 13px;
       color: var(--text-muted);
-      background: rgba(255,255,255,0.07);
+      background: var(--bg);
+      border: 1px solid var(--border);
       padding: 4px 10px;
       border-radius: 20px;
     }
@@ -74,7 +79,7 @@
     nav {
       display: flex;
       background: var(--surface);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
 
@@ -106,7 +111,8 @@
       border-radius: var(--radius);
       padding: 16px;
       position: relative;
-      border-left: 3px solid var(--accent2);
+      border-left: 3px solid var(--accent);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
       animation: fadeIn 0.25s ease;
     }
 
@@ -114,9 +120,9 @@
 
     .quote-card .quote-text {
       font-size: 15px;
-      line-height: 1.55;
+      line-height: 1.6;
       color: var(--text);
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .quote-card .quote-text::before { content: '\201C'; color: var(--accent); font-size: 22px; line-height: 0; vertical-align: -5px; margin-right: 2px; }
@@ -130,14 +136,14 @@
     }
 
     .book-info { display: flex; flex-direction: column; gap: 2px; }
-    .book-title { font-size: 13px; font-weight: 600; color: var(--accent2); }
+    .book-title { font-size: 13px; font-weight: 600; color: var(--accent-dark); }
     .book-author { font-size: 12px; color: var(--text-muted); }
     .quote-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
     .delete-btn {
       background: none;
       border: none;
-      color: var(--text-muted);
+      color: #c4c9d4;
       cursor: pointer;
       font-size: 18px;
       padding: 4px 6px;
@@ -146,7 +152,7 @@
       line-height: 1;
       flex-shrink: 0;
     }
-    .delete-btn:hover { color: var(--accent); background: rgba(233,69,96,0.12); }
+    .delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
 
     /* Empty state */
     .empty-state {
@@ -158,11 +164,11 @@
       gap: 10px;
       color: var(--text-muted);
       text-align: center;
-      padding: 40px 20px;
+      padding: 60px 20px;
     }
 
-    .empty-state .icon { font-size: 52px; }
-    .empty-state p { font-size: 16px; font-weight: 500; }
+    .empty-state .icon { font-size: 52px; opacity: 0.6; }
+    .empty-state p { font-size: 16px; font-weight: 500; color: var(--text); }
     .empty-state small { font-size: 13px; }
 
     /* Add form */
@@ -171,26 +177,30 @@
     }
 
     .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
 
     .form-group input,
     .form-group textarea {
-      background: var(--card);
-      border: 1.5px solid rgba(255,255,255,0.08);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
       border-radius: 10px;
       color: var(--text);
       font-size: 16px;
       font-family: inherit;
       padding: 12px 14px;
       width: 100%;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       outline: none;
       -webkit-appearance: none;
     }
 
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: #b0b8c8; }
+
     .form-group input:focus,
     .form-group textarea:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(82,183,136,0.12);
     }
 
     .form-group textarea {
@@ -216,17 +226,19 @@
       font-weight: 700;
       cursor: pointer;
       width: 100%;
-      transition: opacity 0.2s, transform 0.1s;
+      transition: background 0.2s, opacity 0.2s, transform 0.1s;
       margin-top: 4px;
+      letter-spacing: 0.2px;
     }
 
+    .submit-btn:hover { background: var(--accent-dark); }
     .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
     .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Search */
     #search-input {
-      background: var(--card);
-      border: 1.5px solid rgba(255,255,255,0.08);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
       border-radius: 10px;
       color: var(--text);
       font-size: 16px;
@@ -236,8 +248,13 @@
       outline: none;
       -webkit-appearance: none;
       flex-shrink: 0;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: #b0b8c8; }
+    #search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(82,183,136,0.12);
+    }
 
     /* Toast */
     #toast {
@@ -245,16 +262,18 @@
       bottom: calc(var(--safe-bottom) + 20px);
       left: 50%;
       transform: translateX(-50%) translateY(20px);
-      background: #222;
+      background: #1a1a1a;
       color: #fff;
       padding: 10px 20px;
       border-radius: 24px;
       font-size: 14px;
+      font-weight: 500;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.3s, transform 0.3s;
       white-space: nowrap;
       z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
