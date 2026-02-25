@@ -22,6 +22,7 @@
   V(contextify_context_private_symbol, "node:contextify:context")              \
   V(decorated_private_symbol, "node:decorated")                                \
   V(empty_context_frame_sentinel_symbol, "node:empty_context_frame_sentinel")  \
+  V(ffi_pointer_address_private_symbol, "node:ffi:pointer_address")            \
   V(transfer_mode_private_symbol, "node:transfer_mode")                        \
   V(host_defined_option_symbol, "node:host_defined_option_symbol")             \
   V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
@@ -405,6 +406,11 @@
   V(dns_ns_record_template, v8::DictionaryTemplate)                            \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
+  V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
+  V(ffi_unsafe_callback_constructor_template, v8::FunctionTemplate)            \
+  V(ffi_unsafe_fn_pointer_constructor_template, v8::FunctionTemplate)          \
+  V(ffi_unsafe_pointer_constructor_template, v8::FunctionTemplate)             \
+  V(ffi_unsafe_pointer_view_constructor_template, v8::FunctionTemplate)        \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
