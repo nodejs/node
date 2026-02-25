@@ -1957,6 +1957,10 @@ npx codemod@latest @nodejs/node-url-to-whatwg-url
 added: v0.1.25
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: Deprecated again through DEP0169.
+  - version:
       - v15.13.0
       - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
@@ -1978,6 +1982,8 @@ changes:
     description: The `auth` fields is cleared now the `to` parameter
                  contains a hostname.
 -->
+
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
 
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
