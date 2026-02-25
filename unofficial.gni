@@ -160,6 +160,7 @@ template("node_gn_build") {
       "deps/cares",
       "deps/histogram",
       "deps/llhttp",
+      "deps/merve",
       "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
