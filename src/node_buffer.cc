@@ -1457,6 +1457,30 @@ inline size_t CheckNumberToSize(Local<Value> number) {
   return size;
 }
 
+MaybeLocal<ArrayBuffer> CreateUnsafeArrayBufferFromSize(Environment* env,
+                                                        size_t size) {
+  Isolate* isolate = env->isolate();
+
+  // 0-length, or zero-fill flag is set, or building snapshot
+  if (size == 0 || per_process::cli_options->zero_fill_all_buffers ||
+      env->isolate_data()->is_building_snapshot()) {
+    return ArrayBuffer::New(isolate, size);
+  }
+
+  std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+      isolate,
+      size,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+
+  if (!store) [[unlikely]] {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<ArrayBuffer>();
+  }
+
+  return ArrayBuffer::New(isolate, std::move(store));
+}
+
 void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() != 1) {
@@ -1466,30 +1490,36 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   size_t size = CheckNumberToSize(args[0]);
 
-  Isolate* isolate = env->isolate();
-
   Local<ArrayBuffer> buf;
-
-  // 0-length, or zero-fill flag is set, or building snapshot
-  if (size == 0 || per_process::cli_options->zero_fill_all_buffers ||
-      env->isolate_data()->is_building_snapshot()) {
-    buf = ArrayBuffer::New(isolate, size);
-  } else {
-    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-        isolate,
-        size,
-        BackingStoreInitializationMode::kUninitialized,
-        v8::BackingStoreOnFailureMode::kReturnNull);
-
-    if (!store) [[unlikely]] {
-      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
-      return;
-    }
-
-    buf = ArrayBuffer::New(isolate, std::move(store));
-  }
+  if (!CreateUnsafeArrayBufferFromSize(env, size).ToLocal(&buf))
+    return;
 
   args.GetReturnValue().Set(buf);
+}
+
+void CreateUnsafeBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() != 1) {
+    env->ThrowRangeError("Invalid array buffer length");
+    return;
+  }
+
+  size_t size = CheckNumberToSize(args[0]);
+
+  Local<ArrayBuffer> array_buffer;
+  if (!CreateUnsafeArrayBufferFromSize(env, size).ToLocal(&array_buffer))
+    return;
+
+  if (env->buffer_prototype_object().IsEmpty()) {
+    args.GetReturnValue().Set(Uint8Array::New(array_buffer, 0, size));
+    return;
+  }
+
+  Local<Uint8Array> buffer;
+  if (!Buffer::New(env, array_buffer, 0, size).ToLocal(&buffer))
+    return;
+
+  args.GetReturnValue().Set(buffer);
 }
 
 template <encoding encoding>
@@ -1621,6 +1651,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
   SetMethodNoSideEffect(
       context, target, "createUnsafeArrayBuffer", CreateUnsafeArrayBuffer);
+  SetMethodNoSideEffect(
+      context, target, "createUnsafeBuffer", CreateUnsafeBuffer);
 
   SetMethod(context, target, "swap16", Swap16);
   SetMethod(context, target, "swap32", Swap32);
@@ -1723,6 +1755,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(CopyArrayBuffer);
   registry->Register(CreateUnsafeArrayBuffer);
+  registry->Register(CreateUnsafeBuffer);
 
   registry->Register(Atob);
   registry->Register(Btoa);
