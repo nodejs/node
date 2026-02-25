@@ -148,6 +148,7 @@ class DatabaseSync : public BaseObject {
   static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateModule(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int AuthorizerCallback(void* user_data,
                                 int action_code,
                                 const char* param1,
@@ -198,6 +199,7 @@ class DatabaseSync : public BaseObject {
   friend class Session;
   friend class SQLTagStore;
   friend class StatementExecutionHelper;
+  friend class VirtualTableModule;
 };
 
 class StatementSync : public BaseObject {
@@ -354,6 +356,71 @@ class UserDefinedFunction {
   v8::Global<v8::Function> fn_;
   DatabaseSync* db_;
   bool use_bigint_args_;
+};
+
+struct NodeVTab {
+  sqlite3_vtab base;
+  class VirtualTableModule* module;
+};
+
+struct NodeVTabCursor {
+  sqlite3_vtab_cursor base;
+  class VirtualTableModule* module;
+  v8::Global<v8::Object> iterator;
+  v8::Global<v8::Value> current_row;
+  sqlite3_int64 rowid;
+  bool done;
+};
+
+class VirtualTableModule {
+ public:
+  VirtualTableModule(Environment* env,
+                     DatabaseSync* db,
+                     v8::Local<v8::Function> rows_fn,
+                     std::string&& schema_sql,
+                     int num_columns,
+                     std::vector<int>&& hidden_col_indices,
+                     bool use_bigint_args,
+                     bool direct_only);
+  ~VirtualTableModule();
+
+  static int xCreate(sqlite3* db,
+                     void* pAux,
+                     int argc,
+                     const char* const* argv,
+                     sqlite3_vtab** ppVTab,
+                     char** pzErr);
+  static int xBestIndex(sqlite3_vtab* pVTab, sqlite3_index_info* pInfo);
+  static int xDisconnect(sqlite3_vtab* pVTab);
+  static int xDestroy(sqlite3_vtab* pVTab);
+  static int xOpen(sqlite3_vtab* pVTab, sqlite3_vtab_cursor** ppCursor);
+  static int xClose(sqlite3_vtab_cursor* pCursor);
+  static int xFilter(sqlite3_vtab_cursor* pCursor,
+                     int idxNum,
+                     const char* idxStr,
+                     int argc,
+                     sqlite3_value** argv);
+  static int xNext(sqlite3_vtab_cursor* pCursor);
+  static int xEof(sqlite3_vtab_cursor* pCursor);
+  static int xColumn(sqlite3_vtab_cursor* pCursor, sqlite3_context* ctx, int i);
+  static int xRowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid);
+  static void xDestroyModule(void* pAux);
+
+ private:
+  Environment* env_;
+  DatabaseSync* db_;
+  v8::Global<v8::Function> rows_fn_;
+  std::string schema_sql_;
+  int num_columns_;
+  std::vector<int> hidden_col_indices_;
+  // Maps schema column index to row array index for visible columns.
+  // Hidden columns are mapped to -1.
+  std::vector<int> col_index_map_;
+  bool use_bigint_args_;
+  bool direct_only_;
+  sqlite3_module module_def_;
+
+  friend class DatabaseSync;
 };
 
 }  // namespace sqlite
