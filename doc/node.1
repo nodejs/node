@@ -135,6 +135,27 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-ffi
+When using the Permission Model, the process will not be able to use
+\fBnode:ffi\fR by default.
+Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR exception unless
+the user explicitly passes the \fB--allow-ffi\fR flag when starting Node.js.
+The \fBnode:ffi\fR module also requires the \fB--experimental-ffi\fR flag and
+is only available in builds with FFI support.
+Example:
+.Bd -literal
+const { DynamicLibrary } = require('node:ffi');
+const lib = new DynamicLibrary('mylib.so');
+.Ed
+.Bd -literal
+$ node --permission --experimental-ffi index.js
+Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FFI'
+}
+.Ed
+.
 .It Fl -allow-fs-read
 This flag configures file system read permissions using
 the Permission Model.
@@ -696,6 +717,10 @@ as configuration file.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
 .
+.It Fl -experimental-ffi
+Enable the experimental \fBnode:ffi\fR module.
+This flag is only available in builds with FFI support.
+.
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
 passing a second \fBparentURL\fR argument for contextual resolution.
@@ -1114,6 +1139,8 @@ Worker Threads - manageable through \fB--allow-worker\fR flag
 WASI - manageable through \fB--allow-wasi\fR flag
 .It
 Addons - manageable through \fB--allow-addons\fR flag
+.It
+FFI - manageable through \fB--allow-ffi\fR flag
 .El
 .
 .It Fl -permission-audit
@@ -1828,6 +1855,8 @@ one is included in the list below.
 .It
 \fB--allow-child-process\fR
 .It
+\fB--allow-ffi\fR
+.It
 \fB--allow-fs-read\fR
 .It
 \fB--allow-fs-write\fR
@@ -1877,6 +1906,8 @@ one is included in the list below.
 \fB--experimental-detect-module\fR
 .It
 \fB--experimental-eventsource\fR
+.It
+\fB--experimental-ffi\fR
 .It
 \fB--experimental-import-meta-resolve\fR
 .It

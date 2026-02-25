@@ -50,9 +50,9 @@ flag.
 
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
-spawn processes, use `node:worker_threads`, use native addons, use WASI, and
-enable the runtime inspector will be restricted (the listener for SIGUSR1 won't
-be created).
+spawn processes, use `node:worker_threads`, use native addons, use WASI, use
+FFI, and enable the runtime inspector will be restricted (the listener for
+SIGUSR1 won't be created).
 
 ```console
 $ node --permission index.js
@@ -70,7 +70,9 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
-flag. For WASI, use the [`--allow-wasi`][] flag.
+flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
+[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
+`--experimental-ffi` flag and is only available in builds with FFI support.
 
 #### Runtime API
 
@@ -170,7 +172,8 @@ Example `node.config.json`:
     "allow-child-process": true,
     "allow-worker": true,
     "allow-net": true,
-    "allow-addons": false
+    "allow-addons": false,
+    "allow-ffi": false
   }
 }
 ```
@@ -232,6 +235,7 @@ There are constraints you need to know before using this system:
   * Inspector protocol
   * File system access
   * WASI
+  * FFI
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
@@ -255,6 +259,7 @@ There are constraints you need to know before using this system:
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-net`]: cli.md#--allow-net

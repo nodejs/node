@@ -686,6 +686,28 @@ shared_optgroup.add_argument('--shared-sqlite-libpath',
     dest='shared_sqlite_libpath',
     help='a directory to search for the shared sqlite DLL')
 
+shared_optgroup.add_argument('--shared-ffi',
+    action='store_true',
+    dest='shared_ffi',
+    default=None,
+    help='link to a shared libffi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ffi-includes',
+    action='store',
+    dest='shared_ffi_includes',
+    help='directory containing libffi header files')
+
+shared_optgroup.add_argument('--shared-ffi-libname',
+    action='store',
+    dest='shared_ffi_libname',
+    default='ffi',
+    help='alternative libffi name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ffi-libpath',
+    action='store',
+    dest='shared_ffi_libpath',
+    help='a directory to search for the shared libffi DLL')
+
 shared_optgroup.add_argument('--shared-temporal_capi',
     action='store_true',
     dest='shared_temporal_capi',
@@ -1016,6 +1038,12 @@ parser.add_argument('--without-sqlite',
     dest='without_sqlite',
     default=None,
     help='build without SQLite (disables SQLite and Web Storage API)')
+
+parser.add_argument('--without-ffi',
+    action='store_true',
+    dest='without_ffi',
+    default=None,
+    help='build without FFI (Foreign Function Interface) support')
 
 parser.add_argument('--experimental-quic',
     action='store_true',
@@ -2233,6 +2261,43 @@ def configure_sqlite(o):
 
   configure_library('sqlite', o, pkgname='sqlite3')
 
+def bundled_ffi_supported(os_name, target_arch):
+  supported = {
+    'freebsd': {'arm', 'arm64', 'x64'},
+    'linux': {'arm', 'arm64', 'x64'},
+    'mac': {'arm64', 'x64'},
+    'win': {'arm64', 'x64'},
+  }
+
+  if target_arch == 'x86':
+    target_arch = 'ia32'
+
+  return target_arch in supported.get(os_name, set())
+
+def configure_ffi(o):
+  use_ffi = not options.without_ffi
+
+  if use_ffi and not options.shared_ffi:
+    target_arch = o['variables']['target_arch']
+    if not bundled_ffi_supported(flavor, target_arch):
+      warn(f'FFI is disabled for {flavor}/{target_arch}: the bundled libffi '
+           'integration is not available on this platform. Use --shared-ffi '
+           'to provide a system libffi or --without-ffi to silence this '
+           'warning.')
+      use_ffi = False
+
+  o['variables']['node_use_ffi'] = b(use_ffi)
+
+  if options.without_ffi:
+    if options.shared_ffi:
+      error('--without-ffi is incompatible with --shared-ffi')
+    return
+
+  if not use_ffi:
+    return
+
+  configure_library('ffi', o, pkgname='libffi')
+
 def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
                                       not options.without_ssl)
@@ -2686,6 +2751,7 @@ configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
 configure_sqlite(output);
+configure_ffi(output);
 configure_library('temporal_capi', output)
 configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')

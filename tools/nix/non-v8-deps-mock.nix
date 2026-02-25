@@ -56,6 +56,7 @@ symlinkJoin (finalAttrs: {
     configureFlags = [
       "--without-lief"
       "--without-sqlite"
+      "--without-ffi"
       "--without-ssl"
     ]
     ++ (lib.concatMap (sharedLibName: [
