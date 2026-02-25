@@ -122,12 +122,16 @@ import vfs from 'node:vfs';
     type: 'module',
     exports: { '.': './index.mjs' },
   }));
-  myVfs.writeFileSync('/app/node_modules/my-vfs-pkg/index.mjs',
-    'export const fromVfs = true;');
+  myVfs.writeFileSync(
+    '/app/node_modules/my-vfs-pkg/index.mjs',
+    'export const fromVfs = true;',
+  );
   // The importing module must also live inside the VFS mount so that
   // node_modules resolution walks upward from a VFS path.
-  myVfs.writeFileSync('/app/entry.mjs',
-    "export { fromVfs } from 'my-vfs-pkg';");
+  myVfs.writeFileSync(
+    '/app/entry.mjs',
+    "export { fromVfs } from 'my-vfs-pkg';",
+  );
   myVfs.mount('/virtual9');
 
   const { fromVfs } = await import('/virtual9/app/entry.mjs');
