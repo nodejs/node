@@ -1,6 +1,7 @@
 #include "node_json_parser.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
+#include "simdutf.h"
 #include "util-inl.h"
 
 #include <cstring>
@@ -398,22 +399,31 @@ void JsonParser::Parse(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0].As<String>();
   size_t len;
-  if (str->IsOneByte()) {
-    const uint32_t char_len = str->Length();
-    self->padded_buffer_.resize(char_len + simdjson::SIMDJSON_PADDING);
-    std::memset(
-        self->padded_buffer_.data() + char_len, 0, simdjson::SIMDJSON_PADDING);
-    str->WriteOneByteV2(isolate,
-                        0,
-                        char_len,
-                        reinterpret_cast<uint8_t*>(self->padded_buffer_.data()));
-    len = char_len;
-  } else {
-    const size_t utf8_len = str->Utf8LengthV2(isolate);
-    self->padded_buffer_.resize(utf8_len + simdjson::SIMDJSON_PADDING);
-    std::memset(
-        self->padded_buffer_.data() + utf8_len, 0, simdjson::SIMDJSON_PADDING);
-    len = str->WriteUtf8V2(isolate, self->padded_buffer_.data(), utf8_len);
+  {
+    v8::String::ValueView str_view(isolate, str);
+    if (str_view.is_one_byte()) {
+      const char* data = reinterpret_cast<const char*>(str_view.data8());
+      const size_t char_len = str_view.length();
+      const size_t utf8_len =
+          simdutf::utf8_length_from_latin1(data, char_len);
+      self->padded_buffer_.resize(utf8_len + simdjson::SIMDJSON_PADDING);
+      std::memset(self->padded_buffer_.data() + utf8_len,
+                  0,
+                  simdjson::SIMDJSON_PADDING);
+      len = simdutf::convert_latin1_to_utf8(
+          data, char_len, self->padded_buffer_.data());
+    } else {
+      const char16_t* data =
+          reinterpret_cast<const char16_t*>(str_view.data16());
+      const size_t char_len = str_view.length();
+      const size_t utf8_len = simdutf::utf8_length_from_utf16(data, char_len);
+      self->padded_buffer_.resize(utf8_len + simdjson::SIMDJSON_PADDING);
+      std::memset(self->padded_buffer_.data() + utf8_len,
+                  0,
+                  simdjson::SIMDJSON_PADDING);
+      len = simdutf::convert_utf16_to_utf8(
+          data, char_len, self->padded_buffer_.data());
+    }
   }
 
   simdjson::padded_string_view view(
