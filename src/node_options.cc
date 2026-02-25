@@ -1054,10 +1054,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
       &EnvironmentOptions::trace_env_native_stack,
       kAllowedInEnvvar);
 
+#if HAVE_OPENSSL
   AddOption("--use-system-ca",
             "use system's CA store",
             &EnvironmentOptions::use_system_ca,
             kAllowedInEnvvar);
+#endif  // HAVE_OPENSSL
 
   AddOption(
       "--trace-require-module",
