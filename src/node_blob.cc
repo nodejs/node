@@ -118,8 +118,8 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
   entries.push_back(std::move(entry));
 
-  if (auto blob =
-          Blob::Create(env, DataQueue::CreateIdempotent(std::move(entries)))) {
+  if (auto blob = Blob::Create(
+          env, DataQueue::CreateIdempotent(env, std::move(entries)))) {
     Local<Value> vals[2]{
         blob->object(),
         Uint32::NewFromUnsigned(env->isolate(), blob->length()),
@@ -255,7 +255,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  auto blob = Create(env, DataQueue::CreateIdempotent(std::move(entries)));
+  auto blob = Create(env, DataQueue::CreateIdempotent(env, std::move(entries)));
   if (blob)
     args.GetReturnValue().Set(blob->object());
 }
@@ -355,15 +355,24 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   }
 
   struct Impl {
-    BaseObjectPtr<Blob::Reader> reader;
+    BaseObjectWeakPtr<Blob::Reader> reader;
     Global<Function> callback;
     Environment* env;
+    std::vector<DataQueue::Vec> vecs;
+    std::list<bob::Done> dones;
+    size_t byte_count = 0;
+    bool innext = false;
   };
   // TODO(@jasnell): A unique_ptr is likely better here but making this a unique
   // pointer that is passed into the lambda causes the std::move(next) below to
   // complain about std::function needing to be copy-constructible.
-  Impl* impl = new Impl();
-  impl->reader = BaseObjectPtr<Blob::Reader>(reader);
+  // EDIT(martenrichter) We use a shared_ptr instead, as the previous
+  // implementation, with am ommrt unique_ptr did not allow to call next twice
+  // as impl is gone after the first call.
+  // Also the reference to reader should be a weak pointer, as if it is
+  // collected we should not be interested in the result of a call to next
+  std::shared_ptr<Impl> impl = std::make_shared<Impl>();
+  impl->reader = BaseObjectWeakPtr<Blob::Reader>(reader);
   impl->callback.Reset(env->isolate(), fn);
   impl->env = env;
 
@@ -371,34 +380,75 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
                      const DataQueue::Vec* vecs,
                      size_t count,
                      bob::Done doneCb) mutable {
-    auto dropMe = std::unique_ptr<Impl>(impl);
+    assert(impl->reader);
     Environment* env = impl->env;
     HandleScope handleScope(env->isolate());
     Local<Function> fn = impl->callback.Get(env->isolate());
 
-    if (status == bob::STATUS_EOS) impl->reader->eos_ = true;
+    if (status == bob::STATUS_EOS) {
+      impl->reader->eos_ = true;
+    }
 
     if (count > 0) {
+      impl->vecs.insert(impl->vecs.end(), vecs, vecs + count);
+      impl->dones.push_back(std::move(doneCb));
+      for (size_t n = 0; n < count; n++) impl->byte_count += vecs[n].len;
+    }
+    if (impl->innext) {
+      CHECK(status != bob::STATUS_WAIT);
+      return;
+    }
+    if (status == bob::STATUS_CONTINUE && impl->byte_count < 16384) {
+      // We pull some more,
+      // but it must be sync as we
+      // merge it together
+      impl->innext = true;
+      while (status == bob::STATUS_CONTINUE && impl->byte_count < 16384) {
+        auto snext = [impl](int status,
+                            const DataQueue::Vec* vecs,
+                            size_t count,
+                            bob::Done doneCb) {
+          if (count > 0) {
+            impl->vecs.insert(impl->vecs.end(), vecs, vecs + count);
+            impl->dones.push_back(std::move(doneCb));
+            for (size_t n = 0; n < count; n++) impl->byte_count += vecs[n].len;
+          }
+        };
+        assert(impl->reader);
+        status = impl->reader->inner_->Pull(
+            std::move(snext), node::bob::OPTIONS_SYNC, nullptr, 0);
+      }
+    }
+    // otherwise we commit and call
+    if (impl->vecs.size() > 0) {
       // Copy the returns vectors into a single ArrayBuffer.
       size_t total = 0;
-      for (size_t n = 0; n < count; n++) total += vecs[n].len;
+      const size_t vecs_size = impl->vecs.size();
+      const DataQueue::Vec* ivecs = &(*impl->vecs.begin());
+      for (size_t n = 0; n < vecs_size; n++) total += ivecs[n].len;
 
       std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
           env->isolate(),
           total,
           BackingStoreInitializationMode::kUninitialized);
       auto ptr = static_cast<uint8_t*>(store->Data());
-      for (size_t n = 0; n < count; n++) {
-        std::copy(vecs[n].base, vecs[n].base + vecs[n].len, ptr);
-        ptr += vecs[n].len;
+      for (size_t n = 0; n < vecs_size; n++) {
+        std::copy(ivecs[n].base, ivecs[n].base + ivecs[n].len, ptr);
+        ptr += ivecs[n].len;
       }
       // Since we copied the data buffers, signal that we're done with them.
-      std::move(doneCb)(0);
-      Local<Value> argv[2] = {Uint32::New(env->isolate(), status),
+      std::for_each(impl->dones.begin(),
+                    impl->dones.end(),
+                    [](bob::Done& done) { std::move(done)(0); });
+      impl->dones.clear();
+      assert(impl->reader);
+      Local<Value> argv[2] = {Uint32::New(env->isolate(), bob::STATUS_CONTINUE),
                               ArrayBuffer::New(env->isolate(), store)};
       impl->reader->MakeCallback(fn, arraysize(argv), argv);
       return;
     }
+    impl->dones.clear();  // should not be necessary?
+    assert(impl->reader);
 
     Local<Value> argv[2] = {
         Int32::New(env->isolate(), status),
