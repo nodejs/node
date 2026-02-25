@@ -246,6 +246,10 @@
       'dependencies': [ 'deps/sqlite/sqlite.gyp:sqlite' ],
     }],
 
+    [ 'node_use_ffi=="true" and node_shared_ffi=="false"', {
+      'dependencies': [ 'deps/libffi/libffi.gyp:libffi' ],
+    }],
+
     [ 'node_shared_zstd=="false"', {
       'dependencies': [ 'deps/zstd/zstd.gyp:zstd' ],
       'defines': [ 'NODE_BUNDLED_ZSTD' ],
@@ -443,6 +447,11 @@
       'defines': [ 'HAVE_SQLITE=1' ],
     }, {
       'defines': [ 'HAVE_SQLITE=0' ]
+    }],
+    [ 'node_use_ffi=="true"', {
+      'defines': [ 'HAVE_FFI=1' ],
+    }, {
+      'defines': [ 'HAVE_FFI=0' ]
     }],
     [ 'node_use_quic=="true"', {
       'defines': [ 'HAVE_QUIC=1' ],

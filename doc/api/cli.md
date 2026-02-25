@@ -191,6 +191,35 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use
+`node:ffi` by default. Attempts to use FFI APIs will throw an
+`ERR_ACCESS_DENIED` exception unless the user explicitly passes the
+`--allow-ffi` flag when starting Node.js.
+
+Example:
+
+```js
+const { UnsafePointer } = require('node:ffi');
+const pointer = UnsafePointer.create(0n);
+```
+
+```console
+$ node --permission --experimental-ffi --allow-fs-read=* index.js
+Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FFI'
+}
+```
+
 ### `--allow-fs-read`
 
 <!-- YAML
@@ -1147,6 +1176,16 @@ added:
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:ffi`][] module.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -1939,6 +1978,14 @@ changes:
 > Stability: 3 - Legacy: Use [`--no-require-module`][] instead.
 
 Legacy alias for [`--no-require-module`][].
+
+### `--no-experimental-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable the experimental [`node:ffi`][] module.
 
 ### `--no-experimental-sqlite`
 
@@ -3575,6 +3622,7 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-write`
 * `--allow-inspector`
@@ -3600,6 +3648,7 @@ one is included in the list below.
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
+* `--experimental-ffi`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -3641,6 +3690,7 @@ one is included in the list below.
 * `--no-addons`
 * `--no-async-context-frame`
 * `--no-deprecation`
+* `--no-experimental-ffi`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
@@ -4247,6 +4297,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
+[`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version

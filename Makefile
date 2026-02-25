@@ -542,6 +542,23 @@ else
 build-sqlite-tests:
 endif
 
+FFI_BINDING_GYPS := $(wildcard test/ffi/*/binding.gyp)
+
+FFI_BINDING_SOURCES := \
+	$(wildcard test/ffi/*/*.c)
+
+# Implicitly depends on $(NODE_EXE), see the build-ffi-tests rule for rationale.
+test/ffi/.buildstamp: $(ADDONS_PREREQS) \
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES)
+	@$(call run_build_addons,"$$PWD/test/ffi",$@)
+
+.PHONY: build-ffi-tests
+# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# directly because it calls make recursively.  The parent make cannot know
+# if the subprocess touched anything so it pessimistically assumes that
+# .buildstamp is out of date and need a rebuild.
+build-ffi-tests: | $(NODE_EXE) test/ffi/.buildstamp ## Build FFI tests.
+
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
 	$(info Clean up any leftover processes but don't error if found.)
@@ -552,7 +569,7 @@ clear-stalled: ## Clear any stalled processes.
 	fi
 
 .PHONY: test-build
-test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Build all tests.
+test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Build all tests.
 
 .PHONY: test-build-js-native-api
 test-build-js-native-api: all build-js-native-api-tests ## Build JS Native-API tests.
@@ -591,7 +608,7 @@ endif
 
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info ## Build and test addons without building anything else.
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp
+test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp test/ffi/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -614,7 +631,7 @@ test-ci-js: | clear-stalled ## Build and test JavaScript with building anything 
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info ## Build and test everything (CI).
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \

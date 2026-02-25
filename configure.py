@@ -1017,6 +1017,12 @@ parser.add_argument('--without-sqlite',
     default=None,
     help='build without SQLite (disables SQLite and Web Storage API)')
 
+parser.add_argument('--with-ffi',
+    action='store_true',
+    dest='with_ffi',
+    default=None,
+    help='build with FFI (Foreign Function Interface) support')
+
 parser.add_argument('--experimental-quic',
     action='store_true',
     dest='experimental_quic',
@@ -2182,6 +2188,12 @@ def configure_sqlite(o):
 
   configure_library('sqlite', o, pkgname='sqlite3')
 
+def configure_ffi(o):
+  o['variables']['node_use_ffi'] = b(options.with_ffi)
+  return
+
+  configure_library('ffi', o, pkgname='libffi')
+
 def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
                                       not options.without_ssl)
@@ -2635,6 +2647,7 @@ configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
 configure_sqlite(output);
+configure_ffi(output);
 configure_library('temporal_capi', output)
 configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')
