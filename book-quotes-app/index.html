@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Book Quotes" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>Book Quotes</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --card: #0f3460;
+      --accent: #e94560;
+      --accent2: #f5a623;
+      --text: #eaeaea;
+      --text-muted: #9a9ab0;
+      --radius: 14px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      background: var(--surface);
+      padding: calc(var(--safe-top) + 16px) 20px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    header h1 span { color: var(--accent); }
+
+    #quote-count {
+      font-size: 13px;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.07);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* Tab bar */
+    nav {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+
+    nav button {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Views */
+    .view { display: none; flex: 1; overflow-y: auto; padding: 16px; }
+    .view.active { display: flex; flex-direction: column; gap: 12px; }
+
+    /* Quote card */
+    .quote-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      position: relative;
+      border-left: 3px solid var(--accent2);
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .quote-card .quote-text {
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .quote-card .quote-text::before { content: '\201C'; color: var(--accent); font-size: 22px; line-height: 0; vertical-align: -5px; margin-right: 2px; }
+    .quote-card .quote-text::after  { content: '\201D'; color: var(--accent); font-size: 22px; line-height: 0; vertical-align: -5px; margin-left: 2px; }
+
+    .quote-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .book-info { display: flex; flex-direction: column; gap: 2px; }
+    .book-title { font-size: 13px; font-weight: 600; color: var(--accent2); }
+    .book-author { font-size: 12px; color: var(--text-muted); }
+    .quote-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 6px;
+      border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .delete-btn:hover { color: var(--accent); background: rgba(233,69,96,0.12); }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .empty-state .icon { font-size: 52px; }
+    .empty-state p { font-size: 16px; font-weight: 500; }
+    .empty-state small { font-size: 13px; }
+
+    /* Add form */
+    #add-view {
+      gap: 16px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .form-group input,
+    .form-group textarea {
+      background: var(--card);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 16px;
+      font-family: inherit;
+      padding: 12px 14px;
+      width: 100%;
+      transition: border-color 0.2s;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.5;
+    }
+
+    #char-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+      margin-top: -4px;
+    }
+
+    .submit-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+
+    .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Search */
+    #search-input {
+      background: var(--card);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 16px;
+      font-family: inherit;
+      padding: 11px 14px;
+      width: 100%;
+      outline: none;
+      -webkit-appearance: none;
+      flex-shrink: 0;
+    }
+    #search-input:focus { border-color: var(--accent); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 20px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #222;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      white-space: nowrap;
+      z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Bottom safe area spacer */
+    .spacer { height: var(--safe-bottom); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>&#128218; Book <span>Quotes</span></h1>
+    <span id="quote-count">0 quotes</span>
+  </header>
+
+  <nav>
+    <button class="active" onclick="switchTab('quotes')">My Quotes</button>
+    <button onclick="switchTab('add')">+ Add Quote</button>
+  </nav>
+
+  <!-- Quotes list view -->
+  <div id="quotes-view" class="view active">
+    <input type="search" id="search-input" placeholder="Search quotes or books..." oninput="renderQuotes()" />
+    <div id="quotes-list"></div>
+  </div>
+
+  <!-- Add quote view -->
+  <div id="add-view" class="view">
+    <div class="form-group">
+      <label>Quote</label>
+      <textarea id="quote-input" placeholder="Enter the quote..." maxlength="1000" oninput="updateCharCount()"></textarea>
+      <div id="char-count">0 / 1000</div>
+    </div>
+    <div class="form-group">
+      <label>Book Title</label>
+      <input type="text" id="book-input" placeholder="e.g. Atomic Habits" maxlength="100" />
+    </div>
+    <div class="form-group">
+      <label>Author</label>
+      <input type="text" id="author-input" placeholder="e.g. James Clear" maxlength="100" />
+    </div>
+    <button class="submit-btn" onclick="saveQuote()">Save Quote</button>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const STORAGE_KEY = 'book_quotes_v1';
+
+  function loadQuotes() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveQuotes(quotes) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    updateCount(quotes.length);
+  }
+
+  function updateCount(n) {
+    document.getElementById('quote-count').textContent = n + (n === 1 ? ' quote' : ' quotes');
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderQuotes() {
+    const quotes = loadQuotes();
+    const query = (document.getElementById('search-input').value || '').toLowerCase();
+    const list = document.getElementById('quotes-list');
+
+    const filtered = query
+      ? quotes.filter(q =>
+          q.text.toLowerCase().includes(query) ||
+          q.book.toLowerCase().includes(query) ||
+          (q.author || '').toLowerCase().includes(query)
+        )
+      : quotes;
+
+    if (filtered.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">${query ? '🔍' : '📖'}</div>
+          <p>${query ? 'No results found' : 'No quotes yet'}</p>
+          <small>${query ? 'Try a different search.' : 'Tap "+ Add Quote" to save your first quote.'}</small>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.slice().reverse().map(q => `
+      <div class="quote-card">
+        <div class="quote-text">${escHtml(q.text)}</div>
+        <div class="quote-meta">
+          <div class="book-info">
+            <span class="book-title">${escHtml(q.book)}</span>
+            ${q.author ? `<span class="book-author">— ${escHtml(q.author)}</span>` : ''}
+          </div>
+          <span class="quote-date">${formatDate(q.date)}</span>
+          <button class="delete-btn" onclick="deleteQuote('${q.id}')" title="Delete">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function saveQuote() {
+    const text   = document.getElementById('quote-input').value.trim();
+    const book   = document.getElementById('book-input').value.trim();
+    const author = document.getElementById('author-input').value.trim();
+
+    if (!text) { showToast('Please enter a quote.'); return; }
+    if (!book)  { showToast('Please enter a book title.'); return; }
+
+    const quotes = loadQuotes();
+    quotes.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), text, book, author, date: new Date().toISOString() });
+    saveQuotes(quotes);
+
+    // Clear form
+    document.getElementById('quote-input').value = '';
+    document.getElementById('book-input').value = '';
+    document.getElementById('author-input').value = '';
+    updateCharCount();
+
+    showToast('Quote saved!');
+    switchTab('quotes');
+  }
+
+  function deleteQuote(id) {
+    if (!confirm('Delete this quote?')) return;
+    const quotes = loadQuotes().filter(q => q.id !== id);
+    saveQuotes(quotes);
+    renderQuotes();
+    showToast('Quote deleted.');
+  }
+
+  function updateCharCount() {
+    const len = document.getElementById('quote-input').value.length;
+    document.getElementById('char-count').textContent = len + ' / 1000';
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('nav button').forEach((b, i) => b.classList.toggle('active', (tab === 'quotes' && i === 0) || (tab === 'add' && i === 1)));
+    document.getElementById('quotes-view').classList.toggle('active', tab === 'quotes');
+    document.getElementById('add-view').classList.toggle('active', tab === 'add');
+    if (tab === 'quotes') renderQuotes();
+    if (tab === 'add') document.getElementById('quote-input').focus();
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // Init
+  updateCount(loadQuotes().length);
+  renderQuotes();
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
