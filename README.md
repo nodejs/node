@@ -889,15 +889,15 @@ releases on a rotation basis as outlined in the
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
 * [HeroDevs](https://www.herodevs.com/)
-  * [juanarbol](https://github.com/juanarbol) - OpenJSF handle: `juanarbol`
+  * [juanarbol](https://github.com/juanarbol) - OpenJS Slack handle: `juanarbol`
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
-  * [marco-ippolito](https://github.com/marco-ippolito) - OpenJSF handle: `Marco Ippolito`
+  * [marco-ippolito](https://github.com/marco-ippolito) - OpenJS Slack handle: `Marco Ippolito`
     **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [NodeSource](https://nodesource.com/)
-  * [RafaelGSS](https://github.com/RafaelGSS) - OpenJSF handle: `RafaelGSS`
+  * [RafaelGSS](https://github.com/RafaelGSS) - OpenJS Slack handle: `RafaelGSS`
     **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * [Platformatic](https://platformatic.dev/)
-  * [mcollina](https://github.com/mcollina) - OpenJSF handle: `mcollina`
+  * [mcollina](https://github.com/mcollina) - OpenJS Slack handle: `mcollina`
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
   * [BethGriggs](https://github.com/BethGriggs) -
