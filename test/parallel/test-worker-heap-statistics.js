@@ -40,6 +40,7 @@ if (isMainThread) {
       `total_global_handles_size`,
       `used_global_handles_size`,
       `external_memory`,
+      `total_allocated_bytes`,
     ].sort();
     assert.deepStrictEqual(keys, Object.keys(stats).sort());
     for (const key of keys) {

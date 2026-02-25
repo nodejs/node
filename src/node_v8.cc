@@ -212,6 +212,12 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 #undef V
 }
 
+void GetTotalAllocatedBytes(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  uint64_t allocated_bytes = isolate->GetTotalAllocatedBytes();
+  args.GetReturnValue().Set(Number::New(isolate, allocated_bytes));
+}
+
 
 void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Realm::GetBindingData<BindingData>(args);
@@ -694,6 +700,11 @@ void Initialize(Local<Object> target,
 
   SetMethod(context,
             target,
+            "getTotalAllocatedBytes",
+            GetTotalAllocatedBytes);
+
+  SetMethod(context,
+            target,
             "updateHeapCodeStatisticsBuffer",
             UpdateHeapCodeStatisticsBuffer);
   SetMethodNoSideEffect(
@@ -773,6 +784,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CachedDataVersionTag);
   registry->Register(UpdateHeapStatisticsBuffer);
+  registry->Register(GetTotalAllocatedBytes);
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);

@@ -10363,6 +10363,11 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
+uint64_t Isolate::GetTotalAllocatedBytes() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  return i_isolate->heap()->GetTotalAllocatedBytes();
+}
+
 size_t Isolate::NumberOfHeapSpaces() {
   return i::LAST_SPACE - i::FIRST_SPACE + 1;
 }
