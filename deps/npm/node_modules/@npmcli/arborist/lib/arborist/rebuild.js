@@ -295,12 +295,12 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
-        isStoreLink,
       } = node.target
 
       // skip any that we know we'll be deleting
-      // or storeLinks
-      if (this[_trashList].has(path) || isStoreLink) {
+      // or links to store entries (their scripts run on the store
+      // entry itself, not through the link)
+      if (this[_trashList].has(path) || (node.isLink && node.target?.isInStore)) {
         return
       }
 

@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "10.2.2",
+  "version": "10.2.3",
   "files": [
     "bin/",
     "lib/"
@@ -60,14 +60,14 @@
     "tap": "^16.3.8"
   },
   "dependencies": {
-    "@npmcli/arborist": "^9.3.1",
+    "@gar/promise-retry": "^1.0.0",
+    "@npmcli/arborist": "^9.4.0",
     "@npmcli/package-json": "^7.0.0",
     "@npmcli/run-script": "^10.0.0",
     "ci-info": "^4.0.0",
     "npm-package-arg": "^13.0.0",
     "pacote": "^21.0.2",
     "proc-log": "^6.0.0",
-    "promise-retry": "^2.0.1",
     "read": "^5.0.1",
     "semver": "^7.3.7",
     "signal-exit": "^4.1.0",

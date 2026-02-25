@@ -94,6 +94,30 @@ npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--envir
 | `--registry` | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
 | `--yes`, `-y` | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on       the command line. |
 
+### `npm trust circleci`
+
+Create a trusted relationship between a package and CircleCI
+
+#### Synopsis
+
+```bash
+npm trust circleci [package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [-y|--yes]
+```
+
+#### Flags
+
+| Flag | Default | Type | Description |
+| --- | --- | --- | --- |
+| `--org-id` | null | String (required) | CircleCI organization UUID |
+| `--project-id` | null | String (required) | CircleCI project UUID |
+| `--pipeline-definition-id` | null | String (required) | CircleCI pipeline definition UUID |
+| `--vcs-origin` | null | String (required) | CircleCI repository origin in format 'provider/owner/repo' |
+| `--context-id` | null | null or String (can be set multiple times) | CircleCI context UUID to match |
+| `--dry-run` | false | Boolean | Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, `install`,       `update`, `dedupe`, `uninstall`, as well as `pack` and       `publish`.        Note: This is NOT honored by other network related commands, eg       `dist-tags`, `owner`, etc. |
+| `--json` | false | Boolean | Whether or not to output JSON data, rather than the normal output.        * In `npm pkg set` it enables parsing set values with JSON.parse()       before saving them to your `package.json`.        Not supported by all npm commands. |
+| `--registry` | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+| `--yes`, `-y` | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on       the command line. |
+
 ### `npm trust list`
 
 List trusted relationships for a package
