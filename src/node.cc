@@ -1242,7 +1242,8 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     char buf[64];
     size_t buf_size = sizeof(buf);
     int rc = uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size);
-    if (rc == UV_ENOENT) {
+    if (rc == UV_ENOENT &&
+        !per_process::dotenv_file.HasKey("UV_THREADPOOL_SIZE")) {
       unsigned int parallelism = uv_available_parallelism();
       unsigned int threadpool_size = std::min(std::max(4u, parallelism), 1024u);
       char size_str[16];
