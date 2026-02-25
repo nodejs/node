@@ -141,9 +141,8 @@ class ProcessWrap : public HandleWrap {
         return Nothing<void>();
       }
       if (!val->IsObject()) {
-        THROW_ERR_INVALID_ARG_TYPE(env,
-                                   "options.stdio[%u] must be an object",
-                                   i);
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "options.stdio[%u] must be an object", i);
         return Nothing<void>();
       }
       Local<Object> stdio = val.As<Object>();
