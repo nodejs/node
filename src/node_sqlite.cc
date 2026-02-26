@@ -2260,7 +2260,8 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // functions don't make sense to support. Other JS types such as
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
-  // original type.
+  // original type. We make an exception for JS Boolean binding to 1 and 0
+  // because SQLite maps true and false keywords to 1 and 0.
   Isolate* isolate = env()->isolate();
   int r;
   if (value->IsNumber()) {
