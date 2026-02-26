@@ -93,12 +93,13 @@ suite('data binding and mapping', () => {
       buf: null,
     });
 
-    const insertNamedParams = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
-    const params = { key: 6, int: undefined, double: undefined, text: undefined, buf: undefined };
-    t.assert.deepStrictEqual(insertNamedParams.run(params), { changes: 1, lastInsertRowid: 6 });
-    t.assert.deepStrictEqual(insertNamedParams.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
-    t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, int: null, double: null, text: null, buf: null });
-    t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, int: null, double: null, text: null, buf: null });
+    const insertNamed = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
+    const params = { int: undefined, double: undefined, text: undefined, buf: undefined };
+    const nulls = { int: null, double: null, text: null, buf: null };
+    t.assert.deepStrictEqual(insertNamed.run({ key: 6, ...params }), { changes: 1, lastInsertRowid: 6 });
+    t.assert.deepStrictEqual(insertNamed.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
+    t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, ...nulls });
+    t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, ...nulls });
   });
 
   test('large strings are bound correctly', (t) => {
