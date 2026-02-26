@@ -101,10 +101,14 @@ const logger = new Logger({
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `trace` level.
 
@@ -124,10 +128,14 @@ logger.trace({ msg: 'Object format', requestId: 'abc123' });
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `debug` level.
 
@@ -146,10 +154,14 @@ logger.debug('Processing request', { requestId: 'abc123' });
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `info` level.
 
@@ -169,10 +181,14 @@ logger.info({ msg: 'User logged in', userId: 123 });
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `warn` level.
 
@@ -191,10 +207,14 @@ logger.warn('High memory usage', { memoryUsage: process.memoryUsage() });
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `error` level.
 
@@ -214,10 +234,14 @@ logger.error(new Error('Request failed'), { requestId: 'abc123' });
 added: REPLACEME
 -->
 
-* `msg` {string} Log message.
-* `obj` {Object} Object containing `msg` property and additional fields.
-* `error` {Error} Error object to log.
+* `msg` {string} Log message. When called with a string, logs that string
+  as the message.
 * `fields` {Object} Additional fields to include in the log record.
+  Only used with the string `msg` signature.
+* `obj` {Object} Object containing a required `msg` {string} property
+  and additional fields that will be included in the log record.
+* `error` {Error} Error object to log. The error's `message` property
+  becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `fatal` level.
 
