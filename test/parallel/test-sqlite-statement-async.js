@@ -25,32 +25,42 @@ suite('Statement() constructor', () => {
   });
 });
 
-suite.skip('Statement.prototype.get()', () => {
+suite('Statement.prototype.get()', () => {
   test('executes a query and returns undefined on no results', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
-    t.assert.strictEqual(await stmt.get(), undefined);
-    stmt = db.prepare('SELECT * FROM storage');
-    t.assert.strictEqual(await stmt.get(), undefined);
+    t.after(async () => { await db.close(); });
+    {
+      using stmt = await db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+      t.assert.strictEqual(await stmt.get(), undefined);
+    }
+    {
+      using stmt = await db.prepare('SELECT * FROM storage');
+      t.assert.strictEqual(await stmt.get(), undefined);
+    }
   });
 
-  test('executes a query and returns the first result', async (t) => {
+  test.skip('executes a query and returns the first result', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
-    t.assert.strictEqual(await stmt.get(), undefined);
-    stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
-    t.assert.strictEqual(await stmt.get('key1', 'val1'), undefined);
-    t.assert.strictEqual(await stmt.get('key2', 'val2'), undefined);
-    stmt = db.prepare('SELECT * FROM storage ORDER BY key');
-    t.assert.deepStrictEqual(await stmt.get(), { __proto__: null, key: 'key1', val: 'val1' });
+    t.after(async () => { await db.close(); });
+    {
+      using stmt = await db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+      t.assert.strictEqual(await stmt.get(), undefined);
+    }
+    {
+      using stmt = await db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
+      t.assert.strictEqual(await stmt.get('key1', 'val1'), undefined);
+      t.assert.strictEqual(await stmt.get('key2', 'val2'), undefined);
+    }
+    {
+      using stmt = await db.prepare('SELECT * FROM storage ORDER BY key');
+      t.assert.deepStrictEqual(await stmt.get(), { __proto__: null, key: 'key1', val: 'val1' });
+    }
   });
 
-  test('executes a query that returns special columns', async (t) => {
+  test.skip('executes a query that returns special columns', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    const stmt = db.prepare('SELECT 1 as __proto__, 2 as constructor, 3 as toString');
+    t.after(async () => { await db.close(); });
+    using stmt = await db.prepare('SELECT 1 as __proto__, 2 as constructor, 3 as toString');
     t.assert.deepStrictEqual(await stmt.get(), { __proto__: null, ['__proto__']: 1, constructor: 2, toString: 3 });
   });
 });

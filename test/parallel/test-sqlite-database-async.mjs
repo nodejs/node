@@ -224,7 +224,7 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     });
   });
 
-  test.skip('allows returning arrays', async (t) => {
+  test('allows returning arrays', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { returnArrays: true });
     t.after(async () => { await db.close(); });
@@ -235,7 +235,7 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    using query = await db.prepare('SELECT key, val FROM data WHERE key = 1');
     t.assert.deepStrictEqual(await query.get(), [1, 'one']);
   });
 

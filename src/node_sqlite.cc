@@ -3765,6 +3765,306 @@ void Session::Delete() {
 }
 
 namespace {
+namespace transfer {
+struct null {};
+struct boolean {
+  bool value;
+};
+struct integer {
+  sqlite3_int64 value;
+};
+struct real {
+  double value;
+};
+struct text {
+  std::pmr::string value;
+
+  text() = default;
+  explicit text(std::pmr::string&& str) : value(std::move(str)) {}
+  explicit text(std::string_view str) : value(str.data(), str.size()) {}
+  text(const char* str, size_t len) : value(str, len) {}
+};
+struct blob {
+  std::pmr::vector<uint8_t> value;
+
+  blob() = default;
+  explicit blob(std::pmr::vector<uint8_t>&& vec) : value(std::move(vec)) {}
+  explicit blob(std::span<const uint8_t> span)
+      : value(span.begin(), span.end()) {}
+  blob(const uint8_t* data, size_t len) : value(data, data + len) {}
+};
+using literal = std::variant<null, boolean, integer, real, text, blob>;
+using value = std::variant<std::pmr::vector<literal>,
+                           std::pmr::unordered_map<std::pmr::string, literal>>;
+
+struct bind_literal {
+  sqlite3_stmt* stmt;
+  int index;
+
+  int operator()(null) const { return sqlite3_bind_null(stmt, index); }
+  int operator()(boolean b) const {
+    return sqlite3_bind_int(stmt, index, b.value ? 1 : 0);
+  }
+  int operator()(integer i) const {
+    return sqlite3_bind_int64(stmt, index, i.value);
+  }
+  int operator()(real r) const {
+    return sqlite3_bind_double(stmt, index, r.value);
+  }
+  int operator()(const text& t) const {
+    return sqlite3_bind_text64(stmt,
+                               index,
+                               t.value.data(),
+                               static_cast<sqlite3_uint64>(t.value.size()),
+                               SQLITE_STATIC,
+                               SQLITE_UTF8);
+  }
+  int operator()(const blob& b) const {
+    return sqlite3_bind_blob64(stmt,
+                               index,
+                               b.value.data(),
+                               static_cast<sqlite3_uint64>(b.value.size()),
+                               SQLITE_STATIC);
+  }
+  int operator()(const transfer::literal& literal) const {
+    return std::visit(*this, literal);
+  }
+};
+
+struct bind_value {
+  sqlite3_stmt* stmt;
+
+  int operator()(const std::pmr::vector<transfer::literal>& value) const {
+    if (!std::in_range<int>(value.size())) [[unlikely]] {
+      return SQLITE_RANGE;
+    }
+    bind_literal binder{stmt, static_cast<int>(value.size())};
+    for (; binder.index > 0; --binder.index) {
+      if (int r = binder(value[binder.index - 1]); r != SQLITE_OK) {
+        return r;
+      }
+    }
+    return SQLITE_OK;
+  }
+  int operator()(
+      const std::pmr::unordered_map<std::pmr::string, transfer::literal>& value)
+      const {
+    bind_literal binder{stmt, 0};
+    for (const auto& [name, value] : value) {
+      binder.index = sqlite3_bind_parameter_index(stmt, name.c_str());
+      if (binder.index == 0) {
+        // No such named parameter, ignore this key.
+        continue;
+      }
+      if (int r = binder(value); r != SQLITE_OK) {
+        return r;
+      }
+    }
+    return SQLITE_OK;
+  }
+  int operator()(const transfer::value& value) const {
+    return std::visit(*this, value);
+  }
+};
+
+literal FromColumn(sqlite3* db, sqlite3_stmt* stmt, int col_index) {
+  using std::in_place_type;
+  int type = sqlite3_column_type(stmt, col_index);
+  switch (type) {
+    case SQLITE_NULL:
+      return literal{in_place_type<null>};
+    case SQLITE_INTEGER:
+      return literal{in_place_type<integer>,
+                     sqlite3_column_int64(stmt, col_index)};
+    case SQLITE_FLOAT:
+      return literal{in_place_type<real>,
+                     sqlite3_column_double(stmt, col_index)};
+    case SQLITE_TEXT: {
+      const char* text_value =
+          reinterpret_cast<const char*>(sqlite3_column_text(stmt, col_index));
+      CHECK_NOT_NULL(text_value);  // Catch OOM condition.
+      int size = sqlite3_column_bytes(stmt, col_index);
+      return literal{
+          in_place_type<text>, text_value, static_cast<size_t>(size)};
+    }
+    case SQLITE_BLOB: {
+      const uint8_t* blob_value = reinterpret_cast<const uint8_t*>(
+          sqlite3_column_blob(stmt, col_index));
+      if (blob_value == nullptr) [[unlikely]] {
+        CHECK_NE(sqlite3_errcode(db), SQLITE_NOMEM);
+        return literal{in_place_type<blob>};
+      }
+      int size = sqlite3_column_bytes(stmt, col_index);
+      return literal{
+          in_place_type<blob>, blob_value, static_cast<size_t>(size)};
+    }
+    default:
+      UNREACHABLE("Bad SQLite value");
+  }
+};
+
+struct to_v8_value {
+  Isolate* isolate;
+
+  Local<Value> operator()(const null&) const { return Null(isolate); }
+  Local<Value> operator()(const boolean& b) const {
+    return Boolean::New(isolate, b.value);
+  }
+  Local<Value> operator()(const integer& i) const {
+    constexpr auto kMaxSafeInteger = (sqlite3_int64{1} << 53) - 1;  // 2^53 - 1
+    constexpr auto kMinSafeInteger = -kMaxSafeInteger;  // -(2^53 - 1)
+
+    if (kMinSafeInteger <= i.value && i.value <= kMaxSafeInteger) {
+      return Number::New(isolate, static_cast<double>(i.value));
+    } else {
+      return BigInt::New(isolate, i.value);
+    }
+  }
+  Local<Value> operator()(const real& r) const {
+    return Number::New(isolate, r.value);
+  }
+  Local<Value> operator()(const text& t) const {
+    return String::NewFromUtf8(
+               isolate, t.value.data(), NewStringType::kNormal, t.value.size())
+        .ToLocalChecked();
+  }
+  Local<Value> operator()(const blob& b) const {
+    const auto blobSize = b.value.size();
+    auto buffer = ArrayBuffer::New(
+        isolate, blobSize, BackingStoreInitializationMode::kUninitialized);
+    std::memcpy(buffer->Data(), b.value.data(), blobSize);
+    return Uint8Array::New(buffer, 0, blobSize);
+  }
+  Local<Value> operator()(const transfer::literal& literal) const {
+    return std::visit(*this, literal);
+  }
+  Local<Value> operator()(
+      const std::pmr::vector<transfer::literal>& vec) const {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Array> array = Array::New(isolate, vec.size());
+    for (size_t i = 0; i < vec.size(); ++i) {
+      Local<Value> element = (*this)(vec[i]);
+      // TODO(BurningEnlightenment): Proper bounds checking
+      array->Set(context, static_cast<uint32_t>(i), element).Check();
+    }
+    return array;
+  }
+  Local<Value> operator()(
+      const std::pmr::unordered_map<std::pmr::string, transfer::literal>& map)
+      const {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> obj = Object::New(isolate);
+    for (const auto& [key, value] : map) {
+      Local<Value> v8_value = (*this)(value);
+      // TODO(BurningEnlightenment): Crash on OOM ok?
+      obj->Set(context,
+               String::NewFromUtf8(
+                   isolate, key.data(), NewStringType::kNormal, key.size())
+                   .ToLocalChecked(),
+               v8_value)
+          .Check();
+    }
+    return obj;
+  }
+  Local<Value> operator()(const transfer::value& value) const {
+    return std::visit(*this, value);
+  }
+};
+
+Maybe<transfer::literal> ToLiteral(Isolate* isolate, Local<Value> value) {
+  using std::in_place_type;
+  if (value->IsNumber()) {
+    return v8::Just(literal{in_place_type<real>, value.As<Number>()->Value()});
+  } else if (value->IsString()) {
+    Utf8Value utf8_value(isolate, value.As<String>());
+    return v8::Just(
+        literal{in_place_type<text>, *utf8_value, utf8_value.length()});
+  } else if (value->IsNull()) {
+    return v8::Just(literal{in_place_type<null>});
+  } else if (value->IsBigInt()) {
+    bool lossless{};
+    sqlite3_int64 int_value = value.As<BigInt>()->Int64Value(&lossless);
+    if (!lossless) {
+      THROW_ERR_INVALID_ARG_VALUE(isolate,
+                                  "BigInt value is too large to bind.");
+      return {};
+    }
+    return v8::Just(literal{in_place_type<integer>, int_value});
+  } else if (value->IsArrayBufferView()) {
+    ArrayBufferViewContents<uint8_t> buf(value);
+    return v8::Just(literal{in_place_type<blob>, buf.data(), buf.length()});
+  } else [[unlikely]] {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate, "Provided value cannot be bound to SQLite parameter.");
+    return {};
+  }
+}
+Maybe<transfer::value> ToValue(Isolate* isolate, Local<Object> object) {
+  using std::in_place_type;
+  Local<Array> property_names;
+  if (!object->GetOwnPropertyNames(isolate->GetCurrentContext())
+           .ToLocal(&property_names)) [[unlikely]] {
+    return {};
+  }
+  const uint32_t length = property_names->Length();
+  Local<Context> context = isolate->GetCurrentContext();
+  std::pmr::unordered_map<std::pmr::string, literal> map;
+  map.reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    Local<Value> key;
+    if (!property_names->Get(context, i).ToLocal(&key) || !key->IsString())
+        [[unlikely]] {
+      THROW_ERR_INVALID_ARG_TYPE(
+          isolate,
+          "Object keys must be strings to morph to SQLite parameters.");
+      return {};
+    }
+    Utf8Value utf8_key(isolate, key.As<String>());
+    Local<Value> value;
+    if (!object->Get(context, key).ToLocal(&value)) [[unlikely]] {
+      return {};
+    }
+    auto maybe_literal = ToLiteral(isolate, value);
+    if (maybe_literal.IsNothing()) [[unlikely]] {
+      return {};
+    }
+    map.emplace(utf8_key.operator*(), std::move(maybe_literal).FromJust());
+  }
+  return v8::Just(value{in_place_type<decltype(map)>, std::move(map)});
+}
+Maybe<transfer::value> ToValue(Isolate* isolate, Local<Array> array) {
+  using std::in_place_type;
+  const uint32_t length = array->Length();
+  Local<Context> context = isolate->GetCurrentContext();
+  std::pmr::vector<literal> vec;
+  vec.reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    Local<Value> value;
+    if (!array->Get(context, i).ToLocal(&value)) [[unlikely]] {
+      return {};
+    }
+    auto maybe_literal = ToLiteral(isolate, value);
+    if (maybe_literal.IsNothing()) [[unlikely]] {
+      return {};
+    }
+    vec.push_back(std::move(maybe_literal).FromJust());
+  }
+  return v8::Just(value{in_place_type<decltype(vec)>, std::move(vec)});
+}
+Maybe<transfer::value> ToValue(Isolate* isolate, Local<Value> value) {
+  if (value->IsArray()) {
+    return ToValue(isolate, value.As<Array>());
+  } else if (value->IsObject()) {
+    return ToValue(isolate, value.As<Object>());
+  } else [[unlikely]] {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate,
+        "Value must be an object or array to morph to SQLite parameters.");
+    return {};
+  }
+}
+}  // namespace transfer
+
 class OperationBase {
  public:
   Local<Promise::Resolver> GetResolver(Isolate* isolate) const {
@@ -3890,8 +4190,22 @@ class alignas(64) OperationResult {
     BaseObjectPtr<Database> db_;
     sqlite3_stmt* stmt_;
   };
+  class Value {
+   public:
+    explicit Value(transfer::value value) : value_(std::move(value)) {}
 
-  using variant_type = std::variant<Void, Rejected, PreparedStatement>;
+    void Connect(Isolate* isolate,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      resolver->Resolve(context, transfer::to_v8_value(isolate)(value_))
+          .Check();
+    }
+
+   private:
+    transfer::value value_;
+  };
+
+  using variant_type = std::variant<Void, Value, Rejected, PreparedStatement>;
 
  public:
   static OperationResult RejectErrorCode(OperationBase* origin,
@@ -3904,6 +4218,10 @@ class alignas(64) OperationResult {
   }
   static OperationResult ResolveVoid(OperationBase* origin) {
     return OperationResult{origin, Void{}};
+  }
+  static OperationResult ResolveValue(OperationBase* origin,
+                                      transfer::value&& value) {
+    return OperationResult{origin, Value{std::move(value)}};
   }
   static OperationResult ResolvePreparedStatement(OperationBase* origin,
                                                   BaseObjectPtr<Database> db,
@@ -3972,6 +4290,47 @@ class FinalizeStatementOperation : private OperationBase {
   sqlite3_stmt* stmt_;
 };
 
+class StatementGetOperation : private OperationBase {
+ public:
+  StatementGetOperation(Global<Promise::Resolver>&& resolver,
+                        sqlite3_stmt* stmt,
+                        transfer::value&& bind_arguments)
+      : OperationBase(std::move(resolver)),
+        stmt_(stmt),
+        bind_arguments_(std::move(bind_arguments)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
+    if (int r = transfer::bind_value(stmt_)(bind_arguments_); r != SQLITE_OK) {
+      return OperationResult::RejectErrorCode(this, r);
+    }
+    auto reset_statement = OnScopeLeave([&] { sqlite3_reset(stmt_); });
+    int error_code = sqlite3_step(stmt_);
+    if (error_code == SQLITE_DONE) {
+      return OperationResult::ResolveVoid(this);
+    }
+    if (error_code != SQLITE_ROW) {
+      return OperationResult::RejectLastError(this, connection);
+    }
+
+    int num_cols = sqlite3_column_count(stmt_);
+    if (num_cols == 0) {
+      return OperationResult::ResolveVoid(this);
+    }
+
+    std::pmr::vector<transfer::literal> row;
+    row.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      row.push_back(transfer::FromColumn(connection, stmt_, i));
+    }
+    return OperationResult::ResolveValue(this, std::move(row));
+  }
+
+ private:
+  sqlite3_stmt* stmt_;
+  transfer::value bind_arguments_;
+};
+
 class ExecOperation : private OperationBase {
  public:
   ExecOperation(Global<Promise::Resolver>&& resolver, std::pmr::string&& sql)
@@ -4008,6 +4367,7 @@ class CloseOperation : private OperationBase {
 };
 
 using Operation = std::variant<ExecOperation,
+                               StatementGetOperation,
                                PrepareStatementOperation,
                                FinalizeStatementOperation,
                                CloseOperation>;
@@ -4512,6 +4872,7 @@ Statement::Statement(Environment* env,
                      BaseObjectPtr<Database> db,
                      sqlite3_stmt* stmt)
     : BaseObject(env, object), db_(std::move(db)), statement_(stmt) {
+  MakeWeak();
   if (stmt == nullptr) {
     db_ = nullptr;
   } else {
@@ -4547,6 +4908,7 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "isDisposed"),
                             Statement::IsDisposedGetter);
+    SetProtoMethod(isolate, tmpl, "get", Statement::Get);
 
     env->set_sqlite_statement_constructor_template(tmpl);
   }
@@ -4593,6 +4955,25 @@ void Statement::IsDisposedGetter(const FunctionCallbackInfo<Value>& args) {
 
 bool Statement::IsDisposed() const {
   return statement_ == nullptr;
+}
+
+void Statement::Get(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsDisposed(), "statement is disposed");
+
+  transfer::value bind_arguments;
+  if (args.Length() > 1) {
+    if (!transfer::ToValue(env->isolate(), args[0].As<Value>())
+             .MoveTo(&bind_arguments)) {
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(stmt->db_->Schedule<StatementGetOperation>(
+      stmt->statement_, std::move(bind_arguments)));
 }
 
 void DefineConstants(Local<Object> target) {

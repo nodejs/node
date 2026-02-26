@@ -466,10 +466,20 @@ class Database final : public DatabaseCommon {
            bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // static void IsTransactionGetter(
+  //     const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>&
+  // args); static void Location(const v8::FunctionCallbackInfo<v8::Value>&
+  // args); static void EnableLoadExtension(
+  //     const v8::FunctionCallbackInfo<v8::Value>& args);
+  // static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>&
+  // args); static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>&
+  // args); void FinalizeStatements(); void UntrackStatement(StatementSync*
+  // statement);
 
   template <typename Op, typename... Args>
   [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
@@ -518,6 +528,8 @@ class Statement final : public BaseObject {
   void Dispose();
   static void IsDisposedGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool IsDisposed() const;
+
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SET_MEMORY_INFO_NAME(Statement)
   SET_SELF_SIZE(Statement)
