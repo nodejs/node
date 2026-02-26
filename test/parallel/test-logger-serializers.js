@@ -177,6 +177,48 @@ describe('Logger serializers', () => {
       assert.strictEqual(log.err.cause.message, 'Root cause');
       assert.ok(log.err.cause.stack);
     });
+
+    it('should handle circular error cause', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+
+      const error = new Error('Circular error');
+      error.cause = error; // Self-referencing cause
+
+      logger.error(error);
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.err.message, 'Circular error');
+      assert.strictEqual(log.err.cause, '[Circular]');
+    });
+
+    it('should handle deeply nested circular error causes', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+
+      const err1 = new Error('Error 1');
+      const err2 = new Error('Error 2');
+      const err3 = new Error('Error 3');
+      err1.cause = err2;
+      err2.cause = err3;
+      err3.cause = err1; // Circular back to err1
+
+      logger.error(err1);
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.err.message, 'Error 1');
+      assert.strictEqual(log.err.cause.message, 'Error 2');
+      assert.strictEqual(log.err.cause.cause.message, 'Error 3');
+      assert.strictEqual(log.err.cause.cause.cause, '[Circular]');
+    });
   });
 
   describe('serializer with fields parameter', () => {
