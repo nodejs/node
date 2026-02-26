@@ -978,8 +978,8 @@ that works for both your host and target environments.
 
 You can find other ICU releases at
 [the ICU homepage](https://icu.unicode.org/download).
-Download the file named something like `icu4c-**##.#**-src.tgz` (or
-`.zip`).
+Download the source archive named something like
+`icu4c-**##.#**-sources.tgz` (or `.zip`).
 
 To check the minimum recommended ICU, run `./configure --help` and see
 the help for the `--with-icu-source` option. A warning will be printed
@@ -987,11 +987,16 @@ during configuration if the ICU version is too old.
 
 #### Unix/macOS
 
-From an already-unpacked ICU:
+From an already-unpacked ICU source archive:
 
 ```bash
 ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
+
+The directory passed to `--with-icu-source` must contain the extracted ICU
+source layout (for example, `source/data/in/icudt*l.dat`). A plain Git checkout
+of the ICU repository is not sufficient unless it has been prepared to match
+this layout.
 
 From a local ICU tarball:
 
