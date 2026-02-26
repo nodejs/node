@@ -943,13 +943,13 @@ added: v22.5.0
   without the prefix character.
 
 The names of SQLite parameters begin with a prefix character. By default,
-`node:sqlite` requires that this prefix character is present when binding
-parameters. However, with the exception of dollar sign character, these
-prefix characters also require extra quoting when used in object keys.
+`node:sqlite` allows binding named parameters without this prefix character in
+JavaScript code. With the exception of the dollar sign character, these prefix
+characters require extra quoting when used in object keys.
 
-To improve ergonomics, this method can be used to also allow bare named
-parameters, which do not require the prefix character in JavaScript code. There
-are several caveats to be aware of when enabling bare named parameters:
+This method enables or disables support for bare named parameters, which do not
+require the prefix character in JavaScript code. There are several caveats to
+be aware of when bare named parameters are enabled:
 
 * The prefix character is still required in SQL.
 * The prefix character is still allowed in JavaScript. In fact, prefixed names
