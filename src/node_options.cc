@@ -592,6 +592,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-logger",
+            "experimental node:logger module",
+            &EnvironmentOptions::experimental_logger,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
