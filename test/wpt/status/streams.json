@@ -2,14 +2,6 @@
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
   },
-  "piping/general-addition.any.js": {
-    "fail": {
-      "note": "Blocked on https://github.com/whatwg/streams/issues/1243",
-      "expected": [
-        "enqueue() must not synchronously call write algorithm"
-      ]
-    }
-  },
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
