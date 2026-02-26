@@ -304,6 +304,39 @@
 
     /* Bottom safe area spacer */
     .spacer { height: var(--safe-bottom); flex-shrink: 0; }
+
+    /* Settings view */
+    #settings-view { gap: 14px; }
+    .settings-title { font-size: 17px; font-weight: 700; color: var(--text); }
+    .settings-desc  { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+    .sync-msg  { font-size: 13px; padding: 10px 14px; border-radius: 10px; line-height: 1.5; }
+    .sync-none { background: #f3f4f6; color: var(--text-muted); }
+    .sync-ok   { background: #ecfdf5; color: #065f46; }
+
+    details > summary {
+      font-size: 13px;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 4px 0;
+      list-style: none;
+      user-select: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+
+    .disconnect-btn {
+      background: none;
+      border: 1.5px solid #fca5a5;
+      border-radius: var(--radius);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      color: #ef4444;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .disconnect-btn:hover { background: rgba(239,68,68,0.06); border-color: #ef4444; }
   </style>
 </head>
 <body>
@@ -316,6 +349,7 @@
   <nav>
     <button class="active" onclick="switchTab('quotes')">My Quotes</button>
     <button onclick="switchTab('add')">+ Add Quote</button>
+    <button onclick="switchTab('settings')">⚙ Settings</button>
   </nav>
 
   <!-- Quotes list view -->
@@ -345,12 +379,56 @@
     <button class="submit-btn" onclick="saveQuote()">Save Quote</button>
     <div class="spacer"></div>
   </div>
+
+  <!-- Settings view -->
+  <div id="settings-view" class="view">
+    <p class="settings-title">GitHub Sync</p>
+    <p class="settings-desc">Sync quotes to a file in your GitHub repo — accessible on all your devices.</p>
+
+    <div id="sync-status-msg" class="sync-msg sync-none">Not connected — enter your token below to enable sync.</div>
+
+    <div class="form-group">
+      <label>GitHub Token</label>
+      <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx"
+             autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+    </div>
+
+    <details>
+      <summary>▸ Advanced settings</summary>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+        <div class="form-group">
+          <label>Owner</label>
+          <input type="text" id="gh-owner" autocorrect="off" autocapitalize="none" />
+        </div>
+        <div class="form-group">
+          <label>Repository</label>
+          <input type="text" id="gh-repo" autocorrect="off" autocapitalize="none" />
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="gh-branch" autocorrect="off" autocapitalize="none" />
+        </div>
+        <div class="form-group">
+          <label>File path</label>
+          <input type="text" id="gh-path" autocorrect="off" autocapitalize="none" />
+        </div>
+      </div>
+    </details>
+
+    <button class="submit-btn" id="save-settings-btn" onclick="saveGitHubSettings()">Save &amp; Connect</button>
+    <button class="disconnect-btn" id="disconnect-btn" onclick="clearGitHubSettings()" style="display:none">Disconnect GitHub</button>
+    <div class="spacer"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
   const STORAGE_KEY = 'book_quotes_v1';
+  const GITHUB_KEY  = 'book_quotes_github';
+  let ghFileSha = null; // cached SHA of quotes.json on GitHub
+
+  // ─── Local storage ────────────────────────────────────────────
 
   function loadQuotes() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -387,16 +465,12 @@
     const list = document.getElementById('quotes-list');
 
     let filtered = quotes;
-    if (bookFilter) {
-      filtered = filtered.filter(q => q.book === bookFilter);
-    }
-    if (query) {
-      filtered = filtered.filter(q =>
-        q.text.toLowerCase().includes(query) ||
-        q.book.toLowerCase().includes(query) ||
-        (q.author || '').toLowerCase().includes(query)
-      );
-    }
+    if (bookFilter) filtered = filtered.filter(q => q.book === bookFilter);
+    if (query) filtered = filtered.filter(q =>
+      q.text.toLowerCase().includes(query) ||
+      q.book.toLowerCase().includes(query) ||
+      (q.author || '').toLowerCase().includes(query)
+    );
 
     const hasFilters = query || bookFilter;
     if (filtered.length === 0) {
@@ -428,7 +502,7 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function saveQuote() {
+  async function saveQuote() {
     const text   = document.getElementById('quote-input').value.trim();
     const book   = document.getElementById('book-input').value.trim();
     const author = document.getElementById('author-input').value.trim();
@@ -440,24 +514,36 @@
     quotes.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), text, book, author, date: new Date().toISOString() });
     saveQuotes(quotes);
 
-    // Clear form
-    document.getElementById('quote-input').value = '';
-    document.getElementById('book-input').value = '';
+    document.getElementById('quote-input').value  = '';
+    document.getElementById('book-input').value   = '';
     document.getElementById('author-input').value = '';
     updateCharCount();
-
-    showToast('Quote saved!');
     updateBookFilter();
     switchTab('quotes');
+
+    if (getGitHubConfig()) {
+      showToast('Saving & syncing…');
+      const ok = await syncToGitHub(quotes);
+      showToast(ok ? 'Saved & synced!' : 'Saved locally (sync failed)');
+    } else {
+      showToast('Quote saved!');
+    }
   }
 
-  function deleteQuote(id) {
+  async function deleteQuote(id) {
     if (!confirm('Delete this quote?')) return;
     const quotes = loadQuotes().filter(q => q.id !== id);
     saveQuotes(quotes);
     updateBookFilter();
     renderQuotes();
-    showToast('Quote deleted.');
+
+    if (getGitHubConfig()) {
+      showToast('Deleting & syncing…');
+      const ok = await syncToGitHub(quotes);
+      showToast(ok ? 'Deleted & synced!' : 'Deleted locally (sync failed)');
+    } else {
+      showToast('Quote deleted.');
+    }
   }
 
   function updateCharCount() {
@@ -466,11 +552,19 @@
   }
 
   function switchTab(tab) {
-    document.querySelectorAll('nav button').forEach((b, i) => b.classList.toggle('active', (tab === 'quotes' && i === 0) || (tab === 'add' && i === 1)));
+    document.querySelectorAll('nav button').forEach((b, i) => {
+      b.classList.toggle('active',
+        (tab === 'quotes'   && i === 0) ||
+        (tab === 'add'      && i === 1) ||
+        (tab === 'settings' && i === 2)
+      );
+    });
     document.getElementById('quotes-view').classList.toggle('active', tab === 'quotes');
     document.getElementById('add-view').classList.toggle('active', tab === 'add');
-    if (tab === 'quotes') renderQuotes();
-    if (tab === 'add') document.getElementById('quote-input').focus();
+    document.getElementById('settings-view').classList.toggle('active', tab === 'settings');
+    if (tab === 'quotes')   renderQuotes();
+    if (tab === 'add')      document.getElementById('quote-input').focus();
+    if (tab === 'settings') loadSettingsForm();
   }
 
   let toastTimer;
@@ -482,15 +576,196 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
-  // Init
+  // ─── GitHub sync ──────────────────────────────────────────────
+
+  function b64enc(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64dec(b64) { return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
+
+  function getGitHubConfig() {
+    try {
+      const cfg = JSON.parse(localStorage.getItem(GITHUB_KEY));
+      return cfg && cfg.token ? cfg : null;
+    } catch { return null; }
+  }
+
+  function loadSettingsForm() {
+    const cfg = getGitHubConfig();
+    document.getElementById('gh-token').value  = cfg ? cfg.token  : '';
+    document.getElementById('gh-owner').value  = cfg ? cfg.owner  : 'jordanroper2';
+    document.getElementById('gh-repo').value   = cfg ? cfg.repo   : 'node';
+    document.getElementById('gh-branch').value = cfg ? cfg.branch : 'main';
+    document.getElementById('gh-path').value   = cfg ? cfg.path   : 'docs/quotes.json';
+    updateSyncStatusUI();
+  }
+
+  function updateSyncStatusUI() {
+    const cfg = getGitHubConfig();
+    const el  = document.getElementById('sync-status-msg');
+    if (!cfg) {
+      el.className   = 'sync-msg sync-none';
+      el.textContent = 'Not connected — enter your token below to enable sync.';
+    } else {
+      el.className = 'sync-msg sync-ok';
+      el.innerHTML = `✓ Connected to <strong>${escHtml(cfg.owner)}/${escHtml(cfg.repo)}</strong> on branch <strong>${escHtml(cfg.branch)}</strong>`;
+    }
+    document.getElementById('disconnect-btn').style.display = cfg ? 'block' : 'none';
+  }
+
+  async function saveGitHubSettings() {
+    const token  = document.getElementById('gh-token').value.trim();
+    const owner  = document.getElementById('gh-owner').value.trim()  || 'jordanroper2';
+    const repo   = document.getElementById('gh-repo').value.trim()   || 'node';
+    const branch = document.getElementById('gh-branch').value.trim() || 'main';
+    const path   = document.getElementById('gh-path').value.trim()   || 'docs/quotes.json';
+
+    if (!token) { showToast('Please enter a GitHub token.'); return; }
+
+    const cfg = { token, owner, repo, branch, path };
+    localStorage.setItem(GITHUB_KEY, JSON.stringify(cfg));
+    ghFileSha = null;
+    updateSyncStatusUI();
+
+    const btn = document.getElementById('save-settings-btn');
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+
+    try {
+      const data = await ghFetch(cfg);
+      if (data) {
+        // GitHub has quotes — use them as source of truth
+        ghFileSha = data.sha;
+        const ghQuotes = JSON.parse(b64dec(data.content));
+        saveQuotes(ghQuotes);
+        updateBookFilter();
+        renderQuotes();
+        showToast(`Connected! Loaded ${ghQuotes.length} quote${ghQuotes.length !== 1 ? 's' : ''} from GitHub.`);
+      } else {
+        // File doesn't exist yet — push local quotes up to create it
+        const local = loadQuotes();
+        if (local.length > 0) {
+          await ghPush(cfg, local);
+          showToast(`Connected! Uploaded ${local.length} quote${local.length !== 1 ? 's' : ''} to GitHub.`);
+        } else {
+          showToast('Connected! Ready to sync.');
+        }
+      }
+    } catch (e) {
+      localStorage.removeItem(GITHUB_KEY);
+      updateSyncStatusUI();
+      showToast('Connection failed: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save & Connect';
+    }
+  }
+
+  function clearGitHubSettings() {
+    if (!confirm('Disconnect GitHub sync? Your local quotes will remain on this device.')) return;
+    localStorage.removeItem(GITHUB_KEY);
+    ghFileSha = null;
+    document.getElementById('gh-token').value = '';
+    updateSyncStatusUI();
+    showToast('GitHub sync disconnected.');
+  }
+
+  async function ghFetch(config) {
+    const { token, owner, repo, branch, path } = config;
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async function ghPush(config, quotes, retry = false) {
+    const { token, owner, repo, branch, path } = config;
+    const url  = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const body = {
+      message: `Update quotes (${quotes.length})`,
+      content: b64enc(JSON.stringify(quotes, null, 2)),
+      branch
+    };
+    if (ghFileSha) body.sha = ghFileSha;
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    // SHA mismatch (edited elsewhere) — refresh SHA and retry once
+    if (res.status === 409 && !retry) {
+      const fresh = await ghFetch(config);
+      ghFileSha = fresh ? fresh.sha : null;
+      return ghPush(config, quotes, true);
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    ghFileSha = data.content.sha;
+    return data;
+  }
+
+  async function syncToGitHub(quotes) {
+    const cfg = getGitHubConfig();
+    if (!cfg) return false;
+    try {
+      if (!ghFileSha) {
+        const existing = await ghFetch(cfg);
+        if (existing) ghFileSha = existing.sha;
+      }
+      await ghPush(cfg, quotes);
+      return true;
+    } catch (e) {
+      console.error('GitHub sync error:', e);
+      return false;
+    }
+  }
+
+  // ─── Init ─────────────────────────────────────────────────────
+
   updateCount(loadQuotes().length);
   updateBookFilter();
   renderQuotes();
 
-  // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+
+  // On startup, pull latest from GitHub in the background so other-device
+  // changes show up automatically. Falls back to local data if offline.
+  (async () => {
+    const cfg = getGitHubConfig();
+    if (!cfg) return;
+    try {
+      const data = await ghFetch(cfg);
+      if (!data) return;
+      ghFileSha = data.sha;
+      const ghQuotes = JSON.parse(b64dec(data.content));
+      const local = loadQuotes();
+      if (JSON.stringify(ghQuotes) !== JSON.stringify(local)) {
+        saveQuotes(ghQuotes);
+        updateBookFilter();
+        renderQuotes();
+        showToast('Synced from GitHub');
+      }
+    } catch { /* offline or auth error — use local data silently */ }
+  })();
 </script>
 </body>
 </html>
