@@ -23,6 +23,7 @@
 namespace node {
 namespace sqlite {
 
+using std::in_place_type;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
@@ -3868,7 +3869,6 @@ struct bind_value {
 };
 
 literal FromColumn(sqlite3* db, sqlite3_stmt* stmt, int col_index) {
-  using std::in_place_type;
   int type = sqlite3_column_type(stmt, col_index);
   switch (type) {
     case SQLITE_NULL:
@@ -3972,7 +3972,6 @@ struct to_v8_value {
 };
 
 Maybe<transfer::literal> ToLiteral(Isolate* isolate, Local<Value> value) {
-  using std::in_place_type;
   if (value->IsNumber()) {
     return v8::Just(literal{in_place_type<real>, value.As<Number>()->Value()});
   } else if (value->IsString()) {
@@ -4000,7 +3999,6 @@ Maybe<transfer::literal> ToLiteral(Isolate* isolate, Local<Value> value) {
   }
 }
 Maybe<transfer::value> ToValue(Isolate* isolate, Local<Object> object) {
-  using std::in_place_type;
   Local<Array> property_names;
   if (!object->GetOwnPropertyNames(isolate->GetCurrentContext())
            .ToLocal(&property_names)) [[unlikely]] {
@@ -4033,7 +4031,6 @@ Maybe<transfer::value> ToValue(Isolate* isolate, Local<Object> object) {
   return v8::Just(value{in_place_type<decltype(map)>, std::move(map)});
 }
 Maybe<transfer::value> ToValue(Isolate* isolate, Local<Array> array) {
-  using std::in_place_type;
   const uint32_t length = array->Length();
   Local<Context> context = isolate->GetCurrentContext();
   std::pmr::vector<literal> vec;
