@@ -198,6 +198,15 @@ suite('DatabaseSync limits', () => {
     });
   });
 
+  test('throws on Infinity limit value in constructor', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(':memory:', { limits: { length: Infinity } });
+    }, {
+      name: 'TypeError',
+      message: /options\.limits\.length.*must be an integer/,
+    });
+  });
+
   test('partial limits in constructor', (t) => {
     const db = new DatabaseSync(':memory:', {
       limits: {
@@ -221,6 +230,75 @@ suite('DatabaseSync limits', () => {
       db.exec('CREATE TABLE t2 (c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11)');
     }, {
       message: /too many columns/,
+    });
+  });
+
+  test('throws when exceeding attach limit', (t) => {
+    const db = new DatabaseSync(':memory:', {
+      limits: {
+        attach: 0,
+      }
+    });
+
+    t.assert.throws(() => {
+      db.exec("ATTACH DATABASE ':memory:' AS db1");
+    }, {
+      message: /too many attached databases/,
+    });
+  });
+
+  test('throws when exceeding variable number limit', (t) => {
+    const db = new DatabaseSync(':memory:', {
+      limits: {
+        variableNumber: 2,
+      }
+    });
+
+    t.assert.throws(() => {
+      const stmt = db.prepare('SELECT ?, ?, ?');
+      stmt.all(1, 2, 3);
+    }, {
+      message: /too many SQL variables/,
+    });
+  });
+
+  test('throws when exceeding compound select limit', (t) => {
+    const db = new DatabaseSync(':memory:', {
+      limits: {
+        compoundSelect: 1,
+      }
+    });
+
+    t.assert.throws(() => {
+      db.exec('SELECT 1 UNION SELECT 2 UNION SELECT 3');
+    }, {
+      message: /too many terms in compound SELECT/,
+    });
+  });
+
+  test('throws when exceeding function arg limit', (t) => {
+    const db = new DatabaseSync(':memory:', {
+      limits: {
+        functionArg: 2,
+      }
+    });
+
+    t.assert.throws(() => {
+      db.exec('SELECT max(1, 2, 3)');
+    }, {
+      message: /too many arguments on function max/,
+    });
+  });
+
+  test('setter applies limit to SQLite immediately', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    db.limits.attach = 0;
+
+    t.assert.throws(() => {
+      db.exec("ATTACH DATABASE ':memory:' AS db1");
+    }, {
+      message: /too many attached databases/,
     });
   });
 });
