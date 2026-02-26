@@ -117,7 +117,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
                        double delay_in_seconds) {
     auto locked = tasks_.Lock();
 
-    if (flush_tasks_ == nullptr) return;
+    if (has_shut_down_) return;
 
     auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
     auto delayed = std::make_unique<ScheduleTask>(
@@ -129,13 +129,13 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
     // schedules the timers into the local task queue that will be flushed
     // by the local event loop.
     locked.Push(std::move(delayed));
-    uv_async_send(flush_tasks_);
+    uv_async_send(&flush_tasks_);
   }
 
   void Stop() {
     auto locked = tasks_.Lock();
     locked.Push(std::make_unique<StopTask>(this));
-    uv_async_send(flush_tasks_);
+    uv_async_send(&flush_tasks_);
   }
 
  private:
@@ -144,9 +144,8 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
                           "WorkerThreadsTaskRunner::DelayedTaskScheduler");
     loop_.data = this;
     CHECK_EQ(0, uv_loop_init(&loop_));
-    flush_tasks_ = new uv_async_t();
-    flush_tasks_->data = this;
-    CHECK_EQ(0, uv_async_init(&loop_, flush_tasks_, FlushTasks));
+    flush_tasks_.data = this;
+    CHECK_EQ(0, uv_async_init(&loop_, &flush_tasks_, FlushTasks));
     uv_sem_post(&ready_);
 
     uv_run(&loop_, UV_RUN_DEFAULT);
@@ -181,9 +180,9 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
         timers.push_back(timer);
       for (uv_timer_t* timer : timers)
         scheduler_->TakeTimerTask(timer);
-      uv_close(reinterpret_cast<uv_handle_t*>(scheduler_->flush_tasks_),
+      scheduler_->has_shut_down_ = true;
+      uv_close(reinterpret_cast<uv_handle_t*>(&scheduler_->flush_tasks_),
                [](uv_handle_t* handle) {});
-      scheduler_->flush_tasks_ = nullptr;
     }
 
    private:
@@ -243,8 +242,9 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   // It is flushed whenever the next closest timer expires.
   TaskQueue<Task> tasks_;
   uv_loop_t loop_;
-  uv_async_t* flush_tasks_ = nullptr;
+  uv_async_t flush_tasks_;
   std::unordered_set<uv_timer_t*> timers_;
+  bool has_shut_down_ = false;
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
