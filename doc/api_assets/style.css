@@ -32,10 +32,10 @@
   --color-brand-secondary: var(--green1);
   --color-critical: var(--red1);
   --color-fill-app: var(--white);
-  --color-fill-side-nav: var(--gray6);
+  --color-fill-side-nav: rgba(0, 0, 0, 0.1);
   --color-links: var(--green1);
   --color-text-mark: var(--gray1);
-  --color-text-nav: var(--gray3);
+  --color-text-nav: var(--gray6);
   --color-text-primary: var(--gray6);
   --color-text-secondary: var(--green2);
 }
@@ -44,10 +44,11 @@
   --background-color-highlight: var(--black2);
   --color-critical: var(--red4);
   --color-fill-app: var(--black1);
-  --color-fill-side-nav: var(--black3);
+  --color-fill-side-nav: rgba(255, 255, 255, 0.1);
   --color-links: var(--green5);
   --color-text-mark: var(--gray5);
   --color-text-primary: var(--white);
+  --color-text-nav: var(--white);
 }
 
 .dark-mode code,
