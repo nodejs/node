@@ -648,10 +648,10 @@ robocopy /e doc\api %config%\doc\api
   -t legacy-html-all legacy-json-all api-links ^
   -i doc/api/*.md ^
   -i lib/*.js ^
-  -o out/doc/api/ ^
+  -o %config%/doc/api/ ^
   -c file://%~dp0\CHANGELOG.md ^
   -v %NODE_VERSION% ^
-  --type-map "%~dp0doc\type-map.json"
+  --type-map "file://%~dp0doc\type-map.json"
 
 :run
 @rem Run tests if requested.
@@ -667,7 +667,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-%doc_kit_exe% generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --type-map "%~dp0doc\type-map.json"
+%doc_kit_exe% generate -t addon-verify -i "file://%~dp0doc\api\addons.md" -o "file://%~dp0test\addons" --type-map "file://%~dp0doc\type-map.json"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
