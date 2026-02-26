@@ -857,6 +857,15 @@ void TLSWrap::ClearOut() {
       case SSL_ERROR_SSL:
       case SSL_ERROR_SYSCALL:
         {
+          if (shutdown_) {
+            Debug(this, "Ignoring SSL error after shutdown");
+            if (!eof_) {
+              eof_ = true;
+              EmitRead(UV_EOF);
+            }
+            return;
+          }
+
           unsigned long ssl_err = ERR_peek_error();  // NOLINT(runtime/int)
 
           Local<Context> context = env()->isolate()->GetCurrentContext();
