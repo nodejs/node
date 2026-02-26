@@ -29,6 +29,26 @@ using v8::ValueSerializer;
 
 namespace serdes {
 
+v8::ArrayBuffer::Allocator* GetAllocator() {
+  static v8::ArrayBuffer::Allocator* allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  return allocator;
+}
+
+void* Reallocate(void* data, size_t old_length, size_t new_length) {
+  if (old_length == new_length) return data;
+  uint8_t* new_data = reinterpret_cast<uint8_t*>(
+      GetAllocator()->AllocateUninitialized(new_length));
+  if (new_data == nullptr) return nullptr;
+  size_t bytes_to_copy = std::min(old_length, new_length);
+  memcpy(new_data, data, bytes_to_copy);
+  if (new_length > bytes_to_copy) {
+    memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
+  }
+  GetAllocator()->Free(data, old_length);
+  return new_data;
+}
+
 class SerializerContext : public BaseObject,
                           public ValueSerializer::Delegate {
  public:
@@ -37,10 +57,15 @@ class SerializerContext : public BaseObject,
 
   ~SerializerContext() override = default;
 
+  // v8::ValueSerializer::Delegate
   void ThrowDataCloneError(Local<String> message) override;
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override;
   Maybe<uint32_t> GetSharedArrayBufferId(
       Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer) override;
+  void* ReallocateBufferMemory(void* old_buffer,
+                               size_t old_length,
+                               size_t* new_length) override;
+  void FreeBufferMemory(void* buffer) override;
 
   static void SetTreatArrayBufferViewsAsHostObjects(
       const FunctionCallbackInfo<Value>& args);
@@ -61,6 +86,7 @@ class SerializerContext : public BaseObject,
 
  private:
   ValueSerializer serializer_;
+  size_t last_length_ = 0;
 };
 
 class DeserializerContext : public BaseObject,
@@ -145,6 +171,24 @@ Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
   return id->Uint32Value(env()->context());
 }
 
+void* SerializerContext::ReallocateBufferMemory(void* old_buffer,
+                                                size_t requested_size,
+                                                size_t* new_length) {
+  *new_length = std::max(static_cast<size_t>(4096), requested_size);
+  if (old_buffer) {
+    void* ret = Reallocate(old_buffer, last_length_, *new_length);
+    last_length_ = *new_length;
+    return ret;
+  } else {
+    last_length_ = *new_length;
+    return GetAllocator()->Allocate(*new_length);
+  }
+}
+
+void SerializerContext::FreeBufferMemory(void* buffer) {
+  GetAllocator()->Free(buffer, last_length_);
+}
+
 Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
                                                Local<Object> input) {
   Local<Value> args[1] = { input };
@@ -208,14 +252,27 @@ void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
-  // Note: Both ValueSerializer and this Buffer::New() variant use malloc()
-  // as the underlying allocator.
   std::pair<uint8_t*, size_t> ret = ctx->serializer_.Release();
+#ifdef V8_ENABLE_SANDBOX
   Local<Object> buf;
   if (Buffer::New(ctx->env(), reinterpret_cast<char*>(ret.first), ret.second)
           .ToLocal(&buf)) {
     args.GetReturnValue().Set(buf);
   }
+#else
+  std::unique_ptr<v8::BackingStore> bs = v8::ArrayBuffer::NewBackingStore(
+      reinterpret_cast<char*>(ret.first),
+      ret.second,
+      [](void* data, size_t length, void* deleter_data) {
+        if (data) GetAllocator()->Free(reinterpret_cast<char*>(data), length);
+      },
+      nullptr);
+  Local<ArrayBuffer> ab =
+      v8::ArrayBuffer::New(ctx->env()->isolate(), std::move(bs));
+
+  auto buf = Buffer::New(ctx->env(), ab, 0, ret.second);
+  if (!buf.IsEmpty()) args.GetReturnValue().Set(buf.ToLocalChecked());
+#endif
 }
 
 void SerializerContext::TransferArrayBuffer(
