@@ -93,7 +93,7 @@ suite('data binding and mapping', () => {
       buf: null,
     });
 
-    const insertNamedParams = db.prepare(`INSERT INTO types VALUES ($key, $int, $double, $text, $buf)`);
+    const insertNamedParams = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
     const params = { key: 6, int: undefined, double: undefined, text: undefined, buf: undefined };
     t.assert.deepStrictEqual(insertNamedParams.run(params), { changes: 1, lastInsertRowid: 6 });
     t.assert.deepStrictEqual(insertNamedParams.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
