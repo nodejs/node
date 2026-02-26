@@ -1,7 +1,6 @@
 // Flags: --expose-gc
 'use strict';
-const { skip, skipIfSQLiteMissing } = require('../common');
-skip(); // TODO: Re-enable when async Statement support is added.
+const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
@@ -26,7 +25,7 @@ suite('Statement() constructor', () => {
   });
 });
 
-suite('Statement.prototype.get()', () => {
+suite.skip('Statement.prototype.get()', () => {
   test('executes a query and returns undefined on no results', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -56,7 +55,7 @@ suite('Statement.prototype.get()', () => {
   });
 });
 
-suite('Statement.prototype.all()', () => {
+suite.skip('Statement.prototype.all()', () => {
   test('executes a query and returns an empty array on no results', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -86,7 +85,7 @@ suite('Statement.prototype.all()', () => {
   });
 });
 
-suite('Statement.prototype.iterate()', () => {
+suite.skip('Statement.prototype.iterate()', () => {
   test('executes a query and returns an empty iterator on no results', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -174,7 +173,7 @@ suite('Statement.prototype.iterate()', () => {
   });
 });
 
-suite('Statement.prototype.run()', () => {
+suite.skip('Statement.prototype.run()', () => {
   test('executes a query and returns change metadata', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -273,7 +272,7 @@ suite('Statement.prototype.run()', () => {
   });
 });
 
-suite('Statement.prototype.sourceSQL', () => {
+suite.skip('Statement.prototype.sourceSQL', () => {
   test('equals input SQL', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -287,7 +286,7 @@ suite('Statement.prototype.sourceSQL', () => {
   });
 });
 
-suite('Statement.prototype.expandedSQL', async () => {
+suite.skip('Statement.prototype.expandedSQL', async () => {
   test('equals expanded SQL', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -306,7 +305,7 @@ suite('Statement.prototype.expandedSQL', async () => {
   });
 });
 
-suite('Statement.prototype.setReadBigInts()', () => {
+suite.skip('Statement.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -375,7 +374,7 @@ suite('Statement.prototype.setReadBigInts()', () => {
   });
 });
 
-suite('Statement.prototype.setReturnArrays()', () => {
+suite.skip('Statement.prototype.setReturnArrays()', () => {
   test('throws when input is not a boolean', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -393,7 +392,7 @@ suite('Statement.prototype.setReturnArrays()', () => {
   });
 });
 
-suite('Statement.prototype.get() with array output', () => {
+suite.skip('Statement.prototype.get() with array output', () => {
   test('returns array row when setReturnArrays is true', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -432,7 +431,7 @@ suite('Statement.prototype.get() with array output', () => {
   });
 });
 
-suite('Statement.prototype.all() with array output', () => {
+suite.skip('Statement.prototype.all() with array output', () => {
   test('returns array rows when setReturnArrays is true', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -498,7 +497,7 @@ suite('Statement.prototype.all() with array output', () => {
   });
 });
 
-suite('Statement.prototype.iterate() with array output', () => {
+suite.skip('Statement.prototype.iterate() with array output', () => {
   test('iterates array rows when setReturnArrays is true', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
@@ -567,7 +566,7 @@ suite('Statement.prototype.iterate() with array output', () => {
   });
 });
 
-suite('Statement.prototype.setAllowBareNamedParameters()', () => {
+suite.skip('Statement.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });

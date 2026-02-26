@@ -450,6 +450,7 @@ class DatabaseSyncLimits : public BaseObject {
 
 class DatabaseOperationExecutor;
 class DatabaseOperationQueue;
+class Statement;
 
 class Database final : public DatabaseCommon {
  public:
@@ -467,7 +468,14 @@ class Database final : public DatabaseCommon {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  template <typename Op, typename... Args>
+  [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
+
+  void TrackStatement(Statement* statement);
+  void UntrackStatement(Statement* statement);
 
   SET_MEMORY_INFO_NAME(Database)
   SET_SELF_SIZE(Database)
@@ -482,8 +490,6 @@ class Database final : public DatabaseCommon {
   void PrepareNextBatch();
   void ProcessNextBatch();
   template <typename Op, typename... Args>
-  [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
-  template <typename Op, typename... Args>
   void Schedule(v8::Isolate* isolate,
                 v8::Local<v8::Promise::Resolver> resolver,
                 Args&&... args);
@@ -491,9 +497,36 @@ class Database final : public DatabaseCommon {
   std::unique_ptr<DatabaseOperationExecutor> executor_;
   std::unique_ptr<DatabaseOperationQueue> next_batch_;
 
-  static constexpr int kDefaultBatchSize = 31;
+  std::unordered_set<Statement*> statements_;
 
-  friend class StatementExecutionHelper;
+  static constexpr int kDefaultBatchSize = 31;
+};
+
+class Statement final : public BaseObject {
+ public:
+  Statement(Environment* env,
+            v8::Local<v8::Object> object,
+            BaseObjectPtr<Database> db,
+            sqlite3_stmt* stmt);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<Statement> Create(Environment* env,
+                                         BaseObjectPtr<Database> db,
+                                         sqlite3_stmt* stmt);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void Dispose();
+  static void IsDisposedGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool IsDisposed() const;
+
+  SET_MEMORY_INFO_NAME(Statement)
+  SET_SELF_SIZE(Statement)
+
+ private:
+  ~Statement() override;
+
+  BaseObjectPtr<Database> db_;
+  sqlite3_stmt* statement_;
 };
 
 }  // namespace sqlite

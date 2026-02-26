@@ -433,11 +433,11 @@ suite('Database.prototype[Symbol.asyncDispose]()', { timeout: 1000 }, () => {
   });
 });
 
-suite.skip('Database.prototype.prepare()', { timeout: 1000 }, () => {
-  test('returns a prepared statement', (t) => {
+suite('Database.prototype.prepare()', { timeout: 1000 }, () => {
+  test('returns a prepared statement', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
-    const stmt = db.prepare('CREATE TABLE webstorage(key TEXT)');
+    using stmt = await db.prepare('CREATE TABLE webstorage(key TEXT)');
     t.assert.ok(stmt instanceof Statement);
   });
 

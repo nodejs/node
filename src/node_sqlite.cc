@@ -3856,8 +3856,42 @@ class alignas(64) OperationResult {
       resolver->Resolve(context, Undefined(isolate)).Check();
     }
   };
+  class PreparedStatement {
+   public:
+    explicit PreparedStatement(BaseObjectPtr<Database> db, sqlite3_stmt* stmt)
+        : db_(std::move(db)), stmt_(stmt) {}
 
-  using variant_type = std::variant<Void, Rejected>;
+    void Connect(Isolate* isolate,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      auto* stmt = stmt_;
+      if (!db_->IsOpen()) {
+        // Database is closing, therefore directly create a disposed Statement.
+        (void)sqlite3_finalize(stmt);
+        stmt = nullptr;
+      }
+      auto stmt_obj =
+          Statement::Create(Environment::GetCurrent(context), db_, stmt);
+      if (stmt_obj) {
+        resolver->Resolve(context, stmt_obj->object()).Check();
+      } else {
+        Local<String> error_message =
+            String::NewFromUtf8(isolate,
+                                "Failed to create Statement object",
+                                NewStringType::kNormal)
+                .ToLocalChecked();
+        Local<Object> error =
+            Exception::Error(error_message)->ToObject(context).ToLocalChecked();
+        resolver->Reject(context, error).Check();
+      }
+    }
+
+   private:
+    BaseObjectPtr<Database> db_;
+    sqlite3_stmt* stmt_;
+  };
+
+  using variant_type = std::variant<Void, Rejected, PreparedStatement>;
 
  public:
   static OperationResult RejectErrorCode(OperationBase* origin,
@@ -3870,6 +3904,11 @@ class alignas(64) OperationResult {
   }
   static OperationResult ResolveVoid(OperationBase* origin) {
     return OperationResult{origin, Void{}};
+  }
+  static OperationResult ResolvePreparedStatement(OperationBase* origin,
+                                                  BaseObjectPtr<Database> db,
+                                                  sqlite3_stmt* stmt) {
+    return OperationResult{origin, PreparedStatement{std::move(db), stmt}};
   }
 
   template <typename T>
@@ -3890,6 +3929,47 @@ class alignas(64) OperationResult {
  private:
   OperationBase* origin_ = nullptr;
   variant_type result_;
+};
+
+class PrepareStatementOperation : private OperationBase {
+ public:
+  PrepareStatementOperation(Global<Promise::Resolver>&& resolver,
+                            BaseObjectPtr<Database>&& db,
+                            std::pmr::string&& sql)
+      : OperationBase(std::move(resolver)),
+        db_(std::move(db)),
+        sql_(std::move(sql)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    sqlite3_stmt* stmt = nullptr;
+    int error_code =
+        sqlite3_prepare_v2(connection, sql_.c_str(), -1, &stmt, nullptr);
+    return error_code == SQLITE_OK
+               ? OperationResult::ResolvePreparedStatement(
+                     this, std::move(db_), stmt)
+               : OperationResult::RejectLastError(this, connection);
+  }
+
+ private:
+  BaseObjectPtr<Database> db_;
+  std::pmr::string sql_;
+};
+
+class FinalizeStatementOperation : private OperationBase {
+ public:
+  FinalizeStatementOperation(Global<Promise::Resolver>&& resolver,
+                             sqlite3_stmt* stmt)
+      : OperationBase(std::move(resolver)), stmt_(stmt) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    int error_code = sqlite3_finalize(stmt_);
+    CHECK_NE(error_code, SQLITE_MISUSE);
+    stmt_ = nullptr;
+    return OperationResult::ResolveVoid(this);
+  }
+
+ private:
+  sqlite3_stmt* stmt_;
 };
 
 class ExecOperation : private OperationBase {
@@ -3927,7 +4007,21 @@ class CloseOperation : private OperationBase {
   }
 };
 
-using Operation = std::variant<ExecOperation, CloseOperation>;
+using Operation = std::variant<ExecOperation,
+                               PrepareStatementOperation,
+                               FinalizeStatementOperation,
+                               CloseOperation>;
+
+template <typename T, typename V>
+struct is_contained_in_variant;
+template <typename T, typename... Args>
+struct is_contained_in_variant<T, std::variant<Args...>> {
+  static constexpr bool value{(std::is_same_v<T, Args> || ...)};
+};
+
+template <typename Op>
+inline constexpr bool is_operation_type =
+    is_contained_in_variant<Op, Operation>::value;
 
 enum class QueuePushResult {
   kQueueFull = -1,
@@ -3955,7 +4049,8 @@ class DatabaseOperationQueue {
                : QueuePushResult::kSuccess;
   }
   template <typename Op, typename... Args>
-    requires std::constructible_from<Operation,
+    requires is_operation_type<Op> &&
+             std::constructible_from<Operation,
                                      std::in_place_type_t<Op>,
                                      Global<Promise::Resolver>&&,
                                      Args&&...>
@@ -4214,6 +4309,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
 
   SetProtoMethod(isolate, tmpl, "close", Database::Close);
   SetProtoAsyncDispose(isolate, tmpl, Database::AsyncDispose);
+  SetProtoMethod(isolate, tmpl, "prepare", Database::Prepare);
   SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
@@ -4299,13 +4395,16 @@ Local<Promise> Database::AsyncDisposeImpl() {
   // We can't use Schedule here, because Schedule queues a MicroTask which
   // would try to access the Database object after destruction if this is
   // called from the destructor.
-  if (next_batch_ == nullptr) {
-    next_batch_ = std::make_unique<DatabaseOperationQueue>(
-        1U, std::pmr::get_default_resource());
-  }
+  // Furthermore we always need to schedule the CloseOperation in a separate
+  // batch, to ensure that it runs after all previously scheduled operations,
+  // because e.g. PrepareStatementOperations need to connect their results
+  // first.
+  ProcessNextBatch();
+  next_batch_ = std::make_unique<DatabaseOperationQueue>(
+      1U, std::pmr::get_default_resource());
   CHECK_NE(next_batch_->PushEmplace<CloseOperation>(isolate, resolver),
            QueuePushResult::kQueueFull);
-  executor_->ScheduleBatch(std::move(next_batch_));
+  ProcessNextBatch();
   executor_.release()->Dispose();
 
   connection_ = nullptr;
@@ -4354,7 +4453,41 @@ void Database::AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  // We don't need to dispose statements during destruction, because all
+  // Statement instances keep a BaseObjectPtr to the Database and therefore
+  // can't outlive the Database. Therefore this shouldn't be executed as part of
+  // db->AsyncDisposeImpl().
+  // Calling stmt->Dispose modifies the statements_ set, therefore make a copy.
+  for (Statement* stmt : std::vector<Statement*>(db->statements_.begin(),
+                                                 db->statements_.end())) {
+    stmt->Dispose();
+  }
+
   args.GetReturnValue().Set(db->AsyncDisposeImpl());
+}
+
+void Database::Prepare(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  // TODO(BurningEnlightenment): these should be rejections
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"sql\" argument must be a string.");
+    return;
+  }
+  Utf8Value sql(env->isolate(), args[0].As<String>());
+  args.GetReturnValue().Set(db->Schedule<PrepareStatementOperation>(
+      BaseObjectPtr<Database>(db), std::pmr::string(*sql, sql.length())));
+}
+
+void Database::TrackStatement(Statement* statement) {
+  statements_.insert(statement);
+}
+void Database::UntrackStatement(Statement* statement) {
+  statements_.erase(statement);
 }
 
 void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -4372,6 +4505,94 @@ void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Utf8Value sql(env->isolate(), args[0].As<String>());
   args.GetReturnValue().Set(
       db->Schedule<ExecOperation>(std::pmr::string(*sql, sql.length())));
+}
+
+Statement::Statement(Environment* env,
+                     v8::Local<v8::Object> object,
+                     BaseObjectPtr<Database> db,
+                     sqlite3_stmt* stmt)
+    : BaseObject(env, object), db_(std::move(db)), statement_(stmt) {
+  if (stmt == nullptr) {
+    db_ = nullptr;
+  } else {
+    CHECK_NOT_NULL(db_);
+    db_->TrackStatement(this);
+  }
+}
+
+Statement::~Statement() {
+  if (!IsDisposed()) {
+    // Our operations keep a BaseObjectPtr to this Statement, so we can be sure
+    // that no operations are running or will run after this point. The only
+    // exception to this is the FinalizeStatementOperation, but it can only be
+    // queued by Statement::Dispose.
+    sqlite3_finalize(statement_);
+    db_->UntrackStatement(this);
+  }
+}
+
+void Statement::MemoryInfo(MemoryTracker* tracker) const {}
+
+Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->sqlite_statement_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Statement"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        Statement::kInternalFieldCount);
+
+    SetProtoDispose(isolate, tmpl, Statement::Dispose);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "isDisposed"),
+                            Statement::IsDisposedGetter);
+
+    env->set_sqlite_statement_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+BaseObjectPtr<Statement> Statement::Create(Environment* env,
+                                           BaseObjectPtr<Database> db,
+                                           sqlite3_stmt* stmt) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return MakeBaseObject<Statement>(env, obj, std::move(db), stmt);
+}
+
+void Statement::Dispose(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  stmt->Dispose();
+  args.GetReturnValue().SetUndefined();
+}
+
+void Statement::Dispose() {
+  if (IsDisposed()) {
+    return;
+  }
+  // Finalizing is a no-fail operation, so we don't need to check the result or
+  // return a promise.
+  (void)db_->Schedule<FinalizeStatementOperation>(
+      std::exchange(statement_, nullptr));
+  std::exchange(db_, nullptr)->UntrackStatement(this);
+}
+
+void Statement::IsDisposedGetter(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(Boolean::New(env->isolate(), stmt->IsDisposed()));
+}
+
+bool Statement::IsDisposed() const {
+  return statement_ == nullptr;
 }
 
 void DefineConstants(Local<Object> target) {
@@ -4450,9 +4671,8 @@ static void Initialize(Local<Object> target,
       context, target, "Session", Session::GetConstructorTemplate(env));
   SetConstructorFunction(
       context, target, "Database", CreateDatabaseConstructorTemplate(env));
-  target
-      ->Set(context, FIXED_ONE_BYTE_STRING(isolate, "Statement"), Null(isolate))
-      .Check();
+  SetConstructorFunction(
+      context, target, "Statement", Statement::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
 
