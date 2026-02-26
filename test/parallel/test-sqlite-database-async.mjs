@@ -13,7 +13,7 @@ function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
 }
 
-suite('Database() constructor', () => {
+suite('Database() constructor', { timeout: 1000 }, () => {
   test('throws if called without new', (t) => {
     t.assert.throws(() => {
       Database();
@@ -29,6 +29,15 @@ suite('Database() constructor', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "path" argument must be a string, Uint8Array, or URL without null bytes/,
+    });
+  });
+
+  test('throws if the database URL does not have the file: scheme', (t) => {
+    t.assert.throws(() => {
+      new Database(new URL('http://example.com'));
+    }, {
+      code: 'ERR_INVALID_URL_SCHEME',
+      message: 'The URL must be of scheme file:',
     });
   });
 
@@ -86,13 +95,14 @@ suite('Database() constructor', () => {
     });
   });
 
-  test.skip('is not read-only by default', async (t) => {
+  test('is not read-only by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
+    t.after(async () => { await db[Symbol.asyncDispose](); });
     await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
   });
 
-  test.skip('is read-only if readOnly is set', async (t) => {
+  test('is read-only if readOnly is set', async (t) => {
     const dbPath = nextDb();
     {
       // TODO: use `await using` once it's supported in test files
@@ -105,6 +115,7 @@ suite('Database() constructor', () => {
     }
     {
       const db = new Database(dbPath, { readOnly: true });
+      t.after(async () => { await db[Symbol.asyncDispose](); });
       await t.assert.rejects(db.exec('CREATE TABLE bar (id INTEGER PRIMARY KEY)'), {
         code: 'ERR_SQLITE_ERROR',
         message: /attempt to write a readonly database/,
@@ -121,14 +132,14 @@ suite('Database() constructor', () => {
     });
   });
 
-  test.skip('enables foreign key constraints by default', async (t) => {
+  test('enables foreign key constraints by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
+    t.after(async () => { await db[Symbol.asyncDispose](); });
     await db.exec(`
       CREATE TABLE foo (id INTEGER PRIMARY KEY);
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
-    t.after(async () => { await db.close(); });
     await t.assert.rejects(
       db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
       {
@@ -137,14 +148,14 @@ suite('Database() constructor', () => {
       });
   });
 
-  test.skip('allows disabling foreign key constraints', async (t) => {
+  test('allows disabling foreign key constraints', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableForeignKeyConstraints: false });
+    t.after(async () => { await db.close(); });
     await db.exec(`
       CREATE TABLE foo (id INTEGER PRIMARY KEY);
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
-    t.after(async () => { await db.close(); });
     await db.exec('INSERT INTO bar (foo_id) VALUES (1)');
   });
 
@@ -157,7 +168,7 @@ suite('Database() constructor', () => {
     });
   });
 
-  test.skip('disables double-quoted string literals by default', async (t) => {
+  test('disables double-quoted string literals by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
     t.after(async () => { await db.close(); });
@@ -167,7 +178,7 @@ suite('Database() constructor', () => {
     });
   });
 
-  test.skip('allows enabling double-quoted string literals', async (t) => {
+  test('allows enabling double-quoted string literals', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableDoubleQuotedStringLiterals: true });
     t.after(async () => { await db.close(); });
@@ -284,14 +295,13 @@ suite('Database() constructor', () => {
   test('has sqlite-type symbol property', (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { open: false });
-    t.after(async () => { await db[Symbol.asyncDispose](); });
 
     const sqliteTypeSymbol = Symbol.for('sqlite-type');
     t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite-async');
   });
 });
 
-suite('Database.prototype.open()', () => {
+suite('Database.prototype.open()', { timeout: 1000 }, () => {
   test('opens a database connection', (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { open: false });
@@ -321,7 +331,7 @@ suite('Database.prototype.open()', () => {
   });
 });
 
-suite('Database.prototype.close()', () => {
+suite('Database.prototype.close()', { timeout: 1000 }, () => {
   test('closes an open database connection', async (t) => {
     const db = new Database(nextDb());
 
@@ -383,7 +393,7 @@ suite('Database.prototype.close()', () => {
   });
 });
 
-suite('Database.prototype[Symbol.asyncDispose]()', () => {
+suite('Database.prototype[Symbol.asyncDispose]()', { timeout: 1000 }, () => {
   test('closes an open database connection', async (t) => {
     const db = new Database(nextDb());
 
@@ -398,7 +408,7 @@ suite('Database.prototype[Symbol.asyncDispose]()', () => {
     t.assert.strictEqual(await db[Symbol.asyncDispose](), undefined);
     t.assert.strictEqual(db.isOpen, false);
   });
-  test.skip('prevents a database from being opened after disposal', async (t) => {
+  test('prevents a database from being opened after disposal', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
     t.assert.strictEqual(db.isOpen, false);
@@ -423,7 +433,7 @@ suite('Database.prototype[Symbol.asyncDispose]()', () => {
   });
 });
 
-suite.skip('Database.prototype.prepare()', () => {
+suite.skip('Database.prototype.prepare()', { timeout: 1000 }, () => {
   test('returns a prepared statement', (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
@@ -455,8 +465,8 @@ suite.skip('Database.prototype.prepare()', () => {
   });
 });
 
-suite.skip('Database.prototype.exec()', () => {
-  test('executes SQL', async (t) => {
+suite('Database.prototype.exec()', { timeout: 1000 }, () => {
+  test.skip('executes SQL', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
     const result = await db.exec(`
@@ -487,15 +497,6 @@ suite.skip('Database.prototype.exec()', () => {
       });
   });
 
-  test('throws if the URL does not have the file: scheme', (t) => {
-    t.assert.throws(() => {
-      new Database(new URL('http://example.com'));
-    }, {
-      code: 'ERR_INVALID_URL_SCHEME',
-      message: 'The URL must be of scheme file:',
-    });
-  });
-
   test('throws if database is not open', (t) => {
     const db = new Database(nextDb(), { open: false });
 
@@ -520,7 +521,7 @@ suite.skip('Database.prototype.exec()', () => {
   });
 });
 
-suite.skip('Database.prototype.isTransaction', () => {
+suite.skip('Database.prototype.isTransaction', { timeout: 1000 }, () => {
   test('correctly detects a committed transaction', async (t) => {
     const db = new Database(':memory:');
 
@@ -557,7 +558,7 @@ suite.skip('Database.prototype.isTransaction', () => {
   });
 });
 
-suite.skip('Database.prototype.location()', () => {
+suite.skip('Database.prototype.location()', { timeout: 1000 }, () => {
   test('throws if database is not open', (t) => {
     const db = new Database(nextDb(), { open: false });
 
@@ -609,8 +610,8 @@ suite.skip('Database.prototype.location()', () => {
   });
 });
 
-suite.skip('Async operation ordering', () => {
-  test('executes operations sequentially per database', async (t) => {
+suite('Async operation ordering', { timeout: 1000 }, () => {
+  test.skip('executes operations sequentially per database', async (t) => {
     const db = new Database(':memory:');
     t.after(async () => { await db.close(); });
     await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, seq INTEGER)');
@@ -634,7 +635,7 @@ suite.skip('Async operation ordering', () => {
     }
   });
 
-  test('different connections can execute in parallel', async (t) => {
+  test('different connections can execute in parallel', { timeout: 5000 }, async (t) => {
     const db1 = new Database(':memory:');
     const db2 = new Database(':memory:');
     t.after(() => { db1.close(); db2.close(); });

@@ -11,11 +11,14 @@
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
+#include "uv.h"
 
 #include <array>
 #include <cinttypes>
 #include <cmath>
 #include <limits>
+#include <memory_resource>
+#include <variant>
 
 namespace node {
 namespace sqlite {
@@ -384,7 +387,7 @@ class CustomAggregate {
   static inline void xStepBase(sqlite3_context* ctx,
                                int argc,
                                sqlite3_value** argv,
-                               Global<Function> CustomAggregate::*mptr) {
+                               Global<Function> CustomAggregate::* mptr) {
     CustomAggregate* self =
         static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
     Environment* env = self->env_;
@@ -3761,25 +3764,435 @@ void Session::Delete() {
   session_ = nullptr;
 }
 
+namespace {
+class OperationBase {
+ public:
+  Local<Promise::Resolver> GetResolver(Isolate* isolate) const {
+    return resolver_.Get(isolate);
+  }
+
+ protected:
+  explicit OperationBase(Global<Promise::Resolver> resolver)
+      : resolver_(std::move(resolver)) {}
+
+  Global<Promise::Resolver> resolver_;
+};
+
+class alignas(64) OperationResult {
+  class Rejected {
+   public:
+    static Rejected ErrorCode(int error_code,
+                              const char* error_message = nullptr) {
+      const char* error_description = sqlite3_errstr(error_code);
+      return Rejected{
+          error_code,
+          error_message != nullptr ? error_message : std::pmr::string{},
+          error_description != nullptr ? error_description : std::pmr::string{},
+      };
+    }
+    static Rejected LastError(sqlite3* connection) {
+      int error_code = sqlite3_extended_errcode(connection);
+      const char* error_message = sqlite3_errmsg(connection);
+      return Rejected::ErrorCode(error_code, error_message);
+    }
+
+    void Connect(Isolate* isolate,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      // Use ToLocalChecked here because we are trying to report a failure and
+      // failing to report a failure would be worse than crashing as it would be
+      // an API contract violation.
+      Local<String> error_message =
+          String::NewFromUtf8(isolate,
+                              error_message_.data(),
+                              NewStringType::kNormal,
+                              static_cast<int>(std::ssize(error_message_)))
+              .ToLocalChecked();
+      Local<String> error_description =
+          String::NewFromUtf8(isolate,
+                              error_description_.data(),
+                              NewStringType::kInternalized,
+                              static_cast<int>(std::ssize(error_description_)))
+              .ToLocalChecked();
+
+      Local<Object> error =
+          Exception::Error(error_message)->ToObject(context).ToLocalChecked();
+      error
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "code"),
+                FIXED_ONE_BYTE_STRING(isolate, "ERR_SQLITE_ERROR"))
+          .Check();
+      error
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "errcode"),
+                Integer::New(isolate, error_code_))
+          .Check();
+      error
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "errstr"),
+                error_description)
+          .Check();
+
+      resolver->Reject(context, error).Check();
+    }
+
+   private:
+    Rejected(int error_code,
+             std::pmr::string error_message,
+             std::pmr::string error_description)
+        : error_message_(std::move(error_message)),
+          error_description_(std::move(error_description)),
+          error_code_(error_code) {}
+
+    std::pmr::string error_message_;
+    std::pmr::string error_description_;
+    int error_code_;
+  };
+  class Void {
+   public:
+    void Connect(Isolate* isolate,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      resolver->Resolve(context, Undefined(isolate)).Check();
+    }
+  };
+
+  using variant_type = std::variant<Void, Rejected>;
+
+ public:
+  static OperationResult RejectErrorCode(OperationBase* origin,
+                                         int error_code) {
+    return OperationResult{origin, Rejected::ErrorCode(error_code)};
+  }
+  static OperationResult RejectLastError(OperationBase* origin,
+                                         sqlite3* connection) {
+    return OperationResult{origin, Rejected::LastError(connection)};
+  }
+  static OperationResult ResolveVoid(OperationBase* origin) {
+    return OperationResult{origin, Void{}};
+  }
+
+  template <typename T>
+    requires std::constructible_from<variant_type, T>
+  OperationResult(OperationBase* origin, T&& value)
+      : origin_(origin), result_(std::forward<T>(value)) {}
+
+  void Connect(Isolate* isolate) const {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Promise::Resolver> resolver = origin_->GetResolver(isolate);
+    std::visit(
+        [isolate, &context, &resolver](auto&& value) {
+          value.Connect(isolate, context, *resolver);
+        },
+        result_);
+  }
+
+ private:
+  OperationBase* origin_ = nullptr;
+  variant_type result_;
+};
+
+class ExecOperation : private OperationBase {
+ public:
+  ExecOperation(Global<Promise::Resolver>&& resolver, std::pmr::string&& sql)
+      : OperationBase(std::move(resolver)), sql_(std::move(sql)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    int error_code =
+        sqlite3_exec(connection, sql_.c_str(), nullptr, nullptr, nullptr);
+    return error_code == SQLITE_OK
+               ? OperationResult::ResolveVoid(this)
+               : OperationResult::RejectLastError(this, connection);
+  }
+
+ private:
+  std::pmr::string sql_;
+};
+
+class CloseOperation : private OperationBase {
+ public:
+  explicit CloseOperation(Global<Promise::Resolver>&& resolver)
+      : OperationBase(std::move(resolver)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    // TODO(BurningEnlightenment): close the associated statements
+    int error_code = sqlite3_close(connection);
+    // Busy means that we failed to cleanup associated statements, i.e. we
+    // failed to maintain the Database object invariants.
+    CHECK_NE(error_code, SQLITE_BUSY);
+    DCHECK_NE(error_code, SQLITE_MISUSE);
+    return error_code == SQLITE_OK
+               ? OperationResult::ResolveVoid(this)
+               : OperationResult::RejectErrorCode(this, error_code);
+  }
+};
+
+using Operation = std::variant<ExecOperation, CloseOperation>;
+
+enum class QueuePushResult {
+  kQueueFull = -1,
+  kSuccess,
+  kLastSlot,
+};
+}  // namespace
+
+class DatabaseOperationQueue {
+ public:
+  explicit DatabaseOperationQueue(size_t capacity,
+                                  std::pmr::memory_resource* memory_resource)
+      : operations_(memory_resource), results_(memory_resource) {
+    operations_.reserve(capacity);
+    results_.reserve(capacity);
+  }
+
+  [[nodiscard]] QueuePushResult Push(Operation operation) {
+    if (operations_.capacity() == operations_.size()) {
+      return QueuePushResult::kQueueFull;
+    }
+    operations_.push_back(std::move(operation));
+    return operations_.size() == operations_.capacity()
+               ? QueuePushResult::kLastSlot
+               : QueuePushResult::kSuccess;
+  }
+  template <typename Op, typename... Args>
+    requires std::constructible_from<Operation,
+                                     std::in_place_type_t<Op>,
+                                     Global<Promise::Resolver>&&,
+                                     Args&&...>
+  [[nodiscard]] QueuePushResult PushEmplace(Isolate* isolate,
+                                            Local<Promise::Resolver> resolver,
+                                            Args&&... args) {
+    return Push(Operation{std::in_place_type<Op>,
+                          Global<Promise::Resolver>{isolate, resolver},
+                          std::forward<Args>(args)...});
+  }
+  void Push(OperationResult result) {
+    Mutex::ScopedLock lock{results_mutex_};
+    CHECK_LT(results_.size(), results_.capacity());
+    results_.push_back(std::move(result));
+  }
+
+  Operation* PopOperation() {
+    if (operations_.size() == pending_index_) {
+      return nullptr;
+    }
+    return &operations_[pending_index_++];
+  }
+  std::span<OperationResult> PopResults() {
+    Mutex::ScopedLock lock{results_mutex_};
+    if (results_.size() == completed_index_) {
+      return {};
+    }
+    return std::span{results_}.subspan(
+        std::exchange(completed_index_, results_.size()));
+  }
+
+ private:
+  std::pmr::vector<Operation> operations_;
+  std::pmr::vector<OperationResult> results_;
+  size_t pending_index_ = 0;
+  size_t completed_index_ = 0;
+  Mutex results_mutex_;
+};
+
+namespace {
+using uv_async_deleter = decltype([](uv_async_t* handle) -> void {
+  uv_close(reinterpret_cast<uv_handle_t*>(handle),
+           [](uv_handle_t* handle) -> void {
+             delete reinterpret_cast<uv_async_t*>(handle);
+           });
+});
+using unique_async_handle = std::unique_ptr<uv_async_t, uv_async_deleter>;
+unique_async_handle make_unique_async_handle(uv_loop_t* loop,
+                                             uv_async_cb callback) {
+  auto* handle = new uv_async_t;
+  if (uv_async_init(loop, handle, callback) != 0) {
+    delete handle;
+    return nullptr;
+  }
+  return unique_async_handle{handle};
+}
+}  // namespace
+
+class DatabaseOperationExecutor final : private ThreadPoolWork {
+ public:
+  DatabaseOperationExecutor(Environment* env, sqlite3* connection)
+      : ThreadPoolWork(env, "node_sqlite3.OperationExecutor"),
+        async_completion_(),
+        connection_(connection) {}
+
+  bool is_working() const { return current_batch_ != nullptr; }
+
+  void ScheduleBatch(std::unique_ptr<DatabaseOperationQueue> batch) {
+    CHECK_NOT_NULL(batch);
+    auto batch_ptr = batch.get();
+    batches_.push(std::move(batch));
+    if (!is_working()) {
+      async_completion_ = make_unique_async_handle(env()->event_loop(),
+                                                   &AsyncCompletionCallback);
+      async_completion_->data = this;
+      DatabaseOperationExecutor::ScheduleWork(batch_ptr);
+    }
+  }
+
+  void Dispose() {
+    CHECK(is_working());
+    disposing_ = true;
+  }
+
+ private:
+  void DoThreadPoolWork() override {
+    // Use local copies of member variables to avoid false sharing.
+    sqlite3* connection = connection_;
+    DatabaseOperationQueue* batch = current_batch_;
+    for (Operation* maybe_op = batch->PopOperation(); maybe_op != nullptr;
+         maybe_op = batch->PopOperation()) {
+      auto op_result = std::visit<OperationResult>(
+          [connection](auto&& op) -> OperationResult { return op(connection); },
+          *maybe_op);
+      batch->Push(std::move(op_result));
+      CHECK_EQ(uv_async_send(async_completion_.get()), 0);
+    }
+  }
+  void AfterThreadPoolWork(int status) override {
+    CHECK_EQ(status, 0);  // Currently the cancellation API is not exposed.
+    AsyncCompletionCallback();
+    current_batch_ = nullptr;
+    batches_.pop();
+    if (!batches_.empty()) {
+      DatabaseOperationExecutor::ScheduleWork(batches_.front().get());
+    } else if (disposing_) {
+      // The executor is being disposed and there are no more batches to
+      // process, so we can safely delete it.
+      delete this;
+    } else {
+      // Don't keep the event loop active while there are no batches to process.
+      async_completion_.reset();
+    }
+  }
+  static void AsyncCompletionCallback(uv_async_t* handle) {
+    if (uv_is_closing(reinterpret_cast<uv_handle_t*>(handle))) {
+      return;
+    }
+    auto* self = static_cast<DatabaseOperationExecutor*>(handle->data);
+    // Safe guard against a race between the async_completion and the after_work
+    // callback; given the current libuv implementation this should not be
+    // possible, but it's not a documented API guarantee.
+    if (self->current_batch_ != nullptr) {
+      self->AsyncCompletionCallback();
+    }
+  }
+  void AsyncCompletionCallback() {
+    const auto& results = current_batch_->PopResults();
+    if (results.empty()) {
+      return;
+    }
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+
+    for (OperationResult& result : results) {
+      result.Connect(isolate);
+    }
+  }
+  void ScheduleWork(DatabaseOperationQueue* batch) {
+    CHECK_NOT_NULL(batch);
+    CHECK_NULL(current_batch_);
+    current_batch_ = batch;
+    ThreadPoolWork::ScheduleWork();
+  }
+
+  std::queue<std::unique_ptr<DatabaseOperationQueue>> batches_;
+  bool disposing_ = false;
+
+  // These _must_ only be written to while is_working() is false or from within
+  // AfterThreadPoolWork. Violating this invariant would introduce to data races
+  // and therefore undefined behavior.
+  unique_async_handle async_completion_;
+  sqlite3* connection_ = nullptr;
+  DatabaseOperationQueue* current_batch_ = nullptr;
+};
+
+void Database::PrepareNextBatch() {
+  CHECK_NULL(next_batch_);
+  next_batch_ = std::make_unique<DatabaseOperationQueue>(
+      kDefaultBatchSize, std::pmr::get_default_resource());
+
+  // TODO(BurningEnlightenment): Do I need to retain a BaseObjectPtr?
+  env()->isolate()->EnqueueMicrotask(
+      [](void* self) -> void {
+        CHECK_NOT_NULL(self);
+        static_cast<Database*>(self)->ProcessNextBatch();
+      },
+      this);
+}
+void Database::ProcessNextBatch() {
+  if (next_batch_ != nullptr) {
+    executor_->ScheduleBatch(std::move(next_batch_));
+  }
+}
+template <typename Op, typename... Args>
+void Database::Schedule(v8::Isolate* isolate,
+                        v8::Local<v8::Promise::Resolver> resolver,
+                        Args&&... args) {
+  if (next_batch_ == nullptr) {
+    PrepareNextBatch();
+  }
+  QueuePushResult r = next_batch_->PushEmplace<Op>(
+      isolate, resolver, std::forward<Args>(args)...);
+  if (r == QueuePushResult::kSuccess) [[likely]] {
+    return;
+  }
+  // Batch is full, schedule it for execution.
+  ProcessNextBatch();
+  // With the current set of invariants next_batch_ should never be full
+  CHECK_EQ(r, QueuePushResult::kLastSlot);
+}
+
+template <typename Op, typename... Args>
+Local<Promise> Database::Schedule(Args&&... args) {
+  Isolate* isolate = env()->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+
+  Database::Schedule<Op>(isolate, resolver, std::forward<Args>(args)...);
+
+  return resolver->GetPromise();
+}
+
 Database::Database(Environment* env,
                    v8::Local<v8::Object> object,
                    DatabaseOpenConfiguration&& open_config,
                    bool open,
                    bool allow_load_extension)
-    : DatabaseCommon(
-          env, object, std::move(open_config), allow_load_extension) {
+    : DatabaseCommon(env, object, std::move(open_config), allow_load_extension),
+      executor_(nullptr),
+      next_batch_(nullptr) {
   MakeWeak();
 
   if (open) {
-    Open();
+    Database::Open();
   }
 }
 
 Database::~Database() {
-  if (IsOpen()) {
-    (void)sqlite3_close_v2(connection_);
-    connection_ = nullptr;
+  if (!IsOpen()) [[likely]] {
+    return;
   }
+  if (executor_->is_working()) {
+    HandleScope handle_scope(env()->isolate());
+    (void)AsyncDisposeImpl();
+  } else {
+    (void)sqlite3_close_v2(connection_);
+  }
+
+  env()->SetImmediate([](Environment* env) {
+    HandleScope handle_scope(env->isolate());
+
+    THROW_ERR_INVALID_STATE(
+        env->isolate(),
+        "Database was not properly closed before being garbage collected. "
+        "Please call and await db.close() to close the database connection.");
+  });
 }
 
 void Database::MemoryInfo(MemoryTracker* tracker) const {
@@ -3801,6 +4214,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
 
   SetProtoMethod(isolate, tmpl, "close", Database::Close);
   SetProtoAsyncDispose(isolate, tmpl, Database::AsyncDispose);
+  SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
@@ -3847,6 +4261,60 @@ void Database::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
       env, args.This(), std::move(open_config), open, allow_load_extension);
 }
 
+bool Database::Open() {
+  if (IsDisposed()) {
+    THROW_ERR_INVALID_STATE(env(), "database is disposed");
+    return false;
+  }
+  auto open_result = DatabaseCommon::Open();
+  if (open_result) {
+    executor_ = std::make_unique<DatabaseOperationExecutor>(env(), connection_);
+  }
+  return open_result;
+}
+
+bool Database::IsDisposed() const {
+  return object()
+      ->GetInternalField(Database::kDisposePromiseSlot)
+      .As<Value>()
+      ->IsPromise();
+}
+
+v8::Local<v8::Promise> Database::EnterDisposedStateSync() {
+  Isolate* isolate = env()->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  auto disposed = Promise::Resolver::New(context).ToLocalChecked();
+  disposed->Resolve(context, Undefined(isolate)).Check();
+
+  auto dispose_promise = disposed->GetPromise();
+  object()->SetInternalField(Database::kDisposePromiseSlot, dispose_promise);
+  return dispose_promise;
+}
+
+Local<Promise> Database::AsyncDisposeImpl() {
+  Isolate* isolate = env()->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+
+  // We can't use Schedule here, because Schedule queues a MicroTask which
+  // would try to access the Database object after destruction if this is
+  // called from the destructor.
+  if (next_batch_ == nullptr) {
+    next_batch_ = std::make_unique<DatabaseOperationQueue>(
+        1U, std::pmr::get_default_resource());
+  }
+  CHECK_NE(next_batch_->PushEmplace<CloseOperation>(isolate, resolver),
+           QueuePushResult::kQueueFull);
+  executor_->ScheduleBatch(std::move(next_batch_));
+  executor_.release()->Dispose();
+
+  connection_ = nullptr;
+
+  auto dispose_promise = resolver->GetPromise();
+  object()->SetInternalField(Database::kDisposePromiseSlot, dispose_promise);
+  return dispose_promise;
+}
+
 void Database::Close(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -3854,6 +4322,9 @@ void Database::Close(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
   if (!db->IsOpen()) {
+    if (!db->IsDisposed()) {
+      db->EnterDisposedStateSync();
+    }
     auto resolver = Promise::Resolver::New(context).ToLocalChecked();
     resolver
         ->Reject(context,
@@ -3872,30 +4343,35 @@ void Database::AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Disposing is idempotent, so if a close is already in progress or has been
   // completed, return the existing promise.
-  Local<Value> close_resolver =
-      db->object()->GetInternalField(Database::kClosingPromiseSlot).As<Value>();
-  if (close_resolver->IsPromise()) {
-    args.GetReturnValue().Set(close_resolver.As<Promise>());
+  Local<Value> maybe_dispose_promise =
+      db->object()->GetInternalField(Database::kDisposePromiseSlot).As<Value>();
+  if (maybe_dispose_promise->IsPromise()) {
+    args.GetReturnValue().Set(maybe_dispose_promise.As<Promise>());
+    return;
+  }
+  if (!db->IsOpen()) {
+    args.GetReturnValue().Set(db->EnterDisposedStateSync());
     return;
   }
 
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+  args.GetReturnValue().Set(db->AsyncDisposeImpl());
+}
 
-  if (!db->IsOpen()) {
-    resolver->Resolve(context, Undefined(env->isolate())).Check();
-  } else if (int errcode = sqlite3_close_v2(db->connection_);
-             errcode != SQLITE_OK) {
-    // Note: passing `db->connection_` to sqlite3_extended_errcode after calling
-    // `sqlite3_close_v2` is not safe.
-    RejectWithSQLiteError(env, resolver, errcode);
-  } else {
-    resolver->Resolve(context, Undefined(env->isolate())).Check();
+void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  // TODO(BurningEnlightenment): these should be rejections
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"sql\" argument must be a string.");
+    return;
   }
-  db->connection_ = nullptr;
-  db->object()->SetInternalField(Database::kClosingPromiseSlot, resolver);
-  args.GetReturnValue().Set(resolver->GetPromise());
+  Utf8Value sql(env->isolate(), args[0].As<String>());
+  args.GetReturnValue().Set(
+      db->Schedule<ExecOperation>(std::pmr::string(*sql, sql.length())));
 }
 
 void DefineConstants(Local<Object> target) {

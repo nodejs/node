@@ -181,7 +181,7 @@ class DatabaseCommon : public BaseObject {
 
  protected:
   ~DatabaseCommon() override = default;
-  bool Open();
+  virtual bool Open();
 
   DatabaseOpenConfiguration open_config_;
   sqlite3* connection_ = nullptr;
@@ -448,10 +448,13 @@ class DatabaseSyncLimits : public BaseObject {
   BaseObjectWeakPtr<DatabaseSync> database_;
 };
 
-class Database : public DatabaseCommon {
+class DatabaseOperationExecutor;
+class DatabaseOperationQueue;
+
+class Database final : public DatabaseCommon {
  public:
   enum InternalFields {
-    kClosingPromiseSlot = DatabaseCommon::kInternalFieldCount,
+    kDisposePromiseSlot = DatabaseCommon::kInternalFieldCount,
     kInternalFieldCount
   };
 
@@ -464,12 +467,31 @@ class Database : public DatabaseCommon {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SET_MEMORY_INFO_NAME(Database)
   SET_SELF_SIZE(Database)
 
  private:
   ~Database() override;
+
+  bool Open() override;
+  bool IsDisposed() const;
+  v8::Local<v8::Promise> EnterDisposedStateSync();
+  v8::Local<v8::Promise> AsyncDisposeImpl();
+  void PrepareNextBatch();
+  void ProcessNextBatch();
+  template <typename Op, typename... Args>
+  [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
+  template <typename Op, typename... Args>
+  void Schedule(v8::Isolate* isolate,
+                v8::Local<v8::Promise::Resolver> resolver,
+                Args&&... args);
+
+  std::unique_ptr<DatabaseOperationExecutor> executor_;
+  std::unique_ptr<DatabaseOperationQueue> next_batch_;
+
+  static constexpr int kDefaultBatchSize = 31;
 
   friend class StatementExecutionHelper;
 };
