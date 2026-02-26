@@ -272,9 +272,9 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 }
 
 template <typename Impl>
-Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
-                                                  AllocationType allocation) {
-  return ByteArray::New(isolate(), length, allocation);
+Handle<ByteArray> FactoryBase<Impl>::NewByteArray(
+    int length, AllocationType allocation, AllocationAlignment alignment) {
+  return ByteArray::New(isolate(), length, allocation, alignment);
 }
 
 template <typename Impl>
@@ -1225,8 +1225,8 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
-    int size, AllocationType allocation) {
-  Tagged<HeapObject> result = AllocateRaw(size, allocation);
+    int size, AllocationType allocation, AllocationAlignment alignment) {
+  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
       (size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&

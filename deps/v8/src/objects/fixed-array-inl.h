@@ -723,7 +723,7 @@ template <class IsolateT>
 Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int length,
     base::Optional<DisallowGarbageCollection>* no_gc_out,
-    AllocationType allocation) {
+    AllocationType allocation, AllocationAlignment alignment) {
   // Note 0-length is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-length instances.
   DCHECK_GE(length, 0);
@@ -731,7 +731,7 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
   DCHECK(!no_gc_out->has_value());
 
   Tagged<D> xs = D::unchecked_cast(
-      isolate->factory()->AllocateRawArray(SizeFor(length), allocation));
+      isolate->factory()->AllocateRawArray(SizeFor(length), allocation, alignment));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
@@ -898,7 +898,8 @@ Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
 // static
 template <class IsolateT>
 Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
-                                 AllocationType allocation) {
+                                 AllocationType allocation,
+                                 AllocationAlignment alignment) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d", length);
   } else if (V8_UNLIKELY(length == 0)) {
@@ -907,7 +908,7 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<ByteArray> result =
-      Handle<ByteArray>::cast(Allocate(isolate, length, &no_gc, allocation));
+      Handle<ByteArray>::cast(Allocate(isolate, length, &no_gc, allocation, alignment));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(result->AddressOfElementAt(length), 0, padding_size);

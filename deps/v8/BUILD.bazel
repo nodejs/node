@@ -1850,6 +1850,7 @@ filegroup(
         "src/numbers/conversions.h",
         "src/numbers/conversions-inl.h",
         "src/numbers/hash-seed.h",
+        "src/numbers/hash-seed.cc",
         "src/numbers/hash-seed-inl.h",
         "src/numbers/integer-literal.h",
         "src/numbers/integer-literal-inl.h",
