@@ -2257,7 +2257,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
 
 bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // SQLite only supports a subset of JavaScript types. Some JS types such as
-  // functions don't make sense to support. Other JS types such as booleans and
+  // functions don't make sense to support. Other JS types such as
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
   // original type.
@@ -2293,6 +2293,12 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
                             buf.data(),
                             static_cast<sqlite3_uint64>(buf.length()),
                             SQLITE_TRANSIENT);
+  } else if (value->IsBoolean()) {
+    if (value->IsTrue()) {
+      r = sqlite3_bind_int(statement_, index, 1);
+    } else {
+      r = sqlite3_bind_int(statement_, index, 0);
+    }
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);

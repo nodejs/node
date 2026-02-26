@@ -46,6 +46,10 @@ suite('data binding and mapping', () => {
       stmt.run(4, 99n, 0xf, '', new Uint8Array()),
       { changes: 1, lastInsertRowid: 4 },
     );
+    t.assert.deepStrictEqual(
+      stmt.run(5, true, false, true, null),
+      { changes: 1, lastInsertRowid: 5 },
+    );
 
     const query = db.prepare('SELECT * FROM types WHERE key = ?');
     t.assert.deepStrictEqual(query.get(1), {
@@ -79,6 +83,14 @@ suite('data binding and mapping', () => {
       double: 0xf,
       text: '',
       buf: new Uint8Array(),
+    });
+    t.assert.deepStrictEqual(query.get(5), {
+      __proto__: null,
+      key: 5,
+      int: 1,
+      double: 0,
+      text: '1',
+      buf: null,
     });
   });
 
