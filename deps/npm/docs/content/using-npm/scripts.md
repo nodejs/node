@@ -1,5 +1,5 @@
 ---
-title: scripts
+title: Scripts
 section: 7
 description: How npm handles the "scripts" field
 ---

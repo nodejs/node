@@ -6,15 +6,14 @@
  */
 'use strict'
 exports[`test/lib/commands/completion.js TAP completion --no- flags > flags 1`] = `
-Array [
-  String(
-    --no-version
-    --no-versions
-  ),
-]
+Array []
 `
 
 exports[`test/lib/commands/completion.js TAP completion commands with no completion > no results 1`] = `
+Array []
+`
+
+exports[`test/lib/commands/completion.js TAP completion completion after custom definition flag requiring value > custom definition non-Boolean flag handled 1`] = `
 Array []
 `
 
@@ -38,134 +37,16 @@ exports[`test/lib/commands/completion.js TAP completion completion of invalid co
 Array []
 `
 
+exports[`test/lib/commands/completion.js TAP completion completion with double-dash escape in command line > double-dash escape handled 1`] = `
+Array []
+`
+
+exports[`test/lib/commands/completion.js TAP completion completion with non-flag word > non-flag word completion 1`] = `
+Array []
+`
+
 exports[`test/lib/commands/completion.js TAP completion double dashes escape from flag completion > full command list 1`] = `
-Array [
-  String(
-    access
-    adduser
-    audit
-    bugs
-    cache
-    ci
-    completion
-    config
-    dedupe
-    deprecate
-    diff
-    dist-tag
-    docs
-    doctor
-    edit
-    exec
-    explain
-    explore
-    find-dupes
-    fund
-    get
-    help
-    help-search
-    init
-    install
-    install-ci-test
-    install-test
-    link
-    ll
-    login
-    logout
-    ls
-    org
-    outdated
-    owner
-    pack
-    ping
-    pkg
-    prefix
-    profile
-    prune
-    publish
-    query
-    rebuild
-    repo
-    restart
-    root
-    run
-    sbom
-    search
-    set
-    shrinkwrap
-    star
-    stars
-    start
-    stop
-    team
-    test
-    token
-    undeprecate
-    uninstall
-    unpublish
-    unstar
-    update
-    version
-    view
-    whoami
-    author
-    home
-    issues
-    info
-    show
-    find
-    add
-    unlink
-    remove
-    rm
-    r
-    un
-    rb
-    list
-    ln
-    create
-    i
-    it
-    cit
-    up
-    c
-    s
-    se
-    tst
-    t
-    ddp
-    v
-    run-script
-    clean-install
-    clean-install-test
-    x
-    why
-    la
-    verison
-    ic
-    innit
-    in
-    ins
-    inst
-    insta
-    instal
-    isnt
-    isnta
-    isntal
-    isntall
-    install-clean
-    isntall-clean
-    hlep
-    dist-tags
-    upgrade
-    udpate
-    rum
-    sit
-    urn
-    ogr
-    add-user
-  ),
-]
+Array []
 `
 
 exports[`test/lib/commands/completion.js TAP completion filtered subcommands > filtered subcommands 1`] = `
@@ -173,15 +54,7 @@ Array []
 `
 
 exports[`test/lib/commands/completion.js TAP completion flags > flags 1`] = `
-Array [
-  String(
-    --version
-    --versions
-    --viewer
-    --verbose
-    --v
-  ),
-]
+Array []
 `
 
 exports[`test/lib/commands/completion.js TAP completion multiple command names > multiple command names 1`] = `
@@ -211,6 +84,63 @@ Array [
     list
     revoke
     set
+  ),
+]
+`
+
+exports[`test/lib/commands/completion.js TAP completion trust filtered subcommands > trust filtered subcommands 1`] = `
+Array [
+  String(
+    github
+    gitlab
+  ),
+]
+`
+
+exports[`test/lib/commands/completion.js TAP completion trust github flags > trust github flags with custom definitions 1`] = `
+Array [
+  String(
+    --file
+    --repository
+    --repo
+    --environment
+    --env
+    --dry-run
+    --json
+    --registry
+    --yes
+    --no-dry-run
+    --no-json
+    --no-yes
+  ),
+]
+`
+
+exports[`test/lib/commands/completion.js TAP completion trust gitlab flags > trust gitlab flags with custom definitions 1`] = `
+Array [
+  String(
+    --file
+    --project
+    --environment
+    --env
+    --dry-run
+    --json
+    --registry
+    --yes
+    --no-dry-run
+    --no-json
+    --no-yes
+  ),
+]
+`
+
+exports[`test/lib/commands/completion.js TAP completion trust subcommands > trust subcommands 1`] = `
+Array [
+  String(
+    github
+    gitlab
+    list
+    revoke
   ),
 ]
 `

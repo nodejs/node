@@ -1,7 +1,7 @@
 ---
-title: removal
+title: Removal
 section: 7
-description: Cleaning the Slate
+description: Cleaning the slate
 ---
 
 ### Synopsis

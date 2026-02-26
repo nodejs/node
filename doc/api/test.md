@@ -263,6 +263,7 @@ test('todo() method with message', (t) => {
 <!-- YAML
 added:
  - v25.5.0
+ - v24.14.0
 -->
 
 This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
@@ -1435,7 +1436,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: v25.6.0
+  - version:
+     - v25.6.0
+     - v24.14.0
     pr-url: https://github.com/nodejs/node/pull/61367
     description: Add the `env` option.
   - version: v24.7.0
@@ -3351,7 +3354,7 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:interrupted'`
 
 <!-- YAML
-added: REPLACEME
+added: v25.7.0
 -->
 
 * `data` {Object}
@@ -3803,6 +3806,39 @@ added: v25.0.0
 * Type: {number}
 
 Number of times the test has been attempted.
+
+### `context.workerId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|undefined}
+
+The unique identifier of the worker running the current test file. This value is
+derived from the `NODE_TEST_WORKER_ID` environment variable. When running tests
+with `--test-isolation=process` (the default), each test file runs in a separate
+child process and is assigned a worker ID from 1 to N, where N is the number of
+concurrent workers. When running with `--test-isolation=none`, all tests run in
+the same process and the worker ID is always 1. This value is `undefined` when
+not running in a test context.
+
+This property is useful for splitting resources (like database connections or
+server ports) across concurrent test files:
+
+```mjs
+import { test } from 'node:test';
+import { process } from 'node:process';
+
+test('database operations', async (t) => {
+  // Worker ID is available via context
+  console.log(`Running in worker ${t.workerId}`);
+
+  // Or via environment variable (available at import time)
+  const workerId = process.env.NODE_TEST_WORKER_ID;
+  // Use workerId to allocate separate resources per worker
+});
+```
 
 ### `context.plan(count[,options])`
 

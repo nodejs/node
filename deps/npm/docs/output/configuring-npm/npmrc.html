@@ -1,6 +1,6 @@
 <!DOCTYPE html><html><head>
 <meta charset="utf-8">
-<title>npmrc</title>
+<title>.npmrc</title>
 <style>
 body {
     background-color: #ffffff;
@@ -123,6 +123,51 @@ footer#edit {
     margin: 3em 0 4em 0;
     padding-top: 2em;
 }
+
+table {
+    width: 100%;
+    margin: 1em 0;
+    border-radius: 6px;
+    border: 1px solid #e1e4e8;
+    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+table thead {
+    background-color: #f6f8fa;
+}
+
+table tbody {
+    background-color: #ffffff;
+}
+
+table th,
+table td {
+    padding: 0.75em;
+    text-align: left;
+    border-right: 1px solid #e1e4e8;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+table th:last-child,
+table td:last-child {
+    border-right: none;
+}
+
+table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table th {
+    font-weight: 600;
+    background-color: #f6f8fa;
+}
+
+table code {
+    white-space: nowrap;
+}
+
 </style>
 </head>
 <body>
@@ -141,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npmrc----1190">
-    <span>npmrc</span>
-    <span class="version">@11.9.0</span>
+<h1 id="----npmrc----11101">
+    <span>.npmrc</span>
+    <span class="version">@11.10.1</span>
 </h1>
 <span class="description">The npm config files</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#auth-related-configuration">Auth related configuration</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#auth-related-configuration">Auth related configuration</a></li><li><a href="#unsupported-custom-configuration-keys">Unsupported Custom Configuration Keys</a></li><li><a href="#custom--third-party-config-keys">Custom / third-party config keys</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -224,6 +269,25 @@ This ensures that <code>npm</code> will never send credentials to the wrong host
 If the credential is meant for any request to a registry on a single host, the scope may look like <code>//registry.npmjs.org/:</code>.
 If it must be scoped to a specific path on the host that path may also be provided, such as
 <code>//my-custom-registry.org/unique/path:</code>.</p>
+<h3 id="unsupported-custom-configuration-keys">Unsupported Custom Configuration Keys</h3>
+<p>Starting in npm v11.2.0, npm warns when unknown configuration keys are defined in <code>.npmrc</code>. In a future major version of npm, these unknown keys may no longer be accepted.</p>
+<p>Only configuration keys that npm officially supports are recognized. Custom keys intended for third-party tools (for example, <code>electron-builder</code>) should not be placed in <code>.npmrc</code>.</p>
+<p>If you need package-level configuration for use in scripts, use the <code>config</code> field in your <code>package.json</code> instead:</p>
+<pre><code class="language-json">{
+  "name": "my-package",
+  "config": {
+    "mirror": "https://example.com/"
+  }
+}
+
+</code></pre>
+<p>Values defined in <code>package.json#config</code> are exposed to scripts as environment variables prefixed with <code>npm_package_config_</code>. For example:</p>
+<pre><code>npm_package_config_mirror
+</code></pre>
+<p>If you need to pass arguments to a script command, use <code>--</code> to separate npm arguments from script arguments:</p>
+<pre><code>npm run build -- --customFlag
+</code></pre>
+<p>Using environment variables is also recommended for cross-platform configuration instead of defining unsupported keys in <code>.npmrc</code>.</p>
 <pre><code>; bad config
 _authToken=MYTOKEN
 
@@ -241,6 +305,24 @@ _authToken=MYTOKEN
 ; would apply only to @another
 //somewhere-else.com/another/:_authToken=MYTOKEN2
 </code></pre>
+<h3 id="custom--third-party-config-keys">Custom / third-party config keys</h3>
+<p>npm only recognizes its own <a href="../using-npm/config.html">configuration options</a>.
+If your <code>.npmrc</code> contains keys that are not part of npm's config definitions
+(for example, <code>electron_mirror</code> or <code>sass_binary_site</code>), npm will emit a
+warning:</p>
+<pre><code>warn Unknown user config "electron_mirror".
+This will stop working in the next major version of npm.
+</code></pre>
+<p>These keys were historically tolerated but are not officially supported.
+A future major version of npm will treat unknown top-level keys as errors.</p>
+<p>Some tools (such as <code>@electron/get</code> or <code>node-sass</code>) read their own
+configuration from environment variables or from <code>.npmrc</code> by convention.
+You can set these values as environment variables instead:</p>
+<pre><code class="language-bash">export ELECTRON_MIRROR="https://mirrorexample.npmjs.org/mirrors/electron/"
+export ELECTRON_CUSTOM_DIR="{{ version }}"
+</code></pre>
+<p>Environment variables are the most portable approach and work regardless
+of <code>.npmrc</code> format.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>

@@ -1,13 +1,15 @@
 # Feature request management
 
-Feature requests are a valuable source of input to the project.
-They help our maintainers understand what additions will be of
-value to users of the Node.js runtime.
+Feature requests are not a valuable source of input for the project.
+It is usually more productive to first send the Pull Request implementing the
+feature, even imperfectly, and let the discussion happen during code review.
+That being said, the project still welcomes feature request issues, either for
+features you cannot and/or won't implement yourself, or if you need more input
+from the community before starting the work.
 
-At the same time, the project is volunteer run and does not
-have the ability to direct resources toward specific work. The
-features which are implemented are those for which volunteers
-are individually motivated to work on. The best way to ensure
+The project is volunteer run and does not have the ability to direct resources
+toward specific work. The features which are implemented are those for which
+volunteers are individually motivated to work on. The best way to ensure
 a feature gets implemented is to create a PR to add it.
 The project strives to support people who do that.
 

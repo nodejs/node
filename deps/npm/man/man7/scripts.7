@@ -1,6 +1,6 @@
-.TH "SCRIPTS" "7" "February 2026" "NPM@11.9.0" ""
+.TH "SCRIPTS" "7" "February 2026" "NPM@11.10.1" ""
 .SH "NAME"
-\fBscripts\fR - How npm handles the "scripts" field
+\fBScripts\fR - How npm handles the "scripts" field
 .SS "Description"
 .P
 The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.

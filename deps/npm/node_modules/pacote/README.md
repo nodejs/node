@@ -147,15 +147,24 @@ Options object is cloned, and mutated along the way to add integrity, resolved, 
   There must be a configured `_keys` entry in the config that is scoped to the registry the manifest is being fetched from.
 * `tufCache` Where to store metadata/target files when retrieving the package attestation key material via TUF.
   Defaults to the same cache directory that npm will use by default, based on platform and environment.
-* `allowGit` Whether or not to allow data to be fetched from git.
+* `allowGit` Whether or not to allow data to be fetched from a git spec.
   Possible values are `all`, `none`, or `root`.
   Defaults to `all`.
   `all` means git is allowed
   `none` means git is not allowed
   `root` means that git is only allowed if fetching from a root context.
   Context for whether or not the package being fetched is `root` is set via the `_isRoot` option.
+* `allowRemote` Whether or not to allow data to be fetched from remote specs.
+  Possible values and defaults are the same as `allowGit`
+* `allowFile` Whether or not to allow data to be fetched from file specs.
+  Possible values and defaults are the same as `allowGit`
+* `allowDirectory` Whether or not to allow data to be fetched from directory specs.
+  Possible values and defaults are the same as `allowGit`
 * `_isRoot` Whether or not the package being fetched is in a root context.
-  For `npm` itself this means a package that is defined in the local project or workspace package.json, or a package that is being fetched for another command like `npm view`.
+  Defaults to `false`,
+  For `npm` itself this means a package that is defined in the local project or workspace package.json, or a package that is being fetched for another command like `npm view`.  This informs the `allowX` options to let them know the context of the current request.
+
+For more info on spec types (i.e. git, remote) see [npm-package-arg](npm.im/npm-package-arg)
 
 ### Advanced API
 

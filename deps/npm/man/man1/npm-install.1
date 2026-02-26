@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "February 2026" "NPM@11.9.0" ""
+.TH "NPM-INSTALL" "1" "February 2026" "NPM@11.10.1" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -617,6 +617,22 @@ Type: null or Date
 If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
 .P
 If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
+.P
+This config cannot be used with: \fBmin-release-age\fR
+.SS "\fBmin-release-age\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+If set, npm will build the npm tree such that only versions that were available more than the given number of days ago will be installed. If there are no versions available for the current set of dependencies, the command will error.
+.P
+This flag is a complement to \fBbefore\fR, which accepts an exact date instead of a relative number of days.
+.P
+This config cannot be used with: \fBbefore\fR
 .SS "\fBbin-links\fR"
 .RS 0
 .IP \(bu 4

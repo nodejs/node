@@ -1,5 +1,5 @@
 ---
-title: Dependency Selector Syntax & Querying
+title: Dependency Selectors
 section: 7
 description: Dependency Selector Syntax & Querying
 ---
