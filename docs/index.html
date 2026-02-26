@@ -256,6 +256,31 @@
       box-shadow: 0 0 0 3px rgba(82,183,136,0.12);
     }
 
+    /* Book filter */
+    #book-filter {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      padding: 11px 36px 11px 14px;
+      width: 100%;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    #book-filter:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(82,183,136,0.12);
+    }
+
     /* Toast */
     #toast {
       position: fixed;
@@ -296,6 +321,9 @@
   <!-- Quotes list view -->
   <div id="quotes-view" class="view active">
     <input type="search" id="search-input" placeholder="Search quotes or books..." oninput="renderQuotes()" />
+    <select id="book-filter" onchange="renderQuotes()">
+      <option value="">All Books</option>
+    </select>
     <div id="quotes-list"></div>
   </div>
 
@@ -343,25 +371,40 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  function updateBookFilter() {
+    const quotes = loadQuotes();
+    const books = [...new Set(quotes.map(q => q.book))].sort((a, b) => a.localeCompare(b));
+    const sel = document.getElementById('book-filter');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Books</option>' +
+      books.map(b => `<option value="${escHtml(b)}"${b === current ? ' selected' : ''}>${escHtml(b)}</option>`).join('');
+  }
+
   function renderQuotes() {
     const quotes = loadQuotes();
     const query = (document.getElementById('search-input').value || '').toLowerCase();
+    const bookFilter = document.getElementById('book-filter').value;
     const list = document.getElementById('quotes-list');
 
-    const filtered = query
-      ? quotes.filter(q =>
-          q.text.toLowerCase().includes(query) ||
-          q.book.toLowerCase().includes(query) ||
-          (q.author || '').toLowerCase().includes(query)
-        )
-      : quotes;
+    let filtered = quotes;
+    if (bookFilter) {
+      filtered = filtered.filter(q => q.book === bookFilter);
+    }
+    if (query) {
+      filtered = filtered.filter(q =>
+        q.text.toLowerCase().includes(query) ||
+        q.book.toLowerCase().includes(query) ||
+        (q.author || '').toLowerCase().includes(query)
+      );
+    }
 
+    const hasFilters = query || bookFilter;
     if (filtered.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <div class="icon">${query ? '🔍' : '📖'}</div>
-          <p>${query ? 'No results found' : 'No quotes yet'}</p>
-          <small>${query ? 'Try a different search.' : 'Tap "+ Add Quote" to save your first quote.'}</small>
+          <div class="icon">${hasFilters ? '🔍' : '📖'}</div>
+          <p>${hasFilters ? 'No results found' : 'No quotes yet'}</p>
+          <small>${hasFilters ? 'Try a different filter or search.' : 'Tap "+ Add Quote" to save your first quote.'}</small>
         </div>`;
       return;
     }
@@ -404,6 +447,7 @@
     updateCharCount();
 
     showToast('Quote saved!');
+    updateBookFilter();
     switchTab('quotes');
   }
 
@@ -411,6 +455,7 @@
     if (!confirm('Delete this quote?')) return;
     const quotes = loadQuotes().filter(q => q.id !== id);
     saveQuotes(quotes);
+    updateBookFilter();
     renderQuotes();
     showToast('Quote deleted.');
   }
@@ -439,6 +484,7 @@
 
   // Init
   updateCount(loadQuotes().length);
+  updateBookFilter();
   renderQuotes();
 
   // Register service worker
