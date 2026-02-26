@@ -12,9 +12,11 @@ assert.strictEqual(first.count, 1);
 assert.strictEqual(second.count, 1);
 assert.strictEqual(first, second);
 
-const result = clearCache(specifier, { parentURL: import.meta.url });
-assert.strictEqual(result.require, false);
-assert.strictEqual(result.import, true);
+clearCache(specifier, {
+  parentURL: import.meta.url,
+  resolver: 'import',
+  caches: 'module',
+});
 
 const third = await import(specifier);
 assert.strictEqual(third.count, 2);
@@ -23,9 +25,11 @@ const nested = new URL('../fixtures/module-cache/esm-nested-a.mjs', import.meta.
 const nestedFirst = await import(`${nested.href}?v=1`);
 assert.strictEqual(nestedFirst.value, 1);
 
-const nestedResult = clearCache(new URL('../fixtures/module-cache/esm-nested-b.mjs', import.meta.url));
-assert.strictEqual(nestedResult.require, false);
-assert.strictEqual(nestedResult.import, true);
+clearCache(new URL('../fixtures/module-cache/esm-nested-b.mjs', import.meta.url), {
+  parentURL: import.meta.url,
+  resolver: 'import',
+  caches: 'module',
+});
 
 const nestedSecond = await import(`${nested.href}?v=2`);
 assert.strictEqual(nestedSecond.value, 2);

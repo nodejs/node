@@ -36,11 +36,11 @@ const hook = registerHooks({
 const first = require('virtual');
 assert.strictEqual(first.count, 1);
 
-const result = clearCache('virtual', {
+clearCache('virtual', {
   parentURL: pathToFileURL(__filename),
+  resolver: 'require',
+  caches: 'module',
 });
-assert.strictEqual(result.require, true);
-assert.strictEqual(result.import, false);
 
 const second = require('virtual');
 assert.strictEqual(second.count, 2);

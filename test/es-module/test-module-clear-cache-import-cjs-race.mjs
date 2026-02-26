@@ -5,12 +5,20 @@ import { clearCache } from 'node:module';
 const url = new URL('../fixtures/module-cache/cjs-counter.js', import.meta.url);
 
 const importPromise = import(url.href);
-clearCache(url);
+clearCache(url, {
+  parentURL: import.meta.url,
+  resolver: 'import',
+  caches: 'module',
+});
 
 const first = await importPromise;
 assert.strictEqual(first.default.count, 1);
 
-clearCache(url);
+clearCache(url, {
+  parentURL: import.meta.url,
+  resolver: 'import',
+  caches: 'module',
+});
 const second = await import(url.href);
 assert.strictEqual(second.default.count, 2);
 

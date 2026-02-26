@@ -44,26 +44,37 @@ const hook = registerHooks({
   const cascadedLoader = getOrInitializeCascadedLoader();
   let deleteResolveCalls = 0;
   const originalDeleteResolveCacheEntry = cascadedLoader.deleteResolveCacheEntry;
-  const originalDeleteResolveCacheByFilename = cascadedLoader.deleteResolveCacheByFilename;
   cascadedLoader.deleteResolveCacheEntry = function(...args) {
     deleteResolveCalls++;
     return originalDeleteResolveCacheEntry.apply(this, args);
   };
-  cascadedLoader.deleteResolveCacheByFilename = function(...args) {
-    deleteResolveCalls++;
-    return originalDeleteResolveCacheByFilename.apply(this, args);
-  };
 
   try {
-    const result = clearCache('virtual', {
+    // caches: 'module' should NOT touch the resolve cache.
+    clearCache('virtual', {
       parentURL: pathToFileURL(__filename),
+      resolver: 'import',
+      caches: 'module',
     });
-    assert.strictEqual(result.require, false);
-    assert.strictEqual(result.import, true);
     assert.strictEqual(deleteResolveCalls, 0);
+
+    // caches: 'resolution' SHOULD clear the resolve cache entry.
+    clearCache('virtual', {
+      parentURL: pathToFileURL(__filename),
+      resolver: 'import',
+      caches: 'resolution',
+    });
+    assert.strictEqual(deleteResolveCalls, 1);
+
+    // caches: 'all' SHOULD also clear the resolve cache entry.
+    clearCache('virtual', {
+      parentURL: pathToFileURL(__filename),
+      resolver: 'import',
+      caches: 'all',
+    });
+    assert.strictEqual(deleteResolveCalls, 2);
   } finally {
     cascadedLoader.deleteResolveCacheEntry = originalDeleteResolveCacheEntry;
-    cascadedLoader.deleteResolveCacheByFilename = originalDeleteResolveCacheByFilename;
   }
 
   const second = await import('virtual');

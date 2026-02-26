@@ -4,6 +4,7 @@ require('../common');
 
 const assert = require('node:assert');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { clearCache } = require('node:module');
 
 const parentPath = path.join(__dirname, '..', 'fixtures', 'module-cache', 'cjs-parent.js');
@@ -15,9 +16,11 @@ assert.strictEqual(parent.child.count, 1);
 const parentModule = require.cache[parentPath];
 assert.ok(parentModule.children.some((child) => child.id === childPath));
 
-const result = clearCache(childPath);
-assert.strictEqual(result.require, true);
-assert.strictEqual(result.import, false);
+clearCache(childPath, {
+  parentURL: pathToFileURL(__filename),
+  resolver: 'require',
+  caches: 'module',
+});
 
 assert.strictEqual(require.cache[childPath], undefined);
 assert.ok(!parentModule.children.some((child) => child.id === childPath));

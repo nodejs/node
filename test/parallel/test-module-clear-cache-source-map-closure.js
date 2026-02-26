@@ -5,6 +5,7 @@ require('../common');
 
 const assert = require('node:assert');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { clearCache } = require('node:module');
 
 const fixture = path.join(
@@ -17,9 +18,13 @@ const fixture = path.join(
 
 const { crash } = require(fixture);
 
-const result = clearCache(fixture);
-assert.strictEqual(result.require, true);
-assert.strictEqual(result.import, false);
+clearCache(fixture, {
+  parentURL: pathToFileURL(__filename),
+  resolver: 'require',
+  caches: 'module',
+});
+
+assert.strictEqual(require.cache[fixture], undefined);
 
 try {
   crash();

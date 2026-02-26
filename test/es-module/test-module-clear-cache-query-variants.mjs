@@ -10,9 +10,11 @@ const second = await import(`${url.href}?v=2`);
 assert.strictEqual(first.count, 1);
 assert.strictEqual(second.count, 2);
 
-const result = clearCache(url);
-assert.strictEqual(result.require, false);
-assert.strictEqual(result.import, true);
+clearCache(url, {
+  parentURL: import.meta.url,
+  resolver: 'import',
+  caches: 'module',
+});
 
 const third = await import(`${url.href}?v=1`);
 assert.strictEqual(third.count, 3);

@@ -3,6 +3,7 @@
 const common = require('../common');
 
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const Module = require('node:module');
 const { clearCache } = require('node:module');
 const { checkIfCollectableByCounting } = require('../common/gc');
@@ -15,7 +16,11 @@ const inner = 64;
 checkIfCollectableByCounting(() => {
   for (let i = 0; i < inner; i++) {
     require(fixture);
-    clearCache(fixture);
+    clearCache(fixture, {
+      parentURL: pathToFileURL(__filename),
+      resolver: 'require',
+      caches: 'module',
+    });
   }
   return inner;
 }, Module, outer).then(common.mustCall(() => {

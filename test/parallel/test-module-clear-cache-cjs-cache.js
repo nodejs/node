@@ -16,10 +16,13 @@ const url = pathToFileURL(fixturePath);
   const first = await import(`${url.href}?v=1`);
   assert.strictEqual(first.default.count, 1);
 
-  const result = clearCache(url);
-  assert.strictEqual(result.require, true);
-  assert.strictEqual(result.import, true);
+  clearCache(url, {
+    parentURL: pathToFileURL(__filename),
+    resolver: 'import',
+    caches: 'module',
+  });
 
+  // Verify the cjsCache was also cleared for query variants.
   assert.strictEqual(clearCjsCache(`${url.href}?v=1`), false);
   delete globalThis.__module_cache_cjs_counter;
 })().then(common.mustCall());

@@ -18,7 +18,11 @@ const runIteration = mustCallAtLeast(async (i) => {
     url.search = `?v=${i}-${j}`;
     const mod = await import(url.href);
     assert.strictEqual(mod.add(1, 2), 3);
-    clearCache(url);
+    clearCache(url, {
+      parentURL: import.meta.url,
+      resolver: 'import',
+      caches: 'module',
+    });
   }
   return inner;
 });
