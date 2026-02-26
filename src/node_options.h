@@ -129,6 +129,7 @@ class EnvironmentOptions : public Options {
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
   bool experimental_stream_iter = false;
+  bool experimental_logger = false;
   bool webstorage = HAVE_SQLITE;
   bool experimental_quic = false;
   std::string localstorage_file;

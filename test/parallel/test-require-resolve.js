@@ -64,6 +64,8 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     if (mod === 'node:quic') return;
     // TODO: Remove once node:ffi is no longer flagged
     if (mod === 'node:ffi') return;
+    // node:logger requires --experimental-logger flag
+    if (mod === 'node:logger') return;
     assert.strictEqual(require.resolve.paths(mod), null);
     if (!mod.startsWith('node:')) {
       assert.strictEqual(require.resolve.paths(`node:${mod}`), null);
