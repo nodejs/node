@@ -11849,41 +11849,12 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
       reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(options));
 }
 
-const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(ActivityControl* control,
-                                                   ObjectNameResolver* resolver,
-                                                   bool hide_internals,
-                                                   bool capture_numeric_value) {
-  HeapSnapshotOptions options;
-  options.control = control;
-  options.global_object_name_resolver = resolver;
-  options.snapshot_mode = hide_internals ? HeapSnapshotMode::kRegular
-                                         : HeapSnapshotMode::kExposeInternals;
-  options.numerics_mode = capture_numeric_value
-                              ? NumericsMode::kExposeNumericValues
-                              : NumericsMode::kHideNumericValues;
-  return TakeHeapSnapshot(options);
-}
-
 const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
     ActivityControl* control, ContextNameResolver* resolver,
     bool hide_internals, bool capture_numeric_value) {
   HeapSnapshotOptions options;
   options.control = control;
   options.context_name_resolver = resolver;
-  options.snapshot_mode = hide_internals ? HeapSnapshotMode::kRegular
-                                         : HeapSnapshotMode::kExposeInternals;
-  options.numerics_mode = capture_numeric_value
-                              ? NumericsMode::kExposeNumericValues
-                              : NumericsMode::kHideNumericValues;
-  return TakeHeapSnapshot(options);
-}
-
-const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(ActivityControl* control,
-                                                   std::nullptr_t resolver,
-                                                   bool hide_internals,
-                                                   bool capture_numeric_value) {
-  HeapSnapshotOptions options;
-  options.control = control;
   options.snapshot_mode = hide_internals ? HeapSnapshotMode::kRegular
                                          : HeapSnapshotMode::kExposeInternals;
   options.numerics_mode = capture_numeric_value
