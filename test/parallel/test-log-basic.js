@@ -463,6 +463,97 @@ describe('multiple consumers', () => {
   });
 });
 
+describe('LogConsumer level enabled getter', () => {
+  it('should have enabled property for each level', () => {
+    const consumer = new LogConsumer({ level: 'warn' });
+    assert.strictEqual(consumer.trace.enabled, false);
+    assert.strictEqual(consumer.debug.enabled, false);
+    assert.strictEqual(consumer.info.enabled, false);
+    assert.strictEqual(consumer.warn.enabled, true);
+    assert.strictEqual(consumer.error.enabled, true);
+    assert.strictEqual(consumer.fatal.enabled, true);
+  });
+
+  it('should have all levels enabled when level is trace', () => {
+    const consumer = new LogConsumer({ level: 'trace' });
+    assert.strictEqual(consumer.trace.enabled, true);
+    assert.strictEqual(consumer.debug.enabled, true);
+    assert.strictEqual(consumer.info.enabled, true);
+    assert.strictEqual(consumer.warn.enabled, true);
+    assert.strictEqual(consumer.error.enabled, true);
+    assert.strictEqual(consumer.fatal.enabled, true);
+  });
+
+  it('should have only fatal enabled when level is fatal', () => {
+    const consumer = new LogConsumer({ level: 'fatal' });
+    assert.strictEqual(consumer.trace.enabled, false);
+    assert.strictEqual(consumer.debug.enabled, false);
+    assert.strictEqual(consumer.info.enabled, false);
+    assert.strictEqual(consumer.warn.enabled, false);
+    assert.strictEqual(consumer.error.enabled, false);
+    assert.strictEqual(consumer.fatal.enabled, true);
+  });
+});
+
+describe('JSONConsumer stream options', () => {
+  it('should accept a writable stream object', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+
+    logger.info('stream object test');
+    consumer.flushSync();
+
+    assert.strictEqual(stream.logs.length, 1);
+    assert.strictEqual(stream.logs[0].msg, 'stream object test');
+  });
+
+  it('should throw for invalid stream type', () => {
+    assert.throws(() => {
+      new JSONConsumer({ stream: true, level: 'info' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  it('should accept a file descriptor number', () => {
+    // fd 1 is stdout - just verify no throw on construction
+    const consumer = new JSONConsumer({ stream: 1, level: 'info' });
+    assert.ok(consumer);
+  });
+
+  it('should throw for invalid consumer level', () => {
+    assert.throws(() => {
+      new JSONConsumer({ level: 'invalid' });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+  });
+});
+
+describe('JSONConsumer flush and end', () => {
+  it('should call flush with callback', (_, done) => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.flush(() => {
+      done();
+    });
+  });
+
+  it('should call flushSync without error', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.flushSync();
+  });
+
+  it('should call end without error', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.end();
+  });
+});
+
 describe('channels export', () => {
   it('should export channel objects for all levels', () => {
     assert.strictEqual(typeof channels, 'object');
