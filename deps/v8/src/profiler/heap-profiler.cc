@@ -146,13 +146,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       use_cpp_class_name.emplace(heap()->cpp_heap());
     }
 
-    // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
-    // TODO(https://crbug.com/333672197): remove.
-    START_ALLOW_USE_DEPRECATED()
-    HeapSnapshotGenerator generator(
-        result, options.control, options.global_object_name_resolver,
-        options.context_name_resolver, heap(), options.stack_state);
-    END_ALLOW_USE_DEPRECATED()
+    HeapSnapshotGenerator generator(result, options.control,
+                                    options.context_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = nullptr;
@@ -186,13 +182,9 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
     v8::HeapProfiler::HeapSnapshotOptions options;
     std::unique_ptr<HeapSnapshot> result(
         new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
-    // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
-    // TODO(https://crbug.com/333672197): remove.
-    START_ALLOW_USE_DEPRECATED()
-    HeapSnapshotGenerator generator(
-        result.get(), options.control, options.global_object_name_resolver,
-        options.context_name_resolver, heap(), options.stack_state);
-    END_ALLOW_USE_DEPRECATED()
+    HeapSnapshotGenerator generator(result.get(), options.control,
+                                    options.context_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshotAfterGC()) return;
     i::FileOutputStream stream(filename.c_str());
     if (stream.IsOpen()) {
