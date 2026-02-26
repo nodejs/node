@@ -690,6 +690,43 @@ test('exports option works with core module mocks in both module systems', async
   });
 });
 
+async function assertGetterMockWorksInBothSystems(t, mockOptionsFactory) {
+  const fixturePath = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const fixture = pathToFileURL(fixturePath);
+  const original = await import(fixture);
+  let getterCalls = 0;
+
+  assert.strictEqual(original.string, 'original esm string');
+
+  const options = mockOptionsFactory(() => {
+    getterCalls++;
+    return { mocked: true };
+  });
+
+  t.mock.module(`${fixture}`, options);
+
+  assert.deepStrictEqual((await import(fixture)).default, { mocked: true });
+  assert.deepStrictEqual(require(fixturePath), { mocked: true });
+  assert.strictEqual(getterCalls, 2);
+}
+
+test('defaultExports getter works in both module systems', async (t) => {
+  await assertGetterMockWorksInBothSystems(t, (getter) => ({
+    get defaultExport() {
+      return getter();
+    },
+  }));
+});
+
+test('exports.default getter works in both module systems', async (t) => {
+  await assertGetterMockWorksInBothSystems(t, (getter) => ({
+    exports: {
+      get default() {
+        return getter();
+      },
+    },
+  }));
+});
 test('exports option supports default for CJS mocks in both module systems', async (t) => {
   const fixturePath = fixtures.path('module-mocking', 'basic-cjs.js');
   const fixture = pathToFileURL(fixturePath);
