@@ -1839,7 +1839,7 @@ changes:
 
 `url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
 
-Because it invokes the deprecated [`url.parse()`][], passing a string argument
+Because it invokes the deprecated [`url.parse()`][] internally, passing a string argument
 to `url.format()` is itself deprecated.
 
 Canonicalizing a URL string can be performed using the WHATWG URL API, by
@@ -1987,6 +1987,8 @@ changes:
 
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
+
+Because it invokes the deprecated [`url.parse()`][] internally, `url.resolve()` is itself deprecated.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a web browser resolving an anchor tag.
