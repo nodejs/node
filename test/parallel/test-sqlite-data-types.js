@@ -46,6 +46,10 @@ suite('data binding and mapping', () => {
       stmt.run(4, 99n, 0xf, '', new Uint8Array()),
       { changes: 1, lastInsertRowid: 4 },
     );
+    t.assert.deepStrictEqual(
+      stmt.run(5, undefined, undefined, undefined, undefined),
+      { changes: 1, lastInsertRowid: 5 },
+    );
 
     const query = db.prepare('SELECT * FROM types WHERE key = ?');
     t.assert.deepStrictEqual(query.get(1), {
@@ -80,6 +84,21 @@ suite('data binding and mapping', () => {
       text: '',
       buf: new Uint8Array(),
     });
+    t.assert.deepStrictEqual(query.get(5), {
+      __proto__: null,
+      key: 5,
+      int: null,
+      double: null,
+      text: null,
+      buf: null,
+    });
+
+    const insertNamedParams = db.prepare('INSERT INTO types (key, int, double, text, buf) VALUES ($key, $int, $double, $text, $buf)');
+    const params = { key: 6, int: undefined, double: undefined, text: undefined, buf: undefined };
+    t.assert.deepStrictEqual(insertNamedParams.run(params), { changes: 1, lastInsertRowid: 6 });
+    t.assert.deepStrictEqual(insertNamedParams.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
+    t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, int: null, double: null, text: null, buf: null });
+    t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, int: null, double: null, text: null, buf: null });
   });
 
   test('large strings are bound correctly', (t) => {
@@ -126,7 +145,6 @@ suite('data binding and mapping', () => {
     t.assert.strictEqual(setup, undefined);
 
     [
-      undefined,
       () => {},
       Symbol(),
       /foo/,
