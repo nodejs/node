@@ -256,8 +256,6 @@ logger.fatal(new Error('Unrecoverable error'));
 added: REPLACEME
 -->
 
-> Stability: 1.1 - Active Development
-
 * `bindings` {Object} Additional context fields for the child logger.
 * `options` {Object}
   * `level` {string} Log level for the child logger.
