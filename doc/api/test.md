@@ -2522,10 +2522,10 @@ The following example demonstrates how a mock is created for a module.
 
 ```js
 test('mocks a builtin module in both module systems', async (t) => {
-  // Create a mock of 'node:readline' with a named export named 'fn', which
+  // Create a mock of 'node:readline' with a named export named 'foo', which
   // does not exist in the original 'node:readline' module.
   const mock = t.mock.module('node:readline', {
-    exports: { fn() { return 42; } },
+    exports: { foo: () => 42 },
   });
 
   let esmImpl = await import('node:readline');
