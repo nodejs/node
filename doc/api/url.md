@@ -1988,8 +1988,6 @@ changes:
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
 
-Because it invokes the deprecated [`url.parse()`][] internally, `url.resolve()` is itself deprecated.
-
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a web browser resolving an anchor tag.
 
@@ -1999,6 +1997,8 @@ url.resolve('/one/two/three', 'four');         // '/one/two/four'
 url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
+
+Because it invokes the deprecated [`url.parse()`][] internally, `url.resolve()` is itself deprecated.
 
 To achieve the same result using the WHATWG URL API:
 
