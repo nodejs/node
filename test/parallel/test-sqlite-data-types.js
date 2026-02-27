@@ -81,8 +81,10 @@ suite('data binding and mapping', () => {
       buf: new Uint8Array(),
     });
 
-    t.assert.deepStrictEqual(stmt.run(5, true, false, true, null), { changes: 1, lastInsertRowid: 5 });
-    t.assert.deepStrictEqual(query.get(5), { __proto__: null, key: 5, int: 1, double: 0, text: '1', buf: null });
+    t.assert.deepStrictEqual(stmt.run(5, true, false, true, null),
+      { changes: 1, lastInsertRowid: 5 });
+    t.assert.deepStrictEqual(query.get(5),
+      { __proto__: null, key: 5, int: 1, double: 0, text: '1', buf: null });
   });
 
   test('large strings are bound correctly', (t) => {
