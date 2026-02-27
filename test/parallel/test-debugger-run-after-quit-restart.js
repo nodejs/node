@@ -57,7 +57,7 @@ const path = require('path');
         { filename: script, line: 2 },
       );
     })
-    .then(() => cli.stepCommand('restart'))
+    .then(() => cli.command('restart'))
     .then(() => cli.waitForInitialBreak())
     .then(() => {
       assert.deepStrictEqual(
