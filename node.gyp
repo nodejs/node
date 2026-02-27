@@ -730,45 +730,34 @@
             'Ws2_32.lib',
           ],
         }],
-        # Whole-program optimization: either LTCG or PGO
-        ['node_with_ltcg=="true" or enable_pgo_generate=="true" or enable_pgo_use=="true"', {
+        # Thin LTO for node_main.cc and linker (scoped to node_exe)
+        ['node_with_ltcg=="true"', {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'WholeProgramOptimization': 'true'   # /GL, whole program optimization, needed for both LTCG and PGO
+              'AdditionalOptions': ['-flto=thin'],
             },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-flto=thin'],
+            },
+          },
+        }],
+        # Whole-program optimization: either Thin LTO or PGO
+        ['node_with_ltcg=="true" or enable_pgo_generate=="true" or enable_pgo_use=="true"', {
+          'msvs_settings': {
             'VCLinkerTool': {
               'OptimizeReferences': 2,             # /OPT:REF
               'EnableCOMDATFolding': 2,            # /OPT:ICF
               'LinkIncremental': 1,                # disable incremental linking
-            }
+            },
           },
-          'conditions': [
-            # LTCG-specific settings (only when PGO not active)
-            ['node_with_ltcg=="true" and enable_pgo_generate!="true" and enable_pgo_use!="true"', {
-              'msvs_settings': {
-                'VCLibrarianTool': {
-                  'AdditionalOptions': [
-                    '/LTCG:INCREMENTAL',               # link time code generation
-                  ],
-                },
-                'VCLinkerTool': {
-                  'AdditionalOptions': [
-                    '/LTCG:INCREMENTAL',               # incremental link-time code generation
-                  ],
-                },
-              },
-            }],
-          ]
         }, {
+          # No whole-program optimization
           'msvs_settings': {
-            'VCCLCompilerTool': {
-              'WholeProgramOptimization': 'false'
-            },
             'VCLinkerTool': {
-              'LinkIncremental': 2                 # enable incremental linking
+              'LinkIncremental': 2,                # enable incremental linking
             },
           },
-         }],
+        }],
          ['node_use_node_snapshot=="true"', {
           'dependencies': [
             'node_mksnapshot',
@@ -1170,6 +1159,17 @@
         }],
         [ 'debug_nghttp2==1', {
           'defines': [ 'NODE_DEBUG_NGHTTP2=1' ]
+        }],
+        # Thin LTO for node sources (scoped to libnode, not global)
+        ['node_with_ltcg=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-flto=thin'],
+            },
+            'VCLibrarianTool': {
+              'AdditionalOptions': ['-flto=thin'],
+            },
+          },
         }],
       ],
       'actions': [

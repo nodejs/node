@@ -919,7 +919,7 @@ parser.add_argument('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
     default=None,
-    help='Use Link Time Code Generation. This feature is only available on Windows.')
+    help='Use Thin LTO. This feature is only available on Windows.')
 
 parser.add_argument('--write-snapshot-as-array-literals',
     action='store_true',
@@ -1928,11 +1928,6 @@ def configure_node(o):
       'can be specified at a time. You would like to use '
       '--enable-pgo-generate first, profile node, and then recompile '
       'with --enable-pgo-use')
-
-  if flavor == 'win' and options.with_ltcg and (options.enable_pgo_generate or options.enable_pgo_use):
-    raise Exception(
-      'The --with-ltcg option cannot be used with --enable-pgo-generate or --enable-pgo-use. '
-      'PGO uses /LTCG:PGInstrument or /LTCG:PGOptimize while LTCG uses /LTCG:INCREMENTAL.')
 
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
