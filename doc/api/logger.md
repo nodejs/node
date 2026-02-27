@@ -627,51 +627,6 @@ Serializes an HTTP response object for logging.
 logger.info('Response sent', { res });
 ```
 
-## `logger.LEVELS`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Object}
-
-An object mapping log level names to their numeric values.
-
-```js
-const { LEVELS } = require('node:logger');
-
-console.log(LEVELS);
-// { trace: 10, debug: 20, info: 30, warn: 40, error: 50, fatal: 60 }
-```
-
-## `logger.channels`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Object}
-
-An object containing `diagnostics_channel` instances for each log level.
-Advanced users can subscribe directly to these channels.
-
-The following channel names are used:
-
-* `log:trace`
-* `log:debug`
-* `log:info`
-* `log:warn`
-* `log:error`
-* `log:fatal`
-
-```js
-const { channels } = require('node:logger');
-
-channels.info.subscribe((record) => {
-  // Custom handling of info-level logs
-});
-```
-
 ## `logger.serialize`
 
 <!-- YAML
