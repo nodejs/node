@@ -368,7 +368,7 @@ describe('Logger serializers', () => {
       assert.strictEqual(stream.logs.length, 1);
       const log = stream.logs[0];
       assert.strictEqual(log.msg, 'My invalid json ", "__proto__": true,');
-      assert.strictEqual(log.__proto__, undefined);
+      assert.ok(!Object.hasOwn(log, '__proto__'));
     });
 
     it('should properly escape special characters in field keys', () => {
