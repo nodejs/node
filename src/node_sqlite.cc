@@ -767,7 +767,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   Isolate* isolate = env->isolate();
 
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(*prop_name);
+  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
 
   if (limit_info == nullptr) {
     return Intercepted::kNo;
