@@ -12,7 +12,10 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
+#include <array>
 #include <cinttypes>
+#include <cmath>
+#include <limits>
 
 namespace node {
 namespace sqlite {
@@ -36,6 +39,7 @@ using v8::Global;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Intercepted;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
@@ -43,12 +47,16 @@ using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::Nothing;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Promise;
+using v8::PropertyCallbackInfo;
+using v8::PropertyHandlerFlags;
 using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
@@ -132,6 +140,16 @@ Local<DictionaryTemplate> getLazyIterTemplate(Environment* env) {
   return iter_template;
 }
 }  // namespace
+
+// Helper function to find limit info from JS property name
+static constexpr const LimitInfo* GetLimitInfoFromName(std::string_view name) {
+  for (const auto& info : kLimitMapping) {
+    if (name == info.js_name) {
+      return &info;
+    }
+  }
+  return nullptr;
+}
 
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
@@ -668,6 +686,175 @@ void UserDefinedFunction::xDestroy(void* self) {
   delete static_cast<UserDefinedFunction*>(self);
 }
 
+DatabaseSyncLimits::DatabaseSyncLimits(Environment* env,
+                                       Local<Object> object,
+                                       BaseObjectWeakPtr<DatabaseSync> database)
+    : BaseObject(env, object), database_(std::move(database)) {
+  MakeWeak();
+}
+
+DatabaseSyncLimits::~DatabaseSyncLimits() = default;
+
+void DatabaseSyncLimits::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("database", database_);
+}
+
+Local<ObjectTemplate> DatabaseSyncLimits::GetTemplate(Environment* env) {
+  Local<ObjectTemplate> tmpl = env->sqlite_limits_template();
+  if (!tmpl.IsEmpty()) return tmpl;
+
+  Isolate* isolate = env->isolate();
+  tmpl = ObjectTemplate::New(isolate);
+  tmpl->SetInternalFieldCount(DatabaseSyncLimits::kInternalFieldCount);
+  tmpl->SetHandler(NamedPropertyHandlerConfiguration(
+      LimitsGetter,
+      LimitsSetter,
+      LimitsQuery,
+      nullptr,  // deleter - not allowed
+      LimitsEnumerator,
+      nullptr,  // definer
+      nullptr,
+      Local<Value>(),
+      PropertyHandlerFlags::kHasNoSideEffect));
+
+  env->set_sqlite_limits_template(tmpl);
+  return tmpl;
+}
+
+Intercepted DatabaseSyncLimits::LimitsGetter(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+  // Skip symbols
+  if (!property->IsString()) {
+    return Intercepted::kNo;
+  }
+
+  DatabaseSyncLimits* limits;
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+
+  Environment* env = limits->env();
+  Isolate* isolate = env->isolate();
+
+  Utf8Value prop_name(isolate, property);
+  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+
+  if (limit_info == nullptr) {
+    return Intercepted::kNo;  // Unknown property, let default handling occur
+  }
+
+  if (!limits->database_ || !limits->database_->IsOpen()) {
+    THROW_ERR_INVALID_STATE(env, "database is not open");
+    return Intercepted::kYes;
+  }
+
+  int current_value = sqlite3_limit(
+      limits->database_->Connection(), limit_info->sqlite_limit_id, -1);
+  info.GetReturnValue().Set(Integer::New(isolate, current_value));
+  return Intercepted::kYes;
+}
+
+Intercepted DatabaseSyncLimits::LimitsSetter(
+    Local<Name> property,
+    Local<Value> value,
+    const PropertyCallbackInfo<void>& info) {
+  if (!property->IsString()) {
+    return Intercepted::kNo;
+  }
+
+  DatabaseSyncLimits* limits;
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+
+  Environment* env = limits->env();
+  Isolate* isolate = env->isolate();
+
+  Utf8Value prop_name(isolate, property);
+  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+
+  if (limit_info == nullptr) {
+    return Intercepted::kNo;
+  }
+
+  if (!limits->database_ || !limits->database_->IsOpen()) {
+    THROW_ERR_INVALID_STATE(env, "database is not open");
+    return Intercepted::kYes;
+  }
+
+  if (!value->IsNumber()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate, "Limit value must be a non-negative integer or Infinity.");
+    return Intercepted::kYes;
+  }
+
+  const double num_value = value.As<Number>()->Value();
+  int new_value;
+
+  if (std::isinf(num_value) && num_value > 0) {
+    // Positive Infinity resets the limit to the compile-time maximum
+    new_value = std::numeric_limits<int>::max();
+  } else if (!value->IsInt32()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate, "Limit value must be a non-negative integer or Infinity.");
+    return Intercepted::kYes;
+  } else {
+    new_value = value.As<Int32>()->Value();
+    if (new_value < 0) {
+      THROW_ERR_OUT_OF_RANGE(isolate, "Limit value must be non-negative.");
+      return Intercepted::kYes;
+    }
+  }
+
+  sqlite3_limit(
+      limits->database_->Connection(), limit_info->sqlite_limit_id, new_value);
+  return Intercepted::kYes;
+}
+
+Intercepted DatabaseSyncLimits::LimitsQuery(
+    Local<Name> property, const PropertyCallbackInfo<Integer>& info) {
+  if (!property->IsString()) {
+    return Intercepted::kNo;
+  }
+
+  Isolate* isolate = info.GetIsolate();
+  Utf8Value prop_name(isolate, property);
+  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+
+  if (!limit_info) {
+    return Intercepted::kNo;
+  }
+
+  // Property exists and is writable
+  info.GetReturnValue().Set(
+      Integer::New(isolate, v8::PropertyAttribute::DontDelete));
+  return Intercepted::kYes;
+}
+
+void DatabaseSyncLimits::LimitsEnumerator(
+    const PropertyCallbackInfo<Array>& info) {
+  Isolate* isolate = info.GetIsolate();
+  LocalVector<Value> names(isolate);
+
+  for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
+    Local<String> name;
+    if (!String::NewFromUtf8(
+             isolate, js_name.data(), NewStringType::kNormal, js_name.size())
+             .ToLocal(&name)) {
+      return;
+    }
+    names.push_back(name);
+  }
+
+  info.GetReturnValue().Set(Array::New(isolate, names.data(), names.size()));
+}
+
+BaseObjectPtr<DatabaseSyncLimits> DatabaseSyncLimits::Create(
+    Environment* env, BaseObjectWeakPtr<DatabaseSync> database) {
+  Local<Object> obj;
+  if (!GetTemplate(env)->NewInstance(env->context()).ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return MakeBaseObject<DatabaseSyncLimits>(env, obj, std::move(database));
+}
+
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            DatabaseOpenConfiguration&& open_config,
@@ -765,6 +952,14 @@ bool DatabaseSync::Open() {
   CHECK_EQ(defensive_enabled, open_config_.get_enable_defensive());
 
   sqlite3_busy_timeout(connection_, open_config_.get_timeout());
+
+  // Apply initial limits
+  for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
+    const auto& limit_value = open_config_.initial_limits()[sqlite_limit_id];
+    if (limit_value.has_value()) {
+      sqlite3_limit(connection_, sqlite_limit_id, *limit_value);
+    }
+  }
 
   if (allow_load_extension_) {
     if (env()->permission()->enabled()) [[unlikely]] {
@@ -1091,6 +1286,59 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
       open_config.set_enable_defensive(defensive_v.As<Boolean>()->Value());
     }
+
+    // Parse limits option
+    Local<Value> limits_v;
+    if (!options->Get(env->context(), env->limits_string())
+             .ToLocal(&limits_v)) {
+      return;
+    }
+    if (!limits_v->IsUndefined()) {
+      if (!limits_v->IsObject()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.limits\" argument must be an object.");
+        return;
+      }
+
+      Local<Object> limits_obj = limits_v.As<Object>();
+
+      // Iterate through known limit names and extract values
+      for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
+        Local<String> key;
+        if (!String::NewFromUtf8(env->isolate(),
+                                 js_name.data(),
+                                 NewStringType::kNormal,
+                                 js_name.size())
+                 .ToLocal(&key)) {
+          return;
+        }
+
+        Local<Value> val;
+        if (!limits_obj->Get(env->context(), key).ToLocal(&val)) {
+          return;
+        }
+
+        if (!val->IsUndefined()) {
+          if (!val->IsInt32()) {
+            std::string msg = "The \"options.limits." + std::string(js_name) +
+                              "\" argument must be an integer.";
+            THROW_ERR_INVALID_ARG_TYPE(env->isolate(), msg);
+            return;
+          }
+
+          int limit_val = val.As<Int32>()->Value();
+          if (limit_val < 0) {
+            std::string msg = "The \"options.limits." + std::string(js_name) +
+                              "\" argument must be non-negative.";
+            THROW_ERR_OUT_OF_RANGE(env->isolate(), msg);
+            return;
+          }
+
+          open_config.set_initial_limit(sqlite_limit_id, limit_val);
+        }
+      }
+    }
   }
 
   new DatabaseSync(
@@ -1116,6 +1364,26 @@ void DatabaseSync::IsTransactionGetter(
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   args.GetReturnValue().Set(sqlite3_get_autocommit(db->connection_) == 0);
+}
+
+void DatabaseSync::LimitsGetter(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Value> limits_val =
+      db->object()->GetInternalField(kLimitsObject).template As<Value>();
+
+  if (limits_val->IsUndefined()) {
+    BaseObjectPtr<DatabaseSyncLimits> limits =
+        DatabaseSyncLimits::Create(env, BaseObjectWeakPtr<DatabaseSync>(db));
+    if (limits) {
+      db->object()->SetInternalField(kLimitsObject, limits->object());
+      args.GetReturnValue().Set(limits->object());
+    }
+  } else {
+    args.GetReturnValue().Set(limits_val);
+  }
 }
 
 void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
@@ -3496,6 +3764,10 @@ static void Initialize(Local<Object> target,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
                           DatabaseSync::IsTransactionGetter);
+  SetSideEffectFreeGetter(isolate,
+                          db_tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "limits"),
+                          DatabaseSync::LimitsGetter);
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
       v8::Symbol::For(isolate, sqlite_type_key);
