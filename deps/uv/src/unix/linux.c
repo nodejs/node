@@ -1886,10 +1886,19 @@ nocpuinfo:
       continue;
 
     n++;
+    /* Prefer cpuinfo_cur_freq: it reads a hardware-cached value and avoids
+     * slow ACPI/SMM round-trips that scaling_cur_freq triggers on some AMD
+     * CPUs (especially inside containers), which can take ~20ms per core.
+     * Fall back to scaling_cur_freq when cpuinfo_cur_freq is not available.
+     */
     snprintf(buf, sizeof(buf),
-             "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq", cpu);
-
+             "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_cur_freq", cpu);
     fp = uv__open_file(buf);
+    if (fp == NULL) {
+      snprintf(buf, sizeof(buf),
+               "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq", cpu);
+      fp = uv__open_file(buf);
+    }
     if (fp == NULL)
       continue;
 
