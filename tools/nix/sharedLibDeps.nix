@@ -11,7 +11,6 @@
 {
   inherit (pkgs)
     ada
-    brotli
     gtest
     libuv
     merve
@@ -23,6 +22,14 @@
     zstd
     ;
   abseil = pkgs.abseil-cpp;
+  brotli = pkgs.brotli.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      (pkgs.fetchpatch2 {
+        url = "https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b.patch?full_index=1";
+        hash = "sha256-dVpnYI2JLDEt2VQkbI6RnbpdcQSMB5bTQ6TJp5CLnyw=";
+      })
+    ];
+  });
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   highway = pkgs.libhwy;
