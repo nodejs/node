@@ -242,6 +242,30 @@
               },],
             ],
           },],
+          ['OS=="win"', {
+            'conditions': [
+              ['enable_pgo_generate=="true"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-fprofile-generate'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-fprofile-generate'],
+                  },
+                },
+              },],
+              ['enable_pgo_use=="true"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                  },
+                },
+              },],
+            ],
+          },],
           ['OS == "android"', {
             'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]

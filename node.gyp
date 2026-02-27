@@ -730,25 +730,35 @@
             'Ws2_32.lib',
           ],
         }],
-        ['node_with_ltcg=="true"', {
+        # Whole-program optimization: either LTCG or PGO
+        ['node_with_ltcg=="true" or enable_pgo_generate=="true" or enable_pgo_use=="true"', {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'WholeProgramOptimization': 'true'   # /GL, whole program optimization, needed for LTCG
-            },
-            'VCLibrarianTool': {
-              'AdditionalOptions': [
-                '/LTCG:INCREMENTAL',               # link time code generation
-              ],
+              'WholeProgramOptimization': 'true'   # /GL, whole program optimization, needed for both LTCG and PGO
             },
             'VCLinkerTool': {
               'OptimizeReferences': 2,             # /OPT:REF
               'EnableCOMDATFolding': 2,            # /OPT:ICF
               'LinkIncremental': 1,                # disable incremental linking
-              'AdditionalOptions': [
-                '/LTCG:INCREMENTAL',               # incremental link-time code generation
-              ],
             }
-          }
+          },
+          'conditions': [
+            # LTCG-specific settings (only when PGO not active)
+            ['node_with_ltcg=="true" and enable_pgo_generate!="true" and enable_pgo_use!="true"', {
+              'msvs_settings': {
+                'VCLibrarianTool': {
+                  'AdditionalOptions': [
+                    '/LTCG:INCREMENTAL',               # link time code generation
+                  ],
+                },
+                'VCLinkerTool': {
+                  'AdditionalOptions': [
+                    '/LTCG:INCREMENTAL',               # incremental link-time code generation
+                  ],
+                },
+              },
+            }],
+          ]
         }, {
           'msvs_settings': {
             'VCCLCompilerTool': {

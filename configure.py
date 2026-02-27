@@ -202,14 +202,14 @@ parser.add_argument("--enable-pgo-generate",
     dest="enable_pgo_generate",
     default=None,
     help="Enable profiling with pgo of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer.")
+         "on linux with gcc and g++ 5.4.1 or newer and on windows.")
 
 parser.add_argument("--enable-pgo-use",
     action="store_true",
     dest="enable_pgo_use",
     default=None,
     help="Enable use of the profile generated with --enable-pgo-generate. This "
-         "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
+         "feature is only available on linux with gcc and g++ 5.4.1 or newer and on windows.")
 
 parser.add_argument("--enable-lto",
     action="store_true",
@@ -1909,9 +1909,9 @@ def configure_node(o):
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
-  if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
+  if (flavor != 'linux' and flavor != 'win') and (options.enable_pgo_generate or options.enable_pgo_use):
     raise Exception(
-      'The pgo option is supported only on linux.')
+      'The pgo option is supported only on linux and windows.')
 
   if flavor == 'linux':
     if options.enable_pgo_generate or options.enable_pgo_use:
@@ -1922,12 +1922,17 @@ def configure_node(o):
           'The options --enable-pgo-generate and --enable-pgo-use '
           f'are supported for gcc and gxx {version_checked_str} or newer only.')
 
-    if options.enable_pgo_generate and options.enable_pgo_use:
-      raise Exception(
-        'Only one of the --enable-pgo-generate or --enable-pgo-use options '
-        'can be specified at a time. You would like to use '
-        '--enable-pgo-generate first, profile node, and then recompile '
-        'with --enable-pgo-use')
+  if options.enable_pgo_generate and options.enable_pgo_use:
+    raise Exception(
+      'Only one of the --enable-pgo-generate or --enable-pgo-use options '
+      'can be specified at a time. You would like to use '
+      '--enable-pgo-generate first, profile node, and then recompile '
+      'with --enable-pgo-use')
+
+  if flavor == 'win' and options.with_ltcg and (options.enable_pgo_generate or options.enable_pgo_use):
+    raise Exception(
+      'The --with-ltcg option cannot be used with --enable-pgo-generate or --enable-pgo-use. '
+      'PGO uses /LTCG:PGInstrument or /LTCG:PGOptimize while LTCG uses /LTCG:INCREMENTAL.')
 
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
