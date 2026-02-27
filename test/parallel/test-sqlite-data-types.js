@@ -46,10 +46,6 @@ suite('data binding and mapping', () => {
       stmt.run(4, 99n, 0xf, '', new Uint8Array()),
       { changes: 1, lastInsertRowid: 4 },
     );
-    t.assert.deepStrictEqual(
-      stmt.run(5, undefined, undefined, undefined, undefined),
-      { changes: 1, lastInsertRowid: 5 },
-    );
 
     const query = db.prepare('SELECT * FROM types WHERE key = ?');
     t.assert.deepStrictEqual(query.get(1), {
@@ -84,20 +80,16 @@ suite('data binding and mapping', () => {
       text: '',
       buf: new Uint8Array(),
     });
-    t.assert.deepStrictEqual(query.get(5), {
-      __proto__: null,
-      key: 5,
-      int: null,
-      double: null,
-      text: null,
-      buf: null,
-    });
 
-    const insertNamed = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
-    const params = { int: undefined, double: undefined, text: undefined, buf: undefined };
     const nulls = { int: null, double: null, text: null, buf: null };
-    t.assert.deepStrictEqual(insertNamed.run({ key: 6, ...params }), { changes: 1, lastInsertRowid: 6 });
+    const undefArray = [ undefined, undefined, undefined, undefined ];
+    const undefObj = { int: undefined, double: undefined, text: undefined, buf: undefined };
+    const insertAnon = db.prepare('INSERT INTO types VALUES (?, ?, ?, ?, ?)');
+    const insertNamed = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
+    t.assert.deepStrictEqual(insertAnon.run(5, ...undefArray), { changes: 1, lastInsertRowid: 5 });
+    t.assert.deepStrictEqual(insertNamed.run({ key: 6, ...undefObj }), { changes: 1, lastInsertRowid: 6 });
     t.assert.deepStrictEqual(insertNamed.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
+    t.assert.deepStrictEqual(query.get(5), { __proto__: null, key: 5, ...nulls });
     t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, ...nulls });
     t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, ...nulls });
   });
