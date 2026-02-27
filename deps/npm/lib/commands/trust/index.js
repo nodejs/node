@@ -7,6 +7,7 @@ class Trust extends BaseCommand {
   static subcommands = {
     github: require('./github.js'),
     gitlab: require('./gitlab.js'),
+    circleci: require('./circleci.js'),
     list: require('./list.js'),
     revoke: require('./revoke.js'),
   }

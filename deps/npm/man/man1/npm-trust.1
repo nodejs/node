@@ -1,4 +1,4 @@
-.TH "NPM-TRUST" "1" "February 2026" "NPM@11.10.1" ""
+.TH "NPM-TRUST" "1" "February 2026" "NPM@11.11.0" ""
 .SH "NAME"
 \fBnpm-trust\fR - Manage trusted publishing relationships between packages and CI/CD providers
 .SS "Synopsis"
@@ -82,6 +82,19 @@ npm trust gitlab \[lB]package\[rB] --file \[lB]--project|--repo|--repository\[rB
 .SS "Flags"
 .P
 | Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--file\fR | null | String (required) | Name of pipeline file (e.g., .gitlab-ci.yml) | | \fB--project\fR | null | String | Name of the project in the format group/project or group/subgroup/project | | \fB--environment\fR, \fB--env\fR | null | String | CI environment name | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. | | \fB--yes\fR, \fB-y\fR | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on the command line. |
+.SS "\fBnpm trust circleci\fR"
+.P
+Create a trusted relationship between a package and CircleCI
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust circleci \[lB]package\[rB] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> \[lB]--context-id <uuid>...\[rB] \[lB]-y|--yes\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--org-id\fR | null | String (required) | CircleCI organization UUID | | \fB--project-id\fR | null | String (required) | CircleCI project UUID | | \fB--pipeline-definition-id\fR | null | String (required) | CircleCI pipeline definition UUID | | \fB--vcs-origin\fR | null | String (required) | CircleCI repository origin in format 'provider/owner/repo' | | \fB--context-id\fR | null | null or String (can be set multiple times) | CircleCI context UUID to match | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. | | \fB--yes\fR, \fB-y\fR | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on the command line. |
 .SS "\fBnpm trust list\fR"
 .P
 List trusted relationships for a package

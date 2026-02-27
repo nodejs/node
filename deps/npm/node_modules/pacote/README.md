@@ -160,6 +160,7 @@ Options object is cloned, and mutated along the way to add integrity, resolved, 
   Possible values and defaults are the same as `allowGit`
 * `allowDirectory` Whether or not to allow data to be fetched from directory specs.
   Possible values and defaults are the same as `allowGit`
+* `allowRegistry` Whether or not to allow data to be fetched from registry specs.  This includes `version`, `range`, `tag`, and `alias`.
 * `_isRoot` Whether or not the package being fetched is in a root context.
   Defaults to `false`,
   For `npm` itself this means a package that is defined in the local project or workspace package.json, or a package that is being fetched for another command like `npm view`.  This informs the `allowX` options to let them know the context of the current request.

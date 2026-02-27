@@ -62,7 +62,7 @@ The [`npm query`](/commands/npm-query) command exposes a new dependency selector
 - `:missing` when a dependency is not found on disk
 - `:semver(<spec>, [selector], [function])` match a valid [`node-semver`](https://github.com/npm/node-semver) version or range to a selector
 - `:path(<path>)` [glob](https://www.npmjs.com/package/glob) matching based on dependencies path relative to the project
-- `:type(<type>)` [based on currently recognized types](https://github.com/npm/npm-package-arg#result-object)
+- `:type(<type>)` [based on currently recognized types](https://github.com/npm/npm-package-arg#result-object).  You can also use the aggregate type of `registry` for any registry dependency (e.g. tag, version, range, alias)
 - `:outdated(<type>)` when a dependency is outdated
 - `:vuln(<selector>)` when a dependency has a known vulnerability
 
