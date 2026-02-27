@@ -354,4 +354,84 @@ describe('Logger serializers', () => {
       assert.strictEqual(log.data.count, 42);
     });
   });
+
+  describe('JSON escaping', () => {
+    it('should properly escape special characters in msg', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+      logger.info('My invalid json ", "__proto__": true,');
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log.msg, 'My invalid json ", "__proto__": true,');
+      assert.strictEqual(log.__proto__, undefined);
+    });
+
+    it('should properly escape special characters in field keys', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+      logger.info({ msg: 'test', ['"break']: 'value' });
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log['"break'], 'value');
+    });
+
+    it('should properly escape special characters in field values', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+      logger.info('test', { data: 'value with "quotes" and \nnewline' });
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log.data, 'value with "quotes" and \nnewline');
+    });
+
+    it('should properly escape special characters in bindings keys', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+      const child = logger.child({ ['"break']: 'bla' });
+      child.info('test');
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log['"break'], 'bla');
+    });
+  });
+});
+
+describe('LogConsumer detach', () => {
+  it('should stop receiving logs after detach', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+
+    const logger = new Logger({ level: 'info' });
+
+    logger.info('before detach');
+    consumer.flushSync();
+    assert.strictEqual(stream.logs.length, 1);
+
+    consumer.detach();
+
+    logger.info('after detach');
+    consumer.flushSync();
+    assert.strictEqual(stream.logs.length, 1); // No new log
+  });
 });
