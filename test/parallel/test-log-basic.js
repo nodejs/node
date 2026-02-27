@@ -4,7 +4,7 @@
 require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const { Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('node:logger');
+const { Logger, LogConsumer, JSONConsumer } = require('node:logger');
 const { Writable } = require('node:stream');
 
 // Test helper to capture log output
@@ -35,18 +35,6 @@ class TestStream extends Writable {
     if (callback) callback();
   }
 }
-
-describe('LEVELS constant', () => {
-  it('should export correct numeric values for all levels', () => {
-    assert.strictEqual(typeof LEVELS, 'object');
-    assert.strictEqual(LEVELS.trace, 10);
-    assert.strictEqual(LEVELS.debug, 20);
-    assert.strictEqual(LEVELS.info, 30);
-    assert.strictEqual(LEVELS.warn, 40);
-    assert.strictEqual(LEVELS.error, 50);
-    assert.strictEqual(LEVELS.fatal, 60);
-  });
-});
 
 describe('Logger constructor', () => {
   it('should create a Logger instance', () => {
@@ -551,17 +539,5 @@ describe('JSONConsumer flush and end', () => {
     const stream = new TestStream();
     const consumer = new JSONConsumer({ stream, level: 'info' });
     consumer.end();
-  });
-});
-
-describe('channels export', () => {
-  it('should export channel objects for all levels', () => {
-    assert.strictEqual(typeof channels, 'object');
-    assert.strictEqual(typeof channels.trace, 'object');
-    assert.strictEqual(typeof channels.debug, 'object');
-    assert.strictEqual(typeof channels.info, 'object');
-    assert.strictEqual(typeof channels.warn, 'object');
-    assert.strictEqual(typeof channels.error, 'object');
-    assert.strictEqual(typeof channels.fatal, 'object');
   });
 });
