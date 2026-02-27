@@ -5,9 +5,8 @@ import { dot, spec, tap } from 'node:test/reporters';
 import { fork } from 'node:child_process';
 import assert from 'node:assert';
 
-if (common.hasCrypto) {
-  console.log('1..0 # Skipped: no crypto');
-  process.exit(0);
+if (common.isAIX) {
+  common.skip('test runner without specifying files fails on AIX');
 }
 
 if (process.env.CHILD === 'true') {
@@ -50,8 +49,6 @@ if (process.env.CHILD === 'true') {
       for await (const _ of stream);
     });
   });
-} else if (common.isAIX) {
-  console.log('1..0 # Skipped: test runner without specifying files fails on AIX');
 } else {
   fork(import.meta.filename, [], {
     env: { CHILD: 'true' }
