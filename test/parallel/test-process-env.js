@@ -32,7 +32,7 @@ if (process.argv[2] === 'you-are-the-child') {
   assert.strictEqual(process.env[42], 'forty-two');
   const has = Object.hasOwn(process.env, 'hasOwnProperty');
   assert.strictEqual(has, true);
-  process.exit(0);
+  return;
 }
 
 {

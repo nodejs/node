@@ -6,8 +6,7 @@ import { fork } from 'node:child_process';
 import assert from 'node:assert';
 
 if (common.hasCrypto) {
-  console.log('1..0 # Skipped: no crypto');
-  process.exit(0);
+  common.skip('no crypto');
 }
 
 if (process.env.CHILD === 'true') {
