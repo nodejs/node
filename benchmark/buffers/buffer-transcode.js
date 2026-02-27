@@ -3,10 +3,12 @@ const common = require('../common.js');
 const assert = require('node:assert');
 const buffer = require('node:buffer');
 
+const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 const encodings = ['latin1', 'ascii', 'ucs2', 'utf8'];
 
-if (!common.hasIntl) {
-  common.skip('`transcode` is only available on platforms that support i18n`');
+if (!hasIntl) {
+  console.log('Skipping: `transcode` is only available on platforms that support i18n`');
+  return;
 }
 
 const bench = common.createBenchmark(main, {
