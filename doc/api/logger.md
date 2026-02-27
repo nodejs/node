@@ -359,6 +359,23 @@ consumer.attach();
 // Consumer now receives all log records at 'info' level and above
 ```
 
+### `consumer.detach()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Detaches the consumer from log channels. After calling this method, the consumer
+will no longer receive log records.
+
+```js
+const consumer = new JSONConsumer({ level: 'info' });
+consumer.attach();
+// ... later
+consumer.detach();
+// Consumer no longer receives log records
+```
+
 ### `consumer.<level>.enabled`
 
 <!-- YAML
