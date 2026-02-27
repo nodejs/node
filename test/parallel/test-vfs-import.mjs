@@ -2,17 +2,17 @@ import '../common/index.mjs';
 import assert from 'assert';
 import vfs from 'node:vfs';
 
-// NOTE: Each test uses a different mount path (/virtual, /virtual2, etc.)
-// because ESM imports are cached by URL - using the same mount path would
-// return cached modules from previous tests instead of fresh imports.
+// NOTE: Each test uses a unique mount path because ESM imports are cached
+// by URL — unmounting does not clear the V8 module cache, so reusing a
+// mount path would return stale cached modules from earlier tests.
 
 // Test importing a simple virtual ES module
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.mjs', 'export const message = "hello from vfs";');
-  myVfs.mount('/virtual');
+  myVfs.mount('/esm-named');
 
-  const { message } = await import('/virtual/hello.mjs');
+  const { message } = await import('/esm-named/hello.mjs');
   assert.strictEqual(message, 'hello from vfs');
 
   myVfs.unmount();
@@ -22,9 +22,9 @@ import vfs from 'node:vfs';
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/default.mjs', 'export default { name: "test", value: 42 };');
-  myVfs.mount('/virtual2');
+  myVfs.mount('/esm-default');
 
-  const mod = await import('/virtual2/default.mjs');
+  const mod = await import('/esm-default/default.mjs');
   assert.strictEqual(mod.default.name, 'test');
   assert.strictEqual(mod.default.value, 42);
 
@@ -36,12 +36,12 @@ import vfs from 'node:vfs';
   const myVfs = vfs.create();
   myVfs.writeFileSync('/utils.mjs', 'export function add(a, b) { return a + b; }');
   myVfs.writeFileSync('/main.mjs', `
-    import { add } from '/virtual3/utils.mjs';
+    import { add } from '/esm-chain/utils.mjs';
     export const result = add(10, 20);
   `);
-  myVfs.mount('/virtual3');
+  myVfs.mount('/esm-chain');
 
-  const { result } = await import('/virtual3/main.mjs');
+  const { result } = await import('/esm-chain/main.mjs');
   assert.strictEqual(result, 30);
 
   myVfs.unmount();
@@ -56,9 +56,9 @@ import vfs from 'node:vfs';
     import { helper } from './helper.mjs';
     export const output = helper();
   `);
-  myVfs.mount('/virtual4');
+  myVfs.mount('/esm-relative');
 
-  const { output } = await import('/virtual4/lib/index.mjs');
+  const { output } = await import('/esm-relative/lib/index.mjs');
   assert.strictEqual(output, 'helped');
 
   myVfs.unmount();
@@ -68,9 +68,9 @@ import vfs from 'node:vfs';
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/data.json', JSON.stringify({ items: [1, 2, 3], enabled: true }));
-  myVfs.mount('/virtual5');
+  myVfs.mount('/esm-json');
 
-  const data = await import('/virtual5/data.json', { with: { type: 'json' } });
+  const data = await import('/esm-json/data.json', { with: { type: 'json' } });
   assert.deepStrictEqual(data.default.items, [1, 2, 3]);
   assert.strictEqual(data.default.enabled, true);
 
@@ -81,7 +81,7 @@ import vfs from 'node:vfs';
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/test.mjs', 'export const x = 1;');
-  myVfs.mount('/virtual6');
+  myVfs.mount('/esm-builtin');
 
   // Import from node: should still work
   const assertMod = await import('node:assert');
@@ -95,15 +95,15 @@ import vfs from 'node:vfs';
   const myVfs = vfs.create();
   myVfs.writeFileSync('/esm-module.mjs', 'export const esmValue = "esm";');
   myVfs.writeFileSync('/cjs-module.js', 'module.exports = { cjsValue: "cjs" };');
-  myVfs.mount('/virtual8');
+  myVfs.mount('/esm-mixed');
 
-  const { esmValue } = await import('/virtual8/esm-module.mjs');
+  const { esmValue } = await import('/esm-mixed/esm-module.mjs');
   assert.strictEqual(esmValue, 'esm');
 
   // CJS require should also work (via createRequire)
   const { createRequire } = await import('module');
   const require = createRequire(import.meta.url);
-  const { cjsValue } = require('/virtual8/cjs-module.js');
+  const { cjsValue } = require('/esm-mixed/cjs-module.js');
   assert.strictEqual(cjsValue, 'cjs');
 
   myVfs.unmount();
@@ -132,9 +132,9 @@ import vfs from 'node:vfs';
     '/app/entry.mjs',
     "export { fromVfs } from 'my-vfs-pkg';",
   );
-  myVfs.mount('/virtual9');
+  myVfs.mount('/esm-bare');
 
-  const { fromVfs } = await import('/virtual9/app/entry.mjs');
+  const { fromVfs } = await import('/esm-bare/app/entry.mjs');
   assert.strictEqual(fromVfs, true);
 
   myVfs.unmount();
