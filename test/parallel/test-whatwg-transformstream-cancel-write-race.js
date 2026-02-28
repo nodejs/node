@@ -5,7 +5,8 @@ const { TransformStream } = require('stream/web');
 const { setTimeout } = require('timers/promises');
 
 // Test for https://github.com/nodejs/node/issues/62036
-// A late write racing with reader.cancel() should not throw an internal "transformAlgorithm is not a function" TypeError.
+// A late write racing with reader.cancel() should not throw an
+// internal "transformAlgorithm is not a function" TypeError.
 
 async function test() {
   const stream = new TransformStream({
