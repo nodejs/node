@@ -44,6 +44,7 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
 // from a provider type to a debug category.
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
+  V(BOOTSTRAP)                                                                 \
   V(CRYPTO)                                                                    \
   V(COMPILE_CACHE)                                                             \
   V(DIAGNOSTICS)                                                               \
