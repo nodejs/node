@@ -454,10 +454,6 @@ void Parse(
     args, exec_args, v8_args, options, required_env_settings, errors);
 }
 
-// XXX: If you add an option here, please also add it to doc/node.1 and
-// doc/api/cli.md
-// TODO(addaleax): Make that unnecessary.
-
 DebugOptionsParser::DebugOptionsParser() {
   AddOption("--inspect-port",
             "set host:port for inspector",

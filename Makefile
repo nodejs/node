@@ -196,7 +196,7 @@ config.gypi: configure configure.py src/node_version.h
 	fi
 
 .PHONY: install
-install: all ## Install node into $PREFIX (default=/usr/local).
+install: all out/doc/node.1 ## Install node into $PREFIX (default=/usr/local).
 	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: uninstall
@@ -819,7 +819,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/node.1 out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -874,6 +874,20 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 			--type-map doc/type-map.json \
 		) \
 	fi
+
+out/doc/node.1: doc/api/cli.md tools/doc/node_modules | out/doc
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t man-page \
+			-i $< \
+			-o $(@D) \
+			-v $(VERSION) \
+		) \
+	fi
+
 
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
@@ -1206,7 +1220,7 @@ pkg-upload: pkg
 $(TARBALL): release-only doc-only
 	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
-	cp doc/node.1 $(TARNAME)/doc/node.1
+	cp out/doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*

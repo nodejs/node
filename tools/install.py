@@ -199,9 +199,9 @@ def files(options, action):
   action(options, [os.path.join(options.v8_dir, 'tools/lldb_commands.py')], 'share/doc/node/')
 
   if 'openbsd' in sys.platform:
-    action(options, ['doc/node.1'], 'man/man1/')
+    action(options, ['out/doc/node.1'], 'man/man1/')
   else:
-    action(options, ['doc/node.1'], 'share/man/man1/')
+    action(options, ['out/doc/node.1'], 'share/man/man1/')
 
   if 'true' == options.variables.get('node_install_npm'):
     npm_files(options, action)
