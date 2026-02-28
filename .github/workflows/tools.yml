@@ -53,7 +53,8 @@ permissions:
 jobs:
   tools-deps-update:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-slim
+    # cannot use ubuntu-slim here because some update scripts require Docker
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
