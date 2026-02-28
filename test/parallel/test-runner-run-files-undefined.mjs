@@ -51,7 +51,7 @@ if (process.env.CHILD === 'true') {
   });
 } else {
   fork(import.meta.filename, [], {
-    env: { CHILD: 'true' }
+    env: { ...process.env, CHILD: 'true' }
   }).on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
   }));
