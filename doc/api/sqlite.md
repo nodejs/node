@@ -1195,19 +1195,26 @@ Resets the LRU cache, clearing all stored prepared statements.
 
 ### Type conversion between JavaScript and SQLite
 
-When Node.js writes to or reads from SQLite it is necessary to convert between
+When Node.js writes to or reads from SQLite, it is necessary to convert between
 JavaScript data types and SQLite's [data types][]. Because JavaScript supports
 more data types than SQLite, only a subset of JavaScript types are supported.
 Attempting to write an unsupported data type to SQLite will result in an
 exception.
 
-| SQLite    | JavaScript                 |
-| --------- | -------------------------- |
-| `NULL`    | {null}                     |
-| `INTEGER` | {number} or {bigint}       |
-| `REAL`    | {number}                   |
-| `TEXT`    | {string}                   |
-| `BLOB`    | {TypedArray} or {DataView} |
+| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
+| ------------- | -------------------------- | ------------------------------------- |
+| `NULL`        | {null}                     | {null}                                |
+| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                   | {number}                              |
+| `TEXT`        | {string}                   | {string}                              |
+| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+
+APIs that read values from SQLite have a configuration option that determines
+whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
+such as the `readBigInts` option for statements and the `useBigIntArguments`
+option for user-defined functions. If Node.js reads an `INTEGER` value from
+SQLite that is outside the JavaScript [safe integer][] range, and the option to
+read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
 
 ## `sqlite.backup(sourceDb, path[, options])`
 
@@ -1573,3 +1580,4 @@ callback function to indicate what type of operation is being authorized.
 [in memory]: https://www.sqlite.org/inmemorydb.html
 [parameters are bound]: https://www.sqlite.org/c3ref/bind_blob.html
 [prepared statement]: https://www.sqlite.org/c3ref/stmt.html
+[safe integer]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
