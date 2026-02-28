@@ -2,10 +2,10 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "name": "minimatch",
   "description": "a glob matcher in javascript",
-  "version": "10.0.3",
+  "version": "10.2.2",
   "repository": {
     "type": "git",
-    "url": "git://github.com/isaacs/minimatch.git"
+    "url": "git@github.com:isaacs/minimatch"
   },
   "main": "./dist/commonjs/index.js",
   "types": "./dist/commonjs/index.d.ts",
@@ -34,39 +34,27 @@
     "presnap": "npm run prepare",
     "test": "tap",
     "snap": "tap",
-    "format": "prettier --write . --loglevel warn",
+    "format": "prettier --write .",
     "benchmark": "node benchmark/index.js",
-    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts",
+    "typedoc": "typedoc --tsconfig .tshy/esm.json ./src/*.ts",
     "node-build": "esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
   },
-  "prettier": {
-    "semi": false,
-    "printWidth": 80,
-    "tabWidth": 2,
-    "useTabs": false,
-    "singleQuote": true,
-    "jsxSingleQuote": false,
-    "bracketSameLine": true,
-    "arrowParens": "avoid",
-    "endOfLine": "lf"
-  },
   "engines": {
-    "node": "20 || >=22"
+    "node": "18 || 20 || >=22"
   },
   "devDependencies": {
-    "@types/brace-expansion": "^1.1.2",
-    "@types/node": "^24.0.0",
-    "esbuild": "^0.25.5",
+    "@types/node": "^25.3.0",
+    "esbuild": "^0.27.3",
     "mkdirp": "^3.0.1",
-    "prettier": "^3.3.2",
-    "tap": "^21.1.0",
+    "prettier": "^3.6.2",
+    "tap": "^21.6.1",
     "tshy": "^3.0.2",
     "typedoc": "^0.28.5"
   },
   "funding": {
     "url": "https://github.com/sponsors/isaacs"
   },
-  "license": "ISC",
+  "license": "BlueOak-1.0.0",
   "tshy": {
     "exports": {
       "./package.json": "./package.json",
@@ -76,6 +64,6 @@
   "type": "module",
   "module": "./dist/esm/index.js",
   "dependencies": {
-    "@isaacs/brace-expansion": "^5.0.0"
+    "brace-expansion": "^5.0.2"
   }
 }

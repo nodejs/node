@@ -36,7 +36,7 @@ void ZoneList<T>::AddAll(base::Vector<const T> other, Zone* zone) {
 
   int result_length = length_ + length;
   if (capacity_ < result_length) Resize(result_length, zone);
-  if (std::is_trivially_copyable<T>::value) {
+  if (std::is_trivially_copyable_v<T>) {
     memcpy(&data_[length_], other.begin(), sizeof(T) * length);
   } else {
     std::copy(other.begin(), other.end(), &data_[length_]);
@@ -69,7 +69,7 @@ void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
   DCHECK_LE(length_, new_capacity);
   T* new_data = zone->AllocateArray<T>(new_capacity);
   if (length_ > 0) {
-    if (std::is_trivially_copyable<T>::value) {
+    if (std::is_trivially_copyable_v<T>) {
       MemCopy(new_data, data_, length_ * sizeof(T));
     } else {
       std::copy(&data_[0], &data_[length_], &new_data[0]);

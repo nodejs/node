@@ -51,19 +51,18 @@ void Cleanup(void* str) {
 void Initialize(Local<Object> exports,
                 Local<Value> module,
                 Local<Context> context) {
+  Isolate* isolate = Isolate::GetCurrent();
   node::AddEnvironmentCleanupHook(
-      context->GetIsolate(),
-      Cleanup,
-      const_cast<void*>(static_cast<const void*>("cleanup")));
-  node::AddEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
-  node::RemoveEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+      isolate, Cleanup, const_cast<void*>(static_cast<const void*>("cleanup")));
+  node::AddEnvironmentCleanupHook(isolate, Dummy, nullptr);
+  node::RemoveEnvironmentCleanupHook(isolate, Dummy, nullptr);
 
   if (getenv("addExtraItemToEventLoop") != nullptr) {
     // Add an item to the event loop that we do not clean up in order to make
     // sure that for the main thread, this addon's memory persists even after
     // the Environment instance has been destroyed.
     static uv_async_t extra_async;
-    uv_loop_t* loop = node::GetCurrentEventLoop(context->GetIsolate());
+    uv_loop_t* loop = node::GetCurrentEventLoop(isolate);
     int err = uv_async_init(loop, &extra_async, [](uv_async_t*) {});
     assert(err == 0);
     uv_unref(reinterpret_cast<uv_handle_t*>(&extra_async));

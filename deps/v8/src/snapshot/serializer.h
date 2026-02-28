@@ -520,6 +520,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                                  Maybe<uint32_t> max_byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
+  void SerializeNativeContext();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 

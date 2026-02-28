@@ -59,10 +59,19 @@ ABSL_NAMESPACE_END
 
 // Internal implementation of ABSL_DECLARE_FLAG to allow macro expansion of its
 // arguments. Clients must use ABSL_DECLARE_FLAG instead.
+//
+// The non-MSVC implementation declares the flag twice. This is to allow
+// applying attributes to the second declaration. However, this causes a
+// compile error (C4273) in MSVC if a `__declspec` is prepended to the macro.
+#if defined(_MSC_VER)
+#define ABSL_DECLARE_FLAG_INTERNAL(type, name) \
+  extern absl::Flag<type> FLAGS_##name
+#else
 #define ABSL_DECLARE_FLAG_INTERNAL(type, name)               \
   extern absl::Flag<type> FLAGS_##name;                      \
   namespace absl /* block flags in namespaces */ {}          \
   /* second redeclaration is to allow applying attributes */ \
   extern absl::Flag<type> FLAGS_##name
+#endif  // _MSC_VER
 
 #endif  // ABSL_FLAGS_DECLARE_H_

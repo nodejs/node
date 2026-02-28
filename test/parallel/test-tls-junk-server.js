@@ -19,7 +19,7 @@ const server = net.createServer(function(s) {
   });
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const req = https.request({ port: this.address().port });
   req.end();
 
@@ -28,7 +28,7 @@ server.listen(0, function() {
     expectedErrorMessage = new RegExp('packet length too long');
   };
   req.once('error', common.mustCall(function(err) {
-    assert(expectedErrorMessage.test(err.message));
+    assert.match(err.message, expectedErrorMessage);
     server.close();
   }));
-});
+}));

@@ -223,10 +223,11 @@ class Committee final {
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
     const InstanceType itype = o->map(isolate)->instance_type();
-#define V(TYPE)                                                             \
-  if (InstanceTypeChecker::Is##TYPE(itype)) {                               \
-    return GetPromoRecommendation##TYPE(committee, isolate, Cast<TYPE>(o)); \
-    /* NOLINTNEXTLINE(readability/braces) */                                \
+#define V(TYPE)                                                \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
+    return GetPromoRecommendation##TYPE(committee, isolate,    \
+                                        TrustedCast<TYPE>(o)); \
+    /* NOLINTNEXTLINE(readability/braces) */                   \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
     /* if { ... } else */ {
@@ -466,7 +467,6 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       VisitObject(isolate, dst, &v);
     }
 
-#ifdef V8_ENABLE_LEAPTIERING
     // Iterate all entries in the JSDispatchTable as they could contain
     // pointers to promoted Code objects.
     JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
@@ -480,9 +480,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                   // TODO(saelo): is it worth logging something
                                   // in this case?
                                   jdt->SetCodeNoWriteBarrier(
-                                      handle, Cast<Code>(new_code));
+                                      handle, TrustedCast<Code>(new_code));
                                 });
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
   static void DeleteDeadObjects(Isolate* isolate,
@@ -533,8 +532,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #ifdef V8_ENABLE_SANDBOX
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
-        if (IsCode(dst)) {
-          PromoteCodePointerEntryFor(Cast<Code>(dst));
+        if (Tagged<Code> code; TryCast(dst, &code)) {
+          PromoteCodePointerEntryFor(code);
         }
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -577,8 +576,19 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // read_only_external_pointer_space) now.
       RecordProcessedSlotIfDebug(slot.address());
       Address slot_value = slot.load(isolate_);
-      DCHECK(slot.ExactTagIsKnown());
-      slot.init(isolate_, host, slot_value, slot.exact_tag());
+      ExternalPointerTag tag;
+      // `slot` can have a tag range, but for slot.init below we need an exact
+      // tag. Therefore we load the actual tag of the slot. However, we do that
+      // only if there is actually a value stored in the slot. If not, then the
+      // slot is uninitialized, and so far code with tag ranges only handles
+      // initialized slots. Therefore we can use the exact tag of the slot.
+      if (slot_value) {
+        tag = slot.load_tag(isolate_);
+      } else {
+        DCHECK(slot.ExactTagIsKnown());
+        tag = slot.exact_tag();
+      }
+      slot.init(isolate_, host, slot_value, tag);
 
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedExternalPointerTableEntry(host, slot, slot_value);
@@ -601,9 +611,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
 #endif  // V8_ENABLE_SANDBOX
     }
-    void VisitRootPointers(Root root, const char* description,
-                           OffHeapObjectSlot start,
-                           OffHeapObjectSlot end) override {
+    void VisitCompressedRootPointers(Root root, const char* description,
+                                     OffHeapObjectSlot start,
+                                     OffHeapObjectSlot end) override {
       // We shouldn't have moved any string table contents or SharedStructType
       // registry contents (which is what OffHeapObjectSlot currently refers
       // to).

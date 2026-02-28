@@ -145,9 +145,8 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   TrustedPointerTable& operator=(const TrustedPointerTable&) = delete;
 
   // The Spaces used by a TrustedPointerTable.
-  using Space = ExternalEntityTable<
-      TrustedPointerTableEntry,
-      kTrustedPointerTableReservationSize>::SpaceWithBlackAllocationSupport;
+  using Space = ExternalEntityTable<TrustedPointerTableEntry,
+                                    kTrustedPointerTableReservationSize>::Space;
 
   // Retrieves the content of the entry referenced by the given handle.
   //

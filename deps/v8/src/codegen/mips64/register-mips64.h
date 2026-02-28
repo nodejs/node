@@ -46,6 +46,11 @@ namespace internal {
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
   V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7, fp
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
+
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction

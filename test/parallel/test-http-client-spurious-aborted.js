@@ -38,7 +38,7 @@ function download() {
   };
   const req = http.get(opts);
   req.on('error', common.mustNotCall());
-  req.on('response', (res) => {
+  req.on('response', common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.headers.connection, 'close');
     let aborted = false;
@@ -72,13 +72,13 @@ function download() {
       }));
     }
 
-    writable.on('finish', () => {
+    writable.on('finish', common.mustCall(() => {
       assert.strictEqual(aborted, abortRequest);
       finishCountdown.dec();
       if (finishCountdown.remaining === 0) return;
       abortRequest = false; // Next one should be a good response
       download();
-    });
-  });
+    }));
+  }));
   req.end();
 }

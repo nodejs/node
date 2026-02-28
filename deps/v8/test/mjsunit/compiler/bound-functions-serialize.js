@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbofan --noalways-turbofan
-
+// Flags: --allow-natives-syntax --turbofan
 class C {};
 const c = new C;
 const getPrototypeOf = Object.getPrototypeOf;

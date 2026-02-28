@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -30,6 +30,8 @@ async function setup() {
     'a/cb/e/f',
     'a/x/.y/b',
     'a/z/.y/b',
+    'a/.b',
+    'a/b/.b',
   ].map((f) => resolve(fixtureDir, f));
 
   const symlinkTo = resolve(fixtureDir, 'a/symlink/a/b/c');
@@ -188,6 +190,9 @@ const patterns = {
   ],
   '*/*/*/f': ['a/bc/e/f', 'a/cb/e/f'],
   './**/f': ['a/bc/e/f', 'a/cb/e/f'],
+  '**/.b': ['a/.b', 'a/b/.b'],
+  './**/.b': ['a/.b', 'a/b/.b'],
+  'a/**/.b': ['a/.b', 'a/b/.b'],
   'a/symlink/a/b/c/a/b/c/a/b/c//a/b/c////a/b/c/**/b/c/**': common.isWindows ? [] : [
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c',
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a',
@@ -384,7 +389,7 @@ describe('glob - withFileTypes', function() {
       const actual = await promisified(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       });
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
@@ -398,7 +403,7 @@ describe('globSync - withFileTypes', function() {
       const actual = globSync(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       });
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
@@ -413,7 +418,7 @@ describe('fsPromises glob - withFileTypes', function() {
       for await (const item of asyncGlob(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       })) actual.push(item);
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
@@ -529,10 +534,27 @@ describe('glob - with restricted directory', function() {
       for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
         results.push(match);
       }
-      assert.ok(true, 'glob completed without throwing on readdir error');
     } finally {
       try {
         chmodSync(restrictedDir, 0o755);
+      } catch {
+        // ignore
+      }
+    }
+  });
+});
+
+describe('globSync - ENOTDIR', function() {
+  test('should return empty array when a file is treated as a directory', () => {
+    const file = tmpdir.resolve('foo');
+    writeFileSync(file, '');
+    try {
+      const pattern = 'foo{,/bar}';
+      const actual = globSync(pattern, { cwd: tmpdir.path }).sort();
+      assert.deepStrictEqual(actual, ['foo']);
+    } finally {
+      try {
+        rmSync(file);
       } catch {
         // ignore
       }

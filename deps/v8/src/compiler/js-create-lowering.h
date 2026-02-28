@@ -30,6 +30,7 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class SlackTrackingPrediction;
+struct FeedbackSource;
 
 // Lowers JSCreate-level operators to fast (inline) allocations.
 class V8_EXPORT_PRIVATE JSCreateLowering final
@@ -73,15 +74,18 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceNewArray(
       Node* node, Node* length, MapRef initial_map, ElementsKind elements_kind,
       AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, Node* length, int capacity, MapRef initial_map,
       ElementsKind elements_kind, AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, std::vector<Node*> values, MapRef initial_map,
       ElementsKind elements_kind, AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceJSCreateObject(Node* node);
   Reduction ReduceJSCreateStringWrapper(Node* node);
 

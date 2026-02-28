@@ -32,7 +32,6 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o);
-  bool ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o);
   void CheckRehashability(Tagged<HeapObject> obj);
 
   template <typename V8Type, typename UserSerializerWrapper,

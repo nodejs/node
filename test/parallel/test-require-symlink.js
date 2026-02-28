@@ -76,19 +76,19 @@ function test() {
   // Load symlinked-script as main
   const node = process.execPath;
   const child = spawn(node, ['--preserve-symlinks', linkScript]);
-  child.on('close', function(code, signal) {
+  child.on('close', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert(!signal);
-  });
+  }));
 
   // Also verify that symlinks works for setting preserve via env variables
   const childEnv = spawn(node, [linkScript], {
     env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
   });
-  childEnv.on('close', function(code, signal) {
+  childEnv.on('close', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert(!signal);
-  });
+  }));
 
   // Also verify that symlinks works for setting preserve via env variables in
   // Workers.

@@ -31,7 +31,6 @@ class ZoneForwardList;
 // https://tc39.github.io/ecma262/#sec-abstract-module-records
 class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
@@ -58,14 +57,20 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
   // i.e. has a top-level await.
   V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate) const;
 
+  struct UserResolveCallbacks {
+    v8::Module::ResolveModuleCallback module_callback = nullptr;
+    v8::Module::ResolveSourceCallback source_callback = nullptr;
+    v8::Module::ResolveModuleByIndexCallback module_callback_by_index = nullptr;
+    v8::Module::ResolveSourceByIndexCallback source_callback_by_index = nullptr;
+  };
+
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
   // otherwise. (In the case where the callback throws an exception, that
   // exception is propagated.)
   static V8_WARN_UNUSED_RESULT bool Instantiate(
       Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-      v8::Module::ResolveModuleCallback module_callback,
-      v8::Module::ResolveSourceCallback source_callback);
+      const UserResolveCallbacks& callbacks);
 
   // Implementation of spec operation ModuleEvaluation.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
@@ -100,9 +105,7 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, DirectHandle<Module> module,
-      v8::Local<v8::Context> context,
-      v8::Module::ResolveModuleCallback module_callback,
-      v8::Module::ResolveSourceCallback source_callback);
+      v8::Local<v8::Context> context, const UserResolveCallbacks& callbacks);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<Module> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,

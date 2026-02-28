@@ -186,7 +186,7 @@ webidl.converters.Cookie = webidl.dictionaryConverter([
   {
     converter: webidl.sequenceConverter(webidl.converters.DOMString),
     key: 'unparsed',
-    defaultValue: () => new Array(0)
+    defaultValue: () => []
   }
 ])
 

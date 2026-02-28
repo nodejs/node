@@ -160,11 +160,11 @@ class ElementsAccessor {
       Isolate* isolate, DirectHandle<JSArray> receiver, BuiltinArguments* args,
       uint32_t unshift_size) = 0;
 
-  V8_WARN_UNUSED_RESULT virtual MaybeDirectHandle<Object> Pop(
-      Isolate* isolate, DirectHandle<JSArray> receiver) = 0;
+  virtual Tagged<Object> Pop(Isolate* isolate,
+                             DirectHandle<JSArray> receiver) = 0;
 
-  V8_WARN_UNUSED_RESULT virtual MaybeDirectHandle<Object> Shift(
-      Isolate* isolate, DirectHandle<JSArray> receiver) = 0;
+  virtual Tagged<Object> Shift(Isolate* isolate,
+                               DirectHandle<JSArray> receiver) = 0;
 
   virtual DirectHandle<NumberDictionary> Normalize(
       Isolate* isolate, DirectHandle<JSObject> object) = 0;

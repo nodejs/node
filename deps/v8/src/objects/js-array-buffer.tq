@@ -113,8 +113,6 @@ extern class JSTypedArray extends JSArrayBufferView {
 }
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
-extern operator '.length=' macro StoreJSTypedArrayLength(
-    JSTypedArray, uintptr): void;
 
 @export
 macro IsOnHeapTypedArray(array: JSTypedArray): bool {

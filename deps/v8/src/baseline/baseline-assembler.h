@@ -34,6 +34,9 @@ class BaselineAssembler {
   V8_INLINE void RecordComment(const char* string);
   inline void Trap();
   inline void DebugBreak();
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  inline void AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   template <typename Field>
   inline void DecodeField(Register reg);

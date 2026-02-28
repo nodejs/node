@@ -397,7 +397,7 @@ changes:
   from the file. If `null` or `-1`, data will be read from the current file
   position, and the position will be updated. If `position` is a non-negative
   integer, the current file position will remain unchanged.
-  **Default:**: `null`
+  **Default:** `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -1112,6 +1112,9 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+    If a string array is provided, each string should be a glob pattern that
+    specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
+    not supported.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -1228,7 +1231,8 @@ added: v10.0.0
 * `path` {string|Buffer|URL}
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|integer} Not supported on Windows. See [File modes][]
+    for more details. **Default:** `0o777`.
 * Returns: {Promise} Upon success, fulfills with `undefined` if `recursive`
   is `false`, or the first directory path created if `recursive` is `true`.
 
@@ -1363,7 +1367,8 @@ changes:
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
 * `mode` {string|integer} Sets the file mode (permission and sticky bits)
-  if the file is created. **Default:** `0o666` (readable and writable)
+  if the file is created. See [File modes][] for more details.
+  **Default:** `0o666` (readable and writable)
 * Returns: {Promise} Fulfills with a {FileHandle} object.
 
 Opens a {FileHandle}.
@@ -1624,7 +1629,7 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v16.0.0
@@ -1714,6 +1719,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `throwIfNoEntry` {boolean} Whether an exception will be thrown
+    if no file system entry exists, rather than returning `undefined`.
+    **Default:** `true`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the
   given `path`.
 
@@ -1832,6 +1840,10 @@ added:
   * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
     warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
+  * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
+    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    the filename, and functions receive the filename and return `true` to
+    ignore. **Default:** `undefined`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
@@ -1979,7 +1991,7 @@ concurrent modifications on the same file or data corruption may occur.
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/55862
     description: The constants `fs.F_OK`, `fs.R_OK`, `fs.W_OK` and `fs.X_OK`
                  which were present directly on `fs` are removed.
@@ -3451,7 +3463,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|integer} Not supported on Windows. See [File modes][]
+    for more details. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
   * `path` {string|undefined} Present only if a directory is created with
@@ -4291,7 +4304,7 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v18.0.0
@@ -4426,6 +4439,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `throwIfNoEntry` {boolean} Whether an exception will be thrown
+    if no file system entry exists, rather than returning `undefined`.
+    **Default:** `true`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -4798,6 +4814,10 @@ changes:
   * `encoding` {string} Specifies the character encoding to be used for the
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
+  * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
+    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    the filename, and functions receive the filename and return `true` to
+    ignore. **Default:** `undefined`.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer|null}
@@ -6299,7 +6319,7 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v16.0.0
@@ -7713,7 +7733,7 @@ Type of file system.
 ### Class: `fs.Utf8Stream`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 > Stability: 1 - Experimental
@@ -7733,9 +7753,9 @@ to allow continued writing.
 
 #### Event: `'drop'`
 
-The `'drop'` event is emitted when to maximal length is reached and that data
+The `'drop'` event is emitted when the maximal length is reached and that data
 will not be written. The data that was dropped is passed as the first argument
-to the event handle.
+to the event handler.
 
 #### Event: `'error'`
 
@@ -8694,8 +8714,9 @@ the file contents.
 [Common System Errors]: errors.md#common-system-errors
 [FS constants]: #fs-constants
 [File access constants]: #file-access-constants
+[File modes]: #file-modes
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#number_type
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
@@ -8757,6 +8778,7 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
+[`minimatch`]: https://github.com/isaacs/minimatch
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats

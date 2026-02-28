@@ -98,8 +98,6 @@ int OS::ActivationFrameAlignment() {
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
   return 8;
-#elif V8_TARGET_ARCH_MIPS
-  return 8;
 #elif V8_TARGET_ARCH_S390X
   return 8;
 #else

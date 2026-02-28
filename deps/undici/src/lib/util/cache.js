@@ -1,7 +1,8 @@
 'use strict'
 
 const {
-  safeHTTPMethods
+  safeHTTPMethods,
+  pathHasQueryOrFragment
 } = require('../core/util')
 
 const { serializePathWithQuery } = require('../core/util')
@@ -14,12 +15,10 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  let fullPath
-  try {
-    fullPath = serializePathWithQuery(opts.path || '/', opts.query)
-  } catch (error) {
-    // If fails (path already has query params), use as-is
-    fullPath = opts.path || '/'
+  let fullPath = opts.path || '/'
+
+  if (opts.query && !pathHasQueryOrFragment(opts.path)) {
+    fullPath = serializePathWithQuery(fullPath, opts.query)
   }
 
   return {
@@ -34,7 +33,7 @@ function makeCacheKey (opts) {
  * @param {Record<string, string[] | string>}
  * @returns {Record<string, string[] | string>}
  */
-function normaliseHeaders (opts) {
+function normalizeHeaders (opts) {
   let headers
   if (opts.headers == null) {
     headers = {}
@@ -234,7 +233,7 @@ function parseCacheControlHeader (header) {
               }
             }
           } else {
-            // Something like `no-cache=some-header`
+            // Something like `no-cache="some-header"`
             if (key in output) {
               output[key] = output[key].concat(value)
             } else {
@@ -365,14 +364,42 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
   }
 }
 
+/**
+ * Creates a string key for request deduplication purposes.
+ * This key is used to identify in-flight requests that can be shared.
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
+ * @param {Set<string>} [excludeHeaders] Set of lowercase header names to exclude from the key
+ * @returns {string}
+ */
+function makeDeduplicationKey (cacheKey, excludeHeaders) {
+  // Create a deterministic string key from the cache key
+  // Include origin, method, path, and sorted headers
+  let key = `${cacheKey.origin}:${cacheKey.method}:${cacheKey.path}`
+
+  if (cacheKey.headers) {
+    const sortedHeaders = Object.keys(cacheKey.headers).sort()
+    for (const header of sortedHeaders) {
+      // Skip excluded headers
+      if (excludeHeaders?.has(header.toLowerCase())) {
+        continue
+      }
+      const value = cacheKey.headers[header]
+      key += `:${header}=${Array.isArray(value) ? value.join(',') : value}`
+    }
+  }
+
+  return key
+}
+
 module.exports = {
   makeCacheKey,
-  normaliseHeaders,
+  normalizeHeaders,
   assertCacheKey,
   assertCacheValue,
   parseCacheControlHeader,
   parseVaryHeader,
   isEtagUsable,
   assertCacheMethods,
-  assertCacheStore
+  assertCacheStore,
+  makeDeduplicationKey
 }

@@ -36,7 +36,8 @@ If there is a `binding.gyp` file in the root of your package, then npm will use 
 }
 ```
 
-This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts. It is also suppressed if the package specifies `"gypfile": false`
+This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts.
+It is also suppressed if the package specifies `"gypfile": false`
 
 ### Configuration
 

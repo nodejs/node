@@ -42,7 +42,7 @@ const server = tls.Server(options, common.mustCall(function(socket) {
   }
 }, 2));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client1options = {
     port: this.address().port,
     rejectUnauthorized: false
@@ -59,4 +59,4 @@ server.listen(0, function() {
   client2.on('secureConnect', common.mustCall(function() {
     client2.end();
   }));
-});
+}));

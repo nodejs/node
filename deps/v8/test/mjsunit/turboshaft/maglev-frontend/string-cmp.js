@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function string_cmp(str1, str2, cmp) {
   if (cmp == 0) { return str1 < str2; }

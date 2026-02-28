@@ -31,7 +31,7 @@ namespace detail {
 // When compressing pointers (including when sandboxing), the access to the
 // node is indirected through the shared external pointer table.
 //
-// The WaiterQueueNode is an abstract class encapsulting the general queue
+// The WaiterQueueNode is an abstract class encapsulating the general queue
 // logic (enqueue, dequeue, etc...). Its extensions add the logic to handle
 // notifications and sync/async waiting.
 // TODO(v8:12547): Unittest this.
@@ -87,7 +87,7 @@ class V8_NODISCARD WaiterQueueNode {
 
  private:
   void DequeueUnchecked(WaiterQueueNode** head);
-  void VerifyNotInList();
+  void SbxCheckNotInList() const;
 };
 
 }  // namespace detail

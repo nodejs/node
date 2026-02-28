@@ -32,18 +32,24 @@ EvacuationAllocator::EvacuationAllocator(
 }
 
 void EvacuationAllocator::FreeLast(AllocationSpace space,
-                                   Tagged<HeapObject> object, int object_size) {
+                                   Tagged<HeapObject> object,
+                                   SafeHeapObjectSize object_size) {
   DCHECK_IMPLIES(!shared_space_allocator_, space != SHARED_SPACE);
-  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
+  int unsafe_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size.value());
   switch (space) {
     case NEW_SPACE:
-      FreeLastInMainAllocator(new_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(new_space_allocator(), object,
+                              unsafe_object_size);
       return;
     case OLD_SPACE:
-      FreeLastInMainAllocator(old_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(old_space_allocator(), object,
+                              unsafe_object_size);
       return;
     case SHARED_SPACE:
-      FreeLastInMainAllocator(shared_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(shared_space_allocator(), object,
+                              unsafe_object_size);
       return;
     default:
       // Only new and old space supported.

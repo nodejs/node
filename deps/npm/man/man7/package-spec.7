@@ -1,6 +1,6 @@
-.TH "PACKAGE-SPEC" "7" "July 2025" "NPM@11.5.1" ""
+.TH "SPEC" "7" "February 2026" "NPM@11.11.0" ""
 .SH "NAME"
-\fBpackage-spec\fR - Package name specifier
+\fBspec\fR - Package name specifier
 .SS "Description"
 .P
 Commands like \fBnpm install\fR and the dependency sections in the \fBpackage.json\fR use a package name specifier. This can be many different things that all refer to a "package". Examples include a package name, git url, tarball, or local directory. These will generally be referred to as \fB<package-spec>\fR in the help output for the npm commands that use this package name specifier.
@@ -47,11 +47,11 @@ See \fBPackage name\fR above for more info on referring to a package by name, an
 Examples:
 .RS 0
 .IP \(bu 4
-\fBsemver:@npm:@npmcli/semver-with-patch\fR
+\fBsemver@npm:@npmcli/semver-with-patch\fR
 .IP \(bu 4
-\fBsemver:@npm:semver@7.2.2\fR
+\fBsemver@npm:semver@7.2.2\fR
 .IP \(bu 4
-\fBsemver:@npm:semver@legacy\fR
+\fBsemver@npm:semver@legacy\fR
 .RE 0
 
 .SS "Folders"

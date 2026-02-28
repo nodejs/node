@@ -26,7 +26,7 @@
 #include "crypto/evp.h"
 
 EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
-                        long length)
+    long length)
 {
     EVP_PKEY *ret;
     EVP_PKEY *copy = NULL;
@@ -90,7 +90,7 @@ EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
         (*a) = ret;
     EVP_PKEY_free(copy);
     return ret;
- err:
+err:
     if (a == NULL || *a != ret)
         EVP_PKEY_free(ret);
     EVP_PKEY_free(copy);

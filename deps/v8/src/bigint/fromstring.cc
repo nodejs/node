@@ -16,19 +16,19 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
   DCHECK(accumulator->stack_parts_used_ > 0);
   Z[0] = accumulator->stack_parts_[0];
   RWDigits already_set(Z, 0, 1);
-  for (int i = 1; i < Z.len(); i++) Z[i] = 0;
+  for (uint32_t i = 1; i < Z.len(); i++) Z[i] = 0;
 
   // The {FromStringAccumulator} uses stack-allocated storage for the first
   // few parts; if heap storage is used at all then all parts are copied there.
-  int num_stack_parts = accumulator->stack_parts_used_;
+  uint32_t num_stack_parts = accumulator->stack_parts_used_;
   if (num_stack_parts == 1) return;
   const std::vector<digit_t>& heap_parts = accumulator->heap_parts_;
-  int num_heap_parts = static_cast<int>(heap_parts.size());
+  uint32_t num_heap_parts = static_cast<uint32_t>(heap_parts.size());
   // All multipliers are the same, except possibly for the last.
   const digit_t max_multiplier = accumulator->max_multiplier_;
 
   if (num_heap_parts == 0) {
-    for (int i = 1; i < num_stack_parts - 1; i++) {
+    for (uint32_t i = 1; i < num_stack_parts - 1; i++) {
       MultiplySingle(Z, already_set, max_multiplier);
       Add(Z, accumulator->stack_parts_[i]);
       already_set.set_len(already_set.len() + 1);
@@ -38,7 +38,7 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
     return;
   }
   // Parts are stored on the heap.
-  for (int i = 1; i < num_heap_parts - 1; i++) {
+  for (uint32_t i = 1; i < num_heap_parts - 1; i++) {
     MultiplySingle(Z, already_set, max_multiplier);
     Add(Z, accumulator->heap_parts_[i]);
     already_set.set_len(already_set.len() + 1);
@@ -88,9 +88,13 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 // And then there's an obvious last iteration.
 void ProcessorImpl::FromStringLarge(RWDigits Z,
                                     FromStringAccumulator* accumulator) {
-  int num_parts = static_cast<int>(accumulator->heap_parts_.size());
+  uint32_t num_parts = static_cast<uint32_t>(accumulator->heap_parts_.size());
   DCHECK(num_parts >= 2);
-  DCHECK(Z.len() >= num_parts);
+  // This is a release-mode check to guard against concurrent in-sandbox
+  // corruption. Due to the rotating-buffer scheme described above, if Z
+  // was too short, the algorithm would get confused and eventually perform
+  // OOB writes into {multipliers_storage} (allocated below).
+  CHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
   Storage multipliers_storage(num_parts);
   RWDigits multipliers(multipliers_storage.get(), num_parts);
@@ -103,7 +107,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
     digit_t last_multiplier = accumulator->last_multiplier_;
     RWDigits new_parts = temp;
     RWDigits new_multipliers = parts;
-    int i = 0;
+    uint32_t i = 0;
     for (; i + 1 < num_parts; i += 2) {
       digit_t p_in = parts[i];
       digit_t p_in2 = parts[i + 1];
@@ -140,16 +144,16 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
     temp = new_temp;
     AddWorkEstimate(num_parts);
   }
-  int part_len = 2;
+  uint32_t part_len = 2;
 
   // Remaining iterations.
   while (num_parts > 1) {
     RWDigits new_parts = temp;
     RWDigits new_multipliers = parts;
-    int new_part_len = part_len * 2;
-    int i = 0;
+    uint32_t new_part_len = part_len * 2;
+    uint32_t i = 0;
     for (; i + 1 < num_parts; i += 2) {
-      int start = i * part_len;
+      uint32_t start = i * part_len;
       Digits p_in(parts, start, part_len);
       Digits p_in2(parts, start + part_len, part_len);
       Digits m_in(multipliers, start, part_len);
@@ -166,14 +170,16 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
       if (i > 0) {
         bool copied = false;
         if (i > 2) {
-          int prev_start = (i - 2) * part_len;
+          uint32_t prev_start = (i - 2) * part_len;
           Digits m_in_prev(multipliers, prev_start, part_len);
           Digits m_in2_prev(multipliers, prev_start + part_len, part_len);
           if (Compare(m_in, m_in_prev) == 0 &&
               Compare(m_in2, m_in2_prev) == 0) {
             copied = true;
             Digits m_out_prev(new_multipliers, prev_start, new_part_len);
-            for (int k = 0; k < new_part_len; k++) m_out[k] = m_out_prev[k];
+            for (uint32_t k = 0; k < new_part_len; k++) {
+              m_out[k] = m_out_prev[k];
+            }
           }
         }
         if (!copied) {
@@ -188,7 +194,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
       Digits m_in(multipliers, i * part_len, part_len);
       RWDigits p_out(new_parts, i * part_len, new_part_len);
       RWDigits m_out(new_multipliers, i * part_len, new_part_len);
-      int k = 0;
+      uint32_t k = 0;
       for (; k < p_in.len(); k++) p_out[k] = p_in[k];
       for (; k < p_out.len(); k++) p_out[k] = 0;
       k = 0;
@@ -205,7 +211,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
   }
   // Copy the result to Z, if it doesn't happen to be there already.
   if (parts.digits() != Z.digits()) {
-    int i = 0;
+    uint32_t i = 0;
     for (; i < parts.len(); i++) Z[i] = parts[i];
     // Z might be bigger than we requested; be robust towards that.
     for (; i < Z.len(); i++) Z[i] = 0;
@@ -239,7 +245,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
 //
 void ProcessorImpl::FromStringBasePowerOfTwo(
     RWDigits Z, FromStringAccumulator* accumulator) {
-  const int num_parts = accumulator->ResultLength();
+  const uint32_t num_parts = accumulator->ResultLength();
   DCHECK(num_parts >= 1);
   DCHECK(Z.len() >= num_parts);
   Digits parts(accumulator->heap_parts_.empty()
@@ -253,7 +259,7 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
       static_cast<int>(accumulator->last_multiplier_);
   const int unused_part_bits = kDigitBits % char_bits;
   const int max_part_bits = kDigitBits - unused_part_bits;
-  int z_index = 0;
+  uint32_t z_index = 0;
   int part_index = num_parts - 1;
 
   // If the last part is fully populated, then all parts must be, and we can
@@ -305,13 +311,13 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
 
 void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
   if (accumulator->inline_everything_) {
-    int i = 0;
+    uint32_t i = 0;
     for (; i < accumulator->stack_parts_used_; i++) {
       Z[i] = accumulator->stack_parts_[i];
     }
     for (; i < Z.len(); i++) Z[i] = 0;
   } else if (accumulator->stack_parts_used_ == 0) {
-    for (int i = 0; i < Z.len(); i++) Z[i] = 0;
+    for (uint32_t i = 0; i < Z.len(); i++) Z[i] = 0;
   } else if (IsPowerOfTwo(accumulator->radix_)) {
     FromStringBasePowerOfTwo(Z, accumulator);
   } else if (accumulator->ResultLength() < kFromStringLargeThreshold) {

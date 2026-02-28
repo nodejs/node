@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/utils.h"
@@ -35,6 +36,16 @@ namespace maglev {
 class MaglevCompilationUnit;
 class MaglevGraphLabeller;
 class MaglevCodeGenerator;
+
+inline bool FlagsMightEnableMaglevTracing() {
+  return v8_flags.trace_maglev_inlining || v8_flags.print_maglev_code ||
+         v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
+         v8_flags.trace_maglev_graph_building ||
+         v8_flags.trace_maglev_escape_analysis ||
+         v8_flags.trace_maglev_phi_untagging ||
+         v8_flags.trace_maglev_regalloc ||
+         v8_flags.trace_maglev_object_tracking || v8_flags.code_comments;
+}
 
 // A list of v8_flag values copied into the MaglevCompilationInfo for
 // guaranteed {immutable,threadsafe} access.
@@ -82,6 +93,7 @@ class MaglevCompilationInfo final {
   MaybeIndirectHandle<Code> get_code() { return code_; }
 
   bool is_turbolev() const { return is_turbolev_; }
+  bool is_tracing_enabled() const { return is_tracing_enabled_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -164,6 +176,8 @@ class MaglevCompilationInfo final {
 
   // True if some inlinees were skipped due to total size constraints.
   bool could_not_inline_all_candidates_ = false;
+
+  bool is_tracing_enabled_ = false;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 

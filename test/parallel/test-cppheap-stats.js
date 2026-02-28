@@ -40,7 +40,7 @@ const expectedSpaceKeys = [
   'free_list_stats',
 ].sort();
 
-heapStatsDetailed.space_statistics.forEach((space) => {
+for (const space of heapStatsDetailed.space_statistics) {
   const actualSpaceKeys = Object.keys(space).sort();
   assert.deepStrictEqual(actualSpaceKeys, expectedSpaceKeys);
   assert.strictEqual(typeof space.name, 'string');
@@ -49,7 +49,7 @@ heapStatsDetailed.space_statistics.forEach((space) => {
   assert.strictEqual(typeof space.used_size_bytes, 'number');
   assert.strictEqual(Array.isArray(space.page_stats), true);
   assert.strictEqual(typeof space.free_list_stats, 'object');
-});
+}
 
 // Check page statistics array
 const expectedPageKeys = [
@@ -59,46 +59,46 @@ const expectedPageKeys = [
   'object_statistics',
 ].sort();
 
-heapStatsDetailed.space_statistics.forEach((space) => {
-  space.page_stats.forEach((page) => {
+for (const space of heapStatsDetailed.space_statistics) {
+  for (const page of space.page_stats) {
     const actualPageKeys = Object.keys(page).sort();
     assert.deepStrictEqual(actualPageKeys, expectedPageKeys);
     assert.strictEqual(typeof page.committed_size_bytes, 'number');
     assert.strictEqual(typeof page.resident_size_bytes, 'number');
     assert.strictEqual(typeof page.used_size_bytes, 'number');
     assert.strictEqual(Array.isArray(page.object_statistics), true);
-  });
-});
+  }
+}
 
 // Check free list statistics
 const expectedFreeListKeys = ['bucket_size', 'free_count', 'free_size'].sort();
 
-heapStatsDetailed.space_statistics.forEach((space) => {
+for (const space of heapStatsDetailed.space_statistics) {
   const actualFreeListKeys = Object.keys(space.free_list_stats).sort();
   assert.deepStrictEqual(actualFreeListKeys, expectedFreeListKeys);
   assert.strictEqual(Array.isArray(space.free_list_stats.bucket_size), true);
   assert.strictEqual(Array.isArray(space.free_list_stats.free_count), true);
   assert.strictEqual(Array.isArray(space.free_list_stats.free_size), true);
-});
+}
 
 // Check object statistics
 const expectedObjectStatsKeys = ['allocated_bytes', 'object_count'].sort();
 
-heapStatsDetailed.space_statistics.forEach((space) => {
-  space.page_stats.forEach((page) => {
-    page.object_statistics.forEach((objectStats) => {
+for (const space of heapStatsDetailed.space_statistics) {
+  for (const page of space.page_stats) {
+    for (const objectStats of page.object_statistics) {
       const actualObjectStatsKeys = Object.keys(objectStats).sort();
       assert.deepStrictEqual(actualObjectStatsKeys, expectedObjectStatsKeys);
       assert.strictEqual(typeof objectStats.allocated_bytes, 'number');
       assert.strictEqual(typeof objectStats.object_count, 'number');
-    });
-  });
-});
+    }
+  }
+}
 
 // Check type names
-heapStatsDetailed.type_names.forEach((typeName) => {
+for (const typeName of heapStatsDetailed.type_names) {
   assert.strictEqual(typeof typeName, 'string');
-});
+}
 
 // Brief heap statistics
 const heapStatsBrief = v8.getCppHeapStatistics('brief');

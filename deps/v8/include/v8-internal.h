@@ -10,6 +10,8 @@
 #include <string.h>
 
 #include <atomic>
+#include <compare>
+#include <concepts>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -17,22 +19,6 @@
 #include <type_traits>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
-
-// TODO(pkasting): Use <compare>/spaceship unconditionally after dropping
-// support for old libstdc++ versions.
-#if __has_include(<version>)
-#include <version>
-#endif
-#if defined(__cpp_lib_three_way_comparison) &&   \
-    __cpp_lib_three_way_comparison >= 201711L && \
-    defined(__cpp_lib_concepts) && __cpp_lib_concepts >= 202002L
-#include <compare>
-#include <concepts>
-
-#define V8_HAVE_SPACESHIP_OPERATOR 1
-#else
-#define V8_HAVE_SPACESHIP_OPERATOR 0
-#endif
 
 namespace v8 {
 
@@ -237,6 +223,12 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_OS_IOS)
+// On iOS, we only get 64 GB of usable virtual address space even with the
+// "jumbo" extended virtual addressing entitlement. Limit the sandbox size to
+// 16 GB so that the base address + size for the emulated virtual address space
+// lies within the 64 GB total virtual address space.
+constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -415,6 +407,16 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
+// The number of tags reserved for embedder data stored in internal fields. The
+// value is picked arbitrarily, and is slightly larger than the number of tags
+// currently used in Chrome.
+#define V8_EMBEDDER_DATA_TAG_COUNT 15
+
+// The number of tags reserved for pointers stored in v8::External. The value is
+// picked arbitrarily, and is slightly larger than the number of tags currently
+// used in Chrome.
+#define V8_EXTERNAL_POINTER_TAG_COUNT 40
+
 // Generic tag range struct to represent ranges of type tags.
 //
 // When referencing external objects via pointer tables, type tags are
@@ -551,11 +553,19 @@ enum ExternalPointerTag : uint16_t {
   // External pointers using these tags are kept in a per-Isolate external
   // pointer table and can only be accessed when this Isolate is active.
   kNativeContextMicrotaskQueueTag,
-  kEmbedderDataSlotPayloadTag,
-  // This tag essentially stands for a `void*` pointer in the V8 API, and it is
-  // the Embedder's responsibility to ensure type safety (against substitution)
-  // and lifetime validity of these objects.
-  kExternalObjectValueTag,
+
+  // Placeholders for embedder data.
+  kFirstEmbedderDataTag,
+  kLastEmbedderDataTag = kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
+
+  // Placeholders for pointers store in v8::External.
+  kFirstExternalTypeTag,
+  kLastExternalTypeTag =
+      kFirstExternalTypeTag + V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+  // This tag is used when a fast-api callback as a parameter of type
+  // `kPointer`. The V8 fast API is only able to use this generic tag, and is
+  // therefore not supposed to be used in Chrome.
+  kFastApiExternalTypeTag = kLastExternalTypeTag,
   kFirstMaybeReadOnlyExternalPointerTag,
   kFunctionTemplateInfoCallbackTag = kFirstMaybeReadOnlyExternalPointerTag,
   kAccessorInfoGetterTag,
@@ -582,11 +592,7 @@ enum ExternalPointerTag : uint16_t {
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
-  kWasmInternalFunctionCallTargetTag,
-  kWasmTypeInfoNativeTypeTag,
-  kWasmExportedFunctionDataSignatureTag,
   kWasmStackMemoryTag,
-  kWasmIndirectFunctionTargetTag,
 
   // Foreigns
   kFirstForeignExternalPointerTag,
@@ -620,6 +626,14 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kTemporalDurationTag,
+  kTemporalInstantTag,
+  kTemporalPlainDateTag,
+  kTemporalPlainTimeTag,
+  kTemporalPlainDateTimeTag,
+  kTemporalPlainYearMonthTag,
+  kTemporalPlainMonthDayTag,
+  kTemporalZonedDateTimeTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,
@@ -690,7 +704,8 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
 V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
     ExternalPointerTagRange tag_range) {
   return tag_range.Contains(kArrayBufferExtensionTag) ||
-         tag_range.Contains(kEmbedderDataSlotPayloadTag) ||
+         (tag_range.first <= kLastEmbedderDataTag &&
+          kFirstEmbedderDataTag <= tag_range.last) ||
          kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
@@ -815,12 +830,33 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
+V8_DEPRECATE_SOON(
+    "Use GetCurrentIsolate() instead, which is guaranteed to return the same "
+    "isolate since https://crrev.com/c/6458560.")
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 
 // Returns if we need to throw when an error occurs. This infers the language
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(internal::Isolate* isolate);
+
+struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+
+  Address* next;
+  Address* limit;
+  int level;
+  int sealed_level;
+
+  void Initialize() {
+    next = limit = nullptr;
+    sealed_level = level = 0;
+  }
+};
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -874,14 +910,19 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
-  static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 29 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
-  static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
-  static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kSegmentedTableSegmentPoolSize = 4;
+  static const int kExternalPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
+  static const int kTrustedPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
@@ -901,12 +942,14 @@ class Internals {
       kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
   static const int kOldAllocationInfoOffset =
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
+  static const int kLastYoungAllocationOffset =
+      kOldAllocationInfoOffset + kApiSystemPointerSize;
 
   static const int kFastCCallAlignmentPaddingSize =
       kApiSystemPointerSize == 8 ? 5 * kApiSystemPointerSize
                                  : 1 * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
-      kOldAllocationInfoOffset + kLinearAllocationAreaSize +
+      kLastYoungAllocationOffset + kLinearAllocationAreaSize +
       kFastCCallAlignmentPaddingSize;
   static const int kIsolateFastCCallCallerFpOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
@@ -948,8 +991,10 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kIsolateRegexpExecVectorArgumentOffset =
+  static const int kJSDispatchTableOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateRegexpExecVectorArgumentOffset =
+      kJSDispatchTableOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
@@ -962,16 +1007,28 @@ class Internals {
 #if V8_STATIC_ROOTS_BOOL
 
 // These constants are copied from static-roots.h and guarded by static asserts.
-#define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
-  V(UndefinedValue, 0x11)                 \
-  V(NullValue, 0x2d)                      \
-  V(TrueValue, 0x71)                      \
-  V(FalseValue, 0x55)                     \
-  V(EmptyString, 0x49)                    \
-  V(TheHoleValue, 0x761)
+#define EXPORTED_STATIC_ROOTS_PTR_LIST(V)                            \
+  V(UndefinedValue, 0x11)                                            \
+  V(NullValue, 0x2d)                                                 \
+  V(TrueValue, 0x71)                                                 \
+  V(FalseValue, 0x55)                                                \
+  V(EmptyString, 0x49)                                               \
+  /* The Hole moves around depending on build flags, so define it */ \
+  /* separately inside StaticReadOnlyRoot using build macros */      \
+  V(TheHoleValue, kBuildDependentTheHoleValue)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
+#ifdef V8_ENABLE_WEBASSEMBLY
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x20001;
+#else
+#ifdef V8_INTL_SUPPORT
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6581;
+#else
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x58d1;
+#endif
+#endif
+
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
@@ -988,12 +1045,12 @@ class Internals {
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  static const int kUndefinedValueRootIndex = 4;
-  static const int kTheHoleValueRootIndex = 5;
-  static const int kNullValueRootIndex = 6;
-  static const int kTrueValueRootIndex = 7;
-  static const int kFalseValueRootIndex = 8;
-  static const int kEmptyStringRootIndex = 9;
+  static const int kUndefinedValueRootIndex = 0;
+  static const int kTheHoleValueRootIndex = 1;
+  static const int kNullValueRootIndex = 2;
+  static const int kTrueValueRootIndex = 3;
+  static const int kFalseValueRootIndex = 4;
+  static const int kEmptyStringRootIndex = 5;
 
   static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
@@ -1170,6 +1227,12 @@ class Internals {
     return *reinterpret_cast<void* const*>(addr);
   }
 
+  V8_INLINE static HandleScopeData* GetHandleScopeData(v8::Isolate* isolate) {
+    Address addr =
+        reinterpret_cast<Address>(isolate) + kIsolateHandleScopeDataOffset;
+    return reinterpret_cast<HandleScopeData*>(addr);
+  }
+
   V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {
     Address addr =
         reinterpret_cast<Address>(isolate) + kIsolateLongTaskStatsCounterOffset;
@@ -1222,7 +1285,7 @@ class Internals {
   V8_INLINE static T ReadRawField(Address heap_object_ptr, int offset) {
     Address addr = heap_object_ptr + offset - kHeapObjectTag;
 #ifdef V8_COMPRESS_POINTERS
-    if (sizeof(T) > kApiTaggedSize) {
+    if constexpr (sizeof(T) > kApiTaggedSize) {
       // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
@@ -1256,10 +1319,13 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
+  // Returns v8::Isolate::Current(), but without needing to include the
+  // v8-isolate.h header.
+  V8_EXPORT static v8::Isolate* GetCurrentIsolate();
+
+  V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
 #ifdef V8_ENABLE_SANDBOX
-    return reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return GetCurrentIsolate();
 #else
     // Not used in non-sandbox mode.
     return nullptr;
@@ -1272,6 +1338,34 @@ class Internals {
                                                     int offset) {
 #ifdef V8_ENABLE_SANDBOX
     static_assert(!tag_range.IsEmpty());
+    // See src/sandbox/external-pointer-table.h. Logic duplicated here so
+    // it can be inlined and doesn't require an additional call.
+    Address* table = IsSharedExternalPointerType(tag_range)
+                         ? GetSharedExternalPointerTableBase(isolate)
+                         : GetExternalPointerTableBase(isolate);
+    internal::ExternalPointerHandle handle =
+        ReadRawField<ExternalPointerHandle>(heap_object_ptr, offset);
+    uint32_t index = handle >> kExternalPointerIndexShift;
+    std::atomic<Address>* ptr =
+        reinterpret_cast<std::atomic<Address>*>(&table[index]);
+    Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
+    ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
+        (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
+    if (V8_LIKELY(tag_range.Contains(actual_tag))) {
+      return entry & kExternalPointerPayloadMask;
+    } else {
+      return 0;
+    }
+    return entry;
+#else
+    return ReadRawField<Address>(heap_object_ptr, offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  V8_INLINE static Address ReadExternalPointerField(
+      v8::Isolate* isolate, Address heap_object_ptr, int offset,
+      ExternalPointerTagRange tag_range) {
+#ifdef V8_ENABLE_SANDBOX
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
     Address* table = IsSharedExternalPointerType(tag_range)
@@ -1334,8 +1428,8 @@ void CastCheck<false>::Perform(T* data) {}
 
 template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
-  CastCheck<std::is_base_of<Data, T>::value &&
-            !std::is_same<Data, std::remove_cv_t<T>>::value>::Perform(data);
+  CastCheck<std::is_base_of_v<Data, T> &&
+            !std::is_same_v<Data, std::remove_cv_t<T>>>::Perform(data);
 }
 
 // A base class for backing stores, which is needed due to vagaries of
@@ -1352,12 +1446,7 @@ class V8_EXPORT StrongRootAllocatorBase {
  public:
   Heap* heap() const { return heap_; }
 
-  friend bool operator==(const StrongRootAllocatorBase& a,
-                         const StrongRootAllocatorBase& b) {
-    // TODO(pkasting): Replace this body with `= default` after dropping support
-    // for old gcc versions.
-    return a.heap_ == b.heap_;
-  }
+  constexpr bool operator==(const StrongRootAllocatorBase&) const = default;
 
  protected:
   explicit StrongRootAllocatorBase(Heap* heap) : heap_(heap) {}
@@ -1393,45 +1482,29 @@ class StrongRootAllocator : private std::allocator<T> {
   using std::allocator<T>::deallocate;
 };
 
-// TODO(pkasting): Replace with `requires` clauses after dropping support for
-// old gcc versions.
-template <typename Iterator, typename = void>
-inline constexpr bool kHaveIteratorConcept = false;
 template <typename Iterator>
-inline constexpr bool kHaveIteratorConcept<
-    Iterator, std::void_t<typename Iterator::iterator_concept>> = true;
+concept HasIteratorConcept = requires { typename Iterator::iterator_concept; };
 
-template <typename Iterator, typename = void>
-inline constexpr bool kHaveIteratorCategory = false;
 template <typename Iterator>
-inline constexpr bool kHaveIteratorCategory<
-    Iterator, std::void_t<typename Iterator::iterator_category>> = true;
+concept HasIteratorCategory =
+    requires { typename Iterator::iterator_category; };
 
 // Helper struct that contains an `iterator_concept` type alias only when either
 // `Iterator` or `std::iterator_traits<Iterator>` do.
 // Default: no alias.
-template <typename Iterator, typename = void>
+template <typename Iterator>
 struct MaybeDefineIteratorConcept {};
 // Use `Iterator::iterator_concept` if available.
-template <typename Iterator>
-struct MaybeDefineIteratorConcept<
-    Iterator, std::enable_if_t<kHaveIteratorConcept<Iterator>>> {
+template <HasIteratorConcept Iterator>
+struct MaybeDefineIteratorConcept<Iterator> {
   using iterator_concept = typename Iterator::iterator_concept;
 };
 // Otherwise fall back to `std::iterator_traits<Iterator>` if possible.
 template <typename Iterator>
-struct MaybeDefineIteratorConcept<
-    Iterator, std::enable_if_t<kHaveIteratorCategory<Iterator> &&
-                               !kHaveIteratorConcept<Iterator>>> {
-  // There seems to be no feature-test macro covering this, so use the
-  // presence of `<ranges>` as a crude proxy, since it was added to the
-  // standard as part of the Ranges papers.
-  // TODO(pkasting): Add this unconditionally after dropping support for old
-  // libstdc++ versions.
-#if __has_include(<ranges>)
+  requires(HasIteratorCategory<Iterator> && !HasIteratorConcept<Iterator>)
+struct MaybeDefineIteratorConcept<Iterator> {
   using iterator_concept =
       typename std::iterator_traits<Iterator>::iterator_concept;
-#endif
 };
 
 // A class of iterators that wrap some different iterator type.
@@ -1468,11 +1541,8 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
   constexpr WrappedIterator() noexcept = default;
   constexpr explicit WrappedIterator(Iterator it) noexcept : it_(it) {}
 
-  // TODO(pkasting): Switch to `requires` and concepts after dropping support
-  // for old gcc and libstdc++ versions.
-  template <typename OtherIterator, typename OtherElementType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<OtherIterator, Iterator>>>
+  template <typename OtherIterator, typename OtherElementType>
+    requires std::is_convertible_v<OtherIterator, Iterator>
   constexpr WrappedIterator(
       const WrappedIterator<OtherIterator, OtherElementType>& other) noexcept
       : it_(other.base()) {}
@@ -1492,7 +1562,7 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
       const noexcept {
     return it_ == other.base();
   }
-#if V8_HAVE_SPACESHIP_OPERATOR
+
   template <typename OtherIterator, typename OtherElementType>
   [[nodiscard]] constexpr auto operator<=>(
       const WrappedIterator<OtherIterator, OtherElementType>& other)
@@ -1516,41 +1586,6 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
                                    : std::partial_ordering::unordered;
     }
   }
-#else
-  // Assume that if spaceship isn't present, operator rewriting might not be
-  // either.
-  template <typename OtherIterator, typename OtherElementType>
-  [[nodiscard]] constexpr bool operator!=(
-      const WrappedIterator<OtherIterator, OtherElementType>& other)
-      const noexcept {
-    return it_ != other.base();
-  }
-
-  template <typename OtherIterator, typename OtherElementType>
-  [[nodiscard]] constexpr bool operator<(
-      const WrappedIterator<OtherIterator, OtherElementType>& other)
-      const noexcept {
-    return it_ < other.base();
-  }
-  template <typename OtherIterator, typename OtherElementType>
-  [[nodiscard]] constexpr bool operator<=(
-      const WrappedIterator<OtherIterator, OtherElementType>& other)
-      const noexcept {
-    return it_ <= other.base();
-  }
-  template <typename OtherIterator, typename OtherElementType>
-  [[nodiscard]] constexpr bool operator>(
-      const WrappedIterator<OtherIterator, OtherElementType>& other)
-      const noexcept {
-    return it_ > other.base();
-  }
-  template <typename OtherIterator, typename OtherElementType>
-  [[nodiscard]] constexpr bool operator>=(
-      const WrappedIterator<OtherIterator, OtherElementType>& other)
-      const noexcept {
-    return it_ >= other.base();
-  }
-#endif
 
   constexpr WrappedIterator& operator++() noexcept {
     ++it_;

@@ -9,7 +9,6 @@
 These functions are executed via gyp-win-tool when using the ninja generator.
 """
 
-
 import os
 import re
 import shutil
@@ -33,11 +32,11 @@ def main(args):
 
 class WinTool:
     """This class performs all the Windows tooling steps. The methods can either
-  be executed directly, or dispatched from an argument list."""
+    be executed directly, or dispatched from an argument list."""
 
     def _UseSeparateMspdbsrv(self, env, args):
         """Allows to use a unique instance of mspdbsrv.exe per linker instead of a
-    shared one."""
+        shared one."""
         if len(args) < 1:
             raise Exception("Not enough arguments")
 
@@ -114,9 +113,9 @@ class WinTool:
 
     def ExecLinkWrapper(self, arch, use_separate_mspdbsrv, *args):
         """Filter diagnostic output from link that looks like:
-    '   Creating library ui.dll.lib and object ui.dll.exp'
-    This happens when there are exports from the dll or exe.
-    """
+        '   Creating library ui.dll.lib and object ui.dll.exp'
+        This happens when there are exports from the dll or exe.
+        """
         env = self._GetEnv(arch)
         if use_separate_mspdbsrv == "True":
             self._UseSeparateMspdbsrv(env, args)
@@ -158,10 +157,10 @@ class WinTool:
         mt,
         rc,
         intermediate_manifest,
-        *manifests
+        *manifests,
     ):
         """A wrapper for handling creating a manifest resource and then executing
-    a link command."""
+        a link command."""
         # The 'normal' way to do manifests is to have link generate a manifest
         # based on gathering dependencies from the object files, then merge that
         # manifest with other manifests supplied as sources, convert the merged
@@ -245,8 +244,8 @@ class WinTool:
 
     def ExecManifestWrapper(self, arch, *args):
         """Run manifest tool with environment set. Strip out undesirable warning
-    (some XML blocks are recognized by the OS loader, but not the manifest
-    tool)."""
+        (some XML blocks are recognized by the OS loader, but not the manifest
+        tool)."""
         env = self._GetEnv(arch)
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -259,8 +258,8 @@ class WinTool:
 
     def ExecManifestToRc(self, arch, *args):
         """Creates a resource file pointing a SxS assembly manifest.
-    |args| is tuple containing path to resource file, path to manifest file
-    and resource name which can be "1" (for executables) or "2" (for DLLs)."""
+        |args| is tuple containing path to resource file, path to manifest file
+        and resource name which can be "1" (for executables) or "2" (for DLLs)."""
         manifest_path, resource_path, resource_name = args
         with open(resource_path, "w") as output:
             output.write(
@@ -270,8 +269,8 @@ class WinTool:
 
     def ExecMidlWrapper(self, arch, outdir, tlb, h, dlldata, iid, proxy, idl, *flags):
         """Filter noisy filenames output from MIDL compile step that isn't
-    quietable via command line flags.
-    """
+        quietable via command line flags.
+        """
         args = (
             ["midl", "/nologo"]
             + list(flags)
@@ -327,7 +326,7 @@ class WinTool:
 
     def ExecRcWrapper(self, arch, *args):
         """Filter logo banner from invocations of rc.exe. Older versions of RC
-    don't support the /nologo flag."""
+        don't support the /nologo flag."""
         env = self._GetEnv(arch)
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -344,7 +343,7 @@ class WinTool:
 
     def ExecActionWrapper(self, arch, rspfile, *dir):
         """Runs an action command line from a response file using the environment
-    for |arch|. If |dir| is supplied, use that as the working directory."""
+        for |arch|. If |dir| is supplied, use that as the working directory."""
         env = self._GetEnv(arch)
         # TODO(scottmg): This is a temporary hack to get some specific variables
         # through to actions that are set after gyp-time. http://crbug.com/333738.
@@ -357,7 +356,7 @@ class WinTool:
 
     def ExecClCompile(self, project_dir, selected_files):
         """Executed by msvs-ninja projects when the 'ClCompile' target is used to
-    build selected C/C++ files."""
+        build selected C/C++ files."""
         project_dir = os.path.relpath(project_dir, BASE_DIR)
         selected_files = selected_files.split(";")
         ninja_targets = [

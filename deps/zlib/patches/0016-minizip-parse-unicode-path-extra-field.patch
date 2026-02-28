@@ -35,10 +35,51 @@ Date:   Fri May 16 15:48:19 2025 +0200
     Change-Id: Ifab65f470736b45b1b51a1cc130a5753a2b20583
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6553931
 
+commit 9f6e08ef47d3bc9438fdc3b1ab77126a7b36cce9
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Thu Jul 3 17:47:55 2025 +0200
+
+    [minizip] Fix Unicode Path Extra Field filename length overflow
+
+    If dataSize is too small, fileNameSize would overflow.
+
+    Bug: 428744375
+    Change-Id: I714fc1e30cb1634c31cb97ce87be225518368e57
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6701714
+
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Fri Jul 11 13:04:30 2025 +0200
+
+    [minizip] Fix potential OOB in unicode path extra field parsing
+
+    The code needs to compare the CRC of the "regular" filename with the
+    NameCRC32 value in the unicode path extra field. However, the caller may
+    not have passed in a szFileName buffer large enough to hold the whole
+    filename, or indeed any buffer at all.
+
+    To fix this, always read the full filename into a temporary buffer, and
+    compute the CRC on that.
+
+    This also simplifies the logic for writing the filename to szFileName,
+    at the expense of using a small bit of extra memory, which shouldn't be
+    an issue for our use cases.
+
+    Bug: 431119343
+    Change-Id: Ib06e1009b6e25d2d14e36858385df46d72b7bc3e
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6725677
+
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
 index c8a01b23efd42..42677cff82c96 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
+@@ -64,6 +64,7 @@
+ */
+ 
+ 
++#include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
 @@ -193,6 +193,26 @@ typedef struct
     Reads a long in LSB order from the given gz_stream. Sets
  */
@@ -66,7 +107,61 @@ index c8a01b23efd42..42677cff82c96 100644
  local int unz64local_getShort(const zlib_filefunc64_32_def* pzlib_filefunc_def,
                                voidpf filestream,
                                uLong *pX) {
-@@ -948,6 +968,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+@@ -777,6 +838,7 @@ local int unz64local_GetCurrentFileInfoI
+     uLong uMagic;
+     long lSeek=0;
+     uLong uL;
++    uLong uFileNameCrc;
+ 
+     if (file==NULL)
+         return UNZ_PARAMERROR;
+@@ -848,21 +910,34 @@ local int unz64local_GetCurrentFileInfoI
+     file_info_internal.offset_curfile = uL;
+ 
+     lSeek+=file_info.size_filename;
+-    if ((err==UNZ_OK) && (szFileName!=NULL))
++    if (err==UNZ_OK)
+     {
+-        uLong uSizeRead ;
+-        if (file_info.size_filename<fileNameBufferSize)
++        char szCurrentFileName[UINT16_MAX] = {0};
++
++        if (file_info.size_filename > 0)
+         {
+-            *(szFileName+file_info.size_filename)='\0';
+-            uSizeRead = file_info.size_filename;
++            if (ZREAD64(s->z_filefunc, s->filestream, szCurrentFileName, file_info.size_filename) != file_info.size_filename)
++            {
++                err=UNZ_ERRNO;
++            }
+         }
+-        else
+-            uSizeRead = fileNameBufferSize;
+ 
+-        if ((file_info.size_filename>0) && (fileNameBufferSize>0))
+-            if (ZREAD64(s->z_filefunc, s->filestream,szFileName,uSizeRead)!=uSizeRead)
+-                err=UNZ_ERRNO;
+-        lSeek -= uSizeRead;
++        uFileNameCrc = crc32(0, (unsigned char*)szCurrentFileName, file_info.size_filename);
++
++        if (szFileName != NULL)
++        {
++            if (fileNameBufferSize <= file_info.size_filename)
++            {
++                memcpy(szFileName, szCurrentFileName, fileNameBufferSize);
++            }
++            else
++            {
++                memcpy(szFileName, szCurrentFileName, file_info.size_filename);
++                szFileName[file_info.size_filename] = '\0';
++            }
++        }
++
++        lSeek -= file_info.size_filename;
+     }
+ 
+     // Read extrafield
+@@ -948,6 +1023,76 @@ local int unz64local_GetCurrentFileInfoI
                  }
  
              }
@@ -74,7 +169,15 @@ index c8a01b23efd42..42677cff82c96 100644
 +            {
 +                int version = 0;
 +
-+                if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
++                if (dataSize < 1 + 4)
++                {
++                    /* dataSize includes version (1 byte), uCrc (4 bytes), and
++                     * the filename data. If it's too small, fileNameSize below
++                     * would overflow. */
++                    err = UNZ_ERRNO;
++                    break;
++                }
++                else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
 +                {
 +                    err = UNZ_ERRNO;
 +                }
@@ -87,16 +190,16 @@ index c8a01b23efd42..42677cff82c96 100644
 +                }
 +                else
 +                {
-+                    uLong uCrc, uHeaderCrc, fileNameSize;
++                    uLong uCrc, fileNameSize;
 +
 +                    if (unz64local_getLong(&s->z_filefunc, s->filestream, &uCrc) != UNZ_OK)
 +                    {
 +                        err = UNZ_ERRNO;
 +                    }
-+                    uHeaderCrc = crc32(0, (const unsigned char *)szFileName, file_info.size_filename);
-+                    fileNameSize = dataSize - (2 * sizeof (short) + 1);
++                    fileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
++
 +                    /* Check CRC against file name in the header. */
-+                    if (uHeaderCrc != uCrc)
++                    if (uCrc != uFileNameCrc)
 +                    {
 +                        if (ZSEEK64(s->z_filefunc, s->filestream, fileNameSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
 +                        {
@@ -105,24 +208,28 @@ index c8a01b23efd42..42677cff82c96 100644
 +                    }
 +                    else
 +                    {
-+                        uLong uSizeRead;
-+
 +                        file_info.size_filename = fileNameSize;
 +
-+                        if (fileNameSize < fileNameBufferSize)
++                        char szCurrentFileName[UINT16_MAX] = {0};
++
++                        if (file_info.size_filename > 0)
 +                        {
-+                             *(szFileName + fileNameSize) = '\0';
-+                            uSizeRead = fileNameSize;
-+                        }
-+                        else
-+                        {
-+                            uSizeRead = fileNameBufferSize;
-+                        }
-+                        if ((fileNameSize > 0) && (fileNameBufferSize > 0))
-+                        {
-+                            if (ZREAD64(s->z_filefunc, s->filestream, szFileName, uSizeRead) != uSizeRead)
++                            if (ZREAD64(s->z_filefunc, s->filestream, szCurrentFileName, file_info.size_filename) != file_info.size_filename)
 +                            {
 +                                err = UNZ_ERRNO;
++                            }
++                        }
++
++                        if (szFileName != NULL)
++                        {
++                            if (fileNameBufferSize <= file_info.size_filename)
++                            {
++                                memcpy(szFileName, szCurrentFileName, fileNameBufferSize);
++                            }
++                            else
++                            {
++                                memcpy(szFileName, szCurrentFileName, file_info.size_filename);
++                                szFileName[file_info.size_filename] = '\0';
 +                            }
 +                        }
 +                    }

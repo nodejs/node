@@ -1,4 +1,4 @@
-// Flags: --inspect=0 --experimental-network-inspection
+// Flags: --inspect=0 --experimental-network-inspection --experimental-storage-inspection
 'use strict';
 const common = require('../common');
 
@@ -27,6 +27,7 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           method: 'GET',
           headers: {},
+          hasPostData: false,
         },
         timestamp: 1000,
         wallTime: 1000,
@@ -87,6 +88,64 @@ const EXPECTED_EVENTS = {
         errorText: 'Failed to load resource'
       }
     },
+    {
+      name: 'webSocketCreated',
+      params: {
+        requestId: 'websocket-id-1',
+        url: 'ws://example.com:8080',
+      }
+
+    },
+    {
+      name: 'webSocketHandshakeResponseReceived',
+      params: {
+        requestId: 'websocket-id-1',
+        response: {
+          status: 101,
+          statusText: 'Switching Protocols',
+          headers: {},
+        },
+        timestamp: 1000,
+      }
+    },
+    {
+      name: 'webSocketClosed',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+
+      }
+    },
+  ],
+  DOMStorage: [
+    {
+      name: 'domStorageItemAdded',
+      params: {
+        storageId: {
+          securityOrigin: '',
+          isLocalStorage: true,
+          storageKey: 'node-inspector://default-dom-storage',
+        },
+        key: 'testKey',
+        newValue: 'testValue',
+      }
+    },
+    {
+      name: 'domStorageItemRemoved',
+      skip: true
+    },
+    {
+      name: 'domStorageItemUpdated',
+      skip: true
+    },
+    {
+      name: 'domStorageItemsCleared',
+      skip: true
+    },
+    {
+      name: 'registerStorage',
+      skip: true
+    },
   ]
 };
 
@@ -111,19 +170,20 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   }
 }
 
-const runAsyncTest = async () => {
+(async () => {
   const session = new inspector.Session();
   session.connect();
 
   // Check that all events emit the expected parameters.
   await session.post('Network.enable');
+  await session.post('DOMStorage.enable');
   for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     for (const event of events) {
       if (event.skip) {
         continue;
       }
       session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
-        if (event.name === 'requestWillBeSent') {
+        if (event.name === 'requestWillBeSent' || event.name === 'webSocketCreated') {
           // Initiator is automatically captured and contains caller info.
           // No need to validate it.
           delete params.initiator;
@@ -138,8 +198,4 @@ const runAsyncTest = async () => {
   await session.post('Network.disable');
   session.on('Network.requestWillBeSent', common.mustNotCall());
   inspector.Network.requestWillBeSent({});
-};
-
-runAsyncTest().then(common.mustCall()).catch((e) => {
-  assert.fail(e);
-});
+})().then(common.mustCall());

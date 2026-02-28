@@ -40,6 +40,7 @@ namespace hwy {
 // access pairs of lines, and M1 L2 and POWER8 lines are also 128 bytes.
 #define HWY_ALIGNMENT 128
 
+// `align` is in bytes.
 template <typename T>
 HWY_API constexpr bool IsAligned(T* ptr, size_t align = HWY_ALIGNMENT) {
   return reinterpret_cast<uintptr_t>(ptr) % align == 0;
@@ -232,7 +233,6 @@ class AlignedFreer {
 
   template <typename T>
   void operator()(T* aligned_pointer) const {
-    // TODO(deymo): assert that we are using a POD type T.
     FreeAlignedBytes(aligned_pointer, free_, opaque_ptr_);
   }
 
@@ -251,6 +251,10 @@ using AlignedFreeUniquePtr = std::unique_ptr<T, AlignedFreer>;
 template <typename T>
 AlignedFreeUniquePtr<T[]> AllocateAligned(const size_t items, AllocPtr alloc,
                                           FreePtr free, void* opaque) {
+  static_assert(std::is_trivially_copyable<T>::value,
+                "AllocateAligned: requires trivially copyable T");
+  static_assert(std::is_trivially_destructible<T>::value,
+                "AllocateAligned: requires trivially destructible T");
   return AlignedFreeUniquePtr<T[]>(
       detail::AllocateAlignedItems<T>(items, alloc, opaque),
       AlignedFreer(free, opaque));

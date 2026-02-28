@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
@@ -13,7 +15,23 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
+void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
+  // TODO(422364570): Support this platform.
+}
+
+// static
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  intptr_t offset = (new_pc - pc) / kInstrSize;
+  // We'll overwrite only one instruction of 4-bytes. Give enough
+  // space not to try to grow the buffer.
+  constexpr int kSize = 128;
+  AccountingAllocator allocator;
+  Assembler masm(
+      &allocator, AssemblerOptions{},
+      ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
+  masm.b(static_cast<int>(offset));
+  FlushInstructionCache(pc, kSize);
+}
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   V8_ASSUME(n < arraysize(simd128_registers_));

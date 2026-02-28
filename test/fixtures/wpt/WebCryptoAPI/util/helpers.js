@@ -24,7 +24,20 @@ var registeredAlgorithmNames = [
     "Ed25519",
     "Ed448",
     "X25519",
-    "X448"
+    "X448",
+    "ML-DSA-44",
+    "ML-DSA-65",
+    "ML-DSA-87",
+    "ML-KEM-512",
+    "ML-KEM-768",
+    "ML-KEM-1024",
+    "ChaCha20-Poly1305",
+    "Argon2i",
+    "Argon2d",
+    "Argon2id",
+    "AES-OCB",
+    "KMAC128",
+    "KMAC256",
 ];
 
 
@@ -124,6 +137,15 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
             default:
                 assert_unreached("Unrecognized hash");
         }
+    } else if (key.algorithm.name.toUpperCase().startsWith("KMAC") && algorithm.length === undefined) {
+        switch (key.algorithm.name.toUpperCase()) {
+            case 'KMAC128':
+                assert_equals(key.algorithm.length, 128, "Correct length");
+                break;
+            case 'KMAC256':
+                assert_equals(key.algorithm.length, 256, "Correct length");
+                break;
+        }
     } else {
         assert_equals(key.algorithm.length, algorithm.length, "Correct length");
     }
@@ -139,13 +161,13 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
     // only a single key. The publicKey and privateKey portions of a key pair
     // recognize only some of the usages appropriate for a key pair.
     if (key.type === "public") {
-        ["encrypt", "verify", "wrapKey"].forEach(function(usage) {
+        ["encrypt", "verify", "wrapKey", "encapsulateBits", "encapsulateKey"].forEach(function(usage) {
             if (usages.includes(usage)) {
                 correctUsages.push(usage);
             }
         });
     } else if (key.type === "private") {
-        ["decrypt", "sign", "unwrapKey", "deriveKey", "deriveBits"].forEach(function(usage) {
+        ["decrypt", "sign", "unwrapKey", "deriveKey", "deriveBits", "decapsulateBits", "decapsulateKey"].forEach(function(usage) {
             if (usages.includes(usage)) {
                 correctUsages.push(usage);
             }
@@ -206,7 +228,15 @@ function allAlgorithmSpecifiersFor(algorithmName) {
         curves.forEach(function(curveName) {
             results.push({name: algorithmName, namedCurve: curveName});
         });
-    } else if (algorithmName.toUpperCase().substring(0, 1) === "X" || algorithmName.toUpperCase().substring(0, 2) === "ED") {
+    } else if (algorithmName.toUpperCase().startsWith("KMAC")) {
+        [
+            {length: 128},
+            {length: 160},
+            {length: 256},
+        ].forEach(function(hashAlgorithm) {
+            results.push({name: algorithmName, ...hashAlgorithm});
+        });
+    } else {
         results.push(algorithmName);
         results.push({ name: algorithmName });
     }

@@ -53,7 +53,7 @@ function test(arg0) {
   var result = 0;
   for (let i = 0; i < iterationCount + 5; i++) {
     if (i == 2) %OptimizeOsr();
-    result = %ObserveNode(triggerDeopt(arg0 + globalForDeopt));
+    result = triggerDeopt(arg0 + globalForDeopt);
   }
   return result;
 }

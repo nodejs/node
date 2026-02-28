@@ -410,11 +410,12 @@ namespace {
 void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
                            int len) {
   int field_count = jsobject->GetEmbedderFieldCount();
-  IsolateForSandbox isolate = GetIsolateForSandbox(jsobject);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
-    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(isolate, &pointer)) {
+    if (EmbedderDataSlot(jsobject, i)
+            .DeprecatedToAlignedPointer(isolate, &pointer)) {
       embedder_fields[i] = pointer;
     }
   }

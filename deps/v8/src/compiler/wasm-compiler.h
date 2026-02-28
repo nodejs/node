@@ -69,8 +69,10 @@ namespace compiler {
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::ImportCallKind, const wasm::CanonicalSig*, bool source_positions,
-    int expected_arity, wasm::Suspend);
+    wasm::ImportCallKind, const wasm::CanonicalSig*, int expected_arity,
+    wasm::Suspend);
+
+V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmStackEntryWrapper();
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
@@ -83,7 +85,8 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
 
 // Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig);
+    Isolate* isolate, const wasm::CanonicalSig* sig,
+    bool receiver_is_first_param);
 
 enum CWasmEntryParameters {
   kCodeEntry,
@@ -236,10 +239,6 @@ class WasmGraphBuilder {
                                       Node** parameters, int parameter_count);
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
-
-  void BuildModifyThreadInWasmFlag(bool new_value);
-  void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
-                                         bool new_value);
 
   Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 

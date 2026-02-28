@@ -81,9 +81,11 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   // Creates a NumberConstant node, usually canonicalized.
   Node* ConstantMaybeHole(double value);
+  Node* ConstantMaybeHole(Float64 value);
   // Same, but checks that we are not emitting a kHoleNanInt64, please use
   // whenever you can.
   Node* ConstantNoHole(double value);
+  Node* ConstantNoHole(Float64 value);
 
   // Creates a Constant node that holds a mutable Heap Number.
   // This is different from ConstantNoHole, which reads the double value and

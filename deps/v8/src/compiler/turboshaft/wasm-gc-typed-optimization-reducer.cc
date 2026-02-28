@@ -16,7 +16,7 @@ namespace v8::internal::compiler::turboshaft {
   } while (false)
 
 void WasmGCTypeAnalyzer::Run() {
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
   while (iterator.HasNext()) {
     const Block& block = *iterator.Next();
@@ -263,9 +263,17 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
   wasm::ValueType type =
       RefineTypeKnowledgeNotNull(struct_get.object(), struct_get);
   input_type_map_[graph_.Index(struct_get)] = type;
-  RefineTypeKnowledge(graph_.Index(struct_get),
-                      struct_get.type->field(struct_get.field_index).Unpacked(),
-                      struct_get);
+  wasm::ValueType new_type;
+  if (struct_get.is_get_desc()) {
+    // Descriptor load.
+    const wasm::TypeDefinition& type_def = module_->type(struct_get.type_index);
+    DCHECK(type_def.has_descriptor());
+    new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor));
+  } else {
+    // Regular field load.
+    new_type = struct_get.type->field(struct_get.field_index).Unpacked();
+  }
+  RefineTypeKnowledge(graph_.Index(struct_get), new_type, struct_get);
 }
 
 void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
@@ -335,11 +343,23 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     }
     const wasm::TypeDefinition& desc_typedef =
         module_->type(desc_type.ref_index());
-    DCHECK(desc_typedef.is_descriptor());
+    if (!desc_typedef.is_descriptor()) {
+      // This can only happen in unreachable code.
+      RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmBottom,
+                          allocate_struct);
+      return;
+    }
     type_index = desc_typedef.describes;
   } else {
-    // The graph builder only emits the two patterns above.
-    UNREACHABLE();
+    // While the graph builder only emits the two patterns above, other
+    // graph modifications (e.g. loop unrolling) can create other situations
+    // (e.g. Phi nodes).
+    // Similar to the comment above, we could be smarter here if the AllocateOp
+    // knew its own type index. Having dedicated "LoadRttOp" would likely
+    // also be helpful, e.g. by enabling us to type Phis that hold RTTs.
+    RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmStructRef,
+                        allocate_struct);
+    return;
   }
   RefineTypeKnowledge(graph_.Index(allocate_struct),
                       wasm::ValueType::Ref(module_->heap_type(type_index)),
@@ -392,7 +412,7 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
     if (union_type.is_uninhabited()) {
       union_type = input_type;
     } else {
-      union_type = wasm::Union(union_type, input_type, module_, module_).type;
+      union_type = wasm::Union(union_type, input_type, module_).type;
     }
   }
   RefineTypeKnowledge(graph_.Index(phi), union_type, phi);
@@ -425,7 +445,10 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
       } else {
         DCHECK_EQ(branch.if_false, &target);
         if (wasm::IsSubtypeOf(GetResolvedType(check.object()), check.config.to,
-                              module_)) {
+                              module_) &&
+            // When checking for a particular custom descriptor, static types
+            // cannot predict the outcome.
+            !(IsCastToCustomDescriptor(module_, check.config))) {
           // The type check always succeeds, the target is impossible to be
           // reached.
           DCHECK_EQ(target.PredecessorCount(), 1);
@@ -550,7 +573,7 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
           if (res == wasm::ValueType() || type == wasm::ValueType()) {
             res = wasm::ValueType();
           } else {
-            res = wasm::Union(res, type, module_, module_).type;
+            res = wasm::Union(res, type, module_).type;
           }
         }
         return res;
@@ -566,7 +589,7 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
   wasm::ValueType intersection_type =
       previous_value == wasm::ValueType()
           ? new_type
-          : wasm::Intersection(previous_value, new_type, module_, module_).type;
+          : wasm::Intersection(previous_value, new_type, module_).type;
   if (intersection_type == previous_value) return previous_value;
 
   TRACE("[b%u%s] #%u(%s): Refine type for object #%u(%s) -> %s%s\n",

@@ -173,8 +173,8 @@ struct TestGenerate {
     // TODO(janwas): can we update the apply_to in HWY_PUSH_ATTRIBUTES so that
     // the attribute also applies to lambdas? If so, remove HWY_ATTR.
 #if HWY_GENERIC_LAMBDA
-    const auto gen2 = [](const auto d, const auto vidx)
-                          HWY_ATTR { return BitCast(d, Add(vidx, vidx)); };
+    const auto gen2 = [](const auto d2, const auto vidx)
+                          HWY_ATTR { return BitCast(d2, Add(vidx, vidx)); };
 #else
     const Gen2 gen2;
 #endif
@@ -245,8 +245,8 @@ struct TestTransform {
     // TODO(janwas): can we update the apply_to in HWY_PUSH_ATTRIBUTES so that
     // the attribute also applies to lambdas? If so, remove HWY_ATTR.
 #if HWY_GENERIC_LAMBDA
-    const auto scal = [](const auto d, const auto v) HWY_ATTR {
-      return Mul(Set(d, ConvertScalarTo<T>(kAlpha)), v);
+    const auto scal = [](const auto d2, const auto v) HWY_ATTR {
+      return Mul(Set(d2, ConvertScalarTo<T>(kAlpha)), v);
     };
 #else
     const SCAL scal;
@@ -290,8 +290,8 @@ struct TestTransform1 {
     SimpleAXPY(a, b, expected.get(), count);
 
 #if HWY_GENERIC_LAMBDA
-    const auto axpy = [](const auto d, const auto v, const auto v1) HWY_ATTR {
-      return MulAdd(Set(d, ConvertScalarTo<T>(kAlpha)), v, v1);
+    const auto axpy = [](const auto d2, const auto v, const auto v1) HWY_ATTR {
+      return MulAdd(Set(d2, ConvertScalarTo<T>(kAlpha)), v, v1);
     };
 #else
     const AXPY axpy;

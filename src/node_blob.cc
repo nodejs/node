@@ -22,6 +22,7 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -47,7 +48,6 @@ namespace {
 void Concat(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
 
   CHECK(args[0]->IsArray());
   Local<Array> array = args[0].As<Array>();
@@ -84,7 +84,14 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-      env->isolate(), total, BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      total,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!store) [[unlikely]] {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+    return;
+  }
   uint8_t* ptr = static_cast<uint8_t*>(store->Data());
   for (size_t n = 0; n < views.size(); n++) {
     uint8_t* from =
@@ -93,7 +100,7 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
     ptr += views[n].length;
   }
 
-  args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), std::move(store)));
+  args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
 }
 
 void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
@@ -443,11 +450,9 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   Utf8Value type(isolate, args[3]);
 
   binding_data->store_data_object(
-      std::string(*key, key.length()),
+      key.ToString(),
       BlobBindingData::StoredDataObject(
-        BaseObjectPtr<Blob>(blob),
-        length,
-        std::string(*type, type.length())));
+          BaseObjectPtr<Blob>(blob), length, type.ToString()));
 }
 
 // Note: applying the V8 Fast API to the following function does not produce
@@ -487,7 +492,7 @@ void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
   Utf8Value key(isolate, args[0]);
 
   BlobBindingData::StoredDataObject stored =
-      binding_data->get_data_object(std::string(*key, key.length()));
+      binding_data->get_data_object(key.ToString());
   if (stored.blob) {
     Local<Value> type;
     if (!String::NewFromUtf8(isolate,
@@ -557,7 +562,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   int index,
                                   InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
   CHECK_NOT_NULL(binding);

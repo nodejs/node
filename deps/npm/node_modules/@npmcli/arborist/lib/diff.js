@@ -11,7 +11,8 @@ const { existsSync } = require('node:fs')
 const ssri = require('ssri')
 
 class Diff {
-  constructor ({ actual, ideal, filterSet, shrinkwrapInflated }) {
+  constructor ({ actual, ideal, filterSet, shrinkwrapInflated, omit }) {
+    this.omit = omit
     this.filterSet = filterSet
     this.shrinkwrapInflated = shrinkwrapInflated
     this.children = []
@@ -36,6 +37,7 @@ class Diff {
     ideal,
     filterNodes = [],
     shrinkwrapInflated = new Set(),
+    omit = new Set(),
   }) {
     // if there's a filterNode, then:
     // - get the path from the root to the filterNode.  The root or
@@ -94,7 +96,7 @@ class Diff {
     }
 
     return depth({
-      tree: new Diff({ actual, ideal, filterSet, shrinkwrapInflated }),
+      tree: new Diff({ actual, ideal, filterSet, shrinkwrapInflated, omit }),
       getChildren,
       leave,
     })
@@ -184,6 +186,7 @@ const getChildren = diff => {
     removed,
     filterSet,
     shrinkwrapInflated,
+    omit,
   } = diff
 
   // Note: we DON'T diff fsChildren themselves, because they are either
@@ -214,6 +217,7 @@ const getChildren = diff => {
       removed,
       filterSet,
       shrinkwrapInflated,
+      omit,
     })
   }
 
@@ -232,8 +236,21 @@ const diffNode = ({
   removed,
   filterSet,
   shrinkwrapInflated,
+  omit,
 }) => {
   if (filterSet.size && !(filterSet.has(ideal) || filterSet.has(actual))) {
+    return
+  }
+
+  if (ideal?.shouldOmit?.(omit)) {
+    ideal.inert = true
+  }
+
+  // Treat inert nodes as undefined for the purposes of diffing.
+  if (ideal?.inert) {
+    ideal = undefined
+  }
+  if (!actual && !ideal) {
     return
   }
 
@@ -245,7 +262,7 @@ const diffNode = ({
     if (action === 'REMOVE') {
       removed.push(actual)
     }
-    children.push(new Diff({ actual, ideal, filterSet, shrinkwrapInflated }))
+    children.push(new Diff({ actual, ideal, filterSet, shrinkwrapInflated, omit }))
   } else {
     unchanged.push(ideal)
     // !*! Weird dirty hack warning !*!
@@ -285,6 +302,7 @@ const diffNode = ({
       removed,
       filterSet,
       shrinkwrapInflated,
+      omit,
     }))
   }
 }

@@ -24,19 +24,19 @@ const server = createServer(common.mustCall((req, res) => {
   get(`http://127.0.0.1:${internal.address().port}`, common.mustCall((inner) => {
     inner.pipe(res);
   }));
-})).listen(0, () => {
+})).listen(0, common.mustCall(() => {
   // Http server
-  internal = createServer((req, res) => {
+  internal = createServer(common.mustCallAtLeast((req, res) => {
     res.writeHead(200);
     setImmediate(common.mustCall(() => {
       external.abort();
       res.end('Hello World\n');
     }));
-  }).listen(0, () => {
+  })).listen(0, common.mustCall(() => {
     external = get(`http://127.0.0.1:${server.address().port}`);
     external.on('error', common.mustCall(() => {
       server.close();
       internal.close();
     }));
-  });
-});
+  }));
+}));

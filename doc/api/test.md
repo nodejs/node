@@ -125,6 +125,80 @@ Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
+## Rerunning failed tests
+
+The test runner supports persisting the state of the run to a file, allowing
+the test runner to rerun failed tests without having to re-run the entire test suite.
+Use the [`--test-rerun-failures`][] command-line option to specify a file path where the
+state of the run is stored. if the state file does not exist, the test runner will
+create it.
+the state file is a JSON file that contains an array of run attempts.
+Each run attempt is an object mapping successful tests to the attempt they have passed in.
+The key identifying a test in this map is the test file path, with the line and column where the test is defined.
+in a case where a test defined in a specific location is run multiple times,
+for example within a function or a loop,
+a counter will be appended to the key, to disambiguate the test runs.
+note changing the order of test execution or the location of a test can lead the test runner
+to consider tests as passed on a previous attempt,
+meaning `--test-rerun-failures` should be used when tests run in a deterministic order.
+
+example of a state file:
+
+```json
+[
+  {
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" }
+  },
+  {
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
+    "test.js:20:5": { "passed_on_attempt": 1, "name": "test 2" }
+  }
+]
+```
+
+in this example, there are two run attempts, with two tests defined in `test.js`,
+the first test succeeded on the first attempt, and the second test succeeded on the second attempt.
+
+When the `--test-rerun-failures` option is used, the test runner will only run tests that have not yet passed.
+
+```bash
+node --test-rerun-failures /path/to/state/file
+```
+
+## `describe()` and `it()` aliases
+
+Suites and tests can also be written using the `describe()` and `it()`
+functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
+alias for [`test()`][].
+
+```js
+describe('A thing', () => {
+  it('should work', () => {
+    assert.strictEqual(1, 1);
+  });
+
+  it('should be ok', () => {
+    assert.strictEqual(2, 2);
+  });
+
+  describe('a nested thing', () => {
+    it('should work', () => {
+      assert.strictEqual(3, 3);
+    });
+  });
+});
+```
+
+`describe()` and `it()` are imported from the `node:test` module.
+
+```mjs
+import { describe, it } from 'node:test';
+```
+
+```cjs
+const { describe, it } = require('node:test');
+```
+
 ## Skipping tests
 
 Individual tests can be skipped by passing the `skip` option to the test, or by
@@ -184,38 +258,101 @@ test('todo() method with message', (t) => {
 });
 ```
 
-## `describe()` and `it()` aliases
+## Expecting tests to fail
 
-Suites and tests can also be written using the `describe()` and `it()`
-functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
-alias for [`test()`][].
+<!-- YAML
+added:
+ - v25.5.0
+ - v24.14.0
+-->
+
+This flips the pass/fail reporting for a specific test or suite: a flagged test
+case must throw in order to pass, and a flagged test case that does not throw
+fails.
+
+In each of the following, `doTheThing()` fails to return `true`, but since the
+tests are flagged `expectFailure`, they pass.
 
 ```js
-describe('A thing', () => {
-  it('should work', () => {
-    assert.strictEqual(1, 1);
-  });
+it.expectFailure('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
 
-  it('should be ok', () => {
-    assert.strictEqual(2, 2);
-  });
+it('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
 
-  describe('a nested thing', () => {
-    it('should work', () => {
-      assert.strictEqual(3, 3);
-    });
-  });
+it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
+  assert.strictEqual(doTheThing(), true);
 });
 ```
 
-`describe()` and `it()` are imported from the `node:test` module.
+If the value of `expectFailure` is a
+[<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) |
+[<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) |
+[<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+[<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
+the tests will pass only if they throw a matching value.
+See [`assert.throws`][] for how each value type is handled.
 
-```mjs
-import { describe, it } from 'node:test';
+Each of the following tests fails _despite_ being flagged `expectFailure`
+because the failure does not match the specific **expected** failure.
+
+```js
+it('fails because regex does not match', {
+  expectFailure: /expected message/,
+}, () => {
+  throw new Error('different message');
+});
+
+it('fails because object matcher does not match', {
+  expectFailure: { code: 'ERR_EXPECTED' },
+}, () => {
+  const err = new Error('boom');
+  err.code = 'ERR_ACTUAL';
+  throw err;
+});
 ```
 
-```cjs
-const { describe, it } = require('node:test');
+To supply both a reason and specific error for `expectFailure`, use `{ label, match }`.
+
+```js
+it('should fail with specific error and reason', {
+  expectFailure: {
+    label: 'reason for failure',
+    match: /error message/,
+  },
+}, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+`skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
+will "win" when both are applied (`skip` wins against both, and `todo` wins
+against `expectFailure`).
+
+These tests will be skipped (and not run):
+
+```js
+it.expectFailure('should do the thing', { skip: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.skip('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+These tests will be marked "todo" (silencing errors):
+
+```js
+it.expectFailure('should do the thing', { todo: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.todo('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
 ```
 
 ## `only` tests
@@ -474,7 +611,7 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-Unless [`--no-experimental-strip-types`][] is supplied, the following
+Unless [`--no-strip-types`][] is supplied, the following
 additional patterns are also matched:
 
 * `**/*.test.{cts,mts,ts}`
@@ -519,6 +656,24 @@ are all run within the same context, it is possible for tests to interact with
 each other in ways that are not possible when isolation is enabled. For example,
 if a test relies on global state, it is possible for that state to be modified
 by a test originating from another file.
+
+#### Child process option inheritance
+
+When running tests in process isolation mode (the default), spawned child processes
+inherit Node.js options from the parent process, including those specified in
+[configuration files][]. However, certain flags are filtered out to enable proper
+test runner functionality:
+
+* `--test` - Prevented to avoid recursive test execution
+* `--experimental-test-coverage` - Managed by the test runner
+* `--watch` - Watch mode is handled at the parent level
+* `--experimental-default-config-file` - Config file loading is handled by the parent
+* `--test-reporter` - Reporting is managed by the parent process
+* `--test-reporter-destination` - Output destinations are controlled by the parent
+* `--experimental-config-file` - Config file paths are managed by the parent
+
+All other Node.js options from command line arguments, environment variables,
+and configuration files are inherited by the child processes.
 
 ## Collecting code coverage
 
@@ -857,7 +1012,7 @@ test('mocks the Date object with initial time', (context) => {
 You can use the `.setTime()` method to manually move the mocked date to another
 time. This method only accepts a positive integer.
 
-**Note:** This method will execute any mocked timers that are in the past
+**Note:** This method will **not** execute any mocked timers that are in the past
 from the new time.
 
 In the below example we are setting a new time for the mocked date.
@@ -894,15 +1049,14 @@ test('sets the time of a date object', (context) => {
 });
 ```
 
-If you have any timer that's set to run in the past, it will be executed as if
-the `.tick()` method has been called. This is useful if you want to test
-time-dependent functionality that's already in the past.
+Timers scheduled in the past will **not** run when you call `setTime()`. To execute those timers, you can use
+the `.tick()` method to move forward from the new time.
 
 ```mjs
 import assert from 'node:assert';
 import { test } from 'node:test';
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -914,7 +1068,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -1324,6 +1481,14 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version:
+     - v25.6.0
+     - v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/61367
+    description: Add the `env` option.
+  - version: v24.7.0
+    pr-url: https://github.com/nodejs/node/pull/59443
+    description: Added a rerunFailuresFilePath option.
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54705
     description: Added the `cwd` option.
@@ -1414,6 +1579,10 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `rerunFailuresFilePath` {string} A file path where the test runner will
+    store the state of the tests to allow rerunning only the failed tests on a next run.
+    see \[Rerunning failed tests]\[] for more information.
+    **Default:** `undefined`.
   * `coverage` {boolean} enable [code coverage][] collection.
     **Default:** `false`.
   * `coverageExcludeGlobs` {string|Array} Excludes specific files from code coverage
@@ -1437,6 +1606,10 @@ changes:
   * `functionCoverage` {number} Require a minimum percent of covered functions. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
+  * `env` {Object} Specify environment variables to be passed along to the test process.
+    This options is not compatible with `isolation='none'`. These variables will override
+    those from the main process, and are not merged with `process.env`.
+    **Default:** `process.env`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -1554,10 +1727,22 @@ changes:
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
   * `concurrency` {number|boolean} If a number is provided,
-    then that many tests would run in parallel within the application thread.
+    then that many tests would run asynchronously (they are still managed by the single-threaded event loop).
     If `true`, all scheduled asynchronous tests run concurrently within the
     thread. If `false`, only one test runs at a time.
     If unspecified, subtests inherit this value from their parent.
+    **Default:** `false`.
+  * `expectFailure` {boolean|string|RegExp|Function|Object|Error} If truthy, the
+    test is expected to fail. If a non-empty string is provided, that string is displayed
+    in the test results as the reason why the test is expected to fail. If a
+    [<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
+    [<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
+    [<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object), or
+    [<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+    is provided directly (without wrapping in `{ match: … }`), the test passes
+    only if the thrown error matches, following the behavior of
+    [`assert.throws`][]. To provide both a reason and validation, pass an object
+    with `label` (string) and `match` (RegExp, Function, Object, or Error).
     **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
@@ -1721,7 +1906,7 @@ This function creates a hook that runs before executing a suite.
 describe('tests', async () => {
   before(() => console.log('about to run some test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertions here
   });
 });
 ```
@@ -1751,7 +1936,7 @@ This function creates a hook that runs after executing a suite.
 describe('tests', async () => {
   after(() => console.log('finished running tests'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1784,7 +1969,7 @@ This function creates a hook that runs before each test in the current suite.
 describe('tests', async () => {
   beforeEach(() => console.log('about to run a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1815,7 +2000,7 @@ The `afterEach()` hook is run even if the test fails.
 describe('tests', async () => {
   afterEach(() => console.log('finished running a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -2070,7 +2255,9 @@ Resets the implementation of the mock module.
 ## Class: `MockPropertyContext`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.20.0
 -->
 
 The `MockPropertyContext` class is used to inspect or manipulate the behavior
@@ -2356,7 +2543,9 @@ test('mocks a builtin module in both module systems', async (t) => {
 ### `mock.property(object, propertyName[, value])`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.20.0
 -->
 
 * `object` {Object} The object whose value is being mocked.
@@ -2999,7 +3188,7 @@ Dates and timer objects are dependent on each other. If you use `setTime()` to
 pass the current time to the mocked `Date` object, the set timers with
 `setTimeout` and `setInterval` will **not** be affected.
 
-However, the `tick` method **will** advanced the mocked `Date` object.
+However, the `tick` method **will** advance the mocked `Date` object.
 
 ```mjs
 import assert from 'node:assert';
@@ -3202,6 +3391,8 @@ Emitted when a test is enqueued for execution.
       * `cause` {Error} The actual error thrown by the test.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+    * `attempt` {number|undefined} The attempt number of the test run,
+      present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3217,6 +3408,32 @@ This event is guaranteed to be emitted in the same order as the tests are
 defined.
 The corresponding execution ordered event is `'test:complete'`.
 
+### Event: `'test:interrupted'`
+
+<!-- YAML
+added: v25.7.0
+-->
+
+* `data` {Object}
+  * `tests` {Array} An array of objects containing information about the
+    interrupted tests.
+    * `column` {number|undefined} The column number where the test is defined,
+      or `undefined` if the test was run through the REPL.
+    * `file` {string|undefined} The path of the test file,
+      `undefined` if test was run through the REPL.
+    * `line` {number|undefined} The line number where the test is defined, or
+      `undefined` if the test was run through the REPL.
+    * `name` {string} The test name.
+    * `nesting` {number} The nesting level of the test.
+
+Emitted when the test runner is interrupted by a `SIGINT` signal (e.g., when
+pressing <kbd>Ctrl</kbd>+<kbd>C</kbd>). The event contains information about
+the tests that were running at the time of interruption.
+
+When using process isolation (the default), the test name will be the file path
+since the parent runner only knows about file-level tests. When using
+`--test-isolation=none`, the actual test name is shown.
+
 ### Event: `'test:pass'`
 
 * `data` {Object}
@@ -3226,6 +3443,10 @@ The corresponding execution ordered event is `'test:complete'`.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+    * `attempt` {number|undefined} The attempt number of the test run,
+      present only when using the [`--test-rerun-failures`][] flag.
+    * `passed_on_attempt` {number|undefined} The attempt number the test passed on,
+      present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3397,7 +3618,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });
@@ -3428,7 +3649,7 @@ finishes.
 ```js
 test('top level test', async (t) => {
   t.after((t) => t.diagnostic(`finished running ${t.name}`));
-  assert.ok('some relevant assertion here');
+  // Some relevant assertion here
 });
 ```
 
@@ -3460,7 +3681,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });
@@ -3592,7 +3813,9 @@ the path of the root test file.
 ### `context.fullName`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.16.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
@@ -3606,6 +3829,73 @@ added:
 -->
 
 The name of the test.
+
+### `context.passed`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {boolean} `false` before the test is executed, e.g. in a `beforeEach` hook.
+
+Indicated whether the test succeeded.
+
+### `context.error`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {Error|null}
+
+The failure reason for the test/case; wrapped and available via `context.error.cause`.
+
+### `context.attempt`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+* Type: {number}
+
+Number of times the test has been attempted.
+
+### `context.workerId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|undefined}
+
+The unique identifier of the worker running the current test file. This value is
+derived from the `NODE_TEST_WORKER_ID` environment variable. When running tests
+with `--test-isolation=process` (the default), each test file runs in a separate
+child process and is assigned a worker ID from 1 to N, where N is the number of
+concurrent workers. When running with `--test-isolation=none`, all tests run in
+the same process and the worker ID is always 1. This value is `undefined` when
+not running in a test context.
+
+This property is useful for splitting resources (like database connections or
+server ports) across concurrent test files:
+
+```mjs
+import { test } from 'node:test';
+import { process } from 'node:process';
+
+test('database operations', async (t) => {
+  // Worker ID is available via context
+  console.log(`Running in worker ${t.workerId}`);
+
+  // Or via environment variable (available at import time)
+  const workerId = process.env.NODE_TEST_WORKER_ID;
+  // Use workerId to allocate separate resources per worker
+});
+```
 
 ### `context.plan(count[,options])`
 
@@ -3807,7 +4097,7 @@ changes:
 * `options` {Object} Configuration options for the subtest. The following
   properties are supported:
   * `concurrency` {number|boolean|null} If a number is provided,
-    then that many tests would run in parallel within the application thread.
+    then that many tests would run asynchronously (they are still managed by the single-threaded event loop).
     If `true`, it would run all subtests in parallel.
     If `false`, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
@@ -3895,6 +4185,16 @@ The absolute path of the test file that created the current suite. If a test
 file imports additional modules that generate suites, the imported suites will
 return the path of the root test file.
 
+### `context.fullName`
+
+<!-- YAML
+added:
+  - v22.3.0
+  - v20.16.0
+-->
+
+The name of the suite and each of its ancestors, separated by `>`.
+
 ### `context.name`
 
 <!-- YAML
@@ -3921,7 +4221,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
-[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
+[`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
@@ -3929,6 +4229,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
 [`--test-reporter`]: cli.md#--test-reporter
+[`--test-rerun-failures`]: cli.md#--test-rerun-failures
 [`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
@@ -3940,6 +4241,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.skip`]: #contextskipmessage
 [`context.todo`]: #contexttodomessage
@@ -3950,6 +4252,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
+[configuration files]: cli.md#--experimental-config-fileconfig
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [running tests from the command line]: #running-tests-from-the-command-line

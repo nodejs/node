@@ -2,18 +2,18 @@ import { skipIfInspectorDisabled } from '../common/index.mjs';
 
 skipIfInspectorDisabled();
 
-import { path as _path } from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import startCLI from '../common/debugger.js';
 import { addLibraryPath } from '../common/shared-lib-util.js';
 
-import { deepStrictEqual, strictEqual } from 'assert';
+import assert from 'assert';
 import { relative } from 'path';
 
 addLibraryPath(process.env);
 
 // Auto-resume on start if the environment variable is defined.
 {
-  const scriptFullPath = _path('debugger', 'break.js');
+  const scriptFullPath = fixtures.path('debugger', 'break.js');
   const script = relative(process.cwd(), scriptFullPath);
 
   const env = {
@@ -24,10 +24,10 @@ addLibraryPath(process.env);
   const cli = startCLI([script], [], { env });
 
   await cli.waitForInitialBreak();
-  deepStrictEqual(cli.breakInfo, {
+  assert.deepStrictEqual(cli.breakInfo, {
     filename: script,
     line: 10,
   });
   const code = await cli.quit();
-  strictEqual(code, 0);
+  assert.strictEqual(code, 0);
 }

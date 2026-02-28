@@ -1,7 +1,7 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
-import { deepStrictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { mkdir, rm, cp } from 'node:fs/promises';
 import { execPath } from 'node:process';
 
@@ -33,7 +33,7 @@ try {
     { cwd: base },
   );
 
-  deepStrictEqual(output, {
+  assert.deepStrictEqual(output, {
     code: 0,
     signal: null,
     stderr: '',

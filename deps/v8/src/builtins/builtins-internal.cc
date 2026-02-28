@@ -12,11 +12,9 @@ namespace v8 {
 namespace internal {
 
 BUILTIN(Illegal) {
-  UNREACHABLE();
+  // Make it distinguishable from other UNREACHABLE() calls for convenience.
+  FATAL("Called Illegal builtin");
 }
-
-// TODO(ishell): remove this unused builtin.
-BUILTIN(DummyBuiltin) { UNREACHABLE(); }
 
 BUILTIN(IllegalInvocationThrower) {
   HandleScope scope(isolate);

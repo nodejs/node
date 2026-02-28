@@ -29,7 +29,7 @@ for (let i = 0; i < tests.cases.length; ++i) {
     process.execPath,
     ['--expose-internals', __filename, 'child', i + ''],
     {
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
     });
   const stderr = child.stderr.toString();
   const stdout = child.stdout.toString();

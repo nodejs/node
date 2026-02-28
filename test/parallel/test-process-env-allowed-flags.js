@@ -50,9 +50,9 @@ const assert = require('assert');
 
 // Assert all "canonical" flags begin with dash(es)
 {
-  process.allowedNodeEnvironmentFlags.forEach((flag) => {
+  for (const flag of process.allowedNodeEnvironmentFlags) {
     assert.match(flag, /^--?[a-zA-Z0-9._-]+$/);
-  });
+  }
 }
 
 // Assert immutability of process.allowedNodeEnvironmentFlags

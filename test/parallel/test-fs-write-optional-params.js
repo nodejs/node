@@ -108,5 +108,5 @@ async function runTests(fd) {
 }
 
 fs.open(destInvalid, 'w+', common.mustSucceed(async (fd) => {
-  runTests(fd).then(common.mustCall(() => fs.close(fd, common.mustSucceed())));
+  runTests(fd).then(common.mustCall(() => { fs.close(fd, common.mustSucceed()); }));
 }));

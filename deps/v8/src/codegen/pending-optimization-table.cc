@@ -16,7 +16,7 @@ namespace internal {
 void ManualOptimizationTable::MarkFunctionForManualOptimization(
     Isolate* isolate, DirectHandle<JSFunction> function,
     IsCompiledScope* is_compiled_scope) {
-  DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);
+  DCHECK(v8_flags.allow_natives_syntax);
   DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->has_feedback_vector());
 
@@ -36,7 +36,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
   // sandbox is enabled. So instead, we reference the BytecodeArray's
   // in-sandbox wrapper object.
   table = ObjectHashTable::Put(
-      table, shared_info,
+      isolate, table, shared_info,
       direct_handle(shared_info->GetBytecodeArray(isolate)->wrapper(),
                     isolate));
   isolate->heap()->SetFunctionsMarkedForManualOptimization(*table);
@@ -44,7 +44,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
 
 bool ManualOptimizationTable::IsMarkedForManualOptimization(
     Isolate* isolate, Tagged<JSFunction> function) {
-  DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);
+  DCHECK(v8_flags.allow_natives_syntax);
 
   DirectHandle<Object> table(
       isolate->heap()->functions_marked_for_manual_optimization(), isolate);

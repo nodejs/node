@@ -15,11 +15,13 @@ namespace wasm {
 // Helper to make calls to private wasm shuffle functions.
 class SimdShuffleTest : public ::testing::Test {
  public:
-  template <int Size, typename = std::enable_if_t<Size == kSimd128Size ||
+  template <int Size, typename = std::enable_if_t<Size == kSimd128HalfSize ||
+                                                  Size == kSimd128Size ||
                                                   Size == kSimd256Size>>
   using Shuffle = std::array<uint8_t, Size>;
 
-  template <int Size, typename = std::enable_if_t<Size == kSimd128Size ||
+  template <int Size, typename = std::enable_if_t<Size == kSimd128HalfSize ||
+                                                  Size == kSimd128Size ||
                                                   Size == kSimd256Size>>
   struct TestShuffle {
     Shuffle<Size> non_canonical;
@@ -34,6 +36,12 @@ class SimdShuffleTest : public ::testing::Test {
                                   bool* needs_swap, bool* is_swizzle) {
     SimdShuffle::CanonicalizeShuffle(inputs_equal, &(*shuffle)[0], needs_swap,
                                      is_swizzle);
+  }
+  static void CanonicalizeHalfShuffle(bool inputs_equal,
+                                      Shuffle<kSimd128HalfSize>* shuffle,
+                                      bool* needs_swap, bool* is_swizzle) {
+    SimdShuffle::CanonicalizeShuffle<kSimd128Size, kSimd128HalfSize>(
+        inputs_equal, &(*shuffle)[0], needs_swap, is_swizzle);
   }
 
   static bool TryMatchIdentity(const Shuffle<kSimd128Size>& shuffle) {
@@ -182,6 +190,87 @@ TEST_F(SimdShuffleTest, CanonicalizeShuffle) {
   for (size_t i = 0; i < arraysize(test_swizzles); ++i) {
     Shuffle<kSimd128Size> shuffle = test_swizzles[i].non_canonical;
     CanonicalizeShuffle(kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
+    EXPECT_EQ(shuffle, test_swizzles[i].canonical);
+    EXPECT_EQ(needs_swap, test_swizzles[i].needs_swap);
+    EXPECT_EQ(is_swizzle, test_swizzles[i].is_swizzle);
+  }
+}
+
+TEST_F(SimdShuffleTest, CanonicalizeHalfShuffle) {
+  const bool kInputsEqual = true;
+  const bool kNeedsSwap = true;
+  const bool kIsSwizzle = true;
+
+  bool needs_swap;
+  bool is_swizzle;
+
+  // Test canonicalization driven by input shuffle.
+  TestShuffle<kSimd128HalfSize> test_shuffles[] = {
+      // Identity is canonical.
+      {{{0, 1, 2, 3, 4, 5, 6, 7}},
+       {{0, 1, 2, 3, 4, 5, 6, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Non-canonical identity requires a swap.
+      {{{16, 17, 18, 19, 20, 21, 22, 23}},
+       {{0, 1, 2, 3, 4, 5, 6, 7}},
+       kNeedsSwap,
+       kIsSwizzle},
+      // General shuffle, canonical is unchanged.
+      {{{0, 16, 1, 17, 2, 18, 3, 19}},
+       {{0, 16, 1, 17, 2, 18, 3, 19}},
+       !kNeedsSwap,
+       !kIsSwizzle},
+      // Non-canonical shuffle requires a swap.
+      {{{16, 0, 17, 1, 18, 2, 19, 3}},
+       {{0, 16, 1, 17, 2, 18, 3, 19}},
+       kNeedsSwap,
+       !kIsSwizzle},
+  };
+  for (size_t i = 0; i < arraysize(test_shuffles); ++i) {
+    Shuffle<kSimd128HalfSize> shuffle = test_shuffles[i].non_canonical;
+    CanonicalizeHalfShuffle(!kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
+    EXPECT_EQ(shuffle, test_shuffles[i].canonical);
+    EXPECT_EQ(needs_swap, test_shuffles[i].needs_swap);
+    EXPECT_EQ(is_swizzle, test_shuffles[i].is_swizzle);
+  }
+
+  // Test canonicalization when inputs are equal (explicit swizzle).
+  TestShuffle<kSimd128HalfSize> test_swizzles[] = {
+      // Identity is canonical.
+      {{{0, 1, 2, 3, 4, 5, 6, 7}},
+       {{0, 1, 2, 3, 4, 5, 6, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Second-lane identity masks down to [0..7].
+      {{{16, 17, 18, 19, 20, 21, 22, 23}},
+       {{0, 1, 2, 3, 4, 5, 6, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Interleaved 8x8 swizzle.
+      {{{0, 16, 1, 17, 2, 18, 3, 19}},
+       {{0, 0, 1, 1, 2, 2, 3, 3}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Interleaved 8x8 swizzle, starting from src1.
+      {{{16, 0, 17, 1, 18, 2, 19, 3}},
+       {{0, 0, 1, 1, 2, 2, 3, 3}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Interleaved 8x8 swizzle, starting from upper half of src0.
+      {{{4, 20, 5, 21, 6, 22, 7, 23}},
+       {{4, 4, 5, 5, 6, 6, 7, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Interleaved 8x8 swizzle, starting from upper half of src1.
+      {{{20, 4, 21, 5, 22, 6, 23, 7}},
+       {{4, 4, 5, 5, 6, 6, 7, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+  };
+  for (size_t i = 0; i < arraysize(test_swizzles); ++i) {
+    Shuffle<kSimd128HalfSize> shuffle = test_swizzles[i].non_canonical;
+    CanonicalizeHalfShuffle(kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
     EXPECT_EQ(shuffle, test_swizzles[i].canonical);
     EXPECT_EQ(needs_swap, test_swizzles[i].needs_swap);
     EXPECT_EQ(is_swizzle, test_swizzles[i].is_swizzle);
@@ -657,6 +746,59 @@ ShuffleMap test_shuffles = {
 
 TEST_F(SimdShuffleTest, CanonicalMatchers) {
   for (auto& pair : test_shuffles) {
+    EXPECT_EQ(pair.first, SimdShuffle::TryMatchCanonical(pair.second));
+  }
+}
+
+using CanonicalHalfShufflePair =
+    std::pair<CanonicalShuffle, const std::array<uint8_t, kSimd128HalfSize>>;
+constexpr auto test_half_shuffles = std::to_array<CanonicalHalfShufflePair>({
+    {CanonicalShuffle::kIdentity, {{0, 1, 2, 3, 4, 5, 6, 7}}},
+    {CanonicalShuffle::kUnknown, {{24, 25, 26, 27, 28, 29, 30, 31}}},
+    {CanonicalShuffle::kUnknown, {{0, 3, 16, 17, 19, 16, 21, 23}}},
+    {CanonicalShuffle::kS64x2Odd, {{8, 9, 10, 11, 12, 13, 14, 15}}},
+    {CanonicalShuffle::kS64x2ReverseBytes, {{7, 6, 5, 4, 3, 2, 1, 0}}},
+    {CanonicalShuffle::kS32x4Even, {{0, 1, 2, 3, 8, 9, 10, 11}}},
+    {CanonicalShuffle::kS32x4Odd, {{4, 5, 6, 7, 12, 13, 14, 15}}},
+    {CanonicalShuffle::kS32x4InterleaveLowHalves,
+     {{0, 1, 2, 3, 16, 17, 18, 19}}},
+    {CanonicalShuffle::kS32x4InterleaveHighHalves,
+     {{8, 9, 10, 11, 24, 25, 26, 27}}},
+    {CanonicalShuffle::kS32x4TransposeOdd, {{4, 5, 6, 7, 20, 21, 22, 23}}},
+    {CanonicalShuffle::kS32x4ReverseBytes, {{3, 2, 1, 0, 7, 6, 5, 4}}},
+    {CanonicalShuffle::kS32x4Reverse, {{12, 13, 14, 15, 8, 9, 10, 11}}},
+    {CanonicalShuffle::kS32x2Reverse, {{4, 5, 6, 7, 0, 1, 2, 3}}},
+    {CanonicalShuffle::kS16x4Even, {{0, 1, 4, 5, 16, 17, 20, 21}}},
+    {CanonicalShuffle::kS16x4Odd, {{2, 3, 6, 7, 18, 19, 22, 23}}},
+    {CanonicalShuffle::kS16x8Even, {{0, 1, 4, 5, 8, 9, 12, 13}}},
+    {CanonicalShuffle::kS16x8Odd, {{2, 3, 6, 7, 10, 11, 14, 15}}},
+    {CanonicalShuffle::kS16x8InterleaveLowHalves,
+     {{0, 1, 16, 17, 2, 3, 18, 19}}},
+    {CanonicalShuffle::kS16x8InterleaveHighHalves,
+     {{8, 9, 24, 25, 10, 11, 26, 27}}},
+    {CanonicalShuffle::kS16x4InterleaveHighHalves,
+     {{4, 5, 20, 21, 6, 7, 22, 23}}},
+    {CanonicalShuffle::kS16x8TransposeEven, {{0, 1, 16, 17, 4, 5, 20, 21}}},
+    {CanonicalShuffle::kS16x8TransposeOdd, {{2, 3, 18, 19, 6, 7, 22, 23}}},
+    {CanonicalShuffle::kS16x8ReverseBytes, {{1, 0, 3, 2, 5, 4, 7, 6}}},
+    {CanonicalShuffle::kS16x4Reverse, {{6, 7, 4, 5, 2, 3, 0, 1}}},
+    {CanonicalShuffle::kS16x2Reverse, {{2, 3, 0, 1, 6, 7, 4, 5}}},
+    {CanonicalShuffle::kS8x8Even, {{0, 2, 4, 6, 16, 18, 20, 22}}},
+    {CanonicalShuffle::kS8x8Odd, {{1, 3, 5, 7, 17, 19, 21, 23}}},
+    {CanonicalShuffle::kS8x16Even, {{0, 2, 4, 6, 8, 10, 12, 14}}},
+    {CanonicalShuffle::kS8x16Odd, {{1, 3, 5, 7, 9, 11, 13, 15}}},
+    {CanonicalShuffle::kS8x16InterleaveLowHalves,
+     {{0, 16, 1, 17, 2, 18, 3, 19}}},
+    {CanonicalShuffle::kS8x16InterleaveHighHalves,
+     {{8, 24, 9, 25, 10, 26, 11, 27}}},
+    {CanonicalShuffle::kS8x8InterleaveHighHalves,
+     {{4, 20, 5, 21, 6, 22, 7, 23}}},
+    {CanonicalShuffle::kS8x16TransposeEven, {{0, 16, 2, 18, 4, 20, 6, 22}}},
+    {CanonicalShuffle::kS8x16TransposeOdd, {{1, 17, 3, 19, 5, 21, 7, 23}}},
+});
+
+TEST_F(SimdShuffleTest, CanonicalHalfSizeMatchers) {
+  for (const auto& pair : test_half_shuffles) {
     EXPECT_EQ(pair.first, SimdShuffle::TryMatchCanonical(pair.second));
   }
 }

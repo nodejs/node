@@ -114,8 +114,10 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr StructNewDefault(ModuleTypeIndex index) {
-    WasmInitExpr expr(kStructNewDefault);
+  static WasmInitExpr StructNewDefault(
+      ModuleTypeIndex index,
+      ZoneVector<WasmInitExpr>* opt_descriptor = nullptr) {
+    WasmInitExpr expr(kStructNewDefault, opt_descriptor);
     expr.immediate_.index = index.index;
     return expr;
   }
@@ -163,57 +165,6 @@ class WasmInitExpr : public ZoneObject {
   Immediate immediate() const { return immediate_; }
   Operator kind() const { return kind_; }
   const ZoneVector<WasmInitExpr>* operands() const { return operands_; }
-
-  bool operator==(const WasmInitExpr& other) const {
-    if (kind() != other.kind()) return false;
-    switch (kind()) {
-      case kGlobalGet:
-      case kRefFuncConst:
-      case kStringConst:
-        return immediate().index == other.immediate().index;
-      case kI32Const:
-        return immediate().i32_const == other.immediate().i32_const;
-      case kI64Const:
-        return immediate().i64_const == other.immediate().i64_const;
-      case kF32Const:
-        return immediate().f32_const == other.immediate().f32_const;
-      case kF64Const:
-        return immediate().f64_const == other.immediate().f64_const;
-      case kI32Add:
-      case kI32Sub:
-      case kI32Mul:
-      case kI64Add:
-      case kI64Sub:
-      case kI64Mul:
-        return operands_[0] == other.operands_[0] &&
-               operands_[1] == other.operands_[1];
-      case kS128Const:
-        return immediate().s128_const == other.immediate().s128_const;
-      case kRefNullConst:
-        return heap_type() == other.heap_type();
-      case kStructNew:
-      case kStructNewDefault:
-      case kArrayNew:
-      case kArrayNewDefault:
-        if (immediate().index != other.immediate().index) return false;
-        DCHECK_EQ(operands()->size(), other.operands()->size());
-        for (uint32_t i = 0; i < operands()->size(); i++) {
-          if (operands()[i] != other.operands()[i]) return false;
-        }
-        return true;
-      case kArrayNewFixed:
-        if (immediate().index != other.immediate().index) return false;
-        if (operands()->size() != other.operands()->size()) return false;
-        for (uint32_t i = 0; i < operands()->size(); i++) {
-          if (operands()[i] != other.operands()[i]) return false;
-        }
-        return true;
-      case kRefI31:
-      case kAnyConvertExtern:
-      case kExternConvertAny:
-        return operands_[0] == other.operands_[0];
-    }
-  }
 
   static WasmInitExpr DefaultValue(ValueType type) {
     // No initializer, emit a default value.

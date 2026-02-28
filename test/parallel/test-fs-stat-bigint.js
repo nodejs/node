@@ -148,7 +148,7 @@ if (!common.isWindows) {
     { code: 'EBADF' });
 }
 
-const runCallbackTest = (func, arg, done) => {
+const runCallbackTest = common.mustCall((func, arg, done) => {
   const startTime = process.hrtime.bigint();
   func(arg, common.mustNotMutateObjectDeep({ bigint: true }), common.mustCall((err, bigintStats) => {
     func(arg, common.mustCall((err, numStats) => {
@@ -160,7 +160,7 @@ const runCallbackTest = (func, arg, done) => {
       }
     }));
   }));
-};
+}, common.isWindows ? 2 : 3);
 
 {
   const filename = getFilename();

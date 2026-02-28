@@ -30,7 +30,7 @@ describe('Mock Timers Scheduler Test Suite', () => {
 
     const fn = t.mock.fn();
 
-    nodeTimersPromises.scheduler.wait(9999).then(fn);
+    nodeTimersPromises.scheduler.wait(9999).then(fn).then(common.mustCall());
 
     t.mock.timers.tick(8999);
     assert.strictEqual(fn.mock.callCount(), 0);

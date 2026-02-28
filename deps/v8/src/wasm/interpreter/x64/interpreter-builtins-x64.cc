@@ -196,7 +196,8 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldOperand(shared_function_info,
                    SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag, kScratchRegister);
+      kWasmFunctionDataIndirectPointerTag, kScratchRegister);
+
   shared_function_info = no_reg;
 
   Register trusted_instance_data = wasm_instance;
@@ -240,10 +241,17 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
                    WasmExportedFunctionData::kPackedArgsSizeOffset));
   __ SmiToInt32(signature_data);
 
-  Register signature = valuetypes_array_ptr;
+  Register internal_function = valuetypes_array_ptr;
+  __ LoadProtectedPointerField(
+      internal_function,
+      MemOperand(
+          function_data,
+          WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
+
+  Register signature = internal_function;
   __ movq(signature,
-          MemOperand(function_data,
-                     WasmExportedFunctionData::kSigOffset - kHeapObjectTag));
+          MemOperand(internal_function,
+                     WasmInternalFunction::kSigOffset - kHeapObjectTag));
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
 }
 
@@ -490,13 +498,6 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   // -------------------------------------------
   // Prepare for the Wasm call.
   // -------------------------------------------
-  // Set thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = r12;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-  thread_in_wasm_flag_addr = no_reg;
 
   Register function_index = r12;
   __ movl(
@@ -524,14 +525,6 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   __ Move(MemOperand(rbp, kArgRetsIsArgsOffset), 0);
 
   function_index = no_reg;
-
-  // Unset thread_in_wasm_flag.
-  thread_in_wasm_flag_addr = r8;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
 
   // -------------------------------------------
   // Return handling.
@@ -621,8 +614,10 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   //  - the receiver
   // and transfer the control to the return address (the return address is
   // expected to be on the top of the stack).
+  // Add 1 to include the receiver in the cleanup count.
   // We cannot use just the ret instruction for this, because we cannot pass the
   // number of slots to remove in a Register as an argument.
+  __ incq(param_count);
   __ DropArguments(param_count, rbx);
   __ ret(0);
 
@@ -1318,14 +1313,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // -------------------------------------------
   __ bind(&prepare_for_js_call);
 
-  // Reset thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = rcx;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-
   // -------------------------------------------
   // Call the JS function.
   // -------------------------------------------
@@ -1517,13 +1504,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // -------------------------------------------
 
   __ bind(&all_done);
-  // Set thread_in_wasm_flag.
-  thread_in_wasm_flag_addr = rcx;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-  thread_in_wasm_flag_addr = no_reg;
 
   // Deconstruct the stack frame.
   __ LeaveFrame(StackFrame::WASM_TO_JS);

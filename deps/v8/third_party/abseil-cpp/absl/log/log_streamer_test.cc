@@ -66,6 +66,7 @@ void WriteToStreamRef(absl::string_view data, std::ostream& os) {
 
 TEST(LogStreamerTest, LogInfoStreamer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -87,6 +88,7 @@ TEST(LogStreamerTest, LogInfoStreamer) {
 
 TEST(LogStreamerTest, LogWarningStreamer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -109,6 +111,7 @@ TEST(LogStreamerTest, LogWarningStreamer) {
 
 TEST(LogStreamerTest, LogErrorStreamer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -133,6 +136,7 @@ TEST(LogStreamerDeathTest, LogFatalStreamer) {
   EXPECT_EXIT(
       {
         absl::ScopedMockLog test_sink;
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -164,6 +168,7 @@ TEST(LogStreamerDeathTest, LogFatalStreamer) {
 #ifdef NDEBUG
 TEST(LogStreamerTest, LogDebugFatalStreamer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -188,6 +193,7 @@ TEST(LogStreamerDeathTest, LogDebugFatalStreamer) {
   EXPECT_EXIT(
       {
         absl::ScopedMockLog test_sink;
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -218,6 +224,7 @@ TEST(LogStreamerDeathTest, LogDebugFatalStreamer) {
 
 TEST(LogStreamerTest, LogStreamer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -244,6 +251,7 @@ TEST(LogStreamerDeathTest, LogStreamer) {
   EXPECT_EXIT(
       {
         absl::ScopedMockLog test_sink;
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -275,6 +283,7 @@ TEST(LogStreamerDeathTest, LogStreamer) {
 
 TEST(LogStreamerTest, PassedByReference) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -291,6 +300,7 @@ TEST(LogStreamerTest, PassedByReference) {
 
 TEST(LogStreamerTest, StoredAsLocal) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   auto streamer = absl::LogInfoStreamer("path/file.cc", 1234);
   WriteToStream("foo", &streamer.stream());
@@ -328,6 +338,7 @@ TEST(LogStreamerDeathTest, StoredAsLocal) {
 
 TEST(LogStreamerTest, LogsEmptyLine) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(AllOf(SourceFilename(Eq("path/file.cc")),
                                     SourceLine(Eq(1234)), TextMessage(Eq("")),
@@ -345,8 +356,7 @@ TEST(LogStreamerDeathTest, LogsEmptyLine) {
   EXPECT_EXIT(
       {
         absl::ScopedMockLog test_sink;
-
-        EXPECT_CALL(test_sink, Log)
+        EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
             .WillRepeatedly(DeathTestUnexpectedLogging());
 
@@ -368,6 +378,7 @@ TEST(LogStreamerDeathTest, LogsEmptyLine) {
 
 TEST(LogStreamerTest, MoveConstruction) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -389,6 +400,7 @@ TEST(LogStreamerTest, MoveConstruction) {
 
 TEST(LogStreamerTest, MoveAssignment) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   testing::InSequence seq;
   EXPECT_CALL(
@@ -423,6 +435,7 @@ TEST(LogStreamerTest, MoveAssignment) {
 
 TEST(LogStreamerTest, CorrectDefaultFlags) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   // The `boolalpha` and `showbase` flags should be set by default, to match
   // `LOG`.

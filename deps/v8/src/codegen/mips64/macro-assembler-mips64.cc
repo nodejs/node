@@ -99,6 +99,19 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  Ld(destination, FieldMemOperand(interpreter_data,
+                                  offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  Ld(destination,
+     FieldMemOperand(interpreter_data,
+                     offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
@@ -246,6 +259,22 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   } else {
     CallBuiltin(Builtins::RecordWrite(fp_mode));
   }
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
+                SetIsolateDataSlots::kNo);
 }
 
 // Clobbers object, address, value, and ra, if (ra_status == kRAHasBeenSaved)
@@ -2982,6 +3011,22 @@ void MacroAssembler::BranchShortMSA(MSABranchDF df, Label* target,
   }
 }
 
+void MacroAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  DCHECK_NE(dst0, dst1);
+  if (dst0 != src1) {
+    Move(dst0, src0);
+    Move(dst1, src1);
+  } else if (dst1 != src0) {
+    // Swap the order of the moves to resolve the overlap.
+    Move(dst1, src1);
+    Move(dst0, src0);
+  } else {
+    // Worse case scenario, this is a swap.
+    Swap(dst0, src0);
+  }
+}
+
 void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -4728,8 +4773,9 @@ void MacroAssembler::LoadAddressPCRelative(Register dst, Label* target) {
   // daddiu could handle 16-bit pc offset.
   int32_t offset = branch_offset_helper(target, OffsetSize::kOffset16);
   DCHECK(is_int16(offset));
-  mov(t8, ra);
-  daddiu(dst, ra, offset);
+  mov(t8, ra);                    // Delay slot and pc base address
+  daddiu(dst, ra, offset);        // Address that ra really points to
+  daddiu(dst, dst, -kInstrSize);  // Fix offset computed based on ra
   mov(ra, t8);
 }
 
@@ -4922,7 +4968,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
@@ -4936,7 +4983,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(destination.code());
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
@@ -4952,7 +4999,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(parameter_count.code());
   Register index = parameter_count;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, parameter_count);
@@ -4971,7 +5018,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimizationAndJump(
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
@@ -5679,7 +5726,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   Ld(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kNoContext));
     Sd(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 
@@ -6264,25 +6311,38 @@ int MacroAssembler::CallCFunctionHelper(
       Sd(fp, ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
     }
 
-    Call(function);
-    int call_pc_offset = pc_offset();
-    bind(&get_pc);
+    int call_pc_offset;
+    {
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      Call(function);
+      call_pc_offset = pc_offset();
+      bind(&get_pc);
+      if (return_location) bind(return_location);
 
-    if (return_location) bind(return_location);
+      int before_offset = pc_offset();
+      int stack_passed_arguments =
+          CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+
+      if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
+        Ld(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
+      } else {
+        Daddu(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
+      }
+
+      if (kMaxSizeOfMoveAfterFastCall > pc_offset() - before_offset) {
+        nop();
+      }
+      // We assume that with the nop padding, the move instruction uses
+      // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt
+      // trampoline, we patch it in after the move instruction, so that the
+      // stack has been restored correctly.
+      CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+    }
 
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
       // We don't unset the PC; the FP is the source of truth.
       Sd(zero_reg,
          ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-    }
-
-    int stack_passed_arguments =
-        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
-
-    if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-      Ld(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-    } else {
-      Daddu(sp, sp, Operand(stack_passed_arguments * kPointerSize));
     }
 
     set_pc_for_safepoint();
@@ -6578,16 +6638,17 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiTag(kJavaScriptCallArgCountRegister);
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
          kJavaScriptCallArgCountRegister);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     // No need to SmiTag since dispatch handles always look like Smis.
     static_assert(kJSDispatchHandleShift > 0);
+    AssertSmi(kJavaScriptCallDispatchHandleRegister);
     Push(kJavaScriptCallDispatchHandleRegister);
 #endif
     // Function is also the parameter to the runtime call.
     Push(kJavaScriptCallTargetRegister);
     CallRuntime(function_id, 1);
     // Restore target function, new target and actual argument count.
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,

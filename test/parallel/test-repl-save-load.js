@@ -22,11 +22,9 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
-
+const { startNewREPLServer } = require('../common/repl');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const repl = require('node:repl');
 const path = require('node:path');
 
 const tmpdir = require('../common/tmpdir');
@@ -34,17 +32,7 @@ tmpdir.refresh();
 
 // Tests that a REPL session data can be saved to and loaded from a file
 
-const input = new ArrayStream();
-
-const replServer = repl.start({
-  prompt: '',
-  input,
-  output: new ArrayStream(),
-  allowBlockingCompletions: true,
-});
-
-// Some errors are passed to the domain, but do not callback
-replServer._domain.on('error', assert.ifError);
+const { replServer, input } = startNewREPLServer({ terminal: false });
 
 const filePath = path.resolve(tmpdir.path, 'test.save.js');
 

@@ -19,6 +19,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/spaces.h"
+#include "src/objects/casting.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
@@ -55,13 +56,24 @@ bool MarkingVisitorBase<ConcreteVisitor>::MarkObject(
                                        target_worklist, object);
 }
 
-// class template arguments
 template <typename ConcreteVisitor>
-// method template arguments
 template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
     Tagged<HeapObject> host, THeapObjectSlot slot,
     Tagged<HeapObject> heap_object) {
+  // The general sequence for making sure that only published objects are
+  // accessed for marking is as follows:
+  // 0. Smi check and HeapObject cast (done by the caller of this method)
+  // 1. Synchronizing page access for TSAN builds. Regular builds use a full
+  //    fence which is unknown to TSAN though. See
+  //    `MemoryChunk::InitializationMemoryFence()`.
+  // 2. At this point page flags are consistent and can be checked.
+  //    `MarkingHelper::ShouldMarkObject()` bails out for objects in RO space or
+  //    on black-allocated pages. This is important as objects on
+  //    black-allocated pages may show up in the marker without being properly
+  //    published by just using non-publishing setters and write barriers.
+  // 3. At this point the object may be looked at for processing or e.g. casts
+  //    that actually check instance types.
   SynchronizePageAccess(heap_object);
   const auto target_worklist =
       MarkingHelper::ShouldMarkObject(heap_, heap_object);
@@ -76,9 +88,10 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(MemoryChunkMetadata::FromHeapObject(heap_object)
-                                    ->owner()
-                                    ->identity()));
+        reinterpret_cast<void*>(
+            MemoryChunkMetadata::FromHeapObject(heap_->isolate(), heap_object)
+                ->owner()
+                ->identity()));
   }
   MarkObject(host, heap_object, target_worklist.value());
   concrete_visitor()->RecordSlot(host, slot, heap_object);
@@ -310,7 +323,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
@@ -319,12 +331,24 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
   jdt->VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
 
+  if (jdt->IsMarked(handle)) {
+    return;
+  }
+
+  if (Tagged<InstructionStream> istream; TryCast(host, &istream)) {
+    Tagged<Code> code = UncheckedCast<Code>(istream->raw_code(kAcquireLoad));
+    if (code->IsWeakObjectInOptimizedCode(handle)) {
+      local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
+          DispatchHandleAndCode{handle, code});
+      return;
+    }
+  }
+
   jdt->Mark(handle);
 
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
   // marked here. See also VisitJSFunction below.
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // ===========================================================================
@@ -337,49 +361,59 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     MaybeObjectSize maybe_object_size) {
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-#ifndef V8_ENABLE_LEAPTIERING
-    local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
-#endif  // !V8_ENABLE_LEAPTIERING
     return Base::VisitJSFunction(map, js_function, maybe_object_size);
   }
 
   // We're not flushing the Code, so mark it as alive.
-#ifdef V8_ENABLE_LEAPTIERING
   // Here we can see JSFunctions that aren't fully initialized (e.g. during
   // deserialization) so we need to check for the null handle.
   JSDispatchHandle handle(
       js_function->Relaxed_ReadField<JSDispatchHandle::underlying_type>(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
-    Tagged<HeapObject> obj =
+    // See `ProcessStrongHeapObject()` for synchronization details.
+    Tagged<Code> code =
         IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
-    // TODO(saelo): maybe factor out common code with VisitIndirectPointer
-    // into a helper routine?
-    SynchronizePageAccess(obj);
-    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, obj);
+    // Dispatch table operations on code are synchronizing, so there's no need
+    // to synchronize the page.
+    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, code);
     if (target_worklist) {
-      MarkObject(js_function, obj, target_worklist.value());
+      DCHECK(IsCode(code));
+      MarkObject(js_function, code, target_worklist.value());
     }
   }
-#else
-
-#ifdef V8_ENABLE_SANDBOX
-  VisitIndirectPointer(js_function,
-                       js_function->RawIndirectPointerField(
-                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
-                       IndirectPointerMode::kStrong);
-#else
-  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_ENABLE_SANDBOX
-
-#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
   // also include cases where there is old bytecode even when there is no
   // baseline code and remove this check here.
-  if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
-      js_function->NeedsResetDueToFlushedBytecode(heap_->isolate())) {
-    local_weak_objects_->flushed_js_functions_local.Push(js_function);
+  if (IsByteCodeFlushingEnabled(code_flush_mode_)) {
+    // At this point the JSFunction is fully initialized which is guaranteed by
+    // the marking protocol. However, due to deserialization we may observe
+    // fields still as `Smi::uninitialized_deserialization_value()` which is not
+    // a valid bailout condition for the `TrustedCast()`.
+
+    // The SFI itself is synchronized via acq/rel pair here.
+    Tagged<Object> maybe_sfi =
+        ACQUIRE_READ_FIELD(*js_function, JSFunction::kSharedFunctionInfoOffset);
+    Tagged<SharedFunctionInfo> sfi;
+    if (!TryCast(maybe_sfi, &sfi)) {
+      DCHECK_EQ(maybe_sfi,
+                Tagged<Smi>(Smi::uninitialized_deserialization_value()));
+    }
+    // Code is synchronized via acq/release pair here and in the dispatch table
+    // if enabled.
+    Tagged<Object> maybe_code =
+        js_function->raw_code(heap_->isolate(), kAcquireLoad);
+    Tagged<Code> code;
+    if (!TryCast(maybe_code, &code)) {
+      DCHECK_EQ(maybe_code,
+                Tagged<Smi>(Smi::uninitialized_deserialization_value()));
+    }
+    if (!sfi.is_null() && !code.is_null() &&
+        js_function->NeedsResetDueToFlushedBytecode(heap_->isolate(), sfi,
+                                                    code)) {
+      local_weak_objects_->flushed_js_functions_local.Push(js_function);
+    }
   }
 
   return Base::VisitJSFunction(map, js_function, maybe_object_size);
@@ -446,7 +480,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   // called by the concurrent marker.
   Tagged<Object> data = sfi->GetTrustedData(heap_->isolate());
   if (IsCode(data)) {
-    Tagged<Code> baseline_code = Cast<Code>(data);
+    Tagged<Code> baseline_code = TrustedCast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
@@ -539,7 +573,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
 #endif
   if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Cast<Code>(maybe_code);
+  Tagged<Code> code = TrustedCast<Code>(maybe_code);
   if (code->kind() != CodeKind::BASELINE) return false;
 
   Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
@@ -614,7 +648,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object,
     MaybeObjectSize maybe_object_size) {
   MarkingProgressTracker& progress_tracker =
-      MutablePageMetadata::FromHeapObject(object)->marking_progress_tracker();
+      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+          ->marking_progress_tracker();
   return concrete_visitor()->CanUpdateValuesInHeap() &&
                  progress_tracker.IsEnabled()
              ? VisitFixedArrayWithProgressTracker(map, object, progress_tracker)
@@ -649,7 +684,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i, kRelaxedLoad));
 
     SynchronizePageAccess(key);
-    concrete_visitor()->RecordSlot(table, key_slot, key);
+    concrete_visitor()->template RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(
+        table, key_slot, key);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table, key);
 
     ObjectSlot value_slot =
@@ -692,7 +728,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
       }
     }
   }
-  return table->SizeFromMap(map);
+  return table->SafeSizeFromMap(map).value();
 }
 
 template <typename ConcreteVisitor>
@@ -733,9 +769,9 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
           heap_, concrete_visitor()->marking_state(), unregister_token)) {
     // Record the slots inside the WeakCell, since its IterateBody doesn't visit
     // it.
-    ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
+    ObjectSlot slot(&weak_cell->target_);
     concrete_visitor()->RecordSlot(weak_cell, slot, target);
-    slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
+    slot = ObjectSlot(&weak_cell->unregister_token_);
     concrete_visitor()->RecordSlot(weak_cell, slot, unregister_token);
   } else {
     // WeakCell points to a potentially dead object or a dead unregister
@@ -823,29 +859,31 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.
-  if (IsSmi(maybe_descriptors)) {
+  Tagged<HeapObject> descriptors_as_heap_object;
+  if (!maybe_descriptors.GetHeapObjectIfStrong(&descriptors_as_heap_object)) {
     DCHECK_EQ(maybe_descriptors, Smi::uninitialized_deserialization_value());
+    return;
+  }
+  // We cannot cast to the DescriptorArray here because the cast would check
+  // that we are indeed dealing with a trusted object. See
+  // `ProcessStrongHeapObject()` for synchronization details.
+  SynchronizePageAccess(descriptors_as_heap_object);
+  const auto maybe_worklist =
+      MarkingHelper::ShouldMarkObject(heap_, descriptors_as_heap_object);
+  if (!maybe_worklist.has_value()) {
+    DCHECK(!HeapLayout::InWritableSharedSpace(descriptors_as_heap_object));
     return;
   }
 
   Tagged<DescriptorArray> descriptors =
-      Cast<DescriptorArray>(maybe_descriptors);
-  // Synchronize reading of page flags for tsan.
-  SynchronizePageAccess(descriptors);
-  // Normal processing of descriptor arrays through the pointers iteration that
-  // follows this call:
-  // - Array in read only space;
-  // - Array in a black allocated page;
-  // - StrongDescriptor array;
-  if (HeapLayout::InReadOnlySpace(descriptors) ||
-      IsStrongDescriptorArray(descriptors)) {
+      Cast<DescriptorArray>(descriptors_as_heap_object);
+
+  if (IsStrongDescriptorArray(descriptors)) {
     return;
   }
 
-  if (v8_flags.black_allocated_pages &&
-      HeapLayout::InBlackAllocatedPage(descriptors)) {
-    return;
-  }
+  // At this point we know that we are dealing with a regular weak descriptor
+  // array that has been properly synchronized.
 
   const int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {

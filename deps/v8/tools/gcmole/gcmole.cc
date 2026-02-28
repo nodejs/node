@@ -664,15 +664,19 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* heap_object_decl,
                    clang::CXXRecordDecl* smi_decl,
                    clang::CXXRecordDecl* tagged_index_decl,
+                   clang::CXXRecordDecl* cleared_weak_value_decl,
                    clang::ClassTemplateDecl* tagged_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
+                   clang::CXXRecordDecl* conservative_pinning_scope_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         heap_object_decl_(heap_object_decl),
         smi_decl_(smi_decl),
         tagged_index_decl_(tagged_index_decl),
+        cleared_weak_value_decl_(cleared_weak_value_decl),
         tagged_decl_(tagged_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
+        conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
         d_(d),
         sm_(sm),
         block_(nullptr) {}
@@ -794,7 +798,10 @@ class FunctionAnalyzer {
   IGNORE_EXPR(GNUNullExpr);
   IGNORE_EXPR(OverloadExpr);
 
-  DECL_VISIT_EXPR(CXXThisExpr) { return Use(expr, expr->getType(), THIS, env); }
+  DECL_VISIT_EXPR(CXXThisExpr) {
+    return Use(expr, expr->getType(), THIS,
+               clang::FullSourceLoc(expr->getLocation(), sm_), env);
+  }
 
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
     Environment after_cond = env.ApplyEffect(VisitExpr(expr->getCond(), env));
@@ -940,7 +947,8 @@ class FunctionAnalyzer {
   // 1. If it got stale due to GC since its declaration, we report it as such.
   // 2. Mark its raw usage in the ExprEffect returned by this function.
   ExprEffect Use(const clang::Expr* parent, const clang::QualType& var_type,
-                 const std::string& var_name, const Environment& env) {
+                 const std::string& var_name, clang::FullSourceLoc var_location,
+                 const Environment& env) {
     if (!g_dead_vars_analysis) return ExprEffect::None();
     if (!RepresentsRawPointerType(var_type)) return ExprEffect::None();
     // We currently care only about our internal pointer types and not about
@@ -951,6 +959,7 @@ class FunctionAnalyzer {
     if (!IsInternalPointerType(var_type)) return ExprEffect::None();
     if (env.IsAlive(var_name)) return ExprEffect::None();
     if (HasActiveGuard()) return ExprEffect::None();
+    if (HasActiveConservativePinning(var_location)) return ExprEffect::None();
     ReportUnsafe(parent, DEAD_VAR_MSG);
     return ExprEffect::RawUse();
   }
@@ -958,7 +967,8 @@ class FunctionAnalyzer {
   ExprEffect Use(const clang::Expr* parent, const clang::ValueDecl* var,
                  const Environment& env) {
     if (IsExternalVMState(var)) return ExprEffect::GC();
-    return Use(parent, var->getType(), var->getNameAsString(), env);
+    return Use(parent, var->getType(), var->getNameAsString(),
+               clang::FullSourceLoc(var->getLocation(), sm_), env);
   }
 
   template <typename ExprType>
@@ -1281,7 +1291,7 @@ class FunctionAnalyzer {
 
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
-    if (record == nullptr) return nullptr;
+    assert(record);
     if (!InV8Namespace(record)) return nullptr;
     if (!record->hasDefinition()) return nullptr;
     return record->getDefinition();
@@ -1313,7 +1323,8 @@ class FunctionAnalyzer {
         auto* tagged_type_record =
             template_args[0].getAsType()->getAsCXXRecordDecl();
         return tagged_type_record != smi_decl_ &&
-               tagged_type_record != tagged_index_decl_;
+               tagged_type_record != tagged_index_decl_ &&
+               tagged_type_record != cleared_weak_value_decl_;
       }
     }
 
@@ -1358,26 +1369,32 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    if (!no_gc_mole_decl_) return false;
-    if (qtype.isNull()) return false;
-    if (qtype->isNullPtrType()) return false;
+    return IsSameType(qtype, no_gc_mole_decl_);
+  }
 
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) return false;
-    return no_gc_mole_decl_ == definition;
+  bool IsConservativePinningScope(clang::QualType qtype) {
+    return IsSameType(qtype, conservative_pinning_scope_decl_);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
 
-      if (RepresentsRawPointerType(var->getType())) {
+      clang::QualType var_type = var->getType();
+      if (llvm::dyn_cast<clang::ParmVarDecl>(decl) &&
+          var_type->isReferenceType()) {
+        var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
+      }
+
+      if (RepresentsRawPointerType(var_type)) {
         out = out.Define(var->getNameAsString());
       }
-      if (IsGCGuard(var->getType())) {
+      if (IsGCGuard(var_type)) {
         scopes_.back().guard_location =
+            clang::FullSourceLoc(decl->getLocation(), sm_);
+      }
+      if (IsConservativePinningScope(var_type)) {
+        scopes_.back().conservative_pinning_scope_location =
             clang::FullSourceLoc(decl->getLocation(), sm_);
       }
 
@@ -1397,12 +1414,14 @@ class FunctionAnalyzer {
     return out;
   }
 
-  void DefineParameters(const clang::FunctionDecl* f, Environment* env) {
-    env->MDefine(THIS);
+  void DefineAndVisitParameters(const clang::FunctionDecl* f,
+                                Environment& env) {
+    env.MDefine(THIS);
     clang::FunctionDecl::param_const_iterator end = f->param_end();
     for (clang::FunctionDecl::param_const_iterator p = f->param_begin();
          p != end; ++p) {
-      env->MDefine((*p)->getNameAsString());
+      env.MDefine((*p)->getNameAsString());
+      VisitDecl(*p, env);
     }
   }
 
@@ -1410,8 +1429,10 @@ class FunctionAnalyzer {
     const clang::FunctionDecl* body = nullptr;
     if (f->hasBody(body)) {
       Environment env;
-      DefineParameters(body, &env);
+      scopes_.push_back(GCScope());
+      DefineAndVisitParameters(body, env);
       VisitStmt(body->getBody(), env);
+      scopes_.pop_back();
       Environment::ClearSymbolTable();
     }
   }
@@ -1431,7 +1452,25 @@ class FunctionAnalyzer {
     return false;
   }
 
+  bool HasActiveConservativePinning(
+      const clang::FullSourceLoc decl_location) const {
+    for (const auto& s : scopes_) {
+      if (s.IsAfterConservativePinningScope(decl_location)) return true;
+    }
+    return false;
+  }
+
  private:
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
+  }
+
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     clang::SourceLocation error_loc =
         clang::FullSourceLoc(expr->getExprLoc(), sm_);
@@ -1486,8 +1525,10 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* heap_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
   clang::CXXRecordDecl* tagged_index_decl_;
+  clang::CXXRecordDecl* cleared_weak_value_decl_;
   clang::ClassTemplateDecl* tagged_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
+  clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
@@ -1497,6 +1538,7 @@ class FunctionAnalyzer {
   struct GCScope {
     clang::FullSourceLoc guard_location;
     clang::FullSourceLoc gccause_location;
+    clang::FullSourceLoc conservative_pinning_scope_location;
     clang::FunctionDecl* gccause_decl;
 
     // We're only interested in guards that are declared before any further GC
@@ -1505,6 +1547,13 @@ class FunctionAnalyzer {
       if (!guard_location.isValid()) return false;
       if (!gccause_location.isValid()) return true;
       return guard_location.isBeforeInTranslationUnitThan(gccause_location);
+    }
+
+    bool IsAfterConservativePinningScope(
+        const clang::FullSourceLoc decl_location) const {
+      if (!conservative_pinning_scope_location.isValid()) return false;
+      return conservative_pinning_scope_location.isBeforeInTranslationUnitThan(
+          decl_location);
     }
 
     // After we set the first GC cause in the scope, we don't need the later
@@ -1571,6 +1620,9 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* no_gc_mole_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
 
+    clang::CXXRecordDecl* conservative_pinning_scope_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
+
     clang::CXXRecordDecl* heap_object_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("HeapObject");
 
@@ -1579,6 +1631,9 @@ class ProblemsFinder : public clang::ASTConsumer,
 
     clang::CXXRecordDecl* tagged_index_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("TaggedIndex");
+
+    clang::CXXRecordDecl* cleared_weak_value_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
 
     clang::ClassTemplateDecl* tagged_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
@@ -1603,7 +1658,8 @@ class ProblemsFinder : public clang::ASTConsumer,
         tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
-          smi_decl, tagged_index_decl, tagged_decl, no_gc_mole_decl, d_, sm_);
+          smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
+          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {

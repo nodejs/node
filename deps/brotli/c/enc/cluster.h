@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_CLUSTER_H_
 #define BROTLI_ENC_CLUSTER_H_
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 #include "histogram.h"
 #include "memory.h"

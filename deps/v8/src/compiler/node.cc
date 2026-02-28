@@ -57,8 +57,6 @@ struct NodeWithInLineInputs {};
 template <typename NodePtrT>
 Node* Node::NewImpl(Zone* zone, NodeId id, const Operator* op, int input_count,
                     NodePtrT const* inputs, bool has_extensible_inputs) {
-  // Node uses compressed pointers, so zone must support pointer compression.
-  DCHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
   DCHECK_GE(input_count, 0);
 
   ZoneNodePtr* input_ptr;

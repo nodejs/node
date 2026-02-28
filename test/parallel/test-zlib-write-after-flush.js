@@ -21,39 +21,33 @@
 
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('node:assert');
 const zlib = require('node:zlib');
-const { test } = require('node:test');
 
-test('zlib should accept writing after flush', async () => {
-  for (const [ createCompress, createDecompress ] of [
-    [ zlib.createGzip, zlib.createGunzip ],
-    [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
-    [ zlib.createZstdCompress, zlib.createZstdDecompress ],
-  ]) {
-    const { promise, resolve, reject } = Promise.withResolvers();
-    const gzip = createCompress();
-    const gunz = createDecompress();
+for (const [ createCompress, createDecompress ] of [
+  [ zlib.createGzip, zlib.createGunzip ],
+  [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
+  [ zlib.createZstdCompress, zlib.createZstdDecompress ],
+]) {
+  const gzip = createCompress();
+  const gunz = createDecompress();
 
-    gzip.pipe(gunz);
+  gzip.pipe(gunz);
 
-    let output = '';
-    const input = 'A line of data\n';
-    gunz.setEncoding('utf8');
-    gunz.on('error', reject);
-    gunz.on('data', (c) => output += c);
-    gunz.on('end', () => {
-      assert.strictEqual(output, input);
-      resolve();
-    });
+  let output = '';
+  const input = 'A line of data\n';
+  gunz.setEncoding('utf8');
+  gunz.on('error', common.mustNotCall());
+  gunz.on('data', (c) => output += c);
+  gunz.on('end', common.mustCall(() => {
+    assert.strictEqual(output, input);
+  }));
 
-    // Make sure that flush/write doesn't trigger an assert failure
-    gzip.flush();
-    gzip.write(input);
-    gzip.end();
-    gunz.read(0);
-    await promise;
-  }
-});
+  // Make sure that flush/write doesn't trigger an assert failure
+  gzip.flush();
+  gzip.write(input);
+  gzip.end();
+  gunz.read(0);
+}

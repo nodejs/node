@@ -1,3 +1,13 @@
+## 8.3.5 (2026-02-19)
+
+### Bug fixes
+
+Emit a more informative error message when trying to walk a node type that has no walker function.
+
+Specify callbacks in types to receive `AnyNode` type, so that they can be narrowed more easily.
+
+Support import attributes.
+
 ## 8.3.4 (2024-09-09)
 
 ### Bug fixes

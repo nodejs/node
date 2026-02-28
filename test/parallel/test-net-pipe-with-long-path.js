@@ -19,18 +19,18 @@ const pipePath = `${tmpdir.path}/${'x'.repeat(10000)}.sock`;
 const server = net.createServer()
   .listen(pipePath)
   // It may work on some operating systems
-  .on('listening', () => {
+  .on('listening', common.mustCallAtLeast(() => {
     // The socket file must exist
     assert.ok(fs.existsSync(pipePath));
     const socket = net.connect(pipePath, common.mustCall(() => {
       socket.destroy();
       server.close();
     }));
-  })
-  .on('error', (error) => {
+  }, 0))
+  .on('error', common.mustCall((error) => {
     assert.ok(error.code === 'EINVAL', error.message);
     net.connect(pipePath)
       .on('error', common.mustCall((error) => {
         assert.ok(error.code === 'EINVAL', error.message);
       }));
-  });
+  }));

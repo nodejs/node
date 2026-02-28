@@ -33,7 +33,7 @@
 #include <bit>  // For std::bit_cast.
 #endif  // defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
 
-#include "absl/base/internal/identity.h"
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 
@@ -90,8 +90,25 @@ ABSL_NAMESPACE_BEGIN
 //
 // Such implicit cast chaining may be useful within template logic.
 template <typename To>
-constexpr To implicit_cast(typename absl::internal::type_identity_t<To> to) {
+constexpr std::enable_if_t<
+    !type_traits_internal::IsView<std::enable_if_t<
+        !std::is_reference_v<To>, std::remove_cv_t<To>>>::value,
+    To>
+implicit_cast(absl::type_identity_t<To> to) {
   return to;
+}
+template <typename To>
+constexpr std::enable_if_t<
+    type_traits_internal::IsView<std::enable_if_t<!std::is_reference_v<To>,
+                                                  std::remove_cv_t<To>>>::value,
+    To>
+implicit_cast(absl::type_identity_t<To> to ABSL_ATTRIBUTE_LIFETIME_BOUND) {
+  return to;
+}
+template <typename To>
+constexpr std::enable_if_t<std::is_reference_v<To>, To> implicit_cast(
+    absl::type_identity_t<To> to ABSL_ATTRIBUTE_LIFETIME_BOUND) {
+  return std::forward<absl::type_identity_t<To>>(to);
 }
 
 // bit_cast()

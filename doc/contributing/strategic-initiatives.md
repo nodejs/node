@@ -14,7 +14,7 @@ agenda to ensure they are active and have the support they need.
 | V8 Currency            | [Michaël Zasso][targos]          |                                                   |
 | Next-10                | [Michael Dawson][mhdawson]       | <https://github.com/nodejs/next-10>               |
 | Single executable apps | [Darshan Sen][RaisinTen]         | <https://github.com/nodejs/single-executable>     |
-| Performance            |                                  | <https://github.com/nodejs/performance>           |
+| Performance            | [Rafael Gonzaga][RafaelGSS]      | <https://github.com/nodejs/performance>           |
 | Primordials            | [Benjamin Gruenbaum][benjamingr] | <https://github.com/nodejs/primordials-use-cases> |
 
 <details>
@@ -39,6 +39,7 @@ agenda to ensure they are active and have the support they need.
 
 </details>
 
+[RafaelGSS]: https://github.com/RafaelGSS
 [RaisinTen]: https://github.com/RaisinTen
 [benjamingr]: https://github.com/benjamingr
 [jasnell]: https://github.com/jasnell

@@ -37,12 +37,9 @@ const options = {
 };
 
 class Mediator extends stream.Writable {
-  constructor() {
-    super();
-    this.buf = '';
-  }
+  buf = '';
 
-  _write(data, enc, cb) {
+  _write = common.mustCallAtLeast((data, enc, cb) => {
     this.buf += data;
     setTimeout(cb, 0);
 
@@ -50,7 +47,7 @@ class Mediator extends stream.Writable {
       assert.strictEqual(this.buf, request.toString());
       server.close();
     }
-  }
+  });
 }
 
 const mediator = new Mediator();

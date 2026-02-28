@@ -481,43 +481,42 @@ void WriteProtectedSlot<SlotT>::Relaxed_Store(TObject value) const {
   jit_allocation_.WriteHeaderSlot(this->address(), value, kRelaxedStore);
 }
 
-//
-// Utils.
-//
-
-// Copies tagged words from |src| to |dst|. The data spans must not overlap.
-// |src| and |dst| must be kTaggedSize-aligned.
-inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
-  static const size_t kBlockCopyLimit = 16;
-  CopyImpl<kBlockCopyLimit>(reinterpret_cast<Tagged_t*>(dst),
-                            reinterpret_cast<const Tagged_t*>(src), num_tagged);
-}
-
-// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
-                         size_t counter) {
+                         size_t count) {
 #ifdef V8_COMPRESS_POINTERS
   // CompressAny since many callers pass values which are not valid objects.
   Tagged_t raw_value = V8HeapCompressionScheme::CompressAny(value.ptr());
-  MemsetUint32(start, raw_value, counter);
 #else
-  Address raw_value = value.ptr();
-  MemsetPointer(start, raw_value, counter);
+  Tagged_t raw_value = value.ptr();
 #endif
+  Memset(start, raw_value, count);
 }
 
-// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+inline void Relaxed_MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
+                                 size_t count) {
+#ifdef V8_COMPRESS_POINTERS
+  // CompressAny since many callers pass values which are not valid objects.
+  Tagged_t raw_value = V8HeapCompressionScheme::CompressAny(value.ptr());
+#else
+  Tagged_t raw_value = value.ptr();
+#endif
+  Relaxed_Memset(start, raw_value, count);
+}
+
 template <typename T>
 inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
-                         size_t counter) {
-  MemsetTagged(start.location(), value, counter);
+                         size_t count) {
+  MemsetTagged(start.location(), value, count);
 }
 
-// Sets |counter| number of kSystemPointerSize-sized values starting at |start|
-// slot.
-inline void MemsetPointer(FullObjectSlot start, Tagged<Object> value,
-                          size_t counter) {
-  MemsetPointer(start.location(), value.ptr(), counter);
+template <typename T>
+inline void Relaxed_MemsetTagged(SlotBase<T, Tagged_t> start,
+                                 Tagged<MaybeObject> value, size_t count) {
+  Relaxed_MemsetTagged(start.location(), value, count);
+}
+
+void MemsetPointer(FullObjectSlot start, Tagged<Object> value, size_t count) {
+  Memset(start.location(), value.ptr(), count);
 }
 
 }  // namespace internal

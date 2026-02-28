@@ -21,46 +21,54 @@ template <typename Next>
 class DebugFeatureLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(DebugFeatureLowering)
+  using StringOrSmi = Union<String, Smi>;
 
-  OpIndex REDUCE(DebugPrint)(OpIndex input, RegisterRepresentation rep) {
-    if (isolate_ != nullptr) {
-      switch (rep.value()) {
-        case RegisterRepresentation::WordPtr():
-          __ CallBuiltin_DebugPrintWordPtr(isolate_, __ NoContextConstant(),
-                                           input);
-          break;
-        case RegisterRepresentation::Float64():
-          __ CallBuiltin_DebugPrintFloat64(isolate_, __ NoContextConstant(),
-                                           input);
-          break;
-        case RegisterRepresentation::Tagged():
-          __ CallRuntime_DebugPrint(isolate_, input);
-          break;
-        default:
-          // TODO(nicohartmann@): Support other representations.
-          UNIMPLEMENTED();
+  template <typename Desc>
+  void CallDebugPrint(OptionalV<String> label, OpIndex value) {
+    if (isolate_) {
+      typename Desc::Arguments args;
+      if (label.has_value()) {
+        args.label_or_0 = label.value();
+      } else {
+        args.label_or_0 = __ SmiZeroConstant();
       }
+      args.value = value;
+      __ template CallBuiltin<Desc>(__ NoContextConstant(), args);
     } else {
 #if V8_ENABLE_WEBASSEMBLY
       DCHECK(__ data()->is_wasm());
-      switch (rep.value()) {
-        case RegisterRepresentation::Float64():
-          __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintFloat64>(__ NoContextConstant(),
-                                                        {input});
-          break;
-        case RegisterRepresentation::WordPtr():
-          __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintWordPtr>(__ NoContextConstant(),
-                                                        {input});
-          break;
-        default:
-          // TODO(mliedtke): Support other representations.
-          UNIMPLEMENTED();
-      }
+      DCHECK(
+          !label.has_value());  // String constants are not supported in wasm.
+      __ template WasmCallBuiltinThroughJumptable<Desc>(
+          __ NoContextConstant(),
+          {.label_or_0 = __ SmiZeroConstant(), .value = value});
 #else
       UNREACHABLE();
 #endif
+    }
+  }
+
+  OpIndex REDUCE(DebugPrint)(OpIndex input, OptionalV<String> label,
+                             RegisterRepresentation rep) {
+    switch (rep.value()) {
+      case RegisterRepresentation::Word32():
+        CallDebugPrint<builtin::DebugPrintWord32>(label, input);
+        break;
+      case RegisterRepresentation::Word64():
+        CallDebugPrint<builtin::DebugPrintWord64>(label, input);
+        break;
+      case RegisterRepresentation::Float32():
+        CallDebugPrint<builtin::DebugPrintFloat32>(label, input);
+        break;
+      case RegisterRepresentation::Float64():
+        CallDebugPrint<builtin::DebugPrintFloat64>(label, input);
+        break;
+      case RegisterRepresentation::Tagged():
+        CallDebugPrint<builtin::DebugPrintObject>(label, input);
+        break;
+      default:
+        // TODO(nicohartmann@): Support other representations.
+        UNIMPLEMENTED();
     }
     return {};
   }

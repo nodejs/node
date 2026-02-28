@@ -2,6 +2,7 @@ Name: Jinja2 Python Template Engine
 Short Name: jinja2
 URL: https://jinja.palletsprojects.com/
 Version: 3.1.2
+Update Mechanism: Manual
 License: BSD-3-Clause
 License File: LICENSE.rst
 Security Critical: no

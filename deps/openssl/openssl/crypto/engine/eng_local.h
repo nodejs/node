@@ -9,13 +9,13 @@
  */
 
 #ifndef OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
-# define OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
+#define OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
 
-# include <openssl/trace.h>
-# include "internal/cryptlib.h"
-# include "crypto/engine.h"
-# include "internal/thread_once.h"
-# include "internal/refcount.h"
+#include <openssl/trace.h>
+#include "internal/cryptlib.h"
+#include "crypto/engine.h"
+#include "internal/thread_once.h"
+#include "internal/refcount.h"
 
 extern CRYPTO_RWLOCK *global_engine_lock;
 
@@ -25,15 +25,15 @@ extern CRYPTO_RWLOCK *global_engine_lock;
  * the file:line-number pair. The "ENGINE_REF_PRINT" statements must come
  * *after* the change.
  */
-# define ENGINE_REF_PRINT(e, isfunct, diff)                             \
-    OSSL_TRACE6(ENGINE_REF_COUNT,                                       \
-               "engine: %p %s from %d to %d (%s:%d)\n",                 \
-               (void *)(e), (isfunct ? "funct" : "struct"),             \
-               ((isfunct)                                               \
-                ? ((e)->funct_ref - (diff))                             \
-                : (eng_struct_ref(e) - (diff))),                        \
-               ((isfunct) ? (e)->funct_ref : eng_struct_ref(e)),        \
-               (OPENSSL_FILE), (OPENSSL_LINE))
+#define ENGINE_REF_PRINT(e, isfunct, diff)                \
+    OSSL_TRACE6(ENGINE_REF_COUNT,                         \
+        "engine: %p %s from %d to %d (%s:%d)\n",          \
+        (void *)(e), (isfunct ? "funct" : "struct"),      \
+        ((isfunct)                                        \
+                ? ((e)->funct_ref - (diff))               \
+                : (eng_struct_ref(e) - (diff))),          \
+        ((isfunct) ? (e)->funct_ref : eng_struct_ref(e)), \
+        (OPENSSL_FILE), (OPENSSL_LINE))
 
 /*
  * Any code that will need cleanup operations should use these functions to
@@ -41,7 +41,7 @@ extern CRYPTO_RWLOCK *global_engine_lock;
  * callbacks in order. NB: both the "add" functions assume the engine lock to
  * already be held (in "write" mode).
  */
-typedef void (ENGINE_CLEANUP_CB) (void);
+typedef void(ENGINE_CLEANUP_CB)(void);
 typedef struct st_engine_cleanup_item {
     ENGINE_CLEANUP_CB *cb;
 } ENGINE_CLEANUP_ITEM;
@@ -58,16 +58,16 @@ DEFINE_STACK_OF(ENGINE)
  */
 typedef struct st_engine_table ENGINE_TABLE;
 int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
-                          ENGINE *e, const int *nids, int num_nids,
-                          int setdefault);
+    ENGINE *e, const int *nids, int num_nids,
+    int setdefault);
 void engine_table_unregister(ENGINE_TABLE **table, ENGINE *e);
 void engine_table_cleanup(ENGINE_TABLE **table);
 ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
-                                 const char *f, int l);
-typedef void (engine_table_doall_cb) (int nid, STACK_OF(ENGINE) *sk,
-                                      ENGINE *def, void *arg);
+    const char *f, int l);
+typedef void(engine_table_doall_cb)(int nid, STACK_OF(ENGINE) *sk,
+    ENGINE *def, void *arg);
 void engine_table_doall(ENGINE_TABLE *table, engine_table_doall_cb *cb,
-                        void *arg);
+    void *arg);
 
 /*
  * Internal versions of API functions that have control over locking. These
@@ -101,7 +101,7 @@ DECLARE_RUN_ONCE(do_engine_lock_init)
 
 typedef void (*ENGINE_DYNAMIC_ID)(void);
 int engine_add_dynamic_id(ENGINE *e, ENGINE_DYNAMIC_ID dynamic_id,
-                          int not_locked);
+    int not_locked);
 void engine_remove_dynamic_id(ENGINE *e, int not_locked);
 
 /*
@@ -166,4 +166,4 @@ static ossl_unused ossl_inline int eng_struct_ref(ENGINE *e)
     return res;
 }
 
-#endif                          /* OSSL_CRYPTO_ENGINE_ENG_LOCAL_H */
+#endif /* OSSL_CRYPTO_ENGINE_ENG_LOCAL_H */

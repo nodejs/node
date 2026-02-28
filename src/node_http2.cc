@@ -251,7 +251,7 @@ size_t Http2Settings::Init(
     for (uint32_t i = 0; i < numAddSettings; i++) {
       uint32_t key = buffer[offset + i * 2 + 0];
       uint32_t val = buffer[offset + i * 2 + 1];
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, val};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), val};
     }
   }
 
@@ -331,8 +331,8 @@ void Http2Settings::Update(Http2Session* session, get_setting fn, bool local) {
   for (size_t i = 0; i < imax; i++) {
     // We flag unset the settings with a bit above the allowed range
     if (!(custom_settings.entries[i].settings_id & (~0xffff))) {
-      uint32_t settings_id =
-          (uint32_t)(custom_settings.entries[i].settings_id & 0xffff);
+      uint32_t settings_id = static_cast<uint32_t>(
+          custom_settings.entries[i].settings_id & 0xffff);
       size_t j = 0;
       while (j < count) {
         if ((buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 1] & 0xffff) ==
@@ -483,13 +483,10 @@ Origins::Origins(
 
   CHECK_LE(origin_contents + origin_string_len,
            static_cast<char*>(bs_->Data()) + bs_->ByteLength());
-  CHECK_EQ(origin_string->WriteOneByte(
-               env->isolate(),
-               reinterpret_cast<uint8_t*>(origin_contents),
-               0,
-               origin_string_len,
-               String::NO_NULL_TERMINATION),
-           origin_string_len);
+  origin_string->WriteOneByteV2(env->isolate(),
+                                0,
+                                origin_string_len,
+                                reinterpret_cast<uint8_t*>(origin_contents));
 
   size_t n = 0;
   char* p;
@@ -650,7 +647,7 @@ void Http2Session::FetchAllowedRemoteCustomSettings() {
           (buffer[offset + i * 2 + 0] & 0xffff) |
           (1
            << 16);  // setting the bit 16 indicates, that no values has been set
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, 0};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), 0};
     }
     remote_custom_settings_.number = count;
   }
@@ -3186,8 +3183,8 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  size_t origin_len = origin_str->Length();
-  size_t value_len = value_str->Length();
+  int origin_len = origin_str->Length();
+  int value_len = value_str->Length();
 
   CHECK_LE(origin_len + value_len, 16382);  // Max permitted for ALTSVC
   // Verify that origin len != 0 if stream id == 0, or
@@ -3196,8 +3193,13 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
 
   MaybeStackBuffer<uint8_t> origin(origin_len);
   MaybeStackBuffer<uint8_t> value(value_len);
-  origin_str->WriteOneByte(env->isolate(), *origin);
-  value_str->WriteOneByte(env->isolate(), *value);
+  origin_str->WriteOneByteV2(env->isolate(),
+                             0,
+                             origin_len,
+                             *origin,
+                             String::WriteFlags::kNullTerminate);
+  value_str->WriteOneByteV2(
+      env->isolate(), 0, value_len, *value, String::WriteFlags::kNullTerminate);
 
   session->AltSvc(id, *origin, origin_len, *value, value_len);
 }

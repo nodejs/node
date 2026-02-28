@@ -53,9 +53,7 @@
 //     ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 //     return result;
 //   }
-#if defined(__pnacl__)
-#define ABSL_BLOCK_TAIL_CALL_OPTIMIZATION() if (volatile int x = 0) { (void)x; }
-#elif defined(__clang__)
+#if defined(__clang__)
 // Clang will not tail call given inline volatile assembly.
 #define ABSL_BLOCK_TAIL_CALL_OPTIMIZATION() __asm__ __volatile__("")
 #elif defined(__GNUC__)

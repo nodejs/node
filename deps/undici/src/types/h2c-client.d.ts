@@ -1,4 +1,4 @@
-import { URL } from 'url'
+import { URL } from 'node:url'
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 

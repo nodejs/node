@@ -52,17 +52,17 @@ function test(next) {
     key: fixtures.readKey('rsa_private.pem'),
   };
 
-  const server = https.createServer(options, (req, res) => {
+  const server = https.createServer(options, common.mustCallAtLeast((req, res) => {
     const conn = req.connection;
-    conn.on('error', (err) => {
+    conn.on('error', common.mustCallAtLeast((err) => {
       console.error(`Caught exception: ${err}`);
       assert.match(err.message, /TLS session renegotiation attack/);
       conn.destroy();
-    });
+    }));
     res.end('ok');
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const agent = https.Agent({
       keepAlive: true,
     });
@@ -77,15 +77,15 @@ function test(next) {
 
     const { port } = server.address();
 
-    https.get(`https://localhost:${port}/`, options, (res) => {
+    https.get(`https://localhost:${port}/`, options, common.mustCall((res) => {
       client = res.socket;
 
-      client.on('close', (hadErr) => {
+      client.on('close', common.mustCall((hadErr) => {
         assert.strictEqual(hadErr, false);
         assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
         server.close();
         process.nextTick(next);
-      });
+      }));
 
       client.on('error', (err) => {
         console.log('CLIENT ERR', err);
@@ -96,14 +96,14 @@ function test(next) {
 
       // Simulate renegotiation attack
       function spam() {
-        client.renegotiate({}, (err) => {
+        client.renegotiate({}, common.mustCallAtLeast((err) => {
           assert.ifError(err);
           assert.ok(renegs <= tls.CLIENT_RENEG_LIMIT);
           setImmediate(spam);
-        });
+        }, 0));
         renegs++;
       }
-    });
+    }));
 
-  });
+  }));
 }

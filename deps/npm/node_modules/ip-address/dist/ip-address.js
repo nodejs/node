@@ -24,11 +24,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.v6 = exports.AddressError = exports.Address6 = exports.Address4 = void 0;
-const ipv4_1 = require("./ipv4");
+var ipv4_1 = require("./ipv4");
 Object.defineProperty(exports, "Address4", { enumerable: true, get: function () { return ipv4_1.Address4; } });
-const ipv6_1 = require("./ipv6");
+var ipv6_1 = require("./ipv6");
 Object.defineProperty(exports, "Address6", { enumerable: true, get: function () { return ipv6_1.Address6; } });
-const address_error_1 = require("./address-error");
+var address_error_1 = require("./address-error");
 Object.defineProperty(exports, "AddressError", { enumerable: true, get: function () { return address_error_1.AddressError; } });
 const helpers = __importStar(require("./v6/helpers"));
 exports.v6 = { helpers };

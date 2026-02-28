@@ -9,8 +9,10 @@ namespace node {
 using v8::EscapableHandleScope;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -86,20 +88,29 @@ Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
 
 MaybeLocal<Object> Dotenv::ToObject(Environment* env) const {
   EscapableHandleScope scope(env->isolate());
-  Local<Object> result = Object::New(env->isolate());
 
-  Local<Value> name;
-  Local<Value> val;
+  LocalVector<Name> names(env->isolate(), store_.size());
+  LocalVector<Value> values(env->isolate(), store_.size());
   auto context = env->context();
 
+  Local<Value> tmp;
+
+  int n = 0;
   for (const auto& entry : store_) {
-    if (!ToV8Value(context, entry.first).ToLocal(&name) ||
-        !ToV8Value(context, entry.second).ToLocal(&val) ||
-        result->Set(context, name, val).IsNothing()) {
+    if (!ToV8Value(context, entry.first).ToLocal(&tmp)) {
       return MaybeLocal<Object>();
     }
+    names[n] = tmp.As<Name>();
+    if (!ToV8Value(context, entry.second).ToLocal(&tmp)) {
+      return MaybeLocal<Object>();
+    }
+    values[n++] = tmp;
   }
-
+  Local<Object> result = Object::New(env->isolate(),
+                                     Null(env->isolate()),
+                                     names.data(),
+                                     values.data(),
+                                     values.size());
   return scope.Escape(result);
 }
 

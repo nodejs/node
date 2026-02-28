@@ -18,17 +18,17 @@ ok 1 - Coverage Print Fixed Width 40
 # --------------------------------------
 # file                | line % | branch % | funcs % | …
 # --------------------------------------
-# test                |        |          |         | 
-#  fixtures           |        |          |         | 
-#   test-runner       |        |          |         | 
-#    coverage-snap    |        |          |         | 
-#     …g-long-sub-dir |        |          |         | 
+# test                |        |          |         |
+#  fixtures           |        |          |         |
+#   test-runner       |        |          |         |
+#    coverage-snap    |        |          |         |
+#     …g-long-sub-dir |        |          |         |
 #      c.js           |  55.77 |   100.00 |    0.00 | …
 #     a.js            |  55.77 |   100.00 |    0.00 | …
 #     b.js            |  45.45 |   100.00 |    0.00 | …
-#    output           |        |          |         | 
-#     …e-width-40.mjs | 100.00 |   100.00 |  100.00 | 
+#    output           |        |          |         |
+#     …e-width-40.mjs | 100.00 |   100.00 |  100.00 |
 # --------------------------------------
-# all files           |  60.00 |   100.00 |    0.00 | 
+# all files           |  60.00 |   100.00 |    0.00 |
 # --------------------------------------
 # end of coverage report

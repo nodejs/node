@@ -29,8 +29,7 @@ class DeoptInfoVisitor {
     if (deopt_info->top_frame().parent()) {
       visitor.Visit(*deopt_info->top_frame().parent(), f);
     }
-    const bool kSkipResultLocation = true;
-    visitor.VisitSingleFrame<kSkipResultLocation>(deopt_info->top_frame(), f);
+    visitor.VisitSingleFrame(deopt_info->top_frame(), f);
   }
 
  private:
@@ -54,17 +53,29 @@ class DeoptInfoVisitor {
     VisitSingleFrame(frame, f);
   }
 
-  template <bool skip_frame_result = false, typename Function>
+  template <typename Function>
   void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
-      if (node->template Is<Identity>()) {
-        node = node->input(0).node();
+      if (std::is_same_v<ValueNodeT, ValueNode*&>) {
+        // We modify the deopt frame to bypass the Identity node, we update the
+        // use_count for consistency.
+        while (node->properties().is_conversion() ||
+               node->template Is<Identity>() ||
+               node->template Is<ReturnedValue>()) {
+          node->remove_use();
+          node = node->input(0).node();
+          node->add_use();
+        }
+      } else {
+        node = node->UnwrapIdentities();
       }
       if (auto alloc = node->template TryCast<InlinedAllocation>()) {
         VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);
         if (vobject && (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-          return vobject->ForEachNestedRuntimeInput(virtual_objects_, f);
+          return vobject->ForEachNestedRuntimeInput(
+              virtual_objects_, f,
+              VirtualObject::ForEachSlotIterationMode::kForDeopt);
         }
       }
       f(node);
@@ -75,14 +86,6 @@ class DeoptInfoVisitor {
         frame.as_interpreted().frame_state()->ForEachValue(
             frame.as_interpreted().unit(),
             [&](ValueNode*& node, interpreter::Register reg) {
-              if constexpr (std::is_same_v<DeoptInfoT, LazyDeoptInfo>) {
-                // Skip over the result location for lazy deopts, since it is
-                // irrelevant for lazy deopts (unoptimized code will recreate
-                // the result).
-                if (skip_frame_result && deopt_info_->IsResultRegister(reg)) {
-                  return;
-                }
-              }
               updated_f(node);
             });
         break;
@@ -127,6 +130,16 @@ void LazyDeoptInfo::ForEachInput(Function&& f) {
 template <typename Function>
 void LazyDeoptInfo::ForEachInput(Function&& f) const {
   DeoptInfoVisitor<const LazyDeoptInfo>::ForLazy(this, f);
+}
+
+inline void EagerDeoptInfo::Unwrap() {
+  // The visitor automatically unwrap conversion, identities and ReturnedValues.
+  ForEachInput([&](ValueNode*) {});
+}
+
+inline void LazyDeoptInfo::Unwrap() {
+  // The visitor automatically unwrap conversion, identities and ReturnedValues.
+  ForEachInput([](ValueNode*) {});
 }
 
 }  // namespace maglev

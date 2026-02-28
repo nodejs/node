@@ -327,10 +327,10 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
 }
 
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsInt32());
   UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
-  args.GetReturnValue().Set(OneByteString(env->isolate(), u_errorName(status)));
+  args.GetReturnValue().Set(
+      OneByteString(args.GetIsolate(), u_errorName(status)));
 }
 
 }  // anonymous namespace
@@ -372,10 +372,8 @@ size_t Converter::max_char_size() const {
 }
 
 void ConverterObject::Has(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   CHECK_GE(args.Length(), 1);
-  Utf8Value label(env->isolate(), args[0]);
+  Utf8Value label(args.GetIsolate(), args[0]);
 
   UErrorCode status = U_ZERO_ERROR;
   ConverterPointer conv(ucnv_open(*label, &status));
@@ -645,13 +643,12 @@ static int GetColumnWidth(UChar32 codepoint,
 
 // Returns the column width for the given String.
 static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
 
   bool ambiguous_as_full_width = args[1]->IsTrue();
   bool expand_emoji_sequence = !args[2]->IsBoolean() || args[2]->IsTrue();
 
-  TwoByteValue value(env->isolate(), args[0]);
+  TwoByteValue value(args.GetIsolate(), args[0]);
   // reinterpret_cast is required by windows to compile
   UChar* str = reinterpret_cast<UChar*>(*value);
   static_assert(sizeof(*str) == sizeof(**value),

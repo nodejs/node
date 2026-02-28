@@ -58,7 +58,7 @@ int nghttp3_idtr_open(nghttp3_idtr *idtr, int64_t stream_id) {
   return nghttp3_gaptr_push(&idtr->gap, q, 1);
 }
 
-int nghttp3_idtr_is_open(nghttp3_idtr *idtr, int64_t stream_id) {
+int nghttp3_idtr_is_open(const nghttp3_idtr *idtr, int64_t stream_id) {
   uint64_t q;
 
   q = id_from_stream_id(stream_id);

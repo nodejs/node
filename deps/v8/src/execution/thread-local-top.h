@@ -30,7 +30,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 29 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -194,9 +194,6 @@ class ThreadLocalTop {
 
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
-
-  // Address of the thread-local "thread in wasm" flag.
-  Address thread_in_wasm_flag_address_;
 
   // On switching from the central stack these fields are set
   // to the central stack's SP and stack limit accordingly,

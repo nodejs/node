@@ -26,6 +26,10 @@ Basic Unix tools are required for some benchmarks.
 [Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
 which need to be included in the global Windows `PATH`.
 
+If you are using Nix, all the required tools are already listed in the
+`benchmarkTools` argument of the `shell.nix` file, so you can skip those
+prerequisites.
+
 ### HTTP benchmark requirements
 
 Most of the HTTP benchmarks require a benchmarker to be installed. This can be
@@ -43,16 +47,19 @@ By default, `wrk` will be used as the benchmarker. If it is not available,
 `autocannon` will be used in its place. When creating an HTTP benchmark, the
 benchmarker to be used should be specified by providing it as an argument:
 
-`node benchmark/run.js --set benchmarker=autocannon http`
-
-`node benchmark/http/simple.js benchmarker=autocannon`
+```bash
+node benchmark/run.js --set benchmarker=autocannon http
+node benchmark/http/simple.js benchmarker=autocannon
+```
 
 #### HTTPS benchmark requirements
 
 To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
 be used.
 
-`node benchmark/https/simple.js benchmarker=autocannon`
+```bash
+node benchmark/https/simple.js benchmarker=autocannon
+```
 
 #### HTTP/2 benchmark requirements
 
@@ -60,7 +67,9 @@ To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
 from [nghttp2.org][] or built from source.
 
-`node benchmark/http2/simple.js benchmarker=h2load`
+```bash
+node benchmark/http2/simple.js benchmarker=h2load
+```
 
 ### Benchmark analysis requirements
 
@@ -586,6 +595,32 @@ The arguments of `createBenchmark` are:
   * `combinationFilter` {Function} Has a single parameter which is an object
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
+
+  * `setup` {Function} A function that will be run once in the root process
+    before the benchmark combinations are executed in child processes.
+    It can be used to setup any global state required by the benchmark. Note
+    that the JavaScript heap state will not be shared with the benchmark processes,
+    so don't try to access any variables created in the `setup` function from
+    the `main` function, for example.
+    The argument passed into it is an array of all the combinations of
+    configurations that will be executed.
+    If tear down is necessary, register a listener for the `exit` event on
+    `process` inside the `setup` function. In the example below, that's done
+    by `tmpdir.refresh()`.
+
+    ```js
+    const tmpdir = require('../../test/common/tmpdir');
+    const bench = common.createBenchmark(main, {
+      type: ['fast', 'slow'],
+      n: [1e4],
+    }, {
+      setup(configs) {
+        tmpdir.refresh();
+        const maxN = configs.reduce((max, c) => Math.max(max, c.n), 0);
+        setupFixturesReusedForAllBenchmarks(maxN);
+      },
+    });
+    ```
 
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization

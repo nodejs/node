@@ -1,12 +1,12 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 const http = require('http');
 
 function execute(options) {
-  http.createServer(function(req, res) {
+  http.createServer(common.mustCall(function(req, res) {
     const expectHeaders = {
       'x-foo': 'boom',
       'cookie': 'a=1; b=2; c=3',
@@ -31,7 +31,7 @@ function execute(options) {
 
     res.writeHead(200, { 'Connection': 'close' });
     res.end();
-  }).listen(0, function() {
+  })).listen(0, function() {
     options = Object.assign(options, {
       port: this.address().port,
       path: '/'

@@ -198,11 +198,10 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     kEmptyDeleter
   };
 
-  BackingStore(PageAllocator* page_allocator, void* buffer_start,
-               size_t byte_length, size_t max_byte_length, size_t byte_capacity,
-               SharedFlag shared, ResizableFlag resizable, bool is_wasm_memory,
-               bool is_wasm_memory64, bool has_guard_regions,
-               bool custom_deleter, bool empty_deleter);
+  BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
+               size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
+               bool is_wasm_memory, bool is_wasm_memory64,
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -237,6 +236,12 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool custom_deleter() const { return has_flag(kCustomDeleter); }
   bool globally_registered() const { return has_flag(kGloballyRegistered); }
 
+#ifdef V8_ENABLE_SANDBOX
+  void set_page_allocator(std::weak_ptr<v8::PageAllocator> page_allocator) {
+    page_allocator_ = std::move(page_allocator);
+  }
+#endif
+
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_;
   // Max byte length of the corresponding JSArrayBuffer(s).
@@ -248,7 +253,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // (reported by the inspector as [[ArrayBufferData]] internal property)
   const uint32_t id_;
 
-  v8::PageAllocator* page_allocator_ = nullptr;
+#ifdef V8_ENABLE_SANDBOX
+  std::weak_ptr<v8::PageAllocator> page_allocator_;
+#endif
 
   union TypeSpecificData {
     TypeSpecificData() : v8_api_array_buffer_allocator(nullptr) {}

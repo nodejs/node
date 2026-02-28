@@ -45,4 +45,8 @@ source_set("jsoncpp") {
   if (!is_win || is_clang) {
     cflags_cc = [ "-Wno-implicit-fallthrough" ]
   }
+
+  # TODO(https://github.com/open-source-parsers/jsoncpp/pull/1612): Remove this
+  # when the PR is merged.
+  use_libcxx_modules = false
 }

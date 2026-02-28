@@ -136,6 +136,10 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kStringToWtf16Array:
       return "js-string:intoCharCodeArray";
 
+      // Custom Descriptors
+    case WellKnownImport::kConfigureAllPrototypes:
+      return "js-prototypes:configureAll";
+
       // Fast API Call:
     case WellKnownImport::kFastAPICall:
       return "fast API call";

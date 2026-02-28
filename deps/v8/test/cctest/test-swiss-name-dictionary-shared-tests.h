@@ -38,8 +38,8 @@ extern const char kCSATestFileName[];
 // they were directly written within bar.cc.
 template <typename TestRunner, char const* kTestFileName>
 struct SharedSwissTableTests {
-  static_assert((std::is_same<TestRunner, RuntimeTestRunner>::value) ||
-                (std::is_same<TestRunner, CSATestRunner>::value));
+  static_assert((std::is_same_v<TestRunner, RuntimeTestRunner>) ||
+                (std::is_same_v<TestRunner, CSATestRunner>));
 
   SharedSwissTableTests() {
     CHECK(kTestFileName == kRuntimeTestFileName ||

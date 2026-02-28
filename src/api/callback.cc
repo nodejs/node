@@ -8,6 +8,7 @@ namespace node {
 
 using v8::Context;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -26,11 +27,28 @@ CallbackScope::CallbackScope(Isolate* isolate,
 CallbackScope::CallbackScope(Environment* env,
                              Local<Object> object,
                              async_context asyncContext)
-  : private_(new InternalCallbackScope(env,
-                                       object,
-                                       asyncContext)),
-    try_catch_(env->isolate()) {
+    : resource_storage_({.local = object}),
+      private_(new InternalCallbackScope(
+          env, &resource_storage_.local, asyncContext)),
+      try_catch_(env->isolate()) {
   try_catch_.SetVerbose(true);
+}
+
+CallbackScope::CallbackScope(Environment* env,
+                             Global<Object>* object,
+                             async_context asyncContext)
+    : resource_storage_({.global_ptr = object}),
+      private_(new InternalCallbackScope(
+          env, resource_storage_.global_ptr, asyncContext)),
+      try_catch_(env->isolate()) {
+  try_catch_.SetVerbose(true);
+  // These checks can be removed in a future major version -- they ensure
+  // ABI compatibility with previous Node.js versions.
+  static_assert(sizeof(resource_storage_) == sizeof(Global<Object>*));
+  static_assert(sizeof(resource_storage_) == sizeof(Local<Object>));
+  static_assert(alignof(decltype(resource_storage_)) ==
+                alignof(Global<Object>*));
+  static_assert(alignof(decltype(resource_storage_)) == alignof(Local<Object>));
 }
 
 CallbackScope::~CallbackScope() {
@@ -47,17 +65,29 @@ InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap, int flags)
           flags,
           async_wrap->context_frame()) {}
 
-InternalCallbackScope::InternalCallbackScope(Environment* env,
-                                             Local<Object> object,
-                                             const async_context& asyncContext,
-                                             int flags,
-                                             Local<Value> context_frame)
+InternalCallbackScope::InternalCallbackScope(
+    Environment* env,
+    std::variant<Local<Object>, Local<Object>*, Global<Object>*> object_arg,
+    const async_context& asyncContext,
+    int flags,
+    Local<Value> context_frame)
     : env_(env),
       async_context_(asyncContext),
-      object_(object),
       skip_hooks_(flags & kSkipAsyncHooks),
       skip_task_queues_(flags & kSkipTaskQueues) {
   CHECK_NOT_NULL(env);
+
+  std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*> object;
+  if (std::holds_alternative<Local<Object>>(object_arg)) {
+    object_storage_ = std::get<Local<Object>>(object_arg);
+    object = &object_storage_;
+  } else if (std::holds_alternative<Local<Object>*>(object_arg)) {
+    object = std::get<Local<Object>*>(object_arg);
+  } else {
+    object = std::get<Global<Object>*>(object_arg);
+  }
+  std::visit([](auto* ptr) { CHECK_NOT_NULL(ptr); }, object);
+
   env->PushAsyncCallbackScope();
 
   if (!env->can_call_into_js()) {
@@ -84,7 +114,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
       isolate, async_context_frame::exchange(isolate, context_frame));
 
   env->async_hooks()->push_async_context(
-    async_context_.async_id, async_context_.trigger_async_id, object);
+      async_context_.async_id, async_context_.trigger_async_id, object);
 
   pushed_ids_ = true;
 

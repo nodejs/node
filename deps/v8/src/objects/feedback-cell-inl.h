@@ -61,7 +61,6 @@ void FeedbackCell::clear_dispatch_handle() {
                                                 kNullJSDispatchHandle.value());
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 JSDispatchHandle FeedbackCell::dispatch_handle() const {
   return JSDispatchHandle(
       ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
@@ -73,7 +72,6 @@ void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
                                                 new_handle.value());
   JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
     Isolate* isolate) {

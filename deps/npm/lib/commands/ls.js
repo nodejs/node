@@ -39,8 +39,6 @@ class LS extends ArboristWorkspaceCmd {
     ...super.params,
   ]
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     const completion = require('../utils/installed-deep.js')
     return completion(npm, opts)

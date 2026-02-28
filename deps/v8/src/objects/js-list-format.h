@@ -39,7 +39,8 @@ class JSListFormat
   static MaybeDirectHandle<JSListFormat> New(Isolate* isolate,
                                              DirectHandle<Map> map,
                                              DirectHandle<Object> locales,
-                                             DirectHandle<Object> options);
+                                             DirectHandle<Object> options,
+                                             const char* method_name);
 
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder);

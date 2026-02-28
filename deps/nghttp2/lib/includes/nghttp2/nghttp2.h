@@ -2039,18 +2039,19 @@ typedef int (*nghttp2_on_header_callback2)(nghttp2_session *session,
 /**
  * @functypedef
  *
- * Callback function invoked when a invalid header name/value pair is
+ * Callback function invoked when an invalid header name/value pair is
  * received for the |frame|.
  *
  * The parameter and behaviour are similar to
  * :type:`nghttp2_on_header_callback`.  The difference is that this
- * callback is only invoked when a invalid header name/value pair is
- * received which is treated as stream error if this callback is not
- * set.  Only invalid regular header field are passed to this
- * callback.  In other words, invalid pseudo header field is not
- * passed to this callback.  Also header fields which includes upper
- * cased latter are also treated as error without passing them to this
- * callback.
+ * callback is only invoked when an invalid header name/value pair is
+ * received which is treated as stream error if this callback returns
+ * :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE` and
+ * :type:`nghttp2_on_invalid_header_callback2` is not set.  Only
+ * invalid regular header field are passed to this callback.  In other
+ * words, invalid pseudo header field is not passed to this callback.
+ * Also header fields which includes upper cased latter are also
+ * treated as error without passing them to this callback.
  *
  * This callback is only considered if HTTP messaging validation is
  * turned on (which is on by default, see
@@ -2076,17 +2077,18 @@ typedef int (*nghttp2_on_invalid_header_callback)(
 /**
  * @functypedef
  *
- * Callback function invoked when a invalid header name/value pair is
+ * Callback function invoked when an invalid header name/value pair is
  * received for the |frame|.
  *
  * The parameter and behaviour are similar to
  * :type:`nghttp2_on_header_callback2`.  The difference is that this
- * callback is only invoked when a invalid header name/value pair is
- * received which is silently ignored if this callback is not set.
- * Only invalid regular header field are passed to this callback.  In
- * other words, invalid pseudo header field is not passed to this
- * callback.  Also header fields which includes upper cased latter are
- * also treated as error without passing them to this callback.
+ * callback is only invoked when an invalid header name/value pair is
+ * received which is silently ignored if neither this callback nor
+ * :type:`nghttp2_on_invalid_header_callback` is set.  Only invalid
+ * regular header field are passed to this callback.  In other words,
+ * invalid pseudo header field is not passed to this callback.  Also
+ * header fields which includes upper cased latter are also treated as
+ * error without passing them to this callback.
  *
  * This callback is only considered if HTTP messaging validation is
  * turned on (which is on by default, see
@@ -2445,6 +2447,15 @@ typedef int (*nghttp2_error_callback2)(nghttp2_session *session,
                                        int lib_error_code, const char *msg,
                                        size_t len, void *user_data);
 
+/**
+ * @functypedef
+ *
+ * Callback function invoked when unpredictable data of |destlen|
+ * bytes are needed.  The implementation must write unpredictable data
+ * of |destlen| bytes into the buffer pointed by |dest|.
+ */
+typedef void (*nghttp2_rand_callback)(uint8_t *dest, size_t destlen);
+
 struct nghttp2_session_callbacks;
 
 /**
@@ -2649,7 +2660,7 @@ NGHTTP2_EXTERN void nghttp2_session_callbacks_set_on_header_callback2(
 /**
  * @function
  *
- * Sets callback function invoked when a invalid header name/value
+ * Sets callback function invoked when an invalid header name/value
  * pair is received.  If both
  * `nghttp2_session_callbacks_set_on_invalid_header_callback()` and
  * `nghttp2_session_callbacks_set_on_invalid_header_callback2()` are
@@ -2662,7 +2673,7 @@ NGHTTP2_EXTERN void nghttp2_session_callbacks_set_on_invalid_header_callback(
 /**
  * @function
  *
- * Sets callback function invoked when a invalid header name/value
+ * Sets callback function invoked when an invalid header name/value
  * pair is received.
  */
 NGHTTP2_EXTERN void nghttp2_session_callbacks_set_on_invalid_header_callback2(
@@ -2832,6 +2843,18 @@ NGHTTP2_EXTERN void nghttp2_session_callbacks_set_error_callback(
  */
 NGHTTP2_EXTERN void nghttp2_session_callbacks_set_error_callback2(
   nghttp2_session_callbacks *cbs, nghttp2_error_callback2 error_callback2);
+
+/**
+ * @function
+ *
+ * Sets callback function invoked when unpredictable data is needed.
+ * Although this callback is optional due to the backward
+ * compatibility, it is recommended to specify it to harden the
+ * runtime behavior against suspicious activities of a remote
+ * endpoint.
+ */
+NGHTTP2_EXTERN void nghttp2_session_callbacks_set_rand_callback(
+  nghttp2_session_callbacks *cbs, nghttp2_rand_callback rand_callback);
 
 /**
  * @functypedef
@@ -3217,6 +3240,23 @@ nghttp2_option_set_stream_reset_rate_limit(nghttp2_option *option,
  */
 NGHTTP2_EXTERN void nghttp2_option_set_max_continuations(nghttp2_option *option,
                                                          size_t val);
+
+/**
+ * @function
+ *
+ * This function sets the rate limit for the "glitches", the
+ * suspicious activities from a remote endpoint.  It is a token-bucket
+ * based rate limiter.  |burst| specifies the number of tokens that is
+ * initially available.  The maximum number of tokens is capped to
+ * this value.  |rate| specifies the number of tokens that are
+ * regenerated per second.  When a suspicious activity is detected,
+ * some amount of tokens are consumed.  If there is no token
+ * available, GOAWAY is sent to tear down the connection.  |burst| and
+ * |rate| default to 1000 and 33 respectively.
+ */
+NGHTTP2_EXTERN void nghttp2_option_set_glitch_rate_limit(nghttp2_option *option,
+                                                         uint64_t burst,
+                                                         uint64_t rate);
 
 /**
  * @function

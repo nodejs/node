@@ -17,7 +17,7 @@ const p = new Promise(common.mustCall(function executor(resolve) {
 p.then(function afterResolution(val) {
   assert.strictEqual(val, 5);
   return val;
-});
+}).then(common.mustCall());
 
 // Init hooks after chained promise is created
 const hooks = initHooks();
@@ -34,7 +34,7 @@ process.on('exit', function onexit() {
   const as = hooks.activitiesOfTypes('PROMISE');
   const unknown = hooks.activitiesOfTypes('Unknown');
   assert.strictEqual(as.length, 0);
-  assert.strictEqual(unknown.length, 1);
+  assert.strictEqual(unknown.length, 2);
 
   const a0 = unknown[0];
   assert.strictEqual(a0.type, 'Unknown');

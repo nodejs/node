@@ -36,6 +36,17 @@ const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x',
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
+// small-icu doesn't support non-English locales
+const hasFullICU = (() => {
+  try {
+    const january = new Date(9e8);
+    const spanish = new Intl.DateTimeFormat('es', { month: 'long' });
+    return spanish.format(january) === 'enero';
+  } catch {
+    return false;
+  }
+})();
+
 const {
   atob,
   btoa,
@@ -51,15 +62,33 @@ if (isMainThread)
 
 const noop = () => {};
 
+// Whether the executable is linked against the shared library i.e. libnode.
+const usesSharedLibrary = process.config.variables.node_shared;
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
+const hasInspector = Boolean(process.features.inspector);
 const hasSQLite = Boolean(process.versions.sqlite);
 
-const hasQuic = hasCrypto && !!process.config.variables.node_quic;
+const hasQuic = hasCrypto && !!process.features.quic;
 
-function parseTestFlags(filename = process.argv[1]) {
-  // The copyright notice is relatively big and the flags could come afterwards.
+const hasLocalStorage = (() => {
+  // Check enumerable property to avoid triggering the getter which emits a warning.
+  // localStorage is enumerable only when --localstorage-file is provided.
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  return hasSQLite && desc?.enumerable === true;
+})();
+
+/**
+ * Parse test metadata from the specified file.
+ * @param {string} filename - The name of the file to parse.
+ * @returns {{
+ *   flags: string[],
+ *   envs: Record<string, string>
+ * }} An object containing the parsed flags and environment variables.
+ */
+function parseTestMetadata(filename = process.argv[1]) {
+  // The copyright notice is relatively big and the metadata could come afterwards.
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);
   const fd = fs.openSync(filename, 'r');
@@ -68,19 +97,33 @@ function parseTestFlags(filename = process.argv[1]) {
   const source = buffer.toString('utf8', 0, bytesRead);
 
   const flagStart = source.search(/\/\/ Flags:\s+--/) + 10;
+  let flags = [];
+  if (flagStart !== 9) {
+    let flagEnd = source.indexOf('\n', flagStart);
+    if (source[flagEnd - 1] === '\r') {
+      flagEnd--;
+    }
+    flags = source
+      .substring(flagStart, flagEnd)
+      .split(/\s+/)
+      .filter(Boolean);
+  }
 
-  if (flagStart === 9) {
-    return [];
+  const envStart = source.search(/\/\/ Env:\s+/) + 8;
+  let envs = {};
+  if (envStart !== 7) {
+    let envEnd = source.indexOf('\n', envStart);
+    if (source[envEnd - 1] === '\r') {
+      envEnd--;
+    }
+    const envArray = source
+      .substring(envStart, envEnd)
+      .split(/\s+/)
+      .filter(Boolean);
+    envs = Object.fromEntries(envArray.map((env) => env.split('=')));
   }
-  let flagEnd = source.indexOf('\n', flagStart);
-  // Normalize different EOL.
-  if (source[flagEnd - 1] === '\r') {
-    flagEnd--;
-  }
-  return source
-    .substring(flagStart, flagEnd)
-    .split(/\s+/)
-    .filter(Boolean);
+
+  return { flags, envs };
 }
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
@@ -93,26 +136,39 @@ if (process.argv.length === 2 &&
     hasCrypto &&
     require('cluster').isPrimary &&
     fs.existsSync(process.argv[1])) {
-  const flags = parseTestFlags();
-  for (const flag of flags) {
-    if (!process.execArgv.includes(flag) &&
-        // If the binary is build without `intl` the inspect option is
-        // invalid. The test itself should handle this case.
-        (process.features.inspector || !flag.startsWith('--inspect'))) {
-      console.log(
-        'NOTE: The test started as a child_process using these flags:',
-        inspect(flags),
-        'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
-      );
-      const { spawnSync } = require('child_process');
-      const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
-      const options = { encoding: 'utf8', stdio: 'inherit' };
-      const result = spawnSync(process.execPath, args, options);
-      if (result.signal) {
-        process.kill(0, result.signal);
-      } else {
-        process.exit(result.status);
-      }
+  const { flags, envs } = parseTestMetadata();
+
+  const flagsTriggerSpawn = flags.some((flag) => (
+    !process.execArgv.includes(flag) &&
+    // If the binary is build without `intl` the inspect option is
+    // invalid. The test itself should handle this case.
+    (process.features.inspector || !flag.startsWith('--inspect'))
+  ));
+  const envsTriggerSpawn = Object.keys(envs).some((key) => process.env[key] !== envs[key]);
+
+  if (flagsTriggerSpawn || envsTriggerSpawn) {
+    console.log(
+      'NOTE: The test started as a child_process using these flags:',
+      inspect(flags),
+      'And these environment variables:',
+      inspect(envs),
+      'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
+    );
+    const { spawnSync } = require('child_process');
+    const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
+    const options = {
+      encoding: 'utf8',
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ...envs,
+      },
+    };
+    const result = spawnSync(process.execPath, args, options);
+    if (result.signal) {
+      process.kill(0, result.signal);
+    } else {
+      process.exit(result.status);
     }
   }
 }
@@ -140,8 +196,9 @@ function isPi() {
   }
 }
 
-// When using high concurrency or in the CI we need much more time for each connection attempt
-net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
+// When using high concurrency or in the CI we need much more time for each connection attempt.
+// Default 500ms becomes 2500ms for tests.
+net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 5));
 const defaultAutoSelectFamilyAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
 
 const buildType = process.config.target_defaults ?
@@ -314,8 +371,6 @@ const knownGlobals = new Set([
  'CompressionStream',
  'DecompressionStream',
  'Storage',
- 'localStorage',
- 'sessionStorage',
 ].forEach((i) => {
   if (globalThis[i] !== undefined) {
     knownGlobals.add(globalThis[i]);
@@ -328,6 +383,16 @@ if (hasCrypto) {
   knownGlobals.add(globalThis.CryptoKey);
   knownGlobals.add(globalThis.SubtleCrypto);
 }
+
+if (hasLocalStorage) {
+  knownGlobals.add(globalThis.localStorage);
+}
+if (hasSQLite) {
+  knownGlobals.add(globalThis.sessionStorage);
+}
+
+const { Worker } = require('node:worker_threads');
+knownGlobals.add(Worker);
 
 function allowGlobals(...allowlist) {
   for (const val of allowlist) {
@@ -348,6 +413,11 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
       // globalThis.crypto is a getter that throws if Node.js was compiled
       // without OpenSSL so we'll skip it if it is not available.
       if (val === 'crypto' && !hasCrypto) {
+        continue;
+      }
+      // globalThis.localStorage is a getter that throws if Node.js was
+      // executed without a --localstorage-file path.
+      if (val === 'localStorage' && !hasLocalStorage) {
         continue;
       }
       if (!knownGlobals.has(globalThis[val])) {
@@ -673,7 +743,7 @@ function expectsError(validator, exact) {
 }
 
 function skipIfInspectorDisabled() {
-  if (!process.features.inspector) {
+  if (!hasInspector) {
     skip('V8 inspector is disabled');
   }
 }
@@ -875,6 +945,19 @@ function expectRequiredTLAError(err) {
   }
 }
 
+function sleepSync(ms) {
+  const sab = new SharedArrayBuffer(4);
+  const i32 = new Int32Array(sab);
+  Atomics.wait(i32, 0, 0, ms);
+}
+
+function resolveBuiltBinary(binary) {
+  if (isWindows) {
+    binary += '.exe';
+  }
+  return path.join(path.dirname(process.execPath), binary);
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -890,9 +973,12 @@ const common = {
   getBufferSources,
   getTTYfd,
   hasIntl,
+  hasFullICU,
   hasCrypto,
   hasQuic,
+  hasInspector,
   hasSQLite,
+  hasLocalStorage,
   invalidArgTypeHelper,
   isAlive,
   isASan,
@@ -912,11 +998,12 @@ const common = {
   mustSucceed,
   nodeProcessAborted,
   PIPE,
-  parseTestFlags,
+  parseTestMetadata,
   platformTimeout,
   printSkipMessage,
   pwdCommand,
   requireNoPackageJSONAbove,
+  resolveBuiltBinary,
   runWithInvalidFD,
   skip,
   skipIf32Bits,
@@ -924,6 +1011,8 @@ const common = {
   skipIfInspectorDisabled,
   skipIfSQLiteMissing,
   spawnPromisified,
+  sleepSync,
+  usesSharedLibrary,
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

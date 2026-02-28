@@ -5,26 +5,23 @@ const {
   ReadableStreamFrom,
   readableStreamClose,
   fullyReadBody,
-  extractMimeType,
-  utf8DecodeBytes
+  extractMimeType
 } = require('./util')
 const { FormData, setFormDataState } = require('./formdata')
 const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
-const { isArrayBuffer } = require('node:util/types')
+const { isUint8Array } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 const { createDeferredPromise } = require('../../util/promise')
+const { parseJSONFromBytes } = require('../infra')
+const { utf8DecodeBytes } = require('../../encoding')
+const { runtimeFeatures } = require('../../util/runtime-features.js')
 
-let random
-
-try {
-  const crypto = require('node:crypto')
-  random = (max) => crypto.randomInt(0, max)
-} catch {
-  random = (max) => Math.floor(Math.random() * max)
-}
+const random = runtimeFeatures.has('crypto')
+  ? require('node:crypto').randomInt
+  : (max) => Math.floor(Math.random() * max)
 
 const textEncoder = new TextEncoder()
 function noop () {}
@@ -48,6 +45,7 @@ const streamRegistry = new FinalizationRegistry((weakRef) => {
 function extractBody (object, keepalive = false) {
   // 1. Let stream be null.
   let stream = null
+  let controller = null
 
   // 2. If object is a ReadableStream object, then set stream to object.
   if (webidl.is.ReadableStream(object)) {
@@ -60,16 +58,11 @@ function extractBody (object, keepalive = false) {
     // 4. Otherwise, set stream to a new ReadableStream object, and set
     //    up stream with byte reading support.
     stream = new ReadableStream({
-      async pull (controller) {
-        const buffer = typeof source === 'string' ? textEncoder.encode(source) : source
-
-        if (buffer.byteLength) {
-          controller.enqueue(buffer)
-        }
-
-        queueMicrotask(() => readableStreamClose(controller))
+      pull () {},
+      start (c) {
+        controller = c
       },
-      start () {},
+      cancel () {},
       type: 'bytes'
     })
   }
@@ -110,22 +103,15 @@ function extractBody (object, keepalive = false) {
 
     // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
     type = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (isArrayBuffer(object)) {
-    // BufferSource/ArrayBuffer
-
+  } else if (webidl.is.BufferSource(object)) {
     // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object.slice())
-  } else if (ArrayBuffer.isView(object)) {
-    // BufferSource/ArrayBufferView
-
-    // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
+    source = webidl.util.getCopyOfBytesHeldByBufferSource(object)
   } else if (webidl.is.FormData(object)) {
     const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
-    const escape = (str) =>
+    const formdataEscape = (str) =>
       str.replace(/\n/g, '%0A').replace(/\r/g, '%0D').replace(/"/g, '%22')
     const normalizeLinefeeds = (value) => value.replace(/\r?\n|\r/g, '\r\n')
 
@@ -143,13 +129,13 @@ function extractBody (object, keepalive = false) {
     for (const [name, value] of object) {
       if (typeof value === 'string') {
         const chunk = textEncoder.encode(prefix +
-          `; name="${escape(normalizeLinefeeds(name))}"` +
+          `; name="${formdataEscape(normalizeLinefeeds(name))}"` +
           `\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
         blobParts.push(chunk)
         length += chunk.byteLength
       } else {
-        const chunk = textEncoder.encode(`${prefix}; name="${escape(normalizeLinefeeds(name))}"` +
-          (value.name ? `; filename="${escape(value.name)}"` : '') + '\r\n' +
+        const chunk = textEncoder.encode(`${prefix}; name="${formdataEscape(normalizeLinefeeds(name))}"` +
+          (value.name ? `; filename="${formdataEscape(value.name)}"` : '') + '\r\n' +
           `Content-Type: ${
             value.type || 'application/octet-stream'
           }\r\n\r\n`)
@@ -222,44 +208,36 @@ function extractBody (object, keepalive = false) {
 
   // 11. If source is a byte sequence, then set action to a
   // step that returns source and length to source’s length.
-  if (typeof source === 'string' || util.isBuffer(source)) {
-    length = Buffer.byteLength(source)
+  if (typeof source === 'string' || isUint8Array(source)) {
+    action = () => {
+      length = typeof source === 'string' ? Buffer.byteLength(source) : source.length
+      return source
+    }
   }
 
-  // 12. If action is non-null, then run these steps in in parallel:
+  // 12. If action is non-null, then run these steps in parallel:
   if (action != null) {
-    // Run action.
-    let iterator
-    stream = new ReadableStream({
-      async start () {
-        iterator = action(object)[Symbol.asyncIterator]()
-      },
-      async pull (controller) {
-        const { value, done } = await iterator.next()
-        if (done) {
-          // When running action is done, close stream.
-          queueMicrotask(() => {
-            controller.close()
-            controller.byobRequest?.respond(0)
-          })
-        } else {
-          // Whenever one or more bytes are available and stream is not errored,
-          // enqueue a Uint8Array wrapping an ArrayBuffer containing the available
-          // bytes into stream.
-          if (!isErrored(stream)) {
-            const buffer = new Uint8Array(value)
-            if (buffer.byteLength) {
-              controller.enqueue(buffer)
-            }
+    ;(async () => {
+      // 1. Run action.
+      const result = action()
+
+      // 2. Whenever one or more bytes are available and stream is not errored,
+      //    enqueue the result of creating a Uint8Array from the available bytes into stream.
+      const iterator = result?.[Symbol.asyncIterator]?.()
+      if (iterator) {
+        for await (const bytes of iterator) {
+          if (isErrored(stream)) break
+          if (bytes.length) {
+            controller.enqueue(new Uint8Array(bytes))
           }
         }
-        return controller.desiredSize > 0
-      },
-      async cancel (reason) {
-        await iterator.return()
-      },
-      type: 'bytes'
-    })
+      } else if (result?.length && !isErrored(stream)) {
+        controller.enqueue(typeof result === 'string' ? textEncoder.encode(result) : new Uint8Array(result))
+      }
+
+      // 3. When running action is done, close stream.
+      queueMicrotask(() => readableStreamClose(controller))
+    })()
   }
 
   // 13. Let body be a body whose stream is stream, source is source,
@@ -317,12 +295,6 @@ function cloneBody (body) {
     stream: out2,
     length: body.length,
     source: body.source
-  }
-}
-
-function throwIfAborted (state) {
-  if (state.aborted) {
-    throw new DOMException('The operation was aborted.', 'AbortError')
   }
 }
 
@@ -443,24 +415,26 @@ function mixinBody (prototype, getInternalState) {
  * @param {any} instance
  * @param {(target: any) => any} getInternalState
  */
-async function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
-  webidl.brandCheck(object, instance)
+function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
+  try {
+    webidl.brandCheck(object, instance)
+  } catch (e) {
+    return Promise.reject(e)
+  }
 
-  const state = getInternalState(object)
+  object = getInternalState(object)
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
-  if (bodyUnusable(state)) {
-    throw new TypeError('Body is unusable: Body has already been read')
+  if (bodyUnusable(object)) {
+    return Promise.reject(new TypeError('Body is unusable: Body has already been read'))
   }
-
-  throwIfAborted(state)
 
   // 2. Let promise be a new promise.
   const promise = createDeferredPromise()
 
   // 3. Let errorSteps given error be to reject promise with error.
-  const errorSteps = (error) => promise.reject(error)
+  const errorSteps = promise.reject
 
   // 4. Let successSteps given a byte sequence data be to resolve
   //    promise with the result of running convertBytesToJSValue
@@ -476,14 +450,14 @@ async function consumeBody (object, convertBytesToJSValue, instance, getInternal
 
   // 5. If object’s body is null, then run successSteps with an
   //    empty byte sequence.
-  if (state.body == null) {
+  if (object.body == null) {
     successSteps(Buffer.allocUnsafe(0))
     return promise.promise
   }
 
   // 6. Otherwise, fully read object’s body given successSteps,
   //    errorSteps, and object’s relevant global object.
-  fullyReadBody(state.body, successSteps, errorSteps)
+  fullyReadBody(object.body, successSteps, errorSteps)
 
   // 7. Return promise.
   return promise.promise
@@ -500,14 +474,6 @@ function bodyUnusable (object) {
   // said to be unusable if its body is non-null and
   // its body’s stream is disturbed or locked.
   return body != null && (body.stream.locked || util.isDisturbed(body.stream))
-}
-
-/**
- * @see https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
- * @param {Uint8Array} bytes
- */
-function parseJSONFromBytes (bytes) {
-  return JSON.parse(utf8DecodeBytes(bytes))
 }
 
 /**

@@ -38,7 +38,7 @@ static ossl_inline BIO_CORE_GLOBALS *get_globals(OSSL_LIB_CTX *libctx)
 }
 
 static int bio_core_read_ex(BIO *bio, char *data, size_t data_len,
-                            size_t *bytes_read)
+    size_t *bytes_read)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
@@ -48,7 +48,7 @@ static int bio_core_read_ex(BIO *bio, char *data, size_t data_len,
 }
 
 static int bio_core_write_ex(BIO *bio, const char *data, size_t data_len,
-                             size_t *written)
+    size_t *written)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
@@ -149,7 +149,7 @@ int ossl_bio_init_core(OSSL_LIB_CTX *libctx, const OSSL_DISPATCH *fns)
     BIO_CORE_GLOBALS *bcgbl = get_globals(libctx);
 
     if (bcgbl == NULL)
-	    return 0;
+        return 0;
 
     for (; fns->function_id != 0; fns++) {
         switch (fns->function_id) {

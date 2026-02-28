@@ -329,6 +329,19 @@ const errorTests = [
   },
   // Multiline object
   {
+    send: '{}),({}',
+    expect: '| ',
+  },
+  {
+    send: '}',
+    expect: [
+      '{}),({}',
+      kArrow,
+      '',
+      /^Uncaught SyntaxError: /,
+    ]
+  },
+  {
     send: '{ a: ',
     expect: '| '
   },
@@ -717,7 +730,7 @@ const errorTests = [
   },
   {
     send: 'repl.writer.options.showProxy = false, new Proxy({x:42}, {});',
-    expect: '{ x: 42 }'
+    expect: 'Proxy({ x: 42 })'
   },
 
   // Newline within template string maintains whitespace.
@@ -1036,18 +1049,4 @@ function event(ee, expected) {
       resolve(...args);
     }));
   });
-}
-
-{
-  const server = repl.REPLServer();
-  common.expectWarning({
-    DeprecationWarning: {
-      DEP0185: 'Instantiating REPLServer without the \'new\' keyword has been deprecated.',
-      // For the 'url.format' test-case.
-      DEP0169:
-        '`url.parse()` behavior is not standardized and prone to errors that have security implications. ' +
-        'Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.',
-    }
-  });
-  server.emit('line', '.exit');
 }

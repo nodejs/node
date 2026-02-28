@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert').strict;
+const assert = require('assert/strict');
 const { WriteStream } = require('tty');
 const { inspect } = require('util');
 

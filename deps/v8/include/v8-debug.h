@@ -172,6 +172,17 @@ class V8_EXPORT StackTrace {
    * a stack trace.
    */
   static Local<String> CurrentScriptNameOrSourceURL(Isolate* isolate);
+
+  /**
+   * Returns the first valid script id at the top of
+   * the JS stack. The returned value is Message::kNoScriptIdInfo if no id
+   * was found.
+   *
+   * This method is equivalent to calling StackTrace::CurrentStackTrace and
+   * walking the resulting frames from the beginning until a non-empty id is
+   * found. The difference is that this method won't allocate a stack trace.
+   */
+  static int CurrentScriptId(Isolate* isolate);
 };
 
 }  // namespace v8

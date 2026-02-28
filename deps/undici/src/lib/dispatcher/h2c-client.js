@@ -1,19 +1,10 @@
 'use strict'
-const { connect } = require('node:net')
 
-const { kClose, kDestroy } = require('../core/symbols')
 const { InvalidArgumentError } = require('../core/errors')
-const util = require('../core/util')
-
 const Client = require('./client')
-const DispatcherBase = require('./dispatcher-base')
 
-class H2CClient extends DispatcherBase {
-  #client = null
-
+class H2CClient extends Client {
   constructor (origin, clientOpts) {
-    super()
-
     if (typeof origin === 'string') {
       origin = new URL(origin)
     }
@@ -25,14 +16,14 @@ class H2CClient extends DispatcherBase {
     }
 
     const { connect, maxConcurrentStreams, pipelining, ...opts } =
-      clientOpts ?? {}
+            clientOpts ?? {}
     let defaultMaxConcurrentStreams = 100
     let defaultPipelining = 100
 
     if (
       maxConcurrentStreams != null &&
-      Number.isInteger(maxConcurrentStreams) &&
-      maxConcurrentStreams > 0
+            Number.isInteger(maxConcurrentStreams) &&
+            maxConcurrentStreams > 0
     ) {
       defaultMaxConcurrentStreams = maxConcurrentStreams
     }
@@ -47,75 +38,13 @@ class H2CClient extends DispatcherBase {
       )
     }
 
-    this.#client = new Client(origin, {
+    super(origin, {
       ...opts,
-      connect: this.#buildConnector(connect),
       maxConcurrentStreams: defaultMaxConcurrentStreams,
       pipelining: defaultPipelining,
-      allowH2: true
+      allowH2: true,
+      useH2c: true
     })
-  }
-
-  #buildConnector (connectOpts) {
-    return (opts, callback) => {
-      const timeout = connectOpts?.connectOpts ?? 10e3
-      const { hostname, port, pathname } = opts
-      const socket = connect({
-        ...opts,
-        host: hostname,
-        port,
-        pathname
-      })
-
-      // Set TCP keep alive options on the socket here instead of in connect() for the case of assigning the socket
-      if (opts.keepAlive == null || opts.keepAlive) {
-        const keepAliveInitialDelay =
-          opts.keepAliveInitialDelay == null ? 60e3 : opts.keepAliveInitialDelay
-        socket.setKeepAlive(true, keepAliveInitialDelay)
-      }
-
-      socket.alpnProtocol = 'h2'
-
-      const clearConnectTimeout = util.setupConnectTimeout(
-        new WeakRef(socket),
-        { timeout, hostname, port }
-      )
-
-      socket
-        .setNoDelay(true)
-        .once('connect', function () {
-          queueMicrotask(clearConnectTimeout)
-
-          if (callback) {
-            const cb = callback
-            callback = null
-            cb(null, this)
-          }
-        })
-        .on('error', function (err) {
-          queueMicrotask(clearConnectTimeout)
-
-          if (callback) {
-            const cb = callback
-            callback = null
-            cb(err)
-          }
-        })
-
-      return socket
-    }
-  }
-
-  dispatch (opts, handler) {
-    return this.#client.dispatch(opts, handler)
-  }
-
-  async [kClose] () {
-    await this.#client.close()
-  }
-
-  async [kDestroy] () {
-    await this.#client.destroy()
   }
 }
 

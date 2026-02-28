@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const invalids = [
   {
@@ -90,35 +90,35 @@ const args = [...invalids, ...valids];
 if (process.argv[2] === undefined) {
   const { spawnSync } = require('node:child_process');
   const { inspect, debuglog } = require('node:util');
-  const { throws, strictEqual } = require('node:assert');
+  const assert = require('node:assert');
 
   const debug = debuglog('test');
   const node = process.execPath;
-  const test = (index, useProcessExitCode) => {
+  const test = common.mustCallAtLeast((index, useProcessExitCode) => {
     const { status: code } = spawnSync(node, [
       __filename,
       index,
       useProcessExitCode,
     ]);
     debug(`actual: ${code}, ${inspect(args[index])} ${!!useProcessExitCode}`);
-    strictEqual(
+    assert.strictEqual(
       code,
       args[index].expected,
       `actual: ${code}, ${inspect(args[index])}`
     );
-  };
+  });
 
   // Check process.exitCode
   for (const arg of invalids) {
     debug(`invaild code: ${inspect(arg.code)}`);
-    throws(() => (process.exitCode = arg.code), new RegExp(arg.pattern));
+    assert.throws(() => (process.exitCode = arg.code), new RegExp(arg.pattern));
   }
   for (const arg of valids) {
     debug(`vaild code: ${inspect(arg.code)}`);
     process.exitCode = arg.code;
   }
 
-  throws(() => {
+  assert.throws(() => {
     delete process.exitCode;
   }, /Cannot delete property 'exitCode' of #<process>/);
   process.exitCode = 0;

@@ -188,7 +188,7 @@ class Publish extends BaseCommand {
       await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
     }
 
-    // In json mode we dont log until the publish has completed as this will
+    // In json mode we don't log until the publish has completed as this will
     // add it to the output only if completes successfully
     if (json) {
       logPkg()
@@ -221,6 +221,7 @@ class Publish extends BaseCommand {
         ...this.npm.flatOptions,
         preferOnline: true,
         registry,
+        _isRoot: true,
       })
       if (typeof packument?.versions === 'undefined') {
         return { versions: [], highestVersion: null }

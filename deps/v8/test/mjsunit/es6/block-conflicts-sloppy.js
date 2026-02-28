@@ -4,7 +4,6 @@
 
 // Test for conflicting variable bindings.
 // Stress-testing this test is very slow and provides no useful coverage.
-// Flags: --noalways-turbofan
 
 function CheckException(e) {
   var string = e.toString();

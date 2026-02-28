@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 const gsab = new SharedArrayBuffer(4, {"maxByteLength": 8});
 const ta_gsab = new Uint16Array(gsab);

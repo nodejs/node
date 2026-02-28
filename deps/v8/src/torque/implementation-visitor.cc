@@ -134,6 +134,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
              << SourceFileMap::PathFromV8RootWithoutExtension(source)
              << "-inl.h\"\n\n";
         file << "#include \"torque-generated/class-verifiers.h\"\n";
+        file << "#include \"src/objects/objects-inl.h\"\n\n";
         file << "#include \"src/objects/instance-type-inl.h\"\n\n";
       }
       if (contains_class_asserts.count(source) != 0) {
@@ -177,8 +178,13 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "\n";
+  source << "// The following includes are here to provide some constants "
+            "definitions.\n";
   source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
   source << "#include \"src/objects/ordered-hash-table.h\"\n";
+  source << "#include \"src/objects/prototype-info.h\"\n";
+  source << "\n";
   source << "#include \"src/torque/runtime-support.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
@@ -680,16 +686,13 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                        << " = "
                           "UncheckedParameter<JSDispatchHandleT>(Descriptor::"
                           "kJSDispatchHandle);\n";
-        } else if (V8_ENABLE_LEAPTIERING_BOOL) {
+        } else {
           csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
                        << " = "
                           "ReinterpretCast<JSDispatchHandleT>("
                           "LoadJSFunctionDispatchHandle("
                           "UncheckedParameter<JSFunction>("
                        << "Descriptor::kJSTarget)));\n";
-        } else {
-          csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
-                       << " = InvalidDispatchHandleConstant();\n";
         }
         csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetDispatchHandleType()};
@@ -2555,11 +2558,11 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     const Type* referenced_type = *reference.ReferencedType();
     if (referenced_type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
       return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                         "LoadFloat64OrUndefinedOrHole"
 #else
                                         "LoadFloat64OrHole"
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                         ),
                           Arguments{{reference.heap_reference()}, {}});
     } else if (auto struct_type = referenced_type->StructSupertype()) {
@@ -2625,11 +2628,11 @@ void ImplementationVisitor::GenerateAssignToLocation(
     if (referenced_type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
       GenerateCall(
           QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                         "StoreFloat64OrUndefinedOrHole"
 #else
                         "StoreFloat64OrHole"
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                         ),
           Arguments{{reference.heap_reference(), assignment_value}, {}});
     } else if (auto struct_type = referenced_type->StructSupertype()) {
@@ -3663,6 +3666,8 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           // objects inside the sandbox via the code pointer table.
           interface_descriptors << "  INTERNAL_DESCRIPTOR()\n";
 
+          interface_descriptors << "  SANDBOXING_MODE(kSandboxed)\n";
+
           if (has_context_parameter) {
             interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
           } else {
@@ -4069,7 +4074,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
       // HeapObject) being mirrored by a *Layout class. Remove once
       // everything is ported to layout classes.
       if (parent_name == "HeapObject" || parent_name == "TrustedObject" ||
-          parent_name == "Struct") {
+          parent_name == "ExposedTrustedObject" || parent_name == "Struct") {
         parent_name += "Layout";
       }
 
@@ -4186,10 +4191,10 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << name_ << ", D>::value,\n"
+       << "      std::is_same_v<" << name_ << ", D>,\n"
        << "      \"Use this class as direct base for " << name_ << ".\");\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << super_->name() << ", P>::value,\n"
+       << "      std::is_same_v<" << super_->name() << ", P>,\n"
        << "      \"Pass in " << super_->name()
        << " as second template parameter for " << gen_name_ << ".\");\n\n";
   hdr_ << " public: \n";
@@ -4228,8 +4233,8 @@ void CppClassGenerator::GenerateClass() {
     impl_ << "\ntemplate <>\n";
     impl_ << "void " << gen_name_I_ << "::" << name_
           << "Verify(Isolate* isolate) {\n";
-    impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(Cast<"
-          << name_
+    impl_ << "  TorqueGeneratedClassVerifiers::" << name_
+          << "Verify(TrustedCast<" << name_
           << ">(*this), "
              "isolate);\n";
     impl_ << "}\n\n";
@@ -4424,7 +4429,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
   hdr_ << "    static_assert(\n";
-  hdr_ << "        std::is_base_of<" << gen_name_ << ", DAlias>::value,\n";
+  hdr_ << "        std::is_base_of_v<" << gen_name_ << ", DAlias>,\n";
   hdr_ << "        \"class " << gen_name_
        << " should be used as direct base for " << name_ << ".\");\n";
   hdr_ << "  }\n\n";
@@ -4454,7 +4459,13 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
     type_check << value << ".IsCleared()";
     at_start = false;
   }
-  for (const TypeChecker& runtime_type : type->GetTypeCheckers()) {
+  std::vector<TypeChecker> type_checkers = type->GetTypeCheckers();
+  std::partition(type_checkers.begin(), type_checkers.end(),
+                 [](const TypeChecker& runtime_type) {
+                   return runtime_type.type == "Hole" ||
+                          runtime_type.type == "TheHole";
+                 });
+  for (const TypeChecker& runtime_type : type_checkers) {
     if (!at_start) type_check << " || ";
     at_start = false;
     if (maybe_object) {
@@ -5308,8 +5319,6 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // Protected pointer fields cannot be read or verified from torque yet.
   if (field_type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) return;
   if (field_type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) return;
-  // Do not verify if the field may be uninitialized.
-  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
   std::string field_start_offset;
   if (f.index) {

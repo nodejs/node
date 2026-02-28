@@ -4,15 +4,52 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "lru_cache-inl.h"
 #include "node_mem.h"
 #include "sqlite3.h"
 #include "util.h"
 
+#include <array>
+#include <list>
 #include <map>
+#include <optional>
+#include <string_view>
 #include <unordered_set>
 
 namespace node {
 namespace sqlite {
+
+// Mapping from JavaScript property names to SQLite limit constants
+struct LimitInfo {
+  std::string_view js_name;
+  int sqlite_limit_id;
+};
+
+inline constexpr std::array<LimitInfo, 11> kLimitMapping = {{
+    {"length", SQLITE_LIMIT_LENGTH},
+    {"sqlLength", SQLITE_LIMIT_SQL_LENGTH},
+    {"column", SQLITE_LIMIT_COLUMN},
+    {"exprDepth", SQLITE_LIMIT_EXPR_DEPTH},
+    {"compoundSelect", SQLITE_LIMIT_COMPOUND_SELECT},
+    {"vdbeOp", SQLITE_LIMIT_VDBE_OP},
+    {"functionArg", SQLITE_LIMIT_FUNCTION_ARG},
+    {"attach", SQLITE_LIMIT_ATTACHED},
+    {"likePatternLength", SQLITE_LIMIT_LIKE_PATTERN_LENGTH},
+    {"variableNumber", SQLITE_LIMIT_VARIABLE_NUMBER},
+    {"triggerDepth", SQLITE_LIMIT_TRIGGER_DEPTH},
+}};
+
+constexpr bool CheckLimitIndices() {
+  for (size_t i = 0; i < kLimitMapping.size(); ++i) {
+    if (kLimitMapping[i].sqlite_limit_id != static_cast<int>(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+static_assert(
+    CheckLimitIndices(),
+    "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
 class DatabaseOpenConfiguration {
  public:
@@ -63,6 +100,19 @@ class DatabaseOpenConfiguration {
     return allow_unknown_named_params_;
   }
 
+  inline void set_enable_defensive(bool flag) { defensive_ = flag; }
+
+  inline bool get_enable_defensive() const { return defensive_; }
+
+  inline void set_initial_limit(int sqlite_limit_id, int value) {
+    initial_limits_.at(sqlite_limit_id) = value;
+  }
+
+  inline const std::array<std::optional<int>, kLimitMapping.size()>&
+  initial_limits() const {
+    return initial_limits_;
+  }
+
  private:
   std::string location_;
   bool read_only_ = false;
@@ -73,13 +123,51 @@ class DatabaseOpenConfiguration {
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
+  bool defensive_ = true;
+  std::array<std::optional<int>, kLimitMapping.size()> initial_limits_{};
 };
 
+class DatabaseSync;
+class DatabaseSyncLimits;
+class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
 
+class StatementExecutionHelper {
+ public:
+  static v8::MaybeLocal<v8::Value> All(Environment* env,
+                                       DatabaseSync* db,
+                                       sqlite3_stmt* stmt,
+                                       bool return_arrays,
+                                       bool use_big_ints);
+  static v8::MaybeLocal<v8::Object> Run(Environment* env,
+                                        DatabaseSync* db,
+                                        sqlite3_stmt* stmt,
+                                        bool use_big_ints);
+  static BaseObjectPtr<StatementSyncIterator> Iterate(
+      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static v8::MaybeLocal<v8::Value> ColumnToValue(Environment* env,
+                                                 sqlite3_stmt* stmt,
+                                                 const int column,
+                                                 bool use_big_ints);
+  static v8::MaybeLocal<v8::Name> ColumnNameToName(Environment* env,
+                                                   sqlite3_stmt* stmt,
+                                                   const int column);
+  static v8::MaybeLocal<v8::Value> Get(Environment* env,
+                                       DatabaseSync* db,
+                                       sqlite3_stmt* stmt,
+                                       bool return_arrays,
+                                       bool use_big_ints);
+};
+
 class DatabaseSync : public BaseObject {
  public:
+  enum InternalFields {
+    kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kLimitsObject,
+    kInternalFieldCount
+  };
+
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
@@ -95,6 +183,7 @@ class DatabaseSync : public BaseObject {
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AggregateFunction(
@@ -103,7 +192,16 @@ class DatabaseSync : public BaseObject {
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableLoadExtension(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LimitsGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int AuthorizerCallback(void* user_data,
+                                int action_code,
+                                const char* param1,
+                                const char* param2,
+                                const char* param3,
+                                const char* param4);
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
@@ -145,7 +243,10 @@ class DatabaseSync : public BaseObject {
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
+  friend class DatabaseSyncLimits;
   friend class Session;
+  friend class SQLTagStore;
+  friend class StatementExecutionHelper;
 };
 
 class StatementSync : public BaseObject {
@@ -174,6 +275,8 @@ class StatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
+  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   void Finalize();
   bool IsFinalized();
 
@@ -191,10 +294,11 @@ class StatementSync : public BaseObject {
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
-  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
-  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 
+  friend class DatabaseSync;
   friend class StatementSyncIterator;
+  friend class SQLTagStore;
+  friend class StatementExecutionHelper;
 };
 
 class StatementSyncIterator : public BaseObject {
@@ -248,6 +352,42 @@ class Session : public BaseObject {
   BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
 };
 
+class SQLTagStore : public BaseObject {
+ public:
+  enum InternalFields {
+    kDatabaseObject = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  SQLTagStore(Environment* env,
+              v8::Local<v8::Object> object,
+              BaseObjectWeakPtr<DatabaseSync> database,
+              int capacity);
+  ~SQLTagStore() override;
+  static BaseObjectPtr<SQLTagStore> Create(
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CapacityGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DatabaseGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SizeGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SQLTagStore)
+  SET_SELF_SIZE(SQLTagStore)
+
+ private:
+  static BaseObjectPtr<StatementSync> PrepareStatement(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  BaseObjectWeakPtr<DatabaseSync> database_;
+  LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
+  friend class StatementExecutionHelper;
+};
+
 class UserDefinedFunction {
  public:
   UserDefinedFunction(Environment* env,
@@ -263,6 +403,37 @@ class UserDefinedFunction {
   v8::Global<v8::Function> fn_;
   DatabaseSync* db_;
   bool use_bigint_args_;
+};
+
+class DatabaseSyncLimits : public BaseObject {
+ public:
+  DatabaseSyncLimits(Environment* env,
+                     v8::Local<v8::Object> object,
+                     BaseObjectWeakPtr<DatabaseSync> database);
+  ~DatabaseSyncLimits() override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::ObjectTemplate> GetTemplate(Environment* env);
+  static BaseObjectPtr<DatabaseSyncLimits> Create(
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database);
+
+  static v8::Intercepted LimitsGetter(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  static v8::Intercepted LimitsSetter(
+      v8::Local<v8::Name> property,
+      v8::Local<v8::Value> value,
+      const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted LimitsQuery(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Integer>& info);
+  static void LimitsEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+
+  SET_MEMORY_INFO_NAME(DatabaseSyncLimits)
+  SET_SELF_SIZE(DatabaseSyncLimits)
+
+ private:
+  BaseObjectWeakPtr<DatabaseSync> database_;
 };
 
 }  // namespace sqlite

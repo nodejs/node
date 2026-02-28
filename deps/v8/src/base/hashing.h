@@ -100,6 +100,10 @@ V8_INLINE size_t hash_combine(size_t seed, size_t hash) {
   return seed;
 }
 
+#if V8_HASHES_COLLIDE
+constexpr int kCollidingHash = 1234;
+#endif  // V8_HASHES_COLLIDE
+
 // base::Hasher makes it easier to combine multiple fields into one hash and
 // avoids the ambiguity of the different {hash_combine} methods.
 class Hasher {
@@ -268,7 +272,7 @@ V8_INLINE size_t hash_value(std::tuple<T...> const& v) {
 
 template <typename T>
 V8_INLINE size_t hash_value(T v)
-  requires std::is_enum<T>::value
+  requires std::is_enum_v<T>
 {
   return hash_value(static_cast<std::underlying_type_t<T>>(v));
 }
@@ -359,13 +363,5 @@ V8_BASE_BIT_SPECIALIZE_BIT_CAST(double, uint64_t)
 #undef V8_BASE_BIT_SPECIALIZE_BIT_CAST
 
 }  // namespace v8::base
-
-// Also define std::hash for all classes that can be hashed via v8::base::hash.
-namespace std {
-template <typename T>
-  requires requires { typename v8::base::hash<T>; }
-struct hash<T> : v8::base::hash<T> {};
-
-}  // namespace std
 
 #endif  // V8_BASE_HASHING_H_

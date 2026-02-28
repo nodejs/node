@@ -21,8 +21,9 @@ class MarkBit final {
   using CellType = uintptr_t;
   static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
-  V8_ALLOW_UNUSED static inline MarkBit From(Address);
-  V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate, Address);
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate,
+                                             Tagged<HeapObject>);
 
   // These methods are meant to be used from the debugger and therefore
   // intentionally not inlined such that they are always available.
@@ -69,7 +70,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_);
 }
 
 template <>
@@ -147,8 +148,13 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
 
   // Gets the MarkBit for an `address` which may be unaligned (include the tag
   // bit).
-  V8_INLINE static MarkBit MarkBitFromAddress(Address address);
   V8_INLINE static MarkBit MarkBitFromAddress(MarkingBitmap* bitmap,
+                                              Address address);
+
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              Address address);
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              MarkingBitmap* bitmap,
                                               Address address);
 
   MarkingBitmap() = default;
@@ -204,7 +210,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
                                                 Address maybe_inner_ptr);
 
  private:
-  V8_INLINE static MarkingBitmap* FromAddress(Address address);
+  V8_INLINE static MarkingBitmap* FromAddress(const Isolate* isolate,
+                                              Address address);
 
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.
@@ -251,21 +258,21 @@ struct MarkingHelper final : public AllStatic {
 
   // Returns whether the markbit of an object should be considered or whether
   // the object is always considered as live.
-  static V8_INLINE LivenessMode GetLivenessMode(Heap* heap,
+  static V8_INLINE LivenessMode GetLivenessMode(const Heap* heap,
                                                 Tagged<HeapObject> object);
 
   // Returns true if the object is marked or resides on an always live page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsMarkedOrAlwaysLive(Heap* heap,
-                                             MarkingStateT* marking_state,
+  static V8_INLINE bool IsMarkedOrAlwaysLive(const Heap* heap,
+                                             const MarkingStateT* marking_state,
                                              Tagged<HeapObject> object);
 
   // Returns true if the object is unmarked and doesn't reside on an always live
   // page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(Heap* heap,
-                                                   MarkingStateT* marking_state,
-                                                   Tagged<HeapObject> object);
+  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(
+      const Heap* heap, const MarkingStateT* marking_state,
+      Tagged<HeapObject> object);
 
   // Convenience helper around marking and pushing an object.
   //

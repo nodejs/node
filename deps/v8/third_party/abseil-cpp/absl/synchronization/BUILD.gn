@@ -87,6 +87,7 @@ absl_source_set("synchronization") {
     "//third_party/abseil-cpp/absl/base:tracing_internal",
     "//third_party/abseil-cpp/absl/debugging:stacktrace",
     "//third_party/abseil-cpp/absl/debugging:symbolize",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/time",
   ]
 }
@@ -144,6 +145,7 @@ absl_test("mutex_test") {
     "//third_party/abseil-cpp/absl/log",
     "//third_party/abseil-cpp/absl/log:check",
     "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/time",
   ]
 }

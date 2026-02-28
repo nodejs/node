@@ -84,8 +84,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
   sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
                               v8::Null(isolate));
-  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "handle"),
-                              v8::Null(isolate));
+  sw->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 

@@ -1241,7 +1241,7 @@ void SharedMacroAssemblerBase::S128Load8Splat(XMMRegister dst, Operand src,
                                               XMMRegister scratch) {
   ASM_CODE_COMMENT(this);
   // The trap handler uses the current pc to creating a landing, so that it can
-  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // determine if a trap occurred in Wasm code due to a OOB load. Make sure the
   // first instruction in each case below is the one that loads.
   if (CpuFeatures::IsSupported(AVX2)) {
     CpuFeatureScope avx2_scope(this, AVX2);
@@ -1264,7 +1264,7 @@ void SharedMacroAssemblerBase::S128Load16Splat(XMMRegister dst, Operand src,
                                                XMMRegister scratch) {
   ASM_CODE_COMMENT(this);
   // The trap handler uses the current pc to creating a landing, so that it can
-  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // determine if a trap occurred in Wasm code due to a OOB load. Make sure the
   // first instruction in each case below is the one that loads.
   if (CpuFeatures::IsSupported(AVX2)) {
     CpuFeatureScope avx2_scope(this, AVX2);
@@ -1285,7 +1285,7 @@ void SharedMacroAssemblerBase::S128Load16Splat(XMMRegister dst, Operand src,
 void SharedMacroAssemblerBase::S128Load32Splat(XMMRegister dst, Operand src) {
   ASM_CODE_COMMENT(this);
   // The trap handler uses the current pc to creating a landing, so that it can
-  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // determine if a trap occurred in Wasm code due to a OOB load. Make sure the
   // first instruction in each case below is the one that loads.
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);

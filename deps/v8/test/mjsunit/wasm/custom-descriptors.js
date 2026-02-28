@@ -23,8 +23,12 @@ let i64_field = makeField(kWasmI64, true);
 let sig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
 let sig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
 let sig_v_r = makeSig([kWasmAnyRef], []);
-let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32])
+let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
+let sig_i_v = makeSig([], [kWasmI32]);
+let sig_v_v = makeSig([], []);
 let anyref = wasmRefNullType(kWasmAnyRef);
+let funcref = wasmRefNullType(kWasmFuncRef);
+let nullref = wasmRefNullType(kWasmNullRef);
 
 builder.startRecGroup();
 const kNumStructs = 2;
@@ -48,6 +52,13 @@ let $g_desc1 = builder.addGlobal(wasmRefType($desc1).exact(), false, false,
 // For convenience, we ensure matching indices:
 assertEquals($g_desc0.index, $s0);
 assertEquals($g_desc1.index, $s1);
+
+let $g_s0 = builder.addGlobal(wasmRefType($s0), false, false, [
+  kExprGlobalGet, $g_desc0.index,
+  kGCPrefix, kExprStructNewDefault, $s0,
+]);
+
+let $sideeffect = builder.addImport("m", "sideeffect", kSig_v_v);
 
 function MakeFunctions(type_index) {
   let desc_index = type_index + kNumStructs;  // By type section construction.
@@ -146,12 +157,111 @@ builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
     kExprDrop,
     kExprI32Const, 1, // If branch taken (cast failed), return 1.
   ]);
+
+  // Custom descriptors relaxes the requirement that the cast target be a
+  // subtype of the cast source. We can cast up from nullref.
+  builder.addFunction("br_on_cast_desc_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        kExprGlobalGet, global_index,
+        ...wasmBrOnCastDesc(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  builder.addFunction("br_on_cast_desc_fail_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        kExprGlobalGet, global_index,
+        ...wasmBrOnCastDescFail(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  // The relaxation applies to normal br_on_cast as well.
+  builder.addFunction("br_on_cast_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        ...wasmBrOnCast(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
+
+  builder.addFunction("br_on_cast_fail_from_null_s" + type_index, sig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprRefNull, kNullRefCode,
+        ...wasmBrOnCastFail(0, nullref, wasmRefNullType(type_index)),
+        kExprI32Const, 0, // If branch not taken, return 0.
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1, // If branch taken, return 1.
+    ]);
 }
 
 MakeFunctions($s0);
 MakeFunctions($s1);
 
-let instance = builder.instantiate();
+// Put a `ref.get_desc` instruction into a loop to exercise compiler
+// optimizations more than simple functions do.
+builder.addFunction("get_desc_in_loop", kSig_i_ii).exportFunc()
+  .addLocals(kWasmI32, 1)
+  .addBody([
+    kExprLoop, kWasmVoid,
+      // desc := var_cond ? get_desc(global.get $struct) : global.get $desc;
+      kExprLocalGet, 1,
+      kExprIf, kAnyRefCode,
+        kExprGlobalGet, $g_s0.index,
+        kGCPrefix, kExprRefGetDesc, $s0,
+      kExprElse,
+        kExprGlobalGet, $g_desc0.index,
+      kExprEnd,
+
+      // var_sum += struct.get(cast(desc))
+      kGCPrefix, kExprRefCast, $desc0,
+      kGCPrefix, kExprStructGet, $desc0, 0,
+      kExprI32ConvertI64,
+      kExprLocalGet, 2,  // sum
+      kExprI32Add,
+      kExprLocalSet, 2,
+
+      // LateLoadElimination needs to forget everything here; type-aware
+      // WasmLoadElimination can keep the descriptor cached.
+      kExprCallFunction, $sideeffect,
+
+      // while (var_loop > 0)
+      kExprLocalGet, 0,
+      kExprI32Const, 1,
+      kExprI32Sub,
+      kExprLocalTee, 0,
+      kExprBrIf, 0,
+    kExprEnd,
+
+    // return var_sum
+    kExprLocalGet, 2,
+]);
+
+// Doesn't actually have side effects, but the Wasm compiler doesn't know that.
+function sideeffect() {}
+
+let instance = builder.instantiate({m: {sideeffect}});
 let wasm = instance.exports;
 
 let s0 = wasm.make_s0(11);
@@ -187,7 +297,13 @@ assertThrows(
 let s0_other = wasm.make_s0(33);
 assertEquals(1, wasm.inc_desc_field_s0(s0));
 assertEquals(2, wasm.inc_desc_field_s0(s0_other));
-assertEquals(3, wasm.inc_desc_field_s0(s0));
+let final_desc0_field = 3;
+assertEquals(final_desc0_field, wasm.inc_desc_field_s0(s0));
+
+let loop_count = 20;
+assertEquals(final_desc0_field * loop_count,
+             wasm.get_desc_in_loop(loop_count, 1));
+
 
 let s1_other = wasm.make_s1(44);
 assertEquals(1, wasm.inc_desc_field_s1(s1));
@@ -216,3 +332,48 @@ assertEquals(1, wasm.br_on_cast_desc_fail_s0(null));
 assertEquals(1, wasm.br_on_cast_desc_fail_s1(s0));
 assertEquals(0, wasm.br_on_cast_desc_fail_s1(s1));
 assertEquals(1, wasm.br_on_cast_desc_fail_s1(null));
+
+assertEquals(1, wasm.br_on_cast_desc_from_null_s0());
+assertEquals(1, wasm.br_on_cast_desc_from_null_s1());
+assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s0());
+assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s1());
+assertEquals(1, wasm.br_on_cast_from_null_s0());
+assertEquals(1, wasm.br_on_cast_from_null_s1());
+assertEquals(0, wasm.br_on_cast_fail_from_null_s0());
+assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
+
+// All br_on_cast variants trying to cast across hierarchies should still be
+// invalid.
+(() => {
+  for (let fail of [false, true]) {
+    for (let desc of [false, true]) {
+      let builder = new WasmModuleBuilder();
+      builder.startRecGroup();
+      let $desc0 = builder.nextTypeIndex() + 1;
+      let $s0 = builder.addStruct({fields: [], descriptor: $desc0});
+      builder.addStruct({fields: [], describes: $s0});
+      builder.endRecGroup();
+
+      let name = "br_on_cast" + (desc ? "_desc" : "") + (fail ? "_fail" : "");
+      let cast = fail ? (desc ? wasmBrOnCastDescFail : wasmBrOnCastFail) :
+                        (desc ? wasmBrOnCastDesc : wasmBrOnCast);
+
+      builder.addFunction(name, sig_v_v).addBody([
+        kExprBlock, kAnyRefCode,
+          kExprUnreachable,
+          ...cast(0, funcref, wasmRefNullType($s0)),
+          kExprUnreachable,
+        kExprEnd,
+        kExprDrop
+      ]);
+
+      let expected = new RegExp(
+          `.*\"${name}\" failed: invalid types for ${name}: source type ` +
+          'funcref and target type \\(ref null 0\\) must be in the same ' +
+          'reference type hierarchy.*');
+      let buffer = builder.toBuffer();
+      assertThrowsAsync(
+          WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+    }
+  }
+})();

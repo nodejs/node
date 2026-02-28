@@ -119,7 +119,7 @@ t.test('legacy', t => {
 
 t.test('web', t => {
   t.test('basic login', async t => {
-    const { npm, registry, login, rc } = await mockLogin(t, {
+    const { outputs, npm, registry, login, rc } = await mockLogin(t, {
       config: { 'auth-type': 'web' },
     })
     registry.weblogin({ token: 'npm_test-token' })
@@ -128,6 +128,7 @@ t.test('web', t => {
     t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
     })
+    t.match(outputs[0], '/npm-cli-test/login/cli/00000000-0000-0000-0000-000000000000')
   })
   t.test('server error', async t => {
     const { registry, login } = await mockLogin(t, {

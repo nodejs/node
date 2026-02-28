@@ -321,14 +321,14 @@ const theData = 'hello';
     }),
   });
 
-  port1.onmessage = ({ data }) => {
+  port1.onmessage = common.mustCall(({ data }) => {
     const reader = data.getReader();
     assert.rejects(reader.read(), {
       code: 25,
       name: 'DataCloneError',
     }).then(common.mustCall());
     port1.close();
-  };
+  });
 
   port2.postMessage(readable, [readable]);
 

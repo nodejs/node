@@ -72,11 +72,8 @@ absl_cc_library(
     nullability
   HDRS
     "nullability.h"
-  SRCS
-    "internal/nullability_deprecated.h"
   DEPS
     absl::config
-    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -89,7 +86,6 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::core_headers
     absl::nullability
     GTest::gtest_main
 )
@@ -103,6 +99,34 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::nullability
+    GTest::gtest_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    nullability_traits_internal
+  HDRS
+    "internal/nullability_traits.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::nullability
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    nullability_traits_test
+  SRCS
+    "internal/nullability_traits_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::nullability
+    absl::nullability_traits_internal
     GTest::gtest_main
 )
 
@@ -212,7 +236,6 @@ absl_cc_library(
     base_internal
   HDRS
     "internal/hide_ptr.h"
-    "internal/identity.h"
     "internal/scheduling_mode.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -384,6 +407,19 @@ absl_cc_test(
     bit_cast_test
   SRCS
     "bit_cast_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::core_headers
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
+    casts_test
+  SRCS
+    "casts_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS

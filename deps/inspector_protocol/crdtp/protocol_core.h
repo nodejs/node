@@ -219,8 +219,7 @@ struct CRDTP_EXPORT ProtocolTypeTraits<DeferredMessage> {
 
 template <typename T>
 struct ProtocolTypeTraits<std::optional<T>> {
-  static bool Deserialize(DeserializerState* state,
-                          std::optional<T>* value) {
+  static bool Deserialize(DeserializerState* state, std::optional<T>* value) {
     T res;
     if (!ProtocolTypeTraits<T>::Deserialize(state, &res))
       return false;
@@ -341,9 +340,7 @@ template <typename T, typename F>
 bool ConvertProtocolValue(const F& from, T* to) {
   std::vector<uint8_t> bytes;
   ProtocolTypeTraits<F>::Serialize(from, &bytes);
-  auto deserializer =
-      DeferredMessage::FromSpan(span<uint8_t>(bytes.data(), bytes.size()))
-          ->MakeDeserializer();
+  auto deserializer = DeferredMessage::FromSpan(bytes)->MakeDeserializer();
   return ProtocolTypeTraits<T>::Deserialize(&deserializer, to);
 }
 

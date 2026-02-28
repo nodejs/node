@@ -23,18 +23,18 @@ namespace {
 // and deduced from the length {len} of the digits array.
 
 // Helper function for {ModFn} below.
-void ModFn_Helper(digit_t* x, int len, signed_digit_t high) {
+void ModFn_Helper(digit_t* x, uint32_t len, signed_digit_t high) {
   if (high > 0) {
     digit_t borrow = high;
     x[len - 1] = 0;
-    for (int i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
       x[i] = digit_sub(x[i], borrow, &borrow);
       if (borrow == 0) break;
     }
   } else {
     digit_t carry = -high;
     x[len - 1] = 0;
-    for (int i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
       x[i] = digit_add2(x[i], carry, &carry);
       if (carry == 0) break;
     }
@@ -43,8 +43,8 @@ void ModFn_Helper(digit_t* x, int len, signed_digit_t high) {
 
 // {x} := {x} mod F_n, assuming that {x} is "slightly" larger than F_n (e.g.
 // after addition of two numbers that were mod-F_n-normalized before).
-void ModFn(digit_t* x, int len) {
-  int K = len - 1;
+void ModFn(digit_t* x, uint32_t len) {
+  uint32_t K = len - 1;
   signed_digit_t high = x[K];
   if (high == 0) return;
   ModFn_Helper(x, len, high);
@@ -60,10 +60,10 @@ void ModFn(digit_t* x, int len) {
 // (e.g. after multiplication of two numbers that were mod-F_n-normalized
 // before).
 // {len} is length of {dest}; {src} is twice as long.
-void ModFnDoubleWidth(digit_t* dest, const digit_t* src, int len) {
-  int K = len - 1;
+void ModFnDoubleWidth(digit_t* dest, const digit_t* src, uint32_t len) {
+  uint32_t K = len - 1;
   digit_t borrow = 0;
-  for (int i = 0; i < K; i++) {
+  for (uint32_t i = 0; i < K; i++) {
     dest[i] = digit_sub2(src[i], src[i + K], borrow, &borrow);
   }
   dest[K] = digit_sub2(0, src[2 * K], borrow, &borrow);
@@ -75,10 +75,10 @@ void ModFnDoubleWidth(digit_t* dest, const digit_t* src, int len) {
 // than computing sum and difference separately. Applies "mod F_n" normalization
 // to both results.
 void SumDiff(digit_t* sum, digit_t* diff, const digit_t* a, const digit_t* b,
-             int len) {
+             uint32_t len) {
   digit_t carry = 0;
   digit_t borrow = 0;
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     // Read both values first, because inputs and outputs can overlap.
     digit_t ai = a[i];
     digit_t bi = b[i];
@@ -90,8 +90,8 @@ void SumDiff(digit_t* sum, digit_t* diff, const digit_t* a, const digit_t* b,
 }
 
 // {result} := ({input} << shift) mod F_n, where shift >= K.
-void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
-                      int bits_shift, int K) {
+void ShiftModFn_Large(digit_t* result, const digit_t* input,
+                      uint32_t digit_shift, int bits_shift, uint32_t K) {
   // If {digit_shift} is greater than K, we use the following transformation
   // (where, since everything is mod 2^K + 1, we are allowed to add or
   // subtract any multiple of 2^K + 1 at any time):
@@ -111,11 +111,11 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
   digit_t borrow = 0;
   if (bits_shift == 0) {
     digit_t carry = 1;
-    for (int i = 0; i < digit_shift; i++) {
+    for (uint32_t i = 0; i < digit_shift; i++) {
       result[i] = digit_add2(input[i + K - digit_shift], carry, &carry);
     }
     result[digit_shift] = digit_sub(input[K] + carry, input[0], &borrow);
-    for (int i = digit_shift + 1; i < K; i++) {
+    for (uint32_t i = digit_shift + 1; i < K; i++) {
       digit_t d = input[i - digit_shift];
       result[i] = digit_sub2(0, d, borrow, &borrow);
     }
@@ -123,7 +123,7 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
     digit_t add_carry = 1;
     digit_t input_carry =
         input[K - digit_shift - 1] >> (kDigitBits - bits_shift);
-    for (int i = 0; i < digit_shift; i++) {
+    for (uint32_t i = 0; i < digit_shift; i++) {
       digit_t d = input[i + K - digit_shift];
       digit_t summand = (d << bits_shift) | input_carry;
       result[i] = digit_add2(summand, add_carry, &add_carry);
@@ -150,7 +150,7 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
         input_carry = d >> (kDigitBits - bits_shift);
       }
     }
-    for (int i = digit_shift + 2; i < K; i++) {
+    for (uint32_t i = digit_shift + 2; i < K; i++) {
       digit_t d = input[i - digit_shift];
       digit_t subtrahend = (d << bits_shift) | input_carry;
       result[i] = digit_sub2(0, subtrahend, borrow, &borrow);
@@ -163,13 +163,13 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
   result[K] = 0;
   if (borrow != 1) {
     borrow = 1;
-    for (int i = 0; i < K; i++) {
+    for (uint32_t i = 0; i < K; i++) {
       result[i] = digit_sub(result[i], borrow, &borrow);
       if (borrow == 0) break;
     }
     if (borrow != 0) {
       // The result must be 2^K.
-      for (int i = 0; i < K; i++) result[i] = 0;
+      for (uint32_t i = 0; i < K; i++) result[i] = 0;
       result[K] = 1;
     }
   }
@@ -177,15 +177,15 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
 
 // Sets {result} := {input} * 2^{power_of_two} mod 2^{K} + 1.
 // This function is highly relevant for overall performance.
-void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
-                int zero_above = 0x7FFFFFFF) {
+void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two,
+                uint32_t K, uint32_t zero_above = 0x7FFFFFFF) {
   // The modulo-reduction amounts to a subtraction, which we combine
   // with the shift as follows:
   //   input  =  [ iK ][iK-1] ....  .... [ i1 ][ i0 ]
   //   result =        [iX-1] .... [ i0 ] <---------- shift by {power_of_two}
   //            -                  [ iK ] .... [ iX ]
   // where "X" is the index "K - digit_shift".
-  int digit_shift = power_of_two / kDigitBits;
+  uint32_t digit_shift = power_of_two / kDigitBits;
   int bits_shift = power_of_two % kDigitBits;
   // By an analogous construction to the "digit_shift >= K" case,
   // it turns out that:
@@ -198,9 +198,9 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
   if (bits_shift == 0) {
     // We do a single pass over {input}, starting by copying digits [i1] to
     // [iX-1] to result indices digit_shift+1 to K-1.
-    int i = 1;
+    uint32_t i = 1;
     // Read input digits unless we know they are zero.
-    int cap = std::min(K - digit_shift, zero_above);
+    uint32_t cap = std::min(K - digit_shift, zero_above);
     for (; i < cap; i++) {
       result[i + digit_shift] = input[i];
     }
@@ -227,9 +227,9 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     // Same flow as before, but taking bits_shift != 0 into account.
     // First phase: result indices digit_shift+1 to K.
     digit_t carry = 0;
-    int i = 0;
+    uint32_t i = 0;
     // Read input digits unless we know they are zero.
-    int cap = std::min(K - digit_shift, zero_above);
+    uint32_t cap = std::min(K - digit_shift, zero_above);
     for (; i < cap; i++) {
       digit_t d = input[i];
       result[i + digit_shift] = (d << bits_shift) | carry;
@@ -268,13 +268,13 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     DCHECK((d >> (kDigitBits - bits_shift)) == 0);
   }
   result[K] = 0;
-  for (int i = digit_shift + 1; i <= K && borrow > 0; i++) {
+  for (uint32_t i = digit_shift + 1; i <= K && borrow > 0; i++) {
     result[i] = digit_sub(result[i], borrow, &borrow);
   }
   if (borrow > 0) {
     // Underflow means we subtracted too much. Add 2^K + 1.
     digit_t carry = 1;
-    for (int i = 0; i <= K; i++) {
+    for (uint32_t i = 0; i <= K; i++) {
       result[i] = digit_add2(result[i], carry, &carry);
       if (carry == 0) break;
     }
@@ -292,23 +292,23 @@ struct Parameters {
   // We never use the default values, but skipping zero-initialization
   // of these fields saddens and confuses MSan.
   int m{0};
-  int K{0};
-  int n{0};
-  int s{0};
+  uint32_t K{0};
+  uint32_t n{0};
+  uint32_t s{0};
   int r{0};
 };
 
 // Computes parameters for the main calculation, given a bit length {N} and
 // an {m}. See the paper for details.
-void ComputeParameters(int N, int m, Parameters* params) {
+void ComputeParameters(uint32_t N, int m, Parameters* params) {
   N *= kDigitBits;
-  int n = 1 << m;  // 2^m
-  int nhalf = n >> 1;
-  int s = (N + n - 1) >> m;  // ceil(N/n)
+  uint32_t n = 1 << m;  // 2^m
+  uint32_t nhalf = n >> 1;
+  uint32_t s = (N + n - 1) >> m;  // ceil(N/n)
   s = RoundUp(s, kDigitBits);
-  int K = m + 2 * s + 1;  // K must be at least this big...
-  K = RoundUp(K, nhalf);  // ...and a multiple of n/2.
-  int r = K >> (m - 1);   // Which multiple?
+  uint32_t K = m + 2 * s + 1;  // K must be at least this big...
+  K = RoundUp(K, nhalf);       // ...and a multiple of n/2.
+  uint32_t r = K >> (m - 1);   // Which multiple?
 
   // We want recursive calls to make progress, so force K to be a multiple
   // of 8 if it's above the recursion threshold. Otherwise, K must be a
@@ -318,7 +318,7 @@ void ComputeParameters(int N, int m, Parameters* params) {
                             : kLog2DigitBits;
   int K_tz = CountTrailingZeros(K);
   while (K_tz < threshold) {
-    K += (1 << K_tz);
+    K += (1u << K_tz);
     r = K >> (m - 1);
     K_tz = CountTrailingZeros(K);
   }
@@ -332,20 +332,20 @@ void ComputeParameters(int N, int m, Parameters* params) {
 }
 
 // Computes parameters for recursive invocations ("inner layer").
-void ComputeParameters_Inner(int N, Parameters* params) {
+void ComputeParameters_Inner(uint32_t N, Parameters* params) {
   int max_m = CountTrailingZeros(N);
   int N_bits = BitLength(N);
   int m = N_bits - 4;  // Don't let s get too small.
   m = std::min(max_m, m);
   N *= kDigitBits;
-  int n = 1 << m;  // 2^m
+  uint32_t n = 1 << m;  // 2^m
   // We can't round up s in the inner layer, because N = n*s is fixed.
-  int s = N >> m;
+  uint32_t s = N >> m;
   DCHECK(N == s * n);
-  int K = m + 2 * s + 1;  // K must be at least this big...
-  K = RoundUp(K, n);      // ...and a multiple of n and kDigitBits.
+  uint32_t K = m + 2 * s + 1;  // K must be at least this big...
+  K = RoundUp(K, n);           // ...and a multiple of n and kDigitBits.
   K = RoundUp(K, kDigitBits);
-  params->r = K >> m;           // Which multiple?
+  params->r = K >> m;  // Which multiple?
   DCHECK(K % kDigitBits == 0);
   DCHECK(s % kDigitBits == 0);
   params->K = K / kDigitBits;
@@ -354,7 +354,7 @@ void ComputeParameters_Inner(int N, Parameters* params) {
   params->m = m;
 }
 
-int PredictInnerK(int N) {
+uint32_t PredictInnerK(uint32_t N) {
   Parameters params;
   ComputeParameters_Inner(N, &params);
   return params.K;
@@ -397,7 +397,7 @@ bool ShouldDecrementM(const Parameters& current, const Parameters& next,
 
 // Decides what parameters to use for a given input bit length {N}.
 // Returns the chosen m.
-int GetParameters(int N, Parameters* params) {
+int GetParameters(uint32_t N, Parameters* params) {
   int N_bits = BitLength(N);
   int max_m = N_bits - 3;                   // Larger m make s too small.
   max_m = std::max(kLog2DigitBits, max_m);  // Smaller m break the logic below.
@@ -428,12 +428,12 @@ class FFTContainer {
  public:
   // {n} is the number of chunks, whose length is {K}+1.
   // {K} determines F_n = 2^(K * kDigitBits) + 1.
-  FFTContainer(int n, int K, ProcessorImpl* processor)
+  FFTContainer(uint32_t n, uint32_t K, ProcessorImpl* processor)
       : n_(n), K_(K), length_(K + 1), processor_(processor) {
     storage_ = new digit_t[length_ * n_];
     part_ = new digit_t*[n_];
     digit_t* ptr = storage_;
-    for (int i = 0; i < n; i++, ptr += length_) {
+    for (uint32_t i = 0; i < n; i++, ptr += length_) {
       part_[i] = ptr;
     }
     temp_ = new digit_t[length_ * 2];
@@ -448,29 +448,29 @@ class FFTContainer {
     delete[] temp_;
   }
 
-  void Start_Default(Digits X, int chunk_size, int theta, int omega);
-  void Start(Digits X, int chunk_size, int theta, int omega);
+  void Start_Default(Digits X, uint32_t chunk_size, int theta, int omega);
+  void Start(Digits X, uint32_t chunk_size, int theta, int omega);
 
-  void NormalizeAndRecombine(int omega, int m, RWDigits Z, int chunk_size);
-  void CounterWeightAndRecombine(int theta, int m, RWDigits Z, int chunk_size);
+  void NormalizeAndRecombine(int omega, int m, RWDigits Z, uint32_t chunk_size);
+  void CounterWeightAndRecombine(int theta, int m, RWDigits Z,
+                                 uint32_t chunk_size);
 
-  void FFT_ReturnShuffledThreadsafe(int start, int len, int omega,
+  void FFT_ReturnShuffledThreadsafe(uint32_t start, uint32_t len, int omega,
                                     digit_t* temp);
-  void FFT_Recurse(int start, int half, int omega, digit_t* temp);
+  void FFT_Recurse(uint32_t start, uint32_t half, int omega, digit_t* temp);
 
-  void BackwardFFT(int start, int len, int omega);
-  void BackwardFFT_Threadsafe(int start, int len, int omega, digit_t* temp);
+  void BackwardFFT(uint32_t start, uint32_t len, int omega);
+  void BackwardFFT_Threadsafe(uint32_t start, uint32_t len, int omega,
+                              digit_t* temp);
 
   void PointwiseMultiply(const FFTContainer& other);
-  void DoPointwiseMultiplication(const FFTContainer& other, int start, int end,
-                                 digit_t* temp);
-
-  int length() const { return length_; }
+  void DoPointwiseMultiplication(const FFTContainer& other, uint32_t start,
+                                 uint32_t end, digit_t* temp);
 
  private:
-  const int n_;       // Number of parts.
-  const int K_;       // Always length_ - 1.
-  const int length_;  // Length of each part, in digits.
+  const uint32_t n_;       // Number of parts.
+  const uint32_t K_;       // Always length_ - 1.
+  const uint32_t length_;  // Length of each part, in digits.
   ProcessorImpl* processor_;
   digit_t* storage_;  // Combined storage of all parts.
   digit_t** part_;    // Pointers to each part.
@@ -486,13 +486,13 @@ inline void CopyAndZeroExtend(digit_t* dst, const digit_t* src,
 
 // Reads {X} into the FFTContainer's internal storage, dividing it into chunks
 // while doing so; then performs the forward FFT.
-void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
+void FFTContainer::Start_Default(Digits X, uint32_t chunk_size, int theta,
                                  int omega) {
-  int len = X.len();
+  uint32_t len = X.len();
   const digit_t* pointer = X.digits();
   const size_t part_length_in_bytes = length_ * sizeof(digit_t);
   int current_theta = 0;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < n_ && len > 0; i++, current_theta += theta) {
     chunk_size = std::min(chunk_size, len);
     // For invocations via MultiplyFFT_Inner, X.len() == n_ * chunk_size + 1,
@@ -525,21 +525,21 @@ void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
 
 // This version of Start is optimized for the case where ~half of the
 // container will be filled with padding zeros.
-void FFTContainer::Start(Digits X, int chunk_size, int theta, int omega) {
-  int len = X.len();
+void FFTContainer::Start(Digits X, uint32_t chunk_size, int theta, int omega) {
+  uint32_t len = X.len();
   if (len > n_ * chunk_size / 2) {
     return Start_Default(X, chunk_size, theta, omega);
   }
   DCHECK(theta == 0);
   const digit_t* pointer = X.digits();
   const size_t part_length_in_bytes = length_ * sizeof(digit_t);
-  int nhalf = n_ / 2;
+  uint32_t nhalf = n_ / 2;
   // Unrolled first iteration.
   CopyAndZeroExtend(part_[0], pointer, chunk_size, part_length_in_bytes);
   CopyAndZeroExtend(part_[nhalf], pointer, chunk_size, part_length_in_bytes);
   pointer += chunk_size;
   len -= chunk_size;
-  int i = 1;
+  uint32_t i = 1;
   for (; i < nhalf && len > 0; i++) {
     chunk_size = std::min(chunk_size, len);
     CopyAndZeroExtend(part_[i], pointer, chunk_size, part_length_in_bytes);
@@ -559,13 +559,13 @@ void FFTContainer::Start(Digits X, int chunk_size, int theta, int omega) {
 // We use the "DIF" aka "decimation in frequency" transform, because it
 // leaves the result in "bit reversed" order, which is precisely what we
 // need as input for the "DIT" aka "decimation in time" backwards transform.
-void FFTContainer::FFT_ReturnShuffledThreadsafe(int start, int len, int omega,
-                                                digit_t* temp) {
+void FFTContainer::FFT_ReturnShuffledThreadsafe(uint32_t start, uint32_t len,
+                                                int omega, digit_t* temp) {
   DCHECK((len & 1) == 0);  // {len} must be even.
-  int half = len / 2;
+  uint32_t half = len / 2;
   SumDiff(part_[start], part_[start + half], part_[start], part_[start + half],
           length_);
-  for (int k = 1; k < half; k++) {
+  for (uint32_t k = 1; k < half; k++) {
     SumDiff(part_[start + k], temp, part_[start + k], part_[start + half + k],
             length_);
     int w = omega * k;
@@ -575,7 +575,8 @@ void FFTContainer::FFT_ReturnShuffledThreadsafe(int start, int len, int omega,
 }
 
 // Recursive step of the above, factored out for additional callers.
-void FFTContainer::FFT_Recurse(int start, int half, int omega, digit_t* temp) {
+void FFTContainer::FFT_Recurse(uint32_t start, uint32_t half, int omega,
+                               digit_t* temp) {
   if (half > 1) {
     FFT_ReturnShuffledThreadsafe(start, half, 2 * omega, temp);
     FFT_ReturnShuffledThreadsafe(start + half, half, 2 * omega, temp);
@@ -585,14 +586,14 @@ void FFTContainer::FFT_Recurse(int start, int half, int omega, digit_t* temp) {
 // Backward transformation.
 // We use the "DIT" aka "decimation in time" transform here, because it
 // turns bit-reversed input into normally sorted output.
-void FFTContainer::BackwardFFT(int start, int len, int omega) {
+void FFTContainer::BackwardFFT(uint32_t start, uint32_t len, int omega) {
   BackwardFFT_Threadsafe(start, len, omega, temp_);
 }
 
-void FFTContainer::BackwardFFT_Threadsafe(int start, int len, int omega,
-                                          digit_t* temp) {
+void FFTContainer::BackwardFFT_Threadsafe(uint32_t start, uint32_t len,
+                                          int omega, digit_t* temp) {
   DCHECK((len & 1) == 0);  // {len} must be even.
-  int half = len / 2;
+  uint32_t half = len / 2;
   // Don't recurse for half == 2, as PointwiseMultiply already performed
   // the first level of the backwards FFT.
   if (half > 2) {
@@ -601,7 +602,7 @@ void FFTContainer::BackwardFFT_Threadsafe(int start, int len, int omega,
   }
   SumDiff(part_[start], part_[start + half], part_[start], part_[start + half],
           length_);
-  for (int k = 1; k < half; k++) {
+  for (uint32_t k = 1; k < half; k++) {
     int w = omega * (len - k);
     ShiftModFn(temp, part_[start + half + k], w, K_);
     SumDiff(part_[start + k], part_[start + half + k], part_[start + k], temp,
@@ -611,16 +612,16 @@ void FFTContainer::BackwardFFT_Threadsafe(int start, int len, int omega,
 
 // Recombines the result's parts into {Z}, after backwards FFT.
 void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
-                                         int chunk_size) {
+                                         uint32_t chunk_size) {
   Z.Clear();
-  int z_index = 0;
+  uint32_t z_index = 0;
   const int shift = n_ * omega - m;
-  for (int i = 0; i < n_; i++, z_index += chunk_size) {
+  for (uint32_t i = 0; i < n_; i++, z_index += chunk_size) {
     digit_t* part = part_[i];
     ShiftModFn(temp_, part, shift, K_);
     digit_t carry = 0;
-    int zi = z_index;
-    int j = 0;
+    uint32_t zi = z_index;
+    uint32_t j = 0;
     for (; j < length_ && zi < Z.len(); j++, zi++) {
       Z[zi] = digit_add3(Z[zi], temp_[j], carry, &carry);
     }
@@ -635,9 +636,10 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
 }
 
 // Helper function for {CounterWeightAndRecombine} below.
-bool ShouldBeNegative(const digit_t* x, int xlen, digit_t threshold, int s) {
+bool ShouldBeNegative(const digit_t* x, uint32_t xlen, digit_t threshold,
+                      int s) {
   if (x[2 * s] >= threshold) return true;
-  for (int i = 2 * s + 1; i < xlen; i++) {
+  for (uint32_t i = 2 * s + 1; i < xlen; i++) {
     if (x[i] > 0) return true;
   }
   return false;
@@ -647,16 +649,16 @@ bool ShouldBeNegative(const digit_t* x, int xlen, digit_t threshold, int s) {
 // invocation ("inner layer") of FFT multiplication, where an additional
 // counter-weighting step is required.
 void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
-                                             int s) {
+                                             uint32_t s) {
   Z.Clear();
-  int z_index = 0;
-  for (int k = 0; k < n_; k++, z_index += s) {
+  uint32_t z_index = 0;
+  for (uint32_t k = 0; k < n_; k++, z_index += s) {
     int shift = -theta * k - m;
     if (shift < 0) shift += 2 * n_ * theta;
     DCHECK(shift >= 0);
     digit_t* input = part_[k];
     ShiftModFn(temp_, input, shift, K_);
-    int remaining_z = Z.len() - z_index;
+    uint32_t remaining_z = Z.len() - z_index;
     if (ShouldBeNegative(temp_, length_, k + 1, s)) {
       // Subtract F_n from input before adding to result. We use the following
       // transformation (knowing that X < F_n):
@@ -668,7 +670,7 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
         digit_t d = digit_sub(1, temp_[0], &borrow_Fn);
         Z[z_index] = digit_sub(Z[z_index], d, &borrow_z);
       }
-      int i = 1;
+      uint32_t i = 1;
       for (; i < K_ && i < remaining_z; i++) {
         digit_t d = digit_sub2(0, temp_[i], borrow_Fn, &borrow_Fn);
         Z[z_index + i] = digit_sub2(Z[z_index + i], d, borrow_z, &borrow_z);
@@ -684,7 +686,7 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
       }
     } else {
       digit_t carry = 0;
-      int i = 0;
+      uint32_t i = 0;
       for (; i < length_ && i < remaining_z; i++) {
         Z[z_index + i] = digit_add3(Z[z_index + i], temp_[i], carry, &carry);
       }
@@ -721,7 +723,7 @@ void MultiplyFFT_Inner(RWDigits Z, Digits X, Digits Y, const Parameters& params,
 
 // Actual implementation of pointwise multiplications.
 void FFTContainer::DoPointwiseMultiplication(const FFTContainer& other,
-                                             int start, int end,
+                                             uint32_t start, uint32_t end,
                                              digit_t* temp) {
   // The (K_ & 3) != 0 condition makes sure that the inner FFT gets
   // to split the work into at least 4 chunks.
@@ -729,7 +731,7 @@ void FFTContainer::DoPointwiseMultiplication(const FFTContainer& other,
   Parameters params;
   if (use_fft) ComputeParameters_Inner(K_, &params);
   RWDigits result(temp, 2 * length_);
-  for (int i = start; i < end; i++) {
+  for (uint32_t i = start; i < end; i++) {
     Digits A(part_[i], length_);
     Digits B(other.part_[i], length_);
     if (use_fft) {

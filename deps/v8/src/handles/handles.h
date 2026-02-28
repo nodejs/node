@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "include/v8-handle-base.h"
 #include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
@@ -15,7 +16,6 @@
 #include "src/common/globals.h"
 #include "src/objects/casting.h"
 #include "src/objects/tagged.h"
-#include "v8-handle-base.h"  // NOLINT(build/include_directory)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 #include "src/flags/flags.h"
@@ -130,7 +130,8 @@ class HandleBase {
 
   // This uses type Address* as opposed to a pointer type to a typed
   // wrapper class, because it doesn't point to instances of such a
-  // wrapper class. Design overview: https://goo.gl/Ph4CGz
+  // wrapper class. Design overview:
+  // https://docs.google.com/document/d/1_w49sakC1XM1OptjTurBDqO86NE16FH8LwbeUAtrbCo
   Address* location_;
 };
 
@@ -306,7 +307,7 @@ class V8_NODISCARD HandleScope {
     requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
 
   // Limit for number of handles with --check-handle-count. This is
   // large enough to compile natives and pass unit tests with some
@@ -367,23 +368,6 @@ class V8_NODISCARD SealHandleScope final {
   int prev_sealed_level_;
 #endif
 };
-
-struct HandleScopeData final {
-  static constexpr uint32_t kSizeInBytes =
-      2 * kSystemPointerSize + 2 * kInt32Size;
-
-  Address* next;
-  Address* limit;
-  int level;
-  int sealed_level;
-
-  void Initialize() {
-    next = limit = nullptr;
-    sealed_level = level = 0;
-  }
-};
-
-static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 
 template <typename T>
 struct is_direct_handle : public std::false_type {};
@@ -1106,7 +1090,11 @@ class DirectHandleSmallVector {
     return iterator(backing_.insert(pos.base(), init.begin(), init.end()));
   }
 
-  void erase(iterator erase_start) { backing_.erase(erase_start.base()); }
+  void erase(iterator erase_start, iterator erase_end) {
+    backing_.erase(erase_start.base(), erase_end.base());
+  }
+  void erase(iterator pos) { return erase(pos, pos + 1); }
+
   void resize(size_t new_size) { backing_.resize(new_size); }
   void resize(size_t new_size, const_reference initial_value) {
     backing_.resize(new_size, initial_value);

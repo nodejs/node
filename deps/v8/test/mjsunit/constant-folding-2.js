@@ -247,7 +247,7 @@ test(function stringCharAt() {
   assertEquals("a", "abc".charAt(+0));
   assertEquals("", "".charAt());
   assertEquals("", "abc".charAt(1 + 4294967295));
-}, 10);
+}, 20);
 
 test(function stringCharCodeAt() {
   assertSame(99, "abc".charCodeAt(2));
@@ -261,7 +261,7 @@ test(function stringCharCodeAt() {
   assertSame(97, "abc".charCodeAt(+0));
   assertSame(NaN, "".charCodeAt());
   assertSame(NaN, "abc".charCodeAt(1 + 4294967295));
-}, 10);
+}, 20);
 
 test(function stringCodePointAt() {
   assertSame(65533, "äϠ�𝌆".codePointAt(2));
@@ -276,7 +276,7 @@ test(function stringCodePointAt() {
   assertSame(97, "aϠ�".codePointAt(+0));
   assertSame(undefined, "".codePointAt());
   assertSame(undefined, "äϠ�".codePointAt(1 + 4294967295));
-}, 10);
+}, 20);
 
 test(function stringFromCodePoint() {
   assertEquals(String.fromCodePoint(), "");

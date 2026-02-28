@@ -70,12 +70,10 @@ MaybeDirectHandle<Object> GetWrappedValue(
   if (!IsCallable(*value)) {
     // The TypeError thrown is created with creation Realm's TypeError
     // constructor instead of the executing Realm's.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewError(
-            direct_handle(creation_context->type_error_function(), isolate),
-            MessageTemplate::kNotCallable, value),
-        {});
+    THROW_NEW_ERROR(
+        isolate, NewError(direct_handle(creation_context->type_error_function(),
+                                        isolate),
+                          MessageTemplate::kNotCallable, value));
   }
   // 1b. Return ? WrappedFunctionCreate(callerRealm, value).
   return JSWrappedFunction::Create(isolate, creation_context,

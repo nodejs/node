@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nbytes)
+project(nbytes VERSION 0.1.3) # x-release-please-version
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -39,4 +39,17 @@ install(
   NAMELINK_COMPONENT nbytes_development
   ARCHIVE COMPONENT nbytes_development
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+# Configure and install pkg-config file
+configure_file(
+  "${PROJECT_SOURCE_DIR}/nbytes.pc.in"
+  "${PROJECT_BINARY_DIR}/nbytes.pc"
+  @ONLY
+)
+
+install(
+  FILES "${PROJECT_BINARY_DIR}/nbytes.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  COMPONENT nbytes_development
 )

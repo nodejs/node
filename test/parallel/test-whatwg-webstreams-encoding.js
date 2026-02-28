@@ -50,7 +50,7 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
       () => Reflect.get(TextDecoderStream.prototype, getter, {}), {
         name: 'TypeError',
         message: /Cannot read private member/,
-        stack: new RegExp(`at get ${getter}`)
+        stack: new RegExp(`at get ${RegExp.escape(getter)}`)
       }
     );
   });
@@ -79,7 +79,7 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
       () => Reflect.get(TextDecoderStream.prototype, getter, {}), {
         name: 'TypeError',
         message: /Cannot read private member/,
-        stack: new RegExp(`at get ${getter}`)
+        stack: new RegExp(`at get ${RegExp.escape(getter)}`)
       }
     );
   });

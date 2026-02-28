@@ -16,8 +16,6 @@
 #ifndef BROTLI_ENC_BROTLI_BIT_STREAM_H_
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
 
-#include <brotli/types.h>
-
 #include "../common/context.h"
 #include "../common/platform.h"
 #include "command.h"
@@ -77,10 +75,6 @@ BROTLI_INTERNAL void BrotliStoreUncompressedMetaBlock(
     BROTLI_BOOL is_final_block, const uint8_t* BROTLI_RESTRICT input,
     size_t position, size_t mask, size_t len,
     size_t* BROTLI_RESTRICT storage_ix, uint8_t* BROTLI_RESTRICT storage);
-
-#if defined(BROTLI_TEST)
-void GetBlockLengthPrefixCodeForTest(uint32_t, size_t*, uint32_t*, uint32_t*);
-#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

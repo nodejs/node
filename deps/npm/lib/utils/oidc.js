@@ -3,12 +3,13 @@ const npmFetch = require('npm-registry-fetch')
 const ciInfo = require('ci-info')
 const fetch = require('make-fetch-happen')
 const npa = require('npm-package-arg')
+const libaccess = require('libnpmaccess')
 
 /**
  * Handles OpenID Connect (OIDC) token retrieval and exchange for CI environments.
  *
- * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions
- * and GitLab. It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and
+ * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions,
+ * GitLab, and CircleCI. It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and
  * sets the token in the provided configuration for authentication with the npm registry.
  *
  * This function is intended to never throw, as it mutates the state of the `opts` and `config` objects on success.
@@ -16,6 +17,7 @@ const npa = require('npm-package-arg')
  *
  * @see https://github.com/watson/ci-info for CI environment detection.
  * @see https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect for GitHub Actions OIDC.
+ * @see https://circleci.com/docs/openid-connect-tokens/ for CircleCI OIDC.
  */
 async function oidc ({ packageName, registry, opts, config }) {
   /*
@@ -28,7 +30,9 @@ async function oidc ({ packageName, registry, opts, config }) {
       /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L152 */
       ciInfo.GITHUB_ACTIONS ||
       /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L161C13-L161C22 */
-      ciInfo.GITLAB
+      ciInfo.GITLAB ||
+      /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L78 */
+      ciInfo.CIRCLE
     )) {
       return undefined
     }
@@ -108,31 +112,6 @@ async function oidc ({ packageName, registry, opts, config }) {
       return undefined
     }
 
-    // this checks if the user configured provenance or it's the default unset value
-    const isDefaultProvenance = config.isDefault('provenance')
-    const provenanceIntent = config.get('provenance')
-    let enableProvenance = false
-
-    // if provenance is the default value or the user explicitly set it
-    if (isDefaultProvenance || provenanceIntent) {
-      const [headerB64, payloadB64] = idToken.split('.')
-      if (headerB64 && payloadB64) {
-        const payloadJson = Buffer.from(payloadB64, 'base64').toString('utf8')
-        try {
-          const payload = JSON.parse(payloadJson)
-          if (ciInfo.GITHUB_ACTIONS && payload.repository_visibility === 'public') {
-            enableProvenance = true
-          }
-          // only set provenance for gitlab if SIGSTORE_ID_TOKEN is available
-          if (ciInfo.GITLAB && payload.project_visibility === 'public' && process.env.SIGSTORE_ID_TOKEN) {
-            enableProvenance = true
-          }
-        } catch (e) {
-          // Failed to parse idToken payload as JSON
-        }
-      }
-    }
-
     const parsedRegistry = new URL(registry)
     const regKey = `//${parsedRegistry.host}${parsedRegistry.pathname}`
     const authTokenKey = `${regKey}:_authToken`
@@ -155,12 +134,6 @@ async function oidc ({ packageName, registry, opts, config }) {
       return undefined
     }
 
-    if (enableProvenance) {
-      // Repository is public, setting provenance
-      opts.provenance = true
-      config.set('provenance', true, 'user')
-    }
-
     /*
      * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command,
      * eventually reaching `otplease`. To ensure the token is accessible during the publishing process,
@@ -170,6 +143,32 @@ async function oidc ({ packageName, registry, opts, config }) {
     opts[authTokenKey] = response.token
     config.set(authTokenKey, response.token, 'user')
     log.verbose('oidc', `Successfully retrieved and set token`)
+
+    try {
+      const isDefaultProvenance = config.isDefault('provenance')
+      // CircleCI doesn't support provenance yet, so skip the auto-enable logic
+      if (isDefaultProvenance && !ciInfo.CIRCLE) {
+        const [headerB64, payloadB64] = idToken.split('.')
+        if (headerB64 && payloadB64) {
+          const payloadJson = Buffer.from(payloadB64, 'base64').toString('utf8')
+          const payload = JSON.parse(payloadJson)
+          if (
+            (ciInfo.GITHUB_ACTIONS && payload.repository_visibility === 'public') ||
+            // only set provenance for gitlab if the repo is public and SIGSTORE_ID_TOKEN is available
+            (ciInfo.GITLAB && payload.project_visibility === 'public' && process.env.SIGSTORE_ID_TOKEN)
+          ) {
+            const visibility = await libaccess.getVisibility(packageName, opts)
+            if (visibility?.public) {
+              log.verbose('oidc', `Enabling provenance`)
+              opts.provenance = true
+              config.set('provenance', true, 'user')
+            }
+          }
+        }
+      }
+    } catch (error) {
+      log.verbose('oidc', `Failed to set provenance with message: ${error?.message || 'Unknown error'}`)
+    }
   } catch (error) {
     log.verbose('oidc', `Failure with message: ${error?.message || 'Unknown error'}`)
   }

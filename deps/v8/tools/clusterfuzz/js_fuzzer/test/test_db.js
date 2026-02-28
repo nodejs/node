@@ -54,5 +54,5 @@ describe('DB tests', () => {
     const validated = path.join(outPath, 'updated_index.json');
     validateDb(path.join(helpers.BASE_DIR, 'db/validate_expected'), validated);
     helpers.assertFile('db/validate_index_expected.json', validated);
-  });
+  }).timeout(3000);
 });

@@ -278,12 +278,10 @@ const { getEncodingFromLabel } = require('internal/encoding');
     ],
     'x-user-defined': []
   };
-  Object.entries(mappings).forEach((i) => {
-    const enc = i[0];
-    const labels = i[1];
+  for (const [enc, labels] of Object.entries(mappings)) {
     assert.strictEqual(getEncodingFromLabel(enc), enc);
     labels.forEach((l) => assert.strictEqual(getEncodingFromLabel(l), enc));
-  });
+  }
 
   assert.strictEqual(getEncodingFromLabel('made-up'), undefined);
 }

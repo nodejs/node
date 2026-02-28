@@ -95,6 +95,7 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag, 12)    \
   IF_WASM(V, kWasmFunctionDataIndirectPointerTag, 13)        \
   IF_WASM(V, kWasmDispatchTableIndirectPointerTag, 14)       \
+  IF_WASM(V, kWasmSuspenderIndirectPointerTag, 15)           \
   V(kLastPerIsolateTrustedTag, 14)
 
 #define INDIRECT_POINTER_TAG_LIST(V)       \
@@ -233,6 +234,8 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type, bool shared) {
                     : kWasmTrustedInstanceDataIndirectPointerTag;
     case WASM_INTERNAL_FUNCTION_TYPE:
       return kWasmInternalFunctionIndirectPointerTag;
+    case WASM_SUSPENDER_OBJECT_TYPE:
+      return kWasmSuspenderIndirectPointerTag;
     case WASM_FUNCTION_DATA_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case WASM_JS_FUNCTION_DATA_TYPE:

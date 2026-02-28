@@ -83,24 +83,7 @@ static void SetVersions(Isolate* isolate, Local<Object> versions) {
   READONLY_STRING_PROPERTY(
       versions, "node", per_process::metadata.versions.node);
 
-#define V(key) +1
-  std::pair<std::string_view, std::string_view>
-      versions_array[NODE_VERSIONS_KEYS(V)];
-#undef V
-  auto* slot = &versions_array[0];
-
-#define V(key)                                                                 \
-  do {                                                                         \
-    *slot++ = std::pair<std::string_view, std::string_view>(                   \
-        #key, per_process::metadata.versions.key);                             \
-  } while (0);
-  NODE_VERSIONS_KEYS(V)
-#undef V
-
-  std::ranges::sort(versions_array,
-                    [](auto& a, auto& b) { return a.first < b.first; });
-
-  for (const auto& version : versions_array) {
+  for (const auto& version : per_process::metadata.versions.pairs()) {
     versions
         ->DefineOwnProperty(context,
                             OneByteString(isolate, version.first),

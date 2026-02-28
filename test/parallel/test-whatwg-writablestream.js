@@ -4,6 +4,8 @@
 const common = require('../common');
 const assert = require('assert');
 
+const { isErrored, isWritable } = require('stream');
+
 const {
   WritableStream,
   WritableStreamDefaultController,
@@ -172,6 +174,27 @@ class Sink {
 }
 
 {
+  const stream = new WritableStream();
+  assert.strictEqual(isWritable(stream), true);
+  stream.close().then(common.mustCall(() => {
+    assert.strictEqual(isWritable(stream), false);
+  }));
+}
+
+{
+  const stream = new WritableStream({
+    write: common.mustCall((chunk, controller) => {
+      controller.error(new Error());
+    })
+  });
+  const writer = stream.getWriter();
+  assert.strictEqual(isErrored(stream), false);
+  writer.write().then(common.mustCall(() => {
+    assert.strictEqual(isErrored(stream), true);
+  }));
+}
+
+{
   assert.throws(() => Reflect.get(WritableStream.prototype, 'locked', {}), {
     code: 'ERR_INVALID_THIS',
   });
@@ -264,5 +287,5 @@ class Sink {
   writer.abort(new Error('boom'));
 
   assert.strictEqual(writer.desiredSize, null);
-  setImmediate(() => assert.strictEqual(writer.desiredSize, null));
+  setImmediate(common.mustCall(() => assert.strictEqual(writer.desiredSize, null)));
 }

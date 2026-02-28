@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbolev --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan
+// Flags: --turbofan
 
 function test() {
   for (let i = 0; i < 6200; i++) {

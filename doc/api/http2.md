@@ -365,8 +365,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a new `Http2Stream` is created.
 
@@ -1079,12 +1078,18 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 9113,
                  `weight` option is deprecated.
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57917
+    description: Allow passing headers in raw array format.
 -->
 
-* `headers` {HTTP/2 Headers Object|Array}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 
 * `options` {Object}
   * `endStream` {boolean} `true` if the `Http2Stream` _writable_ side should
@@ -1468,6 +1473,7 @@ added: v8.4.0
 deprecated:
  - v24.2.0
  - v22.17.0
+ - v20.19.6
 changes:
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58293
@@ -1582,6 +1588,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 9113,
                  `weight` and `sumDependencyWeight` options are deprecated.
@@ -1676,11 +1683,12 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object}
 * `flags` {number}
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'headers'` event is emitted when an additional block of headers is received
 for a stream, such as when a block of `1xx` informational headers is received.
-The listener callback is passed the [HTTP/2 Headers Object][] and flags
-associated with the headers.
+The listener callback is passed the [HTTP/2 Headers Object][], flags associated
+with the headers, and the headers in raw format (see [HTTP/2 Raw Headers][]).
 
 ```js
 stream.on('headers', (headers, flags) => {
@@ -1715,11 +1723,13 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object}
 * `flags` {number}
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
-invoked with two arguments: an `Object` containing the received
-[HTTP/2 Headers Object][], and flags associated with the headers.
+invoked with three arguments: an `Object` containing the received
+[HTTP/2 Headers Object][], flags associated with the headers, and the headers
+in raw format (see [HTTP/2 Raw Headers][]).
 
 ```mjs
 import { connect } from 'node:http2';
@@ -1857,13 +1867,18 @@ and will throw an error.
 added: v8.4.0
 changes:
   - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59455
+    description: Allow passing headers in raw array format.
+  - version:
     - v14.5.0
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicitly setting date headers.
 -->
 
-* `headers` {HTTP/2 Headers Object}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
@@ -2347,8 +2362,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
@@ -2603,8 +2617,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
@@ -2783,6 +2796,13 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/59917
+    description: Added the `strictSingleValueFields` option.
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/61713
+    description: Added `http1Options` option. The `Http1IncomingMessage`
+                 and `Http1ServerResponse` options are now deprecated.
   - version:
       - v23.0.0
       - v22.10.0
@@ -2901,9 +2921,27 @@ changes:
   * `Http1IncomingMessage` {http.IncomingMessage} Specifies the
     `IncomingMessage` class to used for HTTP/1 fallback. Useful for extending
     the original `http.IncomingMessage`. **Default:** `http.IncomingMessage`.
+    **Deprecated.** Use `http1Options.IncomingMessage` instead. See
+    [DEP0202][].
   * `Http1ServerResponse` {http.ServerResponse} Specifies the `ServerResponse`
     class to used for HTTP/1 fallback. Useful for extending the original
     `http.ServerResponse`. **Default:** `http.ServerResponse`.
+    **Deprecated.** Use `http1Options.ServerResponse` instead. See
+    [DEP0202][].
+  * `http1Options` {Object} An options object for configuring the HTTP/1
+    fallback when `allowHTTP1` is `true`. These options are passed to the
+    underlying HTTP/1 server. See [`http.createServer()`][] for available
+    options. Among others, the following are supported:
+    * `IncomingMessage` {http.IncomingMessage} Specifies the
+      `IncomingMessage` class to use for HTTP/1 fallback.
+      **Default:** `http.IncomingMessage`.
+    * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse`
+      class to use for HTTP/1 fallback.
+      **Default:** `http.ServerResponse`.
+    * `keepAliveTimeout` {number} The number of milliseconds of inactivity
+      a server needs to wait for additional incoming data, after it has
+      finished writing the last response, before a socket will be destroyed.
+      **Default:** `5000`.
   * `Http2ServerRequest` {http2.Http2ServerRequest} Specifies the
     `Http2ServerRequest` class to use.
     Useful for extending the original `Http2ServerRequest`.
@@ -2919,6 +2957,10 @@ changes:
   * `strictFieldWhitespaceValidation` {boolean} If `true`, it turns on strict leading
     and trailing whitespace validation for HTTP/2 header field names and values
     as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
+    **Default:** `true`.
+  * `strictSingleValueFields` {boolean} If `true`, strict validation is used
+    for headers and trailers defined as having only a single value, such that
+    an error is thrown if multiple values are provided.
     **Default:** `true`.
   * `...options` {Object} Any [`net.createServer()`][] option can be provided.
 * `onRequestHandler` {Function} See [Compatibility API][]
@@ -2977,6 +3019,12 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/59917
+    description: Added the `strictSingleValueFields` option.
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/61713
+    description: Added `http1Options` option.
   - version:
       - v15.10.0
       - v14.16.0
@@ -3095,6 +3143,24 @@ changes:
     and trailing whitespace validation for HTTP/2 header field names and values
     as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
     **Default:** `true`.
+  * `strictSingleValueFields` {boolean} If `true`, strict validation is used
+    for headers and trailers defined as having only a single value, such that
+    an error is thrown if multiple values are provided.
+    **Default:** `true`.
+  * `http1Options` {Object} An options object for configuring the HTTP/1
+    fallback when `allowHTTP1` is `true`. These options are passed to the
+    underlying HTTP/1 server. See [`http.createServer()`][] for available
+    options. Among others, the following are supported:
+    * `IncomingMessage` {http.IncomingMessage} Specifies the
+      `IncomingMessage` class to use for HTTP/1 fallback.
+      **Default:** `http.IncomingMessage`.
+    * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse`
+      class to use for HTTP/1 fallback.
+      **Default:** `http.ServerResponse`.
+    * `keepAliveTimeout` {number} The number of milliseconds of inactivity
+      a server needs to wait for additional incoming data, after it has
+      finished writing the last response, before a socket will be destroyed.
+      **Default:** `5000`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
 
@@ -3447,6 +3513,32 @@ server.on('stream', (stream, headers) => {
 });
 ```
 
+#### Raw headers
+
+In some APIs, in addition to object format, headers can also be passed or
+accessed as a raw flat array, preserving details of ordering and
+duplicate keys to match the raw transmission format.
+
+In this format the keys and values are in the same list. It is _not_ a
+list of tuples. So, the even-numbered offsets are key values, and the
+odd-numbered offsets are the associated values. Duplicate headers are
+not merged and so each key-value pair will appear separately.
+
+This can be useful for cases such as proxies, where existing headers
+should be exactly forwarded as received, or as a performance
+optimization when the headers are already available in raw format.
+
+```js
+const rawHeaders = [
+  ':status',
+  '404',
+  'content-type',
+  'text/plain',
+];
+
+stream.respond(rawHeaders);
+```
+
 #### Sensitive headers
 
 HTTP2 headers can be marked as sensitive, which means that the HTTP/2
@@ -3472,6 +3564,10 @@ this flag is set automatically.
 
 This property is also set for received headers. It will contain the names of
 all headers marked as sensitive, including ones marked that way automatically.
+
+For raw headers, this should still be set as a property on the array, like
+`rawHeadersArray[http2.sensitiveHeaders] = ['cookie']`, not as a separate key
+and value pair within the array itself.
 
 ### Settings object
 
@@ -4069,15 +4165,9 @@ The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 added: v8.4.0
 -->
 
-* Type: {string\[]}
+* Type: {HTTP/2 Raw Headers}
 
 The raw request/response headers list exactly as they were received.
-
-The keys and values are in the same list. It is _not_ a
-list of tuples. So, the even-numbered offsets are key values, and the
-odd-numbered offsets are the associated values.
-
-Header names are not lowercased, and duplicates are not merged.
 
 ```js
 // Prints something like:
@@ -4759,7 +4849,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object|Array}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 * Returns: {http2.Http2ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
@@ -4900,9 +4990,11 @@ you need to implement any fall-back behavior yourself.
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #alpn-negotiation
 [Compatibility API]: #compatibility-api
+[DEP0202]: deprecations.md#dep0202-http1incomingmessage-and-http1serverresponse-options-of-http2-servers
 [HTTP/1]: http.md
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/2 Headers Object]: #headers-object
+[HTTP/2 Raw Headers]: #raw-headers
 [HTTP/2 Settings Object]: #settings-object
 [HTTP/2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
 [HTTPS]: https.md
@@ -4925,6 +5017,7 @@ you need to implement any fall-back behavior yourself.
 [`Http2Stream`]: #class-http2stream
 [`ServerHttp2Stream`]: #class-serverhttp2stream
 [`TypeError`]: errors.md#class-typeerror
+[`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http2.SecureServer`]: #class-http2secureserver
 [`http2.Server`]: #class-http2server
 [`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler

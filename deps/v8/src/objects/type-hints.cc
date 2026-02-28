@@ -65,6 +65,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "Receiver";
     case CompareOperationHint::kReceiverOrNullOrUndefined:
       return os << "ReceiverOrNullOrUndefined";
+    case CompareOperationHint::kStringOrOddball:
+      return os << "StringOrOddball";
     case CompareOperationHint::kAny:
       return os << "Any";
   }

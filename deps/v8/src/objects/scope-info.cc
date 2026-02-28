@@ -51,8 +51,9 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
   for (int index = 0; index < length(); ++index) {
     if (out_last_checked_field) *out_last_checked_field = index;
     if (index == kFlags) continue;
-    if (is_live_edit_compare && index >= kPositionInfoStart &&
-        index <= kPositionInfoEnd) {
+    if (is_live_edit_compare &&
+        ((index >= kPositionInfoStart && index <= kPositionInfoEnd) ||
+         index == InferredFunctionNameIndex())) {
       continue;
     }
     Tagged<Object> entry = get(index);
@@ -154,9 +155,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   bool has_inlined_local_names =
       context_local_count < kScopeInfoMaxInlinedLocalNamesSize;
 
-  const bool has_new_target =
-      scope->is_declaration_scope() &&
-      scope->AsDeclarationScope()->new_target_var() != nullptr;
+  const bool allocates_arguments =
+      scope->is_function_scope() &&
+      scope->AsDeclarationScope()->arguments() != nullptr;
   // TODO(cbruni): Don't always waste a field for the inferred name.
   const bool has_inferred_function_name = scope->is_function_scope();
 
@@ -250,7 +251,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   {
     DisallowGarbageCollection no_gc;
     Tagged<ScopeInfo> scope_info = *scope_info_handle;
-    WriteBarrierMode mode = scope_info->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = scope_info->GetWriteBarrierMode(no_gc);
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
@@ -271,21 +272,22 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         ReceiverVariableBits::encode(receiver_info) |
         ClassScopeHasPrivateBrandBit::encode(has_brand) |
         HasSavedClassVariableBit::encode(should_save_class_variable) |
-        HasNewTargetBit::encode(has_new_target) |
+        AllocatesArgumentsBit::encode(allocates_arguments) |
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
         IsAsmModuleBit::encode(is_asm_module) |
         HasSimpleParametersBit::encode(has_simple_parameters) |
         FunctionKindBits::encode(function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
-        IsDebugEvaluateScopeBit::encode(scope->is_debug_evaluate_scope()) |
+        IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsHiddenBit::encode(scope->is_hidden()) |
-        IsWrappedFunctionBit::encode(scope->is_wrapped_function());
+        IsWrappedFunctionBit::encode(scope->is_wrapped_function()) |
+        HasContextCellsBit::encode(scope->has_context_cells());
     scope_info->set_flags(flags, kRelaxedStore);
 
     scope_info->set_parameter_count(parameter_count);
@@ -326,7 +328,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               IsStaticFlagBit::encode(var->is_static_flag());
           if (has_inlined_local_names) {
             scope_info->set(context_local_base + local_index, *var->name(),
-                            mode);
+                            *mode);
           } else {
             Handle<NameToIndexHashTable> new_table = NameToIndexHashTable::Add(
                 isolate, local_names_hashtable, var->name(), local_index);
@@ -342,7 +344,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kNameOffset /
                       kTaggedSize,
-              *var->name(), mode);
+              *var->name(), *mode);
           scope_info->set(
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kIndexOffset /
@@ -412,7 +414,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         var_index = var->index();
         name = *var->name();
       }
-      scope_info->set(index++, name, mode);
+      scope_info->set(index++, name, *mode);
       scope_info->set(index++, Smi::FromInt(var_index));
       DCHECK(function_name_info != VariableAllocationInfo::CONTEXT ||
              var_index == scope_info->ContextLength() - 1);
@@ -427,7 +429,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     // If present, add the outer scope info.
     DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
     if (has_outer_scope_info) {
-      scope_info->set(index++, *outer_scope.ToHandleChecked(), mode);
+      scope_info->set(index++, *outer_scope.ToHandleChecked(), *mode);
     }
 
     // Module-specific information (only for module scopes).
@@ -480,7 +482,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
       DeclarationScopeBit::encode(false) |
       ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
       ClassScopeHasPrivateBrandBit::encode(false) |
-      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) |
+      AllocatesArgumentsBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
       FunctionKindBits::encode(FunctionKind::kNormalFunction) |
@@ -521,7 +524,17 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
 // static
 DirectHandle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
-  return CreateForBootstrapping(isolate, BootstrappingType::kFunction);
+  DirectHandle<ScopeInfo> scope_info =
+      CreateForBootstrapping(isolate, BootstrappingType::kFunction);
+  if (v8_flags.function_context_cells) {
+    // An empty function scope will set the has_context_cells_ flag, since it is
+    // set to true for all function scopes with the number of context locals (in
+    // this case zero) below the threshold
+    // v8_flags.function_context_cells_max_size.
+    scope_info->set_flags(
+        scope_info->Flags() | HasContextCellsBit::encode(true), kRelaxedStore);
+  }
+  return scope_info;
 }
 
 // static
@@ -570,7 +583,10 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
       ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
                                              : VariableAllocationInfo::UNUSED) |
       ClassScopeHasPrivateBrandBit::encode(false) |
-      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) |
+      // We don't know the value of this flag, so set defensively.
+      AllocatesArgumentsBit::encode(type == BootstrappingType::kFunction &&
+                                    !is_empty_function) |
       FunctionVariableBits::encode(is_empty_function
                                        ? VariableAllocationInfo::UNUSED
                                        : VariableAllocationInfo::NONE) |
@@ -582,7 +598,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
-      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false);
+      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false) |
+      HasContextCellsBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags, kRelaxedStore);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -796,8 +813,28 @@ bool ScopeInfo::HasSavedClassVariable() const {
   return HasSavedClassVariableBit::decode(Flags());
 }
 
-bool ScopeInfo::HasNewTarget() const {
-  return HasNewTargetBit::decode(Flags());
+bool ScopeInfo::IsSloppyNormalJSFunction() const {
+  return function_kind() == FunctionKind::kNormalFunction &&
+         is_sloppy(language_mode());
+}
+
+bool ScopeInfo::CanOnlyAccessFixedFormalParameters() const {
+  FunctionKind function_kind = this->function_kind();
+  return
+      // Filter out builtins.
+      !IsEmpty() &&
+      // Can't be a SloppyNormalJSFunction.
+      !IsSloppyNormalJSFunction() &&
+      // TODO(dcarney): Make this function kind filter exact. It's currently
+      //                fine if it's not as this results in conservation
+      //                optimizations.
+      (function_kind == FunctionKind::kNormalFunction ||
+       function_kind == FunctionKind::kArrowFunction) &&
+      // Can't have arguments allocated in the frame for any reason since this
+      // indicates potential reachability.
+      !AllocatesArgumentsBit::decode(Flags()) &&
+      // Can't have rest parameters.
+      HasSimpleParameters();
 }
 
 bool ScopeInfo::HasFunctionName() const {

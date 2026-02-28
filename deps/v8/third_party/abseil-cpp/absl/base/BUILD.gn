@@ -37,12 +37,19 @@ absl_source_set("no_destructor") {
 }
 
 absl_source_set("nullability") {
-  sources = [ "internal/nullability_deprecated.h" ]
   public = [ "nullability.h" ]
   deps = [
     ":config",
-    ":core_headers",
   ]
+}
+
+absl_source_set("nullability_traits_internal") {
+  public = [ "internal/nullability_traits.h" ]
+  deps = [
+    ":config",
+    ":nullability",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("raw_logging_internal") {
@@ -144,7 +151,6 @@ absl_source_set("malloc_internal") {
 absl_source_set("base_internal") {
   public = [
     "internal/hide_ptr.h",
-    "internal/identity.h",
     "internal/scheduling_mode.h",
   ]
   deps = [
@@ -372,6 +378,14 @@ absl_test("config_test") {
   ]
 }
 
+absl_test("casts_test") {
+  sources = [ "casts_test.cc" ]
+  deps = [
+    ":base",
+    ":core_headers",
+  ]
+}
+
 absl_test("no_destructor_test") {
   sources = [ "no_destructor_test.cc" ]
   deps = [
@@ -384,7 +398,6 @@ absl_test("no_destructor_test") {
 absl_test("nullability_test") {
   sources = [ "nullability_test.cc" ]
   deps = [
-    ":core_headers",
     ":nullability",
   ]
 }
@@ -392,4 +405,41 @@ absl_test("nullability_test") {
 absl_test("nullability_default_nonnull_test") {
   sources = [ "nullability_default_nonnull_test.cc" ]
   deps = [ ":nullability" ]
+}
+
+absl_test("nullability_traits_test") {
+  sources = [ "internal/nullability_traits_test.cc" ]
+  deps = [
+    ":config",
+    ":nullability",
+    ":nullability_traits_internal",
+  ]
+}
+
+absl_test("raw_logging_test") {
+  sources = [ "raw_logging_test.cc" ]
+  deps = [
+    ":raw_logging_internal",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_test("sysinfo_test") {
+  sources = [ "internal/sysinfo_test.cc" ]
+  deps = [
+    ":base",
+    "//third_party/abseil-cpp/absl/synchronization",
+  ]
+}
+
+# low_level_alloc_test is not included because it has own main function.
+# absl_test("low_level_alloc_test")
+
+absl_test("thread_identity_test") {
+  sources = [ "internal/thread_identity_test.cc" ]
+  deps = [
+    ":base",
+    ":core_headers",
+    "//third_party/abseil-cpp/absl/synchronization",
+  ]
 }

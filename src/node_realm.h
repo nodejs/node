@@ -121,7 +121,7 @@ class Realm : public MemoryRetainer {
   inline Environment* env() const;
   inline v8::Isolate* isolate() const;
   inline Kind kind() const;
-  virtual v8::Local<v8::Context> context() const;
+  inline virtual v8::Local<v8::Context> context() const;
   inline bool has_run_bootstrapping_code() const;
 
   // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
@@ -209,7 +209,7 @@ class Realm : public MemoryRetainer {
   CppgcWrapperList cppgc_wrapper_list_;
 };
 
-class PrincipalRealm : public Realm {
+class PrincipalRealm final : public Realm {
  public:
   PrincipalRealm(Environment* env,
                  v8::Local<v8::Context> context,

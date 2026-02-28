@@ -23,6 +23,12 @@ namespace v8::internal {
 // usual OLD_TO_NEW remembered set. The remembered set is used to avoid
 // strongifying keys in such hash tables in young generation garbage
 // collections.
+// This remembered set is exclusively used for Minor GCs. Once we start
+// incremental marking for a Full GC this remembered set is cleared. The markers
+// and write barriers for the Full GC will record these slots in the regular
+// OLD_TO_NEW remembered set then. In addition after a Full GC new space is
+// empty because all live objects were promoted, so we have the guaranteee that
+// there are no old-to-new refs anymore.
 class EphemeronRememberedSet final {
  public:
   static constexpr int kEphemeronTableListSegmentSize = 128;

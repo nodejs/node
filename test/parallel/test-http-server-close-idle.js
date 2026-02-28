@@ -20,7 +20,7 @@ server.on('connection', function() {
   connections++;
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   let client1Closed = false;
   let client2Closed = false;
@@ -69,4 +69,4 @@ server.listen(0, function() {
   client1.on('error', () => {});
 
   client1.write('GET / HTTP/1.1');
-});
+}));

@@ -58,6 +58,14 @@ proposal_flags = [
             # branch, which contains exnref.
             '--experimental-wasm-exnref'
         ]
+    },
+    {
+        'name': 'stack-switching',
+        'flags': ['--experimental-wasm-wasmfx']
+    },
+    {
+        'name': 'custom-descriptors',
+        'flags': ['--experimental-wasm-custom-descriptors']
     }
 ]
 

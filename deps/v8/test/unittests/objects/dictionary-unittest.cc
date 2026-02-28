@@ -48,7 +48,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
 
     DirectHandle<JSObject> a = factory->NewJSArray(7);
     DirectHandle<JSObject> b = factory->NewJSArray(11);
-    table = HashMap::Put(table, a, b);
+    table = HashMap::Put(isolate(), table, a, b);
     CHECK_EQ(1, table->NumberOfElements());
     CHECK_EQ(table->Lookup(a), *b);
     // When the key does not exist in the map, Lookup returns the hole.
@@ -62,7 +62,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     CHECK_EQ(table->Lookup(b), roots.the_hole_value());
 
     // Keys that are overwritten should not change number of elements.
-    table = HashMap::Put(table, a, factory->NewJSArray(13));
+    table = HashMap::Put(isolate(), table, a, factory->NewJSArray(13));
     CHECK_EQ(1, table->NumberOfElements());
     CHECK_NE(table->Lookup(a), *b);
 
@@ -78,7 +78,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     for (int i = 0; i < 100; i++) {
       DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       DirectHandle<JSObject> value = factory->NewJSArray(11);
-      table = HashMap::Put(table, key, value);
+      table = HashMap::Put(isolate(), table, key, value);
       CHECK_EQ(table->NumberOfElements(), i + 1);
       CHECK(table->FindEntry(isolate(), key).is_found());
       CHECK_EQ(table->Lookup(key), *value);
@@ -214,7 +214,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
 
     // Calling Put() should request GC by returning a failure.
     int gc_count = heap()->gc_count();
-    HashMap::Put(table, key, key);
+    HashMap::Put(isolate(), table, key, key);
     CHECK(gc_count == heap()->gc_count());
   }
 #endif

@@ -12,9 +12,9 @@ namespace cppgc {
 namespace internal {
 
 void V8_EXPORT DCheckImpl(const char*,
-                          const SourceLocation& = SourceLocation::Current());
+                          SourceLocation = SourceLocation::Current());
 [[noreturn]] void V8_EXPORT
-FatalImpl(const char*, const SourceLocation& = SourceLocation::Current());
+FatalImpl(const char*, SourceLocation = SourceLocation::Current());
 
 // Used to ignore -Wunused-variable.
 template <typename>

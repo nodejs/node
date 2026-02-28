@@ -2,9 +2,10 @@
 
 Select a Node.js version below to view the changelog history:
 
-* [Node.js 24](doc/changelogs/CHANGELOG_V24.md) **Current**
+* [Node.js 25](doc/changelogs/CHANGELOG_V25.md) **Current**
+* [Node.js 24](doc/changelogs/CHANGELOG_V24.md) **Long Term Support**
 * [Node.js 23](doc/changelogs/CHANGELOG_V23.md) End-of-Life
-* [Node.js 22](doc/changelogs/CHANGELOG_V22.md) **Long Term Support**
+* [Node.js 22](doc/changelogs/CHANGELOG_V22.md) Long Term Support
 * [Node.js 21](doc/changelogs/CHANGELOG_V21.md) End-of-Life
 * [Node.js 20](doc/changelogs/CHANGELOG_V20.md) Long Term Support
 * [Node.js 19](doc/changelogs/CHANGELOG_V19.md) End-of-Life
@@ -33,13 +34,37 @@ release.
 
 <table>
 <tr>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V24.md">24</a> (Current)</th>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V25.md">25</a> (Current)</th>
+  <th title="LTS Until 2028-04"><a href="doc/changelogs/CHANGELOG_V24.md">24</a> (LTS)</th>
   <th title="LTS Until 2027-04"><a href="doc/changelogs/CHANGELOG_V22.md">22</a> (LTS)</th>
   <th title="LTS Until 2026-04"><a href="doc/changelogs/CHANGELOG_V20.md">20</a> (LTS)</th>
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V24.md#24.5.0">24.5.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V25.md#25.7.0">25.7.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.6.1">25.6.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.6.0">25.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.5.0">25.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.4.0">25.4.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.3.0">25.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.2.1">25.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.2.0">25.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.1.0">25.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.0.0">25.0.0</a><br/>
+  </td>
+  <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V24.md#24.14.0">24.14.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.13.1">24.13.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.13.0">24.13.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.12.0">24.12.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.11.1">24.11.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.11.0">24.11.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.10.0">24.10.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.9.0">24.9.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.8.0">24.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.7.0">24.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.6.0">24.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V24.md#24.5.0">24.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V24.md#24.4.1">24.4.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V24.md#24.4.0">24.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V24.md#24.3.0">24.3.0</a><br/>
@@ -50,7 +75,12 @@ release.
 <a href="doc/changelogs/CHANGELOG_V24.md#24.0.0">24.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V22.md#22.18.0">22.18.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V22.md#22.22.0">22.22.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.21.1">22.21.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.21.0">22.21.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.20.0">22.20.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.19.0">22.19.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.18.0">22.18.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.17.1">22.17.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.17.0">22.17.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.16.0">22.16.0</a><br/>
@@ -76,7 +106,10 @@ release.
 <a href="doc/changelogs/CHANGELOG_V22.md#22.0.0">22.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V20.md#20.19.4">20.19.4</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.20.0">20.20.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.19.6">20.19.6</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.19.5">20.19.5</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.19.4">20.19.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.19.3">20.19.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.19.2">20.19.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.19.1">20.19.1</a><br/>

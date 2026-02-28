@@ -5,6 +5,7 @@
 
 #include "src/heap/object-stats.h"
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "src/base/bits.h"
@@ -55,6 +56,8 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
         raw_fields_count_(raw_fields_count) {}
 
   void RecordStats(Tagged<HeapObject> host) {
+    if (SafeIsAnyHole(host)) return;
+
     size_t old_pointer_fields_count = *tagged_fields_count_;
     VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =
@@ -186,6 +189,11 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   boxed_double_fields_count_ = 0;
   string_data_count_ = 0;
   raw_fields_count_ = 0;
+#ifdef V8_COMPRESS_POINTERS
+  objects_main_.clear();
+  objects_trusted_.clear();
+  objects_code_.clear();
+#endif  // V8_COMPRESS_POINTERS
 }
 
 // Tell the compiler to never inline this: occasionally, the optimizer will
@@ -273,6 +281,45 @@ void ObjectStats::PrintJSON(const char* key) {
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef VIRTUAL_INSTANCE_TYPE_WRAPPER
+
+#ifdef V8_COMPRESS_POINTERS
+  if (v8_flags.trace_gc_object_stats_all_objects) {
+    auto print_objects = [&](const char* cage, auto& objects) {
+      std::sort(objects.begin(), objects.end(),
+                [](const ObjectData& a, const ObjectData& b) {
+                  // Sort by increasing address, increasing type, and decreasing
+                  // size, in that order. Same address and increasing type will
+                  // flush out virtual objects that overlap a real object, like
+                  // wasted descriptor array space.
+                  if (a.address == b.address) {
+                    if (a.type == b.type) {
+                      return a.size > b.size;
+                    }
+                    return a.type < b.type;
+                  }
+                  return a.address < b.address;
+                });
+      PrintF("{ ");
+      PrintKeyAndId(key, gc_count);
+      PrintF("\"type\": \"objects\", \"cage\": \"%s\", \"data\": [", cage);
+      bool first = true;
+      uint32_t prev_address = 0;
+      for (const auto& data : objects) {
+        if (data.address == prev_address) continue;
+        if (!first) {
+          PrintF(",");
+        }
+        PrintF("[%u, %zu, %d]", data.address, data.size, data.type);
+        prev_address = data.address;
+        first = false;
+      }
+      PrintF("] }\n");
+    };
+    print_objects("main", objects_main_);
+    print_objects("trusted", objects_trusted_);
+    print_objects("code", objects_code_);
+  }
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void ObjectStats::DumpInstanceTypeData(std::stringstream& stream,
@@ -357,26 +404,55 @@ int ObjectStats::HistogramIndexFromSize(size_t size) {
                    kLastValueBucketIndex});
 }
 
-void ObjectStats::RecordObjectStats(InstanceType type, size_t size,
-                                    size_t over_allocated) {
+void ObjectStats::RecordObject(Tagged<HeapObject> obj, int type, size_t size) {
+#ifdef V8_COMPRESS_POINTERS
+  if (!v8_flags.trace_gc_object_stats_all_objects) return;
+
+  if (obj.IsInMainCageBase()) {
+    objects_main_.emplace_back(ObjectData{
+        V8HeapCompressionScheme::CompressObject(obj.address()), size, type});
+  } else if (obj.IsInTrustedCageBase()) {
+    objects_trusted_.emplace_back(
+        ObjectData{TrustedSpaceCompressionScheme::CompressObject(obj.address()),
+                   size, type});
+  } else {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    objects_code_.emplace_back(
+        ObjectData{ExternalCodeCompressionScheme::CompressObject(obj.address()),
+                   size, type});
+#else
+    UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
+  }
+#endif  // V8_COMPRESS_POINTERS
+}
+
+void ObjectStats::RecordObjectStats(Tagged<HeapObject> obj, InstanceType type,
+                                    size_t size, size_t over_allocated) {
   DCHECK_LE(type, LAST_TYPE);
+
   object_counts_[type]++;
   object_sizes_[type] += size;
   size_histogram_[type][HistogramIndexFromSize(size)]++;
   over_allocated_[type] += over_allocated;
   over_allocated_histogram_[type][HistogramIndexFromSize(size)]++;
+
+  RecordObject(obj, type, size);
 }
 
-void ObjectStats::RecordVirtualObjectStats(VirtualInstanceType typeEnum,
+void ObjectStats::RecordVirtualObjectStats(Tagged<HeapObject> obj,
+                                           VirtualInstanceType typeEnum,
                                            size_t size, size_t over_allocated) {
   DCHECK_LE(typeEnum, VirtualInstanceType::LAST_VIRTUAL_TYPE);
-  int type = static_cast<int>(typeEnum);
-  object_counts_[FIRST_VIRTUAL_TYPE + type]++;
-  object_sizes_[FIRST_VIRTUAL_TYPE + type] += size;
-  size_histogram_[FIRST_VIRTUAL_TYPE + type][HistogramIndexFromSize(size)]++;
-  over_allocated_[FIRST_VIRTUAL_TYPE + type] += over_allocated;
-  over_allocated_histogram_[FIRST_VIRTUAL_TYPE + type]
-                           [HistogramIndexFromSize(size)]++;
+  int type = FIRST_VIRTUAL_TYPE + static_cast<int>(typeEnum);
+
+  object_counts_[type]++;
+  object_sizes_[type] += size;
+  size_histogram_[type][HistogramIndexFromSize(size)]++;
+  over_allocated_[type] += over_allocated;
+  over_allocated_histogram_[type][HistogramIndexFromSize(size)]++;
+
+  RecordObject(obj, type, size);
 }
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
@@ -515,6 +591,9 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     Tagged<HeapObject> parent, Tagged<HeapObject> obj,
     ObjectStats::VirtualInstanceType type) {
+  // Don't bother recording holes, they're anyway RO space and it's complicated
+  // with unmapped pages.
+  if (SafeIsAnyHole(obj)) return false;
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
@@ -539,15 +618,15 @@ void ObjectStatsCollectorImpl::RecordPotentialDescriptorArraySavingsStats(
   if (wasted_value_slots_count == 0) return;
   int wasted_value_slots_size = wasted_value_slots_count * kTaggedSize;
   stats_->RecordVirtualObjectStats(
-      StatsEnum::WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE, wasted_value_slots_size,
-      ObjectStats::kNoOverAllocation);
+      obj, StatsEnum::WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE,
+      wasted_value_slots_size, ObjectStats::kNoOverAllocation);
 
   // It should be possible to pack PropertyDetails into one byte.
   int wasted_details_space =
       obj->number_of_all_descriptors() * (kTaggedSize - 1);
   stats_->RecordVirtualObjectStats(
-      StatsEnum::WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE, wasted_details_space,
-      ObjectStats::kNoOverAllocation);
+      obj, StatsEnum::WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE,
+      wasted_details_space, ObjectStats::kNoOverAllocation);
 }
 
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
@@ -561,7 +640,7 @@ bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
 
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
     virtual_objects_.insert(obj);
-    stats_->RecordVirtualObjectStats(type, size, over_allocated);
+    stats_->RecordVirtualObjectStats(obj, type, size, over_allocated);
     return true;
   }
   return false;
@@ -571,7 +650,7 @@ void ObjectStatsCollectorImpl::RecordExternalResourceStats(
     Address resource, ObjectStats::VirtualInstanceType type, size_t size) {
   if (external_resources_.find(resource) == external_resources_.end()) {
     external_resources_.insert(resource);
-    stats_->RecordVirtualObjectStats(type, size, 0);
+    stats_->RecordVirtualObjectStats(Tagged<HeapObject>(), type, size, 0);
   }
 }
 
@@ -746,19 +825,22 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
   // Log the feedback vector's header (fixed fields).
   size_t header_size = vector->slots_start().address() - vector.address();
-  stats_->RecordVirtualObjectStats(StatsEnum::FEEDBACK_VECTOR_HEADER_TYPE,
+  stats_->RecordVirtualObjectStats(vector,
+                                   StatsEnum::FEEDBACK_VECTOR_HEADER_TYPE,
                                    header_size, ObjectStats::kNoOverAllocation);
   calculated_size += header_size;
 
   // Iterate over the feedback slots and log each one.
   if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
 
-  FeedbackMetadataIterator it(vector->metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator it(vector->metadata(), no_gc);
   while (it.HasNext()) {
     FeedbackSlot slot = it.Next();
     // Log the entry (or entries) taken up by this slot.
     size_t slot_size = it.entry_size() * kTaggedSize;
     stats_->RecordVirtualObjectStats(
+        vector,
         GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
         slot_size, ObjectStats::kNoOverAllocation);
     calculated_size += slot_size;
@@ -801,10 +883,12 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-        RecordVirtualBytecodeArrayDetails(Cast<BytecodeArray>(obj));
-      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
-        RecordVirtualCodeDetails(Cast<InstructionStream>(obj));
+      } else if (Tagged<BytecodeArray> bytecode_array;
+                 TryCast(obj, &bytecode_array)) {
+        RecordVirtualBytecodeArrayDetails(bytecode_array);
+      } else if (Tagged<InstructionStream> instruction_stream;
+                 TryCast(obj, &instruction_stream)) {
+        RecordVirtualCodeDetails(instruction_stream);
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             Cast<FunctionTemplateInfo>(obj));
@@ -867,7 +951,9 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // FixedArray.
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->serialized_objects(),
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
-  RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->smi_string_cache(),
+                                 StatsEnum::NUMBER_STRING_CACHE_TYPE);
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->double_string_cache(),
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);
@@ -884,7 +970,7 @@ bool ObjectStatsCollectorImpl::RecordObjectStats(Tagged<HeapObject> obj,
                                                  InstanceType type, size_t size,
                                                  size_t over_allocated) {
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
-    stats_->RecordObjectStats(type, size, over_allocated);
+    stats_->RecordObjectStats(obj, type, size, over_allocated);
     return true;
   }
   return false;
@@ -1066,11 +1152,10 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
                                  StatsEnum::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  Tagged<TrustedFixedArray> constant_pool =
-      Cast<TrustedFixedArray>(bytecode->constant_pool());
+  Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry)) {
+    if (!IsTheHole(entry) && IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, Cast<HeapObject>(entry),
           StatsEnum::EMBEDDED_OBJECT_TYPE);
@@ -1116,8 +1201,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     }
     RecordSimpleVirtualObjectStats(istream, code->deoptimization_data(),
                                    StatsEnum::DEOPTIMIZATION_DATA_TYPE);
-    Tagged<DeoptimizationData> input_data =
-        Cast<DeoptimizationData>(code->deoptimization_data());
+    Tagged<DeoptimizationData> input_data = code->deoptimization_data();
     if (input_data->length() > 0) {
       RecordSimpleVirtualObjectStats(code->deoptimization_data(),
                                      input_data->LiteralArray(),

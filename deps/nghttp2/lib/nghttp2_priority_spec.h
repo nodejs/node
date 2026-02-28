@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -39,4 +39,4 @@
  */
 void nghttp2_priority_spec_normalize_weight(nghttp2_priority_spec *pri_spec);
 
-#endif /* NGHTTP2_PRIORITY_SPEC_H */
+#endif /* !defined(NGHTTP2_PRIORITY_SPEC_H) */

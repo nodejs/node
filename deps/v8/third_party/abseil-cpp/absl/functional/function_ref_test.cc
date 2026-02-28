@@ -16,26 +16,36 @@
 
 #include <functional>
 #include <memory>
+#include <type_traits>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
+#include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace {
 
-void RunFun(FunctionRef<void()> f) { f(); }
-
-TEST(FunctionRefTest, Lambda) {
-  bool ran = false;
-  RunFun([&] { ran = true; });
-  EXPECT_TRUE(ran);
-}
+struct Class {
+  int Func() { return 42; }
+  int CFunc() const { return 43; }
+};
 
 int Function() { return 1337; }
+
+template <typename T>
+T Dereference(const T* v) {
+  return *v;
+}
+
+template <typename T>
+T Copy(const T& v) {
+  return v;
+}
 
 TEST(FunctionRefTest, Function1) {
   FunctionRef<int()> ref(&Function);
@@ -251,11 +261,11 @@ TEST(FunctionRef, PassByValueTypes) {
       std::is_same<Invoker<void, Trivial>, void (*)(VoidPtr, Trivial)>::value,
       "Small trivial types should be passed by value");
   static_assert(std::is_same<Invoker<void, LargeTrivial>,
-                             void (*)(VoidPtr, LargeTrivial &&)>::value,
+                             void (*)(VoidPtr, LargeTrivial&&)>::value,
                 "Large trivial types should be passed by rvalue reference");
   static_assert(
       std::is_same<Invoker<void, CopyableMovableInstance>,
-                   void (*)(VoidPtr, CopyableMovableInstance &&)>::value,
+                   void (*)(VoidPtr, CopyableMovableInstance&&)>::value,
       "Types with copy/move ctor should be passed by rvalue reference");
 
   // References are passed as references.
@@ -268,7 +278,7 @@ TEST(FunctionRef, PassByValueTypes) {
       "Reference types should be preserved");
   static_assert(
       std::is_same<Invoker<void, CopyableMovableInstance&&>,
-                   void (*)(VoidPtr, CopyableMovableInstance &&)>::value,
+                   void (*)(VoidPtr, CopyableMovableInstance&&)>::value,
       "Reference types should be preserved");
 
   // Make sure the address of an object received by reference is the same as the
@@ -296,6 +306,109 @@ TEST(FunctionRef, ReferenceToIncompleteType) {
   struct IncompleteType {};
   IncompleteType obj;
   ref(obj);
+}
+
+TEST(FunctionRefTest, CorrectConstQualifiers) {
+  struct S {
+    int operator()() { return 42; }
+    int operator()() const { return 1337; }
+  };
+  S s;
+  EXPECT_EQ(42, FunctionRef<int()>(s)());
+  EXPECT_EQ(1337, FunctionRef<int() const>(s)());
+  EXPECT_EQ(1337, FunctionRef<int()>(std::as_const(s))());
+  EXPECT_EQ(1337, FunctionRef<int() const>(std::as_const(s))());
+}
+
+TEST(FunctionRefTest, Lambdas) {
+  // Stateless lambdas implicitly convert to function pointers, so their
+  // mutability is irrelevant.
+  EXPECT_TRUE(FunctionRef<bool()>([]() /*const*/ { return true; })());
+  EXPECT_TRUE(FunctionRef<bool()>([]() mutable { return true; })());
+  EXPECT_TRUE(FunctionRef<bool() const>([]() /*const*/ { return true; })());
+#if defined(__clang__) || (ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L && \
+                           defined(_MSC_VER) && !defined(__EDG__))
+  // MSVC has problems compiling the following code pre-C++20:
+  //   const auto f = []() mutable {};
+  //   f();
+  // EDG's MSVC-compatible mode (which Visual C++ uses for Intellisense)
+  // exhibits the bug in C++20 as well. So we don't support them.
+  EXPECT_TRUE(FunctionRef<bool() const>([]() mutable { return true; })());
+#endif
+
+  // Stateful lambdas are not implicitly convertible to function pointers, so
+  // a const stateful lambda is not mutably callable.
+  EXPECT_TRUE(FunctionRef<bool()>([v = true]() /*const*/ { return v; })());
+  EXPECT_TRUE(FunctionRef<bool()>([v = true]() mutable { return v; })());
+  EXPECT_TRUE(
+      FunctionRef<bool() const>([v = true]() /*const*/ { return v; })());
+  const auto func = [v = true]() mutable { return v; };
+  static_assert(
+      !std::is_convertible_v<decltype(func), FunctionRef<bool() const>>);
+}
+
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+static_assert(std::is_same_v<decltype(FunctionRef(nontype<&Class::Func>,
+                                                  std::declval<Class&>())),
+                             FunctionRef<int()>>);
+static_assert(std::is_same_v<decltype(FunctionRef(nontype<&Class::CFunc>,
+                                                  std::declval<Class&>())),
+                             FunctionRef<int() const>>);
+
+static_assert(std::is_same_v<decltype(FunctionRef(nontype<&Class::Func>,
+                                                  std::declval<Class*>())),
+                             FunctionRef<int()>>);
+static_assert(std::is_same_v<decltype(FunctionRef(nontype<&Class::CFunc>,
+                                                  std::declval<Class*>())),
+                             FunctionRef<int() const>>);
+
+TEST(FunctionRefTest, NonTypeParameterWithTemporaries) {
+  static_assert(!std::is_constructible_v<FunctionRef<int()>,
+                                         nontype_t<&Class::Func>, Class&&>);
+  static_assert(
+      !std::is_constructible_v<FunctionRef<int()>, nontype_t<&Class::Func>,
+                               const Class&&>);
+  static_assert(!std::is_constructible_v<FunctionRef<int() const>,
+                                         nontype_t<&Class::CFunc>, Class&&>);
+  static_assert(
+      !std::is_constructible_v<FunctionRef<int() const>,
+                               nontype_t<&Class::CFunc>, const Class&&>);
+}
+
+TEST(FunctionRefTest, NonTypeParameterWithDeductionGuides) {
+  EXPECT_EQ(1337, FunctionRef(nontype<&Function>)());
+  EXPECT_EQ(42, FunctionRef(nontype<&Copy<int>>,
+                            std::integral_constant<int, 42>::value)());
+  EXPECT_EQ(42, FunctionRef(nontype<&Dereference<int>>,
+                            &std::integral_constant<int, 42>::value)());
+
+  Class c;
+  EXPECT_EQ(42, FunctionRef<int()>(nontype<&Class::Func>, c)());
+  EXPECT_EQ(43, FunctionRef<int() const>(nontype<&Class::CFunc>, c)());
+
+  EXPECT_EQ(42, FunctionRef<int()>(nontype<&Class::Func>, &c)());
+  EXPECT_EQ(43, FunctionRef<int() const>(nontype<&Class::CFunc>, &c)());
+}
+#endif
+
+TEST(FunctionRefTest, OptionalArguments) {
+  struct S {
+    int operator()(int = 0) const { return 1337; }
+  };
+  S s;
+  EXPECT_EQ(1337, FunctionRef<int()>(s)());
+}
+
+TEST(FunctionRefTest, NonConstToConstConversion) {
+  // The const-qualified version might inherit from the non-const version.
+  // We want to make sure that this doesn't introduce a bug when an instance of
+  // the base (non-const) class is forwarded through the derived (const) class.
+  // This has the potential to trigger the copy constructor, thus incorrectly
+  // producing a copy rather than another indirection.
+  absl::FunctionRef<int()> a = +[]() { return 1; };
+  absl::FunctionRef<int() const> b = a;
+  a = +[]() { return 2; };
+  EXPECT_EQ(b(), 2);
 }
 
 }  // namespace

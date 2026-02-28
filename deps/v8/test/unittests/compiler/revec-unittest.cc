@@ -25,11 +25,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// REVIEW: Looks like this entire file still uses the Turbofan implementation.
+// It should be ported to Turboshaft.
+
 class RevecTest : public TestWithIsolateAndZone {
  public:
   RevecTest()
-      : TestWithIsolateAndZone(kCompressGraphZone),
-        graph_(zone()),
+      : graph_(zone()),
         common_(zone()),
         machine_(zone(), MachineRepresentation::kWord64,
                  MachineOperatorBuilder::Flag::kAllOptionalOps),

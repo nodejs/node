@@ -57,6 +57,7 @@ FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
       function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
+  CHECK_LE(0, param_count);
   CHECK(!code.is_null());
   Compile(function);
   function->UpdateCode(isolate, *code);

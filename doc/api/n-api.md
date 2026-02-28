@@ -33,22 +33,27 @@ properties:
   using `napi_get_last_error_info`. More information can be found in the error
   handling section [Error handling][].
 
+## Writing addons in various programming languages
+
 Node-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. A C++ API can be easier to use.
-To support using C++, the project maintains a
-C++ wrapper module called [`node-addon-api`][].
-This wrapper provides an inlinable C++ API. Binaries built
-with `node-addon-api` will depend on the symbols for the Node-API C-based
-functions exported by Node.js. `node-addon-api` is a more
-efficient way to write code that calls Node-API. Take, for example, the
-following `node-addon-api` code. The first section shows the
-`node-addon-api` code and the second section shows what actually gets
-used in the addon.
+and different compiler levels. With this stability guarantee, it is possible
+to write addons in other programming languages on top of Node-API. Refer
+to [language and engine bindings][] for more programming languages and engines
+support details.
+
+[`node-addon-api`][] is the official C++ binding that provides a more efficient way to
+write C++ code that calls Node-API. This wrapper is a header-only library that offers an inlinable C++ API.
+Binaries built with `node-addon-api` will depend on the symbols of the Node-API
+C-based functions exported by Node.js. The following code snippet is an example
+of `node-addon-api`:
 
 ```cpp
 Object obj = Object::New(env);
 obj["foo"] = String::New(env, "bar");
 ```
+
+The above `node-addon-api` C++ code is equivalent to the following C-based
+Node-API code:
 
 ```cpp
 napi_status status;
@@ -72,8 +77,9 @@ if (status != napi_ok) {
 }
 ```
 
-The end result is that the addon only uses the exported C APIs. As a result,
-it still gets the benefits of the ABI stability provided by the C API.
+The end result is that the addon only uses the exported C APIs. Even though
+the addon is written in C++, it still gets the benefits of the ABI stability
+provided by the C Node-API.
 
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
@@ -120,6 +126,32 @@ must use Node-API exclusively by restricting itself to using
 
 and by checking, for all external libraries that it uses, that the external
 library makes ABI stability guarantees similar to Node-API.
+
+### Enum values in ABI stability
+
+All enum data types defined in Node-API should be considered as a fixed size
+`int32_t` value. Bit flag enum types should be explicitly documented, and they
+work with bit operators like bit-OR (`|`) as a bit value. Unless otherwise
+documented, an enum type should be considered to be extensible.
+
+A new enum value will be added at the end of the enum definition. An enum value
+will not be removed or renamed.
+
+For an enum type returned from a Node-API function, or provided as an out
+parameter of a Node-API function, the value is an integer value and an addon
+should handle unknown values. New values are allowed to be introduced without
+a version guard. For example, when checking `napi_status` in switch statements,
+an addon should include a default branch, as new status codes may be introduced
+in newer Node.js versions.
+
+For an enum type used in an in-parameter, the result of passing an unknown
+integer value to Node-API functions is undefined unless otherwise documented.
+A new value is added with a version guard to indicate the Node-API version in
+which it was introduced. For example, `napi_get_all_property_names` can be
+extended with new enum value of `napi_key_filter`.
+
+For an enum type used in both in-parameters and out-parameters, new values are
+allowed to be introduced without a version guard.
 
 ## Building
 
@@ -2203,7 +2235,7 @@ typedef enum {
 } napi_key_filter;
 ```
 
-Property filter bits. They can be or'ed to build a composite filter.
+Property filter bit flag. This works with bit operators to build a composite filter.
 
 #### `napi_key_conversion`
 
@@ -2254,6 +2286,15 @@ object such that no properties can be set on it, and no prototype.
 
 #### `napi_typedarray_type`
 
+<!-- YAML
+changes:
+  - version:
+     - v25.5.0
+     - v24.13.1
+    pr-url: https://github.com/nodejs/node/pull/58879
+    description: Added `napi_float16_array` for Float16Array support.
+-->
+
 ```c
 typedef enum {
   napi_int8_array,
@@ -2267,6 +2308,7 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+  napi_float16_array,
 } napi_typedarray_type;
 ```
 
@@ -2605,6 +2647,45 @@ It is the equivalent of doing `new Object()` in JavaScript.
 The JavaScript `Object` type is described in [Section object type][] of the
 ECMAScript Language Specification.
 
+#### `node_api_create_object_with_properties`
+
+<!-- YAML
+added:
+  - v25.2.0
+  - v24.12.0
+-->
+
+> Stability: 1 - Experimental
+
+```cpp
+napi_status node_api_create_object_with_properties(napi_env env,
+                                                   napi_value prototype_or_null,
+                                                   const napi_value* property_names,
+                                                   const napi_value* property_values,
+                                                   size_t property_count,
+                                                   napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] prototype_or_null`: The prototype object for the new object. Can be a
+  `napi_value` representing a JavaScript object to use as the prototype, a
+  `napi_value` representing JavaScript `null`, or a `nullptr` that will be converted to `null`.
+* `[in] property_names`: Array of `napi_value` representing the property names.
+* `[in] property_values`: Array of `napi_value` representing the property values.
+* `[in] property_count`: Number of properties in the arrays.
+* `[out] result`: A `napi_value` representing a JavaScript `Object`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `Object` with the specified prototype and
+properties. This is more efficient than calling `napi_create_object` followed
+by multiple `napi_set_property` calls, as it can create the object with all
+properties atomically, avoiding potential V8 map transitions.
+
+The arrays `property_names` and `property_values` must have the same length
+specified by `property_count`. The properties are added to the object in the
+order they appear in the arrays.
+
 #### `napi_create_symbol`
 
 <!-- YAML
@@ -2737,6 +2818,12 @@ exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
 <!-- YAML
 added: v8.3.0
 napiVersion: 1
+changes:
+  - version:
+     - v25.5.0
+     - v24.13.1
+    pr-url: https://github.com/nodejs/node/pull/60473
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -2749,16 +2836,18 @@ napi_status napi_create_dataview(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] length`: Number of elements in the `DataView`.
-* `[in] arraybuffer`: `ArrayBuffer` underlying the `DataView`.
+* `[in] arraybuffer`: `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  `DataView`.
 * `[in] byte_offset`: The byte offset within the `ArrayBuffer` from which to
   start projecting the `DataView`.
 * `[out] result`: A `napi_value` representing a JavaScript `DataView`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `DataView` object over an existing `ArrayBuffer`.
-`DataView` objects provide an array-like view over an underlying data buffer,
-but one which allows items of different size and type in the `ArrayBuffer`.
+This API creates a JavaScript `DataView` object over an existing `ArrayBuffer`
+or `SharedArrayBuffer`. `DataView` objects provide an array-like view over an
+underlying data buffer, but one which allows items of different size and type in
+the `ArrayBuffer` or `SharedArrayBuffer`.
 
 It is required that `byte_length + byte_offset` is less than or equal to the
 size in bytes of the array passed in. If not, a `RangeError` exception is
@@ -3267,6 +3356,12 @@ Specification.
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
+changes:
+  - version:
+     - v24.9.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59071
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -3277,21 +3372,20 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` being queried.
-* `[out] data`: The underlying data buffer of the `ArrayBuffer`. If byte\_length
+* `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` or `SharedArrayBuffer` being queried.
+* `[out] data`: The underlying data buffer of the `ArrayBuffer` or `SharedArrayBuffer`
   is `0`, this may be `NULL` or any other pointer value.
 * `[out] byte_length`: Length in bytes of the underlying data buffer.
 
 Returns `napi_ok` if the API succeeded.
 
-This API is used to retrieve the underlying data buffer of an `ArrayBuffer` and
-its length.
+This API is used to retrieve the underlying data buffer of an `ArrayBuffer` or `SharedArrayBuffer` and its length.
 
 _WARNING_: Use caution while using this API. The lifetime of the underlying data
-buffer is managed by the `ArrayBuffer` even after it's returned. A
+buffer is managed by the `ArrayBuffer` or `SharedArrayBuffer` even after it's returned. A
 possible safe way to use this API is in conjunction with
 [`napi_create_reference`][], which can be used to guarantee control over the
-lifetime of the `ArrayBuffer`. It's also safe to use the returned data buffer
+lifetime of the `ArrayBuffer` or `SharedArrayBuffer`. It's also safe to use the returned data buffer
 within the same callback as long as there are no calls to other APIs that might
 trigger a GC.
 
@@ -4246,6 +4340,67 @@ This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
 operation as defined in [Section isDetachedBuffer][] of the ECMAScript Language
 Specification.
 
+### `node_api_is_sharedarraybuffer`
+
+<!-- YAML
+added:
+ - v24.9.0
+ - v22.21.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_is_sharedarraybuffer(napi_env env, napi_value value, bool* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] value`: The JavaScript value to check.
+* `[out] result`: Whether the given `napi_value` represents a `SharedArrayBuffer`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API checks if the Object passed in is a `SharedArrayBuffer`.
+
+### `node_api_create_sharedarraybuffer`
+
+<!-- YAML
+added:
+ - v24.9.0
+ - v22.21.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_create_sharedarraybuffer(napi_env env,
+                                             size_t byte_length,
+                                             void** data,
+                                             napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] byte_length`: The length in bytes of the shared array buffer to create.
+* `[out] data`: Pointer to the underlying byte buffer of the `SharedArrayBuffer`.
+  `data` can optionally be ignored by passing `NULL`.
+* `[out] result`: A `napi_value` representing a JavaScript `SharedArrayBuffer`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API returns a Node-API value corresponding to a JavaScript `SharedArrayBuffer`.
+`SharedArrayBuffer`s are used to represent fixed-length binary data buffers that
+can be shared across multiple workers.
+
+The `SharedArrayBuffer` allocated will have an underlying byte buffer whose size is
+determined by the `byte_length` parameter that's passed in.
+The underlying buffer is optionally returned back to the caller in case the
+caller wants to directly manipulate the buffer. This buffer can only be
+written to directly from native code. To write to this buffer from JavaScript,
+a typed array or `DataView` object would need to be created.
+
+JavaScript `SharedArrayBuffer` objects are described in
+[Section SharedArrayBuffer objects][] of the ECMAScript Language Specification.
+
 ## Working with JavaScript properties
 
 Node-API exposes a set of APIs to get and set properties on JavaScript
@@ -4417,11 +4572,11 @@ typedef enum {
 } napi_property_attributes;
 ```
 
-`napi_property_attributes` are flags used to control the behavior of properties
-set on a JavaScript object. Other than `napi_static` they correspond to the
-attributes listed in [Section property attributes][]
+`napi_property_attributes` are bit flags used to control the behavior of
+properties set on a JavaScript object. Other than `napi_static` they
+correspond to the attributes listed in [Section property attributes][]
 of the [ECMAScript Language Specification][].
-They can be one or more of the following bitflags:
+They can be one or more of the following bit flags:
 
 * `napi_default`: No explicit attributes are set on the property. By default, a
   property is read only, not enumerable and not configurable.
@@ -4907,6 +5062,30 @@ This method seals a given object. This prevents new properties from being
 added to it, as well as marking all existing properties as non-configurable.
 This is described in [Section 19.1.2.20](https://tc39.es/ecma262/#sec-object.seal)
 of the ECMA-262 specification.
+
+#### `node_api_set_prototype`
+
+<!-- YAML
+added:
+ - v25.4.0
+ - v24.13.1
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_set_prototype(napi_env env,
+                                   napi_value object,
+                                   napi_value value);
+```
+
+* `[in] env`: The environment that the Node-API call is invoked under.
+* `[in] object`: The object on which to set the prototype.
+* `[in] value`: The prototype value.
+
+Returns `napi_ok` if the API succeeded.
+
+This API sets the prototype of the `Object` passed in.
 
 ## Working with JavaScript functions
 
@@ -5892,6 +6071,10 @@ the runtime.
 <!-- YAML
 added: v8.6.0
 napiVersion: 1
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/59828
+    description: The `async_resource` object will now be held as a strong reference.
 -->
 
 ```c
@@ -5911,22 +6094,18 @@ napi_status napi_async_init(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-The `async_resource` object needs to be kept alive until
-[`napi_async_destroy`][] to keep `async_hooks` related API acts correctly. In
-order to retain ABI compatibility with previous versions, `napi_async_context`s
-are not maintaining the strong reference to the `async_resource` objects to
-avoid introducing causing memory leaks. However, if the `async_resource` is
-garbage collected by JavaScript engine before the `napi_async_context` was
-destroyed by `napi_async_destroy`, calling `napi_async_context` related APIs
-like [`napi_open_callback_scope`][] and [`napi_make_callback`][] can cause
-problems like loss of async context when using the `AsyncLocalStorage` API.
-
 In order to retain ABI compatibility with previous versions, passing `NULL`
 for `async_resource` does not result in an error. However, this is not
 recommended as this will result in undesirable behavior with  `async_hooks`
 [`init` hooks][] and `async_hooks.executionAsyncResource()` as the resource is
 now required by the underlying `async_hooks` implementation in order to provide
 the linkage between async callbacks.
+
+Previous versions of this API were not maintaining a strong reference to
+`async_resource` while the `napi_async_context` object existed and instead
+expected the caller to hold a strong reference. This has been changed, as a
+corresponding call to [`napi_async_destroy`][] for every call to
+`napi_async_init()` is a requirement in any case to avoid memory leaks.
 
 ### `napi_async_destroy`
 
@@ -6759,6 +6938,7 @@ the add-on's file name during loading.
 [Section IsArray]: https://tc39.es/ecma262/#sec-isarray
 [Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
+[Section SharedArrayBuffer objects]: https://tc39.es/ecma262/#sec-sharedarraybuffer-objects
 [Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean
 [Section ToNumber]: https://tc39.es/ecma262/#sec-tonumber
 [Section ToObject]: https://tc39.es/ecma262/#sec-toobject
@@ -6861,6 +7041,7 @@ the add-on's file name during loading.
 [externals]: #napi_create_external
 [global scope]: globals.md
 [gyp-next]: https://github.com/nodejs/gyp-next
+[language and engine bindings]: https://github.com/nodejs/abi-stable-node/blob/doc/node-api-engine-bindings.md
 [module scope]: modules.md#the-module-scope
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp

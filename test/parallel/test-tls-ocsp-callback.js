@@ -80,7 +80,7 @@ function test(testOptions, cb) {
         Buffer.from(testOptions.response) : null);
     }));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(function() {
     const client = tls.connect({
       port: this.address().port,
       requestOCSP: testOptions.ocsp,
@@ -100,7 +100,7 @@ function test(testOptions, cb) {
     client.on('close', common.mustCall(() => {
       server.close(cb);
     }));
-  });
+  }));
 }
 
 test({ ocsp: true, response: false });

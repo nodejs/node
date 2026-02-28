@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 /* ", ".join(["%.16ff" % x for x in [0.0]+[log2(x) for x in range(1, 256)]]) */
-const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE] = {
+const BROTLI_MODEL("small") double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE] = {
   0.0000000000000000f, 0.0000000000000000f, 1.0000000000000000f,
   1.5849625007211563f, 2.0000000000000000f, 2.3219280948873622f,
   2.5849625007211561f, 2.8073549220576042f, 3.0000000000000000f,

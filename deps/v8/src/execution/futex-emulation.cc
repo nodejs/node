@@ -429,7 +429,7 @@ Tagged<Object> FutexEmulation::WaitSync(
 
         lock_guard.Lock();
 
-        if (IsException(interrupt_object, isolate)) {
+        if (IsExceptionHole(interrupt_object, isolate)) {
           result = direct_handle(interrupt_object, isolate);
           break;
         }

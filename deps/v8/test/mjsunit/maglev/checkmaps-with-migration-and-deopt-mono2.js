@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan --turbolev
+// Flags: --allow-natives-syntax --maglev --turbolev
 
 class Vector {
   constructor(x) {

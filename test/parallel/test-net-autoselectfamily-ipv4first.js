@@ -8,12 +8,12 @@ const { createConnection, createServer } = require('net');
 
 // Test that happy eyeballs algorithm is properly implemented when a A record is returned first.
 if (common.hasIPv6) {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCall((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }));
 
   const ipv6Server = createServer((socket) => {
     socket.on('data', common.mustNotCall(() => {

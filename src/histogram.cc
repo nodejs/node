@@ -2,6 +2,7 @@
 #include "base_object-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util.h"
@@ -11,10 +12,8 @@ namespace node {
 using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
-using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -137,7 +136,8 @@ HistogramBase::HistogramBase(
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
-      static_cast<HistogramImpl*>(this));
+      static_cast<HistogramImpl*>(this),
+      EmbedderDataTag::kDefault);
 }
 
 HistogramBase::HistogramBase(
@@ -149,7 +149,8 @@ HistogramBase::HistogramBase(
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
-      static_cast<HistogramImpl*>(this));
+      static_cast<HistogramImpl*>(this),
+      EmbedderDataTag::kDefault);
 }
 
 void HistogramBase::MemoryInfo(MemoryTracker* tracker) const {
@@ -162,8 +163,8 @@ void HistogramBase::RecordDelta(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->RecordDelta();
 }
 
-void HistogramBase::FastRecordDelta(Local<Value> unused,
-                                    Local<Value> receiver) {
+void HistogramBase::FastRecordDelta(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.recordDelta");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   (*histogram)->RecordDelta();
@@ -183,15 +184,9 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->Record(value);
 }
 
-void HistogramBase::FastRecord(Local<Value> unused,
-                               Local<Value> receiver,
-                               const int64_t value,
-                               FastApiCallbackOptions& options) {
-  if (value < 1) {
-    HandleScope scope(options.isolate);
-    THROW_ERR_OUT_OF_RANGE(options.isolate, "value is out of range");
-    return;
-  }
+void HistogramBase::FastRecord(Local<Value> receiver, const int64_t value) {
+  CHECK_GE(value, 1);
+  TRACK_V8_FAST_API_CALL("histogram.record");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   (*histogram)->Record(value);
@@ -369,7 +364,8 @@ IntervalHistogram::IntervalHistogram(
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
-      static_cast<HistogramImpl*>(this));
+      static_cast<HistogramImpl*>(this),
+      EmbedderDataTag::kDefault);
   uv_timer_init(env->event_loop(), &timer_);
 }
 
@@ -428,9 +424,8 @@ void IntervalHistogram::Start(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
 }
 
-void IntervalHistogram::FastStart(Local<Value> unused,
-                                  Local<Value> receiver,
-                                  bool reset) {
+void IntervalHistogram::FastStart(Local<Value> receiver, bool reset) {
+  TRACK_V8_FAST_API_CALL("histogram.start");
   IntervalHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
@@ -442,7 +437,8 @@ void IntervalHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStop();
 }
 
-void IntervalHistogram::FastStop(Local<Value> unused, Local<Value> receiver) {
+void IntervalHistogram::FastStop(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stop");
   IntervalHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStop();
@@ -455,10 +451,9 @@ void HistogramImpl::GetCount(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetCountBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   args.GetReturnValue().Set(
-      BigInt::NewFromUnsigned(env->isolate(), (*histogram)->Count()));
+      BigInt::NewFromUnsigned(args.GetIsolate(), (*histogram)->Count()));
 }
 
 void HistogramImpl::GetMin(const FunctionCallbackInfo<Value>& args) {
@@ -468,9 +463,9 @@ void HistogramImpl::GetMin(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetMinBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Min()));
+  args.GetReturnValue().Set(
+      BigInt::New(args.GetIsolate(), (*histogram)->Min()));
 }
 
 void HistogramImpl::GetMax(const FunctionCallbackInfo<Value>& args) {
@@ -480,9 +475,9 @@ void HistogramImpl::GetMax(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetMaxBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Max()));
+  args.GetReturnValue().Set(
+      BigInt::New(args.GetIsolate(), (*histogram)->Max()));
 }
 
 void HistogramImpl::GetMean(const FunctionCallbackInfo<Value>& args) {
@@ -497,10 +492,9 @@ void HistogramImpl::GetExceeds(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetExceedsBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   args.GetReturnValue().Set(
-      BigInt::New(env->isolate(), (*histogram)->Exceeds()));
+      BigInt::New(args.GetIsolate(), (*histogram)->Exceeds()));
 }
 
 void HistogramImpl::GetStddev(const FunctionCallbackInfo<Value>& args) {
@@ -518,12 +512,11 @@ void HistogramImpl::GetPercentile(const FunctionCallbackInfo<Value>& args) {
 
 void HistogramImpl::GetPercentileBigInt(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   CHECK(args[0]->IsNumber());
   double percentile = args[0].As<Number>()->Value();
   int64_t value = (*histogram)->Percentile(percentile);
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), value));
+  args.GetReturnValue().Set(BigInt::New(args.GetIsolate(), value));
 }
 
 void HistogramImpl::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
@@ -558,46 +551,51 @@ void HistogramImpl::DoReset(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->Reset();
 }
 
-void HistogramImpl::FastReset(Local<Value> unused, Local<Value> receiver) {
+void HistogramImpl::FastReset(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.reset");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   (*histogram)->Reset();
 }
 
-double HistogramImpl::FastGetCount(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetCount(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.count");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Count());
 }
 
-double HistogramImpl::FastGetMin(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMin(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.min");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Min());
 }
 
-double HistogramImpl::FastGetMax(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMax(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.max");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Max());
 }
 
-double HistogramImpl::FastGetMean(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMean(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.mean");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return (*histogram)->Mean();
 }
 
-double HistogramImpl::FastGetExceeds(Local<Value> unused,
-                                     Local<Value> receiver) {
+double HistogramImpl::FastGetExceeds(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.exceeds");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Exceeds());
 }
 
-double HistogramImpl::FastGetStddev(Local<Value> unused,
-                                    Local<Value> receiver) {
+double HistogramImpl::FastGetStddev(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stddev");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return (*histogram)->Stddev();
 }
 
-double HistogramImpl::FastGetPercentile(Local<Value> unused,
-                                        Local<Value> receiver,
+double HistogramImpl::FastGetPercentile(Local<Value> receiver,
                                         const double percentile) {
+  TRACK_V8_FAST_API_CALL("histogram.percentile");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Percentile(percentile));
 }
@@ -605,8 +603,8 @@ double HistogramImpl::FastGetPercentile(Local<Value> unused,
 HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
   auto obj = value.As<Object>();
   DCHECK_GE(obj->InternalFieldCount(), HistogramImpl::kInternalFieldCount);
-  return static_cast<HistogramImpl*>(
-      obj->GetAlignedPointerFromInternalField(HistogramImpl::kImplField));
+  return static_cast<HistogramImpl*>(obj->GetAlignedPointerFromInternalField(
+      HistogramImpl::kImplField, EmbedderDataTag::kDefault));
 }
 
 std::unique_ptr<worker::TransferData>

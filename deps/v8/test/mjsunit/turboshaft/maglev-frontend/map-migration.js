@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function A() { this.x = 1 }
 function B() { this.x = 1 }

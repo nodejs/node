@@ -9,9 +9,7 @@ const {
   isValidReasonPhrase,
   isCancelled,
   isAborted,
-  serializeJavascriptValueToJSONString,
   isErrorLike,
-  isomorphicEncode,
   environmentSettingsObject: relevantRealm
 } = require('./util')
 const {
@@ -22,7 +20,7 @@ const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
-const { types } = require('node:util')
+const { isomorphicEncode, serializeJavascriptValueToJSONString } = require('../infra')
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -119,7 +117,7 @@ class Response {
     }
 
     if (body !== null) {
-      body = webidl.converters.BodyInit(body)
+      body = webidl.converters.BodyInit(body, 'Response', 'body')
     }
 
     init = webidl.converters.ResponseInit(init)
@@ -243,6 +241,12 @@ class Response {
     // 2. Let clonedResponse be the result of cloning this’s response.
     const clonedResponse = cloneResponse(this.#state)
 
+    // Note: To re-register because of a new stream.
+    // Don't set finalizers other than for fetch responses.
+    if (this.#state.urlList.length !== 0 && this.#state.body?.stream) {
+      streamRegistry.register(this, new WeakRef(this.#state.body.stream))
+    }
+
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
     return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers))
@@ -353,8 +357,6 @@ function cloneResponse (response) {
   // result of cloning response’s body.
   if (response.body != null) {
     newResponse.body = cloneBody(response.body)
-
-    streamRegistry.register(newResponse, new WeakRef(response.body.stream))
   }
 
   // 4. Return newResponse.
@@ -452,7 +454,7 @@ function filterResponse (response, type) {
 
     return makeFilteredResponse(response, {
       type: 'opaque',
-      urlList: Object.freeze([]),
+      urlList: [],
       status: 0,
       statusText: '',
       body: null
@@ -554,7 +556,8 @@ function fromInnerResponse (innerResponse, guard) {
   setHeadersList(headers, innerResponse.headersList)
   setHeadersGuard(headers, guard)
 
-  if (innerResponse.body?.stream) {
+  // Note: If innerResponse's urlList contains a URL, it is a fetch response.
+  if (innerResponse.urlList.length !== 0 && innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
     // the held value provided for it (innerResponse.body.stream). The held value can be any value:
     // a primitive or an object, even undefined. If the held value is an object, the registry keeps
@@ -576,7 +579,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
     return V
   }
 
-  if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+  if (webidl.is.BufferSource(V)) {
     return V
   }
 

@@ -97,7 +97,7 @@ const setEnvs = (config) => {
     env.EDITOR = cliConf.editor
   }
 
-  // note: this doesn't afect the *current* node process, of course, since
+  // note: this doesn't affect the *current* node process, of course, since
   // it's already started, but it does affect the options passed to scripts.
   if (cliConf['node-options']) {
     env.NODE_OPTIONS = cliConf['node-options']

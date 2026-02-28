@@ -1,18 +1,10 @@
 'use strict';
 const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { DatabaseSync, constants } = require('node:sqlite');
 const { suite, test } = require('node:test');
 const { pathToFileURL } = require('node:url');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
+const { nextDb } = require('../sqlite/next-db.js');
 
 suite('accessing the node:sqlite module', () => {
   test('cannot be accessed without the node: scheme', (t) => {
@@ -212,6 +204,19 @@ suite('SQL APIs enabled at build time', () => {
     );
   });
 
+  test('percentile is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE t1 (x INTEGER);
+      INSERT INTO t1 (x) VALUES (1), (2), (3), (4), (5);
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT percentile(x, 50) AS p50 FROM t1;').get(),
+      { __proto__: null, p50: 3 },
+    );
+  });
+
   test('dbstat is enabled', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
@@ -252,7 +257,7 @@ suite('SQL APIs enabled at build time', () => {
     );
   });
 
-  test('fts3 parenthesis', (t) => {
+  test('fts3 parenthesis is enabled', (t) => {
     const db = new DatabaseSync(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING fts3(content TEXT);

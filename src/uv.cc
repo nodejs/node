@@ -60,16 +60,17 @@ using v8::String;
 using v8::Value;
 
 void GetErrMessage(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   int err = args[0].As<v8::Int32>()->Value();
   CHECK_LT(err, 0);
   char message[50];
   uv_strerror_r(err, message, sizeof(message));
-  args.GetReturnValue().Set(OneByteString(env->isolate(), message));
+  args.GetReturnValue().Set(OneByteString(args.GetIsolate(), message));
 }
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
   if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
     if (ProcessEmitDeprecationWarning(
         env,
@@ -83,13 +84,12 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   CHECK_LT(err, 0);
   char name[50];
   uv_err_name_r(err, name, sizeof(name));
-  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
+  args.GetReturnValue().Set(OneByteString(isolate, name));
 }
 
 void GetErrMap(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   // This can't return a SafeMap, because the uv binding can be referenced
   // by user code by using `process.binding('uv').getErrorMap()`:

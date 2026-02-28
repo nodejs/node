@@ -23,12 +23,12 @@ const noChange = 'test';
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
     message: /grey/, // gray alias
-  });
+  }, invalidOption);
   assert.throws(() => {
     util.styleText('red', invalidOption);
   }, {
     code: 'ERR_INVALID_ARG_TYPE'
-  });
+  }, invalidOption);
 });
 
 assert.throws(() => {

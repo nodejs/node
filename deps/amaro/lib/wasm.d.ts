@@ -30,7 +30,7 @@ interface TransformConfig {
      * Don't create `export {}`.
      * By default, strip creates `export {}` for modules to preserve module
      * context.
-     * 
+     *
      * @see https://github.com/swc-project/swc/issues/1698
      */
     noEmptyExport?: boolean;
@@ -39,7 +39,7 @@ interface TransformConfig {
      * Disables an optimization that inlines TS enum member values
      * within the same module that assumes the enum member values
      * are never modified.
-     * 
+     *
      * Defaults to false.
      */
     tsEnumIsMutable?: boolean;
@@ -53,7 +53,7 @@ interface TransformConfig {
 interface JsxConfig {
     /**
      * How to transform JSX.
-     * 
+     *
      * @default "react-jsx"
      */
     transform?: "react-jsx" | "react-jsxdev";

@@ -70,13 +70,13 @@ void SourceTextModuleDescriptor::AddImport(
 
 void SourceTextModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* specifier,
+    const ModuleImportPhase import_phase,
     const ImportAttributes* import_attributes, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
   Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
-  entry->module_request =
-      AddModuleRequest(specifier, ModuleImportPhase::kEvaluation,
-                       import_attributes, specifier_loc, zone);
+  entry->module_request = AddModuleRequest(
+      specifier, import_phase, import_attributes, specifier_loc, zone);
   AddNamespaceImport(entry, zone);
 }
 

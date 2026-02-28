@@ -2,7 +2,11 @@
 
 // This test validates the --max-old-space-size-percentage flag functionality
 
-require('../common');
+const common = require('../common');
+// This flag utilizes --max-old-space-size, which is unreliable on
+// 32-bit platforms due to integer overflow issues.
+common.skipIf32Bits();
+
 const assert = require('node:assert');
 const { spawnSync } = require('child_process');
 const os = require('os');
@@ -37,8 +41,12 @@ invalidPercentages.forEach((input) => {
     `--max-old-space-size-percentage=${input[0]}`,
   ], { stdio: ['pipe', 'pipe', 'pipe'] });
   assert.notStrictEqual(result.status, 0, `Expected non-zero exit for invalid input ${input[0]}`);
-  assert(input[1].test(result.stderr.toString()), `Unexpected error message for invalid input ${input[0]}`);
+  assert.match(result.stderr.toString(), input[1]);
 });
+
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
 
 // Test NODE_OPTIONS with valid percentages
 validPercentages.forEach((input) => {
@@ -57,7 +65,7 @@ invalidPercentages.forEach((input) => {
     env: { ...process.env, NODE_OPTIONS: `--max-old-space-size-percentage=${input[0]}` }
   });
   assert.notStrictEqual(result.status, 0, `NODE_OPTIONS: Expected non-zero exit for invalid input ${input[0]}`);
-  assert(input[1].test(result.stderr.toString()), `NODE_OPTIONS: Unexpected error message for invalid input ${input[0]}`);
+  assert.match(result.stderr.toString(), input[1]);
 });
 
 // Test percentage calculation validation
@@ -118,15 +126,24 @@ assert(
 );
 
 // Validate heap sizes against system memory
-const totalMemoryMB = Math.floor(os.totalmem() / 1024 / 1024);
-const margin = 10; // 5% margin
+// When pointer compression is enabled, the maximum total memory is 4 GB
+const totalmem = Math.floor(os.totalmem() / 1024 / 1024);
+const totalMemoryMB = process.config.variables.v8_enable_pointer_compression ?
+  Math.min(4096, totalmem) :
+  totalmem;
+const uint64Max = 2 ** 64 - 1;
+const constrainedMemory = process.constrainedMemory();
+const constrainedMemoryMB = Math.floor(constrainedMemory / 1024 / 1024);
+const effectiveMemoryMB =
+  constrainedMemory > 0 && constrainedMemory !== uint64Max ? constrainedMemoryMB : totalMemoryMB;
+const margin = 10; // 10% margin
 testPercentages.forEach((percentage) => {
-  const upperLimit = totalMemoryMB * ((percentage + margin) / 100);
+  const upperLimit = effectiveMemoryMB * ((percentage + margin) / 100);
   assert(
     heapSizes[percentage] <= upperLimit,
     `Heap size for ${percentage}% (${heapSizes[percentage]} MB) should not exceed upper limit (${upperLimit} MB)`
   );
-  const lowerLimit = totalMemoryMB * ((percentage - margin) / 100);
+  const lowerLimit = effectiveMemoryMB * ((percentage - margin) / 100);
   assert(
     heapSizes[percentage] >= lowerLimit,
     `Heap size for ${percentage}% (${heapSizes[percentage]} MB) should not be less than lower limit (${lowerLimit} MB)`

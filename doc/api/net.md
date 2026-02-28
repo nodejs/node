@@ -186,7 +186,9 @@ added:
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 ```js
@@ -208,7 +210,9 @@ blockList.fromJSON(JSON.stringify(data));
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 * Returns Blocklist.rules
@@ -554,7 +558,8 @@ changes:
     multiple sockets on the same host to bind to the same port. Incoming connections
     are distributed by the operating system to listening sockets. This option is
     available only on some platforms, such as Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+,
-    Solaris 11.4, and AIX 7.2.5+. **Default:** `false`.
+    Solaris 11.4, and AIX 7.2.5+. On unsupported platforms, this option raises
+    an error. **Default:** `false`.
   * `path` {string} Will be ignored if `port` is specified. See
     [Identifying paths for IPC connections][].
   * `port` {number}
@@ -675,7 +680,7 @@ When the number of connections reaches the `server.maxConnections` threshold:
 
 1. If the process is not running in cluster mode, Node.js will close the connection.
 
-2. If the process is running in cluster mode, Node.js will, by default, route the connection to another worker process. To close the connection instead, set \[`server.dropMaxConnection`]\[] to `true`.
+2. If the process is running in cluster mode, Node.js will, by default, route the connection to another worker process. To close the connection instead, set [`server.dropMaxConnection`][] to `true`.
 
 It is not recommended to use this option once a socket has been sent to a child
 with [`child_process.fork()`][].
@@ -690,7 +695,7 @@ added:
 
 * Type: {boolean}
 
-Set this property to `true` to begin closing connections once the number of connections reaches the \[`server.maxConnections`]\[] threshold. This setting is only effective in cluster mode.
+Set this property to `true` to begin closing connections once the number of connections reaches the [`server.maxConnections`][] threshold. This setting is only effective in cluster mode.
 
 ### `server.ref()`
 
@@ -742,6 +747,9 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
+  - version: v25.6.0
+    pr-url: https://github.com/nodejs/node/pull/61503
+    description: Added `typeOfService` option.
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37735
     description: AbortSignal support was added.
@@ -755,8 +763,17 @@ changes:
     automatically end the writable side when the readable side ends. See
     [`net.createServer()`][] and the [`'end'`][] event for details. **Default:**
     `false`.
+  * `blockList` {net.BlockList} `blockList` can be used for disabling outbound
+    access to specific IP addresses, IP ranges, or IP subnets.
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
+  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on
+    the socket immediately after the connection is established, similarly on what
+    is done in [`socket.setKeepAlive()`][]. **Default:** `false`.
+  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+    initial delay before the first keepalive probe is sent on an idle socket. **Default:** `0`.
+  * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
+    immediately after the socket is established. **Default:** `false`.
   * `onread` {Object} If specified, incoming data is stored in a single `buffer`
     and passed to the supplied `callback` when data arrives on the socket.
     This will cause the streaming functionality to not provide any data.
@@ -774,6 +791,7 @@ changes:
     otherwise ignored. **Default:** `false`.
   * `signal` {AbortSignal} An Abort signal that may be used to destroy the
     socket.
+  * `typeOfService` {number} The initial Type of Service (TOS) value.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
 * Returns: {net.Socket}
@@ -1119,20 +1137,10 @@ For TCP connections, available `options` are:
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
 * `host` {string} Host the socket should connect to. **Default:** `'localhost'`.
-* `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on
-  the socket immediately after the connection is established, similarly on what
-  is done in [`socket.setKeepAlive()`][]. **Default:** `false`.
-* `keepAliveInitialDelay` {number} If set to a positive number, it sets the
-  initial delay before the first keepalive probe is sent on an idle socket.
-  **Default:** `0`.
 * `localAddress` {string} Local address the socket should connect from.
 * `localPort` {number} Local port the socket should connect from.
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
-* `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
-  immediately after the socket is established. **Default:** `false`.
 * `port` {number} Required. Port the socket should connect to.
-* `blockList` {net.BlockList} `blockList` can be used for disabling outbound
-  access to specific IP addresses, IP ranges, or IP subnets.
 
 For [IPC][] connections, available `options` are:
 
@@ -1456,6 +1464,45 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 
 The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
+
+### `socket.getTypeOfService()`
+
+<!-- YAML
+added: v25.6.0
+-->
+
+* Returns: {integer} The current TOS value.
+
+Returns the current Type of Service (TOS) field for IPv4 packets or Traffic
+Class for IPv6 packets for this socket.
+
+`setTypeOfService()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection.
+`getTypeOfService()` will return the currently set value even before connection.
+
+On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
+and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
+should verify platform-specific semantics.
+
+### `socket.setTypeOfService(tos)`
+
+<!-- YAML
+added: v25.6.0
+-->
+
+* `tos` {integer} The TOS value to set (0-255).
+* Returns: {net.Socket} The socket itself.
+
+Sets the Type of Service (TOS) field for IPv4 packets or Traffic Class for IPv6
+Packets sent from this socket. This can be used to prioritize network traffic.
+
+`setTypeOfService()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection.
+`getTypeOfService()` will return the currently set value even before connection.
+
+On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
+and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
+should verify platform-specific semantics.
 
 ### `socket.timeout`
 
@@ -1901,7 +1948,7 @@ added:
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
-The initial default value is `250` or the value specified via the command line
+The initial default value is `500` or the value specified via the command line
 option `--network-family-autoselection-attempt-timeout`.
 
 * Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
@@ -2009,11 +2056,13 @@ net.isIPv6('fhqwhgads'); // returns false
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback
+[`server.dropMaxConnection`]: #serverdropmaxconnection
 [`server.listen()`]: #serverlisten
 [`server.listen(handle)`]: #serverlistenhandle-backlog-callback
 [`server.listen(options)`]: #serverlistenoptions-callback
 [`server.listen(path)`]: #serverlistenpath-backlog-callback
 [`server.listen(port)`]: #serverlistenport-host-backlog-callback
+[`server.maxConnections`]: #servermaxconnections
 [`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #socketconnect
 [`socket.connect(options)`]: #socketconnectoptions-connectlistener

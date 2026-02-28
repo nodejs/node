@@ -1,11 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
 
 const child = spawn(process.execPath, [ '-i' ], {
-  stdio: [null, null, 2]
+  stdio: [null, null, 2],
 });
 
 let stdout = '';
@@ -51,9 +51,9 @@ child.stdout.once('data', function() {
   }
 });
 
-child.on('close', function(c) {
+child.on('close', common.mustCall((c) => {
   assert.strictEqual(c, 0);
   // Make sure we got 3 throws, in the end.
   const lastLine = stdout.trim().split(/\r?\n/).pop();
   assert.strictEqual(lastLine, '> 3');
-});
+}));

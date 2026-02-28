@@ -10,15 +10,32 @@
 #include <algorithm>
 #include <iterator>
 #include <optional>
+#include <type_traits>
 #include <vector>
 
 namespace v8::base {
+namespace detail {
+template <typename T, typename U, typename = void>
+struct has_find : std::false_type {};
+
+template <typename T, typename U>
+struct has_find<
+    T, U, std::void_t<decltype(std::declval<T>().find(std::declval<U>()))>>
+    : std::true_type {};
+
+template <typename T, typename U>
+constexpr bool has_find_v = detail::has_find<T, U>::value;
+}  // namespace detail
 
 // Returns true iff the {element} is found in the {container}.
 template <typename C, typename T>
 bool contains(const C& container, const T& element) {
   const auto e = std::end(container);
-  return std::find(std::begin(container), e, element) != e;
+  if constexpr (detail::has_find_v<C, T>) {
+    return container.find(element) != e;
+  } else {
+    return std::find(std::begin(container), e, element) != e;
+  }
 }
 
 // Returns the first index of {element} in {container}. Returns std::nullopt if

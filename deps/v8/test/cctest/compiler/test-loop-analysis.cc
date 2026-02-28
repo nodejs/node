@@ -36,8 +36,7 @@ static const int kNumLeafs = 4;
 class LoopFinderTester : HandleAndZoneScope {
  public:
   LoopFinderTester()
-      : HandleAndZoneScope(kCompressGraphZone),
-        isolate(main_isolate()),
+      : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
         jsgraph(main_isolate(), &graph, &common, nullptr, nullptr, nullptr),

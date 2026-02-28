@@ -56,6 +56,11 @@ export declare const EventSource: {
 }
 
 interface EventSourceInit {
-  withCredentials?: boolean,
+  withCredentials?: boolean
+  // @deprecated use `node.dispatcher` instead
   dispatcher?: Dispatcher
+  node?: {
+    dispatcher?: Dispatcher
+    reconnectionTime?: number
+  }
 }

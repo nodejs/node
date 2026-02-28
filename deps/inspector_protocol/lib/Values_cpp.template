@@ -300,7 +300,7 @@ namespace {
 //   transcodes to UTF8 if needed.
 void EncodeString(const String& s, std::vector<uint8_t>* out) {
   if (StringUtil::CharacterCount(s) == 0) {
-    cbor::EncodeString8(span<uint8_t>(nullptr, 0), out);  // Empty string.
+    cbor::EncodeString8(span<uint8_t>(), out);  // Empty string.
   } else if (StringUtil::CharactersLatin1(s)) {
     cbor::EncodeFromLatin1(span<uint8_t>(StringUtil::CharactersLatin1(s),
 		                         StringUtil::CharacterCount(s)),

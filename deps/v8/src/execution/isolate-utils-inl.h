@@ -15,36 +15,6 @@
 
 namespace v8::internal {
 
-// TODO(396607238): Replace all callers with `Isolate::Current()->heap()`.
-V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  // Do not use this method on shared objects. This method would always return
-  // the shared space isolate for shared objects. However, on worker isolates
-  // this might be different from the current isolate. In such cases either
-  // require the current isolate as an additional argument from the caller or
-  // use Isolate::Current(). From there you can access the shared space isolate
-  // with `isolate->shared_space_isolate()` if needed.
-  DCHECK(!chunk->InWritableSharedSpace());
-  Heap* heap = chunk->GetHeap();
-  // See the TODO above: The heap/isolate returned here must match TLS.
-  CHECK_EQ(heap->isolate(), Isolate::TryGetCurrent());
-  return heap;
-}
-
-// TODO(396607238): Replace all callers with `Isolate::Current()`.
-V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
-  return Isolate::FromHeap(GetHeapFromWritableObject(object));
-}
-
-V8_INLINE Heap* GetHeapFromWritableObject(const HeapObjectLayout& object) {
-  return GetHeapFromWritableObject(Tagged(&object));
-}
-
-V8_INLINE Isolate* GetIsolateFromWritableObject(
-    const HeapObjectLayout& object) {
-  return GetIsolateFromWritableObject(Tagged(&object));
-}
-
 V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
                                         Isolate** isolate) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
@@ -52,7 +22,7 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
     *isolate = nullptr;
     return false;
   }
-  *isolate = Isolate::FromHeap(chunk->GetHeap());
+  *isolate = Isolate::FromHeap(chunk->Metadata()->heap());
   return true;
 }
 

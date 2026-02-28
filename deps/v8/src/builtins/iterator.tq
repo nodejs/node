@@ -104,6 +104,37 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
+struct ForOfNextResult {
+  value: Object;
+  done: Object;
+}
+
+extern transitioning macro ForOfNextHelper(Context, Object, Object):
+    ForOfNextResult;
+
+transitioning builtin ForOfNext(
+    context: Context, iterator: JSAny, next: JSFunction): ForOfNextResult {
+  return ForOfNextHelper(context, iterator, next);
+}
+
+transitioning builtin ForOfNextBaseline(
+    context: Context, iterator: JSAny, next: JSFunction,
+    resultSlot: RawPtr): Undefined {
+  const result: ForOfNextResult = ForOfNext(context, iterator, next);
+
+  // The result slot address points to the first interpreter register slot.
+  const firstResultSlot = resultSlot;
+  // The second interpreter register slot is one word before, since stacks grow
+  // toward zero.
+  const secondResultSlot =
+      resultSlot + torque_internal::TimesSizeOf<intptr>(-1);
+
+  StoreFullTaggedNoWriteBarrier(firstResultSlot, result.value);
+  StoreFullTaggedNoWriteBarrier(secondResultSlot, result.done);
+
+  return Undefined;
+}
+
 @export
 transitioning macro GetIteratorRecordAfterCreateAsyncFromSyncIterator(
     context: Context, asyncIterator: IteratorRecord): IteratorRecord {

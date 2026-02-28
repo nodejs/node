@@ -224,6 +224,38 @@ constexpr TimeDelta TimeDelta::Min() {
   return TimeDelta(std::numeric_limits<int64_t>::min());
 }
 
+constexpr TimeDelta Nanoseconds(int64_t nanoseconds) {
+  return TimeDelta::FromNanoseconds(nanoseconds);
+}
+
+constexpr TimeDelta Microseconds(int64_t microseconds) {
+  return TimeDelta::FromMicroseconds(microseconds);
+}
+
+constexpr TimeDelta Milliseconds(int64_t milliseconds) {
+  return TimeDelta::FromMilliseconds(milliseconds);
+}
+
+constexpr TimeDelta Milliseconds(double milliseconds) {
+  return TimeDelta::FromMillisecondsD(milliseconds);
+}
+
+constexpr TimeDelta Seconds(int64_t seconds) {
+  return TimeDelta::FromSeconds(seconds);
+}
+
+constexpr TimeDelta Seconds(double seconds) {
+  return TimeDelta::FromSecondsD(seconds);
+}
+
+constexpr TimeDelta Minutes(int minutes) {
+  return TimeDelta::FromMinutes(minutes);
+}
+
+constexpr TimeDelta Hours(int hours) { return TimeDelta::FromHours(hours); }
+
+constexpr TimeDelta FromDays(int days) { return TimeDelta::FromDays(days); }
+
 namespace time_internal {
 
 // TimeBase--------------------------------------------------------------------

@@ -154,7 +154,7 @@ std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
       .build();
 }
 
-volatile int s_lastProfileId = 0;
+int s_lastProfileId = 0;
 
 }  // namespace
 

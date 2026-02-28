@@ -5,7 +5,28 @@ const { validateCloseCodeAndReason } = require('../util')
 const { kConstruct } = require('../../../core/symbols')
 const { kEnumerableProperty } = require('../../../core/util')
 
-class WebSocketError extends DOMException {
+function createInheritableDOMException () {
+  // https://github.com/nodejs/node/issues/59677
+  class Test extends DOMException {
+    get reason () {
+      return ''
+    }
+  }
+
+  if (new Test().reason !== undefined) {
+    return DOMException
+  }
+
+  return new Proxy(DOMException, {
+    construct (target, args, newTarget) {
+      const instance = Reflect.construct(target, args, target)
+      Object.setPrototypeOf(instance, newTarget.prototype)
+      return instance
+    }
+  })
+}
+
+class WebSocketError extends createInheritableDOMException() {
   #closeCode
   #reason
 

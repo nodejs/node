@@ -61,7 +61,7 @@ assert.strictEqual(chunk, str);
 chunk = r.read();
 assert.strictEqual(chunk, null);
 
-r.once('readable', () => {
+r.once('readable', common.mustCall(() => {
   // This time, we'll get *all* the remaining data, because
   // it's been added synchronously, as the read WOULD take
   // us below the hwm, and so it triggered a _read() again,
@@ -71,4 +71,4 @@ r.once('readable', () => {
 
   chunk = r.read();
   assert.strictEqual(chunk, null);
-});
+}));

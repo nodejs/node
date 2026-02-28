@@ -214,32 +214,6 @@ class Grego {
                             int8_t& dom, int8_t& dow, int16_t& doy, UErrorCode& status);
 
     /**
-     * Convert a 1970-epoch day number to proleptic Gregorian year,
-     * month, day-of-month, and day-of-week.
-     * @param day 1970-epoch day
-     * @param year output parameter to receive year
-     * @param month output parameter to receive month (0-based, 0==Jan)
-     * @param dom output parameter to receive day-of-month (1-based)
-     * @param doy output parameter to receive day-of-year (1-based)
-     * @param status error code.
-     */
-    static void dayToFields(int32_t day, int32_t& year, int8_t& month,
-                            int8_t& dom, int16_t& doy, UErrorCode& status);
-
-    /**
-     * Convert a 1970-epoch day number to proleptic Gregorian year,
-     * month, day-of-month, and day-of-week.
-     * @param day 1970-epoch day
-     * @param year output parameter to receive year
-     * @param month output parameter to receive month (0-based, 0==Jan)
-     * @param dom output parameter to receive day-of-month (1-based)
-     * @param dow output parameter to receive day-of-week (1-based, 1==Sun)
-     * @param status error code.
-     */
-    static void dayToFields(int32_t day, int32_t& year, int8_t& month,
-                            int8_t& dom, int8_t& dow, UErrorCode& status);
-
-    /**
      * Convert a 1970-epoch day number to proleptic Gregorian year.
      * @param day 1970-epoch day
      * @param status error code.

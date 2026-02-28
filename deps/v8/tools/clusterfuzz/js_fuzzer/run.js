@@ -68,6 +68,9 @@ function main() {
     overrideSettings(settings, program.setting);
   }
 
+  settings.input_dir = program.input_dir;
+  settings.no_of_files = program.no_of_files;
+
   let app_name = process.env.APP_NAME;
   if (app_name && app_name.endsWith('.exe')) {
     app_name = app_name.substr(0, app_name.length - 4);
@@ -92,6 +95,10 @@ function main() {
 
   const mode = process.env.FUZZ_MODE || 'default';
   assert(mode in SCRIPT_MUTATORS, `Unknown mode ${mode}`);
+
+  // Switch for differential fuzzing.
+  settings.diff_fuzz = mode.startsWith('foozzie');
+
   const mutator = new SCRIPT_MUTATORS[mode](settings);
 
   if (program.mutate) {
@@ -111,8 +118,7 @@ function main() {
     testRunner = new runner.SingleCorpusRunner(
         program.input_dir, program.mutate_corpus, program.extra_strict);
   } else {
-    testRunner = new mutator.runnerClass(
-        program.input_dir, settings.engine, program.no_of_files);
+    testRunner = mutator.createRunner();
   }
 
   for (const [i, inputs] of testRunner.enumerateInputs()) {

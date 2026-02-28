@@ -101,6 +101,9 @@ class AssemblerRISCVI : public AssemblerRiscvBase {
   static bool IsOri(Instr instr);
   static bool IsSlli(Instr instr);
   static bool IsLw(Instr instr);
+#ifdef V8_TARGET_ARCH_RISCV32
+  static bool IsLoadWord(Instr instr) { return IsLw(instr); }
+#endif
 
   inline int32_t branch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset13);
@@ -204,6 +207,7 @@ class AssemblerRISCVI : public AssemblerRiscvBase {
 
   static bool IsAddiw(Instr instr);
   static bool IsLd(Instr instr);
+  static bool IsLoadWord(Instr instr) { return IsLd(instr); }
 #endif
 };
 

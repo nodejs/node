@@ -28,6 +28,7 @@ class Benchmark {
     const argv = process.argv.slice(2);
     const parsed_args = this._parseArgs(argv, configs, options);
 
+    this.originalOptions = options;
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
     this.combinationFilter = typeof options.combinationFilter === 'function' ? options.combinationFilter : allow;
@@ -81,6 +82,9 @@ class Benchmark {
         if (typeof value === 'number') {
           if (key === 'dur' || key === 'duration') {
             value = 0.05;
+          } else if (key === 'memory') {
+            // minimum Argon2 memcost with 1 lane is 8
+            value = 8;
           } else if (value > 1) {
             value = 1;
           }
@@ -114,10 +118,9 @@ class Benchmark {
       const [, key, value] = match;
       if (configs[key] !== undefined) {
         cliOptions[key] ||= [];
-        cliOptions[key].push(
-          // Infer the type from the config object and parse accordingly
-          typeof configs[key][0] === 'number' ? +value : value,
-        );
+        const configType = typeof configs[key][0];
+        const configValue = configType === 'number' ? +value : configType === 'boolean' ? value === 'true' : value;
+        cliOptions[key].push(configValue);
       } else {
         extraOptions[key] = value;
       }
@@ -137,7 +140,7 @@ class Benchmark {
       const values = options[key];
 
       for (const value of values) {
-        if (typeof value !== 'number' && typeof value !== 'string') {
+        if (typeof value !== 'number' && typeof value !== 'string' && typeof value !== 'boolean') {
           throw new TypeError(
             `configuration "${key}" had type ${typeof value}`);
         }
@@ -202,6 +205,12 @@ class Benchmark {
         name: this.name,
         queueLength: this.queue.length,
       });
+    }
+
+    if (this.originalOptions.setup) {
+      // Only do this from the root process. _run() is only ever called from the root,
+      // in child processes main is run directly.
+      this.originalOptions.setup(this.queue);
     }
 
     const recursive = (queueIndex) => {

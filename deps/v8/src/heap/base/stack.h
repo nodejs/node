@@ -50,14 +50,14 @@ class V8_EXPORT_PRIVATE Stack final {
   // considers the ASAN stack and SafeStack.
   static bool IsOnStack(const void* slot);
 
-  void IteratePointers(StackVisitor* visitor) const {
-    IteratePointersUntilMarker(visitor);
-    IterateBackgroundStacks(visitor);
-  }
-
   // Word-aligned iteration of the stack, starting at the `stack_marker_`
   // and going to the stack start. Slot values are passed on to `visitor`.
   void IteratePointersUntilMarker(StackVisitor* visitor) const;
+
+  // Word-aligned iteration of the stack, starting at the `stack_marker_`
+  // and going to the given address. Slot values are passed on to `visitor`.
+  void IteratePointersFromAddressUntilMarker(StackVisitor* visitor,
+                                             const void* address) const;
 
   // Iterate just the background stacks, if any.
   void IterateBackgroundStacks(StackVisitor* visitor) const;
@@ -94,10 +94,10 @@ class V8_EXPORT_PRIVATE Stack final {
 
   using IterateStackCallback = void (*)(Stack*, void*, const void*);
 
-  // This method combines SetMarkerAndCallback with IteratePointers.
-  // Callee-saved registers are pushed to the stack and then a word-aligned
-  // iteration of the stack is performed. Slot values are passed on to
-  // `visitor`. To be used for testing.
+  // This method combines SetMarkerAndCallback with pointer iteration, including
+  // background stacks. Callee-saved registers are pushed to the stack and then
+  // a word-aligned iteration of the stack is performed. Slot values are passed
+  // on to `visitor`. To be used for testing.
   void IteratePointersForTesting(StackVisitor* visitor);
 
   bool IsMarkerSet() const { return current_segment_.top != nullptr; }
@@ -151,13 +151,19 @@ class V8_EXPORT_PRIVATE Stack final {
       unsafe_stack_top = __builtin___get_unsafe_stack_ptr();
 #endif  // V8_USE_SAFE_STACK
     }
+
+#ifdef DEBUG
+    bool Contains(const void* address) const {
+      return (start >= address) && (address >= top);
+    }
+#endif
   };
 
- private:
 #ifdef DEBUG
   static bool IsOnCurrentStack(const void* ptr);
 #endif
 
+ private:
   V8_NOINLINE void TrampolineCallbackHelper(void* argument,
                                             IterateStackCallback callback);
 
@@ -208,6 +214,8 @@ class V8_EXPORT_PRIVATE Stack final {
         background_stacks.erase(thread);
     }
   }
+
+  void IteratePointersInSegment(StackVisitor* visitor, Segment segment) const;
 
   Segment current_segment_;
 

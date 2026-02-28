@@ -4,19 +4,11 @@ const common = require('../common');
 const assert = require('node:assert');
 const { describe, test } = require('node:test');
 
-const ArrayStream = require('../common/arraystream');
-
-const repl = require('node:repl');
+const { startNewREPLServer } = require('../common/repl');
 
 function runCompletionTests(replInit, tests) {
-  const stream = new ArrayStream();
-  const testRepl = repl.start({ stream });
-
-  // Some errors are passed to the domain
-  testRepl._domain.on('error', assert.ifError);
-
-  testRepl.write(replInit);
-  testRepl.write('\n');
+  const { replServer: testRepl, input } = startNewREPLServer();
+  input.run([replInit]);
 
   tests.forEach(([query, expectedCompletions]) => {
     testRepl.complete(query, common.mustCall((error, data) => {
@@ -61,10 +53,6 @@ describe('REPL completion in relation of getters', () => {
     test(`completions are generated for properties that don't trigger getters`, () => {
       runCompletionTests(
         `
-        function getFooKey() {
-          return "foo";
-        }
-
         const fooKey = "foo";
 
         const keys = {
@@ -90,7 +78,6 @@ describe('REPL completion in relation of getters', () => {
           ["objWithGetters[keys['foo key']].b", ["objWithGetters[keys['foo key']].bar"]],
           ['objWithGetters[fooKey].b', ['objWithGetters[fooKey].bar']],
           ["objWithGetters['f' + 'oo'].b", ["objWithGetters['f' + 'oo'].bar"]],
-          ['objWithGetters[getFooKey()].b', ['objWithGetters[getFooKey()].bar']],
         ]);
     });
 
@@ -127,6 +114,33 @@ describe('REPL completion in relation of getters', () => {
           ["objWithGetters['g' + 'Foo'].b", []],
           ['objWithGetters[getGFooKey()].b', []],
         ]);
+    });
+
+    test('no side effects are triggered for getters during completion', async () => {
+      const { replServer } = startNewREPLServer();
+
+      await new Promise((resolve, reject) => {
+        replServer.eval('const foo = { get name() { globalThis.nameGetterRun = true; throw new Error(); } };',
+                        replServer.context, '', (err) => {
+                          if (err) {
+                            reject(err);
+                          } else {
+                            resolve();
+                          }
+                        });
+      });
+
+      ['foo.name.', 'foo["name"].'].forEach((test) => {
+        replServer.complete(
+          test,
+          common.mustCall((error, data) => {
+            // The context's nameGetterRun variable hasn't been set
+            assert.strictEqual(replServer.context.nameGetterRun, undefined);
+            // No errors has been thrown
+            assert.strictEqual(error, null);
+          })
+        );
+      });
     });
   });
 

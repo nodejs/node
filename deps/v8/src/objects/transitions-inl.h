@@ -165,7 +165,7 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Tagged<Name> name,
   DCHECK(!IsSpecialTransition(GetReadOnlyRoots(), name));
   InternalIndex descriptor = target->LastAdded();
   Tagged<DescriptorArray> descriptors =
-      target->instance_descriptors(kRelaxedLoad);
+      target->instance_descriptors(kAcquireLoad);
   // Transitions are allowed only for the last added property.
   DCHECK(descriptors->GetKey(descriptor)->Equals(name));
   return descriptors->GetDetails(descriptor);
@@ -557,7 +557,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
           callback(GetTarget(i));
         }
       }
-      if constexpr (!std::is_same<ProtoCallback, std::nullptr_t>::value) {
+      if constexpr (!std::is_same_v<ProtoCallback, std::nullptr_t>) {
         if (transitions()->HasPrototypeTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetPrototypeTransitions();
@@ -572,7 +572,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
           }
         }
       }
-      if constexpr (!std::is_same<SideStepCallback, std::nullptr_t>::value) {
+      if constexpr (!std::is_same_v<SideStepCallback, std::nullptr_t>) {
         if (transitions()->HasSideStepTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetSideStepTransitions();

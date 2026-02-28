@@ -31,10 +31,10 @@ async_hooks.createHook({
     if (promiseIds.includes(id)) createSnapshot();
   },
 
-  promiseResolve(id) {
+  promiseResolve: common.mustCallAtLeast((id) => {
     assert(promiseIds.includes(id));
     createSnapshot();
-  },
+  }),
 
   destroy(id) {
     if (promiseIds.includes(id)) createSnapshot();
@@ -42,5 +42,5 @@ async_hooks.createHook({
 }).enable();
 
 
-Promise.resolve().then(() => {});
+Promise.resolve().then(common.mustCall());
 setImmediate(globalThis.gc);

@@ -35,10 +35,10 @@ _msbuild_name_of_tool = {}
 class _Tool:
     """Represents a tool used by MSVS or MSBuild.
 
-  Attributes:
-      msvs_name: The name of the tool in MSVS.
-      msbuild_name: The name of the tool in MSBuild.
-  """
+    Attributes:
+        msvs_name: The name of the tool in MSVS.
+        msbuild_name: The name of the tool in MSBuild.
+    """
 
     def __init__(self, msvs_name, msbuild_name):
         self.msvs_name = msvs_name
@@ -48,11 +48,11 @@ class _Tool:
 def _AddTool(tool):
     """Adds a tool to the four dictionaries used to process settings.
 
-  This only defines the tool.  Each setting also needs to be added.
+    This only defines the tool.  Each setting also needs to be added.
 
-  Args:
-    tool: The _Tool object to be added.
-  """
+    Args:
+      tool: The _Tool object to be added.
+    """
     _msvs_validators[tool.msvs_name] = {}
     _msbuild_validators[tool.msbuild_name] = {}
     _msvs_to_msbuild_converters[tool.msvs_name] = {}
@@ -70,35 +70,35 @@ class _Type:
     def ValidateMSVS(self, value):
         """Verifies that the value is legal for MSVS.
 
-    Args:
-      value: the value to check for this type.
+        Args:
+          value: the value to check for this type.
 
-    Raises:
-      ValueError if value is not valid for MSVS.
-    """
+        Raises:
+          ValueError if value is not valid for MSVS.
+        """
 
     def ValidateMSBuild(self, value):
         """Verifies that the value is legal for MSBuild.
 
-    Args:
-      value: the value to check for this type.
+        Args:
+          value: the value to check for this type.
 
-    Raises:
-      ValueError if value is not valid for MSBuild.
-    """
+        Raises:
+          ValueError if value is not valid for MSBuild.
+        """
 
     def ConvertToMSBuild(self, value):
         """Returns the MSBuild equivalent of the MSVS value given.
 
-    Args:
-      value: the MSVS value to convert.
+        Args:
+          value: the MSVS value to convert.
 
-    Returns:
-      the MSBuild equivalent.
+        Returns:
+          the MSBuild equivalent.
 
-    Raises:
-      ValueError if value is not valid.
-    """
+        Raises:
+          ValueError if value is not valid.
+        """
         return value
 
 
@@ -178,15 +178,15 @@ class _Integer(_Type):
 class _Enumeration(_Type):
     """Type of settings that is an enumeration.
 
-  In MSVS, the values are indexes like '0', '1', and '2'.
-  MSBuild uses text labels that are more representative, like 'Win32'.
+    In MSVS, the values are indexes like '0', '1', and '2'.
+    MSBuild uses text labels that are more representative, like 'Win32'.
 
-  Constructor args:
-    label_list: an array of MSBuild labels that correspond to the MSVS index.
-        In the rare cases where MSVS has skipped an index value, None is
-        used in the array to indicate the unused spot.
-    new: an array of labels that are new to MSBuild.
-  """
+    Constructor args:
+      label_list: an array of MSBuild labels that correspond to the MSVS index.
+          In the rare cases where MSVS has skipped an index value, None is
+          used in the array to indicate the unused spot.
+      new: an array of labels that are new to MSBuild.
+    """
 
     def __init__(self, label_list, new=None):
         _Type.__init__(self)
@@ -234,23 +234,23 @@ _newly_boolean = _Enumeration(["", "false", "true"])
 def _Same(tool, name, setting_type):
     """Defines a setting that has the same name in MSVS and MSBuild.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    name: the name of the setting.
-    setting_type: the type of this setting.
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      name: the name of the setting.
+      setting_type: the type of this setting.
+    """
     _Renamed(tool, name, name, setting_type)
 
 
 def _Renamed(tool, msvs_name, msbuild_name, setting_type):
     """Defines a setting for which the name has changed.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    msvs_name: the name of the MSVS setting.
-    msbuild_name: the name of the MSBuild setting.
-    setting_type: the type of this setting.
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      msvs_name: the name of the MSVS setting.
+      msbuild_name: the name of the MSBuild setting.
+      setting_type: the type of this setting.
+    """
 
     def _Translate(value, msbuild_settings):
         msbuild_tool_settings = _GetMSBuildToolSettings(msbuild_settings, tool)
@@ -272,13 +272,13 @@ def _MovedAndRenamed(
 ):
     """Defines a setting that may have moved to a new section.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    msvs_settings_name: the MSVS name of the setting.
-    msbuild_tool_name: the name of the MSBuild tool to place the setting under.
-    msbuild_settings_name: the MSBuild name of the setting.
-    setting_type: the type of this setting.
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      msvs_settings_name: the MSVS name of the setting.
+      msbuild_tool_name: the name of the MSBuild tool to place the setting under.
+      msbuild_settings_name: the MSBuild name of the setting.
+      setting_type: the type of this setting.
+    """
 
     def _Translate(value, msbuild_settings):
         tool_settings = msbuild_settings.setdefault(msbuild_tool_name, {})
@@ -293,11 +293,11 @@ def _MovedAndRenamed(
 def _MSVSOnly(tool, name, setting_type):
     """Defines a setting that is only found in MSVS.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    name: the name of the setting.
-    setting_type: the type of this setting.
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      name: the name of the setting.
+      setting_type: the type of this setting.
+    """
 
     def _Translate(unused_value, unused_msbuild_settings):
         # Since this is for MSVS only settings, no translation will happen.
@@ -310,11 +310,11 @@ def _MSVSOnly(tool, name, setting_type):
 def _MSBuildOnly(tool, name, setting_type):
     """Defines a setting that is only found in MSBuild.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    name: the name of the setting.
-    setting_type: the type of this setting.
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      name: the name of the setting.
+      setting_type: the type of this setting.
+    """
 
     def _Translate(value, msbuild_settings):
         # Let msbuild-only properties get translated as-is from msvs_settings.
@@ -328,11 +328,11 @@ def _MSBuildOnly(tool, name, setting_type):
 def _ConvertedToAdditionalOption(tool, msvs_name, flag):
     """Defines a setting that's handled via a command line option in MSBuild.
 
-  Args:
-    tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
-    msvs_name: the name of the MSVS setting that if 'true' becomes a flag
-    flag: the flag to insert at the end of the AdditionalOptions
-  """
+    Args:
+      tool: a dictionary that gives the names of the tool for MSVS and MSBuild.
+      msvs_name: the name of the MSVS setting that if 'true' becomes a flag
+      flag: the flag to insert at the end of the AdditionalOptions
+    """
 
     def _Translate(value, msbuild_settings):
         if value == "true":
@@ -384,15 +384,15 @@ _EXCLUDED_SUFFIX_RE = re.compile("^(.*)_excluded$")
 def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
     """Verify that 'setting' is valid if it is generated from an exclusion list.
 
-  If the setting appears to be generated from an exclusion list, the root name
-  is checked.
+    If the setting appears to be generated from an exclusion list, the root name
+    is checked.
 
-  Args:
-      setting:   A string that is the setting name to validate
-      settings:  A dictionary where the keys are valid settings
-      error_msg: The message to emit in the event of error
-      stderr:    The stream receiving the error messages.
-  """
+    Args:
+        setting:   A string that is the setting name to validate
+        settings:  A dictionary where the keys are valid settings
+        error_msg: The message to emit in the event of error
+        stderr:    The stream receiving the error messages.
+    """
     # This may be unrecognized because it's an exclusion list. If the
     # setting name has the _excluded suffix, then check the root name.
     unrecognized = True
@@ -408,11 +408,11 @@ def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
 def FixVCMacroSlashes(s):
     """Replace macros which have excessive following slashes.
 
-  These macros are known to have a built-in trailing slash. Furthermore, many
-  scripts hiccup on processing paths with extra slashes in the middle.
+    These macros are known to have a built-in trailing slash. Furthermore, many
+    scripts hiccup on processing paths with extra slashes in the middle.
 
-  This list is probably not exhaustive.  Add as needed.
-  """
+    This list is probably not exhaustive.  Add as needed.
+    """
     if "$" in s:
         s = fix_vc_macro_slashes_regex.sub(r"\1", s)
     return s
@@ -421,8 +421,8 @@ def FixVCMacroSlashes(s):
 def ConvertVCMacrosToMSBuild(s):
     """Convert the MSVS macros found in the string to the MSBuild equivalent.
 
-  This list is probably not exhaustive.  Add as needed.
-  """
+    This list is probably not exhaustive.  Add as needed.
+    """
     if "$" in s:
         replace_map = {
             "$(ConfigurationName)": "$(Configuration)",
@@ -444,16 +444,16 @@ def ConvertVCMacrosToMSBuild(s):
 def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
     """Converts MSVS settings (VS2008 and earlier) to MSBuild settings (VS2010+).
 
-  Args:
-      msvs_settings: A dictionary.  The key is the tool name.  The values are
-          themselves dictionaries of settings and their values.
-      stderr: The stream receiving the error messages.
+    Args:
+        msvs_settings: A dictionary.  The key is the tool name.  The values are
+            themselves dictionaries of settings and their values.
+        stderr: The stream receiving the error messages.
 
-  Returns:
-      A dictionary of MSBuild settings.  The key is either the MSBuild tool name
-      or the empty string (for the global settings).  The values are themselves
-      dictionaries of settings and their values.
-  """
+    Returns:
+        A dictionary of MSBuild settings.  The key is either the MSBuild tool name
+        or the empty string (for the global settings).  The values are themselves
+        dictionaries of settings and their values.
+    """
     msbuild_settings = {}
     for msvs_tool_name, msvs_tool_settings in msvs_settings.items():
         if msvs_tool_name in _msvs_to_msbuild_converters:
@@ -492,36 +492,36 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
 def ValidateMSVSSettings(settings, stderr=sys.stderr):
     """Validates that the names of the settings are valid for MSVS.
 
-  Args:
-      settings: A dictionary.  The key is the tool name.  The values are
-          themselves dictionaries of settings and their values.
-      stderr: The stream receiving the error messages.
-  """
+    Args:
+        settings: A dictionary.  The key is the tool name.  The values are
+            themselves dictionaries of settings and their values.
+        stderr: The stream receiving the error messages.
+    """
     _ValidateSettings(_msvs_validators, settings, stderr)
 
 
 def ValidateMSBuildSettings(settings, stderr=sys.stderr):
     """Validates that the names of the settings are valid for MSBuild.
 
-  Args:
-      settings: A dictionary.  The key is the tool name.  The values are
-          themselves dictionaries of settings and their values.
-      stderr: The stream receiving the error messages.
-  """
+    Args:
+        settings: A dictionary.  The key is the tool name.  The values are
+            themselves dictionaries of settings and their values.
+        stderr: The stream receiving the error messages.
+    """
     _ValidateSettings(_msbuild_validators, settings, stderr)
 
 
 def _ValidateSettings(validators, settings, stderr):
     """Validates that the settings are valid for MSBuild or MSVS.
 
-  We currently only validate the names of the settings, not their values.
+    We currently only validate the names of the settings, not their values.
 
-  Args:
-      validators: A dictionary of tools and their validators.
-      settings: A dictionary.  The key is the tool name.  The values are
-          themselves dictionaries of settings and their values.
-      stderr: The stream receiving the error messages.
-  """
+    Args:
+        validators: A dictionary of tools and their validators.
+        settings: A dictionary.  The key is the tool name.  The values are
+            themselves dictionaries of settings and their values.
+        stderr: The stream receiving the error messages.
+    """
     for tool_name in settings:
         if tool_name in validators:
             tool_validators = validators[tool_name]
@@ -637,7 +637,9 @@ _Same(
     ),
 )  # /RTC1
 _Same(
-    _compile, "BrowseInformation", _Enumeration(["false", "true", "true"])  # /FR
+    _compile,
+    "BrowseInformation",
+    _Enumeration(["false", "true", "true"]),  # /FR
 )  # /Fr
 _Same(
     _compile,
@@ -695,7 +697,9 @@ _Same(
     _Enumeration(["false", "Sync", "Async"], new=["SyncCThrow"]),  # /EHsc  # /EHa
 )  # /EHs
 _Same(
-    _compile, "FavorSizeOrSpeed", _Enumeration(["Neither", "Speed", "Size"])  # /Ot
+    _compile,
+    "FavorSizeOrSpeed",
+    _Enumeration(["Neither", "Speed", "Size"]),  # /Ot
 )  # /Os
 _Same(
     _compile,
@@ -908,7 +912,9 @@ _target_machine_enumeration = _Enumeration(
 )  # /MACHINE:X64
 
 _Same(
-    _link, "AssemblyDebug", _Enumeration(["", "true", "false"])  # /ASSEMBLYDEBUG
+    _link,
+    "AssemblyDebug",
+    _Enumeration(["", "true", "false"]),  # /ASSEMBLYDEBUG
 )  # /ASSEMBLYDEBUG:DISABLE
 _Same(
     _link,
@@ -1158,17 +1164,23 @@ _Renamed(_midl, "ValidateParameters", "ValidateAllParameters", _boolean)  # /rob
 _MSBuildOnly(_midl, "ApplicationConfigurationMode", _boolean)  # /app_config
 _MSBuildOnly(_midl, "ClientStubFile", _file_name)  # /cstub
 _MSBuildOnly(
-    _midl, "GenerateClientFiles", _Enumeration([], new=["Stub", "None"])  # /client stub
+    _midl,
+    "GenerateClientFiles",
+    _Enumeration([], new=["Stub", "None"]),  # /client stub
 )  # /client none
 _MSBuildOnly(
-    _midl, "GenerateServerFiles", _Enumeration([], new=["Stub", "None"])  # /client stub
+    _midl,
+    "GenerateServerFiles",
+    _Enumeration([], new=["Stub", "None"]),  # /client stub
 )  # /client none
 _MSBuildOnly(_midl, "LocaleID", _integer)  # /lcid DECIMAL
 _MSBuildOnly(_midl, "ServerStubFile", _file_name)  # /sstub
 _MSBuildOnly(_midl, "SuppressCompilerWarnings", _boolean)  # /no_warn
 _MSBuildOnly(_midl, "TrackerLogDirectory", _folder_name)
 _MSBuildOnly(
-    _midl, "TypeLibFormat", _Enumeration([], new=["NewFormat", "OldFormat"])  # /newtlb
+    _midl,
+    "TypeLibFormat",
+    _Enumeration([], new=["NewFormat", "OldFormat"]),  # /newtlb
 )  # /oldtlb
 
 

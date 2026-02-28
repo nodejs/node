@@ -12,17 +12,17 @@
 namespace v8 {
 namespace bigint {
 
-constexpr int kKaratsubaThreshold = 34;
-constexpr int kToomThreshold = 193;
-constexpr int kFftThreshold = 1500;
-constexpr int kFftInnerThreshold = 200;
+constexpr uint32_t kKaratsubaThreshold = 34;
+constexpr uint32_t kToomThreshold = 193;
+constexpr uint32_t kFftThreshold = 1500;
+constexpr uint32_t kFftInnerThreshold = 200;
 
-constexpr int kBurnikelThreshold = 57;
-constexpr int kNewtonInversionThreshold = 50;
+constexpr uint32_t kBurnikelThreshold = 57;
+constexpr uint32_t kNewtonInversionThreshold = 50;
 // kBarrettThreshold is defined in bigint.h.
 
-constexpr int kToStringFastThreshold = 43;
-constexpr int kFromStringLargeThreshold = 300;
+constexpr uint32_t kToStringFastThreshold = 43;
+constexpr uint32_t kFromStringLargeThreshold = 300;
 
 class ProcessorImpl : public Processor {
  public:
@@ -36,9 +36,11 @@ class ProcessorImpl : public Processor {
   void MultiplySchoolbook(RWDigits Z, Digits X, Digits Y);
 
   void MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y);
-  void KaratsubaStart(RWDigits Z, Digits X, Digits Y, RWDigits scratch, int k);
+  void KaratsubaStart(RWDigits Z, Digits X, Digits Y, RWDigits scratch,
+                      uint32_t k);
   void KaratsubaChunk(RWDigits Z, Digits X, Digits Y, RWDigits scratch);
-  void KaratsubaMain(RWDigits Z, Digits X, Digits Y, RWDigits scratch, int n);
+  void KaratsubaMain(RWDigits Z, Digits X, Digits Y, RWDigits scratch,
+                     uint32_t n);
 
   void Divide(RWDigits Q, Digits A, Digits B);
   void DivideSingle(RWDigits Q, digit_t* remainder, Digits A, digit_t b);
@@ -99,17 +101,21 @@ class ProcessorImpl : public Processor {
   Platform* platform_;
 };
 
+// Prevent computations of scratch space and number of bits from overflowing.
+constexpr uint32_t kMaxNumDigits = UINT32_MAX / kDigitBits;
 // These constants are primarily needed for Barrett division in div-barrett.cc,
 // and they're also needed by fast to-string conversion in tostring.cc.
-constexpr int DivideBarrettScratchSpace(int n) { return n + 2; }
+constexpr uint32_t DivideBarrettScratchSpace(uint32_t n) { return n + 2; }
 // Local values S and W need "n plus a few" digits; U needs 2*n "plus a few".
 // In all tested cases the "few" were either 2 or 3, so give 5 to be safe.
 // S and W are not live at the same time.
-constexpr int kInvertNewtonExtraSpace = 5;
-constexpr int InvertNewtonScratchSpace(int n) {
+constexpr uint32_t kInvertNewtonExtraSpace = 5;
+constexpr uint32_t InvertNewtonScratchSpace(uint32_t n) {
+  static_assert(3 * size_t{kMaxNumDigits} + 2 * kInvertNewtonExtraSpace <=
+                UINT32_MAX);
   return 3 * n + 2 * kInvertNewtonExtraSpace;
 }
-constexpr int InvertScratchSpace(int n) {
+constexpr uint32_t InvertScratchSpace(uint32_t n) {
   return n < kNewtonInversionThreshold ? 2 * n : InvertNewtonScratchSpace(n);
 }
 
@@ -131,7 +137,7 @@ constexpr int InvertScratchSpace(int n) {
 // RAII memory for a Digits array.
 class Storage {
  public:
-  explicit Storage(int count) : ptr_(new digit_t[count]) {}
+  explicit Storage(uint32_t count) : ptr_(new digit_t[count]) {}
 
   digit_t* get() { return ptr_.get(); }
 
@@ -142,7 +148,7 @@ class Storage {
 // A writable Digits array with attached storage.
 class ScratchDigits : public RWDigits {
  public:
-  explicit ScratchDigits(int len) : RWDigits(nullptr, len), storage_(len) {
+  explicit ScratchDigits(uint32_t len) : RWDigits(nullptr, len), storage_(len) {
     digits_ = storage_.get();
   }
 

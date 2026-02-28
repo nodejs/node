@@ -438,7 +438,7 @@ added: v23.8.0
 
 The callback to invoke when the path validation is updated. Read/write.
 
-### `seesion.onsessionticket`
+### `session.onsessionticket`
 
 <!-- YAML
 added: v23.8.0

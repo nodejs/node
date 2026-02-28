@@ -12,6 +12,26 @@
 
 namespace v8::internal::compiler {
 
+std::optional<RootIndex> JSHeapBroker::FindRootIndex(HeapObjectRef object) {
+  Tagged<HeapObject> raw_obj = *object.object();
+
+#if V8_STATIC_ROOTS_BOOL
+  bool known_in_ro_space =
+      raw_obj.IsInMainCageBase() && static_cast<Tagged_t>(raw_obj.ptr()) <=
+                                        StaticReadOnlyRoot::kLastAllocatedRoot;
+#else
+  bool known_in_ro_space = HeapLayout::InReadOnlySpace(raw_obj);
+#endif
+
+  // No root constant is a JSReceiver, and no JSReceiver is in RO space.
+  if (!known_in_ro_space && object.IsJSReceiver()) return {};
+  RootIndex root_index;
+  if (root_index_map_.Lookup(raw_obj, &root_index)) {
+    return root_index;
+  }
+  return {};
+}
+
 V8_INLINE
 JSHeapBroker::RecursiveMutexGuardIfNeeded::RecursiveMutexGuardIfNeeded(
     LocalIsolate* local_isolate, base::Mutex* mutex, int* mutex_depth_address)

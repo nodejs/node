@@ -168,26 +168,26 @@ struct ocsp_response_data_st {
  *      signature            BIT STRING,
  *      certs                [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
  */
-  /*
-   * Note 1: The value for "signature" is specified in the OCSP rfc2560 as
-   * follows: "The value for the signature SHALL be computed on the hash of
-   * the DER encoding ResponseData." This means that you must hash the
-   * DER-encoded tbsResponseData, and then run it through a crypto-signing
-   * function, which will (at least w/RSA) do a hash-'n'-private-encrypt
-   * operation.  This seems a bit odd, but that's the spec.  Also note that
-   * the data structures do not leave anywhere to independently specify the
-   * algorithm used for the initial hash. So, we look at the
-   * signature-specification algorithm, and try to do something intelligent.
-   * -- Kathy Weinhold, CertCo
-   */
-  /*
-   * Note 2: It seems that the mentioned passage from RFC 2560 (section
-   * 4.2.1) is open for interpretation.  I've done tests against another
-   * responder, and found that it doesn't do the double hashing that the RFC
-   * seems to say one should.  Therefore, all relevant functions take a flag
-   * saying which variant should be used.  -- Richard Levitte, OpenSSL team
-   * and CeloCom
-   */
+/*
+ * Note 1: The value for "signature" is specified in the OCSP rfc2560 as
+ * follows: "The value for the signature SHALL be computed on the hash of
+ * the DER encoding ResponseData." This means that you must hash the
+ * DER-encoded tbsResponseData, and then run it through a crypto-signing
+ * function, which will (at least w/RSA) do a hash-'n'-private-encrypt
+ * operation.  This seems a bit odd, but that's the spec.  Also note that
+ * the data structures do not leave anywhere to independently specify the
+ * algorithm used for the initial hash. So, we look at the
+ * signature-specification algorithm, and try to do something intelligent.
+ * -- Kathy Weinhold, CertCo
+ */
+/*
+ * Note 2: It seems that the mentioned passage from RFC 2560 (section
+ * 4.2.1) is open for interpretation.  I've done tests against another
+ * responder, and found that it doesn't do the double hashing that the RFC
+ * seems to say one should.  Therefore, all relevant functions take a flag
+ * saying which variant should be used.  -- Richard Levitte, OpenSSL team
+ * and CeloCom
+ */
 struct ocsp_basic_response_st {
     OCSP_RESPDATA tbsResponseData;
     X509_ALGOR signatureAlgorithm;
@@ -217,30 +217,30 @@ struct ocsp_service_locator_st {
     STACK_OF(ACCESS_DESCRIPTION) *locator;
 };
 
-#  define OCSP_REQUEST_sign(o, pkey, md, libctx, propq)\
-        ASN1_item_sign_ex(ASN1_ITEM_rptr(OCSP_REQINFO),\
-                          &(o)->optionalSignature->signatureAlgorithm, NULL,\
-                         (o)->optionalSignature->signature, &(o)->tbsRequest,\
-                         NULL, pkey, md, libctx, propq)
+#define OCSP_REQUEST_sign(o, pkey, md, libctx, propq)        \
+    ASN1_item_sign_ex(ASN1_ITEM_rptr(OCSP_REQINFO),          \
+        &(o)->optionalSignature->signatureAlgorithm, NULL,   \
+        (o)->optionalSignature->signature, &(o)->tbsRequest, \
+        NULL, pkey, md, libctx, propq)
 
-#  define OCSP_BASICRESP_sign(o, pkey, md, d, libctx, propq)\
-        ASN1_item_sign_ex(ASN1_ITEM_rptr(OCSP_RESPDATA),\
-                          &(o)->signatureAlgorithm, NULL,\
-                          (o)->signature, &(o)->tbsResponseData,\
-                          NULL, pkey, md, libctx, propq)
+#define OCSP_BASICRESP_sign(o, pkey, md, d, libctx, propq) \
+    ASN1_item_sign_ex(ASN1_ITEM_rptr(OCSP_RESPDATA),       \
+        &(o)->signatureAlgorithm, NULL,                    \
+        (o)->signature, &(o)->tbsResponseData,             \
+        NULL, pkey, md, libctx, propq)
 
-#  define OCSP_BASICRESP_sign_ctx(o, ctx, d)\
-        ASN1_item_sign_ctx(ASN1_ITEM_rptr(OCSP_RESPDATA),\
-                           &(o)->signatureAlgorithm, NULL,\
-                           (o)->signature, &(o)->tbsResponseData, ctx)
+#define OCSP_BASICRESP_sign_ctx(o, ctx, d)            \
+    ASN1_item_sign_ctx(ASN1_ITEM_rptr(OCSP_RESPDATA), \
+        &(o)->signatureAlgorithm, NULL,               \
+        (o)->signature, &(o)->tbsResponseData, ctx)
 
-#  define OCSP_REQUEST_verify(a, r, libctx, propq)\
-        ASN1_item_verify_ex(ASN1_ITEM_rptr(OCSP_REQINFO),\
-                            &(a)->optionalSignature->signatureAlgorithm,\
-                            (a)->optionalSignature->signature, &(a)->tbsRequest,\
-                            NULL, r, libctx, propq)
+#define OCSP_REQUEST_verify(a, r, libctx, propq)             \
+    ASN1_item_verify_ex(ASN1_ITEM_rptr(OCSP_REQINFO),        \
+        &(a)->optionalSignature->signatureAlgorithm,         \
+        (a)->optionalSignature->signature, &(a)->tbsRequest, \
+        NULL, r, libctx, propq)
 
-#  define OCSP_BASICRESP_verify(a, r, libctx, propq)\
-        ASN1_item_verify_ex(ASN1_ITEM_rptr(OCSP_RESPDATA),\
-                            &(a)->signatureAlgorithm, (a)->signature,\
-                            &(a)->tbsResponseData, NULL, r, libctx, propq)
+#define OCSP_BASICRESP_verify(a, r, libctx, propq)     \
+    ASN1_item_verify_ex(ASN1_ITEM_rptr(OCSP_RESPDATA), \
+        &(a)->signatureAlgorithm, (a)->signature,      \
+        &(a)->tbsResponseData, NULL, r, libctx, propq)

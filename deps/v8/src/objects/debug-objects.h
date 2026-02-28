@@ -29,7 +29,6 @@ class StructBodyDescriptor;
 // debugged.
 class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
@@ -211,8 +210,6 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
 class StackFrameInfo
     : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
   // The script for the stack frame.
@@ -239,8 +236,6 @@ class StackFrameInfo
 class StackTraceInfo
     : public TorqueGeneratedStackTraceInfo<StackTraceInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // Access to the stack frames.
   int length() const;
   Tagged<StackFrameInfo> get(int index) const;
@@ -257,8 +252,6 @@ class StackTraceInfo
 class ErrorStackData
     : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   inline bool HasFormattedStack() const;
   DECL_ACCESSORS(formatted_stack, Tagged<Object>)
   inline bool HasCallSiteInfos() const;

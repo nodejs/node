@@ -13,15 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stddef.h>
-
 // Ensure incompatibilities with Windows macros (e.g. #define StoreFence) are
 // detected. Must come before Highway headers.
 #include "hwy/base.h"
+#include "hwy/nanobenchmark.h"
 #include "hwy/tests/test_util.h"
-#if defined(_WIN32) || defined(_WIN64)
+#if HWY_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif  // NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif  // WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#endif
+#endif  // HWY_OS_WIN
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/memory_test.cc"
@@ -502,7 +507,7 @@ class TestStoreN {
     HWY_ASSERT(full_dvec_N <= (static_cast<size_t>(~size_t(0)) / 8));
 
     const size_t buf_offset = HWY_MAX(kMaxLanesPerBlock, full_dvec_N);
-    const size_t buf_size = buf_offset + 3 * full_dvec_N + 4;
+    size_t buf_size = buf_offset + 3 * full_dvec_N + 4;
     auto expected = AllocateAligned<T>(buf_size);
     auto actual = AllocateAligned<T>(buf_size);
     HWY_ASSERT(expected && actual);
@@ -533,23 +538,26 @@ class TestStoreN {
 
     const size_t lplb = HWY_MAX(N / 4, lpb);
     for (size_t i = HWY_MAX(lpb * 2, lplb); i <= N * 2; i += lplb) {
-      const size_t max_num_of_lanes_to_store = i + (11 & (lpb - 1));
-      const size_t expected_num_of_lanes_written =
-          HWY_MIN(max_num_of_lanes_to_store, N);
+      size_t max_lanes_to_store =
+          i + (11 & (lpb - 1)) + static_cast<size_t>(hwy::Unpredictable1() - 1);
 
-      const Vec<D> v = IotaForSpecial(d, max_num_of_lanes_to_store + 1);
-      const Vec<D> v_expected = IfThenElse(
-          FirstN(d, expected_num_of_lanes_written), v, v_neg_fill_val);
+      const Vec<D> v = IotaForSpecial(d, max_lanes_to_store + 1);
+      const Vec<D> v_expected =
+          IfThenElse(FirstN(d, max_lanes_to_store), v, v_neg_fill_val);
 
       Store(v_expected, d, expected.get() + buf_offset);
       Store(v_neg_fill_val, d, actual.get() + buf_offset);
-      StoreN(v, d, actual.get() + buf_offset, max_num_of_lanes_to_store);
+      StoreN(v, d, actual.get() + buf_offset, max_lanes_to_store);
+
+      // Clang arm7 workaround; requires these to be non-const.
+      PreventElision(max_lanes_to_store);
+      PreventElision(buf_size);
 
       HWY_ASSERT_ARRAY_EQ(expected.get(), actual.get(), buf_size);
 
       StoreU(v_expected, d, expected.get() + buf_offset + 3);
       StoreU(v_neg_fill_val, d, actual.get() + buf_offset + 3);
-      StoreN(v, d, actual.get() + buf_offset + 3, max_num_of_lanes_to_store);
+      StoreN(v, d, actual.get() + buf_offset + 3, max_lanes_to_store);
       HWY_ASSERT_ARRAY_EQ(expected.get(), actual.get(), buf_size);
     }
   }
@@ -557,6 +565,73 @@ class TestStoreN {
 
 HWY_NOINLINE void TestAllStoreN() {
   ForAllTypesAndSpecial(ForPartialVectors<TestStoreN>());
+}
+
+template <typename From, typename To, class D>
+constexpr bool IsSupportedTruncation() {
+  return (sizeof(To) < sizeof(From) && Rebind<To, D>().Pow2() >= -3 &&
+          Rebind<To, D>().Pow2() + 4 >= static_cast<int>(CeilLog2(sizeof(To))));
+}
+
+struct TestTruncateStore {
+  template <typename From, typename To, class D,
+            hwy::EnableIf<!IsSupportedTruncation<From, To, D>()>* = nullptr>
+  HWY_NOINLINE void testTo(From, To, const D) {
+    // do nothing
+  }
+
+  template <typename From, typename To, class D,
+            hwy::EnableIf<IsSupportedTruncation<From, To, D>()>* = nullptr>
+  HWY_NOINLINE void testTo(From, To, const D d) {
+    constexpr uint32_t base = 0xFA578D00;
+    const Vec<D> src = Iota(d, base & hwy::LimitsMax<From>());
+    const Rebind<To, D> dTo;
+    const Vec<decltype(dTo)> v_expected =
+        Iota(dTo, base & hwy::LimitsMax<To>());
+    const size_t NFrom = Lanes(d);
+    auto expected = AllocateAligned<To>(NFrom);
+    StoreN(v_expected, dTo, expected.get(), NFrom);
+    auto actual = AllocateAligned<To>(NFrom);
+    TruncateStore(src, d, actual.get());
+    HWY_ASSERT_ARRAY_EQ(expected.get(), actual.get(), NFrom);
+  }
+
+  template <typename T, class D>
+  HWY_NOINLINE void operator()(T from, const D d) {
+    testTo<T, uint8_t, D>(from, uint8_t(), d);
+    testTo<T, uint16_t, D>(from, uint16_t(), d);
+    testTo<T, uint32_t, D>(from, uint32_t(), d);
+  }
+};
+
+HWY_NOINLINE void TestAllTruncateStore() {
+  ForU163264(ForPartialVectors<TestTruncateStore>());
+}
+
+struct TestInsertIntoUpper {
+  template <typename T, class D, HWY_IF_LANES_GT_D(D, 1)>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    const size_t N = Lanes(d);
+    const Vec<D> a = Set(d, 1);
+    const Vec<D> b = Set(d, 20);
+
+    // Generate a generic vector, then extract the pointer to the first entry
+    AlignedFreeUniquePtr<T[]> pa = AllocateAligned<T>(N);
+    StoreU(b, d, pa.get());
+    T* pointer = pa.get();
+
+    const Vec<D> expected_output_lanes = ConcatLowerLower(d, b, a);
+
+    HWY_ASSERT_VEC_EQ(d, expected_output_lanes, InsertIntoUpper(d, pointer, a));
+  }
+  template <typename T, class D, HWY_IF_LANES_D(D, 1)>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    (void)d;
+  }
+};
+
+HWY_NOINLINE void TestAllInsertIntoUpper() {
+  ForAllTypes(ForShrinkableVectors<TestInsertIntoUpper>());
 }
 
 }  // namespace
@@ -579,6 +654,8 @@ HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllCache);
 HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllLoadN);
 HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllLoadNOr);
 HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllStoreN);
+HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllTruncateStore);
+HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllInsertIntoUpper);
 HWY_AFTER_TEST();
 }  // namespace
 }  // namespace hwy

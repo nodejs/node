@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { basename, dirname, normalize, relative, resolve, sep } from "path";
-import fs from "fs";
+import * as nativeFs from "fs";
 
 //#region rolldown:runtime
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
@@ -38,7 +38,7 @@ function joinPathWithBasePath(filename, directoryPath) {
 function joinPathWithRelativePath(root, options) {
 	return function(filename, directoryPath) {
 		const sameRoot = directoryPath.startsWith(root);
-		if (sameRoot) return directoryPath.replace(root, "") + filename;
+		if (sameRoot) return directoryPath.slice(root.length) + filename;
 		else return convertSlashes(relative(root, directoryPath), options.pathSeparator) + options.pathSeparator + filename;
 	};
 }
@@ -133,7 +133,7 @@ function build$3(options) {
 //#endregion
 //#region src/api/functions/resolve-symlink.ts
 const resolveSymlinksAsync = function(path, state, callback$1) {
-	const { queue, options: { suppressErrors } } = state;
+	const { queue, fs, options: { suppressErrors } } = state;
 	queue.enqueue();
 	fs.realpath(path, (error, resolvedPath) => {
 		if (error) return queue.dequeue(suppressErrors ? null : error, state);
@@ -146,7 +146,7 @@ const resolveSymlinksAsync = function(path, state, callback$1) {
 	});
 };
 const resolveSymlinks = function(path, state, callback$1) {
-	const { queue, options: { suppressErrors } } = state;
+	const { queue, fs, options: { suppressErrors } } = state;
 	queue.enqueue();
 	try {
 		const resolvedPath = fs.realpathSync(path);
@@ -225,7 +225,8 @@ function build$1(options, isSynchronous) {
 const readdirOpts = { withFileTypes: true };
 const walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
 	state.queue.enqueue();
-	if (currentDepth <= 0) return state.queue.dequeue(null, state);
+	if (currentDepth < 0) return state.queue.dequeue(null, state);
+	const { fs } = state;
 	state.visited.push(crawlPath);
 	state.counts.directories++;
 	fs.readdir(crawlPath || ".", readdirOpts, (error, entries = []) => {
@@ -234,7 +235,8 @@ const walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) =>
 	});
 };
 const walkSync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
-	if (currentDepth <= 0) return;
+	const { fs } = state;
+	if (currentDepth < 0) return;
 	state.visited.push(crawlPath);
 	state.counts.directories++;
 	let entries = [];
@@ -303,6 +305,19 @@ var Counter = class {
 };
 
 //#endregion
+//#region src/api/aborter.ts
+/**
+* AbortController is not supported on Node 14 so we use this until we can drop
+* support for Node 14.
+*/
+var Aborter = class {
+	aborted = false;
+	abort() {
+		this.aborted = true;
+	}
+};
+
+//#endregion
 //#region src/api/walker.ts
 var Walker = class {
 	root;
@@ -329,7 +344,8 @@ var Walker = class {
 			queue: new Queue((error, state) => this.callbackInvoker(state, error, callback$1)),
 			symlinks: /* @__PURE__ */ new Map(),
 			visited: [""].slice(0, 0),
-			controller: new AbortController()
+			controller: new Aborter(),
+			fs: options.fs || nativeFs
 		};
 		this.joinPath = build$7(this.root, options);
 		this.pushDirectory = build$6(this.root, options);
@@ -346,7 +362,7 @@ var Walker = class {
 	}
 	walk = (entries, directoryPath, depth) => {
 		const { paths, options: { filters, resolveSymlinks: resolveSymlinks$1, excludeSymlinks, exclude, maxFiles, signal, useRealPaths, pathSeparator }, controller } = this.state;
-		if (controller.signal.aborted || signal && signal.aborted || maxFiles && paths.length > maxFiles) return;
+		if (controller.aborted || signal && signal.aborted || maxFiles && paths.length > maxFiles) return;
 		const files = this.getArray(this.state.paths);
 		for (let i = 0; i < entries.length; ++i) {
 			const entry = entries[i];
@@ -421,12 +437,12 @@ var APIBuilder = class {
 
 //#endregion
 //#region src/builder/index.ts
-var pm = null;
+let pm = null;
 /* c8 ignore next 6 */
 try {
 	__require.resolve("picomatch");
 	pm = __require("picomatch");
-} catch (_e) {}
+} catch {}
 var Builder = class {
 	globCache = {};
 	options = {

@@ -49,7 +49,7 @@ const http = require('http');
 {
   const server = http.createServer({
     rejectNonStandardBodyWrites: true,
-  }, (req, res) => {
+  }, common.mustCallAtLeast((req, res) => {
     res.writeHead(204);
     assert.throws(() => {
       res.write('this is content');
@@ -59,7 +59,7 @@ const http = require('http');
       message: 'Adding content for this request method or response status is not allowed.'
     });
     res.end();
-  });
+  }));
   server.listen(0);
 
   server.on('listening', common.mustCall(function() {

@@ -25,7 +25,7 @@ class JSGlobalProxy;
 namespace compiler {
 
 // Forward declarations.
-enum class AccessMode;
+enum class AccessMode : uint8_t;
 class CommonOperatorBuilder;
 class CompilationDependencies;
 class ElementAccessInfo;
@@ -189,15 +189,23 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                       const FeedbackSource& feedback);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
-                                        Node* value, Node* effect,
-                                        Node* control, Node* context,
-                                        ElementAccessInfo const& access_info,
-                                        KeyedAccessMode const& keyed_mode);
+  ValueEffectControl BuildElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
   ValueEffectControl BuildElementAccessForTypedArrayOrRabGsabTypedArray(
       Node* receiver, Node* index, Node* value, Node* effect, Node* control,
       Node* context, ElementsKind elements_kind,
       KeyedAccessMode const& keyed_mode);
+
+#if V8_ENABLE_WEBASSEMBLY
+  ValueEffectControl BuildPrototypeProxyElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,
@@ -212,9 +220,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // the previously recorded {name} feedback.
   Node* BuildCheckEqualsName(NameRef name, Node* value, Node* effect,
                              Node* control);
-
-  // Concatenates {left} and {right}.
-  Handle<String> Concatenate(Handle<String> left, Handle<String> right);
 
   // Returns true if {str} can safely be read:
   //   - if we are on the main thread, then any string can safely be read

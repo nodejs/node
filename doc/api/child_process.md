@@ -29,6 +29,7 @@ ls.on('close', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -39,9 +40,8 @@ ls.stderr.on('data', (data) => {
   console.error(`stderr: ${data}`);
 });
 
-ls.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
-});
+const [code] = await once(ls, 'close');
+console.log(`child process exited with code ${code}`);
 ```
 
 By default, pipes for `stdin`, `stdout`, and `stderr` are established between
@@ -118,51 +118,45 @@ operating systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be
 more efficient because it does not spawn a shell by default. On Windows,
 however, `.bat` and `.cmd` files are not executable on their own without a
 terminal, and therefore cannot be launched using [`child_process.execFile()`][].
-When running on Windows, `.bat` and `.cmd` files can be invoked using
-[`child_process.spawn()`][] with the `shell` option set, with
-[`child_process.exec()`][], or by spawning `cmd.exe` and passing the `.bat` or
-`.cmd` file as an argument (which is what the `shell` option and
-[`child_process.exec()`][] do). In any case, if the script filename contains
-spaces it needs to be quoted.
+When running on Windows, `.bat` and `.cmd` files can be invoked by:
+
+* using [`child_process.spawn()`][] with the `shell` option set, or
+* using [`child_process.exec()`][], or
+* spawning `cmd.exe` and passing the `.bat` or `.cmd` file as an argument
+  (which is what the `shell` option and [`child_process.exec()`][] do).
+
+In any case, if the script filename contains spaces, it needs to be quoted.
 
 ```cjs
-// OR...
 const { exec, spawn } = require('node:child_process');
 
-exec('my.bat', (err, stdout, stderr) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  console.log(stdout);
-});
+// 1. child_process.spawn() with the shell option set
+const myBat = spawn('my.bat', { shell: true });
 
-// Script with spaces in the filename:
-const bat = spawn('"my script.cmd" a b', { shell: true });
-// or:
-exec('"my script.cmd" a b', (err, stdout, stderr) => {
-  // ...
-});
+// 2. child_process.exec()
+exec('my.bat', (err, stdout, stderr) => { /* ... */ });
+
+// 3. spawning cmd.exe and passing the .bat or .cmd file as an argument
+const bat = spawn('cmd.exe', ['/c', 'my.bat']);
+
+// If the script filename contains spaces, it needs to be quoted
+exec('"my script.cmd" a b', (err, stdout, stderr) => { /* ... */ });
 ```
 
 ```mjs
-// OR...
 import { exec, spawn } from 'node:child_process';
 
-exec('my.bat', (err, stdout, stderr) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  console.log(stdout);
-});
+// 1. child_process.spawn() with the shell option set
+const myBat = spawn('my.bat', { shell: true });
 
-// Script with spaces in the filename:
-const bat = spawn('"my script.cmd" a b', { shell: true });
-// or:
-exec('"my script.cmd" a b', (err, stdout, stderr) => {
-  // ...
-});
+// 2. child_process.exec()
+exec('my.bat', (err, stdout, stderr) => { /* ... */ });
+
+// 3. spawning cmd.exe and passing the .bat or .cmd file as an argument
+const bat = spawn('cmd.exe', ['/c', 'my.bat']);
+
+// If the script filename contains spaces, it needs to be quoted
+exec('"my script.cmd" a b', (err, stdout, stderr) => { /* ... */ });
 ```
 
 ### `child_process.exec(command[, options][, callback])`
@@ -772,6 +766,7 @@ ls.on('close', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -782,9 +777,8 @@ ls.stderr.on('data', (data) => {
   console.error(`stderr: ${data}`);
 });
 
-ls.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
-});
+const [code] = await once(ls, 'close');
+console.log(`child process exited with code ${code}`);
 ```
 
 Example: A very elaborate way to run `ps ax | grep ssh`
@@ -1078,8 +1072,8 @@ pipes between the parent and child. The value is one of the following:
    them incorrectly (e.g., passing a readable stream where a writable stream is
    expected) can lead to unexpected results or errors. This practice is discouraged
    as it may result in undefined behavior or dropped callbacks if the stream
-   encounters errors. Always ensure that `stdin` is used as writable and
-   `stdout`/`stderr` as readable to maintain the intended flow of data between
+   encounters errors. Always ensure that `stdin` is used as readable and
+   `stdout`/`stderr` as writable to maintain the intended flow of data between
    the parent and child processes.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
@@ -1483,6 +1477,7 @@ ls.on('exit', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -1496,6 +1491,9 @@ ls.on('close', (code) => {
 ls.on('exit', (code) => {
   console.log(`child process exited with code ${code}`);
 });
+
+const [code] = await once(ls, 'close');
+console.log(`child process close all stdio with code ${code}`);
 ```
 
 ### Event: `'disconnect'`
@@ -1552,6 +1550,10 @@ Rather, Node.js will perform a sequence of cleanup actions and then will
 re-raise the handled signal.
 
 See waitpid(2).
+
+When `code` is `null` due to signal termination, you can use
+[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
+exit code.
 
 ### Event: `'message'`
 
@@ -1666,6 +1668,11 @@ within the child process to close the IPC channel as well.
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
+
+When the child process is terminated by a signal, `subprocess.exitCode` will be
+`null` and [`subprocess.signalCode`][] will be set. To get the corresponding
+POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
 
 ### `subprocess.kill([signal])`
 
@@ -2103,6 +2110,10 @@ connection to the child.
 The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
+When the child process is terminated by a signal, [`subprocess.exitCode`][] will be `null`.
+To get the corresponding POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
 ### `subprocess.spawnargs`
 
 * Type: {Array}
@@ -2383,12 +2394,15 @@ or [`child_process.fork()`][].
 [`stdio`]: #optionsstdio
 [`subprocess.connected`]: #subprocessconnected
 [`subprocess.disconnect()`]: #subprocessdisconnect
+[`subprocess.exitCode`]: #subprocessexitcode
 [`subprocess.kill()`]: #subprocesskillsignal
 [`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
+[`subprocess.signalCode`]: #subprocesssignalcode
 [`subprocess.stderr`]: #subprocessstderr
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api

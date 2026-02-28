@@ -82,7 +82,7 @@ class Exec extends BaseCommand {
       // when we try to install a missing package, we won't actually install it
       packageLockOnly: false,
       // what the user asked to run args[0] is run by default
-      args: [...args], // copy args so they dont get mutated
+      args: [...args], // copy args so they don't get mutated
       // specify a custom command to be run instead of args[0]
       call,
       chalk,

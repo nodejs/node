@@ -20,25 +20,33 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const db = new sqlite.DatabaseSync(':memory:');
 
-  db.exec('CREATE TABLE foo (text_column TEXT, integer_column INTEGER, real_column REAL, blob_column BLOB)');
-  const fooInsertStatement = db.prepare(
-    'INSERT INTO foo (text_column, integer_column, real_column, blob_column) VALUES (?, ?, ?, ?)',
-  );
-
-  for (let i = 0; i < conf.tableSeedSize; i++) {
-    fooInsertStatement.run(
-      crypto.randomUUID(),
-      Math.floor(Math.random() * 100),
-      Math.random(),
-      Buffer.from('example blob data'),
+  // Create only the necessary table for the benchmark type.
+  // If the statement includes 'foo_large', create the foo_large table; otherwise, create the foo table.
+  if (conf.statement.includes('foo_large')) {
+    db.exec('CREATE TABLE foo_large (text_8kb_column TEXT)');
+    const fooLargeInsertStatement = db.prepare(
+      'INSERT INTO foo_large (text_8kb_column) VALUES (?)',
     );
-  }
+    const largeText = 'a'.repeat(8 * 1024);
+    for (let i = 0; i < conf.tableSeedSize; i++) {
+      fooLargeInsertStatement.run(largeText);
+    }
+  } else {
+    db.exec(
+      'CREATE TABLE foo (text_column TEXT, integer_column INTEGER, real_column REAL, blob_column BLOB)',
+    );
+    const fooInsertStatement = db.prepare(
+      'INSERT INTO foo (text_column, integer_column, real_column, blob_column) VALUES (?, ?, ?, ?)',
+    );
 
-  db.exec('CREATE TABLE foo_large (text_8kb_column TEXT)');
-  const fooLargeInsertStatement = db.prepare('INSERT INTO foo_large (text_8kb_column) VALUES (?)');
-  const largeText = 'a'.repeat(8 * 1024);
-  for (let i = 0; i < conf.tableSeedSize; i++) {
-    fooLargeInsertStatement.run(largeText);
+    for (let i = 0; i < conf.tableSeedSize; i++) {
+      fooInsertStatement.run(
+        crypto.randomUUID(),
+        Math.floor(Math.random() * 100),
+        Math.random(),
+        Buffer.from('example blob data'),
+      );
+    }
   }
 
   let i;
@@ -47,8 +55,7 @@ function main(conf) {
   const stmt = db.prepare(conf.statement);
 
   bench.start();
-  for (i = 0; i < conf.n; i += 1)
-    deadCodeElimination = stmt.get();
+  for (i = 0; i < conf.n; i += 1) deadCodeElimination = stmt.get();
   bench.end(conf.n);
 
   assert.ok(deadCodeElimination !== undefined);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-lazy-compilation
+// Flags: --allow-natives-syntax --wasm-lazy-compilation --liftoff --turbofan
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -21,7 +21,7 @@ assertTrue(%IsLiftoffFunction(exports.f1));
 assertTrue(%IsLiftoffFunction(exports.f2));
 assertTrue(%IsLiftoffFunction(exports.f3));
 
-assertTrue(%FlushLiftoffCode() > 0);
+%FlushLiftoffCode();
 
 assertTrue(%IsUncompiledWasmFunction(exports.f1));
 assertTrue(%IsUncompiledWasmFunction(exports.f2));
@@ -33,7 +33,7 @@ exports.f3(3);
 
 %WasmTierUpFunction(exports.f3);
 
-assertTrue(%FlushLiftoffCode() > 0);
+%FlushLiftoffCode();
 
 assertTrue(%IsUncompiledWasmFunction(exports.f1));
 assertTrue(%IsUncompiledWasmFunction(exports.f2));

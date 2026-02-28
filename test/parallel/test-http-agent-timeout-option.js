@@ -1,7 +1,7 @@
 'use strict';
 
 const { mustCall } = require('../common');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const { Agent, get } = require('http');
 
 // Test that the listener that forwards the `'timeout'` event from the socket to
@@ -14,10 +14,10 @@ const request = get({
 });
 
 request.on('socket', mustCall((socket) => {
-  strictEqual(socket.timeout, 50);
+  assert.strictEqual(socket.timeout, 50);
 
   const listeners = socket.listeners('timeout');
 
-  strictEqual(listeners.length, 2);
-  strictEqual(listeners[1], request.timeoutCb);
+  assert.strictEqual(listeners.length, 2);
+  assert.strictEqual(listeners[1], request.timeoutCb);
 }));

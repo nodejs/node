@@ -10,7 +10,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -148,11 +148,10 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
   DirectHandle<WasmInstanceObject> instance =
       runner->builder().instance_object();
   DirectHandle<Script> script(instance->module_object()->script(),
-                              runner->main_isolate());
+                              runner->isolate());
   static int break_index = 0;
-  Handle<BreakPoint> break_point =
-      runner->main_isolate()->factory()->NewBreakPoint(
-          break_index++, runner->main_isolate()->factory()->empty_string());
+  Handle<BreakPoint> break_point = runner->isolate()->factory()->NewBreakPoint(
+      break_index++, runner->isolate()->factory()->empty_string());
   CHECK(WasmScript::SetBreakPoint(script, &code_offset, break_point));
   return break_point;
 }
@@ -165,7 +164,7 @@ void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
   DirectHandle<WasmInstanceObject> instance =
       runner->builder().instance_object();
   DirectHandle<Script> script(instance->module_object()->script(),
-                              runner->main_isolate());
+                              runner->isolate());
   CHECK(WasmScript::ClearBreakPoint(script, code_offset, break_point));
 }
 
@@ -312,7 +311,7 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   runner.Build({WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
 
@@ -330,7 +329,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 
 WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   runner.Build({WASM_RETURN(WASM_I32V_2(1024))});
 
@@ -350,7 +349,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
   WasmRunner<int> runner(execution_tier);
   runner.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
 
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
   DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
@@ -390,7 +389,7 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
       WASM_CALL_FUNCTION(runner.function_index(), WASM_LOCAL_GET(0)), WASM_DROP,
       WASM_BR(1))});
 
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
   DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(f2.function_index());
 
@@ -424,7 +423,7 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
        WASM_LOCAL_SET(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(1)),
                                       WASM_F64(2)))});
 
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
   DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
@@ -458,7 +457,7 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
@@ -489,7 +488,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
@@ -517,7 +516,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
@@ -551,7 +550,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   // features set, but we were passing a nullptr when compiling with
   // breakpoints.
   WasmRunner<int> runner(execution_tier);
-  Isolate* isolate = runner.main_isolate();
+  Isolate* isolate = runner.isolate();
 
   // [] -> [i32, i32]
   ValueType sig_types[] = {kWasmI32, kWasmI32};

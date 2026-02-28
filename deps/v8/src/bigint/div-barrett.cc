@@ -43,10 +43,10 @@ void ProcessorImpl::InvertBasecase(RWDigits Z, Digits V, RWDigits scratch) {
   DCHECK(Z.len() > V.len());
   DCHECK(V.len() > 0);
   DCHECK(scratch.len() >= 2 * V.len());
-  int n = V.len();
+  uint32_t n = V.len();
   RWDigits X(scratch, 0, 2 * n);
   digit_t borrow = 0;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < n; i++) X[i] = 0;
   for (; i < 2 * n; i++) X[i] = digit_sub2(0, V[i - n], borrow, &borrow);
   DCHECK(borrow == 1);
@@ -68,17 +68,17 @@ void ProcessorImpl::InvertBasecase(RWDigits Z, Digits V, RWDigits scratch) {
 // minimal and the implicit top digit would have to be 2 it is one too little).
 // Barrett's division algorithm can handle that, so we don't care.
 void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
-  const int vn = V.len();
+  const uint32_t vn = V.len();
   DCHECK(Z.len() >= vn);
   DCHECK(scratch.len() >= InvertNewtonScratchSpace(vn));
-  const int kSOffset = 0;
-  const int kWOffset = 0;  // S and W can share their scratch space.
-  const int kUOffset = vn + kInvertNewtonExtraSpace;
+  const uint32_t kSOffset = 0;
+  const uint32_t kWOffset = 0;  // S and W can share their scratch space.
+  const uint32_t kUOffset = vn + kInvertNewtonExtraSpace;
 
   // The base case won't work otherwise.
   DCHECK(V.len() >= 3);
 
-  constexpr int kBasecasePrecision = kNewtonInversionThreshold - 1;
+  constexpr uint32_t kBasecasePrecision = kNewtonInversionThreshold - 1;
   // V must have more digits than the basecase.
   DCHECK(V.len() > kBasecasePrecision);
   DCHECK(IsBitNormalized(V));
@@ -86,7 +86,8 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   // Step (1): Setup.
   // Calculate precision required at each step.
   // {k} is the number of fraction bits for the current iteration.
-  int k = vn * kDigitBits;
+  static_assert(kMaxNumDigits <= UINT32_MAX / kDigitBits);
+  uint32_t k = vn * kDigitBits;
   int target_fraction_bits[8 * sizeof(vn)];  // "k_i" in the paper.
   int iteration = -1;  // "i" in the paper, except inverted to run downwards.
   while (k > kBasecasePrecision * kDigitBits) {
@@ -99,7 +100,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   // in use for f[].
 
   // Step (2): Initial approximation.
-  int initial_digits = DIV_CEIL(k + 1, kDigitBits);
+  uint32_t initial_digits = DIV_CEIL(k + 1, kDigitBits);
   Digits top_part_of_v(V, vn - initial_digits, initial_digits);
   InvertBasecase(Z, top_part_of_v, scratch);
   Z[initial_digits] = Z[initial_digits] + 1;  // Implicit top digit.
@@ -118,8 +119,8 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
     DcheckIntegerPartRange(S, 1, 4);
 
     // (3c): T = V, truncated so that at least 2k+3 fraction bits remain.
-    int fraction_digits = DIV_CEIL(2 * k + 3, kDigitBits);
-    int t_len = std::min(V.len(), fraction_digits);
+    uint32_t fraction_digits = DIV_CEIL(2 * k + 3, kDigitBits);
+    uint32_t t_len = std::min(V.len(), fraction_digits);
     Digits T(V, V.len() - t_len, t_len);
 
     // (3d): U = T * S, truncated so that at least 2k+1 fraction bits remain
@@ -136,8 +137,8 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
     // same number of fraction bits as U.
     DCHECK(U.len() >= Z.len());
     RWDigits W(scratch, kWOffset, U.len());
-    int padding_digits = U.len() - Z.len();
-    for (int i = 0; i < padding_digits; i++) W[i] = 0;
+    uint32_t padding_digits = U.len() - Z.len();
+    for (uint32_t i = 0; i < padding_digits; i++) W[i] = 0;
     LeftShift(W + padding_digits, Z, 1);
     DcheckIntegerPartRange(W, 2, 4);
 
@@ -168,7 +169,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
         // This is the rare case where the correct result would be 2.0, but
         // since we can't express that by returning only the fractional part
         // with an implicit 1-digit, we have to return [1.]9999... instead.
-        for (int i = 0; i < Z.len(); i++) Z[i] = ~digit_t{0};
+        for (uint32_t i = 0; i < Z.len(); i++) Z[i] = ~digit_t{0};
       }
       break;
     }
@@ -190,7 +191,7 @@ void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
   DCHECK(IsBitNormalized(V));
   DCHECK(scratch.len() >= InvertScratchSpace(V.len()));
 
-  int vn = V.len();
+  uint32_t vn = V.len();
   if (vn >= kNewtonInversionThreshold) {
     return InvertNewton(Z, V, scratch);
   }
@@ -202,7 +203,7 @@ void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
   } else {
     InvertBasecase(Z, V, scratch);
     if (Z[vn] == 1) {
-      for (int i = 0; i < vn; i++) Z[i] = ~digit_t{0};
+      for (uint32_t i = 0; i < vn; i++) Z[i] = ~digit_t{0};
       Z[vn] = 0;
     }
   }
@@ -223,7 +224,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
   DCHECK(I.len() == A.len() - B.len());
   DCHECK(scratch.len() >= DivideBarrettScratchSpace(A.len()));
 
-  int orig_q_len = Q.len();
+  uint32_t orig_q_len = Q.len();
 
   // (1): A1 = A with B.len fewer digits.
   Digits A1 = A + B.len();
@@ -245,7 +246,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
   if (should_terminate()) return;
   digit_t borrow = SubtractAndReturnBorrow(R, A, Digits(P, 0, B.len()));
   // R may be allocated wider than B, zero out any extra digits if so.
-  for (int i = B.len(); i < R.len(); i++) R[i] = 0;
+  for (uint32_t i = B.len(); i < R.len(); i++) R[i] = 0;
   digit_t r_high = A[B.len()] - P[B.len()] - borrow;
 
   // Adjust R and Q so that they become the correct remainder and quotient.
@@ -271,9 +272,9 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
     Add(Q, q_add);
   }
   // (5a): Return.
-  int final_q_len = Q.len();
+  uint32_t final_q_len = Q.len();
   Q.set_len(orig_q_len);
-  for (int i = final_q_len; i < orig_q_len; i++) Q[i] = 0;
+  for (uint32_t i = final_q_len; i < orig_q_len; i++) Q[i] = 0;
 }
 
 // Computes Q(uotient) and R(emainder) for A/B, using Barrett division.
@@ -295,10 +296,11 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
   // similar to Burnikel-Ziegler division by performing a t-by-1 division
   // of B-sized chunks. It's easy to special-case the situation where we
   // don't need to bother.
-  int barrett_dividend_length = A.len() <= 2 * B.len() ? A.len() : 2 * B.len();
-  int i_len = barrett_dividend_length - B.len();
+  uint32_t barrett_dividend_length =
+      A.len() <= 2 * B.len() ? A.len() : 2 * B.len();
+  uint32_t i_len = barrett_dividend_length - B.len();
   ScratchDigits I(i_len + 1);  // +1 is for temporary use by Invert().
-  int scratch_len =
+  uint32_t scratch_len =
       std::max(InvertScratchSpace(i_len),
                DivideBarrettScratchSpace(barrett_dividend_length));
   ScratchDigits scratch(scratch_len);
@@ -309,31 +311,31 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
   if (A.len() > 2 * B.len()) {
     // This follows the variable names and and algorithmic steps of
     // DivideBurnikelZiegler().
-    int n = B.len();  // Chunk length.
+    uint32_t n = B.len();  // Chunk length.
     // (5): {t} is the number of B-sized chunks of A.
-    int t = DIV_CEIL(A.len(), n);
+    uint32_t t = DIV_CEIL(A.len(), n);
     DCHECK(t >= 3);
     // (6)/(7): Z is used for the current 2-chunk block to be divided by B,
     // initialized to the two topmost chunks of A.
-    int z_len = n * 2;
+    uint32_t z_len = n * 2;
     ScratchDigits Z(z_len);
     PutAt(Z, A + n * (t - 2), z_len);
     // (8): For i from t-2 downto 0 do
-    int qi_len = n + 1;
+    uint32_t qi_len = n + 1;
     ScratchDigits Qi(qi_len);
     ScratchDigits Ri(n);
     // First iteration unrolled and specialized.
     {
-      int i = t - 2;
+      uint32_t i = t - 2;
       DivideBarrett(Qi, Ri, Z, B, I, scratch);
       if (should_terminate()) return;
       RWDigits target = Q + n * i;
       // In the first iteration, all qi_len = n + 1 digits may be used.
-      int to_copy = std::min(qi_len, target.len());
-      for (int j = 0; j < to_copy; j++) target[j] = Qi[j];
-      for (int j = to_copy; j < target.len(); j++) target[j] = 0;
+      uint32_t to_copy = std::min(qi_len, target.len());
+      for (uint32_t j = 0; j < to_copy; j++) target[j] = Qi[j];
+      for (uint32_t j = to_copy; j < target.len(); j++) target[j] = 0;
 #if DEBUG
-      for (int j = to_copy; j < Qi.len(); j++) {
+      for (uint32_t j = to_copy; j < Qi.len(); j++) {
         DCHECK(Qi[j] == 0);
       }
 #endif

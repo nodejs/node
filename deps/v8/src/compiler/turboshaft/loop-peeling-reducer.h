@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_LOOP_PEELING_REDUCER_H_
 
 #include "src/base/logging.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
@@ -61,24 +62,6 @@ class LoopPeelingReducer : public Next {
     } else if (IsEmittingPeeledIteration() && dst == current_loop_header_) {
       // We skip the backedge of the loop: PeelFirstIeration will instead emit a
       // forward edge to the non-peeled header.
-      return {};
-    }
-
-    goto no_change;
-  }
-
-  // TODO(dmercadier): remove once StackCheckOp are kept in the pipeline until
-  // the very end (which should happen when we have a SimplifiedLowering in
-  // Turboshaft).
-  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
-                                        const CallOp& call) {
-    LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (IsEmittingPeeledIteration() &&
-        call.IsStackCheck(__ input_graph(), broker_,
-                          StackCheckKind::kJSIterationBody)) {
-      // We remove the stack check of the peeled iteration.
       return {};
     }
 
@@ -191,7 +174,8 @@ class LoopPeelingReducer : public Next {
   PeelingStatus peeling_ = PeelingStatus::kNotPeeling;
   const Block* current_loop_header_ = nullptr;
 
-  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
+  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph(),
+                          LoopFinder::Config{}};
   JSHeapBroker* broker_ = __ data() -> broker();
 };
 

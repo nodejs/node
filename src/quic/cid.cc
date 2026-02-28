@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
@@ -151,4 +151,4 @@ const CID::Factory& CID::Factory::random() {
 
 }  // namespace node::quic
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSS
+#endif  // HAVE_OPENSSL && HAVE_QUIC

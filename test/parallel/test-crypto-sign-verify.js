@@ -9,7 +9,7 @@ const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 const {
-  hasOpenSSL3,
+  hasOpenSSL,
   opensslCli,
 } = require('../common/crypto');
 
@@ -66,7 +66,7 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: hasOpenSSL3 ?
+  }, { message: hasOpenSSL(3) ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
     'bye, bye, error stack' });
 
@@ -344,7 +344,7 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, hasOpenSSL3 ? {
+  }, hasOpenSSL(3) ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
   } : {
@@ -426,6 +426,7 @@ assert.throws(
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
     algo: null,
+    supportsContext: true,
     sigLen: 114 },
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
@@ -473,6 +474,55 @@ assert.throws(
     assert.strictEqual(crypto.verify(algo, data, pair.private, sig),
                        true);
   });
+
+  if (pair.supportsContext && hasOpenSSL(3, 2)) {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), false);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    assert.throws(() => crypto.sign(algo, data, { key: pair.private, context: new Uint8Array(256) }), {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+
+    assert.throws(() => {
+      crypto.verify(algo, data, { key: pair.public, context: new Uint8Array(256) }, new Uint8Array());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+  } else if (pair.supportsContext) {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      assert.throws(() => {
+        crypto.sign(algo, data, { key: pair.private, context });
+      }, { message: 'Context parameter is unsupported' });
+      assert.throws(() => {
+        crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, crypto.randomBytes(32));
+      }, { message: 'Context parameter is unsupported' });
+    }
+  }
 });
 
 [1, {}, [], true, Infinity].forEach((input) => {

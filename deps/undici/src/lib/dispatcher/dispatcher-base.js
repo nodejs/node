@@ -13,19 +13,24 @@ const kOnDestroyed = Symbol('onDestroyed')
 const kOnClosed = Symbol('onClosed')
 
 class DispatcherBase extends Dispatcher {
-  constructor () {
-    super()
+  /** @type {boolean} */
+  [kDestroyed] = false;
 
-    this[kDestroyed] = false
-    this[kOnDestroyed] = null
-    this[kClosed] = false
-    this[kOnClosed] = []
-  }
+  /** @type {Array<Function|null} */
+  [kOnDestroyed] = null;
 
+  /** @type {boolean} */
+  [kClosed] = false;
+
+  /** @type {Array<Function>|null} */
+  [kOnClosed] = null
+
+  /** @returns {boolean} */
   get destroyed () {
     return this[kDestroyed]
   }
 
+  /** @returns {boolean} */
   get closed () {
     return this[kClosed]
   }
@@ -44,7 +49,8 @@ class DispatcherBase extends Dispatcher {
     }
 
     if (this[kDestroyed]) {
-      queueMicrotask(() => callback(new ClientDestroyedError(), null))
+      const err = new ClientDestroyedError()
+      queueMicrotask(() => callback(err, null))
       return
     }
 
@@ -58,6 +64,7 @@ class DispatcherBase extends Dispatcher {
     }
 
     this[kClosed] = true
+    this[kOnClosed] ??= []
     this[kOnClosed].push(callback)
 
     const onClosed = () => {
@@ -71,9 +78,7 @@ class DispatcherBase extends Dispatcher {
     // Should not error.
     this[kClose]()
       .then(() => this.destroy())
-      .then(() => {
-        queueMicrotask(onClosed)
-      })
+      .then(() => queueMicrotask(onClosed))
   }
 
   destroy (err, callback) {
@@ -85,7 +90,7 @@ class DispatcherBase extends Dispatcher {
     if (callback === undefined) {
       return new Promise((resolve, reject) => {
         this.destroy(err, (err, data) => {
-          return err ? /* istanbul ignore next: should never error */ reject(err) : resolve(data)
+          return err ? reject(err) : resolve(data)
         })
       })
     }
@@ -108,7 +113,7 @@ class DispatcherBase extends Dispatcher {
     }
 
     this[kDestroyed] = true
-    this[kOnDestroyed] = this[kOnDestroyed] || []
+    this[kOnDestroyed] ??= []
     this[kOnDestroyed].push(callback)
 
     const onDestroyed = () => {
@@ -120,9 +125,8 @@ class DispatcherBase extends Dispatcher {
     }
 
     // Should not error.
-    this[kDestroy](err).then(() => {
-      queueMicrotask(onDestroyed)
-    })
+    this[kDestroy](err)
+      .then(() => queueMicrotask(onDestroyed))
   }
 
   dispatch (opts, handler) {

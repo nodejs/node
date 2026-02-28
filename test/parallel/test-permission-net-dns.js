@@ -19,9 +19,9 @@ const { Resolver } = dns.promises;
   dns.resolve('localhost', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));
-  dns.resolve('come.on.fhqwhgads.test', (err) => {
+  dns.resolve('come.on.fhqwhgads.test', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
-  });
+  }));
   dns.promises.resolve('localhost').catch(common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));

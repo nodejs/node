@@ -128,10 +128,10 @@ ValKind V8ValueTypeToWasm(T v8_valtype)
       return ValKind::F64;
     case i::wasm::kRef:
     case i::wasm::kRefNull:
-      switch (v8_valtype.heap_representation()) {
-        case i::wasm::HeapType::kFunc:
+      switch (v8_valtype.generic_kind()) {
+        case i::wasm::GenericKind::kFunc:
           return ValKind::FUNCREF;
-        case i::wasm::HeapType::kExtern:
+        case i::wasm::GenericKind::kExtern:
           return ValKind::EXTERNREF;
         default:
           UNREACHABLE();
@@ -950,7 +950,7 @@ i::DirectHandle<i::String> VecToString(i::Isolate* isolate,
   // so let's be robust to that.
   if (length > 0 && chars[length - 1] == 0) length--;
   return isolate->factory()
-      ->NewStringFromUtf8({chars.get(), length})
+      ->NewStringFromUtf8(std::string_view{chars.get(), length})
       .ToHandleChecked();
 }
 
@@ -1348,9 +1348,17 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
     size_t data_size = static_cast<size_t>(binary_size);
-    i::wasm::CompileTimeImports compile_imports{};
+    // The C-API does not allow passing compile imports.
+    // We thus use an empty `CompileTimeImports` object, analogous to module
+    // creation.
+    // Note that in contrast to the JS API, this does not handle different
+    // denormals flushing modes (see base::FPU::GetFlushDenormals /
+    // `CompileTimeImport::kDisableDenormalFloats`).
+    i::wasm::CompileTimeImports compile_imports;
+    i::wasm::WasmEnabledFeatures features =
+        i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
     if (!i::wasm::DeserializeNativeModule(
-             isolate,
+             isolate, features,
              {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
              {reinterpret_cast<const uint8_t*>(ptr), data_size},
              compile_imports, {})
@@ -1581,8 +1589,8 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
       i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   i::DirectHandle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
-      embedder_data, sig_index, sig);
-  i::Cast<i::WasmImportData>(
+      embedder_data, sig);
+  i::TrustedCast<i::WasmImportData>(
       function->shared()->wasm_capi_function_data()->internal()->implicit_arg())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
@@ -1814,14 +1822,13 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
       func->v8_object()->shared()->GetTrustedData(isolate);
 
   // WasmCapiFunctions can be called directly.
-  if (IsWasmCapiFunctionData(raw_function_data)) {
-    return CallWasmCapiFunction(
-        i::Cast<i::WasmCapiFunctionData>(raw_function_data), args, results);
+  if (i::Tagged<i::WasmCapiFunctionData> data;
+      TryCast(raw_function_data, &data)) {
+    return CallWasmCapiFunction(data, args, results);
   }
 
-  SBXCHECK(IsWasmExportedFunctionData(raw_function_data));
   i::DirectHandle<i::WasmExportedFunctionData> function_data{
-      i::Cast<i::WasmExportedFunctionData>(raw_function_data), isolate};
+      i::SbxCast<i::WasmExportedFunctionData>(raw_function_data), isolate};
   i::DirectHandle<i::WasmTrustedInstanceData> instance_data{
       function_data->instance_data(), isolate};
   int function_index = function_data->function_index();
@@ -1845,13 +1852,14 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
         instance_data->dispatch_table_for_imports()->implicit_arg(
             function_index),
         isolate);
-    if (IsWasmImportData(*object_ref)) {
-      i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
-          i::Cast<i::WasmImportData>(*object_ref)->callable());
+    if (i::Tagged<i::WasmImportData> import_data;
+        TryCast(*object_ref, &import_data)) {
+      i::Tagged<i::JSFunction> jsfunc =
+          i::Cast<i::JSFunction>(import_data->callable());
       i::Tagged<i::Object> data = jsfunc->shared()->GetTrustedData(isolate);
-      if (IsWasmCapiFunctionData(data)) {
-        return CallWasmCapiFunction(i::Cast<i::WasmCapiFunctionData>(data),
-                                    args, results);
+      if (i::Tagged<i::WasmCapiFunctionData> trusted_data;
+          TryCast(data, &trusted_data)) {
+        return CallWasmCapiFunction(trusted_data, args, results);
       }
       // TODO(jkummerow): Imported and then re-exported JavaScript functions
       // are not supported yet. If we support C-API + JavaScript, we'll need
@@ -2049,7 +2057,7 @@ WASM_EXPORT auto Global::get() const -> Val {
             store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
-        result = v8_global->GetIsolate()->factory()->null_value();
+        result = i::Isolate::Current()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
     }
@@ -2168,11 +2176,11 @@ WASM_EXPORT auto Table::type() const -> own<TableType> {
   uint32_t max = static_cast<uint32_t>(std::min<uint64_t>(
       i::kMaxUInt32, table->maximum_length_u64().value_or(i::kMaxUInt32)));
   ValKind kind;
-  switch (table->unsafe_type().heap_representation()) {
-    case i::wasm::HeapType::kFunc:
+  switch (table->unsafe_type().raw_bit_field()) {
+    case i::wasm::kWasmFuncRef.raw_bit_field():
       kind = ValKind::FUNCREF;
       break;
-    case i::wasm::HeapType::kExtern:
+    case i::wasm::kWasmExternRef.raw_bit_field():
       kind = ValKind::EXTERNREF;
       break;
     default:
@@ -2356,8 +2364,6 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
-
-  DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
 
   if (trap) *trap = nullptr;
   ownvec<ImportType> import_types = module_abs->imports();

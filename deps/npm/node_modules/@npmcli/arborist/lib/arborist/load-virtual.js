@@ -1,16 +1,15 @@
+const { resolve } = require('node:path')
 // mixin providing the loadVirtual method
 const mapWorkspaces = require('@npmcli/map-workspaces')
-
-const { resolve } = require('node:path')
-
+const PackageJson = require('@npmcli/package-json')
 const nameFromFolder = require('@npmcli/name-from-folder')
+
 const consistentResolve = require('../consistent-resolve.js')
 const Shrinkwrap = require('../shrinkwrap.js')
 const Node = require('../node.js')
 const Link = require('../link.js')
 const relpath = require('../relpath.js')
 const calcDepFlags = require('../calc-dep-flags.js')
-const rpj = require('read-package-json-fast')
 const treeCheck = require('../tree-check.js')
 
 const flagsSuspect = Symbol.for('flagsSuspect')
@@ -18,14 +17,6 @@ const setWorkspaces = Symbol.for('setWorkspaces')
 
 module.exports = cls => class VirtualLoader extends cls {
   #rootOptionProvided
-
-  constructor (options) {
-    super(options)
-
-    // the virtual tree we load from a shrinkwrap
-    this.virtualTree = options.virtualTree
-    this[flagsSuspect] = false
-  }
 
   // public method
   async loadVirtual (options = {}) {
@@ -54,10 +45,11 @@ module.exports = cls => class VirtualLoader extends cls {
 
     // when building the ideal tree, we pass in a root node to this function
     // otherwise, load it from the root package json or the lockfile
+    const pkg = await PackageJson.normalize(this.path).then(p => p.content).catch(() => s.data.packages[''] || {})
+    // TODO clean this up
     const {
-      root = await this.#loadRoot(s),
+      root = await this[setWorkspaces](this.#loadNode('', pkg, true)),
     } = options
-
     this.#rootOptionProvided = options.root
 
     await this.#loadFromShrinkwrap(s, root)
@@ -65,21 +57,11 @@ module.exports = cls => class VirtualLoader extends cls {
     return treeCheck(this.virtualTree)
   }
 
-  async #loadRoot (s) {
-    const pj = this.path + '/package.json'
-    const pkg = await rpj(pj).catch(() => s.data.packages['']) || {}
-    return this[setWorkspaces](this.#loadNode('', pkg, true))
-  }
-
   async #loadFromShrinkwrap (s, root) {
     if (!this.#rootOptionProvided) {
       // root is never any of these things, but might be a brand new
       // baby Node object that never had its dep flags calculated.
-      root.extraneous = false
-      root.dev = false
-      root.optional = false
-      root.devOptional = false
-      root.peer = false
+      root.unsetDepFlags()
     } else {
       this[flagsSuspect] = true
     }
@@ -87,7 +69,21 @@ module.exports = cls => class VirtualLoader extends cls {
     this.#checkRootEdges(s, root)
     root.meta = s
     this.virtualTree = root
-    const { links, nodes } = this.#resolveNodes(s, root)
+    // separate out link metadata, and create Node objects for nodes
+    const links = new Map()
+    const nodes = new Map([['', root]])
+    for (const [location, meta] of Object.entries(s.data.packages)) {
+      // skip the root because we already got it
+      if (!location) {
+        continue
+      }
+
+      if (meta.link) {
+        links.set(location, meta)
+      } else {
+        nodes.set(location, this.#loadNode(location, meta))
+      }
+    }
     await this.#resolveLinks(links, nodes)
     if (!(s.originalLockfileVersion >= 2)) {
       this.#assignBundles(nodes)
@@ -99,11 +95,7 @@ module.exports = cls => class VirtualLoader extends cls {
         if (node.isRoot || node === this.#rootOptionProvided) {
           continue
         }
-        node.extraneous = true
-        node.dev = true
-        node.optional = true
-        node.devOptional = true
-        node.peer = true
+        node.resetDepFlags()
       }
       calcDepFlags(this.virtualTree, !this.#rootOptionProvided)
     }
@@ -174,27 +166,9 @@ module.exports = cls => class VirtualLoader extends cls {
     }
   }
 
-  // separate out link metadatas, and create Node objects for nodes
-  #resolveNodes (s, root) {
-    const links = new Map()
-    const nodes = new Map([['', root]])
-    for (const [location, meta] of Object.entries(s.data.packages)) {
-      // skip the root because we already got it
-      if (!location) {
-        continue
-      }
-
-      if (meta.link) {
-        links.set(location, meta)
-      } else {
-        nodes.set(location, this.#loadNode(location, meta))
-      }
-    }
-    return { links, nodes }
-  }
-
   // links is the set of metadata, and nodes is the map of non-Link nodes
   // Set the targets to nodes in the set, if we have them (we might not)
+  // XXX build-ideal-tree also has a #resolveLinks, is there overlap?
   async #resolveLinks (links, nodes) {
     for (const [location, meta] of links.entries()) {
       const targetPath = resolve(this.path, meta.resolved)
@@ -219,11 +193,7 @@ To fix:
       // we always need to read the package.json for link targets
       // outside node_modules because they can be changed by the local user
       if (!link.target.parent) {
-        const pj = link.realpath + '/package.json'
-        const pkg = await rpj(pj).catch(() => null)
-        if (pkg) {
-          link.target.package = pkg
-        }
+        await PackageJson.normalize(link.realpath).then(p => link.target.package = p.content).catch(() => null)
       }
     }
   }
@@ -265,11 +235,6 @@ To fix:
       sw.name = nameFromFolder(path)
     }
 
-    const dev = sw.dev
-    const optional = sw.optional
-    const devOptional = dev || optional || sw.devOptional
-    const peer = sw.peer
-
     const node = new Node({
       installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
@@ -279,20 +244,16 @@ To fix:
       integrity: sw.integrity,
       resolved: consistentResolve(sw.resolved, this.path, path),
       pkg: sw,
-      ideallyInert: sw.ideallyInert,
       hasShrinkwrap: sw.hasShrinkwrap,
-      dev,
-      optional,
-      devOptional,
-      peer,
       loadOverrides,
+      // cast to boolean because they're undefined in the lock file when false
+      extraneous: !!sw.extraneous,
+      devOptional: !!(sw.devOptional || sw.dev || sw.optional),
+      peer: !!sw.peer,
+      optional: !!sw.optional,
+      dev: !!sw.dev,
     })
-    // cast to boolean because they're undefined in the lock file when false
-    node.extraneous = !!sw.extraneous
-    node.devOptional = !!(sw.devOptional || sw.dev || sw.optional)
-    node.peer = !!sw.peer
-    node.optional = !!sw.optional
-    node.dev = !!sw.dev
+
     return node
   }
 

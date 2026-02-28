@@ -275,7 +275,8 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole()) {
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSLoadContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
@@ -376,7 +377,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContextNoCell(Node* node) {
 }
 
 Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
-  DCHECK(v8_flags.script_context_cells);
+  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
 
   const ContextAccess& access = ContextAccessOf(node->op());
@@ -407,7 +408,8 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole()) {
+  if (!maybe_value || maybe_value->IsTheHole() ||
+      maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSStoreContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
@@ -542,12 +544,12 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
   OptionalObjectRef import_meta =
       module->AsSourceTextModule().import_meta(broker());
   if (!import_meta.has_value()) return NoChange();
-  if (!import_meta->IsJSObject()) {
-    DCHECK(import_meta->IsTheHole());
+  if (import_meta->IsTheHole()) {
     // The import.meta object has not yet been created. Let JSGenericLowering
     // replace the operator with a runtime call.
     return NoChange();
   }
+  DCHECK(import_meta->IsJSObject());
 
   Node* import_meta_const = jsgraph()->ConstantNoHole(*import_meta, broker());
   ReplaceWithValue(node, import_meta_const);

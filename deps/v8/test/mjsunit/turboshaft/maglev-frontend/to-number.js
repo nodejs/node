@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function check_number(x) {
   // With only number maps in the feedback, "+x" is a no-op and Maglev just

@@ -54,6 +54,8 @@ of the commit queue:
 2. A CI must've ran and succeeded since the last change on the PR
 3. A collaborator must have approved the PR since the last change
 4. Only Jenkins CI and GitHub Actions are checked (V8 CI and CITGM are ignored)
+5. The PR must target the `main` branch (PRs opened against other branches, such
+   as backport PRs, are ignored)
 
 ## Implementation
 

@@ -19,6 +19,7 @@ const jsonError = (error, npm) => {
       code: error.code,
       summary: (error.summary || []).map(l => l.slice(1).join(' ')).join('\n').trim(),
       detail: (error.detail || []).map(l => l.slice(1).join(' ')).join('\n').trim(),
+      ...error.json,
     }
   }
 }

@@ -73,7 +73,7 @@ struct ec_parameters_st {
     ASN1_OCTET_STRING *base;
     ASN1_INTEGER *order;
     ASN1_INTEGER *cofactor;
-} /* ECPARAMETERS */ ;
+} /* ECPARAMETERS */;
 
 typedef enum {
     ECPKPARAMETERS_TYPE_NAMED = 0,
@@ -88,7 +88,7 @@ struct ecpk_parameters_st {
         ECPARAMETERS *parameters;
         ASN1_NULL *implicitlyCA;
     } value;
-} /* ECPKPARAMETERS */ ;
+} /* ECPKPARAMETERS */;
 
 /* SEC1 ECPrivateKey */
 typedef struct ec_privatekey_st {
@@ -100,65 +100,56 @@ typedef struct ec_privatekey_st {
 
 /* the OpenSSL ASN.1 definitions */
 ASN1_SEQUENCE(X9_62_PENTANOMIAL) = {
-        ASN1_EMBED(X9_62_PENTANOMIAL, k1, INT32),
-        ASN1_EMBED(X9_62_PENTANOMIAL, k2, INT32),
-        ASN1_EMBED(X9_62_PENTANOMIAL, k3, INT32)
+    ASN1_EMBED(X9_62_PENTANOMIAL, k1, INT32),
+    ASN1_EMBED(X9_62_PENTANOMIAL, k2, INT32),
+    ASN1_EMBED(X9_62_PENTANOMIAL, k3, INT32)
 } static_ASN1_SEQUENCE_END(X9_62_PENTANOMIAL)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
+    DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
 
 ASN1_ADB_TEMPLATE(char_two_def) = ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.other, ASN1_ANY);
 
 ASN1_ADB(X9_62_CHARACTERISTIC_TWO) = {
-        ADB_ENTRY(NID_X9_62_onBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.onBasis, ASN1_NULL)),
-        ADB_ENTRY(NID_X9_62_tpBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.tpBasis, ASN1_INTEGER)),
-        ADB_ENTRY(NID_X9_62_ppBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.ppBasis, X9_62_PENTANOMIAL))
+    ADB_ENTRY(NID_X9_62_onBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.onBasis, ASN1_NULL)),
+    ADB_ENTRY(NID_X9_62_tpBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.tpBasis, ASN1_INTEGER)),
+    ADB_ENTRY(NID_X9_62_ppBasis, ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.ppBasis, X9_62_PENTANOMIAL))
 } ASN1_ADB_END(X9_62_CHARACTERISTIC_TWO, 0, type, 0, &char_two_def_tt, NULL);
 
 ASN1_SEQUENCE(X9_62_CHARACTERISTIC_TWO) = {
-        ASN1_EMBED(X9_62_CHARACTERISTIC_TWO, m, INT32),
-        ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, type, ASN1_OBJECT),
-        ASN1_ADB_OBJECT(X9_62_CHARACTERISTIC_TWO)
+    ASN1_EMBED(X9_62_CHARACTERISTIC_TWO, m, INT32),
+    ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, type, ASN1_OBJECT),
+    ASN1_ADB_OBJECT(X9_62_CHARACTERISTIC_TWO)
 } static_ASN1_SEQUENCE_END(X9_62_CHARACTERISTIC_TWO)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+    DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
 
 ASN1_ADB_TEMPLATE(fieldID_def) = ASN1_SIMPLE(X9_62_FIELDID, p.other, ASN1_ANY);
 
 ASN1_ADB(X9_62_FIELDID) = {
-        ADB_ENTRY(NID_X9_62_prime_field, ASN1_SIMPLE(X9_62_FIELDID, p.prime, ASN1_INTEGER)),
-        ADB_ENTRY(NID_X9_62_characteristic_two_field, ASN1_SIMPLE(X9_62_FIELDID, p.char_two, X9_62_CHARACTERISTIC_TWO))
+    ADB_ENTRY(NID_X9_62_prime_field, ASN1_SIMPLE(X9_62_FIELDID, p.prime, ASN1_INTEGER)),
+    ADB_ENTRY(NID_X9_62_characteristic_two_field, ASN1_SIMPLE(X9_62_FIELDID, p.char_two, X9_62_CHARACTERISTIC_TWO))
 } ASN1_ADB_END(X9_62_FIELDID, 0, fieldType, 0, &fieldID_def_tt, NULL);
 
 ASN1_SEQUENCE(X9_62_FIELDID) = {
-        ASN1_SIMPLE(X9_62_FIELDID, fieldType, ASN1_OBJECT),
-        ASN1_ADB_OBJECT(X9_62_FIELDID)
+    ASN1_SIMPLE(X9_62_FIELDID, fieldType, ASN1_OBJECT),
+    ASN1_ADB_OBJECT(X9_62_FIELDID)
 } static_ASN1_SEQUENCE_END(X9_62_FIELDID)
 
-ASN1_SEQUENCE(X9_62_CURVE) = {
-        ASN1_SIMPLE(X9_62_CURVE, a, ASN1_OCTET_STRING),
-        ASN1_SIMPLE(X9_62_CURVE, b, ASN1_OCTET_STRING),
-        ASN1_OPT(X9_62_CURVE, seed, ASN1_BIT_STRING)
-} static_ASN1_SEQUENCE_END(X9_62_CURVE)
+    ASN1_SEQUENCE(X9_62_CURVE)
+    = { ASN1_SIMPLE(X9_62_CURVE, a, ASN1_OCTET_STRING), ASN1_SIMPLE(X9_62_CURVE, b, ASN1_OCTET_STRING), ASN1_OPT(X9_62_CURVE, seed, ASN1_BIT_STRING) } static_ASN1_SEQUENCE_END(X9_62_CURVE)
 
-ASN1_SEQUENCE(ECPARAMETERS) = {
-        ASN1_EMBED(ECPARAMETERS, version, INT32),
-        ASN1_SIMPLE(ECPARAMETERS, fieldID, X9_62_FIELDID),
-        ASN1_SIMPLE(ECPARAMETERS, curve, X9_62_CURVE),
-        ASN1_SIMPLE(ECPARAMETERS, base, ASN1_OCTET_STRING),
-        ASN1_SIMPLE(ECPARAMETERS, order, ASN1_INTEGER),
-        ASN1_OPT(ECPARAMETERS, cofactor, ASN1_INTEGER)
-} ASN1_SEQUENCE_END(ECPARAMETERS)
+        ASN1_SEQUENCE(ECPARAMETERS)
+    = { ASN1_EMBED(ECPARAMETERS, version, INT32), ASN1_SIMPLE(ECPARAMETERS, fieldID, X9_62_FIELDID), ASN1_SIMPLE(ECPARAMETERS, curve, X9_62_CURVE), ASN1_SIMPLE(ECPARAMETERS, base, ASN1_OCTET_STRING), ASN1_SIMPLE(ECPARAMETERS, order, ASN1_INTEGER), ASN1_OPT(ECPARAMETERS, cofactor, ASN1_INTEGER) } ASN1_SEQUENCE_END(ECPARAMETERS)
 
 DECLARE_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
 
 ASN1_CHOICE(ECPKPARAMETERS) = {
-        ASN1_SIMPLE(ECPKPARAMETERS, value.named_curve, ASN1_OBJECT),
-        ASN1_SIMPLE(ECPKPARAMETERS, value.parameters, ECPARAMETERS),
-        ASN1_SIMPLE(ECPKPARAMETERS, value.implicitlyCA, ASN1_NULL)
+    ASN1_SIMPLE(ECPKPARAMETERS, value.named_curve, ASN1_OBJECT),
+    ASN1_SIMPLE(ECPKPARAMETERS, value.parameters, ECPARAMETERS),
+    ASN1_SIMPLE(ECPKPARAMETERS, value.implicitlyCA, ASN1_NULL)
 } ASN1_CHOICE_END(ECPKPARAMETERS)
 
 DECLARE_ASN1_FUNCTIONS(ECPKPARAMETERS)
@@ -166,13 +157,13 @@ DECLARE_ASN1_ENCODE_FUNCTIONS_name(ECPKPARAMETERS, ECPKPARAMETERS)
 IMPLEMENT_ASN1_FUNCTIONS(ECPKPARAMETERS)
 
 ASN1_SEQUENCE(EC_PRIVATEKEY) = {
-        ASN1_EMBED(EC_PRIVATEKEY, version, INT32),
-        ASN1_SIMPLE(EC_PRIVATEKEY, privateKey, ASN1_OCTET_STRING),
-        ASN1_EXP_OPT(EC_PRIVATEKEY, parameters, ECPKPARAMETERS, 0),
-        ASN1_EXP_OPT(EC_PRIVATEKEY, publicKey, ASN1_BIT_STRING, 1)
+    ASN1_EMBED(EC_PRIVATEKEY, version, INT32),
+    ASN1_SIMPLE(EC_PRIVATEKEY, privateKey, ASN1_OCTET_STRING),
+    ASN1_EXP_OPT(EC_PRIVATEKEY, parameters, ECPKPARAMETERS, 0),
+    ASN1_EXP_OPT(EC_PRIVATEKEY, publicKey, ASN1_BIT_STRING, 1)
 } static_ASN1_SEQUENCE_END(EC_PRIVATEKEY)
 
-DECLARE_ASN1_FUNCTIONS(EC_PRIVATEKEY)
+    DECLARE_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 DECLARE_ASN1_ENCODE_FUNCTIONS_name(EC_PRIVATEKEY, EC_PRIVATEKEY)
 IMPLEMENT_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 
@@ -284,7 +275,7 @@ static int ec_asn1_group2fieldid(const EC_GROUP *group, X9_62_FIELDID *field)
             char_two->p.ppBasis->k1 = (long)k1;
             char_two->p.ppBasis->k2 = (long)k2;
             char_two->p.ppBasis->k3 = (long)k3;
-        } else {                /* field_type == NID_X9_62_onBasis */
+        } else { /* field_type == NID_X9_62_onBasis */
 
             /* for ONB the parameters are (asn1) NULL */
             char_two->p.onBasis = ASN1_NULL_new();
@@ -302,7 +293,7 @@ static int ec_asn1_group2fieldid(const EC_GROUP *group, X9_62_FIELDID *field)
 
     ok = 1;
 
- err:
+err:
     BN_free(tmp);
     return ok;
 }
@@ -359,7 +350,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
             }
         ossl_asn1_string_set_bits_left(curve->seed, 0);
         if (!ASN1_BIT_STRING_set(curve->seed, group->seed,
-                                 (int)group->seed_len)) {
+                (int)group->seed_len)) {
             ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -370,7 +361,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
 
     ok = 1;
 
- err:
+err:
     OPENSSL_free(a_buf);
     OPENSSL_free(b_buf);
     BN_free(tmp_1);
@@ -379,7 +370,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
 }
 
 ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group,
-                                        ECPARAMETERS *params)
+    ECPARAMETERS *params)
 {
     size_t len = 0;
     ECPARAMETERS *ret = NULL;
@@ -458,14 +449,14 @@ ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group,
 
     return ret;
 
- err:
+err:
     if (params == NULL)
         ECPARAMETERS_free(ret);
     return NULL;
 }
 
 ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
-                                            ECPKPARAMETERS *params)
+    ECPKPARAMETERS *params)
 {
     int ok = 1, tmp;
     ECPKPARAMETERS *ret = params;
@@ -479,7 +470,7 @@ ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
         if (ret->type == ECPKPARAMETERS_TYPE_NAMED)
             ASN1_OBJECT_free(ret->value.named_curve);
         else if (ret->type == ECPKPARAMETERS_TYPE_EXPLICIT
-                 && ret->value.parameters != NULL)
+            && ret->value.parameters != NULL)
             ECPARAMETERS_free(ret->value.parameters);
     }
 
@@ -505,8 +496,7 @@ ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
     } else {
         /* use the ECPARAMETERS structure */
         ret->type = ECPKPARAMETERS_TYPE_EXPLICIT;
-        if ((ret->value.parameters =
-             EC_GROUP_get_ecparameters(group, NULL)) == NULL)
+        if ((ret->value.parameters = EC_GROUP_get_ecparameters(group, NULL)) == NULL)
             ok = 0;
     }
 
@@ -528,8 +518,8 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
     BN_CTX *ctx = NULL;
 
     if (params->fieldID == NULL
-            || params->fieldID->fieldType == NULL
-            || params->fieldID->p.ptr == NULL) {
+        || params->fieldID->fieldType == NULL
+        || params->fieldID->p.ptr == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_ASN1_ERROR);
         goto err;
     }
@@ -541,8 +531,8 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
      * compatibility.
      */
     if (params->curve == NULL
-            || params->curve->a == NULL || params->curve->a->data == NULL
-            || params->curve->b == NULL || params->curve->b->data == NULL) {
+        || params->curve->a == NULL || params->curve->a->data == NULL
+        || params->curve->b == NULL || params->curve->b->data == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_ASN1_ERROR);
         goto err;
     }
@@ -616,9 +606,8 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
                 goto err;
             }
 
-            if (!
-                (char_two->m > penta->k3 && penta->k3 > penta->k2
-                 && penta->k2 > penta->k1 && penta->k1 > 0)) {
+            if (!(char_two->m > penta->k3 && penta->k3 > penta->k2
+                    && penta->k2 > penta->k1 && penta->k1 > 0)) {
                 ERR_raise(ERR_LIB_EC, EC_R_INVALID_PENTANOMIAL_BASIS);
                 goto err;
             }
@@ -637,7 +626,7 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
         } else if (tmp == NID_X9_62_onBasis) {
             ERR_raise(ERR_LIB_EC, EC_R_NOT_IMPLEMENTED);
             goto err;
-        } else {                /* error */
+        } else { /* error */
 
             ERR_raise(ERR_LIB_EC, EC_R_ASN1_ERROR);
             goto err;
@@ -699,14 +688,14 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
         if ((ret->seed = OPENSSL_malloc(params->curve->seed->length)) == NULL)
             goto err;
         memcpy(ret->seed, params->curve->seed->data,
-               params->curve->seed->length);
+            params->curve->seed->length);
         ret->seed_len = params->curve->seed->length;
     }
 
     if (params->order == NULL
-            || params->base == NULL
-            || params->base->data == NULL
-            || params->base->length == 0) {
+        || params->base == NULL
+        || params->base->data == NULL
+        || params->base->length == 0) {
         ERR_raise(ERR_LIB_EC, EC_R_ASN1_ERROR);
         goto err;
     }
@@ -715,12 +704,11 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
         goto err;
 
     /* set the point conversion form */
-    EC_GROUP_set_point_conversion_form(ret, (point_conversion_form_t)
-                                       (params->base->data[0] & ~0x01));
+    EC_GROUP_set_point_conversion_form(ret, (point_conversion_form_t)(params->base->data[0] & ~0x01));
 
     /* extract the ec point */
     if (!EC_POINT_oct2point(ret, point, params->base->data,
-                            params->base->length, NULL)) {
+            params->base->length, NULL)) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
@@ -770,8 +758,8 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
         goto err;
     }
     if ((dup = EC_GROUP_dup(ret)) == NULL
-            || EC_GROUP_set_seed(dup, NULL, 0) != 1
-            || !EC_GROUP_set_generator(dup, point, a, NULL)) {
+        || EC_GROUP_set_seed(dup, NULL, 0) != 1
+        || !EC_GROUP_set_generator(dup, point, a, NULL)) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
@@ -826,7 +814,7 @@ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
 
     ok = 1;
 
- err:
+err:
     if (!ok) {
         EC_GROUP_free(ret);
         ret = NULL;
@@ -965,7 +953,8 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
     if (priv_key->privateKey) {
         ASN1_OCTET_STRING *pkey = priv_key->privateKey;
         if (EC_KEY_oct2priv(ret, ASN1_STRING_get0_data(pkey),
-                            ASN1_STRING_length(pkey)) == 0)
+                ASN1_STRING_length(pkey))
+            == 0)
             goto err;
     } else {
         ERR_raise(ERR_LIB_EC, EC_R_MISSING_PRIVATE_KEY);
@@ -995,7 +984,7 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
     } else {
         if (ret->group->meth->keygenpub == NULL
             || ret->group->meth->keygenpub(ret) == 0)
-                goto err;
+            goto err;
         /* Remember the original private-key-only encoding. */
         ret->enc_flag |= EC_PKEY_NO_PUBKEY;
     }
@@ -1007,7 +996,7 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
     ret->dirty_cnt++;
     return ret;
 
- err:
+err:
     if (a == NULL || *a != ret)
         EC_KEY_free(ret);
     EC_PRIVATEKEY_free(priv_key);
@@ -1017,13 +1006,12 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
 int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
 {
     int ret = 0, ok = 0;
-    unsigned char *priv= NULL, *pub= NULL;
+    unsigned char *priv = NULL, *pub = NULL;
     size_t privlen = 0, publen = 0;
 
     EC_PRIVATEKEY *priv_key = NULL;
 
-    if (a == NULL || a->group == NULL ||
-        (!(a->enc_flag & EC_PKEY_NO_PUBKEY) && a->pub_key == NULL)) {
+    if (a == NULL || a->group == NULL || (!(a->enc_flag & EC_PKEY_NO_PUBKEY) && a->pub_key == NULL)) {
         ERR_raise(ERR_LIB_EC, ERR_R_PASSED_NULL_PARAMETER);
         goto err;
     }
@@ -1046,9 +1034,9 @@ int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
     priv = NULL;
 
     if (!(a->enc_flag & EC_PKEY_NO_PARAMETERS)) {
-        if ((priv_key->parameters =
-             EC_GROUP_get_ecpkparameters(a->group,
-                                        priv_key->parameters)) == NULL) {
+        if ((priv_key->parameters = EC_GROUP_get_ecpkparameters(a->group,
+                 priv_key->parameters))
+            == NULL) {
             ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
             goto err;
         }
@@ -1078,7 +1066,7 @@ int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
         goto err;
     }
     ok = 1;
- err:
+err:
     OPENSSL_clear_free(priv, privlen);
     OPENSSL_free(pub);
     EC_PRIVATEKEY_free(priv_key);
@@ -1113,7 +1101,7 @@ EC_KEY *d2i_ECParameters(EC_KEY **a, const unsigned char **in, long len)
 
     if (!d2i_ECPKParameters(&ret->group, in, len)) {
         if (a == NULL || *a != ret)
-             EC_KEY_free(ret);
+            EC_KEY_free(ret);
         else
             ret->dirty_cnt++;
         return NULL;
@@ -1162,7 +1150,7 @@ int i2o_ECPublicKey(const EC_KEY *a, unsigned char **out)
     }
 
     buf_len = EC_POINT_point2oct(a->group, a->pub_key,
-                                 a->conv_form, NULL, 0, NULL);
+        a->conv_form, NULL, 0, NULL);
 
     if (out == NULL || buf_len == 0)
         /* out == NULL => just return the length of the octet string */
@@ -1174,7 +1162,7 @@ int i2o_ECPublicKey(const EC_KEY *a, unsigned char **out)
         new_buffer = 1;
     }
     if (!EC_POINT_point2oct(a->group, a->pub_key, a->conv_form,
-                            *out, buf_len, NULL)) {
+            *out, buf_len, NULL)) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         if (new_buffer) {
             OPENSSL_free(*out);
@@ -1247,7 +1235,7 @@ int i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **ppout)
             return -1;
     } else if (*ppout == NULL) {
         if ((buf = BUF_MEM_new()) == NULL
-                || !WPACKET_init_len(&pkt, buf, 0)) {
+            || !WPACKET_init_len(&pkt, buf, 0)) {
             BUF_MEM_free(buf);
             return -1;
         }
@@ -1257,8 +1245,8 @@ int i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **ppout)
     }
 
     if (!ossl_encode_der_dsa_sig(&pkt, sig->r, sig->s)
-            || !WPACKET_get_total_written(&pkt, &encoded_len)
-            || !WPACKET_finish(&pkt)) {
+        || !WPACKET_get_total_written(&pkt, &encoded_len)
+        || !WPACKET_finish(&pkt)) {
         BUF_MEM_free(buf);
         WPACKET_cleanup(&pkt);
         return -1;

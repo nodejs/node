@@ -75,10 +75,10 @@ server.listen(0, common.mustCall(function() {
     console.log('client1 session#', ++sessions);
   });
 
-  client1.on('close', () => {
+  client1.on('close', common.mustCall(() => {
     console.log('client1 close');
     assert.strictEqual(sessions, tls13 ? 2 : 1);
-  });
+  }));
 
   function reconnect() {
     assert(sessionx);

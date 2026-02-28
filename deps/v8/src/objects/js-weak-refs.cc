@@ -115,7 +115,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
       // of the key in the hash table.
       Tagged<WeakCell> next = Cast<WeakCell>(weak_cell->key_list_next());
       DCHECK_EQ(next->key_list_prev(), weak_cell);
-      next->set_key_list_prev(undefined);
+      next->set_key_list_prev(undefined, SKIP_WRITE_BARRIER);
       key_map->ValueAtPut(entry, next);
     }
   } else {
@@ -130,10 +130,25 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
 
   // weak_cell is now removed from the unregister token map, so clear its
   // unregister token-related fields.
-  weak_cell->set_unregister_token(undefined);
-  weak_cell->set_key_list_prev(undefined);
-  weak_cell->set_key_list_next(undefined);
+  weak_cell->set_unregister_token(undefined, SKIP_WRITE_BARRIER);
+  weak_cell->set_key_list_prev(undefined, SKIP_WRITE_BARRIER);
+  weak_cell->set_key_list_next(undefined, SKIP_WRITE_BARRIER);
 }
+
+#ifdef OBJECT_PRINT
+void WeakCell::WeakCellPrint(std::ostream& os) {
+  this->PrintHeader(os, "WeakCell");
+  os << "\n - finalization_registry: " << Brief(this->finalization_registry());
+  os << "\n - target: " << Brief(this->target());
+  os << "\n - unregister_token: " << Brief(this->unregister_token());
+  os << "\n - holdings: " << Brief(this->holdings());
+  os << "\n - prev: " << Brief(this->prev());
+  os << "\n - next: " << Brief(this->next());
+  os << "\n - key_list_prev: " << Brief(this->key_list_prev());
+  os << "\n - key_list_next: " << Brief(this->key_list_next());
+  os << '\n';
+}
+#endif  // OBJECT_PRINT
 
 }  // namespace internal
 }  // namespace v8

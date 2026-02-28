@@ -478,6 +478,29 @@ class IsConstantMatcher final : public TestNodeMatcher {
   const Matcher<T> value_matcher_;
 };
 
+class IsFloat64ConstantMatcher final : public TestNodeMatcher {
+ public:
+  IsFloat64ConstantMatcher(IrOpcode::Value opcode,
+                           const Matcher<double>& value_matcher)
+      : TestNodeMatcher(opcode), value_matcher_(value_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<Float64>(node->op()).get_scalar(),
+                                 "value", value_matcher_, listener));
+  }
+
+ private:
+  const Matcher<double> value_matcher_;
+};
+
 class IsSelectMatcher final : public TestNodeMatcher {
  public:
   IsSelectMatcher(const Matcher<MachineRepresentation>& type_matcher,
@@ -1729,7 +1752,7 @@ Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher) {
 
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher) {
   return MakeMatcher(
-      new IsConstantMatcher<double>(IrOpcode::kFloat64Constant, value_matcher));
+      new IsFloat64ConstantMatcher(IrOpcode::kFloat64Constant, value_matcher));
 }
 
 

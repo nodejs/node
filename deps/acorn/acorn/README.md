@@ -26,6 +26,24 @@ git clone https://github.com/acornjs/acorn.git
 cd acorn
 npm install
 ```
+## Importing acorn
+
+ESM as well as CommonJS is supported for all 3: `acorn`, `acorn-walk` and `acorn-loose`.
+
+ESM example for `acorn`:
+
+```js
+import * as acorn from "acorn"
+```
+
+CommonJS example for `acorn`:
+
+```js
+let acorn = require("acorn")
+```
+
+ESM is preferred, as it allows better editor auto-completions by offering TypeScript support.
+For this reason, following examples will use ESM imports.
 
 ## Interface
 
@@ -36,8 +54,8 @@ syntax tree object as specified by the [ESTree
 spec](https://github.com/estree/estree).
 
 ```javascript
-let acorn = require("acorn");
-console.log(acorn.parse("1 + 1", {ecmaVersion: 2020}));
+import * as acorn from "acorn"
+console.log(acorn.parse("1 + 1", {ecmaVersion: 2020}))
 ```
 
 When encountering a syntax error, the parser will raise a
@@ -61,11 +79,12 @@ required):
   implemented through plugins.
 
 - **sourceType**: Indicate the mode the code should be parsed in. Can be
-  either `"script"` or `"module"`. This influences global strict mode
+  either `"script"`, `"module"` or `"commonjs"`. This influences global strict mode
   and parsing of `import` and `export` declarations.
 
   **NOTE**: If set to `"module"`, then static `import` / `export` syntax
-  will be valid, even if `ecmaVersion` is less than 6.
+  will be valid, even if `ecmaVersion` is less than 6. If set to `"commonjs"`,
+  it is the same as `"script"` except that the top-level scope behaves like a function.
 
 - **onInsertedSemicolon**: If given a callback, that callback will be
   called whenever a missing semicolon is inserted by the parser. The
@@ -97,7 +116,7 @@ required):
   for `ecmaVersion` 2022 and later, `false` for lower versions.
   Setting this option to `true` allows to have top-level `await`
   expressions. They are still not allowed in non-`async` functions,
-  though.
+  though. Setting this option to `true` is not allowed when `sourceType: "commonjs"`.
 
 - **allowSuperOutsideMethod**: By default, `super` outside a method
   raises an error. Set this to `true` to accept such code.
@@ -217,7 +236,7 @@ for (let token of acorn.tokenizer(str)) {
 }
 
 // transform code to array of tokens:
-var tokens = [...acorn.tokenizer(str)];
+var tokens = [...acorn.tokenizer(str)]
 ```
 
 **tokTypes** holds an object mapping names to the token type objects
@@ -238,10 +257,10 @@ on the extended version of the class. To extend a parser with plugins,
 you can use its static `extend` method.
 
 ```javascript
-var acorn = require("acorn");
-var jsx = require("acorn-jsx");
-var JSXParser = acorn.Parser.extend(jsx());
-JSXParser.parse("foo(<bar/>)", {ecmaVersion: 2020});
+var acorn = require("acorn")
+var jsx = require("acorn-jsx")
+var JSXParser = acorn.Parser.extend(jsx())
+JSXParser.parse("foo(<bar/>)", {ecmaVersion: 2020})
 ```
 
 The `extend` method takes any number of plugin values, and returns a

@@ -28,8 +28,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
                                     public JSHeapBrokerTestBase {
  public:
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
-      : HandleAndZoneScope(kCompressGraphZone),
-        JSHeapBrokerTestBase(main_isolate(), main_zone()),
+      : JSHeapBrokerTestBase(main_isolate(), main_zone()),
         dependencies_(broker(), main_zone()),
         graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),
@@ -43,8 +42,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
               MaybeHandle<JSFunction>()) {}
   ContextSpecializationTester(Maybe<OuterContext> context,
                               CanonicalHandles&& handles)
-      : HandleAndZoneScope(kCompressGraphZone),
-        JSHeapBrokerTestBase(main_isolate(), main_zone(), std::move(handles)),
+      : JSHeapBrokerTestBase(main_isolate(), main_zone(), std::move(handles)),
         dependencies_(broker(), main_zone()),
         graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),

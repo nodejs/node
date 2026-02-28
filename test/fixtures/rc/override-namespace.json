@@ -1,5 +1,5 @@
 {
-    "testRunner": {
+    "test": {
         "test-isolation": "process"
     },
     "nodeOptions": {

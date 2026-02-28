@@ -26,7 +26,8 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   i::IncrementalMarking* marking = heap->incremental_marking();
 
   if (heap->sweeping_in_progress()) {
-    IsolateSafepointScope scope(heap);
+    SafepointScope scope(heap->isolate(),
+                         kGlobalSafepointForSharedSpaceIsolate);
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
@@ -153,7 +154,8 @@ void HeapInternalsBase::SimulateFullSpace(
     v8::internal::NewSpace* new_space,
     std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = new_space->heap();
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
@@ -178,7 +180,8 @@ void HeapInternalsBase::SimulateFullSpace(
 
 void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   Heap* heap = space->heap();
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
@@ -215,11 +218,13 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       if (length <= 0) {
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
-          heap->CreateFillerObjectAt(*heap->OldSpaceAllocationTopAddress(),
-                                     free_memory);
+          LinearAllocationArea* old_space =
+              &heap->isolate()->isolate_data()->old_allocation_info();
+          heap->CreateFillerObjectAt(old_space->top(), free_memory);
         } else {
-          heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
-                                     free_memory);
+          LinearAllocationArea* new_space =
+              &heap->isolate()->isolate_data()->new_allocation_info();
+          heap->CreateFillerObjectAt(new_space->top(), free_memory);
         }
         break;
       }

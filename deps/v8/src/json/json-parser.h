@@ -10,9 +10,11 @@
 #include "include/v8-callbacks.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/codegen/script-details.h"
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
@@ -109,22 +111,34 @@ class JsonParseInternalizer {
                                          DirectHandle<Object> result,
                                          Handle<Object> reviver,
                                          Handle<String> source,
-                                         MaybeHandle<Object> val_node);
+                                         MaybeHandle<Object> val_node,
+                                         bool pass_context_argument);
 
  private:
   JsonParseInternalizer(Isolate* isolate, Handle<JSReceiver> reviver,
                         Handle<String> source)
       : isolate_(isolate), reviver_(reviver), source_(source) {}
 
-  enum WithOrWithoutSource { kWithoutSource, kWithSource };
+  enum ReviverMode {
+    kWithoutContext,  // Two-arg reviver callback, no context argument.
+    kWithoutSource,   // Three-arg reviver callback, context argument has no
+                      // source property.
+    kWithSource,      // Three-arg reviver callback, context object has source
+                      // property.
+  };
 
-  template <WithOrWithoutSource with_source>
+  static constexpr ReviverMode NoSource(ReviverMode old_mode) {
+    if (old_mode == kWithSource) return kWithoutSource;
+    return old_mode;
+  }
+
+  template <ReviverMode reviver_mode>
   MaybeHandle<Object> InternalizeJsonProperty(DirectHandle<JSReceiver> holder,
                                               DirectHandle<String> key,
-                                              Handle<Object> val_node,
+                                              MaybeHandle<Object> val_node,
                                               DirectHandle<Object> snapshot);
 
-  template <WithOrWithoutSource with_source>
+  template <ReviverMode reviver_mode>
   bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,
                        Handle<Object> val_node, Handle<Object> snapshot);
 
@@ -159,26 +173,12 @@ class JsonParser final {
 
   V8_WARN_UNUSED_RESULT static bool CheckRawJson(Isolate* isolate,
                                                  Handle<String> source) {
-    return JsonParser(isolate, source).ParseRawJson();
+    return JsonParser(isolate, source, std::nullopt).ParseRawJson();
   }
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
-      Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
-    HighAllocationThroughputScope high_throughput_scope(
-        V8::GetCurrentPlatform());
-    Handle<Object> result;
-    MaybeHandle<Object> val_node;
-    {
-      JsonParser parser(isolate, source);
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result, parser.ParseJson(reviver));
-      val_node = parser.parsed_val_node_;
-    }
-    if (IsCallable(*reviver)) {
-      return JsonParseInternalizer::Internalize(isolate, result, reviver,
-                                                source, val_node);
-    }
-    return result;
-  }
+      Isolate* isolate, Handle<String> source, Handle<Object> reviver,
+      std::optional<ScriptDetails> script_details);
 
   static constexpr base::uc32 kEndOfString = static_cast<base::uc32>(-1);
   static constexpr base::uc32 kInvalidUnicodeCharacter =
@@ -209,11 +209,17 @@ class JsonParser final {
     uint32_t elements;
   };
 
-  JsonParser(Isolate* isolate, Handle<String> source);
+  JsonParser(Isolate* isolate, Handle<String> source,
+             std::optional<ScriptDetails> script_details);
   ~JsonParser();
 
-  // Parse a string containing a single JSON value.
-  MaybeHandle<Object> ParseJson(DirectHandle<Object> reviver);
+  // Parse a string containing a single JSON value.  If
+  // collect_source_strings is true then we also build the data structures
+  // for the reviver callback.  This includes both the source strings for
+  // primitive values, and also the val_nodes for non-primitive objects, used
+  // for detecting whether the user has changed the deserialized 'this'
+  // object that was implicitly passed to the reviver key-value callback.
+  MaybeHandle<Object> ParseJson(bool collect_source_strings);
 
   bool ParseRawJson();
 
@@ -238,23 +244,26 @@ class JsonParser final {
     advance();
   }
 
-  void Expect(JsonToken token,
-              std::optional<MessageTemplate> errorMessage = std::nullopt) {
+  V8_WARN_UNUSED_RESULT bool Expect(
+      JsonToken token,
+      std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
-    } else {
-      errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
-                   : ReportUnexpectedToken(peek());
+      return true;
     }
+    errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
+                 : ReportUnexpectedToken(peek());
+    return false;
   }
 
-  void ExpectNext(JsonToken token,
-                  std::optional<MessageTemplate> errorMessage = std::nullopt) {
+  V8_WARN_UNUSED_RESULT bool ExpectNext(
+      JsonToken token,
+      std::optional<MessageTemplate> errorMessage = std::nullopt) {
     SkipWhitespace();
-    errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
+    return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
   }
 
-  bool Check(JsonToken token) {
+  V8_WARN_UNUSED_RESULT bool Check(JsonToken token) {
     SkipWhitespace();
     if (next_ != token) return false;
     advance();
@@ -268,7 +277,7 @@ class JsonParser final {
     // the next character. The first character was compared before we jumped
     // to ScanLiteral.
     static_assert(N > 2);
-    size_t remaining = static_cast<size_t>(end_ - cursor_);
+    size_t remaining = remaining_chars();
     if (V8_LIKELY(remaining >= N - 1 &&
                   CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {
       cursor_ += N - 1;
@@ -336,6 +345,14 @@ class JsonParser final {
       Handle<Map> feedback = {});
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
+  template <DescriptorArray::FastIterableState fast_iterable_state>
+  V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
+                                           MessageTemplate first_token_msg,
+                                           Handle<DescriptorArray> descriptors);
+  V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,
+                              JsonString scanned_key);
 
   template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
@@ -399,16 +416,21 @@ class JsonParser final {
     return cursor_ == end_;
   }
 
+  size_t remaining_chars() const { return end_ - cursor_; }
+
   uint32_t position() const { return static_cast<uint32_t>(cursor_ - chars_); }
 
   Isolate* isolate_;
-  const uint64_t hash_seed_;
   JsonToken next_;
   // Indicates whether the bytes underneath source_ can relocate during GC.
   bool chars_may_relocate_;
   Handle<JSFunction> object_constructor_;
   const Handle<String> original_source_;
   Handle<String> source_;
+  // Script details for error reporting. When provided, error Script
+  // objects will use this information instead of inferring from the
+  // stack frame.
+  std::optional<ScriptDetails> script_details_;
   // The parsed value's source to be passed to the reviver, if the reviver is
   // callable.
   MaybeHandle<Object> parsed_val_node_;

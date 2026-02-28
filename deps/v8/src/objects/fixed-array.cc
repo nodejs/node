@@ -129,10 +129,10 @@ DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
   DirectHandle<FixedArray> result =
       FixedArray::New(isolate, length, allocation);
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
   ObjectSlot dst_slot(result->RawFieldOfElementAt(0));
   ObjectSlot src_slot(array->RawFieldOfElementAt(0));
-  isolate->heap()->CopyRange(*result, dst_slot, src_slot, length, mode);
+  isolate->heap()->CopyRange(*result, dst_slot, src_slot, length, *mode);
   return result;
 }
 
@@ -157,8 +157,8 @@ DirectHandle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
       ArrayList::New(isolate, new_capacity, allocation);
   DisallowGarbageCollection no_gc;
   new_array->set_length(old_length);
-  WriteBarrierMode mode = new_array->GetWriteBarrierMode(no_gc);
-  CopyElements(isolate, *new_array, 0, *array, 0, old_length, mode);
+  WriteBarrierModeScope mode = new_array->GetWriteBarrierMode(no_gc);
+  CopyElements(isolate, *new_array, 0, *array, 0, old_length, *mode);
   return new_array;
 }
 
@@ -305,12 +305,13 @@ int WeakArrayList::CountLiveElements() const {
 bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
   int last_index = length() - 1;
   // Optimize for the most recently added element to be removed again.
+  Tagged<ClearedWeakValue> cleared_value = ClearedValue();
   for (int i = last_index; i >= 0; --i) {
     if (Get(i) != *value) continue;
     // Move the last element into this slot (or no-op, if this is the last
     // slot).
     Set(i, Get(last_index));
-    Set(last_index, ClearedValue(GetIsolate()));
+    Set(last_index, cleared_value);
     set_length(last_index);
     return true;
   }

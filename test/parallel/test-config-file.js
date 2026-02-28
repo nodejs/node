@@ -8,10 +8,19 @@ const {
 skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-const { match, strictEqual, deepStrictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { test, it, describe } = require('node:test');
 const { chmodSync, writeFileSync, constants } = require('node:fs');
 const { join } = require('node:path');
+
+const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+const onlyWithAmaroAndNodeOptions = {
+  skip: !process.config.variables.node_use_amaro || process.config.variables.node_without_node_options,
+};
+const onlyWithInspectorAndNodeOptions = {
+  skip: !process.features.inspector || process.config.variables.node_without_node_options,
+};
 
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [
@@ -19,10 +28,10 @@ test('should handle non existing json', async () => {
     'i-do-not-exist.json',
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Cannot read configuration from i-do-not-exist\.json: no such file or directory/);
-  match(result.stderr, /i-do-not-exist\.json: not found/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Cannot read configuration from i-do-not-exist\.json: no such file or directory/);
+  assert.match(result.stderr, /i-do-not-exist\.json: not found/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('should handle empty json', async () => {
@@ -31,10 +40,10 @@ test('should handle empty json', async () => {
     fixtures.path('rc/empty.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Can't parse/);
-  match(result.stderr, /empty\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /empty\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('should handle empty object json', async () => {
@@ -44,31 +53,31 @@ test('should handle empty object json', async () => {
     fixtures.path('rc/empty-object.json'),
     '-p', '"Hello, World!"',
   ]);
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, World!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, World!/);
+  assert.strictEqual(result.code, 0);
 });
 
-test('should parse boolean flag', async () => {
+test('should parse boolean flag', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
-  match(result.stderr, /--experimental-config-file is an experimental feature and might change at any time/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.match(result.stderr, /--experimental-config-file is an experimental feature and might change at any time/);
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
-test('should parse boolean flag defaulted to true', async () => {
+test('should parse boolean flag defaulted to true', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
     fixtures.path('rc/warnings-false.json'),
     '-p', 'process.emitWarning("A warning")',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'undefined\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'undefined\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('should throw an error when a flag is declared twice', async () => {
@@ -76,67 +85,66 @@ test('should throw an error when a flag is declared twice', async () => {
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/override-property.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Option --experimental-transform-types is already defined/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Option --strip-types is already defined/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
-
-test('should override env-file', async () => {
+test('should override env-file', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
+    fixtures.path('rc/strip-types.json'),
     '--env-file', fixtures.path('dotenv/node-options-no-tranform.env'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
-test('should not override NODE_OPTIONS', async () => {
+test('should not override NODE_OPTIONS', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ], {
     env: {
       ...process.env,
-      NODE_OPTIONS: '--no-experimental-transform-types',
+      NODE_OPTIONS: '--no-strip-types',
     },
   });
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /SyntaxError/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
-test('should not override CLI flags', async () => {
+test('should not override CLI flags', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
-    '--no-experimental-transform-types',
+    '--no-strip-types',
     '--experimental-config-file',
-    fixtures.path('rc/transform-types.json'),
-    fixtures.path('typescript/ts/transformation/test-enum.ts'),
+    fixtures.path('rc/strip-types.json'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /SyntaxError/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
-test('should parse array flag correctly', async () => {
+test('should parse array flag correctly', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/import.json'),
     '--eval', 'setTimeout(() => console.log("D"),99)',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'A\nB\nC\nD\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'A\nB\nC\nD\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('should validate invalid array flag', async () => {
@@ -146,21 +154,21 @@ test('should validate invalid array flag', async () => {
     fixtures.path('rc/invalid-import.json'),
     '--eval', 'setTimeout(() => console.log("D"),99)',
   ]);
-  match(result.stderr, /invalid-import\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /invalid-import\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
-test('should validate array flag as string', async () => {
+test('should validate array flag as string', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/import-as-string.json'),
     '--eval', 'setTimeout(() => console.log("B"),99)',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'A\nB\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'A\nB\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('should throw at unknown flag', async () => {
@@ -170,9 +178,9 @@ test('should throw at unknown flag', async () => {
     fixtures.path('rc/unknown-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('should throw at flag not available in NODE_OPTIONS', async () => {
@@ -182,21 +190,21 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     fixtures.path('rc/not-node-options-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
-test('unsigned flag should be parsed correctly', async () => {
+test('unsigned flag should be parsed correctly', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/numeric.json'),
     '-p', 'http.maxHeaderSize',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '4294967295\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '4294967295\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('numeric flag should not allow negative values', async () => {
@@ -206,10 +214,10 @@ test('numeric flag should not allow negative values', async () => {
     fixtures.path('rc/negative-numeric.json'),
     '-p', 'http.maxHeaderSize',
   ]);
-  match(result.stderr, /Invalid value for --max-http-header-size/);
-  match(result.stderr, /negative-numeric\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Invalid value for --max-http-header-size/);
+  assert.match(result.stderr, /negative-numeric\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('v8 flag should not be allowed in config file', async () => {
@@ -219,12 +227,12 @@ test('v8 flag should not be allowed in config file', async () => {
     fixtures.path('rc/v8-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /V8 flag --abort-on-uncaught-exception is currently not supported/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /V8 flag --abort-on-uncaught-exception is currently not supported/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
-test('string flag should be parsed correctly', async () => {
+test('string flag should be parsed correctly', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--test',
@@ -232,12 +240,12 @@ test('string flag should be parsed correctly', async () => {
     fixtures.path('rc/string.json'),
     fixtures.path('rc/test.js'),
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '.\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '.\n');
+  assert.strictEqual(result.code, 0);
 });
 
-test('host port flag should be parsed correctly', { skip: !process.features.inspector }, async () => {
+test('host port flag should be parsed correctly', onlyWithInspectorAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--expose-internals',
@@ -245,12 +253,12 @@ test('host port flag should be parsed correctly', { skip: !process.features.insp
     fixtures.path('rc/host-port.json'),
     '-p', 'require("internal/options").getOptionValue("--inspect-port").port',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '65535\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '65535\n');
+  assert.strictEqual(result.code, 0);
 });
 
-test('--inspect=true should be parsed correctly', { skip: !process.features.inspector }, async () => {
+test('--inspect=true should be parsed correctly', onlyWithInspectorAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
@@ -258,9 +266,9 @@ test('--inspect=true should be parsed correctly', { skip: !process.features.insp
     '--inspect-port', '0',
     '-p', 'require("node:inspector").url()',
   ]);
-  match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
-  match(result.stdout, /ws:\/\/[^\s]+/);
-  strictEqual(result.code, 0);
+  assert.match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
+  assert.match(result.stdout, /ws:\/\/[^\s]+/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('--inspect=false should be parsed correctly', { skip: !process.features.inspector }, async () => {
@@ -270,9 +278,9 @@ test('--inspect=false should be parsed correctly', { skip: !process.features.ins
     fixtures.path('rc/inspect-false.json'),
     '-p', 'require("node:inspector").url()',
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'undefined\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'undefined\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('no op flag should throw', async () => {
@@ -282,10 +290,10 @@ test('no op flag should throw', async () => {
     fixtures.path('rc/no-op.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /No-op flag --http-parser is currently not supported/);
-  match(result.stderr, /no-op\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /No-op flag --http-parser is currently not supported/);
+  assert.match(result.stderr, /no-op\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('should not allow users to sneak in a flag', async () => {
@@ -295,9 +303,9 @@ test('should not allow users to sneak in a flag', async () => {
     fixtures.path('rc/sneaky-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /The number of NODE_OPTIONS doesn't match the number of flags in the config file/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /The number of NODE_OPTIONS doesn't match the number of flags in the config file/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('non object root', async () => {
@@ -307,9 +315,9 @@ test('non object root', async () => {
     fixtures.path('rc/non-object-root.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Root value unexpected not an object for/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Root value unexpected not an object for/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('non object node options', async () => {
@@ -319,9 +327,9 @@ test('non object node options', async () => {
     fixtures.path('rc/non-object-node-options.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /"nodeOptions" value unexpected for/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /"nodeOptions" value unexpected for/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('should throw correct error when a json is broken', async () => {
@@ -331,10 +339,10 @@ test('should throw correct error when a json is broken', async () => {
     fixtures.path('rc/broken.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Can't parse/);
-  match(result.stderr, /broken\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /broken\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 test('broken value in node_options', async () => {
@@ -344,13 +352,13 @@ test('broken value in node_options', async () => {
     fixtures.path('rc/broken-node-options.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Can't parse/);
-  match(result.stderr, /broken-node-options\.json: invalid content/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /broken-node-options\.json: invalid content/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
-test('should use node.config.json as default', async () => {
+test('should use node.config.json as default', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
@@ -358,12 +366,12 @@ test('should use node.config.json as default', async () => {
   ], {
     cwd: fixtures.path('rc/default'),
   });
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '10\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '10\n');
+  assert.strictEqual(result.code, 0);
 });
 
-test('should override node.config.json when specificied', async () => {
+test('should override node.config.json when specificied', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
@@ -373,9 +381,9 @@ test('should override node.config.json when specificied', async () => {
   ], {
     cwd: fixtures.path('rc/default'),
   });
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '20\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '20\n');
+  assert.strictEqual(result.code, 0);
 });
 // Skip on windows because it doesn't support chmod changing read permissions
 // Also skip if user is root because it would have read permissions anyway
@@ -395,9 +403,9 @@ test('should throw an error when the file is non readable', {
   ], {
     cwd: tmpdir.path,
   });
-  match(result.stderr, /Cannot read configuration from node\.config\.json: permission denied/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 9);
+  assert.match(result.stderr, /Cannot read configuration from node\.config\.json: permission denied/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 9);
 });
 
 describe('namespace-scoped options', () => {
@@ -407,11 +415,12 @@ describe('namespace-scoped options', () => {
       '--expose-internals',
       '--experimental-config-file',
       fixtures.path('rc/namespaced/node.config.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'none\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'none\n');
+    assert.strictEqual(result.code, 0);
   });
 
   it('should throw an error when a namespace-scoped option is not recognised', async () => {
@@ -421,9 +430,9 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/unknown-flag-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    match(result.stderr, /Unknown or not allowed option unknown-flag for namespace testRunner/);
-    strictEqual(result.stdout, '');
-    strictEqual(result.code, 9);
+    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace test/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
   });
 
   it('should not throw an error when a namespace is not recognised', async () => {
@@ -433,9 +442,9 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/unknown-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'Hello, World!\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'Hello, World!\n');
+    assert.strictEqual(result.code, 0);
   });
 
   it('should handle an empty namespace valid namespace', async () => {
@@ -445,9 +454,9 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/empty-valid-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'Hello, World!\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'Hello, World!\n');
+    assert.strictEqual(result.code, 0);
   });
 
   it('should throw an error if a namespace-scoped option has already been set in node options', async () => {
@@ -458,9 +467,9 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/override-node-option-with-namespace.json'),
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
-    match(result.stderr, /Option --test-isolation is already defined/);
-    strictEqual(result.stdout, '');
-    strictEqual(result.code, 9);
+    assert.match(result.stderr, /Option --test-isolation is already defined/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
   });
 
   it('should throw an error if a node option has already been set in a namespace-scoped option', async () => {
@@ -471,9 +480,9 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/override-namespace.json'),
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
-    match(result.stderr, /Option --test-isolation is already defined/);
-    strictEqual(result.stdout, '');
-    strictEqual(result.code, 9);
+    assert.match(result.stderr, /Option --test-isolation is already defined/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
   });
 
   it('should prioritise CLI namespace-scoped options over config file options', async () => {
@@ -483,11 +492,12 @@ describe('namespace-scoped options', () => {
       '--test-isolation', 'process',
       '--experimental-config-file',
       fixtures.path('rc/namespaced/node.config.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'process\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'process\n');
+    assert.strictEqual(result.code, 0);
   });
 
   it('should append namespace-scoped config file options with CLI options in case of array', async () => {
@@ -498,9 +508,10 @@ describe('namespace-scoped options', () => {
       '--test-coverage-exclude', 'cli-pattern2',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-array.json'),
+      '--no-test',
       '-p', 'JSON.stringify(require("internal/options").getOptionValue("--test-coverage-exclude"))',
     ]);
-    strictEqual(result.stderr, '');
+    assert.strictEqual(result.stderr, '');
     const excludePatterns = JSON.parse(result.stdout);
     const expected = [
       'config-pattern1',
@@ -508,8 +519,8 @@ describe('namespace-scoped options', () => {
       'cli-pattern1',
       'cli-pattern2',
     ];
-    deepStrictEqual(excludePatterns, expected);
-    strictEqual(result.code, 0);
+    assert.deepStrictEqual(excludePatterns, expected);
+    assert.strictEqual(result.code, 0);
   });
 
   it('should allow setting kDisallowedInEnvvar in the config file if part of a namespace', async () => {
@@ -520,11 +531,12 @@ describe('namespace-scoped options', () => {
       '--expose-internals',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, '1\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '1\n');
+    assert.strictEqual(result.code, 0);
   });
 
   it('should override namespace-scoped config file options with CLI options', async () => {
@@ -536,10 +548,60 @@ describe('namespace-scoped options', () => {
       '--test-concurrency', '2',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, '2\n');
-    strictEqual(result.code, 0);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '2\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should throw an error for removed "testRunner" namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/deprecated-testrunner-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    assert.match(result.stderr, /the "testRunner" namespace has been removed\. Use "test" instead\./);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
+  });
+
+  it('should automatically enable --test flag when test namespace is present', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      fixtures.path('rc/test.js'),
+    ]);
+    assert.strictEqual(result.code, 0);
+    assert.match(result.stdout, /tests 1/);
+  });
+
+  it('should automatically enable --permission flag when permission namespace is present', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/permission-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--permission")',
+    ]);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'true\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should respect explicit test: false in test namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/test-namespace-explicit-false.json'),
+      '-p', 'require("internal/options").getOptionValue("--test")',
+    ]);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'false\n');
+    assert.strictEqual(result.code, 0);
   });
 });

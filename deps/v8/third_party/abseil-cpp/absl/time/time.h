@@ -589,9 +589,10 @@ ABSL_ATTRIBUTE_CONST_FUNCTION Duration Seconds(T n) {
     }
     return time_internal::MakePosDoubleDuration(n);
   } else {
-    if (std::isnan(n))
-      return std::signbit(n) ? -InfiniteDuration() : InfiniteDuration();
-    if (n <= (std::numeric_limits<int64_t>::min)()) return -InfiniteDuration();
+    if (std::isnan(n)) return -InfiniteDuration();
+    if (n <= static_cast<T>((std::numeric_limits<int64_t>::min)())) {
+      return -InfiniteDuration();
+    }
     return -time_internal::MakePosDoubleDuration(-n);
   }
 }
@@ -730,7 +731,6 @@ bool ParseDuration(absl::string_view dur_string, Duration* d);
 // value. Duration flags must be specified in a format that is valid input for
 // `absl::ParseDuration()`.
 bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
-
 
 // AbslUnparseFlag()
 //
@@ -1680,14 +1680,16 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
   return (v <= (std::numeric_limits<int64_t>::max)() / 60 &&
           v >= (std::numeric_limits<int64_t>::min)() / 60)
              ? MakeDuration(v * 60)
-             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
+         : v > 0 ? InfiniteDuration()
+                 : -InfiniteDuration();
 }
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
                                                            std::ratio<3600>) {
   return (v <= (std::numeric_limits<int64_t>::max)() / 3600 &&
           v >= (std::numeric_limits<int64_t>::min)() / 3600)
              ? MakeDuration(v * 3600)
-             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
+         : v > 0 ? InfiniteDuration()
+                 : -InfiniteDuration();
 }
 
 // IsValidRep64<T>(0) is true if the expression `int64_t{std::declval<T>()}` is
@@ -1805,13 +1807,12 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration operator-(Duration d) {
                        (std::numeric_limits<int64_t>::min)()
                    ? InfiniteDuration()
                    : time_internal::MakeDuration(-time_internal::GetRepHi(d))
-             : time_internal::IsInfiniteDuration(d)
-                   ? time_internal::OppositeInfinity(d)
-                   : time_internal::MakeDuration(
-                         time_internal::NegateAndSubtractOne(
-                             time_internal::GetRepHi(d)),
-                         time_internal::kTicksPerSecond -
-                             time_internal::GetRepLo(d));
+         : time_internal::IsInfiniteDuration(d)
+             ? time_internal::OppositeInfinity(d)
+             : time_internal::MakeDuration(
+                   time_internal::NegateAndSubtractOne(
+                       time_internal::GetRepHi(d)),
+                   time_internal::kTicksPerSecond - time_internal::GetRepLo(d));
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration InfiniteDuration() {
@@ -1869,8 +1870,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Nanoseconds(Duration d) {
       time_internal::GetRepHi(d) >> 33 == 0) {
     return (time_internal::GetRepHi(d) * 1000 * 1000 * 1000) +
            (time_internal::GetRepLo(d) / time_internal::kTicksPerNanosecond);
+  } else {
+    return d / Nanoseconds(1);
   }
-  return d / Nanoseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
@@ -1880,8 +1882,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
     return (time_internal::GetRepHi(d) * 1000 * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000));
+  } else {
+    return d / Microseconds(1);
   }
-  return d / Microseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
@@ -1891,8 +1894,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
     return (time_internal::GetRepHi(d) * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000 * 1000));
+  } else {
+    return d / Milliseconds(1);
   }
-  return d / Milliseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Seconds(Duration d) {

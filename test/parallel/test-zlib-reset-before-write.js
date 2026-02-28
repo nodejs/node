@@ -21,9 +21,7 @@ for (const fn of [
 
   const output = [];
   inflate
-    .on('error', (err) => {
-      assert.ifError(err);
-    })
+    .on('error', common.mustNotCall())
     .on('data', (chunk) => output.push(chunk))
     .on('end', common.mustCall(
       () => assert.strictEqual(Buffer.concat(output).toString(), 'abc')));

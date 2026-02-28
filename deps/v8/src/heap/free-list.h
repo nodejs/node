@@ -62,8 +62,8 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink(FreeList* owner);
 
-  void Free(const WritableFreeSpace& writable_free_space, FreeMode mode,
-            FreeList* owner);
+  void Free(const Heap* heap, const WritableFreeSpace& writable_free_space,
+            FreeMode mode, FreeList* owner);
 
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
@@ -73,7 +73,8 @@ class FreeListCategory {
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
-  Tagged<FreeSpace> SearchForNodeInList(size_t minimum_size, size_t* node_size);
+  Tagged<FreeSpace> SearchForNodeInList(const Heap* heap, size_t minimum_size,
+                                        size_t* node_size);
 
   inline bool is_linked(FreeList* owner) const;
   bool is_empty() { return top().is_null(); }
@@ -149,14 +150,16 @@ class FreeList {
   // was too small. Bookkeeping information will be written to the block, i.e.,
   // its contents will be destroyed. The start address should be word aligned,
   // and the size should be a non-zero multiple of the word size.
-  virtual size_t Free(const WritableFreeSpace& free_space, FreeMode mode);
+  virtual size_t Free(const Isolate* isolate,
+                      const WritableFreeSpace& free_space, FreeMode mode);
 
   // Allocates a free space node from the free list of at least size_in_bytes
   // bytes. Returns the actual node size in node_size which can be bigger than
   // size_in_bytes. This method returns null if the allocation request cannot be
   // handled by the free list.
   virtual V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
-      size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) = 0;
+      const Heap* heap, size_t size_in_bytes, size_t* node_size,
+      AllocationOrigin origin) = 0;
 
   // Returns a page containing an entry for a given type, or nullptr otherwise.
   V8_EXPORT_PRIVATE virtual PageMetadata* GetPageForSize(
@@ -253,7 +256,8 @@ class FreeList {
                                   size_t minimum_size, size_t* node_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
-  Tagged<FreeSpace> SearchForNodeInList(FreeListCategoryType type,
+  Tagged<FreeSpace> SearchForNodeInList(const Heap* heap,
+                                        FreeListCategoryType type,
                                         size_t minimum_size, size_t* node_size);
 
   // Returns the smallest category in which an object of |size_in_bytes| could
@@ -300,7 +304,7 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   ~FreeListMany() override;
 
   V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
-      size_t size_in_bytes, size_t* node_size,
+      const Heap* heap, size_t size_in_bytes, size_t* node_size,
       AllocationOrigin origin) override;
 
  protected:
@@ -356,10 +360,11 @@ class V8_EXPORT_PRIVATE FreeListManyCached : public FreeListMany {
   FreeListManyCached();
 
   V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
-      size_t size_in_bytes, size_t* node_size,
+      const Heap* heap, size_t size_in_bytes, size_t* node_size,
       AllocationOrigin origin) override;
 
-  size_t Free(const WritableFreeSpace& free_space, FreeMode mode) override;
+  size_t Free(const Isolate* isolate, const WritableFreeSpace& free_space,
+              FreeMode mode) override;
 
   void Reset() override;
   void ResetForNonBlackAllocatedPages() override;
@@ -447,7 +452,7 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPathBase
   }
 
   V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
-      size_t size_in_bytes, size_t* node_size,
+      const Heap* heap, size_t size_in_bytes, size_t* node_size,
       AllocationOrigin origin) override;
 
  protected:
@@ -511,7 +516,7 @@ class V8_EXPORT_PRIVATE FreeListManyCachedOrigin
     : public FreeListManyCachedFastPath {
  public:
   V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
-      size_t size_in_bytes, size_t* node_size,
+      const Heap* heap, size_t size_in_bytes, size_t* node_size,
       AllocationOrigin origin) override;
 };
 

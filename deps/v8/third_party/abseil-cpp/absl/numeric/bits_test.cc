@@ -27,14 +27,35 @@ ABSL_NAMESPACE_BEGIN
 namespace {
 
 template <typename IntT>
+class UnsignedIntegerTypesTest : public ::testing::Test {};
+template <typename IntT>
 class IntegerTypesTest : public ::testing::Test {};
 
+using UnsignedIntegerTypes =
+    ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 using OneByteIntegerTypes = ::testing::Types<
     unsigned char,
     uint8_t
     >;
 
+TYPED_TEST_SUITE(UnsignedIntegerTypesTest, UnsignedIntegerTypes);
 TYPED_TEST_SUITE(IntegerTypesTest, OneByteIntegerTypes);
+
+TYPED_TEST(UnsignedIntegerTypesTest, ReturnTypes) {
+  using UIntType = TypeParam;
+
+  static_assert(std::is_same_v<decltype(byteswap(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(rotl(UIntType{0}, 0)), UIntType>);
+  static_assert(std::is_same_v<decltype(rotr(UIntType{0}, 0)), UIntType>);
+  static_assert(std::is_same_v<decltype(countl_zero(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countl_one(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countr_zero(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countr_one(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(popcount(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(bit_ceil(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(bit_floor(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(bit_width(UIntType{0})), int>);
+}
 
 TYPED_TEST(IntegerTypesTest, HandlesTypes) {
   using UIntType = TypeParam;
@@ -130,6 +151,9 @@ TEST(Rotate, Left) {
   EXPECT_EQ(rotl(uint32_t{0x12345678UL}, -4), uint32_t{0x81234567UL});
   EXPECT_EQ(rotl(uint64_t{0x12345678ABCDEF01ULL}, -4),
             uint64_t{0x112345678ABCDEF0ULL});
+
+  EXPECT_EQ(rotl(uint32_t{1234}, std::numeric_limits<int>::min()),
+            uint32_t{1234});
 }
 
 TEST(Rotate, Right) {
@@ -169,6 +193,9 @@ TEST(Rotate, Right) {
   EXPECT_EQ(rotr(uint32_t{0x12345678UL}, -4), uint32_t{0x23456781UL});
   EXPECT_EQ(rotr(uint64_t{0x12345678ABCDEF01ULL}, -4),
             uint64_t{0x2345678ABCDEF011ULL});
+
+  EXPECT_EQ(rotl(uint32_t{1234}, std::numeric_limits<int>::min()),
+            uint32_t{1234});
 }
 
 TEST(Rotate, Symmetry) {

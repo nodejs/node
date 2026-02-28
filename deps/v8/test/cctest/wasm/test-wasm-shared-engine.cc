@@ -37,7 +37,6 @@ class SharedEngineIsolate {
     v8_isolate()->Enter();
     v8::HandleScope handle_scope(v8_isolate());
     v8::Context::New(v8_isolate())->Enter();
-    testing::SetupIsolateForWasmModule(isolate());
     zone_.reset(new Zone(isolate()->allocator(), ZONE_NAME));
   }
   ~SharedEngineIsolate() {
@@ -90,6 +89,7 @@ class SharedEngineThread : public v8::base::Thread {
       : Thread(Options("SharedEngineThread")), callback_(callback) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     SharedEngineIsolate isolate;
     callback_(&isolate);
   }
@@ -304,9 +304,9 @@ TEST(SharedEngineRunThreadedTierUp) {
     HandleScope scope(isolate->isolate());
     DirectHandle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     WasmDetectedFeatures detected;
-    WasmCompilationUnit::CompileWasmFunction(
-        isolate->isolate()->counters(), module.get(), &detected,
-        &module->module()->functions[0], ExecutionTier::kTurbofan);
+    WasmCompilationUnit::CompileWasmFunction(module.get(), &detected,
+                                             &module->module()->functions[0],
+                                             ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate->Run(instance));
   });
   for (auto& thread : threads) CHECK(thread.Start());

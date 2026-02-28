@@ -11,6 +11,7 @@ function testFinalize(binding) {
   x = null;
   global.gc();
   process.on('uncaughtException', (err) => {
+    // eslint-disable-next-line node-core/must-call-assert
     assert.strictEqual(err.message, 'Error during Finalize');
   });
 

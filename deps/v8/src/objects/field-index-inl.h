@@ -91,7 +91,7 @@ FieldIndex FieldIndex::ForDescriptor(Tagged<Map> map,
 FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base,
                                      Tagged<Map> map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details = map->instance_descriptors(cage_base, kRelaxedLoad)
+  PropertyDetails details = map->instance_descriptors(cage_base, kAcquireLoad)
                                 ->GetDetails(descriptor_index);
   return ForDetails(map, details);
 }

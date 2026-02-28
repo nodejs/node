@@ -986,6 +986,85 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   index, value, timeout, WASM_ATOMICS_OP(op), alignment, offset
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
+#define WASM_STRUCT_ATOMIC_GET(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGet), memory_order,          \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_S(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetS), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_U(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetU), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SET(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSet), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_ADD(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAdd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SUB(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSub), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_AND(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAnd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_OR(memory_order, typeidx, fieldidx, struct_obj, \
+                              value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicOr), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_XOR(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicXor), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_EXCHANGE(memory_order, typeidx, fieldidx,           \
+                                    struct_obj, value)                         \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicExchange), memory_order, \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_COMPARE_EXCHANGE(                                \
+    memory_order, typeidx, fieldidx, struct_obj, expected_value, new_value) \
+  struct_obj, expected_value, new_value,                                    \
+      WASM_ATOMICS_OP(kExprStructAtomicCompareExchange), memory_order,      \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj, index)  \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_GET_S(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetS), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_GET_U(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetU), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_ADD(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAdd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SUB(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSub), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_AND(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAnd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_OR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicOr), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_XOR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicXor), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_EXCHANGE(memory_order, typeidx, array_obj, index, \
+                                   value)                                   \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicExchange),       \
+      memory_order, ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_COMPARE_EXCHANGE(memory_order, typeidx, array_obj, \
+                                           index, expected_value, new_value) \
+  array_obj, index, expected_value, new_value,                               \
+      WASM_ATOMICS_OP(kExprArrayAtomicCompareExchange), memory_order,        \
+      ToByte(typeidx)
+
 //------------------------------------------------------------------------------
 // Sign Extension Operations.
 //------------------------------------------------------------------------------
@@ -1103,17 +1182,21 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define LANE(ptr, index) ptr[index]
 #endif
 
-//------------------------------------------------------------------------------
-// Compilation Hints.
-//------------------------------------------------------------------------------
-#define COMPILE_STRATEGY_DEFAULT (0x00)
-#define COMPILE_STRATEGY_LAZY (0x01)
-#define COMPILE_STRATEGY_EAGER (0x02)
-#define BASELINE_TIER_DEFAULT (0x00 << 2)
-#define BASELINE_TIER_BASELINE (0x01 << 2)
-#define BASELINE_TIER_OPTIMIZED (0x02 << 2)
-#define TOP_TIER_DEFAULT (0x00 << 4)
-#define TOP_TIER_BASELINE (0x01 << 4)
-#define TOP_TIER_OPTIMIZED (0x02 << 4)
+// WasmGC type definitions.
+#define FIELD_COUNT(count) U32V_1(count)
+#define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)
+#define WASM_REF(index) kRefCode, index
+#define WASM_OPT_REF(index) kRefNullCode, index
+#define WASM_STRUCT_DEF(...) kWasmStructTypeCode, __VA_ARGS__
+#define WASM_ARRAY_DEF(type, mutability) \
+  kWasmArrayTypeCode, type, (mutability ? 1 : 0)
+#define WASM_FUNCTION_DEF(...) kWasmFunctionTypeCode, __VA_ARGS__
+#define WASM_REC_GROUP(...) kWasmRecursiveTypeGroupCode, __VA_ARGS__
+#define WASM_NONFINAL(...) kWasmSubtypeCode, 0, __VA_ARGS__
+#define WASM_NONFINAL_WITH_SUPERTYPE(supertype, ...) \
+  kWasmSubtypeCode, 1, supertype, __VA_ARGS__
+#define WASM_FINAL(...) kWasmSubtypeFinalCode, 0, __VA_ARGS__
+#define WASM_FINAL_WITH_SUPERTYPE(supertype, ...) \
+  kWasmSubtypeFinalCode, 1, supertype, __VA_ARGS__
 
 #endif  // V8_WASM_MACRO_GEN_H_

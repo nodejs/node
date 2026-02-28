@@ -55,7 +55,6 @@ v8::Local<v8::Object> BaseObject::object() const {
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 
-  DCHECK_EQ(handle->GetCreationContextChecked()->GetIsolate(), isolate);
   DCHECK_EQ(env()->isolate(), isolate);
 
   return handle;
@@ -75,8 +74,9 @@ bool BaseObject::IsBaseObject(IsolateData* isolate_data,
     return false;
   }
 
-  uint16_t* ptr = static_cast<uint16_t*>(
-      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType));
+  uint16_t* ptr =
+      static_cast<uint16_t*>(obj->GetAlignedPointerFromInternalField(
+          BaseObject::kEmbedderType, EmbedderDataTag::kEmbedderType));
   return ptr == isolate_data->embedder_id_for_non_cppgc();
 }
 
@@ -84,21 +84,24 @@ void BaseObject::TagBaseObject(IsolateData* isolate_data,
                                v8::Local<v8::Object> object) {
   DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
   object->SetAlignedPointerInInternalField(
-      BaseObject::kEmbedderType, isolate_data->embedder_id_for_non_cppgc());
+      BaseObject::kEmbedderType,
+      isolate_data->embedder_id_for_non_cppgc(),
+      EmbedderDataTag::kEmbedderType);
 }
 
 void BaseObject::SetInternalFields(IsolateData* isolate_data,
                                    v8::Local<v8::Object> object,
                                    void* slot) {
   TagBaseObject(isolate_data, object);
-  object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
+  object->SetAlignedPointerInInternalField(
+      BaseObject::kSlot, slot, EmbedderDataTag::kDefault);
 }
 
 BaseObject* BaseObject::FromJSObject(v8::Local<v8::Value> value) {
   v8::Local<v8::Object> obj = value.As<v8::Object>();
   DCHECK_GE(obj->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  return static_cast<BaseObject*>(
-      obj->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+  return static_cast<BaseObject*>(obj->GetAlignedPointerFromInternalField(
+      BaseObject::kSlot, EmbedderDataTag::kDefault));
 }
 
 template <typename T>

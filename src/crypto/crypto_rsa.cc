@@ -143,7 +143,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = Digest::FromName(*digest);
       if (!params->params.md) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
         return Nothing<void>();
       }
     }
@@ -153,8 +153,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = Digest::FromName(*digest);
       if (!params->params.mgf1_md) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(
-            env, "Invalid MGF1 digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid MGF1 digest: %s", digest);
         return Nothing<void>();
       }
     }
@@ -279,7 +278,7 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[offset + 1]);
       params->digest = Digest::FromName(*digest);
       if (!params->digest) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
         return Nothing<void>();
       }
 
@@ -386,6 +385,11 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
   RSAPointer rsa(RSA_new());
+  if (!rsa) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create RSA pointer");
+    return {};
+  }
+
   ncrypto::Rsa rsa_view(rsa.get());
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
@@ -436,7 +440,10 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   }
 
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
-  if (!pkey) return {};
+  if (!pkey) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create key pointer");
+    return {};
+  }
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }

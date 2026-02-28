@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/turboshaft-builtins-assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/string-view.h"
@@ -74,8 +75,8 @@ class StringBuiltinsReducer : public Next {
                       __ WordPtrMul(length, sizeof(SeqOneByteString::Char)));
     V<WordPtr> aligned_size = __ AlignTagged(object_size);
     Uninitialized<SeqOneByteString> new_string =
-        __ template Allocate<SeqOneByteString>(aligned_size,
-                                               AllocationType::kYoung);
+        __ template Allocate<SeqOneByteString>(
+            aligned_size, AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(new_string, AccessBuilderTS::ForMap(),
                        __ SeqOneByteStringMapConstant());
 
@@ -90,7 +91,7 @@ class StringBuiltinsReducer : public Next {
         -kObjectAlignment - kHeapObjectTag);
     static_assert(kObjectAlignment ==
                   MemoryRepresentation::TaggedSigned().SizeInBytes());
-    __ Store(raw_padding_begin, {}, __ SmiConstant(0),
+    __ Store(raw_padding_begin, {}, __ SmiConstant(Smi::zero()),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::TaggedSigned(),
              compiler::kNoWriteBarrier, 0, 0, true);
     GOTO(done, string);
@@ -110,8 +111,8 @@ class StringBuiltinsReducer : public Next {
                       __ WordPtrMul(length, sizeof(SeqTwoByteString::Char)));
     V<WordPtr> aligned_size = __ AlignTagged(object_size);
     Uninitialized<SeqTwoByteString> new_string =
-        __ template Allocate<SeqTwoByteString>(aligned_size,
-                                               AllocationType::kYoung);
+        __ template Allocate<SeqTwoByteString>(
+            aligned_size, AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(new_string, AccessBuilderTS::ForMap(),
                        __ SeqTwoByteStringMapConstant());
 
@@ -126,7 +127,7 @@ class StringBuiltinsReducer : public Next {
         -kObjectAlignment - kHeapObjectTag);
     static_assert(kObjectAlignment ==
                   MemoryRepresentation::TaggedSigned().SizeInBytes());
-    __ Store(raw_padding_begin, {}, __ SmiConstant(0),
+    __ Store(raw_padding_begin, {}, __ SmiConstant(Smi::zero()),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::TaggedSigned(),
              compiler::kNoWriteBarrier, 0, 0, true);
     GOTO(done, string);
@@ -219,14 +220,14 @@ TS_BUILTIN(StringFromCharCode, StringBuiltinsAssemblerTS) {
         // Resume copying the passed-in arguments from the same place where the
         // 8-bit copy stopped, but this time copying over all of the characters
         // using a 16-bit representation.
-        FOREACH(arg, arguments.Range(var_max_index)) {
-          V<Word32> code32 = TruncateTaggedToWord32(context, arg);
-          V<Word32> code16 =
-              Word32BitwiseAnd(code32, String::kMaxUtf16CodeUnit);
+        FOREACH(rem_arg, arguments.Range(var_max_index)) {
+          V<Word32> rem_code32 = TruncateTaggedToWord32(context, rem_arg);
+          V<Word32> rem_code16 =
+              Word32BitwiseAnd(rem_code32, String::kMaxUtf16CodeUnit);
 
           StoreElement(two_byte_result,
                        AccessBuilderTS::ForSeqTwoByteStringCharacter(),
-                       var_max_index, code16);
+                       var_max_index, rem_code16);
           var_max_index = WordPtrAdd(var_max_index, 1);
         }
         PopAndReturn(arguments, two_byte_result);

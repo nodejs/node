@@ -70,6 +70,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Creates a Float64Constant node, usually canonicalized.
   Node* Float64Constant(double value);
+  Node* Float64Constant(Float64 value);
 
   // Creates a PointerConstant node.
   Node* PointerConstant(intptr_t value);

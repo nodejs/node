@@ -97,7 +97,7 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   // the lock.
   static constexpr int kMaxStackDepth = 64;
   absl::Time create_time;
-  int32_t depth;
+  uint32_t depth;
   // The SOO capacity for this table in elements (not bytes). Note that sampled
   // tables are never SOO because we need to store the infoz handle on the heap.
   // Tables that would be SOO if not sampled should have: soo_capacity > 0 &&

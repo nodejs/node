@@ -25,15 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --always-turbofan
+// Flags: --allow-natives-syntax
 
 // Test deoptimization into inlined smi code.
 
 function f(x) {
   return ~x;
 }
-
+%PrepareFunctionForOptimization(f);
 f(42);
+%OptimizeFunctionOnNextCall(f);
 assertEquals(~12, f(12.45));
 assertEquals(~42, f(42.87));
 
@@ -42,8 +43,9 @@ var a = 1, b = 2, c = 4, d = 8;
 function g() {
   return a | (b | (c | d));
 }
-
+%PrepareFunctionForOptimization(g);
 g();
+%OptimizeFunctionOnNextCall(g);
 c = "16";
 assertEquals(1 | 2 | 16 | 8, g());
 
@@ -52,7 +54,9 @@ function h() {
   return 1 | a;
 }
 a = "2";
+%PrepareFunctionForOptimization(h);
 h();
+%OptimizeFunctionOnNextCall(h);
 assertEquals(3, h());
 
 
@@ -60,5 +64,7 @@ function k() {
   return a | 1;
 }
 a = "4";
+%PrepareFunctionForOptimization(k);
 k();
+%OptimizeFunctionOnNextCall(k);
 assertEquals(5, k());

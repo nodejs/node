@@ -14,9 +14,6 @@ test-watch-mode-inspect: PASS, FLAKY
 test-http2-large-file: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/49630
-test-single-executable-application-snapshot: PASS, FLAKY
-test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
 # https://github.com/nodejs/node/issues/47409
 test-http2-large-file: PASS, FLAKY
 
@@ -25,8 +22,6 @@ test-http2-large-file: PASS, FLAKY
 test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==macos]
-# https://github.com/nodejs/node/issues/54816
-test-single-executable-application-empty: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS, FLAKY

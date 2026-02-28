@@ -1,6 +1,6 @@
 // Flags: --expose_gc
 //
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { gcUntil } from '../common/gc.js';
 import { describe, it } from 'node:test';
 
@@ -103,18 +103,18 @@ function runWithOrphanListeners(limit, done) {
 const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
-  it('drops settled dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
+  it('drops settled dependent signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
       setImmediate(() => {
-        t.assert.strictEqual(signal[depandantSignalsKey].size, 0);
+        t.assert.strictEqual(signal[dependantSignalsKey].size, 0);
         done();
       });
     });
   });
 
-  it('keeps all active dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
-      t.assert.strictEqual(signal[depandantSignalsKey].size, limit);
+  it('keeps all active dependent signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
+      t.assert.strictEqual(signal[dependantSignalsKey].size, limit);
 
       done();
     }, true);
@@ -132,7 +132,7 @@ it('does not prevent source signal from being GCed if it is short-lived', (t, do
   });
 });
 
-it('drops settled dependant signals when signal is composite', (t, done) => {
+it('drops settled dependent signals when signal is composite', (t, done) => {
   const controllers = Array.from({ length: 2 }, () => new AbortController());
 
   // Using WeakRefs to avoid this test to retain information that will make the test fail
@@ -146,7 +146,7 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
   t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
   t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
 
-  setImmediate(() => {
+  setImmediate(mustCall(() => {
     globalThis.gc({ execution: 'async' }).then(async () => {
       await gcUntil('all signals are GCed', () => {
         const totalDependantSignals = Math.max(
@@ -158,8 +158,8 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
       });
 
       done();
-    });
-  });
+    }).then(mustCall());
+  }));
 });
 
 it('drops settled signals even when there are listeners', (t, done) => {

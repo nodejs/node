@@ -94,8 +94,9 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   // The inliner makes hardcoded skip_count difficult (especially when combined
   // with LTO).  We use the ability to exclude stacks by regex when encoding
   // instead.
-  depth = absl::GetStackTrace(stack, HashtablezInfo::kMaxStackDepth,
-                              /* skip_count= */ 0);
+  depth = static_cast<unsigned>(
+      absl::GetStackTrace(stack, HashtablezInfo::kMaxStackDepth,
+                          /* skip_count= */ 0));
   inline_element_size = inline_element_size_value;
   key_size = key_size_value;
   value_size = value_size_value;

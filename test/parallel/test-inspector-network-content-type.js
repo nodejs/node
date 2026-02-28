@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const http = require('node:http');
 const inspector = require('node:inspector/promises');
 
-const testNetworkInspection = async (session, port, assert) => {
+const testNetworkInspection = common.mustCallAtLeast(async (session, port, assert) => {
   let assertPromise = assert(session);
   fetch(`http://127.0.0.1:${port}/hello-world`).then(common.mustCall());
   await assertPromise;
@@ -31,7 +31,7 @@ const testNetworkInspection = async (session, port, assert) => {
   });
   await assertPromise;
   session.removeAllListeners();
-};
+});
 
 const test = (handleRequest, testSessionFunc) => new Promise((resolve) => {
   const session = new inspector.Session();

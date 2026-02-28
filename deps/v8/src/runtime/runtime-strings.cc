@@ -154,8 +154,6 @@ RUNTIME_FUNCTION(Runtime_StringSubstring) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
-  // This is used by Wasm.
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<String> str1 = args.at<String>(0);
@@ -164,38 +162,58 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
                            isolate->factory()->NewConsString(str1, str2));
 }
 
-RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<String> lhs = args.at<String>(0);
-  DirectHandle<Object> rhs = args.at<Object>(1);
-  Handle<HeapObject> maybe_feedback_vector = args.at<HeapObject>(2);
-  const int slot_index = args.tagged_index_value_at(3);
+namespace {
 
-  DirectHandle<String> rhs_string;
-  if (IsString(*rhs)) {
-    rhs_string = Cast<String>(rhs);
+using ASVariant = AddStringConstantAndInternalizeVariant;
+
+Tagged<Object> StringAdd_StringConstant_Internalize(
+    Isolate* isolate, DirectHandle<Object> lhs, DirectHandle<Object> rhs,
+    Handle<HeapObject> maybe_feedback_vector, int slot_index,
+    ASVariant as_variant) {
+  const bool lhs_is_string_constant =
+      as_variant == ASVariant::kLhsIsStringConstant;
+  DirectHandle<Object> const_str_operand = lhs_is_string_constant ? lhs : rhs;
+  DirectHandle<Object> other_operand = lhs_is_string_constant ? rhs : lhs;
+  DCHECK(IsInternalizedString(*const_str_operand));
+
+  DirectHandle<String> other_operand_string;
+  if (IsString(*other_operand)) {
+    other_operand_string = Cast<String>(other_operand);
   } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, rhs_string,
-                                       Object::ToString(isolate, rhs));
+    // According to spec we first have to do ToPrimitive and only then
+    // ToString.
+    // https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, other_operand, Object::ToPrimitive(isolate, other_operand));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, other_operand_string,
+        Object::ToString(isolate, other_operand));
   }
 
   auto f = isolate->factory();
-  auto rhs_internalized = IsInternalizedString(*rhs_string)
-                              ? Cast<InternalizedString>(rhs_string)
-                              : f->InternalizeString(rhs_string);
+  auto other_operand_internalize =
+      IsInternalizedString(*other_operand_string)
+          ? Cast<InternalizedString>(other_operand_string)
+          : f->InternalizeString(other_operand_string);
+
+  auto lhs_internalize = lhs_is_string_constant
+                             ? Cast<String>(const_str_operand)
+                             : Cast<String>(other_operand_internalize);
+  auto rhs_internalize = lhs_is_string_constant
+                             ? Cast<String>(other_operand_internalize)
+                             : Cast<String>(const_str_operand);
 
   if (IsUndefined(*maybe_feedback_vector)) {
     DirectHandle<String> cons;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+        isolate, cons, f->NewConsString(lhs_internalize, rhs_internalize));
     return *f->InternalizeString(cons);
   }
 
   auto feedback_vector = Cast<FeedbackVector>(maybe_feedback_vector);
 
   FeedbackSlot cache_slot(FeedbackVector::ToSlot(
-      slot_index + kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset));
+      slot_index + kAdd_StringConstant_Internalize_CacheSlotOffset));
   DCHECK_LT(cache_slot.ToInt(), feedback_vector->length());
   Handle<Object> cache_obj(Cast<Object>(feedback_vector->Get(cache_slot)),
                            isolate);
@@ -207,7 +225,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
     cache = Cast<SimpleNameDictionary>(cache_obj);
   }
 
-  InternalIndex entry = cache->FindEntry(isolate, rhs_internalized);
+  InternalIndex entry = cache->FindEntry(isolate, other_operand_internalize);
   if (entry.is_found()) {
     auto result = cache->ValueAt(entry);
     DCHECK(IsInternalizedString(result));
@@ -216,16 +234,42 @@ RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
 
   DirectHandle<String> cons;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+      isolate, cons, f->NewConsString(lhs_internalize, rhs_internalize));
 
   auto internalized = f->InternalizeString(cons);
-  auto new_cache =
-      SimpleNameDictionary::Set(isolate, cache, rhs_internalized, internalized);
+  auto new_cache = SimpleNameDictionary::Set(
+      isolate, cache, other_operand_internalize, internalized);
   if (*new_cache != *cache) {
     feedback_vector->SynchronizedSet(cache_slot, *new_cache);
   }
 
   return *internalized;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<String> lhs = args.at<String>(0);
+  DirectHandle<Object> rhs = args.at<Object>(1);
+  Handle<HeapObject> maybe_feedback_vector = args.at<HeapObject>(2);
+  int slot_index = args.tagged_index_value_at(3);
+  return StringAdd_StringConstant_Internalize(isolate, lhs, rhs,
+                                              maybe_feedback_vector, slot_index,
+                                              ASVariant::kLhsIsStringConstant);
+}
+
+RUNTIME_FUNCTION(Runtime_StringAdd_RhsIsStringConstant_Internalize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<Object> lhs = args.at<Object>(0);
+  DirectHandle<String> rhs = args.at<String>(1);
+  Handle<HeapObject> maybe_feedback_vector = args.at<HeapObject>(2);
+  int slot_index = args.tagged_index_value_at(3);
+  return StringAdd_StringConstant_Internalize(isolate, lhs, rhs,
+                                              maybe_feedback_vector, slot_index,
+                                              ASVariant::kRhsIsStringConstant);
 }
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
@@ -236,7 +280,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -445,7 +488,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
   // This function can be called from Wasm: optimized Wasm code calls
@@ -469,7 +511,6 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringCompare) {
-  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> lhs(Cast<String>(args[0]), isolate);

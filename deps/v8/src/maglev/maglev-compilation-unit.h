@@ -67,6 +67,7 @@ class MaglevCompilationUnit : public ZoneObject {
   int inlining_depth() const { return inlining_depth_; }
   bool is_inline() const { return inlining_depth_ != 0; }
   bool has_graph_labeller() const;
+  bool is_tracing_enabled() const;
   MaglevGraphLabeller* graph_labeller() const;
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_.value();

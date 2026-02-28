@@ -1,4 +1,4 @@
-import { URL } from 'url'
+import { URL } from 'node:url'
 import Pool from './pool'
 import Dispatcher from './dispatcher'
 import TClientStats from './client-stats'
@@ -24,6 +24,7 @@ declare namespace Agent {
     factory?(origin: string | URL, opts: Object): Dispatcher;
 
     interceptors?: { Agent?: readonly Dispatcher.DispatchInterceptor[] } & Pool.Options['interceptors']
+    maxOrigins?: number
   }
 
   export interface DispatchOptions extends Dispatcher.DispatchOptions {

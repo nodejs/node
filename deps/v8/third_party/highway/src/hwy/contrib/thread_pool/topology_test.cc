@@ -48,6 +48,10 @@ TEST(TopologyTest, TestTopology) {
   Topology topology;
   if (topology.packages.empty()) return;
 
+  fprintf(stderr, "Topology: %zuP %zuX %zuC\n", topology.packages.size(),
+          topology.packages[0].clusters.size(),
+          topology.packages[0].clusters[0].lps.Count());
+
   HWY_ASSERT(!topology.lps.empty());
   LogicalProcessorSet nodes;
   for (size_t lp = 0; lp < topology.lps.size(); ++lp) {
@@ -61,8 +65,7 @@ TEST(TopologyTest, TestTopology) {
   size_t lps_by_cluster = 0;
   size_t lps_by_core = 0;
   LogicalProcessorSet all_lps;
-  for (size_t p = 0; p < topology.packages.size(); ++p) {
-    const Topology::Package& pkg = topology.packages[p];
+  for (const Topology::Package& pkg : topology.packages) {
     HWY_ASSERT(!pkg.clusters.empty());
     HWY_ASSERT(!pkg.cores.empty());
     HWY_ASSERT(pkg.clusters.size() <= pkg.cores.size());
@@ -81,6 +84,49 @@ TEST(TopologyTest, TestTopology) {
   HWY_ASSERT(lps_by_core == topology.lps.size());
   // .. and are a partition of unity (all LPs are covered)
   HWY_ASSERT(all_lps.Count() == topology.lps.size());
+}
+
+void PrintCache(const Cache& c, size_t level) {
+  fprintf(stderr,
+          "L%zu: size %u KiB, line size %u, assoc %u, sets %u, cores %u\n",
+          level, c.size_kib, c.bytes_per_line, c.associativity, c.sets,
+          c.cores_sharing);
+}
+
+static void CheckCache(const Cache& c, size_t level) {
+  // L1-L2 must exist, L3 is not guaranteed.
+  if (level == 3 && c.size_kib == 0) {
+    HWY_ASSERT(c.associativity == 0 && c.bytes_per_line == 0 && c.sets == 0);
+    return;
+  }
+
+  // size and thus sets are not necessarily powers of two.
+  HWY_ASSERT(c.size_kib != 0);
+  HWY_ASSERT(c.sets != 0);
+
+  // Intel Skylake has non-pow2 L3 associativity, and Apple L2 also, so we can
+  // only check loose bounds.
+  HWY_ASSERT(c.associativity >= 2);
+  HWY_ASSERT(c.associativity <= Cache::kMaxAssociativity);
+
+  // line sizes are always powers of two because CPUs partition addresses into
+  // line offsets (the lower bits), set, and tag.
+  const auto is_pow2 = [](uint32_t x) { return x != 0 && (x & (x - 1)) == 0; };
+  HWY_ASSERT(is_pow2(c.bytes_per_line));
+  HWY_ASSERT(32 <= c.bytes_per_line && c.bytes_per_line <= 1024);
+
+  HWY_ASSERT(c.cores_sharing != 0);
+  // +1 observed on RISC-V.
+  HWY_ASSERT(c.cores_sharing <= TotalLogicalProcessors() + 1);
+}
+
+TEST(TopologyTest, TestCaches) {
+  const Cache* caches = DataCaches();
+  if (!caches) return;
+  for (size_t level = 1; level <= 3; ++level) {
+    PrintCache(caches[level], level);
+    CheckCache(caches[level], level);
+  }
 }
 
 }  // namespace

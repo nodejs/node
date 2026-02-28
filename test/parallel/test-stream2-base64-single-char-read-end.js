@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const { Readable: R, Writable: W } = require('stream');
 const assert = require('assert');
 
@@ -44,10 +44,10 @@ dst._write = function(chunk, enc, cb) {
   cb();
 };
 
-src.on('end', function() {
+src.on('end', common.mustCall(() => {
   assert.strictEqual(String(Buffer.concat(accum)), 'MQ==');
   clearTimeout(timeout);
-});
+}));
 
 src.pipe(dst);
 

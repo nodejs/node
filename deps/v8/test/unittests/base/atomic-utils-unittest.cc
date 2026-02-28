@@ -140,6 +140,27 @@ TEST(AsAtomicWord, Relaxed_SetBits_Sequential) {
   }
 }
 
+TEST(AsAtomicWord, Relaxed_SetBitsByMask_Sequential) {
+  uintptr_t word = 0;
+  // Fill the word with a repeated 0xF0 pattern.
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    word = (word << 8) | 0xF0;
+  }
+  // Check the pattern.
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    EXPECT_EQ(0xF0u, (word >> (i * 8) & 0xFFu));
+  }
+  // Set the i-th byte value to 0XF1.
+  uintptr_t mask = 0x01;
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    AsAtomicWord::Relaxed_SetBits(&word, mask);
+    mask <<= 8;
+  }
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    EXPECT_EQ(0xF1u, (word >> (i * 8) & 0xFFu));
+  }
+}
+
 TEST(AsAtomicWord, Release_SetBits_Sequential) {
   uintptr_t word = 0;
   // Fill the word with a repeated 0xF0 pattern.

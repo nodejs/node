@@ -197,6 +197,7 @@ class FastKeyAccumulator {
   bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
   bool has_empty_prototype() { return has_empty_prototype_; }
   bool may_have_elements() { return may_have_elements_; }
+  bool MayHaveSymbols();
 
   MaybeHandle<FixedArray> GetKeys(
       GetKeysConversion convert = GetKeysConversion::kKeepNumbers);

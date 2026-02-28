@@ -605,6 +605,38 @@ void MacroAssembler::Csneg(const Register& rd, const Register& rn,
   csneg(rd, rn, rm, cond);
 }
 
+void MacroAssembler::Cpy(const Register& rd, const Register& rs,
+                         const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rs.IsZero());
+  DCHECK(!rn.IsZero());
+
+  // TODO(sparker): Check whether forward copies, ones that either don't
+  // overlap or where the source address is greater than the destination, could
+  // be faster.
+  cpyp(rd, rs, rn);
+  cpym(rd, rs, rn);
+  cpye(rd, rs, rn);
+}
+
+void MacroAssembler::Set(const Register& rd, const Register& rn,
+                         const Register& rs) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rn.IsZero());
+
+  setp(rd, rn, rs);
+  setm(rd, rn, rs);
+  sete(rd, rn, rs);
+}
+
 void MacroAssembler::Dmb(BarrierDomain domain, BarrierType type) {
   DCHECK(allow_macro_instructions());
   dmb(domain, type);
@@ -1545,6 +1577,33 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
     B(eq, label);
   }
 }
+
+#define MINMAX(V)         \
+  V(Smax, smax, is_int8)  \
+  V(Smin, smin, is_int8)  \
+  V(Umax, umax, is_uint8) \
+  V(Umin, umin, is_uint8)
+
+#define DEFINE_MASM_FUNC(MASM, ASM, RANGE)                          \
+  void MacroAssembler::MASM(const Register& rd, const Register& rn, \
+                            const Operand& op) {                    \
+    DCHECK(allow_macro_instructions());                             \
+    DCHECK(!rd.IsZero());                                           \
+    if (op.IsImmediate()) {                                         \
+      int64_t imm = op.ImmediateValue();                            \
+      if (!RANGE(imm)) {                                            \
+        UseScratchRegisterScope temps(this);                        \
+        Register temp = temps.AcquireSameSizeAs(rd);                \
+        Mov(temp, imm);                                             \
+        MASM(rd, rn, temp);                                         \
+        return;                                                     \
+      }                                                             \
+    }                                                               \
+    ASM(rd, rn, op);                                                \
+  }
+MINMAX(DEFINE_MASM_FUNC)
+#undef DEFINE_MASM_FUNC
+#undef MINMAX
 
 }  // namespace internal
 }  // namespace v8

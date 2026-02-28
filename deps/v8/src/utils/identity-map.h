@@ -116,8 +116,8 @@ template <typename V, class AllocationPolicy>
 class IdentityMap : public IdentityMapBase {
  public:
   static_assert(sizeof(V) <= sizeof(uintptr_t));
-  static_assert(std::is_trivially_copyable<V>::value);
-  static_assert(std::is_trivially_destructible<V>::value);
+  static_assert(std::is_trivially_copyable_v<V>);
+  static_assert(std::is_trivially_destructible_v<V>);
 
   explicit IdentityMap(Heap* heap,
                        AllocationPolicy allocator = AllocationPolicy())

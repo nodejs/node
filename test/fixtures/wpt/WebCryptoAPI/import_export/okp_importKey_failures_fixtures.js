@@ -432,7 +432,7 @@ var mismatchedKtyField =  {
 // The 'kty' field doesn't match the key algorithm.
 var mismatchedCrvField =  {
     "Ed25519": "X25519",
-    "X25519": "Ed448",
-    "Ed448": "X25519",
-    "X448": "Ed25519",
+    "X25519": "Ed25519",
+    "Ed448": "X448",
+    "X448": "Ed448",
 }

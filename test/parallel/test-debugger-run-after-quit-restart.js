@@ -15,11 +15,6 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-  function onFatal(error) {
-    cli.quit();
-    throw error;
-  }
-
   cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.stepCommand('n'))
@@ -62,7 +57,7 @@ const path = require('path');
         { filename: script, line: 2 },
       );
     })
-    .then(() => cli.stepCommand('restart'))
+    .then(() => cli.command('restart'))
     .then(() => cli.waitForInitialBreak())
     .then(() => {
       assert.deepStrictEqual(
@@ -85,6 +80,6 @@ const path = require('path');
         { filename: script, line: 1 },
       );
     })
-    .then(() => cli.quit())
-    .then(null, onFatal);
+    .finally(() => cli.quit())
+    .then(common.mustCall());
 }

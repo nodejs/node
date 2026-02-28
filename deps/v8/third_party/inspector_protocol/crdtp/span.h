@@ -7,49 +7,17 @@
 
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <string>
 #include <type_traits>
 
 #include "export.h"
 
 namespace v8_crdtp {
-// =============================================================================
-// span - sequence of bytes
-// =============================================================================
 
-// This template is similar to std::span, which will be included in C++20.
+// crdtp::span is a std::span which always holds const elements.
 template <typename T>
-class span {
- public:
-  using index_type = size_t;
-
-  constexpr span() : data_(nullptr), size_(0) {}
-  constexpr span(const T* data, index_type size) : data_(data), size_(size) {}
-
-  constexpr const T* data() const { return data_; }
-
-  constexpr const T* begin() const { return data_; }
-  constexpr const T* end() const { return data_ + size_; }
-
-  constexpr const T& operator[](index_type idx) const { return data_[idx]; }
-
-  constexpr span<T> subspan(index_type offset, index_type count) const {
-    return span(data_ + offset, count);
-  }
-
-  constexpr span<T> subspan(index_type offset) const {
-    return span(data_ + offset, size_ - offset);
-  }
-
-  constexpr bool empty() const { return size_ == 0; }
-
-  constexpr index_type size() const { return size_; }
-  constexpr index_type size_bytes() const { return size_ * sizeof(T); }
-
- private:
-  const T* data_;
-  index_type size_;
-};
+using span = std::span<const T>;
 
 template <size_t N>
 constexpr span<char> MakeSpan(const char (&str)[N]) {
@@ -72,11 +40,11 @@ inline span<uint8_t> SpanFrom(const std::string& v) {
 
 // This SpanFrom routine works for std::vector<uint8_t> and
 // std::vector<uint16_t>, but also for base::span<const uint8_t> in Chromium.
-template <typename C>
-inline span<typename C::value_type> SpanFrom(const C& v)
-  requires(std::is_unsigned_v<typename C::value_type> &&
-           std::is_member_function_pointer_v<decltype(&C::size)>)
-{
+template <typename C,
+          typename = std::enable_if_t<
+              std::is_unsigned<typename C::value_type>{} &&
+              std::is_member_function_pointer<decltype(&C::size)>{}>>
+inline span<typename C::value_type> SpanFrom(const C& v) {
   return span<typename C::value_type>(v.data(), v.size());
 }
 

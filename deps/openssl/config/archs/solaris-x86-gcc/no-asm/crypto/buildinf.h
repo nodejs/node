@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: solaris-x86-gcc"
-#define DATE "built on: Sun Jul 27 00:57:24 2025 UTC"
+#define DATE "built on: Tue Jan 27 17:37:21 2026 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a

@@ -35,23 +35,24 @@ OpIndex LoadRootHelper(AssemblerT&& assembler, RootIndex index) {
   }
 }
 
-#define LOAD_INSTANCE_FIELD(instance, name, representation)     \
-  __ Load(instance, LoadOp::Kind::TaggedBase(), representation, \
-          WasmTrustedInstanceData::k##name##Offset)
+#define LOAD_INSTANCE_FIELD(instance, name, representation)           \
+  __ Load(instance, compiler::turboshaft::LoadOp::Kind::TaggedBase(), \
+          representation, WasmTrustedInstanceData::k##name##Offset)
 
-#define LOAD_PROTECTED_INSTANCE_FIELD(instance, name, type) \
-  V<type>::Cast(__ LoadProtectedPointerField(               \
-      instance, LoadOp::Kind::TaggedBase(),                 \
+#define LOAD_PROTECTED_INSTANCE_FIELD(instance, name, type)       \
+  V<type>::Cast(__ LoadProtectedPointerField(                     \
+      instance, compiler::turboshaft::LoadOp::Kind::TaggedBase(), \
       WasmTrustedInstanceData::kProtected##name##Offset))
 
-#define LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(instance, name, type) \
-  V<type>::Cast(__ LoadProtectedPointerField(                         \
-      instance, LoadOp::Kind::TaggedBase().Immutable(),               \
+#define LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(instance, name, type)         \
+  V<type>::Cast(__ LoadProtectedPointerField(                                 \
+      instance, compiler::turboshaft::LoadOp::Kind::TaggedBase().Immutable(), \
       WasmTrustedInstanceData::kProtected##name##Offset))
 
-#define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)       \
-  __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(), representation, \
-          WasmTrustedInstanceData::k##name##Offset)
+#define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)   \
+  __ Load(instance,                                                     \
+          compiler::turboshaft::LoadOp::Kind::TaggedBase().Immutable(), \
+          representation, WasmTrustedInstanceData::k##name##Offset)
 
 #define LOAD_ROOT(name)                                    \
   V<compiler::turboshaft::RootTypes::k##name##Type>::Cast( \

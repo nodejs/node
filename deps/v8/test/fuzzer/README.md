@@ -73,7 +73,7 @@ new fuzzer to cluster fuzz.
 2. Compile the fuzzer in chromium (for different configurations see:
    https://chromium.googlesource.com/chromium/src/+/master/testing/libfuzzer/reference.md):
 
-   * `gn gen out/libfuzzer '--args=use_libfuzzer=true is_asan=true is_debug=false enable_nacl=false'`
+   * `gn gen out/libfuzzer '--args=use_libfuzzer=true is_asan=true is_debug=false'`
 
    * `ninja -j 1000 -C out/libfuzzer/ v8_foo_fuzzer`
 

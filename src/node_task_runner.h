@@ -38,13 +38,13 @@ class ProcessRunner {
   uv_loop_t* loop_ = uv_default_loop();
   uv_process_t process_{};
   uv_process_options_t options_{};
-  uv_stdio_container_t child_stdio[3]{};
-  std::shared_ptr<InitializationResultImpl> init_result;
+  uv_stdio_container_t child_stdio_[3]{};
+  std::shared_ptr<InitializationResultImpl> init_result_;
   std::vector<std::string> command_args_{};
   std::vector<std::string> env_vars_{};
-  std::unique_ptr<char* []> env {};  // memory for options_.env
-  std::unique_ptr<char* []> arg {};  // memory for options_.args
-  std::string cwd;
+  std::unique_ptr<char* []> env_ {};  // memory for options_.env
+  std::unique_ptr<char* []> arg_ {};  // memory for options_.args
+  std::string cwd_;
 
   // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);

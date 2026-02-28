@@ -30,6 +30,7 @@
 #define ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
@@ -58,8 +59,12 @@ namespace strings_internal {
 class ConvertibleToStringView {
  public:
   ConvertibleToStringView(const char* s)  // NOLINT(runtime/explicit)
-      : value_(s) {}
-  ConvertibleToStringView(char* s) : value_(s) {}  // NOLINT(runtime/explicit)
+      : value_(s) {
+    assert(s != nullptr);
+  }
+  ConvertibleToStringView(char* s) : value_(s) {  // NOLINT(runtime/explicit)
+    assert(s != nullptr);
+  }
   ConvertibleToStringView(absl::string_view s)     // NOLINT(runtime/explicit)
       : value_(s) {}
   ConvertibleToStringView(const std::string& s)  // NOLINT(runtime/explicit)

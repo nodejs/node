@@ -25,7 +25,7 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
   DirectHandle<Object> export_object(exports->Lookup(export_name), isolate);
 
-  if (!IsCell(*export_object)) {
+  if (IsTheHole(*export_object) || !IsCell(*export_object)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kModuleExportUndefined, export_name));
     return Nothing<bool>();
@@ -56,7 +56,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     DirectHandle<String> module_specifier, DirectHandle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (IsCell(*object)) return Cast<Cell>(object);
+  if (!IsTheHole(*object) && IsCell(*object)) return Cast<Cell>(object);
 
   if (!must_resolve) return kNullMaybeHandle;
 
@@ -81,7 +81,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
     DirectHandle<Cell> cell = isolate->factory()->NewCell();
     DirectHandle<String> name(Cast<String>(export_names->get(i)), isolate);
     CHECK(IsTheHole(exports->Lookup(name), isolate));
-    exports = ObjectHashTable::Put(exports, name, cell);
+    exports = ObjectHashTable::Put(isolate, exports, name, cell);
   }
   module->set_exports(*exports);
   return true;

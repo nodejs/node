@@ -168,6 +168,14 @@ class V8_EXPORT_PRIVATE Sandbox {
   }
 
   /**
+   * Returns a PageAllocator weak pointer instance that allocates pages inside
+   * the sandbox. This version is for BackingStores that can outlive sandbox.
+   */
+  std::weak_ptr<v8::PageAllocator> page_allocator_weak() const {
+    return sandbox_page_allocator_;
+  }
+
+  /**
    * Returns true if the given address lies within the sandbox address space.
    */
   bool Contains(Address addr) const {
@@ -310,7 +318,7 @@ class V8_EXPORT_PRIVATE Sandbox {
   std::unique_ptr<v8::VirtualAddressSpace> address_space_;
 
   // The page allocator instance for this sandbox.
-  std::unique_ptr<v8::PageAllocator> sandbox_page_allocator_;
+  std::shared_ptr<v8::PageAllocator> sandbox_page_allocator_;
 
   // Constant objects inside this sandbox.
   SandboxedPointerConstants constants_;
@@ -330,15 +338,25 @@ class V8_EXPORT_PRIVATE Sandbox {
 
 // Helper function that can be used to ensure that certain objects are not
 // located inside the sandbox. Typically used for trusted objects.
-// Will always return false when the sandbox is disabled or partially reserved.
-V8_INLINE bool InsideSandbox(uintptr_t address) {
+// Returns true when the sandbox is disabled, or when the sandbox is partially
+// reserved and the address is outside the reservation.
+V8_INLINE bool OutsideSandbox(uintptr_t address) {
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox = Sandbox::current();
   // Use ReservationContains (instead of just Contains) to correctly handle the
   // case of partially-reserved sandboxes.
-  return sandbox->ReservationContains(address);
+  return !sandbox->ReservationContains(address);
 #else
-  return false;
+  return true;
+#endif
+}
+
+V8_INLINE bool InsideSandbox(uintptr_t address) {
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = Sandbox::current();
+  return sandbox->Contains(address);
+#else
+  return true;
 #endif
 }
 

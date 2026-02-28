@@ -34,6 +34,7 @@ _supported = _supported_compiler && _supported_build_type &&
 
 use_partition_alloc_as_malloc_default = _supported
 use_allocator_shim_default = _supported
+shim_supports_sized_dealloc_default = false
 enable_backup_ref_ptr_support_default = _supported
 put_ref_count_in_previous_slot_default = true
 enable_backup_ref_ptr_slow_checks_default = false

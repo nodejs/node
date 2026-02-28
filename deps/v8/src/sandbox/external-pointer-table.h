@@ -98,6 +98,10 @@ struct ExternalPointerTableEntry {
   // Invalidates the source entry.
   inline void Evacuate(ExternalPointerTableEntry& dest, EvacuateMarkMode mode);
 
+  // Copy the content of the given entry into this entry.
+  // The source entry remains valid.
+  inline void CopyFrom(const ExternalPointerTableEntry& src);
+
   // Mark this entry as alive during table garbage collection.
   inline void Mark();
 
@@ -344,14 +348,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
     // Not atomic.  Mutators and concurrent marking must be paused.
     void AssertEmpty() { CHECK(segments_.empty()); }
-
-    bool allocate_black() { return allocate_black_; }
-    void set_allocate_black(bool allocate_black) {
-      allocate_black_ = allocate_black;
-    }
-
-   private:
-    bool allocate_black_ = false;
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.
@@ -392,6 +388,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateAndInitializeEntry(
       Space* space, Address initial_value, ExternalPointerTag tag);
+
+  // Duplicates an entry, returning a handle to the new entry.
+  inline ExternalPointerHandle DuplicateEntry(Space* space,
+                                              ExternalPointerHandle handle);
 
   // Marks the specified entry as alive.
   //

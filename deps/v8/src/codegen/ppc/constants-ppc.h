@@ -128,6 +128,8 @@ enum Condition : int {
   overflow = 8,  // Summary overflow
   nooverflow = 9,
   al = 10,  // Always.
+  overflow32 = 11,
+  nooverflow32 = 12,
 
   // Unified cross-platform condition names/aliases.
   // Do not set unsigned constants equal to their signed variants.
@@ -139,14 +141,16 @@ enum Condition : int {
   kGreaterThan = gt,
   kLessThanEqual = le,
   kGreaterThanEqual = ge,
-  kUnsignedLessThan = 11,
-  kUnsignedGreaterThan = 12,
-  kUnsignedLessThanEqual = 13,
-  kUnsignedGreaterThanEqual = 14,
+  kUnsignedLessThan = 13,
+  kUnsignedGreaterThan = 14,
+  kUnsignedLessThanEqual = 15,
+  kUnsignedGreaterThanEqual = 16,
   kOverflow = overflow,
   kNoOverflow = nooverflow,
-  kZero = 15,
-  kNotZero = 16,
+  kZero = 17,
+  kNotZero = 18,
+  kOverflow32 = overflow32,
+  kNoOverflow32 = nooverflow32,
 };
 
 inline Condition to_condition(Condition cond) {
@@ -181,6 +185,8 @@ inline bool is_signed(Condition cond) {
     case kNoOverflow:
     case kZero:
     case kNotZero:
+    case kOverflow32:
+    case kNoOverflow32:
       return true;
 
     case kUnsignedLessThan:
@@ -194,9 +200,49 @@ inline bool is_signed(Condition cond) {
   }
 }
 
-inline Condition NegateCondition(Condition cond) {
+constexpr inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
-  return static_cast<Condition>(cond ^ ne);
+  switch (cond) {
+    case eq:
+      return ne;
+    case ne:
+      return eq;
+    case ge:
+      return lt;
+    case gt:
+      return le;
+    case le:
+      return gt;
+    case lt:
+      return ge;
+    case kOverflow:
+      return kNoOverflow;
+    case kNoOverflow:
+      return kOverflow;
+    case unordered:
+      return ordered;
+    case ordered:
+      return unordered;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThanEqual;
+    case kUnsignedLessThanEqual:
+      return kUnsignedGreaterThan;
+    case kUnsignedGreaterThanEqual:
+      return kUnsignedLessThan;
+    case kZero:
+      return kNotZero;
+    case kNotZero:
+      return kZero;
+    case kOverflow32:
+      return kNoOverflow32;
+    case kNoOverflow32:
+      return kOverflow32;
+    default:
+      DCHECK(false);
+  }
+  return al;
 }
 
 // -----------------------------------------------------------------------------
@@ -1378,6 +1424,11 @@ using Instr = uint32_t;
   /* Load Doubleword And Reserve Indexed */     \
   V(ldarx, LDARX, 0x7C0000A8)
 
+#define PPC_X_OPCODE_EH_U_FORM_LIST(V)      \
+  /* Move to CR from XER Extended X-form */ \
+  V(mcrxrx, MCRXRX, 0x7C000480)             \
+  V(mcrxr, MCRXR, 0x7C000400)
+
 #define PPC_X_OPCODE_UNUSED_LIST(V)                                           \
   /* Bit Permute Doubleword */                                                \
   V(bpermd, BPERMD, 0x7C0001F8)                                               \
@@ -1515,8 +1566,6 @@ using Instr = uint32_t;
   V(dcbi, DCBI, 0x7C0003AC)                                                   \
   /* Instruction Cache Block Touch */                                         \
   V(icbt, ICBT, 0x7C00002C)                                                   \
-  /* Move to Condition Register from XER */                                   \
-  V(mcrxr, MCRXR, 0x7C000400)                                                 \
   /* TLB Invalidate Local Indexed */                                          \
   V(tlbilx, TLBILX, 0x7C000024)                                               \
   /* TLB Invalidate Virtual Address Indexed */                                \
@@ -1830,6 +1879,7 @@ using Instr = uint32_t;
   PPC_X_OPCODE_F_FORM_LIST(V)    \
   PPC_X_OPCODE_G_FORM_LIST(V)    \
   PPC_X_OPCODE_EH_L_FORM_LIST(V) \
+  PPC_X_OPCODE_EH_U_FORM_LIST(V) \
   PPC_X_OPCODE_UNUSED_LIST(V)
 
 #define PPC_EVS_OPCODE_LIST(V) \
@@ -2904,7 +2954,18 @@ enum BOfield {        // Bits 25-21
 #undef CR_SO
 #endif
 
-enum CRBit { CR_LT = 0, CR_GT = 1, CR_EQ = 2, CR_SO = 3, CR_FU = 3 };
+enum CRBit {
+  CR_LT = 0,
+  CR_GT = 1,
+  CR_EQ = 2,
+  CR_SO = 3,
+  CR_FU = 3,
+  // for MCRXRX
+  CR_OV = 0,
+  CR_OV32 = 1,
+  CR_CA = 2,
+  CR_CA32 = 3
+};
 
 #define CRWIDTH 4
 
@@ -3256,5 +3317,9 @@ static constexpr int kR0DwarfCode = 0;
 static constexpr int kFpDwarfCode = 31;  // frame-pointer
 static constexpr int kLrDwarfCode = 65;  // return-address(lr)
 static constexpr int kSpDwarfCode = 1;   // stack-pointer (sp)
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
 
 #endif  // V8_CODEGEN_PPC_CONSTANTS_PPC_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,8 +47,8 @@ IMPLEMENT_ASN1_FUNCTIONS(OSSL_PRIVILEGE_POLICY_ID)
 IMPLEMENT_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_DESCRIPTOR)
 
 static int i2r_HASH(X509V3_EXT_METHOD *method,
-                    OSSL_HASH *hash,
-                    BIO *out, int indent)
+    OSSL_HASH *hash,
+    BIO *out, int indent)
 {
     if (BIO_printf(out, "%*sAlgorithm: ", indent, "") <= 0)
         return 0;
@@ -60,19 +60,22 @@ static int i2r_HASH(X509V3_EXT_METHOD *method,
         if (BIO_printf(out, "%*sParameter: ", indent, "") <= 0)
             return 0;
         if (ossl_print_attribute_value(out, 0, hash->algorithmIdentifier->parameter,
-                                       indent + 4) <= 0)
+                indent + 4)
+            <= 0)
             return 0;
         if (BIO_puts(out, "\n") <= 0)
             return 0;
     }
     if (BIO_printf(out, "%*sHash Value: ", indent, "") <= 0)
         return 0;
+    if (hash->hashValue == NULL)
+        return 0;
     return ossl_bio_print_hex(out, hash->hashValue->data, hash->hashValue->length);
 }
 
 static int i2r_INFO_SYNTAX_POINTER(X509V3_EXT_METHOD *method,
-                                   OSSL_INFO_SYNTAX_POINTER *pointer,
-                                   BIO *out, int indent)
+    OSSL_INFO_SYNTAX_POINTER *pointer,
+    BIO *out, int indent)
 {
     if (BIO_printf(out, "%*sNames:\n", indent, "") <= 0)
         return 0;
@@ -90,8 +93,8 @@ static int i2r_INFO_SYNTAX_POINTER(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_INFO_SYNTAX(X509V3_EXT_METHOD *method,
-                                OSSL_INFO_SYNTAX *info,
-                                BIO *out, int indent)
+    OSSL_INFO_SYNTAX *info,
+    BIO *out, int indent)
 {
     switch (info->type) {
     case OSSL_INFO_SYNTAX_TYPE_CONTENT:
@@ -113,8 +116,8 @@ static int i2r_OSSL_INFO_SYNTAX(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_PRIVILEGE_POLICY_ID(X509V3_EXT_METHOD *method,
-                                        OSSL_PRIVILEGE_POLICY_ID *ppid,
-                                        BIO *out, int indent)
+    OSSL_PRIVILEGE_POLICY_ID *ppid,
+    BIO *out, int indent)
 {
     char buf[80];
 
@@ -129,8 +132,8 @@ static int i2r_OSSL_PRIVILEGE_POLICY_ID(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_ATTRIBUTE_DESCRIPTOR(X509V3_EXT_METHOD *method,
-                                         OSSL_ATTRIBUTE_DESCRIPTOR *ad,
-                                         BIO *out, int indent)
+    OSSL_ATTRIBUTE_DESCRIPTOR *ad,
+    BIO *out, int indent)
 {
     char buf[80];
 
@@ -142,7 +145,8 @@ static int i2r_OSSL_ATTRIBUTE_DESCRIPTOR(X509V3_EXT_METHOD *method,
     if (BIO_printf(out, "%*sSyntax:\n", indent, "") <= 0)
         return 0;
     if (BIO_printf(out, "%*s%.*s", indent + 4, "",
-                   ad->attributeSyntax->length, ad->attributeSyntax->data) <= 0)
+            ad->attributeSyntax->length, ad->attributeSyntax->data)
+        <= 0)
         return 0;
     if (BIO_puts(out, "\n\n") <= 0)
         return 0;
@@ -152,7 +156,8 @@ static int i2r_OSSL_ATTRIBUTE_DESCRIPTOR(X509V3_EXT_METHOD *method,
     }
     if (ad->description != NULL) {
         if (BIO_printf(out, "%*sDescription: %.*s\n", indent, "",
-                       ad->description->length, ad->description->data) <= 0)
+                ad->description->length, ad->description->data)
+            <= 0)
             return 0;
     }
     if (BIO_printf(out, "%*sDomination Rule:\n", indent, "") <= 0)

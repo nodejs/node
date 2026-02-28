@@ -38,8 +38,8 @@ transitioning javascript builtin StringPrototypeReplaceAll(
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(receiver, 'String.prototype.replaceAll');
 
-  // 2. If searchValue is neither undefined nor null, then
-  if (searchValue != Undefined && searchValue != Null) {
+  // 2. If searchValue is an Object, then
+  if (Is<JSReceiver>(searchValue)) {
     // a. Let isRegExp be ? IsRegExp(searchString).
     // b. If isRegExp is true, then
     //   i. Let flags be ? Get(searchValue, "flags").
@@ -52,7 +52,7 @@ transitioning javascript builtin StringPrototypeReplaceAll(
 
     // TODO(joshualitt): We could easily add fast paths for string
     //                   searchValues and potential FastRegExps.
-    // c. Let replacer be ? GetMethod(searchValue, @@replace).
+    // c. Let replacer be ? GetMethod(searchValue, %Symbol.replace%).
     // d. If replacer is not undefined, then
     //   i. Return ? Call(replacer, searchValue, « O, replaceValue »).
     try {

@@ -1,5 +1,5 @@
 'use strict';
-const { skipIfSQLiteMissing } = require('../common');
+const { skipIfSQLiteMissing, mustCall } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
 const { DatabaseSync } = require('node:sqlite');
@@ -376,14 +376,14 @@ suite('DatabaseSync.prototype.function()', () => {
 
   test('supported argument types', () => {
     const db = new DatabaseSync(':memory:');
-    db.function('arguments', (i, f, s, n, b) => {
+    db.function('arguments', mustCall((i, f, s, n, b) => {
       assert.strictEqual(i, 5);
       assert.strictEqual(f, 3.14);
       assert.strictEqual(s, 'foo');
       assert.strictEqual(n, null);
       assert.deepStrictEqual(b, new Uint8Array([254]));
       return 42;
-    });
+    }));
     const stmt = db.prepare(
       'SELECT arguments(5, 3.14, \'foo\', null, x\'fe\') as result'
     );

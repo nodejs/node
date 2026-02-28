@@ -122,63 +122,108 @@ class BindingData : public BaseObject {
   SET_MEMORY_INFO_NAME(BindingData)
 };
 
-// helper class for the Parser
+class Parser;
+
+class StringPtrAllocator {
+ public:
+  // Memory impact: ~8KB per parser (66 StringPtr × 128 bytes).
+  static constexpr size_t kSlabSize = 8192;
+
+  StringPtrAllocator() = default;
+
+  // Allocate memory from the slab. Returns nullptr if full.
+  char* TryAllocate(size_t size) {
+    if (length_ + size > kSlabSize) {
+      return nullptr;
+    }
+    char* ptr = buffer_ + length_;
+    length_ += size;
+    return ptr;
+  }
+
+  // Check if pointer is within this allocator's buffer.
+  bool Contains(const char* ptr) const {
+    return ptr >= buffer_ && ptr < buffer_ + kSlabSize;
+  }
+
+  // Reset allocator for new message.
+  void Reset() { length_ = 0; }
+
+ private:
+  char buffer_[kSlabSize];
+  size_t length_ = 0;
+};
+
 struct StringPtr {
-  StringPtr() {
-    on_heap_ = false;
-    Reset();
-  }
+  StringPtr() = default;
+  ~StringPtr() { Reset(); }
 
+  StringPtr(const StringPtr&) = delete;
+  StringPtr& operator=(const StringPtr&) = delete;
 
-  ~StringPtr() {
-    Reset();
-  }
-
-
-  // If str_ does not point to a heap string yet, this function makes it do
+  // If str_ does not point to owned storage yet, this function makes it do
   // so. This is called at the end of each http_parser_execute() so as not
   // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
-  void Save() {
-    if (!on_heap_ && size_ > 0) {
-      char* s = new char[size_];
-      memcpy(s, str_, size_);
-      str_ = s;
-      on_heap_ = true;
+  void Save(StringPtrAllocator* allocator) {
+    if (str_ == nullptr || on_heap_ ||
+        (allocator != nullptr && allocator->Contains(str_))) {
+      return;
     }
+    // Try allocator first, fall back to heap
+    if (allocator != nullptr) {
+      char* ptr = allocator->TryAllocate(size_);
+      if (ptr != nullptr) {
+        memcpy(ptr, str_, size_);
+        str_ = ptr;
+        return;
+      }
+    }
+    char* s = new char[size_];
+    memcpy(s, str_, size_);
+    str_ = s;
+    on_heap_ = true;
   }
-
 
   void Reset() {
     if (on_heap_) {
       delete[] str_;
       on_heap_ = false;
     }
-
     str_ = nullptr;
     size_ = 0;
   }
 
-
-  void Update(const char* str, size_t size) {
+  void Update(const char* str, size_t size, StringPtrAllocator* allocator) {
     if (str_ == nullptr) {
       str_ = str;
-    } else if (on_heap_ || str_ + size_ != str) {
-      // Non-consecutive input, make a copy on the heap.
-      // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
-      char* s = new char[size_ + size];
-      memcpy(s, str_, size_);
-      memcpy(s + size_, str, size);
+    } else if (on_heap_ ||
+               (allocator != nullptr && allocator->Contains(str_)) ||
+               str_ + size_ != str) {
+      // Non-consecutive input, make a copy
+      const size_t new_size = size_ + size;
+      char* new_str = nullptr;
 
-      if (on_heap_)
-        delete[] str_;
-      else
+      // Try allocator first (if not already on heap)
+      if (!on_heap_ && allocator != nullptr) {
+        new_str = allocator->TryAllocate(new_size);
+      }
+
+      if (new_str != nullptr) {
+        memcpy(new_str, str_, size_);
+        memcpy(new_str + size_, str, size);
+        str_ = new_str;
+      } else {
+        // Fall back to heap
+        char* s = new char[new_size];
+        memcpy(s, str_, size_);
+        memcpy(s + size_, str, size);
+        if (on_heap_) delete[] str_;
+        str_ = s;
         on_heap_ = true;
-
-      str_ = s;
+      }
     }
     size_ += size;
   }
-
 
   Local<String> ToString(Environment* env) const {
     if (size_ != 0)
@@ -186,7 +231,6 @@ struct StringPtr {
     else
       return String::Empty(env->isolate());
   }
-
 
   // Strip trailing OWS (SPC or HTAB) from string.
   Local<String> ToTrimmedString(Environment* env) {
@@ -196,13 +240,10 @@ struct StringPtr {
     return ToString(env);
   }
 
-
-  const char* str_;
-  bool on_heap_;
-  size_t size_;
+  const char* str_ = nullptr;
+  bool on_heap_ = false;
+  size_t size_ = 0;
 };
-
-class Parser;
 
 struct ParserComparator {
   bool operator()(const Parser* lhs, const Parser* rhs) const;
@@ -259,8 +300,7 @@ class Parser : public AsyncWrap, public StreamListener {
       : AsyncWrap(binding_data->env(), wrap),
         current_buffer_len_(0),
         current_buffer_data_(nullptr),
-        binding_data_(binding_data) {
-  }
+        binding_data_(binding_data) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
@@ -278,6 +318,7 @@ class Parser : public AsyncWrap, public StreamListener {
     headers_completed_ = false;
     chunk_extensions_nread_ = 0;
     last_message_start_ = uv_hrtime();
+    allocator_.Reset();
     url_.Reset();
     status_message_.Reset();
 
@@ -308,7 +349,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
 
-    url_.Update(at, length);
+    url_.Update(at, length, &allocator_);
     return 0;
   }
 
@@ -319,7 +360,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
 
-    status_message_.Update(at, length);
+    status_message_.Update(at, length, &allocator_);
     return 0;
   }
 
@@ -345,7 +386,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_LT(num_fields_, kMaxHeaderFieldsCount);
     CHECK_EQ(num_fields_, num_values_ + 1);
 
-    fields_[num_fields_ - 1].Update(at, length);
+    fields_[num_fields_ - 1].Update(at, length, &allocator_);
 
     return 0;
   }
@@ -366,7 +407,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_LT(num_values_, arraysize(values_));
     CHECK_EQ(num_values_, num_fields_);
 
-    values_[num_values_ - 1].Update(at, length);
+    values_[num_values_ - 1].Update(at, length, &allocator_);
 
     return 0;
   }
@@ -594,15 +635,15 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   void Save() {
-    url_.Save();
-    status_message_.Save();
+    url_.Save(&allocator_);
+    status_message_.Save(&allocator_);
 
     for (size_t i = 0; i < num_fields_; i++) {
-      fields_[i].Save();
+      fields_[i].Save(&allocator_);
     }
 
     for (size_t i = 0; i < num_values_; i++) {
-      values_[i].Save();
+      values_[i].Save(&allocator_);
     }
   }
 
@@ -1006,6 +1047,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   llhttp_t parser_;
+  StringPtrAllocator allocator_;             // shared slab for all StringPtrs
   StringPtr fields_[kMaxHeaderFieldsCount];  // header fields
   StringPtr values_[kMaxHeaderFieldsCount];  // header values
   StringPtr url_;

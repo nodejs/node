@@ -121,6 +121,7 @@ struct IsView<
   using ConstData =
       decltype(span_internal::GetData(std::declval<const Container&>()));
   using MutData = decltype(span_internal::GetData(std::declval<Container&>()));
+
  public:
   static constexpr bool value = std::is_same<ConstData, MutData>::value;
 };

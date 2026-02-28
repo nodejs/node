@@ -214,7 +214,7 @@ TEST(NonsecureURBGBase, DistinctSequencesPerThread) {
 
         std::vector<result_type> v(kValuesPerThread);
         std::generate(v.begin(), v.end(), [&]() { return gen(); });
-        absl::MutexLock l(&mu);
+        absl::MutexLock l(mu);
         data.push_back(std::move(v));
       });
     }

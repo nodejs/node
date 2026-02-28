@@ -38,22 +38,13 @@ def RunCmd(cmd):
   return stdoutdata.decode('utf-8')
 
 
-def CheckRepoIsClean(path, suffix):
+def CheckRepoIsClean(path):
   os.chdir(path)  # As a side effect this also checks for existence of the dir.
   # If path isn't a git repo, this will throw and exception.
   # And if it is a git repo and 'git status' has anything interesting to say,
   # then it's not clean (uncommitted files etc.)
   if len(RunCmd(['git', 'status', '--porcelain'])) != 0:
     raise Exception('%s is not a clean git repo (run git status)' % path)
-  if not path.endswith(suffix):
-    raise Exception('%s does not end with /%s' % (path, suffix))
-
-
-def CheckRepoIsNotAtMainBranch(path):
-  os.chdir(path)
-  stdout = RunCmd(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
-  if stdout == 'main':
-    raise Exception('%s is at main branch - refusing to copy there.' % path)
 
 
 def CheckRepoIsInspectorProtocolCheckout(path):
@@ -85,6 +76,16 @@ def ReadV8IPRevision(node_src_path):
       return line[len(REVISION_LINE_PREFIX):]
   raise Exception('No V8 inspector protocol revision found')
 
+
+def ReadNodeIPRevision(node_src_path):
+  lines = open(os.path.join(node_src_path, 'deps/inspector_protocol/README.node')).readlines()
+  for line in lines:
+    line = line.strip()
+    if line.startswith(REVISION_LINE_PREFIX):
+      return line[len(REVISION_LINE_PREFIX):]
+  raise Exception('No Node inspector protocol revision found')
+
+
 def CheckoutRevision(path, revision):
   os.chdir(path)
   return RunCmd(['git', 'checkout', revision])
@@ -114,16 +115,15 @@ def main(argv):
   upstream = os.path.normpath(os.path.expanduser(args.ip_src_upstream))
   downstream = os.path.normpath(os.path.expanduser(
       args.node_src_downstream))
-  CheckRepoIsClean(upstream, '/src')
-  CheckRepoIsClean(downstream, '/node')
+  CheckRepoIsClean(upstream)
   CheckRepoIsInspectorProtocolCheckout(upstream)
-  # Check that the destination Git repo isn't at the main branch - it's
-  # generally a bad idea to check into the main branch, so we catch this
-  # common pilot error here early.
-  CheckRepoIsNotAtMainBranch(downstream)
 
   # Read V8's inspector_protocol revision
   v8_ip_revision = ReadV8IPRevision(downstream)
+  node_ip_revision = ReadNodeIPRevision(downstream)
+  if v8_ip_revision == node_ip_revision:
+    print('Node is already at V8\'s inspector_protocol revision %s - nothing to do.' % v8_ip_revision)
+    sys.exit(0)
   print('Checking out %s into %s ...' % (upstream, v8_ip_revision))
   CheckoutRevision(upstream, v8_ip_revision)
 

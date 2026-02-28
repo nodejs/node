@@ -6,7 +6,6 @@
 
 """Pretty-prints the contents of a GYP file."""
 
-
 import re
 import sys
 
@@ -49,7 +48,7 @@ def mask_quotes(input):
 def do_split(input, masked_input, search_re):
     output = []
     mask_output = []
-    for (line, masked_line) in zip(input, masked_input):
+    for line, masked_line in zip(input, masked_input):
         m = search_re.match(masked_line)
         while m:
             split = len(m.group(1))
@@ -63,13 +62,13 @@ def do_split(input, masked_input, search_re):
 
 def split_double_braces(input):
     """Masks out the quotes and comments, and then splits appropriate
-  lines (lines that matche the double_*_brace re's above) before
-  indenting them below.
+    lines (lines that matche the double_*_brace re's above) before
+    indenting them below.
 
-  These are used to split lines which have multiple braces on them, so
-  that the indentation looks prettier when all laid out (e.g. closing
-  braces make a nice diagonal line).
-  """
+    These are used to split lines which have multiple braces on them, so
+    that the indentation looks prettier when all laid out (e.g. closing
+    braces make a nice diagonal line).
+    """
     double_open_brace_re = re.compile(r"(.*?[\[\{\(,])(\s*)([\[\{\(])")
     double_close_brace_re = re.compile(r"(.*?[\]\}\)],?)(\s*)([\]\}\)])")
 
@@ -85,8 +84,8 @@ def split_double_braces(input):
 def count_braces(line):
     """keeps track of the number of braces on a given line and returns the result.
 
-  It starts at zero and subtracts for closed braces, and adds for open braces.
-  """
+    It starts at zero and subtracts for closed braces, and adds for open braces.
+    """
     open_braces = ["[", "(", "{"]
     close_braces = ["]", ")", "}"]
     closing_prefix_re = re.compile(r"[^\s\]\}\)]\s*[\]\}\)]+,?\s*$")

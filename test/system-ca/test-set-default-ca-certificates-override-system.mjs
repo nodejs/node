@@ -45,7 +45,7 @@ const server = https.createServer({
       res.end('bundled ca works');
       break;
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
 }, 1));
 

@@ -24,6 +24,19 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
       CanThrow::kNo, LazyDeoptOnThrow::kNo, zone);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+const TSCallDescriptor* CreateAllocateWasmSharedBuiltinDescriptor(
+    Zone* zone, Isolate* isolate) {
+  return TSCallDescriptor::Create(
+      Linkage::GetStubCallDescriptor(
+          zone, WasmAllocateSharedDescriptor{},
+          AllocateDescriptor{}.GetStackParameterCount(),
+          CallDescriptor::kCanUseRoots, Operator::kNoThrow,
+          StubCallMode::kCallBuiltinPointer),
+      CanThrow::kNo, LazyDeoptOnThrow::kNo, zone);
+}
+#endif
+
 void MemoryAnalyzer::Run() {
   block_states[current_block] = BlockState{};
   BlockIndex end = BlockIndex(input_graph.block_count());

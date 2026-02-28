@@ -699,6 +699,10 @@ DEPEND[html/man3/BIO_set_callback.html]=man3/BIO_set_callback.pod
 GENERATE[html/man3/BIO_set_callback.html]=man3/BIO_set_callback.pod
 DEPEND[man/man3/BIO_set_callback.3]=man3/BIO_set_callback.pod
 GENERATE[man/man3/BIO_set_callback.3]=man3/BIO_set_callback.pod
+DEPEND[html/man3/BIO_set_flags.html]=man3/BIO_set_flags.pod
+GENERATE[html/man3/BIO_set_flags.html]=man3/BIO_set_flags.pod
+DEPEND[man/man3/BIO_set_flags.3]=man3/BIO_set_flags.pod
+GENERATE[man/man3/BIO_set_flags.3]=man3/BIO_set_flags.pod
 DEPEND[html/man3/BIO_should_retry.html]=man3/BIO_should_retry.pod
 GENERATE[html/man3/BIO_should_retry.html]=man3/BIO_should_retry.pod
 DEPEND[man/man3/BIO_should_retry.3]=man3/BIO_should_retry.pod
@@ -803,6 +807,10 @@ DEPEND[html/man3/CMS_EncryptedData_encrypt.html]=man3/CMS_EncryptedData_encrypt.
 GENERATE[html/man3/CMS_EncryptedData_encrypt.html]=man3/CMS_EncryptedData_encrypt.pod
 DEPEND[man/man3/CMS_EncryptedData_encrypt.3]=man3/CMS_EncryptedData_encrypt.pod
 GENERATE[man/man3/CMS_EncryptedData_encrypt.3]=man3/CMS_EncryptedData_encrypt.pod
+DEPEND[html/man3/CMS_EncryptedData_set1_key.html]=man3/CMS_EncryptedData_set1_key.pod
+GENERATE[html/man3/CMS_EncryptedData_set1_key.html]=man3/CMS_EncryptedData_set1_key.pod
+DEPEND[man/man3/CMS_EncryptedData_set1_key.3]=man3/CMS_EncryptedData_set1_key.pod
+GENERATE[man/man3/CMS_EncryptedData_set1_key.3]=man3/CMS_EncryptedData_set1_key.pod
 DEPEND[html/man3/CMS_EnvelopedData_create.html]=man3/CMS_EnvelopedData_create.pod
 GENERATE[html/man3/CMS_EnvelopedData_create.html]=man3/CMS_EnvelopedData_create.pod
 DEPEND[man/man3/CMS_EnvelopedData_create.3]=man3/CMS_EnvelopedData_create.pod
@@ -1127,6 +1135,10 @@ DEPEND[html/man3/EVP_BytesToKey.html]=man3/EVP_BytesToKey.pod
 GENERATE[html/man3/EVP_BytesToKey.html]=man3/EVP_BytesToKey.pod
 DEPEND[man/man3/EVP_BytesToKey.3]=man3/EVP_BytesToKey.pod
 GENERATE[man/man3/EVP_BytesToKey.3]=man3/EVP_BytesToKey.pod
+DEPEND[html/man3/EVP_CIPHER_CTX_get_app_data.html]=man3/EVP_CIPHER_CTX_get_app_data.pod
+GENERATE[html/man3/EVP_CIPHER_CTX_get_app_data.html]=man3/EVP_CIPHER_CTX_get_app_data.pod
+DEPEND[man/man3/EVP_CIPHER_CTX_get_app_data.3]=man3/EVP_CIPHER_CTX_get_app_data.pod
+GENERATE[man/man3/EVP_CIPHER_CTX_get_app_data.3]=man3/EVP_CIPHER_CTX_get_app_data.pod
 DEPEND[html/man3/EVP_CIPHER_CTX_get_cipher_data.html]=man3/EVP_CIPHER_CTX_get_cipher_data.pod
 GENERATE[html/man3/EVP_CIPHER_CTX_get_cipher_data.html]=man3/EVP_CIPHER_CTX_get_cipher_data.pod
 DEPEND[man/man3/EVP_CIPHER_CTX_get_cipher_data.3]=man3/EVP_CIPHER_CTX_get_cipher_data.pod
@@ -1603,6 +1615,10 @@ DEPEND[html/man3/OPENSSL_malloc.html]=man3/OPENSSL_malloc.pod
 GENERATE[html/man3/OPENSSL_malloc.html]=man3/OPENSSL_malloc.pod
 DEPEND[man/man3/OPENSSL_malloc.3]=man3/OPENSSL_malloc.pod
 GENERATE[man/man3/OPENSSL_malloc.3]=man3/OPENSSL_malloc.pod
+DEPEND[html/man3/OPENSSL_ppccap.html]=man3/OPENSSL_ppccap.pod
+GENERATE[html/man3/OPENSSL_ppccap.html]=man3/OPENSSL_ppccap.pod
+DEPEND[man/man3/OPENSSL_ppccap.3]=man3/OPENSSL_ppccap.pod
+GENERATE[man/man3/OPENSSL_ppccap.3]=man3/OPENSSL_ppccap.pod
 DEPEND[html/man3/OPENSSL_riscvcap.html]=man3/OPENSSL_riscvcap.pod
 GENERATE[html/man3/OPENSSL_riscvcap.html]=man3/OPENSSL_riscvcap.pod
 DEPEND[man/man3/OPENSSL_riscvcap.3]=man3/OPENSSL_riscvcap.pod
@@ -3220,6 +3236,7 @@ html/man3/BIO_s_null.html \
 html/man3/BIO_s_socket.html \
 html/man3/BIO_sendmmsg.html \
 html/man3/BIO_set_callback.html \
+html/man3/BIO_set_flags.html \
 html/man3/BIO_should_retry.html \
 html/man3/BIO_socket_wait.html \
 html/man3/BN_BLINDING_new.html \
@@ -3246,6 +3263,7 @@ html/man3/BUF_MEM_new.html \
 html/man3/CMAC_CTX.html \
 html/man3/CMS_EncryptedData_decrypt.html \
 html/man3/CMS_EncryptedData_encrypt.html \
+html/man3/CMS_EncryptedData_set1_key.html \
 html/man3/CMS_EnvelopedData_create.html \
 html/man3/CMS_add0_cert.html \
 html/man3/CMS_add1_recipient_cert.html \
@@ -3327,6 +3345,7 @@ html/man3/ERR_remove_state.html \
 html/man3/ERR_set_mark.html \
 html/man3/EVP_ASYM_CIPHER_free.html \
 html/man3/EVP_BytesToKey.html \
+html/man3/EVP_CIPHER_CTX_get_app_data.html \
 html/man3/EVP_CIPHER_CTX_get_cipher_data.html \
 html/man3/EVP_CIPHER_CTX_get_original_iv.html \
 html/man3/EVP_CIPHER_meth_new.html \
@@ -3446,6 +3465,7 @@ html/man3/OPENSSL_instrument_bus.html \
 html/man3/OPENSSL_load_builtin_modules.html \
 html/man3/OPENSSL_load_u16_le.html \
 html/man3/OPENSSL_malloc.html \
+html/man3/OPENSSL_ppccap.html \
 html/man3/OPENSSL_riscvcap.html \
 html/man3/OPENSSL_s390xcap.html \
 html/man3/OPENSSL_secure_malloc.html \
@@ -3892,6 +3912,7 @@ man/man3/BIO_s_null.3 \
 man/man3/BIO_s_socket.3 \
 man/man3/BIO_sendmmsg.3 \
 man/man3/BIO_set_callback.3 \
+man/man3/BIO_set_flags.3 \
 man/man3/BIO_should_retry.3 \
 man/man3/BIO_socket_wait.3 \
 man/man3/BN_BLINDING_new.3 \
@@ -3918,6 +3939,7 @@ man/man3/BUF_MEM_new.3 \
 man/man3/CMAC_CTX.3 \
 man/man3/CMS_EncryptedData_decrypt.3 \
 man/man3/CMS_EncryptedData_encrypt.3 \
+man/man3/CMS_EncryptedData_set1_key.3 \
 man/man3/CMS_EnvelopedData_create.3 \
 man/man3/CMS_add0_cert.3 \
 man/man3/CMS_add1_recipient_cert.3 \
@@ -3999,6 +4021,7 @@ man/man3/ERR_remove_state.3 \
 man/man3/ERR_set_mark.3 \
 man/man3/EVP_ASYM_CIPHER_free.3 \
 man/man3/EVP_BytesToKey.3 \
+man/man3/EVP_CIPHER_CTX_get_app_data.3 \
 man/man3/EVP_CIPHER_CTX_get_cipher_data.3 \
 man/man3/EVP_CIPHER_CTX_get_original_iv.3 \
 man/man3/EVP_CIPHER_meth_new.3 \
@@ -4118,6 +4141,7 @@ man/man3/OPENSSL_instrument_bus.3 \
 man/man3/OPENSSL_load_builtin_modules.3 \
 man/man3/OPENSSL_load_u16_le.3 \
 man/man3/OPENSSL_malloc.3 \
+man/man3/OPENSSL_ppccap.3 \
 man/man3/OPENSSL_riscvcap.3 \
 man/man3/OPENSSL_s390xcap.3 \
 man/man3/OPENSSL_secure_malloc.3 \

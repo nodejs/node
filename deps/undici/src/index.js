@@ -4,6 +4,7 @@ const Client = require('./lib/dispatcher/client')
 const Dispatcher = require('./lib/dispatcher/dispatcher')
 const Pool = require('./lib/dispatcher/pool')
 const BalancedPool = require('./lib/dispatcher/balanced-pool')
+const RoundRobinPool = require('./lib/dispatcher/round-robin-pool')
 const Agent = require('./lib/dispatcher/agent')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
@@ -31,6 +32,7 @@ module.exports.Dispatcher = Dispatcher
 module.exports.Client = Client
 module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
+module.exports.RoundRobinPool = RoundRobinPool
 module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
@@ -46,7 +48,9 @@ module.exports.interceptors = {
   retry: require('./lib/interceptor/retry'),
   dump: require('./lib/interceptor/dump'),
   dns: require('./lib/interceptor/dns'),
-  cache: require('./lib/interceptor/cache')
+  cache: require('./lib/interceptor/cache'),
+  decompress: require('./lib/interceptor/decompress'),
+  deduplicate: require('./lib/interceptor/deduplicate')
 }
 
 module.exports.cacheStores = {
@@ -116,16 +120,44 @@ module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
 const fetchImpl = require('./lib/web/fetch').fetch
-module.exports.fetch = async function fetch (init, options = undefined) {
-  try {
-    return await fetchImpl(init, options)
-  } catch (err) {
-    if (err && typeof err === 'object') {
-      Error.captureStackTrace(err)
-    }
 
-    throw err
+// Capture __filename at module load time for stack trace augmentation.
+// This may be undefined when bundled in environments like Node.js internals.
+const currentFilename = typeof __filename !== 'undefined' ? __filename : undefined
+
+function appendFetchStackTrace (err, filename) {
+  if (!err || typeof err !== 'object') {
+    return
   }
+
+  const stack = typeof err.stack === 'string' ? err.stack : ''
+  const normalizedFilename = filename.replace(/\\/g, '/')
+
+  if (stack && (stack.includes(filename) || stack.includes(normalizedFilename))) {
+    return
+  }
+
+  const capture = {}
+  Error.captureStackTrace(capture, appendFetchStackTrace)
+
+  if (!capture.stack) {
+    return
+  }
+
+  const captureLines = capture.stack.split('\n').slice(1).join('\n')
+
+  err.stack = stack ? `${stack}\n${captureLines}` : capture.stack
+}
+
+module.exports.fetch = function fetch (init, options = undefined) {
+  return fetchImpl(init, options).catch(err => {
+    if (currentFilename) {
+      appendFetchStackTrace(err, currentFilename)
+    } else if (err && typeof err === 'object') {
+      Error.captureStackTrace(err, module.exports.fetch)
+    }
+    throw err
+  })
 }
 module.exports.Headers = require('./lib/web/fetch/headers').Headers
 module.exports.Response = require('./lib/web/fetch/response').Response
@@ -140,8 +172,6 @@ module.exports.getGlobalOrigin = getGlobalOrigin
 const { CacheStorage } = require('./lib/web/cache/cachestorage')
 const { kConstruct } = require('./lib/core/symbols')
 
-// Cache & CacheStorage are tightly coupled with fetch. Even if it may run
-// in an older version of Node, it doesn't have any use without fetch.
 module.exports.caches = new CacheStorage(kConstruct)
 
 const { deleteCookie, getCookies, getSetCookies, setCookie, parseCookie } = require('./lib/web/cookies')

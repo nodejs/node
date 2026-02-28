@@ -340,9 +340,7 @@ template <typename T, typename F>
 bool ConvertProtocolValue(const F& from, T* to) {
   std::vector<uint8_t> bytes;
   ProtocolTypeTraits<F>::Serialize(from, &bytes);
-  auto deserializer =
-      DeferredMessage::FromSpan(span<uint8_t>(bytes.data(), bytes.size()))
-          ->MakeDeserializer();
+  auto deserializer = DeferredMessage::FromSpan(bytes)->MakeDeserializer();
   return ProtocolTypeTraits<T>::Deserialize(&deserializer, to);
 }
 
@@ -358,14 +356,12 @@ bool ConvertProtocolValue(const F& from, T* to) {
   friend DeserializableBase<ProtocolType>;                           \
   static const DeserializerDescriptorType& deserializer_descriptor()
 
-#define V8_CRDTP_DESERIALIZE_FILED_IMPL(name, field, is_optional)  \
-  {                                                                \
-    MakeSpan(name), is_optional,                                   \
-        [](DeserializerState* __state, void* __obj) -> bool {      \
-          return ProtocolTypeTraits<decltype(field)>::Deserialize( \
-              __state, &static_cast<ProtocolType*>(__obj)->field); \
-        }                                                          \
-  }
+#define V8_CRDTP_DESERIALIZE_FILED_IMPL(name, field, is_optional) \
+  {MakeSpan(name), is_optional,                                   \
+   [](DeserializerState* __state, void* __obj) -> bool {          \
+     return ProtocolTypeTraits<decltype(field)>::Deserialize(     \
+         __state, &static_cast<ProtocolType*>(__obj)->field);     \
+   }}
 
 // clang-format off
 #define V8_CRDTP_BEGIN_DESERIALIZER(type)                                      \

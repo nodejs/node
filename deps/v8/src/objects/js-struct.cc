@@ -24,7 +24,7 @@ void PrepareMapCommon(Tagged<Map> map) {
   map->set_is_extensible(false);
   // Shared space objects are not optimizable as prototypes because it is
   // not threadsafe.
-  map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi, kRelaxedStore,
+  map->set_prototype_validity_cell(Map::kNoValidityCellSentinel, kRelaxedStore,
                                    SKIP_WRITE_BARRIER);
 }
 
@@ -411,8 +411,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
           Cast<NumberDictionary>(
               existing_map->instance_descriptors()->GetStrongValue(isolate, i)),
           isolate);
-      if (static_cast<int>(element_names.size()) !=
-          elements_template->NumberOfElements()) {
+      if (element_names.size() != elements_template->NumberOfElements()) {
         return MaybeDirectHandle<Map>();
       }
       for (int element : element_names) {

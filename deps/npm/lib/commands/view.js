@@ -1,4 +1,3 @@
-const columns = require('cli-columns')
 const { readFile } = require('node:fs/promises')
 const jsonParse = require('json-parse-even-better-errors')
 const { log, output, META } = require('proc-log')
@@ -41,6 +40,7 @@ class View extends BaseCommand {
       ...npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
+      _isRoot: true,
     }
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
@@ -136,6 +136,7 @@ class View extends BaseCommand {
       ...this.npm.flatOptions,
       preferOnline: true,
       fullMetadata: true,
+      _isRoot: true,
     })
 
     // get the data about this package
@@ -331,7 +332,7 @@ class View extends BaseCommand {
     if (deps.length) {
       const maxDeps = 24
       res.push('\ndependencies:')
-      res.push(columns(deps.slice(0, maxDeps), { padding: 1 }))
+      res.push(deps.slice(0, maxDeps).join(', '))
       if (deps.length > maxDeps) {
         res.push(chalk.dim(`(...and ${deps.length - maxDeps} more.)`))
       }
@@ -347,8 +348,8 @@ class View extends BaseCommand {
     }
 
     res.push('\ndist-tags:')
-    const maxTags = 12
-    res.push(columns(distTags.slice(0, maxTags), { padding: 1, sort: false }))
+    const maxTags = 5
+    res.push(distTags.slice(0, maxTags).join('\n'))
     if (distTags.length > maxTags) {
       res.push(chalk.dim(`(...and ${distTags.length - maxTags} more.)`))
     }

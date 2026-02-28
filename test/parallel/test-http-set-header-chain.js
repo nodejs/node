@@ -19,11 +19,11 @@ const server = http.createServer(common.mustCall((req, res) => {
   assert.deepStrictEqual(res.getHeaders(), expected);
   res.end('ok');
 }));
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   http.get({ port: server.address().port }, common.mustCall((res) => {
     res.on('data', () => {});
     res.on('end', common.mustCall(() => {
       server.close();
     }));
   }));
-});
+}));

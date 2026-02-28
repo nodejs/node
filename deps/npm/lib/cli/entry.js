@@ -20,7 +20,7 @@ module.exports = async (process, validateEngines) => {
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
 
-  // At this point we've required a few files and can be pretty sure we dont contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
+  // At this point we've required a few files and can be pretty sure we don't contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
   validateEngines.off()
   exitHandler.registerUncaughtHandlers()
 
@@ -57,7 +57,7 @@ module.exports = async (process, validateEngines) => {
 
     const execPromise = npm.exec(command, args)
 
-    // this is async but we dont await it, since its ok if it doesnt
+    // this is async but we don't await it, since its ok if it doesnt
     // finish before the command finishes running. it uses command and argv
     // so it must be initiated here, after the command name is set
     const updateNotifier = require('./update-notifier.js')

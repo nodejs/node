@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --turbofan --noalways-turbofan
-
+// Flags: --allow-natives-syntax --turbofan
 function check(func, input, expected) {
   %PrepareFunctionForOptimization(func);
   func(-1);

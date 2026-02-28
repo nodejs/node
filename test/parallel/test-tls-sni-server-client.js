@@ -100,10 +100,10 @@ test(
 );
 
 function test(options, clientResult, serverResult) {
-  const server = tls.createServer(serverOptions, (c) => {
+  const server = tls.createServer(serverOptions, common.mustCall((c) => {
     assert.strictEqual(c.servername, serverResult);
     assert.strictEqual(c.authorized, false);
-  });
+  }));
 
   server.addContext('a.example.com', SNIContexts['a.example.com']);
   server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
@@ -111,20 +111,20 @@ function test(options, clientResult, serverResult) {
 
   server.on('tlsClientError', common.mustNotCall());
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const client = tls.connect({
       ...options,
       port: server.address().port,
       rejectUnauthorized: false
-    }, () => {
+    }, common.mustCall(() => {
       const result = client.authorizationError &&
         (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
       assert.strictEqual(result, clientResult);
       client.end();
-    });
+    }));
 
     client.on('close', common.mustCall(() => {
       server.close();
     }));
-  });
+  }));
 }

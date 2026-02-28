@@ -50,9 +50,9 @@ extern class SourceTextModule extends Module {
 type ModuleImportPhase extends uint32 constexpr 'ModuleImportPhase';
 bitfield struct ModuleRequestFlags extends uint31 {
   // Phase of the module request.
-  phase: ModuleImportPhase: 1 bit;
+  phase: ModuleImportPhase: 2 bit;
   // Source text position of the module request.
-  position: uint32: 30 bit;
+  position: uint32: 29 bit;
 }
 
 extern class ModuleRequest extends Struct {

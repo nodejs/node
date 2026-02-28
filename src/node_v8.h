@@ -7,6 +7,7 @@
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "json_utils.h"
+#include "node_errors.h"
 #include "node_snapshotable.h"
 #include "util.h"
 #include "v8.h"

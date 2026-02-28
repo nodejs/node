@@ -86,7 +86,7 @@ void WasmStreamingObject::SetURL(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
-  Utf8Value url(Environment::GetCurrent(args)->isolate(), args[0]);
+  Utf8Value url(args.GetIsolate(), args[0]);
   obj->streaming_->SetUrl(url.out(), url.length());
 }
 

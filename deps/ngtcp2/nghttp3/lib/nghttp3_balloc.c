@@ -72,7 +72,7 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {
       return NGHTTP3_ERR_NOMEM;
     }
 
-    hd = (nghttp3_memblock_hd *)(void *)p;
+    hd = (void *)p;
     hd->next = balloc->head;
     balloc->head = hd;
     nghttp3_buf_wrap_init(

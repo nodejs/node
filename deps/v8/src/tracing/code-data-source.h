@@ -75,7 +75,7 @@ class CodeDataSourceIncrementalState {
                             int column_num);
 #if V8_ENABLE_WEBASSEMBLY
   uint64_t InternWasmScript(Isolate& isolate, int script_id,
-                            const std::string& url,
+                            std::string_view url,
                             wasm::NativeModule* native_module);
 
 #endif  // V8_ENABLE_WEBASSEMBLY

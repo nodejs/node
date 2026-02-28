@@ -23,9 +23,11 @@ BUILTIN(JsonParse) {
                                      Object::ToString(isolate, source));
   string = String::Flatten(isolate, string);
   RETURN_RESULT_OR_FAILURE(
-      isolate, String::IsOneByteRepresentationUnderneath(*string)
-                   ? JsonParser<uint8_t>::Parse(isolate, string, reviver)
-                   : JsonParser<uint16_t>::Parse(isolate, string, reviver));
+      isolate,
+      String::IsOneByteRepresentationUnderneath(*string)
+          ? JsonParser<uint8_t>::Parse(isolate, string, reviver, std::nullopt)
+          : JsonParser<uint16_t>::Parse(isolate, string, reviver,
+                                        std::nullopt));
 }
 
 // ES6 section 24.3.2 JSON.stringify.

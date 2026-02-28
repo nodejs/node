@@ -20,11 +20,10 @@ fs.statfs(__filename, common.mustSucceed(function(stats) {
   assert.strictEqual(this, undefined);
 }));
 
-fs.statfs(__filename, { bigint: true }, function(err, stats) {
-  assert.ifError(err);
+fs.statfs(__filename, { bigint: true }, common.mustSucceed(function(stats) {
   verifyStatFsObject(stats, true);
   assert.strictEqual(this, undefined);
-});
+}));
 
 // Synchronous
 {

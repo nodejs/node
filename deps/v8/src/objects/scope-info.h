@@ -102,8 +102,11 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // static private methods?
   bool HasSavedClassVariable() const;
 
-  // Does this scope declare a "new.target" binding?
-  bool HasNewTarget() const;
+  bool IsSloppyNormalJSFunction() const;
+
+  // This (function) scope cannot access rest parameters or the arguments
+  // exotic object.
+  V8_EXPORT_PRIVATE bool CanOnlyAccessFixedFormalParameters() const;
 
   // Is this scope the scope of a named function expression?
   V8_EXPORT_PRIVATE bool HasFunctionName() const;
@@ -130,6 +133,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline bool IsAsmModule() const;
 
   inline bool HasSimpleParameters() const;
+
+  inline bool HasContextCells() const;
 
   // Return the function_name if present.
   V8_EXPORT_PRIVATE Tagged<UnionOf<Smi, String>> FunctionName() const;

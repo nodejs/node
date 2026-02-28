@@ -36,7 +36,11 @@ class Pack extends BaseCommand {
     const manifests = []
     for (const arg of args) {
       const spec = npa(arg)
-      const manifest = await pacote.manifest(spec, { ...this.npm.flatOptions, Arborist })
+      const manifest = await pacote.manifest(spec, {
+        ...this.npm.flatOptions,
+        Arborist,
+        _isRoot: true,
+      })
       if (!manifest._id) {
         throw new Error('Invalid package, must have name and version')
       }

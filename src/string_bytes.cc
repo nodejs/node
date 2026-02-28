@@ -254,18 +254,29 @@ size_t StringBytes::Write(Isolate* isolate,
         nbytes = std::min(buflen, static_cast<size_t>(input_view.length()));
         memcpy(buf, input_view.data8(), nbytes);
       } else {
-        uint8_t* const dst = reinterpret_cast<uint8_t*>(buf);
-        const int flags = String::HINT_MANY_WRITES_EXPECTED |
-                          String::NO_NULL_TERMINATION |
-                          String::REPLACE_INVALID_UTF8;
-        nbytes = str->WriteOneByte(isolate, dst, 0, buflen, flags);
+        nbytes = std::min(buflen, static_cast<size_t>(input_view.length()));
+        // Do not use v8::String::WriteOneByteV2 as it asserts the string to be
+        // a one byte string. For compatibility, convert the uint16_t to uint8_t
+        // even though this may loose accuracy.
+        for (size_t i = 0; i < nbytes; i++) {
+          buf[i] = static_cast<uint8_t>(input_view.data16()[i]);
+        }
       }
       break;
 
     case BUFFER:
     case UTF8:
-      nbytes = str->WriteUtf8V2(
-          isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+      if (input_view.is_one_byte()) {
+        // Use simdutf for one-byte strings instead of V8's WriteUtf8V2.
+        nbytes = simdutf::convert_latin1_to_utf8_safe(
+            reinterpret_cast<const char*>(input_view.data8()),
+            input_view.length(),
+            buf,
+            buflen);
+      } else {
+        nbytes = str->WriteUtf8V2(
+            isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+      }
       break;
 
     case UCS2: {
@@ -302,10 +313,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len,
@@ -341,10 +352,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len);
@@ -366,8 +377,8 @@ size_t StringBytes::Write(Isolate* isolate,
                               reinterpret_cast<const char*>(input_view.data8()),
                               input_view.length());
       } else {
-        String::Value value(isolate, str);
-        nbytes = nbytes::HexDecode(buf, buflen, *value, value.length());
+        TwoByteValue value(isolate, str);
+        nbytes = nbytes::HexDecode(buf, buflen, value.out(), value.length());
       }
       break;
 
@@ -529,6 +540,33 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case UTF8: {
       buflen = keep_buflen_in_range(buflen);
+
+      // ASCII fast path
+      // TODO(chalker): remove when String::NewFromUtf8 is fast enough itself
+      // This is cheap compared to the benefits though
+      if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
+        return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+      }
+
+      if (buflen >= 32 && simdutf::validate_utf8(buf, buflen)) {
+        // We know that we are non-ASCII (and are unlikely Latin1), use 2-byte
+        // In the most likely case of valid UTF-8, we can use this fast impl
+        // For very short input, it is slower, so we limit min size
+        size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
+        if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
+          isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+          return MaybeLocal<Value>();
+        }
+        uint16_t* dst = node::UncheckedMalloc<uint16_t>(u16size);
+        if (u16size != 0 && dst == nullptr) {
+          THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
+        size_t utf16len = simdutf::convert_valid_utf8_to_utf16(
+            buf, buflen, reinterpret_cast<char16_t*>(dst));
+        return ExternTwoByteString::New(isolate, dst, utf16len);
+      }
+
       val =
           String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen);
       Local<String> str;

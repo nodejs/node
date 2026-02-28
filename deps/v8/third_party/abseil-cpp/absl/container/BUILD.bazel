@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -410,6 +413,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
+        "//absl/hash",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/utility",
@@ -494,6 +498,7 @@ cc_library(
         "//absl/base:no_destructor",
         "//absl/memory",
         "//absl/meta:type_traits",
+        "//absl/random",
         "//absl/strings",
     ],
 )
@@ -529,6 +534,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":common_policy_traits",
+        ":container_memory",
         "//absl/meta:type_traits",
     ],
 )
@@ -625,6 +631,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/profiling:sample_recorder",
+        "//absl/random",
         "//absl/synchronization",
         "//absl/synchronization:thread_pool",
         "//absl/time",
@@ -695,6 +702,19 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "hashtable_control_bytes_test",
+    srcs = ["internal/hashtable_control_bytes_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":hashtable_control_bytes",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "raw_hash_set_resize_impl",
     hdrs = ["internal/raw_hash_set_resize_impl.h"],
@@ -733,6 +753,7 @@ cc_library(
         ":hashtable_debug_hooks",
         ":hashtablez_sampler",
         ":raw_hash_set_resize_impl",
+        "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
@@ -785,6 +806,7 @@ cc_test(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/random",
         "//absl/strings",
         "//absl/types:optional",
         "@googletest//:gtest",

@@ -128,8 +128,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
 
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    V8Console* console =
-        static_cast<V8Console*>(info.Data().As<v8::External>()->Value());
+    V8Console* console = static_cast<V8Console*>(
+        info.Data().As<v8::External>()->Value(kV8ConsoleTag));
     (console->*func)(info);
   }
   using CommandLineAPIData = std::pair<V8Console*, int>;
@@ -198,6 +198,10 @@ class V8Console : public v8::debug::ConsoleDelegate {
   }
   void queryObjectsCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             int sessionId);
+
+  // This tag value has been picked arbitrarily between 0 and
+  // V8_EXTERNAL_POINTER_TAG_COUNT.
+  constexpr static v8::ExternalPointerTypeTag kV8ConsoleTag = 10;
 
   // Lazily creates m_taskInfoKey and returns a local handle to it. We can't
   // initialize m_taskInfoKey in the constructor as it would be part of

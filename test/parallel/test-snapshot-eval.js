@@ -49,7 +49,7 @@ const file = fixtures.path('snapshot', 'mutate-fs.js');
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  assert(/I am from the snapshot/.test(child.stdout.toString()));
+  assert.match(child.stdout.toString(), /I am from the snapshot/);
 }
 
 {
@@ -68,5 +68,5 @@ const file = fixtures.path('snapshot', 'mutate-fs.js');
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  assert(/I am from the snapshot/.test(child.stdout.toString()));
+  assert.match(child.stdout.toString(), /I am from the snapshot/);
 }

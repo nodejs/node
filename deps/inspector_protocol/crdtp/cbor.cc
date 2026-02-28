@@ -833,7 +833,7 @@ void ParseUTF16String(CBORTokenizer* tokenizer, ParserHandler* out) {
   span<uint8_t> rep = tokenizer->GetString16WireRep();
   for (size_t ii = 0; ii < rep.size(); ii += 2)
     value.push_back((rep[ii + 1] << 8) | rep[ii]);
-  out->HandleString16(span<uint16_t>(value.data(), value.size()));
+  out->HandleString16(value);
   tokenizer->Next();
 }
 
@@ -1037,7 +1037,7 @@ void ParseCBOR(span<uint8_t> bytes, ParserHandler* out) {
 Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    span<uint8_t> string8_value,
                                    std::vector<uint8_t>* cbor) {
-  span<uint8_t> bytes(cbor->data(), cbor->size());
+  span<uint8_t> bytes(*cbor);
   CBORTokenizer tokenizer(bytes);
   if (tokenizer.TokenTag() == CBORTokenTag::ERROR_VALUE)
     return tokenizer.Status();

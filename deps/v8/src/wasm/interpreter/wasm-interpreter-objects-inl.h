@@ -26,7 +26,7 @@ namespace internal {
 // static
 inline Tagged<WasmInstanceObject> WasmInterpreterObject::get_wasm_instance(
     Tagged<Tuple2> interpreter_object) {
-  return Cast<WasmInstanceObject>(interpreter_object->value1());
+  return TrustedCast<WasmInstanceObject>(interpreter_object->value1());
 }
 // static
 inline void WasmInterpreterObject::set_wasm_instance(

@@ -41,7 +41,11 @@
         {"name": "GetPrototypeOfWithoutTrap"},
         {"name": "GetPrototypeOfWithTrap"},
         {"name": "SetPrototypeOfWithoutTrap"},
-        {"name": "SetPrototypeOfWithTrap"}
+        {"name": "SetPrototypeOfWithTrap"},
+        {"name": "CallProxyWithoutTrap"},
+        {"name": "CallProxyWithTrap"},
+        {"name": "ConstructProxyWithoutTrap"},
+        {"name": "ConstructProxyWithTrap"}
       ]
     },
     {

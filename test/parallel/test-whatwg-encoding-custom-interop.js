@@ -46,9 +46,8 @@ assert(TextEncoder);
   const instance = new TextEncoder();
 
   const expectedError = {
-    code: 'ERR_INVALID_THIS',
     name: 'TypeError',
-    message: 'Value of "this" must be of type TextEncoder'
+    message: /from an object whose class did not declare it/,
   };
 
   inspectFn.call(instance, Infinity, {});
@@ -58,7 +57,12 @@ assert(TextEncoder);
   const invalidThisArgs = [{}, [], true, 1, '', new TextDecoder()];
   for (const i of invalidThisArgs) {
     assert.throws(() => inspectFn.call(i, Infinity, {}), expectedError);
-    assert.throws(() => encodeFn.call(i), expectedError);
     assert.throws(() => encodingGetter.call(i), expectedError);
+  }
+  for (const i of invalidThisArgs) {
+    assert.throws(() => encodeFn.call(i), {
+      name: 'TypeError',
+      message: 'Receiver must be an instance of class TextEncoder',
+    });
   }
 }

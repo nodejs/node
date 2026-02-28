@@ -6,7 +6,7 @@ const common = require('../common');
 const Module = require('module');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
-const { deepStrictEqual, ok, strictEqual, throws } = require('assert');
+const assert = require('assert');
 const { join } = require('path');
 
 const directory = tmpdir.resolve('directory');
@@ -17,20 +17,20 @@ tmpdir.refresh();
 fs.writeFileSync(file, "module.exports = { a: 'b' }");
 fs.mkdirSync(directory);
 
-strictEqual(Module._stat(directory), 1);
-ok(Module._stat(doesNotExist) < 0);
-strictEqual(Module._stat(file), 0);
+assert.strictEqual(Module._stat(directory), 1);
+assert.ok(Module._stat(doesNotExist) < 0);
+assert.strictEqual(Module._stat(file), 0);
 
 const vfsDirectory = join(process.execPath, 'directory');
 const vfsDoesNotExist = join(process.execPath, 'does-not-exist');
 const vfsFile = join(process.execPath, 'file.js');
 
-ok(Module._stat(vfsDirectory) < 0);
-ok(Module._stat(vfsDoesNotExist) < 0);
-ok(Module._stat(vfsFile) < 0);
+assert.ok(Module._stat(vfsDirectory) < 0);
+assert.ok(Module._stat(vfsDoesNotExist) < 0);
+assert.ok(Module._stat(vfsFile) < 0);
 
-deepStrictEqual(require(file), { a: 'b' });
-throws(() => require(vfsFile), { code: 'MODULE_NOT_FOUND' });
+assert.deepStrictEqual(require(file), { a: 'b' });
+assert.throws(() => require(vfsFile), { code: 'MODULE_NOT_FOUND' });
 
 common.expectWarning(
   'ExperimentalWarning',
@@ -75,15 +75,15 @@ fs.realpathSync = function realpathSync(pathArgument, options) {
   return pathArgument;
 };
 
-strictEqual(Module._stat(directory), 1);
-ok(Module._stat(doesNotExist) < 0);
-strictEqual(Module._stat(file), 0);
+assert.strictEqual(Module._stat(directory), 1);
+assert.ok(Module._stat(doesNotExist) < 0);
+assert.strictEqual(Module._stat(file), 0);
 
-strictEqual(Module._stat(vfsDirectory), 1);
-ok(Module._stat(vfsDoesNotExist) < 0);
-strictEqual(Module._stat(vfsFile), 0);
+assert.strictEqual(Module._stat(vfsDirectory), 1);
+assert.ok(Module._stat(vfsDoesNotExist) < 0);
+assert.strictEqual(Module._stat(vfsFile), 0);
 
-strictEqual(Module._stat(process.execPath), 1);
+assert.strictEqual(Module._stat(process.execPath), 1);
 
-deepStrictEqual(require(file), { a: 'b' });
-deepStrictEqual(require(vfsFile), { x: 'y' });
+assert.deepStrictEqual(require(file), { a: 'b' });
+assert.deepStrictEqual(require(vfsFile), { x: 'y' });

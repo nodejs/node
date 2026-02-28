@@ -13,7 +13,7 @@
 #include "bio_local.h"
 
 static int prefix_write(BIO *b, const char *out, size_t outl,
-                        size_t *numwritten);
+    size_t *numwritten);
 static int prefix_read(BIO *b, char *buf, size_t size, size_t *numread);
 static int prefix_puts(BIO *b, const char *str);
 static int prefix_gets(BIO *b, char *str, int size);
@@ -43,10 +43,10 @@ const BIO_METHOD *BIO_f_prefix(void)
 }
 
 typedef struct prefix_ctx_st {
-    char *prefix;              /* Text prefix, given by user */
-    unsigned int indent;       /* Indentation amount, given by user */
+    char *prefix; /* Text prefix, given by user */
+    unsigned int indent; /* Indentation amount, given by user */
 
-    int linestart;             /* flag to indicate we're at the line start */
+    int linestart; /* flag to indicate we're at the line start */
 } PREFIX_CTX;
 
 static int prefix_create(BIO *b)
@@ -79,7 +79,7 @@ static int prefix_read(BIO *b, char *in, size_t size, size_t *numread)
 }
 
 static int prefix_write(BIO *b, const char *out, size_t outl,
-                        size_t *numwritten)
+    size_t *numwritten)
 {
     PREFIX_CTX *ctx = BIO_get_data(b);
 
@@ -97,7 +97,7 @@ static int prefix_write(BIO *b, const char *out, size_t outl,
          * prepared to handle prefix and indentation the next time around.
          */
         if (outl > 0)
-            ctx->linestart = (out[outl-1] == '\n');
+            ctx->linestart = (out[outl - 1] == '\n');
         return BIO_write_ex(BIO_next(b), out, outl, numwritten);
     }
 
@@ -116,7 +116,7 @@ static int prefix_write(BIO *b, const char *out, size_t outl,
 
             if (ctx->prefix != NULL
                 && !BIO_write_ex(BIO_next(b), ctx->prefix, strlen(ctx->prefix),
-                                 &dontcare))
+                    &dontcare))
                 return 0;
             BIO_printf(BIO_next(b), "%*s", ctx->indent, "");
             ctx->linestart = 0;

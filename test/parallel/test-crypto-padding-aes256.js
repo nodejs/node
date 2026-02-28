@@ -27,6 +27,9 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
+if (!crypto.getCiphers().includes('aes256'))
+  common.skip('aes256 cipher is not available');
+
 const iv = Buffer.from('00000000000000000000000000000000', 'hex');
 const key = Buffer.from('0123456789abcdef0123456789abcdef' +
                         '0123456789abcdef0123456789abcdef', 'hex');

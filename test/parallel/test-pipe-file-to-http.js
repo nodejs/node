@@ -31,7 +31,7 @@ tmpdir.refresh();
 const filename = tmpdir.resolve('big');
 let count = 0;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCall((req, res) => {
   assert.strictEqual(req.method, 'POST');
   req.pause();
 
@@ -50,7 +50,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end();
   });
-});
+}));
 server.listen(0);
 
 server.on('listening', () => {

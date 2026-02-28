@@ -8,23 +8,23 @@
  */
 
 #ifndef OSSL_BIO_ADDR_H
-# define OSSL_BIO_ADDR_H
+#define OSSL_BIO_ADDR_H
 
-# include "internal/e_os.h"
-# include "internal/e_winsock.h"
-# include "internal/sockets.h"
+#include "internal/e_os.h"
+#include "internal/e_winsock.h"
+#include "internal/sockets.h"
 
-# ifndef OPENSSL_NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 union bio_addr_st {
     struct sockaddr sa;
-#  if OPENSSL_USE_IPV6
+#if OPENSSL_USE_IPV6
     struct sockaddr_in6 s_in6;
-#  endif
+#endif
     struct sockaddr_in s_in;
-#  ifndef OPENSSL_NO_UNIX_SOCK
+#ifndef OPENSSL_NO_UNIX_SOCK
     struct sockaddr_un s_un;
-#  endif
+#endif
 };
-# endif
+#endif
 
 #endif

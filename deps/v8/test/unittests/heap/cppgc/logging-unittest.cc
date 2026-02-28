@@ -59,7 +59,6 @@ TEST(LoggingTest, Message) {
                             ContainsRegex("failed.*5 == 7"));
 }
 
-#if V8_SUPPORTS_SOURCE_LOCATION
 TEST(LoggingTest, SourceLocation) {
   using ::testing::AllOf;
   using ::testing::HasSubstr;
@@ -69,7 +68,6 @@ TEST(LoggingTest, SourceLocation) {
   EXPECT_DEATH_IF_SUPPORTED(CPPGC_CHECK(false), AllOf(HasSubstr(loc.FileName()), HasSubstr(std::to_string(loc.Line() + 2)))); // NOLINT(whitespace/line_length)
   // clang-format on
 }
-#endif  // V8_SUPPORTS_SOURCE_LOCATION
 
 #endif  // DEBUG
 

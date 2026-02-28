@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --always-turbofan --gc-interval=163 --stress-compaction
+// Flags: --allow-natives-syntax --no-lazy-feedback-allocation --gc-interval=163
+// Flags: --stress-compaction --invocation-count-for-turbofan=1
 
 try { a = f();
 } catch(e) {
@@ -16,4 +17,5 @@ function f() {
      [];
    }
 }
+f();
 f();

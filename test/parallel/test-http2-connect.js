@@ -5,7 +5,8 @@ const {
   hasCrypto,
   hasIPv6,
   skip,
-  expectsError
+  expectsError,
+  mustCallAtLeast
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
@@ -21,7 +22,7 @@ const { connect: tlsConnect } = require('tls');
   server.listen(0, mustCall(() => {
     const authority = `http://localhost:${server.address().port}`;
     const options = {};
-    const listener = () => mustCall();
+    const listener = mustCallAtLeast(() => mustCall());
 
     const clients = new Set();
     // Should not throw.
@@ -48,12 +49,12 @@ const { connect: tlsConnect } = require('tls');
   server.listen(0, mustCall(() => {
     const { port } = server.address();
 
-    const onSocketConnect = () => {
+    const onSocketConnect = mustCallAtLeast(() => {
       const authority = `http://localhost:${port}`;
       const createConnection = mustCall(() => socket);
       const options = { createConnection };
       connect(authority, options, mustCall(onSessionConnect));
-    };
+    });
 
     const onSessionConnect = (session) => {
       session.close();
@@ -82,12 +83,12 @@ const { connect: tlsConnect } = require('tls');
   server.listen(0, mustCall(() => {
     const { port } = server.address();
 
-    const onSocketConnect = () => {
+    const onSocketConnect = mustCall(() => {
       const authority = `https://localhost:${port}`;
       const createConnection = mustCall(() => socket);
       const options = { createConnection };
       connect(authority, options, mustCall(onSessionConnect));
-    };
+    });
 
     const onSessionConnect = (session) => {
       session.close();

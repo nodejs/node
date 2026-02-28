@@ -52,13 +52,6 @@ static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
 // Waiting until static initializers run seems to be late enough.
 // This file is included into stacktrace.cc so this will only run once.
 ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
-  // Check if we can even create stacktraces. If not, bail early and leave
-  // disable_stacktraces set as-is.
-  // clang-format off
-  if (!EM_ASM_INT({ return (typeof wasmOffsetConverter !== 'undefined'); })) {
-    return 0;
-  }
-  // clang-format on
   disable_stacktraces.store(false, std::memory_order_relaxed);
   return 0;
 }();

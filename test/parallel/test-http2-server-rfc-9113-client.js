@@ -45,7 +45,7 @@ server.listen(0, common.mustCall(() => {
 
     let data = '';
     req.on('data', (d) => data += d);
-    req.on('end', () => {
+    req.on('end', common.mustCall(() => {
       assert.strictEqual(body, data);
       client.close();
       client.on('close', common.mustCall(() => {
@@ -63,15 +63,15 @@ server.listen(0, common.mustCall(() => {
         assert.strictEqual(headers['x-h2-header-3'], 'connection-test ');
       }));
       req2.on('data', (d) => data2 += d);
-      req2.on('end', () => {
+      req2.on('end', common.mustCall(() => {
         assert.strictEqual(body, data2);
         client2.close();
         client2.on('close', common.mustCall(() => {
           server2.close();
         }));
-      });
+      }));
       req2.end();
-    });
+    }));
 
     req.end();
   }));

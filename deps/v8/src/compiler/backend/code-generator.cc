@@ -75,6 +75,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
+      effect_handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
       protected_deoptimization_literals_(codegen_zone),
       deoptimization_literals_(codegen_zone),
@@ -172,12 +173,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  if (info()->source_positions()) {
-    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
-                              exit->pos(), deoptimization_id);
-  }
 
-  if (deopt_kind == DeoptimizeKind::kLazy) {
+  if (deopt_kind == DeoptimizeKind::kLazy ||
+      deopt_kind == DeoptimizeKind::kLazyAfterFastCall) {
     ++lazy_deopt_count_;
     masm()->BindExceptionHandler(exit->label());
   } else {
@@ -188,6 +186,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   masm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
                                 deopt_kind, exit->continue_label(),
                                 jump_deoptimization_entry_label);
+
+  // RecordDeoptReason has to be right after the call so that the deopt is
+  // associated with the correct pc.
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
+    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
+                              exit->pos(), deoptimization_id);
+  }
 
   exit->set_emitted();
 
@@ -225,6 +231,15 @@ void CodeGenerator::AssembleCode() {
   offsets_info_.code_start_register_check = masm()->pc_offset();
 
   masm()->CodeEntry();
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(saelo): should there also be a info->IsJS()?
+  if (v8_flags.debug_code &&
+      (call_descriptor->IsJSFunctionCall() || info->IsWasm())) {
+    masm()->RecordComment("-- Prologue: check sandboxing mode --");
+    masm()->AssertInSandboxedExecutionMode();
+  }
+#endif
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (v8_flags.debug_code && info->called_with_code_start_register()) {
@@ -274,8 +289,10 @@ void CodeGenerator::AssembleCode() {
     // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlignLoopHeader()) {
       masm()->LoopHeaderAlign();
-    } else if (block->ShouldAlignCodeTarget()) {
-      masm()->CodeTargetAlign();
+    } else if (block->ShouldAlignSwitchTarget()) {
+      masm()->SwitchTargetAlign();
+    } else if (block->ShouldAlignBranchTarget()) {
+      masm()->BranchTargetAlign();
     }
 
     if (info->trace_turbo_json()) {
@@ -322,14 +339,6 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#ifdef CAN_USE_RVV_INSTRUCTIONS
-    // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
-    // overhead of the vset{i}vl{i} instruction. However there are some jumps
-    // back between blocks. the Rvv instruction may get an incorrect vtype. so
-    // here VectorUnit needs to be cleared to ensure that the vtype is correct
-    // within the block.
-    masm()->VU.clear();
-#endif
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm());
       result_ = AssembleBlock(block);
@@ -370,11 +379,18 @@ void CodeGenerator::AssembleCode() {
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
     // The deoptimization exits are sorted so that lazy deopt exits appear after
     // eager deopts.
-    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind),
-                  "lazy deopts are expected to be emitted last");
-    if (a->kind() != b->kind()) {
-      return a->kind() < b->kind();
+    int a_kind_val = a->kind() == DeoptimizeKind::kEager ? 0 : 1;
+    int b_kind_val = b->kind() == DeoptimizeKind::kEager ? 0 : 1;
+
+    DCHECK_IMPLIES(a_kind_val == 1,
+                   a->kind() == DeoptimizeKind::kLazy ||
+                       a->kind() == DeoptimizeKind::kLazyAfterFastCall);
+    DCHECK_IMPLIES(b_kind_val == 1,
+                   b->kind() == DeoptimizeKind::kLazy ||
+                       b->kind() == DeoptimizeKind::kLazyAfterFastCall);
+
+    if (a_kind_val != b_kind_val) {
+      return a_kind_val < b_kind_val;
     }
     return a->pc_offset() < b->pc_offset();
   };
@@ -395,7 +411,8 @@ void CodeGenerator::AssembleCode() {
       // order, which is always the case since they are added to
       // deoptimization_exits_ in that order, and the optional sort operation
       // above preserves that order.
-      if (exit->kind() == DeoptimizeKind::kLazy) {
+      if (exit->kind() == DeoptimizeKind::kLazy ||
+          exit->kind() == DeoptimizeKind::kLazyAfterFastCall) {
         int trampoline_pc = exit->label()->pos();
         last_updated = safepoints()->UpdateDeoptimizationInfo(
             exit->pc_offset(), trampoline_pc, last_updated,
@@ -403,6 +420,10 @@ void CodeGenerator::AssembleCode() {
       }
     }
   }
+
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+  masm()->EndBlockPools();
+#endif  // defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
 
   offsets_info_.pools = masm()->pc_offset();
   // TODO(jgruber): Move all inlined metadata generation into a new,
@@ -447,7 +468,7 @@ void CodeGenerator::AssembleCode() {
   result_ = kSuccess;
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_RISCV64)
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
     Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
     std::pair<int32_t, Label*>* end) {
@@ -466,7 +487,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   masm()->bind(&less_label);
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64/V8_TARGET_ARCH_RISCV64
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target))
@@ -846,11 +867,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
-    case kFlags_conditional_set: {
-      // Assemble a conditional boolean materialization after this instruction.
-      AssembleArchConditionalBoolean(instr);
-      break;
-    }
     case kFlags_select: {
       AssembleArchSelect(instr, condition);
       break;
@@ -858,6 +874,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);
+      break;
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    case kFlags_conditional_trap: {
+#if V8_ENABLE_WEBASSEMBLY
+      InstructionOperandConverter i(this, instr);
+      condition = static_cast<FlagsCondition>(
+          i.ToConstant(instr->InputAt(instr->InputCount() -
+                                      kConditionalTrapEndOffsetOfCondition))
+              .ToInt64());
+      AssembleArchConditionalTrap(instr, condition);
       break;
 #else
       UNREACHABLE();
@@ -1080,7 +1109,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   wasm::WasmDeoptView view(base::VectorOf(result));
   wasm::WasmDeoptData data = view.GetDeoptData();
   DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
-  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.num_deopt_literals, deoptimization_literals_.size());
   DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
   DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
   DCHECK_EQ(data.translation_array_size, frame_translations.size());
@@ -1098,6 +1127,17 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   }
 #endif
   return result;
+}
+
+base::OwnedVector<wasm::WasmCode::EffectHandler>
+CodeGenerator::GenerateWasmEffectHandler() {
+  auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
+      effect_handlers_.size());
+  for (size_t i = 0; i < effect_handlers_.size(); ++i) {
+    handlers[i] = {effect_handlers_[i].pc_offset, effect_handlers_[i].tag_index,
+                   effect_handlers_[i].handler->pos()};
+  }
+  return handlers;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1117,10 +1157,23 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
       instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState);
   RecordSafepoint(instr->reference_map());
 
+  InstructionOperandConverter i(this, instr);
+  int index = static_cast<int>(instr->InputCount()) - 1;
+  if (instr->HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler)) {
+    int num_handlers = i.ToConstant(instr->InputAt(index)).ToInt32();
+    // Start from the first handler, order matters.
+    for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
+         handler_idx += 2) {
+      RpoNumber handler_rpo =
+          i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
+      int tag_index = i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32();
+      effect_handlers_.push_back(
+          {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+    }
+    index = index - 2 * num_handlers - 1;
+  }
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
-    InstructionOperandConverter i(this, instr);
-    Constant handler_input =
-        i.ToConstant(instr->InputAt(instr->InputCount() - 1));
+    Constant handler_input = i.ToConstant(instr->InputAt(index--));
     if (handler_input.type() == Constant::Type::kRpoNumber) {
       RpoNumber handler_rpo = handler_input.ToRpoNumber();
       DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());

@@ -506,7 +506,7 @@ Maybe<void> HashTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset]);
   params->digest = ncrypto::getDigestByName(*digest);
   if (params->digest == nullptr) [[unlikely]] {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
     return Nothing<void>();
   }
 

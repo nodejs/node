@@ -96,4 +96,28 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
  */
 void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt);
 
+/*
+ * ngtcp2_vec_split_at splits |src| at the |offset|.  Caller must
+ * ensure that offset < src->len.  This function assigns the right
+ * part of vector into |dst|.
+ */
+void ngtcp2_vec_split_at(ngtcp2_vec *dst, ngtcp2_vec *src, size_t offset);
+
+/*
+ * ngtcp2_vec_end returns the one beyond the last offset of |v|.
+ */
+static inline uint8_t *ngtcp2_vec_end(const ngtcp2_vec *v) {
+  return v->base + v->len;
+}
+
+/*
+ * ngtcp2_vec_drop removes the first |n| bytes from |v| by adjusting
+ * its base and len fields.  This function assumes |v|->len > 0 &&
+ * |v|->len >= n.
+ */
+static inline void ngtcp2_vec_drop(ngtcp2_vec *v, size_t n) {
+  v->base += n;
+  v->len -= n;
+}
+
 #endif /* !defined(NGTCP2_VEC_H) */

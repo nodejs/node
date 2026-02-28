@@ -80,6 +80,20 @@ this to work properly.
 
 
 
+#### `save`
+
+* Default: `true` unless when using `npm update` where it defaults to `false`
+* Type: Boolean
+
+Save installed packages to a `package.json` file as dependencies.
+
+When used with the `npm rm` command, removes the dependency from
+`package.json`.
+
+Will also prevent writing to `package-lock.json` if set to `false`.
+
+
+
 #### `workspace`
 
 * Default:
@@ -143,71 +157,77 @@ the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 
+#### `ignore-scripts`
+
+* Default: false
+* Type: Boolean
+
+If true, npm does not run scripts specified in package.json files.
+
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
+
+
+
 ### Description
 
-Run this in a package directory to bump the version and write the new data
-back to `package.json`, `package-lock.json`, and, if present,
+Run this in a package directory to bump the version and write the new data back to `package.json`, `package-lock.json`, and, if present,
 `npm-shrinkwrap.json`.
 
-The `newversion` argument should be a valid semver string, a valid second
-argument to [semver.inc](https://github.com/npm/node-semver#functions) (one
-of `patch`, `minor`, `major`, `prepatch`, `preminor`, `premajor`,
-`prerelease`), or `from-git`. In the second case, the existing version will
-be incremented by 1 in the specified field.  `from-git` will try to read
-the latest git tag, and use that as the new npm version.
+The `newversion` argument should be a valid semver string, a valid second argument to [semver.inc](https://github.com/npm/node-semver#functions) (one of `patch`, `minor`, `major`, `prepatch`, `preminor`, `premajor`, `prerelease`), or `from-git`.
+In the second case, the existing version will be incremented by 1 in the specified field.
+`from-git` will try to read the latest git tag, and use that as the new npm version.
 
-If run in a git repo, it will also create a version commit and tag.  This
-behavior is controlled by `git-tag-version` (see below), and can be
-disabled on the command line by running `npm --no-git-tag-version version`.
-It will fail if the working directory is not clean, unless the `-f` or
-`--force` flag is set.
+**Note:** If the current version is a prerelease version, `patch` will simply remove the prerelease suffix without incrementing the patch version number. For example, `1.2.0-5` becomes `1.2.0` with `npm version patch`, not `1.2.1`.
 
-If supplied with `-m` or [`--message` config](/using-npm/config#message) option,
-npm will use it as a commit message when creating a version commit.  If the
-`message` config contains `%s` then that will be replaced with the resulting
-version number. For example:
+If run in a git repo, it will also create a version commit and tag.
+This behavior is controlled by `git-tag-version` (see below), and can be disabled on the command line by running `npm --no-git-tag-version version`.
+It will fail if the working directory is not clean, unless the `-f` or `--force` flag is set.
+
+**Note:** Git integration requires a reasonably recent version of git (2.0.0 or later is recommended). If you encounter issues with git commands, ensure your git installation is up to date.
+
+If supplied with `-m` or [`--message` config](/using-npm/config#message) option, npm will use it as a commit message when creating a version commit.
+If the `message` config contains `%s` then that will be replaced with the resulting version number.
+For example:
 
 ```bash
 npm version patch -m "Upgrade to %s for reasons"
 ```
 
-If the [`sign-git-tag` config](/using-npm/config#sign-git-tag) is set, then the
-tag will be signed using the `-s` flag to git. Note that you must have a default
-GPG key set up in your git config for this to work properly. For example:
+If the [`sign-git-tag` config](/using-npm/config#sign-git-tag) is set, then the tag will be signed using the `-s` flag to git.
+Note that you must have a default GPG key set up in your git config for this to work properly.
+For example:
 
 ```bash
 $ npm config set sign-git-tag true
 $ npm version patch
 
-You need a passphrase to unlock the secret key for
-user: "isaacs (http://blog.izs.me/) <i@izs.me>"
+You need a passphrase to unlock the secret key for user: "isaacs (http://blog.izs.me/) <i@izs.me>"
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
 ```
 
-If `preversion`, `version`, or `postversion` are in the `scripts` property
-of the package.json, they will be executed as part of running `npm
-version`.
+If `preversion`, `version`, or `postversion` are in the `scripts` property of the package.json, they will be executed as part of running `npm version`.
 
 The exact order of execution is as follows:
 
-1. Check to make sure the git working directory is clean before we get
-   started.  Your scripts may add files to the commit in future steps.
+1. Check to make sure the git working directory is clean before we get started.
+   Your scripts may add files to the commit in future steps.
    This step is skipped if the `--force` flag is set.
-2. Run the `preversion` script. These scripts have access to the old
-   `version` in package.json.  A typical use would be running your full
-   test suite before deploying.  Any files you want added to the commit
-   should be explicitly added using `git add`.
-3. Bump `version` in `package.json` as requested (`patch`, `minor`,
-   `major`, etc).
-4. Run the `version` script. These scripts have access to the new `version`
-   in package.json (so they can incorporate it into file headers in
-   generated files for example).  Again, scripts should explicitly add
-   generated files to the commit using `git add`.
+2. Run the `preversion` script.
+   These scripts have access to the old `version` in package.json.
+   A typical use would be running your full test suite before deploying.
+   Any files you want added to the commit should be explicitly added using `git add`.
+3. Bump `version` in `package.json` as requested (`patch`, `minor`, `major`, etc).
+4. Run the `version` script.
+   These scripts have access to the new `version` in package.json (so they can incorporate it into file headers in generated files for example).
+   Again, scripts should explicitly add generated files to the commit using `git add`.
 5. Commit and tag.
-6. Run the `postversion` script. Use it to clean up the file system or
-   automatically push the commit and/or tag.
+6. Run the `postversion` script.
+   Use it to clean up the file system or automatically push the commit and/or tag.
 
 Take the following example:
 
@@ -221,10 +241,9 @@ Take the following example:
 }
 ```
 
-This runs all your tests and proceeds only if they pass. Then runs your
-`build` script, and adds everything in the `dist` directory to the commit.
-After the commit, it pushes the new commit and tag up to the server, and
-deletes the `build/temp` directory.
+This runs all your tests and proceeds only if they pass.
+Then runs your `build` script, and adds everything in the `dist` directory to the commit.
+After the commit, it pushes the new commit and tag up to the server, and deletes the `build/temp` directory.
 
 ### See Also
 

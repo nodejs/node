@@ -11,15 +11,11 @@
 
 ✖ failing tests:
 
-*
+test at test/<tmpdir>/failing-test.js:3:3
 ✖ failing test (*ms)
   Error: failed
-      *
-      *
-      *
-      *
-      *
-      *
+      at TestContext.<anonymous> (<project-root>/test/<tmpdir>/failing-test.js:4:11)
+      at <node-internal-frames>
 ℹ tests 0
 ℹ suites 0
 ℹ pass 0

@@ -38,4 +38,6 @@
 
 #define LP_SYS_WIN32
 #define LP_MULTIBYTE_AVAILABLE
+/* clang-format off */
 #include "LPdir_win.c"
+/* clang-format on */

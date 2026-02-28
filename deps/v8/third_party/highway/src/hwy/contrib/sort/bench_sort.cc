@@ -31,15 +31,10 @@
 #include "hwy/contrib/sort/traits-inl.h"
 #include "hwy/contrib/sort/traits128-inl.h"
 #include "hwy/tests/test_util-inl.h"
-#include "hwy/timer-inl.h"
 #include "hwy/nanobenchmark.h"
 #include "hwy/timer.h"
-#include "hwy/per_target.h"
+#include "hwy/contrib/thread_pool/futex.h"  // NanoSleep
 // clang-format on
-
-#if HWY_OS_LINUX
-#include <unistd.h>  // usleep
-#endif
 
 // Mode for larger sorts because M1 is able to access more than the per-core
 // share of L2, so 1M elements might still be in cache.
@@ -80,8 +75,7 @@ HWY_NOINLINE void BenchAllColdSort() {
 
   char cpu100[100];
   if (!platform::HaveTimerStop(cpu100)) {
-    fprintf(stderr, "CPU '%s' does not support RDTSCP, skipping benchmark.\n",
-            cpu100);
+    HWY_WARN("CPU '%s' does not support RDTSCP, skipping benchmark.\n", cpu100);
     return;
   }
 
@@ -136,10 +130,8 @@ HWY_NOINLINE void BenchAllColdSort() {
           elapsed * 1E9, static_cast<double>(items[Random32(&rng) % kSize]));
 
 #if SORT_ONLY_COLD
-#if HWY_OS_LINUX
   // Long enough for the CPU to switch off AVX-512 mode before the next run.
-  usleep(100 * 1000);  // NOLINT
-#endif
+  NanoSleep(100 * 1000 * 1000);
 #endif
 }
 
@@ -368,7 +360,6 @@ enum class BenchmarkModes {
 std::vector<size_t> SizesToBenchmark(BenchmarkModes mode) {
   std::vector<size_t> sizes;
   switch (mode) {
-    default:
     case BenchmarkModes::kDefault:
 #if HAVE_PARALLEL_IPS4O || SORT_100M
       sizes.push_back(100 * 1000 * size_t{1000});
@@ -476,5 +467,7 @@ HWY_EXPORT_AND_TEST_P(BenchSort, BenchAllSort);
 #endif
 HWY_AFTER_TEST();
 }  // namespace hwy
+
+HWY_TEST_MAIN();
 
 #endif  // HWY_ONCE

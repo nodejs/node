@@ -8,6 +8,7 @@
 #include <ostream>
 #include <thread>  // NOLINT(build/c++11) (for this_thread::yield())
 
+#include "src/base/small-vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
@@ -656,10 +657,7 @@ void CodeAssembler::AbortCSADcheck(Node* message) {
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
-void CodeAssembler::Unreachable() {
-  DebugBreak();
-  raw_assembler()->Unreachable();
-}
+void CodeAssembler::Unreachable() { raw_assembler()->Unreachable(); }
 
 void CodeAssembler::EmitComment(std::string str) {
   if (!v8_flags.code_comments) return;
@@ -1660,6 +1658,30 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
   return raw_assembler()->Switch(index, default_label->label_, case_values,
                                  labels, case_count);
 }
+
+template <typename Value>
+void CodeAssembler::Switch(
+    Node* index, Label* default_label,
+    const std::initializer_list<std::pair<Value, Label*>>& cases) {
+  const size_t case_count = cases.size();
+  RawMachineLabel** labels =
+      zone()->AllocateArray<RawMachineLabel*>(case_count);
+  size_t i = 0;
+  base::SmallVector<int32_t, 8> case_values(case_count);
+  for (auto [value, label] : cases) {
+    labels[i] = label->label_;
+    label->MergeVariables();
+    case_values[i] = static_cast<int32_t>(value);
+    ++i;
+  }
+  default_label->MergeVariables();
+  return raw_assembler()->Switch(index, default_label->label_,
+                                 case_values.data(), labels, case_count);
+}
+
+template void CodeAssembler::Switch<InstanceType>(
+    Node* index, Label* default_label,
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
 
 bool CodeAssembler::UnalignedLoadSupported(MachineRepresentation rep) const {
   return raw_assembler()->machine()->UnalignedLoadSupported(rep);

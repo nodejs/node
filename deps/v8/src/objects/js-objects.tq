@@ -77,6 +77,7 @@ macro GetDerivedMap(
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
     dcheck(IsConstructor(constructor));
+    if (Is<TheHole>(constructor.prototype_or_initial_map)) goto SlowPath;
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
     if (LoadConstructorOrBackPointer(map) != target) {
@@ -150,17 +151,17 @@ extern class JSDate extends JSObject {
   value: float64;
 
   // Cached values:
-  year: Undefined|Smi|NaN;
-  month: Undefined|Smi|NaN;
-  day: Undefined|Smi|NaN;
-  weekday: Undefined|Smi|NaN;
-  hour: Undefined|Smi|NaN;
-  min: Undefined|Smi|NaN;
-  sec: Undefined|Smi|NaN;
+  year: Smi|NaN;
+  month: Smi|NaN;
+  day: Smi|NaN;
+  weekday: Smi|NaN;
+  hour: Smi|NaN;
+  min: Smi|NaN;
+  sec: Smi|NaN;
 
   // Sample of the date cache stamp at the moment when chached fields were
   // cached.
-  cache_stamp: Undefined|Smi|NaN;
+  cache_stamp: Smi|NaN;
 }
 
 extern class JSAsyncFromSyncIterator extends JSObject {

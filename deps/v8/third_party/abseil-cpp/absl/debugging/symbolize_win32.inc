@@ -15,7 +15,6 @@
 // See "Retrieving Symbol Information by Address":
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms680578(v=vs.85).aspx
 
-#include <ntstatus.h>
 #include <windows.h>
 #include <winternl.h>
 
@@ -58,10 +57,9 @@ void InitializeSymbolizer(const char*) {
     // NTSTATUS (0xC0000004), which can happen when a module load occurs during
     // the SymInitialize call. In this case, we should try calling SymInitialize
     // again.
+    constexpr DWORD kStatusInfoLengthMismatch = DWORD{0xC0000004};
     syminitialize_error = GetLastError();
-    // Both NTSTATUS and DWORD are 32-bit numbers, which makes the cast safe.
-    if (syminitialize_error !=
-        static_cast<DWORD>(STATUS_INFO_LENGTH_MISMATCH)) {
+    if (syminitialize_error != kStatusInfoLengthMismatch) {
       break;
     }
   }

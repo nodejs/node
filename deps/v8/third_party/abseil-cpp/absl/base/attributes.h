@@ -553,7 +553,7 @@
 //
 // Prevents the compiler from complaining about variables that appear unused.
 //
-// Deprecated: Use the standard C++17 `[[maybe_unused]` instead.
+// Deprecated: Use the standard C++17 `[[maybe_unused]]` instead.
 //
 // Due to differences in positioning requirements between the old, compiler
 // specific __attribute__ syntax and the now standard `[[maybe_unused]]`, this

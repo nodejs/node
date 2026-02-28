@@ -7,10 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_RIO_NOTIFIER_H
-# define OSSL_RIO_NOTIFIER_H
+#define OSSL_RIO_NOTIFIER_H
 
-# include "internal/common.h"
-# include "internal/sockets.h"
+#include "internal/common.h"
+#include "internal/sockets.h"
 
 /*
  * Pollable Notifier
@@ -20,18 +20,18 @@
  * OS's socket polling APIs to allow socket polling calls to be woken
  * artificially by other threads.
  */
-# define RIO_NOTIFIER_METHOD_SOCKET      1
-# define RIO_NOTIFIER_METHOD_SOCKETPAIR  2
+#define RIO_NOTIFIER_METHOD_SOCKET 1
+#define RIO_NOTIFIER_METHOD_SOCKETPAIR 2
 
-# if !defined(RIO_NOTIFIER_METHOD)
-#  if defined(OPENSSL_SYS_WINDOWS)
-#   define RIO_NOTIFIER_METHOD          RIO_NOTIFIER_METHOD_SOCKET
-#  elif defined(OPENSSL_SYS_UNIX)
-#   define RIO_NOTIFIER_METHOD          RIO_NOTIFIER_METHOD_SOCKETPAIR
-#  else
-#   define RIO_NOTIFIER_METHOD          RIO_NOTIFIER_METHOD_SOCKET
-#  endif
-# endif
+#if !defined(RIO_NOTIFIER_METHOD)
+#if defined(OPENSSL_SYS_WINDOWS)
+#define RIO_NOTIFIER_METHOD RIO_NOTIFIER_METHOD_SOCKET
+#elif defined(OPENSSL_SYS_UNIX)
+#define RIO_NOTIFIER_METHOD RIO_NOTIFIER_METHOD_SOCKETPAIR
+#else
+#define RIO_NOTIFIER_METHOD RIO_NOTIFIER_METHOD_SOCKET
+#endif
+#endif
 
 typedef struct rio_notifier_st {
     int rfd, wfd;

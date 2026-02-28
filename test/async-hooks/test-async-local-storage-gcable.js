@@ -11,11 +11,11 @@ const { onGC } = require('../common/gc');
 
 let asyncLocalStorage = new AsyncLocalStorage();
 
-asyncLocalStorage.run({}, () => {
+asyncLocalStorage.run({}, common.mustCall(() => {
   asyncLocalStorage.disable();
 
   onGC(asyncLocalStorage, { ongc: common.mustCall() });
-});
+}));
 
 if (AsyncContextFrame.enabled) {
   // This disable() is needed to remove reference form AsyncContextFrame

@@ -43,7 +43,7 @@ def preprocess(input):
 
   def createFunctionReplacement(m):
     torque_def = m.group(1)
-    torque_def = re.sub('\s+', ' ', torque_def)
+    torque_def = re.sub(r'\s+', ' ', torque_def)
     function_len = len("function")
     function_and_comment_len = len("function /**/")
     if len(torque_def) < function_len:

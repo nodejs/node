@@ -193,7 +193,7 @@ class MergeToBranch(ScriptsBase):
   def _Description(self):
     return ("Performs the necessary steps to merge revisions from "
             "main to release branches like 4.5. This script does not "
-            "version the commit. See http://goo.gl/9ke2Vw for more "
+            "version the commit. See https://v8.dev/docs/merge-patch for more "
             "information.")
 
   def _PrepareOptions(self, parser):

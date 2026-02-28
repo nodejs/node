@@ -12,31 +12,23 @@ npm fund [<package-spec>]
 
 ### Description
 
-This command retrieves information on how to fund the dependencies of a
-given project. If no package name is provided, it will list all
-dependencies that are looking for funding in a tree structure, listing
-the type of funding and the url to visit. If a package name is provided
-then it tries to open its funding url using the
-[`--browser` config](/using-npm/config#browser) param; if there are multiple
-funding sources for the package, the user will be instructed to pass the
+This command retrieves information on how to fund the dependencies of a given project.
+If no package name is provided, it will list all dependencies that are looking for funding in a tree structure, listing the type of funding and the url to visit.
+If a package name is provided then it tries to open its funding url using the [`--browser` config](/using-npm/config#browser) param; if there are multiple funding sources for the package, the user will be instructed to pass the
 `--which` option to disambiguate.
 
-The list will avoid duplicated entries and will stack all packages that
-share the same url as a single entry. Thus, the list does not have the
-same shape of the output from `npm ls`.
+The list will avoid duplicated entries and will stack all packages that share the same url as a single entry.
+Thus, the list does not have the same shape of the output from `npm ls`.
 
 #### Example
 
 ### Workspaces support
 
-It's possible to filter the results to only include a single workspace
-and its dependencies using the
-[`workspace` config](/using-npm/config#workspace) option.
+It's possible to filter the results to only include a single workspace and its dependencies using the [`workspace` config](/using-npm/config#workspace) option.
 
 #### Example:
 
-Here's an example running `npm fund` in a project with a configured
-workspace `a`:
+Here's an example running `npm fund` in a project with a configured workspace `a`:
 
 ```bash
 $ npm fund
@@ -51,8 +43,7 @@ test-workspaces-fund@1.0.0
     `-- bar@2.0.0
 ```
 
-And here is an example of the expected result when filtering only by a
-specific workspace `a` in the same project:
+And here is an example of the expected result when filtering only by a specific workspace `a` in the same project:
 
 ```bash
 $ npm fund -w a

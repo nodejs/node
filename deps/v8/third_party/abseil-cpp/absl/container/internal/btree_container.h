@@ -640,12 +640,12 @@ class btree_map_container : public btree_set_container<Tree> {
   }
   template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>()>
   mapped_type &operator[](key_arg<K> &&k) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return try_emplace(std::forward<K>(k)).first->second;
+    return try_emplace(std::forward<key_arg<K>>(k)).first->second;
   }
   template <class K = key_type, int &..., EnableIf<LifetimeBoundK<K, true>> = 0>
   mapped_type &operator[](key_arg<K> &&k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(
       this)) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return this->template operator[]<K, 0>(std::forward<K>(k));
+    return this->template operator[]<K, 0>(std::forward<key_arg<K>>(k));
   }
 
   template <typename K = key_type>

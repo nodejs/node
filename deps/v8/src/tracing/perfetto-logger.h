@@ -38,7 +38,7 @@ class PerfettoLogger : public LogEventListener {
                        int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
+                       wasm::WasmName name, std::string_view source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 

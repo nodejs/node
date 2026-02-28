@@ -171,14 +171,14 @@ struct ngtcp2_strm {
       const ngtcp2_mem *mem;
       int64_t stream_id;
       void *stream_user_data;
-      /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
-      uint32_t flags;
       /* app_error_code is an error code the local endpoint sent in
          RESET_STREAM or STOP_SENDING, or received from a remote endpoint
          in RESET_STREAM or STOP_SENDING.  First application error code is
          chosen and when set, NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET flag is
          set in flags field. */
       uint64_t app_error_code;
+      /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
+      uint32_t flags;
     };
 
     ngtcp2_opl_entry oplent;
@@ -208,14 +208,14 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
  *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
+ * It returns the number of bytes newly buffered if it succeeds, or
+ * one of the following negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
-                                size_t datalen, uint64_t offset);
+ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
+                                         size_t datalen, uint64_t offset);
 
 /*
  * ngtcp2_strm_update_rx_offset tells that data up to |offset| bytes

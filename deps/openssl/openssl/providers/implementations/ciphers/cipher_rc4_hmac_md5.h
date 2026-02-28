@@ -12,7 +12,7 @@
 #include "prov/ciphercommon.h"
 
 typedef struct prov_rc4_hmac_md5_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         RC4_KEY ks;
@@ -26,11 +26,11 @@ typedef struct prov_cipher_hw_rc4_hmac_md5_st {
     PROV_CIPHER_HW base; /* Must be first */
     int (*tls_init)(PROV_CIPHER_CTX *ctx, unsigned char *aad, size_t aad_len);
     void (*init_mackey)(PROV_CIPHER_CTX *ctx, const unsigned char *key,
-                        size_t len);
+        size_t len);
 
 } PROV_CIPHER_HW_RC4_HMAC_MD5;
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_rc4_hmac_md5(size_t keybits);
 
 void rc4_md5_enc(RC4_KEY *key, const void *in0, void *out,
-                 MD5_CTX *ctx, const void *inp, size_t blocks);
+    MD5_CTX *ctx, const void *inp, size_t blocks);

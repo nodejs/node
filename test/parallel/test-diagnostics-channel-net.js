@@ -69,7 +69,7 @@ const testSuccessfulListen = common.mustCall(() => {
 const testFailingListen = common.mustCall(() => {
   const originalServer = net.createServer(common.mustNotCall());
 
-  originalServer.listen(() => {
+  originalServer.listen(common.mustCall(() => {
     const server = net.createServer(common.mustNotCall());
 
     testDiagnosticChannel(
@@ -95,7 +95,7 @@ const testFailingListen = common.mustCall(() => {
         server.close();
       })
     );
-  });
+  }));
 });
 
 testSuccessfulListen();

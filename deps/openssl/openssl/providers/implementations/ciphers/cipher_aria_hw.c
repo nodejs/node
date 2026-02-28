@@ -11,7 +11,7 @@
 #include "cipher_aria.h"
 
 static int cipher_hw_aria_initkey(PROV_CIPHER_CTX *dat,
-                                  const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
     int ret, mode = dat->mode;
     PROV_ARIA_CTX *adat = (PROV_ARIA_CTX *)dat;
@@ -32,21 +32,21 @@ static int cipher_hw_aria_initkey(PROV_CIPHER_CTX *dat,
 
 IMPLEMENT_CIPHER_HW_COPYCTX(cipher_hw_aria_copyctx, PROV_ARIA_CTX)
 
-# define PROV_CIPHER_HW_aria_mode(mode)                                        \
-static const PROV_CIPHER_HW aria_##mode = {                                    \
-    cipher_hw_aria_initkey,                                                    \
-    ossl_cipher_hw_chunked_##mode,                                             \
-    cipher_hw_aria_copyctx                                                     \
-};                                                                             \
-const PROV_CIPHER_HW *ossl_prov_cipher_hw_aria_##mode(size_t keybits)          \
-{                                                                              \
-    return &aria_##mode;                                                       \
-}
+#define PROV_CIPHER_HW_aria_mode(mode)                                    \
+    static const PROV_CIPHER_HW aria_##mode = {                           \
+        cipher_hw_aria_initkey,                                           \
+        ossl_cipher_hw_chunked_##mode,                                    \
+        cipher_hw_aria_copyctx                                            \
+    };                                                                    \
+    const PROV_CIPHER_HW *ossl_prov_cipher_hw_aria_##mode(size_t keybits) \
+    {                                                                     \
+        return &aria_##mode;                                              \
+    }
 
 PROV_CIPHER_HW_aria_mode(cbc)
-PROV_CIPHER_HW_aria_mode(ecb)
-PROV_CIPHER_HW_aria_mode(ofb128)
-PROV_CIPHER_HW_aria_mode(cfb128)
-PROV_CIPHER_HW_aria_mode(cfb1)
-PROV_CIPHER_HW_aria_mode(cfb8)
-PROV_CIPHER_HW_aria_mode(ctr)
+    PROV_CIPHER_HW_aria_mode(ecb)
+        PROV_CIPHER_HW_aria_mode(ofb128)
+            PROV_CIPHER_HW_aria_mode(cfb128)
+                PROV_CIPHER_HW_aria_mode(cfb1)
+                    PROV_CIPHER_HW_aria_mode(cfb8)
+                        PROV_CIPHER_HW_aria_mode(ctr)

@@ -7,6 +7,7 @@
 #include "src/codegen/signature.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone-containers.h"
@@ -376,16 +377,6 @@ void WasmFunctionBuilder::SetAsmFunctionStartPosition(
   last_asm_source_position_ = function_position_u32;
 }
 
-void WasmFunctionBuilder::SetCompilationHint(
-    WasmCompilationHintStrategy strategy, WasmCompilationHintTier baseline,
-    WasmCompilationHintTier top_tier) {
-  uint8_t hint_byte = static_cast<uint8_t>(strategy) |
-                      static_cast<uint8_t>(baseline) << 2 |
-                      static_cast<uint8_t>(top_tier) << 4;
-  DCHECK_NE(hint_byte, kNoCompilationHint);
-  hint_ = hint_byte;
-}
-
 void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {
   DCHECK_LE(position, body_.size());
   body_.Truncate(position);
@@ -666,6 +657,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   buffer->write_u32(kWasmVersion);
 
   // == Emit types =============================================================
+  // Check that the last `StartRecursiveTypeGroup()` was followed by
+  // `EndRecursiveTypeGroup()`.
+  DCHECK_EQ(-1, current_recursive_group_start_);
   if (!types_.empty()) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
     // Every recursion group occupies one type entry.
@@ -700,6 +694,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       } else if (!type.is_final) {
         buffer->write_u8(kWasmSubtypeCode);
         buffer->write_u8(0);
+      }
+      if (type.is_shared) {
+        buffer->write_u8(kSharedFlagCode);
+      }
+      if (type.is_descriptor()) {
+        buffer->write_u8(kWasmDescribesCode);
+        buffer->write_u32v(type.describes);
+      }
+      if (type.has_descriptor()) {
+        buffer->write_u8(kWasmDescriptorCode);
+        buffer->write_u32v(type.descriptor);
       }
       switch (type.kind) {
         case TypeDefinition::kFunction: {
@@ -945,32 +950,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u8(kDataCountSectionCode);
     buffer->write_u32v(1);  // section length
     buffer->write_u32v(static_cast<uint32_t>(data_segments_.size()));
-  }
-
-  // == Emit compilation hints section =========================================
-  bool emit_compilation_hints = false;
-  for (auto* fn : functions_) {
-    if (fn->hint_ != kNoCompilationHint) {
-      emit_compilation_hints = true;
-      break;
-    }
-  }
-  if (emit_compilation_hints) {
-    // Emit the section code.
-    buffer->write_u8(kUnknownSectionCode);
-    // Emit a placeholder for section length.
-    size_t start = buffer->reserve_u32v();
-    // Emit custom section name.
-    buffer->write_string(base::CStrVector("compilationHints"));
-    // Emit hint count.
-    buffer->write_size(functions_.size());
-    // Emit hint bytes.
-    for (auto* fn : functions_) {
-      uint8_t hint_byte =
-          fn->hint_ != kNoCompilationHint ? fn->hint_ : kDefaultCompilationHint;
-      buffer->write_u8(hint_byte);
-    }
-    FixupSection(buffer, start);
   }
 
   // == Emit code ==============================================================

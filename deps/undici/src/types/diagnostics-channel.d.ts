@@ -1,5 +1,5 @@
-import { Socket } from 'net'
-import { URL } from 'url'
+import { Socket } from 'node:net'
+import { URL } from 'node:url'
 import buildConnector from './connector'
 import Dispatcher from './dispatcher'
 
@@ -16,7 +16,6 @@ declare namespace DiagnosticsChannel {
     statusText: string;
     headers: Array<Buffer>;
   }
-  type Error = unknown
   interface ConnectParams {
     host: URL['host'];
     hostname: URL['hostname'];

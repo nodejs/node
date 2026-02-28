@@ -27,8 +27,8 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
   CHECK_EQ(i_isolate1->cage_base(), i_isolate2->cage_base());
 #endif  // V8_COMPRESS_POINTERS
 
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 UNINITIALIZED_TEST(PtrComprCageCodeRange) {
@@ -70,8 +70,8 @@ UNINITIALIZED_TEST(SharedPtrComprCage) {
 
   CHECK_EQ(GetPtrComprCageBase(isolate1), GetPtrComprCageBase(isolate2));
 
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
@@ -88,8 +88,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
              i_isolate2->heap()->code_region());
   }
 
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 namespace {
@@ -123,6 +123,10 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
   // Repeat twice to enforce multiple initializations of CodeRange instances.
   constexpr int kRepeats = 2;
   for (int repeat = 0; repeat < kRepeats; repeat++) {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    auto main_isolate = v8::Isolate::New(create_params);
+
     std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
     constexpr int kThreads = 10;
 
@@ -135,6 +139,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
     for (auto& thread : threads) {
       thread->Join();
     }
+
+    main_isolate->Dispose();
   }
 }
 

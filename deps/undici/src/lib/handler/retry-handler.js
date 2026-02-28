@@ -93,8 +93,6 @@ class RetryHandler {
     function shouldRetry (passedErr) {
       if (passedErr) {
         this.headersSent = true
-
-        this.headersSent = true
         this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
         controller.resume()
         return

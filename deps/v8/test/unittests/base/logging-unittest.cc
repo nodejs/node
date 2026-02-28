@@ -9,9 +9,7 @@
 #include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 
-namespace v8 {
-namespace base {
-namespace logging_unittest {
+namespace v8::base::logging_unittest {
 
 namespace {
 
@@ -92,14 +90,15 @@ std::string FailureMessage(std::string msg) {
   USE(SanitizeRegexp);
   return "";
 #else
-  return SanitizeRegexp(msg);
+  return SanitizeRegexp("# " + msg);
 #endif
 }
 
 std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
 #ifdef DEBUG
-  return SanitizeRegexp(
-      std::string{msg}.append(" (").append(lhs).append(" vs. ").append(rhs));
+  return FailureMessage(
+      (std::ostringstream{} << msg << " (" << lhs << " vs. " << rhs << ").")
+          .str());
 #else
   return FailureMessage(msg);
 #endif
@@ -108,11 +107,9 @@ std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
 std::string LongFailureMessage(const char* msg, const char* lhs,
                                const char* rhs) {
 #ifdef DEBUG
-  return SanitizeRegexp(std::string{msg}
-                            .append("\n   ")
-                            .append(lhs)
-                            .append("\n vs.\n   ")
-                            .append(rhs));
+  return FailureMessage(
+      (std::ostringstream{} << msg << "\n   " << lhs << "\n vs.\n   " << rhs)
+          .str());
 #else
   return FailureMessage(msg, lhs, rhs);
 #endif
@@ -177,12 +174,12 @@ TEST(LoggingTest, CompareEnumTypes) {
 class TestClass1 {
  public:
   bool operator==(const TestClass1&) const { return true; }
-  bool operator!=(const TestClass1&) const { return false; }
 };
 class TestClass2 {
  public:
   explicit TestClass2(int val) : val_(val) {}
   bool operator<(const TestClass2& other) const { return val_ < other.val_; }
+  bool operator==(const TestClass1&) const { return false; }
   int val() const { return val_; }
 
  private:
@@ -198,14 +195,20 @@ TEST(LoggingTest, CompareClassTypes) {
   CHECK_BOTH(LT, TestClass2{2}, TestClass2{7});
 
   // Check that the values are output correctly on error.
+  // TestClass1 is unprintable, so no values are output.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_NE(TestClass1{}, TestClass1{}); })(),
-      FailureMessage("Check failed: TestClass1{} != TestClass1{}",
-                     "<unprintable>", "<unprintable>"));
+      FailureMessage("Check failed: TestClass1{} != TestClass1{}"));
+  // TestClass2 is printable.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_LT(TestClass2{4}, TestClass2{3}); })(),
       FailureMessage("Check failed: TestClass2{4} < TestClass2{3}",
                      "TestClass2(4)", "TestClass2(3)"));
+  // Printable vs unprintable.
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(TestClass2{0}, TestClass1{}); })(),
+      FailureMessage("Check failed: TestClass2{0} == TestClass1{}",
+                     "TestClass2(0)", "<unprintable>"));
 }
 
 TEST(LoggingDeathTest, OutputEnumValues) {
@@ -362,9 +365,16 @@ TEST(LoggingDeathTest, Collections) {
 
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(listA, listB); })(),
-      FailureMessage("Check failed: listA == listB", "{1}", "{1,2}"));
+      FailureMessage("Check failed: listA == listB", "1 element: {1}",
+                     "2 elements: {1,2}"));
 }
 
-}  // namespace logging_unittest
-}  // namespace base
-}  // namespace v8
+TEST(LoggingDeathTest, CollectionsOfUnprintable) {
+  std::vector<TestClass1> list{1};
+
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_NE(list, list); })(),
+      FailureMessage("Check failed: list != list", "1 element", "1 element"));
+}
+
+}  // namespace v8::base::logging_unittest

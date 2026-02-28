@@ -8,25 +8,25 @@
  */
 
 #ifndef OSSL_APPS_LOG_H
-# define OSSL_APPS_LOG_H
+#define OSSL_APPS_LOG_H
 
-# include <openssl/bio.h>
-# if !defined(OPENSSL_SYS_VMS) && !defined(OPENSSL_SYS_WINDOWS) \
+#include <openssl/bio.h>
+#if !defined(OPENSSL_SYS_VMS) && !defined(OPENSSL_SYS_WINDOWS) \
     && !defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_POSIX_IO)
-#  include <syslog.h>
-# else
-#  define LOG_EMERG   0
-#  define LOG_ALERT   1
-#  define LOG_CRIT    2
-#  define LOG_ERR     3
-#  define LOG_WARNING 4
-#  define LOG_NOTICE  5
-#  define LOG_INFO    6
-#  define LOG_DEBUG   7
-# endif
+#include <syslog.h>
+#else
+#define LOG_EMERG 0
+#define LOG_ALERT 1
+#define LOG_CRIT 2
+#define LOG_ERR 3
+#define LOG_WARNING 4
+#define LOG_NOTICE 5
+#define LOG_INFO 6
+#define LOG_DEBUG 7
+#endif
 
-# undef LOG_TRACE
-# define LOG_TRACE (LOG_DEBUG + 1)
+#undef LOG_TRACE
+#define LOG_TRACE (LOG_DEBUG + 1)
 
 int log_set_verbosity(const char *prog, int level);
 int log_get_verbosity(void);
@@ -45,6 +45,6 @@ int log_get_verbosity(void);
  * returns nothing
  */
 void trace_log_message(int category,
-                       const char *prog, int level, const char *fmt, ...);
+    const char *prog, int level, const char *fmt, ...);
 
 #endif /* OSSL_APPS_LOG_H */

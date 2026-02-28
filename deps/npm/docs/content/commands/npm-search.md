@@ -16,26 +16,20 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-Search the registry for packages matching the search terms. `npm search`
-performs a linear, incremental, lexically-ordered search through package
-metadata for all files in the registry. If your terminal has color
-support, it will further highlight the matches in the results.  This can
-be disabled with the config item `color`
+Search the registry for packages matching the search terms.
+`npm search`
+performs a linear, incremental, lexically-ordered search through package metadata for all files in the registry.
+If your terminal has color support, it will further highlight the matches in the results.
+This can be disabled with the config item `color`
 
-Additionally, using the `--searchopts` and `--searchexclude` options
-paired with more search terms will include and exclude further patterns.
-The main difference between `--searchopts` and the standard search terms
-is that the former does not highlight results in the output and you can
-use them more fine-grained filtering. Additionally, you can add both of
-these to your config to change default search filtering behavior.
+Additionally, using the `--searchopts` and `--searchexclude` options paired with more search terms will include and exclude further patterns.
+The main difference between `--searchopts` and the standard search terms is that the former does not highlight results in the output and you can use them more fine-grained filtering.
+Additionally, you can add both of these to your config to change default search filtering behavior.
 
-Search also allows targeting of maintainers in search results, by prefixing
-their npm username with `=`.
+Search also allows targeting of maintainers in search results, by prefixing their npm username with `=`.
 
-If a term starts with `/`, then it's interpreted as a regular expression
-and supports standard JavaScript RegExp syntax. In this case search will
-ignore a trailing `/` .  (Note you must escape or quote many regular
-expression characters in most shells.)
+If a term starts with `/`, then it's interpreted as a regular expression and supports standard JavaScript RegExp syntax.
+In this case search will ignore a trailing `/` .  (Note you must escape or quote many regular expression characters in most shells.)
 
 ### Configuration
 

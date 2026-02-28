@@ -1,13 +1,13 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy, kDispatch } = require('../core/symbols')
-const { URL } = require('node:url')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError, RequestAbortedError, SecureProxyConnectionError } = require('../core/errors')
 const buildConnector = require('../core/connect')
 const Client = require('./client')
+const { channels } = require('../core/diagnostics')
 
 const kAgent = Symbol('proxy agent')
 const kClient = Symbol('proxy client')
@@ -38,10 +38,11 @@ class Http1ProxyWrapper extends DispatcherBase {
   #client
 
   constructor (proxyUrl, { headers = {}, connect, factory }) {
-    super()
     if (!proxyUrl) {
       throw new InvalidArgumentError('Proxy URL is mandatory')
     }
+
+    super()
 
     this[kProxyHeaders] = headers
     if (factory) {
@@ -81,11 +82,11 @@ class Http1ProxyWrapper extends DispatcherBase {
     return this.#client[kDispatch](opts, handler)
   }
 
-  async [kClose] () {
+  [kClose] () {
     return this.#client.close()
   }
 
-  async [kDestroy] (err) {
+  [kDestroy] (err) {
     return this.#client.destroy(err)
   }
 }
@@ -150,7 +151,7 @@ class ProxyAgent extends DispatcherBase {
           requestedPath += `:${defaultProtocolPort(opts.protocol)}`
         }
         try {
-          const { socket, statusCode } = await this[kClient].connect({
+          const connectParams = {
             origin,
             port,
             path: requestedPath,
@@ -161,11 +162,21 @@ class ProxyAgent extends DispatcherBase {
               ...(opts.connections == null || opts.connections > 0 ? { 'proxy-connection': 'keep-alive' } : {})
             },
             servername: this[kProxyTls]?.servername || proxyHostname
-          })
+          }
+          const { socket, statusCode } = await this[kClient].connect(connectParams)
           if (statusCode !== 200) {
             socket.on('error', noop).destroy()
             callback(new RequestAbortedError(`Proxy response (${statusCode}) !== 200 when HTTP Tunneling`))
+            return
           }
+
+          if (channels.proxyConnected.hasSubscribers) {
+            channels.proxyConnected.publish({
+              socket,
+              connectParams
+            })
+          }
+
           if (opts.protocol !== 'https:') {
             callback(null, socket)
             return
@@ -208,7 +219,7 @@ class ProxyAgent extends DispatcherBase {
   }
 
   /**
-   * @param {import('../types/proxy-agent').ProxyAgent.Options | string | URL} opts
+   * @param {import('../../types/proxy-agent').ProxyAgent.Options | string | URL} opts
    * @returns {URL}
    */
   #getUrl (opts) {
@@ -221,14 +232,18 @@ class ProxyAgent extends DispatcherBase {
     }
   }
 
-  async [kClose] () {
-    await this[kAgent].close()
-    await this[kClient].close()
+  [kClose] () {
+    return Promise.all([
+      this[kAgent].close(),
+      this[kClient].close()
+    ])
   }
 
-  async [kDestroy] () {
-    await this[kAgent].destroy()
-    await this[kClient].destroy()
+  [kDestroy] () {
+    return Promise.all([
+      this[kAgent].destroy(),
+      this[kClient].destroy()
+    ])
   }
 }
 

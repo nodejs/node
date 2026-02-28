@@ -55,7 +55,7 @@ class alignas(std::max(size_t{ABSL_CACHELINE_SIZE}, size_t{32}))
       RandenTraits::kCapacityBytes / sizeof(uint32_t);
 
   void Init(absl::Span<const uint32_t> data) {
-    SpinLockHolder l(&mu_);  // Always uncontested.
+    SpinLockHolder l(mu_);  // Always uncontested.
     std::copy(data.begin(), data.end(), std::begin(state_));
     next_ = kState;
   }
@@ -84,7 +84,7 @@ class alignas(std::max(size_t{ABSL_CACHELINE_SIZE}, size_t{32}))
 };
 
 void RandenPoolEntry::Fill(uint8_t* out, size_t bytes) {
-  SpinLockHolder l(&mu_);
+  SpinLockHolder l(mu_);
   while (bytes > 0) {
     MaybeRefill();
     size_t remaining = available() * sizeof(state_[0]);

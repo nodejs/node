@@ -92,6 +92,17 @@ static_assert(BuiltinArguments::kNumExtraArgs ==
 static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
               BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
+// Currently we expect all CPP builtins to run in unsandboxed execution mode.
+// TODO(422994386): In the future, we'll want to be able to also run CPP
+// builtins in sandboxed execution mode. For that, this macro could then take
+// the builtin ID as input and look up the expected sandboxing mode.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#define CHECK_BUILTIN_SANDBOXING_MODE()                   \
+  DCHECK(SandboxHardwareSupport::CurrentSandboxingModeIs( \
+      CodeSandboxingMode::kUnsandboxed));
+#else
+#define CHECK_BUILTIN_SANDBOXING_MODE()
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 // ----------------------------------------------------------------------------
 // Support macro for defining builtins in C++.
 // ----------------------------------------------------------------------------
@@ -126,6 +137,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate); \
     }                                                                      \
     BuiltinArguments args(args_length, args_object);                       \
+    CHECK_BUILTIN_SANDBOXING_MODE()                                        \
     return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
   }                                                                        \
                                                                            \
@@ -140,6 +152,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
       int args_length, Address* args_object, Isolate* isolate) {           \
     DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
     BuiltinArguments args(args_length, args_object);                       \
+    CHECK_BUILTIN_SANDBOXING_MODE()                                        \
     return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
   }                                                                        \
                                                                            \

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --turbo-inline-js-wasm-calls
+// Flags: --allow-natives-syntax --turbofan --turbo-inline-js-wasm-calls
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

@@ -27,9 +27,6 @@ class CppHeapObjectWrapper {
 
   V8_INLINE void InitializeCppHeapWrapper();
 
-  template <CppHeapPointerTag tag>
-  V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                     void*);
   V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
                                      void*, CppHeapPointerTag tag);
   template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>

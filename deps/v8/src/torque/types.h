@@ -699,6 +699,9 @@ class ClassType final : public AggregateType {
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
   }
+  bool DoNotGenerateInstanceTypeCheck() const {
+    return flags_ & ClassFlag::kDoNotGenerateInstanceTypeCheck;
+  }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
   bool IsLayoutDefinedInCpp() const {

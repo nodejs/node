@@ -11,14 +11,7 @@
 
 #include "src/base/macros.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
-#include "src/compiler/turboshaft/select-lowering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
-#include "src/objects/code-kind.h"
-#include "src/wasm/decoder.h"
-#include "src/wasm/function-body-decoder-impl.h"
-#include "src/wasm/value-type.h"
-#include "src/zone/zone-containers.h"
+#include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 
 namespace v8::internal {
 class AccountingAllocator;
@@ -33,6 +26,7 @@ class PipelineData;
 }  // namespace compiler
 
 namespace wasm {
+
 class AssumptionsJournal;
 struct FunctionBody;
 class WasmDetectedFeatures;
@@ -40,6 +34,7 @@ struct WasmModule;
 class WireBytesStorage;
 class TurboshaftGraphBuildingInterface;
 struct CompilationEnv;
+class WasmFunctionCoverageData;
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
@@ -47,7 +42,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes,
     std::unique_ptr<AssumptionsJournal>* assumptions,
-    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
+    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+    WasmFunctionCoverageData* coverage_data);
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,
@@ -56,12 +52,9 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
 
 // Base class for the decoder graph builder interface and for the wrapper
 // builder.
+template <typename Assembler>
 class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
  public:
-  using Assembler = compiler::turboshaft::TSAssembler<
-      compiler::turboshaft::SelectLoweringReducer,
-      compiler::turboshaft::DataViewLoweringReducer,
-      compiler::turboshaft::VariableReducer>;
   template <typename T>
   using Var = compiler::turboshaft::Var<T, Assembler>;
   template <typename T>
@@ -71,37 +64,38 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   template <typename T, typename A>
   friend class compiler::turboshaft::ScopedVar;
 
- public:
-  using OpIndex = compiler::turboshaft::OpIndex;
-  void BuildModifyThreadInWasmFlagHelper(Zone* zone,
-                                         OpIndex thread_in_wasm_flag_address,
-                                         bool new_value);
-  void BuildModifyThreadInWasmFlag(Zone* zone, bool new_value);
-
  protected:
   WasmGraphBuilderBase(Zone* zone, Assembler& assembler)
       : zone_(zone), asm_(assembler) {}
 
+  using Any = compiler::turboshaft::Any;
+  using CallDescriptor = compiler::CallDescriptor;
+  using CallTarget = compiler::turboshaft::CallTarget;
+  using Operator = compiler::Operator;
+  using ConditionWithHint = compiler::turboshaft::ConditionWithHint;
+  template <typename T>
+  using ConstOrV = compiler::turboshaft::ConstOrV<T>;
+  using FrameState = compiler::turboshaft::FrameState;
+  using LoadOp = compiler::turboshaft::LoadOp;
+  using MemoryRepresentation = compiler::turboshaft::MemoryRepresentation;
+  using OpIndex = compiler::turboshaft::OpIndex;
+  using OptionalOpIndex = compiler::turboshaft::OptionalOpIndex;
+  template <typename T>
+  using OptionalV = compiler::turboshaft::OptionalV<T>;
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
+  using StoreOp = compiler::turboshaft::StoreOp;
   using TSCallDescriptor = compiler::turboshaft::TSCallDescriptor;
+  template <typename T>
+  using V = compiler::turboshaft::V<T>;
   using Word32 = compiler::turboshaft::Word32;
   using Word64 = compiler::turboshaft::Word64;
   using WordPtr = compiler::turboshaft::WordPtr;
-  using CallTarget = compiler::turboshaft::CallTarget;
-  using Word = compiler::turboshaft::Word;
-  using Any = compiler::turboshaft::Any;
-
-  template <typename T>
-  using V = compiler::turboshaft::V<T>;
-  template <typename T>
-  using ConstOrV = compiler::turboshaft::ConstOrV<T>;
-
-  OpIndex CallRuntime(Zone* zone, Runtime::FunctionId f,
-                      std::initializer_list<const OpIndex> args,
-                      V<Context> context);
+  using WordRepresentation = compiler::turboshaft::WordRepresentation;
 
   OpIndex GetBuiltinPointerTarget(Builtin builtin);
+
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);
+
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
 
   std::pair<V<Word32>, V<HeapObject>> BuildImportedFunctionTargetAndImplicitArg(
@@ -113,6 +107,8 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   RegisterRepresentation RepresentationFor(ValueTypeBase type);
 
+  // TODO(14108): Annotate C functions as not having side effects where
+  // appropriate.
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args);
   OpIndex CallC(const MachineSignature* sig, OpIndex function,
@@ -123,8 +119,12 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   }
 
   void BuildSetNewStackLimit(V<WordPtr> old_limit, V<WordPtr> new_limit);
+
   V<WordPtr> BuildSwitchToTheCentralStack(V<WordPtr> old_limit);
+
+  // Returns the old (secondary stack's) sp and stack limit.
   std::pair<V<WordPtr>, V<WordPtr>> BuildSwitchToTheCentralStackIfNeeded();
+
   void BuildSwitchBackFromCentralStack(V<WordPtr> old_sp, V<WordPtr> old_limit);
 
   Assembler& Asm() { return asm_; }

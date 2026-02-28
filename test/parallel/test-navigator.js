@@ -36,10 +36,10 @@ const { getNavigatorPlatform } = require('internal/navigator');
 const { execFile } = require('child_process');
 
 const is = {
-  number: (value, key) => {
+  number: common.mustCallAtLeast((value, key) => {
     assert(!Number.isNaN(value), `${key} should not be NaN`);
     assert.strictEqual(typeof value, 'number');
-  },
+  }),
 };
 
 is.number(+navigator.hardwareConcurrency, 'hardwareConcurrency');

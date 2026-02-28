@@ -20,8 +20,8 @@
 #include "bn_local.h"
 
 BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
-                          const BIGNUM *add, const BIGNUM *rem,
-                          void (*callback) (int, int, void *), void *cb_arg)
+    const BIGNUM *add, const BIGNUM *rem,
+    void (*callback)(int, int, void *), void *cb_arg)
 {
     BN_GENCB cb;
     BIGNUM *rnd = NULL;
@@ -38,14 +38,14 @@ BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
 
     /* we have a prime :-) */
     return rnd;
- err:
+err:
     BN_free(rnd);
     return NULL;
 }
 
 int BN_is_prime(const BIGNUM *a, int checks,
-                void (*callback) (int, int, void *), BN_CTX *ctx_passed,
-                void *cb_arg)
+    void (*callback)(int, int, void *), BN_CTX *ctx_passed,
+    void *cb_arg)
 {
     BN_GENCB cb;
     BN_GENCB_set_old(&cb, callback, cb_arg);
@@ -53,9 +53,9 @@ int BN_is_prime(const BIGNUM *a, int checks,
 }
 
 int BN_is_prime_fasttest(const BIGNUM *a, int checks,
-                         void (*callback) (int, int, void *),
-                         BN_CTX *ctx_passed, void *cb_arg,
-                         int do_trial_division)
+    void (*callback)(int, int, void *),
+    BN_CTX *ctx_passed, void *cb_arg,
+    int do_trial_division)
 {
     BN_GENCB cb;
     BN_GENCB_set_old(&cb, callback, cb_arg);

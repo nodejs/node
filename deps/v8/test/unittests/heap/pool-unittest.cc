@@ -9,7 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/page-pool.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"
@@ -341,7 +341,7 @@ class PoolTest : public                                     //
 
   Heap* heap() { return isolate()->heap(); }
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
-  PagePool* pool() { return allocator()->pool(); }
+  MemoryPool* pool() { return isolate()->isolate_group()->memory_pool(); }
 
   TrackingPageAllocator* tracking_page_allocator() {
     return tracking_page_allocator_;

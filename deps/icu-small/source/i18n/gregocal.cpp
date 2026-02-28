@@ -156,7 +156,7 @@ static const UDate kPapalCutover = (2299161.0 - kEpochStartAsJulianDay) * U_MILL
 GregorianCalendar::GregorianCalendar(UErrorCode& status)
 :   Calendar(status),
 fGregorianCutover(kPapalCutover),
-fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(kDefaultCutoverYear),
+fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
 fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
@@ -189,7 +189,7 @@ GregorianCalendar::GregorianCalendar(TimeZone* zone, const Locale& aLocale,
                                      UErrorCode& status)
                                      :   Calendar(zone, aLocale, status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
                                      fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
@@ -201,7 +201,7 @@ GregorianCalendar::GregorianCalendar(const TimeZone& zone, const Locale& aLocale
                                      UErrorCode& status)
                                      :   Calendar(zone, aLocale, status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
                                      fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
@@ -213,7 +213,7 @@ GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
                                      UErrorCode& status)
                                      :   Calendar(TimeZone::createDefault(), Locale::getDefault(), status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
                                      fIsGregorian(true), fInvertGregorian(false)
 {
     set(UCAL_ERA, AD);
@@ -253,7 +253,7 @@ GregorianCalendar::~GregorianCalendar()
 GregorianCalendar::GregorianCalendar(const GregorianCalendar &source)
 :   Calendar(source),
 fGregorianCutover(source.fGregorianCutover),
-fCutoverJulianDay(source.fCutoverJulianDay), fNormalizedGregorianCutover(source.fNormalizedGregorianCutover), fGregorianCutoverYear(source.fGregorianCutoverYear),
+fCutoverJulianDay(source.fCutoverJulianDay), fGregorianCutoverYear(source.fGregorianCutoverYear),
 fIsGregorian(source.fIsGregorian), fInvertGregorian(source.fInvertGregorian)
 {
 }
@@ -274,7 +274,6 @@ GregorianCalendar::operator=(const GregorianCalendar &right)
     {
         Calendar::operator=(right);
         fGregorianCutover = right.fGregorianCutover;
-        fNormalizedGregorianCutover = right.fNormalizedGregorianCutover;
         fGregorianCutoverYear = right.fGregorianCutoverYear;
         fCutoverJulianDay = right.fCutoverJulianDay;
     }
@@ -311,12 +310,11 @@ GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
     
     if (cutoverDay <= INT32_MIN) {
         cutoverDay = INT32_MIN;
-        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+        fGregorianCutover = cutoverDay * kOneDay;
     } else if (cutoverDay >= INT32_MAX) {
         cutoverDay = INT32_MAX;
-        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+        fGregorianCutover = cutoverDay * kOneDay;
     } else {
-        fNormalizedGregorianCutover = cutoverDay * kOneDay;
         fGregorianCutover = date;
     }
 

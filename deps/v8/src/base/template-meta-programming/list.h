@@ -6,8 +6,11 @@
 #define V8_BASE_TEMPLATE_META_PROGRAMMING_LIST_H_
 
 #include <cstddef>
+#include <initializer_list>
 #include <limits>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "src/base/template-meta-programming/common.h"
 
@@ -98,6 +101,13 @@ template <typename Head, typename... Tail,
 struct all_equal_impl<list<Head, Tail...>, Cmp>
     : std::bool_constant<(Cmp<Head, Tail>::value && ...)> {};
 
+template <typename List, typename T>
+struct append_impl;
+template <typename... Ts, typename T>
+struct append_impl<list<Ts...>, T> {
+  using type = list<Ts..., T>;
+};
+
 template <size_t I, typename T, typename Before, typename After>
 struct insert_at_impl;
 template <size_t I, typename T, typename... Before, typename Head,
@@ -152,6 +162,25 @@ struct fold_right1_impl<F, T, list1<Head, Tail...>> {
 template <template <TYPENAME1, typename> typename F, typename T>
 struct fold_right1_impl<F, T, list1<>> {
   using type = T;
+};
+
+template <typename Tuple>
+struct from_tuple_impl;
+template <typename... Ts>
+struct from_tuple_impl<std::tuple<Ts...>> {
+  using type = list<Ts...>;
+};
+
+template <typename List, template <typename, size_t> typename Fn, typename Seq>
+struct call_foreach_impl;
+template <typename... Ts, template <typename, size_t> typename Fn,
+          size_t... Indices>
+struct call_foreach_impl<list<Ts...>, Fn, std::index_sequence<Indices...>> {
+  template <typename... Args>
+  static void call(Args&&... args) {
+    std::initializer_list<int> _{
+        (Fn<Ts, Indices>{}(std::forward<Args>(args)...), 0)...};
+  }
 };
 
 }  // namespace detail
@@ -211,7 +240,13 @@ struct all_equal : detail::all_equal_impl<List, Cmp> {};
 template <typename List, template <typename, typename> typename Cmp = equals>
 constexpr bool all_equal_v = all_equal<List, Cmp>::value;
 
-// insert_at<List, I, T>::value is identical to {List}, except that {T} is
+// append<List, T>::value appends {T} to {List}.
+template <typename List, typename T>
+struct append : public detail::append_impl<List, T> {};
+template <typename List, typename T>
+using append_t = append<List, T>::type;
+
+// insert_at<List, I, T>::type is identical to {List}, except that {T} is
 // inserted at position {I}. If {I} is larger than the length of the list, {T}
 // is simply appended.
 template <typename List, size_t I, typename T>
@@ -237,6 +272,23 @@ template <template <TYPENAME1, typename> typename F, typename List1, typename T>
 struct fold_right1 : public detail::fold_right1_impl<F, T, List1> {};
 template <template <TYPENAME1, typename> typename F, typename List1, typename T>
 using fold_right1_t = fold_right1<F, List1, T>::type;
+
+// from_tuple<Tuple>::type defines a type list of the types contained in the
+// tuple (in order).
+template <typename Tuple>
+struct from_tuple : public detail::from_tuple_impl<Tuple> {};
+template <typename Tuple>
+using from_tuple_t = from_tuple<Tuple>::type;
+
+// call_foreach instantiates Fn<T, I> for each element T (at index I) of the
+// list and then invokes the operator() with the args passed.
+template <typename List, template <typename, size_t> typename Fn,
+          typename... Args>
+void call_foreach(Args&&... args) {
+  detail::call_foreach_impl<List, Fn,
+                            std::make_index_sequence<length_v<List>>>::
+      call(std::forward<Args>(args)...);
+}
 
 }  // namespace v8::base::tmp
 

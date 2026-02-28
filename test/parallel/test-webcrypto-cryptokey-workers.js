@@ -30,10 +30,10 @@ async function doSig(key) {
 }
 
 if (process.env.HAS_STARTED_WORKER) {
-  return parentPort.once('message', (key) => {
+  return parentPort.once('message', common.mustCall((key) => {
     assert.strictEqual(key.algorithm.name, 'HMAC');
     doSig(key).then(common.mustCall());
-  });
+  }));
 }
 
 // Don't use isMainThread to allow running this test inside a worker.

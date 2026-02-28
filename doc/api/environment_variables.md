@@ -1,5 +1,7 @@
 # Environment Variables
 
+<!--introduced_in=v20.12.0-->
+
 Environment variables are variables associated to the environment the Node.js process runs in.
 
 ## CLI Environment Variables
@@ -16,11 +18,9 @@ For more details refer to the [`process.env` documentation][].
 
 ## DotEnv
 
+> Stability: 2 - Stable
+
 Set of utilities for dealing with additional environment variables defined in `.env` files.
-
-> Stability: 1.1 - Active development
-
-<!--introduced_in=v20.12.0-->
 
 ### .env files
 
@@ -96,10 +96,10 @@ For example:
     MY_VAR_B   =    '   my variable b   '
 ```
 
-will be treaded identically to:
+will be treated identically to:
 
 ```text
-MY_VAR_A = my variable
+MY_VAR_A = my variable a
 MY_VAR_B = '   my variable b   '
 ```
 

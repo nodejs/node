@@ -52,10 +52,10 @@ const assert = require('assert');
     write(chunk, enc, cb) { cb(); }
   });
 
-  write._destroy = function(err, cb) {
+  write._destroy = common.mustCall(function(err, cb) {
     assert.strictEqual(err, expected);
     cb(err);
-  };
+  });
 
   const expected = new Error('kaboom');
 

@@ -8,7 +8,7 @@ const http2 = require('http2');
 const msecs = common.platformTimeout(1);
 const server = http2.createServer();
 
-server.on('request', (req, res) => {
+server.on('request', common.mustCall((req, res) => {
   res.setTimeout(msecs, common.mustCall(() => {
     res.end();
   }));
@@ -20,7 +20,7 @@ server.on('request', (req, res) => {
       server.close();
     });
   }));
-});
+}));
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;

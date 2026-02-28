@@ -13,6 +13,7 @@
 #include "prov/der_slh_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-slh-dsa-sha2-128s OBJECT IDENTIFIER ::= { sigAlgs 20 }
@@ -98,3 +99,4 @@ const unsigned char ossl_der_oid_id_slh_dsa_shake_256f[DER_OID_SZ_id_slh_dsa_sha
     DER_OID_V_id_slh_dsa_shake_256f
 };
 
+/* clang-format on */

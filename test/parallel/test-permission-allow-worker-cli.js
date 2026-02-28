@@ -1,7 +1,7 @@
 // Flags: --permission --allow-worker --allow-fs-read=*
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { isMainThread, Worker } = require('worker_threads');
 
@@ -18,5 +18,5 @@ if (!isMainThread) {
 // to spawn unless --allow-worker is sent
 {
   // doesNotThrow
-  new Worker(__filename).on('exit', (code) => assert.strictEqual(code, 0));
+  new Worker(__filename).on('exit', common.mustCall((code) => assert.strictEqual(code, 0)));
 }

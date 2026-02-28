@@ -18,9 +18,9 @@
 /* RSA's DESX */
 
 void DES_xcbc_encrypt(const unsigned char *in, unsigned char *out,
-                      long length, DES_key_schedule *schedule,
-                      DES_cblock *ivec, const_DES_cblock *inw,
-                      const_DES_cblock *outw, int enc)
+    long length, DES_key_schedule *schedule,
+    DES_cblock *ivec, const_DES_cblock *inw,
+    const_DES_cblock *outw, int enc)
 {
     register DES_LONG tin0, tin1;
     register DES_LONG tout0, tout1, xor0, xor1;

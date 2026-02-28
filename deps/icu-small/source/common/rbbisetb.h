@@ -46,7 +46,7 @@ public:
     int32_t            fNum {0};                 // runtime-mapped input value for this range.
     bool               fIncludesDict {false};    // True if the range includes $dictionary.
     bool               fFirstInGroup {false};    // True if first range in a group with the same fNum.
-    UVector           *fIncludesSets {nullptr};  // vector of the the original
+    UVector           *fIncludesSets {nullptr};  // vector of the original
                                                  //   Unicode sets that include this range.
                                                  //    (Contains ptrs to uset nodes)
     RangeDescriptor   *fNext {nullptr};          // Next RangeDescriptor in the linked list.

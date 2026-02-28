@@ -112,7 +112,7 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
   // We need Acquire semantics here when loading the entry, see below.
   // Consider adding respective external pointer accessors if non-relaxed
   // ordering semantics are ever needed in other places as well.
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  Isolate* isolate = Isolate::Current();
   ExternalPointerHandle handle =
       base::AsAtomic32::Acquire_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
@@ -127,7 +127,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   // TODO(saelo): if we ever use the external pointer table for all external
   // pointer fields in the no-sandbox-ptr-compression config, replace this code
   // here and above with the respective external pointer accessors.
-  IsolateForPointerCompression isolate = GetIsolateFromWritableObject(*this);
+  IsolateForPointerCompression isolate = Isolate::Current();
   const ExternalPointerTag tag = kArrayBufferExtensionTag;
   Address value = reinterpret_cast<Address>(extension);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
@@ -241,6 +241,23 @@ BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
                     JSArrayBufferView::IsBackedByRabBit)
 
+// static
+constexpr std::pair<ExternalArrayType, size_t>
+JSTypedArray::TypeAndElementSizeFor(ElementsKind kind) {
+  switch (kind) {
+#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                      \
+    return {kExternal##Type##Array, sizeof(ctype)};
+
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_TO_ARRAY_TYPE)
+#undef ELEMENTS_KIND_TO_ARRAY_TYPE
+
+    default:
+      UNREACHABLE();
+  }
+}
+
 bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
 }
@@ -251,7 +268,7 @@ size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   if (IsVariableLength()) {
     return GetVariableLengthOrOutOfBounds(out_of_bounds);
   }
-  return LengthUnchecked();
+  return byte_length() / element_size();
 }
 
 size_t JSTypedArray::GetLength() const {
@@ -260,7 +277,12 @@ size_t JSTypedArray::GetLength() const {
 }
 
 size_t JSTypedArray::GetByteLength() const {
-  return GetLength() * element_size();
+  if (WasDetached()) return 0;
+  if (IsVariableLength()) {
+    bool out_of_bounds = false;
+    return GetVariableByteLengthOrOutOfBounds(out_of_bounds);
+  }
+  return byte_length();
 }
 
 bool JSTypedArray::IsOutOfBounds() const {
@@ -284,20 +306,6 @@ inline void JSTypedArray::ForFixedTypedArray(ExternalArrayType array_type,
 #undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
-}
-
-size_t JSTypedArray::length() const {
-  DCHECK(!is_length_tracking());
-  DCHECK(!is_backed_by_rab());
-  return ReadBoundedSizeField(kRawLengthOffset);
-}
-
-size_t JSTypedArray::LengthUnchecked() const {
-  return ReadBoundedSizeField(kRawLengthOffset);
-}
-
-void JSTypedArray::set_length(size_t value) {
-  WriteBoundedSizeField(kRawLengthOffset, value);
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {

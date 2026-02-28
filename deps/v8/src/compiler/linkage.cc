@@ -62,6 +62,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
       break;
+    case CallDescriptor::kResumeWasmContinuation:
+      os << "WasmResumeContinuation";
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       os << "BuiltinPointer";
@@ -220,6 +223,7 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
     case kCallWasmFunction:
     case kCallWasmFunctionIndirect:
     case kCallWasmImportWrapper:
+    case kResumeWasmContinuation:
       return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
@@ -424,7 +428,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 }
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
+    Zone* zone, Runtime::FunctionId function_id, int parameter_count,
     Operator::Properties properties, CallDescriptor::Flags flags,
     LazyDeoptOnThrow lazy_deopt_on_throw) {
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
@@ -440,19 +444,32 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
                  flags & CallDescriptor::kNeedsFrameState);
 
-  return GetCEntryStubCallDescriptor(zone, return_count, js_parameter_count,
-                                     debug_name, properties, flags);
+  CallDescriptor* descriptor = GetCEntryStubCallDescriptor(
+      zone, return_count, parameter_count, debug_name, properties, flags,
+      StackArgumentOrder::kDefault, kCEntryEntrypointTag);
+  descriptor->runtime_function_id_ = function_id;
+  return descriptor;
+}
+
+CallDescriptor* Linkage::GetCPPBuiltinCallDescriptor(
+    Zone* zone, int js_parameter_count, const char* debug_name,
+    Operator::Properties properties, CallDescriptor::Flags flags) {
+  DCHECK_LE(BuiltinArguments::kNumExtraArgsWithReceiver, js_parameter_count);
+  return GetCEntryStubCallDescriptor(zone, 1, js_parameter_count, debug_name,
+                                     properties, flags, StackArgumentOrder::kJS,
+                                     kInvalidEntrypointTag);
 }
 
 CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
-    Zone* zone, int return_count, int js_parameter_count,
+    Zone* zone, int return_count, int stack_parameter_count,
     const char* debug_name, Operator::Properties properties,
-    CallDescriptor::Flags flags, StackArgumentOrder stack_order) {
+    CallDescriptor::Flags flags, StackArgumentOrder stack_order,
+    CodeEntrypointTag entrypoint_tag) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
   const size_t parameter_count = function_count +
-                                 static_cast<size_t>(js_parameter_count) +
+                                 static_cast<size_t>(stack_parameter_count) +
                                  num_args_count + context_count;
 
   LocationSignature::Builder locations(zone, static_cast<size_t>(return_count),
@@ -470,9 +487,9 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
   }
 
   // All parameters to the runtime call go on the stack.
-  for (int i = 0; i < js_parameter_count; i++) {
+  for (int i = 0; i < stack_parameter_count; i++) {
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
-        i - js_parameter_count, MachineType::AnyTagged()));
+        i - stack_parameter_count, MachineType::AnyTagged()));
   }
   // Add runtime function itself.
   locations.AddParam(
@@ -491,11 +508,11 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
   return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallCodeObject,  // kind
-      kDefaultCodeEntrypointTag,        // tag
+      entrypoint_tag,                   // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
       locations.Get(),                  // location_sig
-      js_parameter_count,               // stack_parameter_count
+      stack_parameter_count,            // stack_parameter_count
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSavedFp,                 // callee-saved fp

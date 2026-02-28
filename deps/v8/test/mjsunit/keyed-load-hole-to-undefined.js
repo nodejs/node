@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 // is specified because the test corrupts the "pristine"
 // array prototype chain by storing an element, and this is tracked

@@ -615,7 +615,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   // No type check needed, null check needed.
   assertEquals(10, instance.exports.call_indirect_super(0, 10));
   assertEquals(11, instance.exports.call_indirect_super(1, 10));
-  assertTraps(kTrapFuncSigMismatch,
+  assertTraps(kTrapNullFunc,
               () => instance.exports.call_indirect_super(2, 10));
   // Type check and null check needed.
   assertEquals(11, instance.exports.call_indirect_sub(1, 10));

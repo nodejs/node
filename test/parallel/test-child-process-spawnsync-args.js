@@ -32,7 +32,7 @@ const testCases = [
 
 const expectedResult = tmpdir.path.trim().toLowerCase();
 
-const results = testCases.map((testCase) => {
+const results = testCases.map(common.mustCallAtLeast((testCase) => {
   const { stdout, stderr, error } = spawnSync(
     command,
     testCase,
@@ -43,6 +43,6 @@ const results = testCases.map((testCase) => {
   assert.deepStrictEqual(stderr, Buffer.alloc(0));
 
   return stdout.toString().trim().toLowerCase();
-});
+}));
 
 assert.deepStrictEqual([...new Set(results)], [expectedResult]);

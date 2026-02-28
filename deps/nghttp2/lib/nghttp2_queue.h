@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -48,4 +48,4 @@ void *nghttp2_queue_front(nghttp2_queue *queue);
 void *nghttp2_queue_back(nghttp2_queue *queue);
 int nghttp2_queue_empty(nghttp2_queue *queue);
 
-#endif /* NGHTTP2_QUEUE_H */
+#endif /* !defined(NGHTTP2_QUEUE_H) */

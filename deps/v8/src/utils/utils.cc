@@ -27,11 +27,6 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
 }
 
-size_t hash_value(BytecodeOffset id) {
-  base::hash<int> h;
-  return h(id.id_);
-}
-
 std::ostream& operator<<(std::ostream& os, BytecodeOffset id) {
   return os << id.id_;
 }

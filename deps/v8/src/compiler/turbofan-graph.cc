@@ -22,12 +22,7 @@ TFGraph::TFGraph(Zone* zone)
       next_node_id_(0),
       decorators_(zone),
       has_simd_(false),
-      simd_stores_(zone) {
-  // Nodes use compressed pointers, so zone must support pointer compression.
-  // If the check fails, ensure the zone is created with kCompressGraphZone
-  // flag.
-  CHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
-}
+      simd_stores_(zone) {}
 
 void TFGraph::Decorate(Node* node) {
   for (GraphDecorator* const decorator : decorators_) {

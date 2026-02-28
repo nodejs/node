@@ -199,7 +199,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
       } else {
         builtin = Builtin::kWasmAllocateInOldGeneration;
       }
-      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
       allocate_builtin =
           graph()->NewNode(common()->NumberConstant(static_cast<int>(builtin)));
     } else {
@@ -215,40 +215,14 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
   }
 
   // Determine the top/limit addresses.
-  Node* top_address;
-  Node* limit_address;
-  if (isolate_ != nullptr) {
-    top_address = __ ExternalConstant(
-        allocation_type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_top_address(isolate())
-            : ExternalReference::old_space_allocation_top_address(isolate()));
-    limit_address = __ ExternalConstant(
-        allocation_type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_limit_address(isolate())
-            : ExternalReference::old_space_allocation_limit_address(isolate()));
-  } else {
-    // Wasm mode: producing isolate-independent code, loading the isolate
-    // address at runtime.
-#if V8_ENABLE_WEBASSEMBLY
-    Node* instance_node = GetWasmInstanceNode();
-    int top_address_offset =
-        allocation_type == AllocationType::kYoung
-            ? WasmTrustedInstanceData::kNewAllocationTopAddressOffset
-            : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
-    int limit_address_offset =
-        allocation_type == AllocationType::kYoung
-            ? WasmTrustedInstanceData::kNewAllocationLimitAddressOffset
-            : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
-    top_address =
-        __ Load(MachineType::Pointer(), instance_node,
-                __ IntPtrConstant(top_address_offset - kHeapObjectTag));
-    limit_address =
-        __ Load(MachineType::Pointer(), instance_node,
-                __ IntPtrConstant(limit_address_offset - kHeapObjectTag));
-#else
-    UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-  }
+  Node* top_address =
+      __ IsolateField(allocation_type == AllocationType::kYoung
+                          ? IsolateFieldId::kNewAllocationInfoTop
+                          : IsolateFieldId::kOldAllocationInfoTop);
+  Node* limit_address =
+      __ IsolateField(allocation_type == AllocationType::kYoung
+                          ? IsolateFieldId::kNewAllocationInfoLimit
+                          : IsolateFieldId::kOldAllocationInfoLimit);
 
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.

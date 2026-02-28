@@ -2,7 +2,7 @@ const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm.js')
 
 const FAKE_TIMESTAMP = '2020-01-01T00:00:00.000Z'
-const FAKE_UUID = '00000000-0000-0000-0000-000000000000'
+const FAKE_UUID = '12345678-90ab-cdef-1234-567890abcdef'
 
 t.cleanSnapshot = s => {
   let sbom
@@ -581,7 +581,7 @@ t.test('sbom', async t => {
       workspaces: false,
     }))
 
-    t.test('should filter worksapces with --workspace', t => mockWorkspaces(t, [], {
+    t.test('should filter workspaces with --workspace', t => mockWorkspaces(t, [], {
       'sbom-format': 'spdx',
       workspace: 'a',
     }))

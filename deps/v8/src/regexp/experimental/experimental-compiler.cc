@@ -467,6 +467,10 @@ class FilterGroupsCompileVisitor final : private RegExpVisitor {
   void* VisitText(RegExpText* node, void*) override { return nullptr; }
 
   void* VisitQuantifier(RegExpQuantifier* node, void*) override {
+    if (node->max() == 0) {
+      return nullptr;
+    }
+
     if (can_compile_node_) {
       assembler_.FilterQuantifier(quantifier_id_remapping_.at(node->index()));
       can_compile_node_ = false;
@@ -773,10 +777,20 @@ class CompileVisitor : private RegExpVisitor {
                     std::numeric_limits<base::uc16>::max());
 
       base::uc32 from = (*ranges)[i].from();
+      base::uc32 to = (*ranges)[i].to();
+
+      // Special case for [^\x00-\uFFFF]: This will create a from value outside
+      // the supported codepoint range even in non-unicode mode. Since we can't
+      // match any character for this pattern in non-unicode mode, we fail.
+      if (from > kMaxSupportedCodepoint && to > kMaxSupportedCodepoint) {
+        DCHECK(negated);
+        assembler_.Fail();
+        return;
+      }
+
       DCHECK_LE(from, kMaxSupportedCodepoint);
       base::uc16 from_uc16 = static_cast<base::uc16>(from);
 
-      base::uc32 to = (*ranges)[i].to();
       DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == kMaxCodePoint);
       base::uc16 to_uc16 =
           static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));
@@ -1027,10 +1041,6 @@ class CompileVisitor : private RegExpVisitor {
     // correctly determine the number of quantifiers.
     if (v8_flags.experimental_regexp_engine_capture_group_opt &&
         node->max() == 0) {
-      if (!node->CaptureRegisters().is_empty()) {
-        assembler_.SetQuantifierToClock(RemapQuantifier(node->index()));
-      }
-
       return nullptr;
     }
 

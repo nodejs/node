@@ -94,8 +94,9 @@ class Agent {
   void DisableAsyncHook();
 
   void SetParentHandle(std::unique_ptr<ParentInspectorHandle> parent_handle);
-  std::unique_ptr<ParentInspectorHandle> GetParentHandle(
-      uint64_t thread_id, const std::string& url, const std::string& name);
+  std::unique_ptr<ParentInspectorHandle> GetParentHandle(uint64_t thread_id,
+                                                         std::string_view url,
+                                                         std::string_view name);
 
   // Called to create inspector sessions that can be used from the same thread.
   // The inspector responds by using the delegate to send messages back.

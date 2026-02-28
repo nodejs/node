@@ -127,8 +127,8 @@ void UDPWrapBase::set_listener(UDPListener* listener) {
 
 UDPWrapBase* UDPWrapBase::FromObject(Local<Object> obj) {
   CHECK_GT(obj->InternalFieldCount(), UDPWrapBase::kUDPWrapBaseField);
-  return static_cast<UDPWrapBase*>(
-      obj->GetAlignedPointerFromInternalField(UDPWrapBase::kUDPWrapBaseField));
+  return static_cast<UDPWrapBase*>(obj->GetAlignedPointerFromInternalField(
+      UDPWrapBase::kUDPWrapBaseField, EmbedderDataTag::kDefault));
 }
 
 void UDPWrapBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
@@ -147,8 +147,9 @@ UDPWrap::UDPWrap(Environment* env, Local<Object> object)
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
                  AsyncWrap::PROVIDER_UDPWRAP) {
-  object->SetAlignedPointerInInternalField(
-      UDPWrapBase::kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
+  object->SetAlignedPointerInInternalField(UDPWrapBase::kUDPWrapBaseField,
+                                           static_cast<UDPWrapBase*>(this),
+                                           EmbedderDataTag::kDefault);
 
   int r = uv_udp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // can't fail anyway

@@ -1,6 +1,6 @@
 const ciInfo = require('ci-info')
 const runScript = require('@npmcli/run-script')
-const readPackageJson = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const { log, output } = require('proc-log')
 const noTTY = require('./no-tty.js')
 const isWindowsShell = require('./is-windows.js')
@@ -28,7 +28,10 @@ const run = async ({
 
   // do the fakey runScript dance
   // still should work if no package.json in cwd
-  const realPkg = await readPackageJson(`${path}/package.json`).catch(() => ({}))
+  const { content: realPkg } = await pkgJson.normalize(path, { steps: [
+    'binDir',
+    ...pkgJson.normalizeSteps,
+  ] }).catch(() => ({ content: {} }))
   const pkg = {
     ...realPkg,
     scripts: {

@@ -69,7 +69,7 @@ def CalculateVariables(default_variables, params):
 
 def CalculateGeneratorInputInfo(params):
     """Calculate the generator specific info that gets fed to input (called by
-  gyp)."""
+    gyp)."""
     generator_flags = params.get("generator_flags", {})
     if generator_flags.get("adjust_static_libraries", False):
         global generator_wants_static_library_dependencies_adjusted
@@ -86,10 +86,10 @@ def GetAllIncludeDirectories(
 ):
     """Calculate the set of include directories to be used.
 
-  Returns:
-    A list including all the include_dir's specified for every target followed
-    by any include directories that were added as cflag compiler options.
-  """
+    Returns:
+      A list including all the include_dir's specified for every target followed
+      by any include directories that were added as cflag compiler options.
+    """
 
     gyp_includes_set = set()
     compiler_includes_list = []
@@ -178,11 +178,11 @@ def GetAllIncludeDirectories(
 def GetCompilerPath(target_list, data, options):
     """Determine a command that can be used to invoke the compiler.
 
-  Returns:
-    If this is a gyp project that has explicit make settings, try to determine
-    the compiler from that.  Otherwise, see if a compiler was specified via the
-    CC_target environment variable.
-  """
+    Returns:
+      If this is a gyp project that has explicit make settings, try to determine
+      the compiler from that.  Otherwise, see if a compiler was specified via the
+      CC_target environment variable.
+    """
     # First, see if the compiler is configured in make's settings.
     build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
     make_global_settings_dict = data[build_file].get("make_global_settings", {})
@@ -202,10 +202,10 @@ def GetCompilerPath(target_list, data, options):
 def GetAllDefines(target_list, target_dicts, data, config_name, params, compiler_path):
     """Calculate the defines for a project.
 
-  Returns:
-    A dict that includes explicit defines declared in gyp files along with all
-    of the default defines that the compiler uses.
-  """
+    Returns:
+      A dict that includes explicit defines declared in gyp files along with all
+      of the default defines that the compiler uses.
+    """
 
     # Get defines declared in the gyp files.
     all_defines = {}
@@ -373,8 +373,8 @@ def GenerateClasspathFile(
     target_list, target_dicts, toplevel_dir, toplevel_build, out_name
 ):
     """Generates a classpath file suitable for symbol navigation and code
-  completion of Java code (such as in Android projects) by finding all
-  .java and .jar files used as action inputs."""
+    completion of Java code (such as in Android projects) by finding all
+    .java and .jar files used as action inputs."""
     gyp.common.EnsureDirExists(out_name)
     result = ET.Element("classpath")
 

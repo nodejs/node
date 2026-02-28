@@ -8,6 +8,7 @@
 #include "src/objects/map.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -49,8 +50,6 @@ ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
                   kInstanceDescriptorsOffset, IsWasmStructMap(*this))
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-RELAXED_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
-                  kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                           kInstanceDescriptorsOffset)
 
@@ -76,7 +75,11 @@ DEF_GETTER(Map, prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>) {
   Tagged<UnionOf<Smi, PrototypeInfo>> value =
       TaggedField<UnionOf<Smi, PrototypeInfo>,
                   kTransitionsOrPrototypeInfoOffset>::load(cage_base, *this);
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(this->is_prototype_map() || IsWasmObjectMap(*this));
+#else
   DCHECK(this->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
   return value;
 }
 RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info,
@@ -370,13 +373,6 @@ DirectHandle<Map> Map::AddMissingTransitionsForTesting(
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
 
-InstanceType Map::instance_type() const {
-  // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
-  // non-atomic when TSAN sees the map's store synchronization.
-  return static_cast<InstanceType>(
-      RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
-}
-
 void Map::set_instance_type(InstanceType value) {
   RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
@@ -596,10 +592,34 @@ bool Map::has_prototype_info() const {
 }
 
 bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(is_prototype_map() || IsWasmObjectMap(*this));
+#else
   DCHECK(is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> maybe_proto_info = prototype_info();
   if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
   *result = Cast<PrototypeInfo>(maybe_proto_info);
+  return true;
+}
+
+// static
+bool Map::TryGetValidityCellHolderMap(
+    Tagged<Map> map, Isolate* isolate,
+    Tagged<Map>* out_validity_cell_holder_map) {
+  if (map->is_prototype_map()) {
+    // For prototype maps we can use their validity cell for guarding changes.
+    *out_validity_cell_holder_map = map;
+    return true;
+  }
+  // For non-prototype maps we use prototype's map's validity cell.
+  Tagged<Object> maybe_prototype =
+      map->GetPrototypeChainRootMap(isolate)->prototype();
+
+  if (!IsAnyObjectThatCanBeTrackedAsPrototype(maybe_prototype)) {
+    return false;
+  }
+  *out_validity_cell_holder_map = Cast<JSReceiver>(maybe_prototype)->map();
   return true;
 }
 
@@ -708,7 +728,7 @@ bool Map::is_stable() const {
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
-    PropertyDetails details = instance_descriptors(kRelaxedLoad)->GetDetails(i);
+    PropertyDetails details = instance_descriptors(kAcquireLoad)->GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
     if (details.kind() == PropertyKind::kData &&
         details.location() == PropertyLocation::kDescriptor) {
@@ -744,6 +764,12 @@ bool Map::CanTransition() const {
 
 bool IsBooleanMap(Tagged<Map> map) {
   return map == GetReadOnlyRoots().boolean_map();
+}
+
+bool IsNullMap(Tagged<Map> map) { return map == GetReadOnlyRoots().null_map(); }
+
+bool IsUndefinedMap(Tagged<Map> map) {
+  return map == GetReadOnlyRoots().undefined_map();
 }
 
 bool IsNullOrUndefinedMap(Tagged<Map> map) {
@@ -864,7 +890,29 @@ Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+DEF_GETTER(Map, dependent_code, Tagged<DependentCode>) {
+  Tagged<Object> value =
+      TaggedField<Tagged<Object>, kDependentCodeOffset>::load(cage_base, *this);
+  if (!IsDependentCode(value)) {
+    DCHECK(IsWasmStructMap(*this));
+    return DependentCode::empty_dependent_code(GetReadOnlyRoots());
+  }
+  return Cast<DependentCode>(value);
+}
+void Map::set_dependent_code(Tagged<DependentCode> value,
+                             WriteBarrierMode mode) {
+  // Only the Factory may call this for Wasm object maps, when default-
+  // initializing them. Use the WB mode as a sentinel for that situation.
+  DCHECK(mode == SKIP_WRITE_BARRIER || !IsWasmObjectMap(*this));
+  TaggedField<Tagged<DependentCode>, kDependentCodeOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kDependentCodeOffset, value, mode);
+}
+ACCESSORS_CHECKED(Map, immediate_supertype_map, Tagged<Map>,
+                  kImmediateSupertypeOffset, IsWasmObjectMap(*this))
+#else   // V8_ENABLE_WEBASSEMBLY
 ACCESSORS(Map, dependent_code, Tagged<DependentCode>, kDependentCodeOffset)
+#endif  // V8_ENABLE_WEBASSEMBLY
 RELAXED_ACCESSORS(Map, prototype_validity_cell, (Tagged<UnionOf<Smi, Cell>>),
                   kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Tagged<Object>,
@@ -896,18 +944,18 @@ DEF_GETTER(Map, raw_native_context_or_null, Tagged<Object>) {
 ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsWasmStructMap(*this) || IsWasmArrayMap(*this) ||
-                      IsWasmFuncRefMap(*this))
+                      IsWasmFuncRefMap(*this) ||
+                      IsWasmContinuationObjectMap(*this))
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {
   Tagged<Object> validity_cell = prototype_validity_cell(kRelaxedLoad);
-  if (IsSmi(validity_cell)) {
+  if (validity_cell == Map::kNoValidityCellSentinel) {
     // Smi validity cells should always be considered valid.
-    DCHECK_EQ(Cast<Smi>(validity_cell).value(), Map::kPrototypeChainValid);
     return true;
   }
-  Tagged<Smi> cell_value = Cast<Smi>(Cast<Cell>(validity_cell)->value());
-  return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
+  return Cast<Cell>(validity_cell)->maybe_value() !=
+         Map::kPrototypeChainInvalid;
 }
 
 bool Map::BelongsToSameNativeContextAs(Tagged<Map> other_map) const {
@@ -1040,8 +1088,6 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
 int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
 }
-
-NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
                                  Tagged<HeapObject> prototype) {

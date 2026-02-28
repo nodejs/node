@@ -12,8 +12,7 @@ npm find-dupes
 
 ### Description
 
-Runs `npm dedupe` in `--dry-run` mode, making npm only output the
-duplications, without actually changing the package tree.
+Runs `npm dedupe` in `--dry-run` mode, making npm only output the duplications, without actually changing the package tree.
 
 ### Configuration
 
@@ -91,7 +90,7 @@ will also prevent _writing_ `package-lock.json` if `save` is true.
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.

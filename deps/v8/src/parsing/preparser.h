@@ -1471,10 +1471,10 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression NewSuperCallReference(int pos) {
     scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_function_string(), pos,
+                           ast_value_factory()->dot_this_function_string(), pos,
                            NORMAL_VARIABLE);
     scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->new_target_string(), pos,
+                           ast_value_factory()->dot_new_target_string(), pos,
                            NORMAL_VARIABLE);
     return PreParserExpression::SuperCallReference();
   }

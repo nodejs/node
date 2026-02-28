@@ -109,10 +109,10 @@ bool AbstractCode::has_instruction_stream(PtrComprCageBase cage_base) {
   return GetCode()->has_instruction_stream();
 }
 
-Tagged<Code> AbstractCode::GetCode() { return Cast<Code>(*this); }
+Tagged<Code> AbstractCode::GetCode() { return SbxCast<Code>(*this); }
 
 Tagged<BytecodeArray> AbstractCode::GetBytecodeArray() {
-  return Cast<BytecodeArray>(*this);
+  return SbxCast<BytecodeArray>(*this);
 }
 
 }  // namespace internal

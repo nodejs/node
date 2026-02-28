@@ -358,23 +358,53 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
     const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
+  return Generate_AddStringConstantInternalizeWithFeedback(
+      context, lhs, rhs, slot_id, maybe_feedback_vector, update_feedback_mode,
+      rhs_known_smi,
+      AddStringConstantAndInternalizeVariant::kLhsIsStringConstant);
+}
+
+TNode<Object>
+BinaryOpAssembler::Generate_AddRhsIsStringConstantInternalizeWithFeedback(
+    const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
+    UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
+  return Generate_AddStringConstantInternalizeWithFeedback(
+      context, lhs, rhs, slot_id, maybe_feedback_vector, update_feedback_mode,
+      rhs_known_smi,
+      AddStringConstantAndInternalizeVariant::kRhsIsStringConstant);
+}
+TNode<Object>
+BinaryOpAssembler::Generate_AddStringConstantInternalizeWithFeedback(
+    const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
+    UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi,
+    AddStringConstantAndInternalizeVariant as_variant) {
+  using ASVariant = AddStringConstantAndInternalizeVariant;
   Label call_with_any_feedback(this), call_add_stub(this),
       slow(this, Label::kDeferred), end(this);
   TVARIABLE(Smi, var_type_feedback, SmiConstant(BinaryOperationFeedback::kAny));
   TVARIABLE(Object, var_result);
 
-  // Lhs is an internalized string constant. Since our cache is stored in the
-  // feedback vector and is thus specific to a particular bytecode, we can
-  // ignore the lhs and use rhs as the cache key instead. This is our
-  // optimization:
+  TNode<Object> const_str_operand =
+      as_variant == ASVariant::kLhsIsStringConstant ? lhs : rhs;
+  TNode<Object> other_operand =
+      as_variant == ASVariant::kLhsIsStringConstant ? rhs : lhs;
+
+  // Either lhs or rhs is an internalized string constant. Since our cache is
+  // stored in the feedback vector and is thus specific to a particular
+  // bytecode, we can ignore the constant and use the other parameter as the
+  // cache key instead. This is our optimization:
   //
   //   Instead of: return Internalize(lhs + rhs)
-  //   .. we do:   return cache[rhs]  // .. if possible.
-  CSA_DCHECK(this, Word32BinaryNot(TaggedIsSmi(lhs)));
-  CSA_DCHECK(this,
-             IsInternalizedStringInstanceType(LoadInstanceType(CAST(lhs))));
+  //   .. we do:   return cache[rhs]  // .. (or lhs) if possible.
+  USE(const_str_operand);
+  CSA_DCHECK(this, Word32BinaryNot(TaggedIsSmi(const_str_operand)));
+  CSA_DCHECK(this, IsInternalizedStringInstanceType(
+                       LoadInstanceType(CAST(const_str_operand))));
 
-  // We need the cache slot for our optimization.
+  // We need the cache slot for our optimization. Without it, delegate to the
+  // generic Add logic.
   {
     Label next(this);
     GotoIfNot(IsUndefined(maybe_feedback_vector()), &next);
@@ -388,12 +418,12 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
   }
   TNode<FeedbackVector> fv = CAST(maybe_feedback_vector());
 
-  // Ensure rhs is internalized so we can query the cache.
+  // Ensure other_operand is internalized so we can query the cache.
   // TODO(jgruber): We could TryInternalize in CSA.
   {
     Label set_feedback_to_any_then_slow(this), next(this);
-    GotoIf(TaggedIsSmi(rhs), &set_feedback_to_any_then_slow);
-    TNode<Uint16T> itype = LoadInstanceType(CAST(rhs));
+    GotoIf(TaggedIsSmi(other_operand), &set_feedback_to_any_then_slow);
+    TNode<Uint16T> itype = LoadInstanceType(CAST(other_operand));
     GotoIfNot(IsStringInstanceType(itype), &set_feedback_to_any_then_slow);
 
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kString);
@@ -410,22 +440,22 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
 
     BIND(&next);
   }
-  TNode<String> rhs_internalized = CAST(rhs);
+  TNode<String> other_operand_internalized = CAST(other_operand);
 
   // Get or create the cache object.
   TNode<SimpleNameDictionary> cache;
   {
     Label next(this);
     static constexpr int kSlotOffset =
-        kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset;
+        kAdd_StringConstant_Internalize_CacheSlotOffset;
     TVARIABLE(Object, var_maybe_cache);
     var_maybe_cache = CAST(LoadFeedbackVectorSlot(
         fv, UintPtrAdd(slot_id, UintPtrConstant(kSlotOffset))));
     GotoIf(
         TaggedNotEqual(var_maybe_cache.value(), UninitializedSymbolConstant()),
         &next);
-    // TODO(jgruber): Allocate in CSA.
-    Goto(&slow);
+    var_maybe_cache = AllocateSimpleNameDictionary(1);
+    Goto(&next);
     BIND(&next);
     cache = CAST(var_maybe_cache.value());
   }
@@ -434,9 +464,9 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
     // TODO(jgruber): Fill the cache in CSA.
     TVARIABLE(IntPtrT, var_entry);
     Label index_found(this, {&var_entry});
-    NameDictionaryLookup<SimpleNameDictionary>(cache, rhs_internalized,
-                                               &index_found, &var_entry, &slow,
-                                               LookupMode::kFindExisting);
+    NameDictionaryLookup<SimpleNameDictionary>(
+        cache, other_operand_internalized, &index_found, &var_entry, &slow,
+        LookupMode::kFindExisting);
     BIND(&index_found);
     var_result =
         LoadValueByKeyIndex<SimpleNameDictionary>(cache, var_entry.value());
@@ -445,9 +475,12 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
 
   BIND(&slow);
   {
-    var_result = CallRuntime(
-        Runtime::kStringAdd_LhsIsStringConstant_Internalize, context(), lhs,
-        rhs, maybe_feedback_vector(), IntPtrToTaggedIndex(Signed(slot_id)));
+    auto target = as_variant == ASVariant::kLhsIsStringConstant
+                      ? Runtime::kStringAdd_LhsIsStringConstant_Internalize
+                      : Runtime::kStringAdd_RhsIsStringConstant_Internalize;
+    var_result =
+        CallRuntime(target, context(), lhs, rhs, maybe_feedback_vector(),
+                    IntPtrToTaggedIndex(Signed(slot_id)));
     Goto(&end);
   }
 

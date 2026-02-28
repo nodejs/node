@@ -30,11 +30,13 @@
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
+namespace {
 int64_t GetTarget() { return HWY_TARGET; }
 size_t GetVectorBytes() { return Lanes(ScalableTag<uint8_t>()); }
 bool GetHaveInteger64() { return HWY_HAVE_INTEGER64 != 0; }
 bool GetHaveFloat16() { return HWY_HAVE_FLOAT16 != 0; }
 bool GetHaveFloat64() { return HWY_HAVE_FLOAT64 != 0; }
+}  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 

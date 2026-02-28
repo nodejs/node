@@ -7,12 +7,12 @@ const cluster = require('cluster');
 const rr = require('internal/cluster/round_robin_handle');
 
 if (cluster.isPrimary) {
-  const distribute = rr.prototype.distribute;
-  rr.prototype.distribute = function(err, handle) {
+  const originalDistribute = rr.prototype.distribute;
+  rr.prototype.distribute = common.mustCall(function distribute(err, handle) {
     assert.strictEqual(err, 0);
     handle.close();
-    distribute.call(this, -1, undefined);
-  };
+    originalDistribute.call(this, -1, undefined);
+  });
   cluster.schedulingPolicy = cluster.SCHED_RR;
   cluster.fork();
 } else {

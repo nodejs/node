@@ -8,15 +8,14 @@
 
 #include "bit_reader.h"
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-const brotli_reg_t kBrotliBitMask[33] = {   0x00000000,
+const BROTLI_MODEL("small")
+brotli_reg_t kBrotliBitMask[33] = {     0x00000000,
     0x00000001, 0x00000003, 0x00000007, 0x0000000F,
     0x0000001F, 0x0000003F, 0x0000007F, 0x000000FF,
     0x000001FF, 0x000003FF, 0x000007FF, 0x00000FFF,

@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
+#include <vector>
+
 #include "src/objects/code.h"
 #include "src/objects/objects.h"
 
@@ -95,6 +97,12 @@ class ObjectStats {
  public:
   static const size_t kNoOverAllocation = 0;
 
+  struct ObjectData {
+    uint32_t address;
+    size_t size;
+    int type;
+  };
+
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(true); }
 
   // See description on VIRTUAL_INSTANCE_TYPE_LIST.
@@ -119,9 +127,11 @@ class ObjectStats {
   void Dump(std::stringstream& stream);
 
   void CheckpointObjectStats();
-  void RecordObjectStats(InstanceType type, size_t size,
+  void RecordObject(Tagged<HeapObject> obj, int type, size_t size);
+  void RecordObjectStats(Tagged<HeapObject> obj, InstanceType type, size_t size,
                          size_t over_allocated = kNoOverAllocation);
-  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
+  void RecordVirtualObjectStats(Tagged<HeapObject> obj,
+                                VirtualInstanceType type, size_t size,
                                 size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
@@ -171,6 +181,12 @@ class ObjectStats {
   size_t boxed_double_fields_count_;
   size_t string_data_count_;
   size_t raw_fields_count_;
+
+#ifdef V8_COMPRESS_POINTERS
+  std::vector<ObjectData> objects_main_;
+  std::vector<ObjectData> objects_trusted_;
+  std::vector<ObjectData> objects_code_;
+#endif  // V8_COMPRESS_POINTERS
 
   friend class ObjectStatsCollectorImpl;
 };

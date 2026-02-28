@@ -278,7 +278,7 @@ class Outdated extends ArboristWorkspaceCmd {
           dependedByLocation: d.dependedByLocation } : {},
       }
       acc[d.name] = acc[d.name]
-        // If this item alread has an outdated dep then we turn it into an array
+        // If this item already has an outdated dep then we turn it into an array
         ? (Array.isArray(acc[d.name]) ? acc[d.name] : [acc[d.name]]).concat(dep)
         : dep
       return acc

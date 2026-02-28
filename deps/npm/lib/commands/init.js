@@ -66,7 +66,7 @@ class Init extends BaseCommand {
       throw err
     })
 
-    // these are workspaces that are being created, so we cant use
+    // these are workspaces that are being created, so we can't use
     // this.setWorkspaces()
     const filters = this.npm.config.get('workspace')
     const wPath = filterArg => resolve(this.npm.localPrefix, filterArg)

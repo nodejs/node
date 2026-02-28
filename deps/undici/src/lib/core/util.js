@@ -58,6 +58,8 @@ function wrapRequestBody (body) {
     // to determine whether or not it has been disturbed. This is just
     // a workaround.
     return new BodyAsyncIterable(body)
+  } else if (body && isFormDataLike(body)) {
+    return body
   } else if (
     body &&
     typeof body !== 'string' &&
@@ -103,12 +105,23 @@ function isBlobLike (object) {
 }
 
 /**
+ * @param {string} url The path to check for query strings or fragments.
+ * @returns {boolean} Returns true if the path contains a query string or fragment.
+ */
+function pathHasQueryOrFragment (url) {
+  return (
+    url.includes('?') ||
+    url.includes('#')
+  )
+}
+
+/**
  * @param {string} url The URL to add the query params to
  * @param {import('node:querystring').ParsedUrlQueryInput} queryParams The object to serialize into a URL query string
  * @returns {string} The URL with the query params added
  */
 function serializePathWithQuery (url, queryParams) {
-  if (url.includes('?') || url.includes('#')) {
+  if (pathHasQueryOrFragment(url)) {
     throw new Error('Query params cannot be passed when url already contains "?" or "#".')
   }
 
@@ -418,20 +431,15 @@ function parseHeaders (headers, obj) {
         val = [val]
         obj[key] = val
       }
-      val.push(headers[i + 1].toString('utf8'))
+      val.push(headers[i + 1].toString('latin1'))
     } else {
       const headersValue = headers[i + 1]
       if (typeof headersValue === 'string') {
         obj[key] = headersValue
       } else {
-        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
+        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('latin1')) : headersValue.toString('latin1')
       }
     }
-  }
-
-  // See https://github.com/nodejs/node/pull/46528
-  if ('content-length' in obj && 'content-disposition' in obj) {
-    obj['content-disposition'] = Buffer.from(obj['content-disposition']).toString('latin1')
   }
 
   return obj
@@ -448,32 +456,18 @@ function parseRawHeaders (headers) {
    */
   const ret = new Array(headersLength)
 
-  let hasContentLength = false
-  let contentDispositionIdx = -1
   let key
   let val
-  let kLen = 0
 
   for (let n = 0; n < headersLength; n += 2) {
     key = headers[n]
     val = headers[n + 1]
 
     typeof key !== 'string' && (key = key.toString())
-    typeof val !== 'string' && (val = val.toString('utf8'))
+    typeof val !== 'string' && (val = val.toString('latin1'))
 
-    kLen = key.length
-    if (kLen === 14 && key[7] === '-' && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
-      hasContentLength = true
-    } else if (kLen === 19 && key[7] === '-' && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
-      contentDispositionIdx = n + 1
-    }
     ret[n] = key
     ret[n + 1] = val
-  }
-
-  // See https://github.com/nodejs/node/pull/46528
-  if (hasContentLength && contentDispositionIdx !== -1) {
-    ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString('latin1')
   }
 
   return ret
@@ -598,31 +592,28 @@ function ReadableStreamFrom (iterable) {
   let iterator
   return new ReadableStream(
     {
-      async start () {
+      start () {
         iterator = iterable[Symbol.asyncIterator]()
       },
       pull (controller) {
-        async function pull () {
-          const { done, value } = await iterator.next()
+        return iterator.next().then(({ done, value }) => {
           if (done) {
-            queueMicrotask(() => {
+            return queueMicrotask(() => {
               controller.close()
               controller.byobRequest?.respond(0)
             })
           } else {
             const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
             if (buf.byteLength) {
-              controller.enqueue(new Uint8Array(buf))
+              return controller.enqueue(new Uint8Array(buf))
             } else {
-              return await pull()
+              return this.pull(controller)
             }
           }
-        }
-
-        return pull()
+        })
       },
-      async cancel () {
-        await iterator.return()
+      cancel () {
+        return iterator.return()
       },
       type: 'bytes'
     }
@@ -658,48 +649,46 @@ function addAbortListener (signal, listener) {
   return () => signal.removeListener('abort', listener)
 }
 
+const validTokenChars = new Uint8Array([
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0-15
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16-31
+  0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, // 32-47 (!"#$%&'()*+,-./)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, // 48-63 (0-9:;<=>?)
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 64-79 (@A-O)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, // 80-95 (P-Z[\]^_)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 96-111 (`a-o)
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, // 112-127 (p-z{|}~)
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 128-143
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 144-159
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 160-175
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 176-191
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 192-207
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 208-223
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 224-239
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 240-255
+])
+
 /**
  * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
  * @param {number} c
  * @returns {boolean}
  */
 function isTokenCharCode (c) {
-  switch (c) {
-    case 0x22:
-    case 0x28:
-    case 0x29:
-    case 0x2c:
-    case 0x2f:
-    case 0x3a:
-    case 0x3b:
-    case 0x3c:
-    case 0x3d:
-    case 0x3e:
-    case 0x3f:
-    case 0x40:
-    case 0x5b:
-    case 0x5c:
-    case 0x5d:
-    case 0x7b:
-    case 0x7d:
-      // DQUOTE and "(),/:;<=>?@[\]{}"
-      return false
-    default:
-      // VCHAR %x21-7E
-      return c >= 0x21 && c <= 0x7e
-  }
+  return (validTokenChars[c] === 1)
 }
+
+const tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/
 
 /**
  * @param {string} characters
  * @returns {boolean}
  */
 function isValidHTTPToken (characters) {
-  if (characters.length === 0) {
-    return false
-  }
-  for (let i = 0; i < characters.length; ++i) {
-    if (!isTokenCharCode(characters.charCodeAt(i))) {
+  if (characters.length >= 12) return tokenRegExp.test(characters)
+  if (characters.length === 0) return false
+
+  for (let i = 0; i < characters.length; i++) {
+    if (validTokenChars[characters.charCodeAt(i)] !== 1) {
       return false
     }
   }
@@ -868,6 +857,30 @@ function onConnectTimeout (socket, opts) {
   destroy(socket, new ConnectTimeoutError(message))
 }
 
+/**
+ * @param {string} urlString
+ * @returns {string}
+ */
+function getProtocolFromUrlString (urlString) {
+  if (
+    urlString[0] === 'h' &&
+    urlString[1] === 't' &&
+    urlString[2] === 't' &&
+    urlString[3] === 'p'
+  ) {
+    switch (urlString[4]) {
+      case ':':
+        return 'http:'
+      case 's':
+        if (urlString[5] === ':') {
+          return 'https:'
+        }
+    }
+  }
+  // fallback if none of the usual suspects
+  return urlString.slice(0, urlString.indexOf(':') + 1)
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -924,6 +937,7 @@ module.exports = {
   assertRequestHandler,
   getSocketInfo,
   isFormDataLike,
+  pathHasQueryOrFragment,
   serializePathWithQuery,
   addAbortListener,
   isValidHTTPToken,
@@ -938,5 +952,6 @@ module.exports = {
   nodeMinor,
   safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
   wrapRequestBody,
-  setupConnectTimeout
+  setupConnectTimeout,
+  getProtocolFromUrlString
 }

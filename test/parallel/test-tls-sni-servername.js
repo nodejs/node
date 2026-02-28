@@ -30,7 +30,7 @@ function test(options) {
     assert.strictEqual(socket.servername, options.servername);
   }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     options.port = server.address().port;
     const client = tls.connect(options, common.mustNotCall());
 
@@ -40,7 +40,7 @@ function test(options) {
     }));
 
     client.on('close', common.mustCall(() => server.close()));
-  });
+  }));
 }
 
 test({

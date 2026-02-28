@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   void OnBytesReceived(base::Vector<const uint8_t> bytes) override;
 
-  void Finish(bool can_use_compiled_module) override;
+  void Finish(const WasmStreaming::ModuleCachingCallback&) override;
 
   void Abort() override;
 
@@ -43,6 +43,18 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) override;
+
+  void SetHasCompiledModuleBytes() override {
+    bool has_wire_bytes =
+        full_wire_bytes_.size() > 1 ||
+        (full_wire_bytes_.size() == 1 && !full_wire_bytes_[0].empty());
+    if (has_wire_bytes) {
+      FATAL(
+          "SetHasCompiledModuleBytes has to be called before OnBytesReceived");
+    }
+
+    has_compiled_module_bytes_ = true;
+  }
 
  private:
   // The SectionBuffer is the data object for the content of a single section.
@@ -227,48 +239,68 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   // TODO(clemensb): Avoid holding the wire bytes live twice (here and in the
   // section buffers).
   std::vector<std::vector<uint8_t>> full_wire_bytes_{{}};
+
+  bool has_compiled_module_bytes_ = false;
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
-  DCHECK(!full_wire_bytes_.empty());
+  TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
+
+  // Note: The bytes are passed by the embedder, and they might point into the
+  // sandbox. Hence we copy them once and then process those copied bytes, to
+  // avoid being vulnerable to concurrent modification.
+  // Since we might not be able to store the bytes contiguously in memory,
+  // remember up to two byte vectors to process after copying.
+  base::Vector<const uint8_t> copied_bytes[2] = {{}, {}};
+
   // Fill the previous vector, growing up to 16kB. After that, allocate new
   // vectors on overflow.
+  DCHECK(!full_wire_bytes_.empty());
+  std::vector<uint8_t>* last_wire_byte_vector = &full_wire_bytes_.back();
+  size_t existing_vector_size = last_wire_byte_vector->size();
   size_t remaining_capacity =
-      std::max(full_wire_bytes_.back().capacity(), size_t{16} * KB) -
-      full_wire_bytes_.back().size();
+      std::max(last_wire_byte_vector->capacity(), size_t{16} * KB) -
+      existing_vector_size;
   size_t bytes_for_existing_vector = std::min(remaining_capacity, bytes.size());
-  full_wire_bytes_.back().insert(full_wire_bytes_.back().end(), bytes.data(),
-                                 bytes.data() + bytes_for_existing_vector);
+  last_wire_byte_vector->insert(last_wire_byte_vector->end(), bytes.data(),
+                                bytes.data() + bytes_for_existing_vector);
+  copied_bytes[0] =
+      base::VectorOf(last_wire_byte_vector->data() + existing_vector_size,
+                     bytes_for_existing_vector);
   if (bytes.size() > bytes_for_existing_vector) {
     // The previous vector's capacity is not enough to hold all new bytes, and
     // it's bigger than 16kB, so expensive to copy. Allocate a new vector for
     // the remaining bytes, growing exponentially.
     size_t new_capacity = std::max(bytes.size() - bytes_for_existing_vector,
-                                   2 * full_wire_bytes_.back().capacity());
+                                   2 * last_wire_byte_vector->capacity());
     full_wire_bytes_.emplace_back();
-    full_wire_bytes_.back().reserve(new_capacity);
-    full_wire_bytes_.back().insert(full_wire_bytes_.back().end(),
-                                   bytes.data() + bytes_for_existing_vector,
-                                   bytes.end());
+    last_wire_byte_vector = &full_wire_bytes_.back();
+    last_wire_byte_vector->reserve(new_capacity);
+    last_wire_byte_vector->insert(last_wire_byte_vector->end(),
+                                  bytes.data() + bytes_for_existing_vector,
+                                  bytes.end());
+    copied_bytes[1] = base::VectorOf(*last_wire_byte_vector);
   }
+  // Do not access `bytes` any more after copying.
+  DCHECK_EQ(bytes.size(), copied_bytes[0].size() + copied_bytes[1].size());
+  bytes = {};
 
-  if (deserializing()) return;
+  // Skip processing the bytes if we assume that we can deserialize the module
+  // in the end.
+  if (has_compiled_module_bytes_) return;
 
-  TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
-
-  size_t current = 0;
-  while (ok() && current < bytes.size()) {
-    size_t num_bytes =
-        state_->ReadBytes(this, bytes.SubVector(current, bytes.size()));
-    current += num_bytes;
-    module_offset_ += num_bytes;
-    if (state_->offset() == state_->buffer().size()) {
-      state_ = state_->Next(this);
+  for (base::Vector<const uint8_t> vec : copied_bytes) {
+    size_t current = 0;
+    while (ok() && current < vec.size()) {
+      size_t num_bytes = state_->ReadBytes(this, vec.SubVectorFrom(current));
+      current += num_bytes;
+      module_offset_ += num_bytes;
+      if (state_->offset() == state_->buffer().size()) {
+        state_ = state_->Next(this);
+      }
     }
   }
-  if (ok()) {
-    processor_->OnFinishedChunk();
-  }
+  if (ok()) processor_->OnFinishedChunk();
 }
 
 size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
@@ -281,7 +313,8 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
   return num_bytes;
 }
 
-void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
+void AsyncStreamingDecoder::Finish(
+    const WasmStreaming::ModuleCachingCallback& caching_callback) {
   TRACE_STREAMING("Finish\n");
   // {Finish} cannot be called after {Finish}, {Abort}, or
   // {NotifyCompilationDiscarded}.
@@ -308,20 +341,54 @@ void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
     bytes_copy = std::move(all_bytes);
   }
 
-  if (ok() && deserializing()) {
-    // Try to deserialize the module from wire bytes and module bytes.
-    if (can_use_compiled_module &&
-        processor_->Deserialize(compiled_module_bytes_,
-                                base::VectorOf(bytes_copy))) {
-      return;
+  // If we have a caching callback, then get the serialized module now via the
+  // callback and try to deserialize it.
+  if (ok() && caching_callback) {
+    // Check that the embedder did call `SetHasCompiledModuleBytes` before.
+    if (!has_compiled_module_bytes_) {
+      FATAL(
+          "When passing a caching callback, you should have called "
+          "SetHasCompiledModuleBytes before to avoid compilation during "
+          "streaming");
     }
 
-    // Compiled module bytes are invalidated by can_use_compiled_module = false
-    // or the deserialization failed. Restart decoding using |bytes_copy|.
+    struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
+      StreamingProcessor* const processor;
+      const base::Vector<const uint8_t> wire_bytes;
+      bool did_try_deserialization = false;
+      bool did_deserialize = false;
+
+      CachingInterface(StreamingProcessor* proc,
+                       base::Vector<const uint8_t> wire_bytes)
+          : processor(proc), wire_bytes(wire_bytes) {}
+
+      // Public API:
+      MemorySpan<const uint8_t> GetWireBytes() const override {
+        return {wire_bytes.data(), wire_bytes.size()};
+      }
+
+      bool SetCachedCompiledModuleBytes(
+          MemorySpan<const uint8_t> module_bytes) override {
+        if (did_try_deserialization) {
+          FATAL("SetCachedCompiledModuleBytes can only be called once");
+        }
+        did_try_deserialization = true;
+        did_deserialize =
+            processor->Deserialize(base::VectorOf(module_bytes), wire_bytes);
+        return did_deserialize;
+      }
+    } caching_interface{processor_.get(), bytes_copy.as_vector()};
+
+    // Call the embedder.
+    caching_callback(caching_interface);
+
+    if (caching_interface.did_deserialize) return;
+
+    // The embedder did not provide a cached module or deserialization failed.
+    // Restart decoding using |bytes_copy|.
     // Reset {full_wire_bytes} to a single empty vector.
     full_wire_bytes_.assign({{}});
-    compiled_module_bytes_ = {};
-    DCHECK(!deserializing());
+    has_compiled_module_bytes_ = false;
     OnBytesReceived(base::VectorOf(bytes_copy));
     // The decoder has received all wire bytes; fall through and finish.
   }
@@ -362,7 +429,7 @@ class CallMoreFunctionsCanBeSerializedCallback
     // As a baseline we also count the modules that could be cached but
     // never reach the threshold.
     if (std::shared_ptr<NativeModule> module = native_module_.lock()) {
-      module->counters()->wasm_cache_count()->AddSample(0);
+      module->counter_updates()->AddSample(&Counters::wasm_cache_count, 0);
     }
   }
 
@@ -371,7 +438,8 @@ class CallMoreFunctionsCanBeSerializedCallback
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
-      native_module->counters()->wasm_cache_count()->AddSample(++cache_count_);
+      native_module->counter_updates()->AddSample(&Counters::wasm_cache_count,
+                                                  ++cache_count_);
       callback_(native_module);
     }
   }

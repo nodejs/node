@@ -24,7 +24,7 @@ const agent = new http.Agent({
   maxSockets: 1,
 });
 
-const verifyRequest = (idx) => (res) => {
+const verifyRequest = common.mustCall((idx) => common.mustCall((res) => {
   reqAsyncIds[idx] = res.socket[async_id_symbol];
   assert.ok(reqAsyncIds[idx] > 0, `${reqAsyncIds[idx]} > 0`);
   if (socket) {
@@ -42,7 +42,7 @@ const verifyRequest = (idx) => (res) => {
       agent.destroy();
     }
   }));
-};
+}), 2);
 
 const server = http.createServer(common.mustCall((req, res) => {
   req.once('data', common.mustCallAtLeast(() => {
@@ -59,13 +59,13 @@ const server = http.createServer(common.mustCall((req, res) => {
   // First request.
   const r1 = http.request({
     agent, port, method: 'POST',
-  }, common.mustCall(verifyRequest(0)));
+  }, verifyRequest(0));
   r1.end(payload);
 
   // Second request. Sent in parallel with the first one.
   const r2 = http.request({
     agent, port, method: 'POST',
-  }, common.mustCall(verifyRequest(1)));
+  }, verifyRequest(1));
   r2.end(payload);
 }));
 

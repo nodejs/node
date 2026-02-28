@@ -37,47 +37,26 @@ class ExitHandler {
 
   constructor ({ process }) {
     this.#process = process
-    this.#process.on('exit', this.#handleProcesExitAndReset)
+    this.#process.on('exit', this.#handleProcessExitAndReset)
   }
 
   registerUncaughtHandlers () {
     this.#process.on('uncaughtException', this.#handleExit)
     this.#process.on('unhandledRejection', this.#handleExit)
-
-    // Handle signals that might bypass normal exit flow
-    // These signals can cause the process to exit without calling the exit handler
-    const signalsToHandle = ['SIGTERM', 'SIGINT', 'SIGHUP']
-    for (const signal of signalsToHandle) {
-      this.#process.on(signal, () => {
-        // Call the exit handler to ensure proper cleanup
-        this.#handleExit(new Error(`Process received ${signal}`))
-      })
-    }
   }
 
   exit (err) {
     this.#handleExit(err)
   }
 
-  #handleProcesExitAndReset = (code) => {
+  #handleProcessExitAndReset = (code) => {
     this.#handleProcessExit(code)
 
     // Reset all the state. This is only relevant for tests since
     // in reality the process fully exits here.
-    this.#process.off('exit', this.#handleProcesExitAndReset)
+    this.#process.off('exit', this.#handleProcessExitAndReset)
     this.#process.off('uncaughtException', this.#handleExit)
     this.#process.off('unhandledRejection', this.#handleExit)
-
-    const signalsToCleanup = ['SIGTERM', 'SIGINT', 'SIGHUP']
-    for (const signal of signalsToCleanup) {
-      try {
-        this.#process.off(signal, this.#handleExit)
-      } catch (err) {
-        // Ignore errors during cleanup - this is defensive programming for edge cases
-        // where the process object might be in an unexpected state during shutdown
-      }
-    }
-
     if (this.#loaded) {
       this.#npm.unload()
     }
@@ -179,7 +158,7 @@ class ExitHandler {
     this.#exitErrorMessage = err?.suppressError === true ? false : !!err
 
     // Prefer the exit code of the error, then the current process exit code,
-    // then set it to 1 if we still have an error. Otherwise we call process.exit
+    // then set it to 1 if we still have an error. Otherwise, we call process.exit
     // with undefined so that it can determine the final exit code
     const exitCode = err?.exitCode ?? this.#process.exitCode ?? (err ? 1 : undefined)
 

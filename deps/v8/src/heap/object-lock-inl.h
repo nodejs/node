@@ -14,21 +14,27 @@ namespace v8 {
 namespace internal {
 
 // static
-void ObjectLock::Lock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)->object_mutex().Lock();
+void ObjectLock::Lock(Isolate* isolate, Tagged<HeapObject> heap_object) {
+  MutablePageMetadata::FromHeapObject(isolate, heap_object)
+      ->object_mutex()
+      .Lock();
 }
 
 // static
-void ObjectLock::Unlock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)->object_mutex().Unlock();
+void ObjectLock::Unlock(Isolate* isolate, Tagged<HeapObject> heap_object) {
+  MutablePageMetadata::FromHeapObject(isolate, heap_object)
+      ->object_mutex()
+      .Unlock();
 }
 
-ObjectLockGuard::ObjectLockGuard(Tagged<HeapObject> object)
-    : raw_object_(object) {
-  ObjectLock::Lock(object);
+ObjectLockGuard::ObjectLockGuard(Isolate* isolate, Tagged<HeapObject> object)
+    : isolate_(isolate), raw_object_(object) {
+  ObjectLock::Lock(isolate_, object);
 }
 
-ObjectLockGuard::~ObjectLockGuard() { ObjectLock::Unlock(raw_object_); }
+ObjectLockGuard::~ObjectLockGuard() {
+  ObjectLock::Unlock(isolate_, raw_object_);
+}
 
 }  // namespace internal
 }  // namespace v8

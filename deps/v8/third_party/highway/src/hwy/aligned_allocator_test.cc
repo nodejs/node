@@ -146,8 +146,8 @@ TEST(AlignedAllocatorTest, TestEmptyAlignedUniquePtr) {
 }
 
 TEST(AlignedAllocatorTest, TestEmptyAlignedFreeUniquePtr) {
-  AlignedFreeUniquePtr<SampleObject<32>> ptr(nullptr, AlignedFreer());
-  AlignedFreeUniquePtr<SampleObject<32>[]> arr(nullptr, AlignedFreer());
+  AlignedFreeUniquePtr<std::array<char, 32>> ptr(nullptr, AlignedFreer());
+  AlignedFreeUniquePtr<std::array<char, 32>[]> arr(nullptr, AlignedFreer());
 }
 
 TEST(AlignedAllocatorTest, TestCustomAlloc) {
@@ -227,19 +227,6 @@ TEST(AlignedAllocatorTest, TestAllocMultipleInt) {
     if (i) ret += static_cast<size_t>(ptr[i]) * ptr[i - 1];
   }
   HWY_ASSERT(ret != size_t{0});
-}
-
-TEST(AlignedAllocatorTest, TestAllocateAlignedObjectWithoutDestructor) {
-  int counter = 0;
-  {
-    // This doesn't call the constructor.
-    auto obj = AllocateAligned<SampleObject<24>>(1);
-    HWY_ASSERT(obj);
-    obj[0].counter_ = &counter;
-  }
-  // Destroying the unique_ptr shouldn't have called the destructor of the
-  // SampleObject<24>.
-  HWY_ASSERT_EQ(0, counter);
 }
 
 TEST(AlignedAllocatorTest, TestMakeUniqueAlignedArrayWithCustomAlloc) {
@@ -429,7 +416,7 @@ TEST(AlignedAllocatorTest, TestAlignedNDArrayTruncate) {
 }
 
 TEST(AlignedAllocatorTest, TestAlignedVector) {
-  std::vector<int> vec{0, 1, 2, 3, 4};
+  AlignedVector<int> vec{0, 1, 2, 3, 4};
   HWY_ASSERT_EQ(5, vec.size());
   HWY_ASSERT_EQ(0, vec[0]);
   HWY_ASSERT_EQ(2, vec.at(2));

@@ -22,6 +22,12 @@ PageMetadata* PageMetadata::FromAddress(Address addr) {
 }
 
 // static
+PageMetadata* PageMetadata::FromAddress(const Isolate* isolate, Address addr) {
+  return reinterpret_cast<PageMetadata*>(
+      MemoryChunk::FromAddress(addr)->Metadata(isolate));
+}
+
+// static
 PageMetadata* PageMetadata::FromHeapObject(Tagged<HeapObject> o) {
   return FromAddress(o.ptr());
 }
@@ -37,24 +43,6 @@ void PageMetadata::ForAllFreeListCategories(Callback callback) {
        i++) {
     callback(categories_[i]);
   }
-}
-
-void PageMetadata::MarkEvacuationCandidate() {
-  DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
-  DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  Chunk()->SetFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
-  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-void PageMetadata::ClearEvacuationCandidate() {
-  MemoryChunk* chunk = Chunk();
-  if (!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
-    DCHECK_NULL(slot_set<OLD_TO_OLD>());
-    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  }
-  chunk->ClearFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
-  InitializeFreeListCategories();
 }
 
 }  // namespace internal

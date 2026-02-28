@@ -5,7 +5,7 @@ const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
 
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
@@ -47,7 +47,7 @@ assert.strictEqual(setPromiseImmediate, timerPromises.setImmediate);
   const ac = new AbortController();
   const signal = ac.signal;
   setPromiseImmediate(10, { signal })
-    .then(common.mustCall(() => { ac.abort(); }))
+    .then(() => { ac.abort(); })
     .then(common.mustCall());
 }
 
@@ -56,7 +56,7 @@ assert.strictEqual(setPromiseImmediate, timerPromises.setImmediate);
   const signal = new NodeEventTarget();
   signal.aborted = false;
   setPromiseImmediate(0, { signal }).finally(common.mustCall(() => {
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
   }));
 }
 

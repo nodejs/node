@@ -1,5 +1,3 @@
-import { TypedArray } from '../globals';
-
 declare namespace InternalZlibBinding {
   class ZlibBase {
     // These attributes are not used by the C++ binding, but declared on JS side.

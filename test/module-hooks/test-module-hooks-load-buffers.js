@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { registerHooks } = require('module');
 
@@ -15,15 +15,7 @@ const hook1 = registerHooks({
   resolve(specifier, context, nextResolve) {
     return { shortCircuit: true, url: `test://${specifier}` };
   },
-  load(url, context, nextLoad) {
-    const result = nextLoad(url, context);
-    if (url === 'test://array_buffer') {
-      assert.deepStrictEqual(result.source, encoder.encode(arrayBufferSource).buffer);
-    } else if (url === 'test://array_buffer_view') {
-      assert.deepStrictEqual(result.source, encoder.encode(arrayBufferViewSource));
-    }
-    return result;
-  },
+  load: common.mustNotCall(),
 });
 
 const hook2 = registerHooks({

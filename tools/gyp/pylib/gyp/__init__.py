@@ -25,18 +25,20 @@ DEBUG_GENERAL = "general"
 DEBUG_VARIABLES = "variables"
 DEBUG_INCLUDES = "includes"
 
+
 def EscapeForCString(string: bytes | str) -> str:
     if isinstance(string, str):
-        string = string.encode(encoding='utf8')
+        string = string.encode(encoding="utf8")
 
-    backslash_or_double_quote = {ord('\\'), ord('"')}
-    result = ''
+    backslash_or_double_quote = {ord("\\"), ord('"')}
+    result = ""
     for char in string:
         if char in backslash_or_double_quote or not 32 <= char < 127:
-            result += '\\%03o' % char
+            result += "\\%03o" % char
         else:
             result += chr(char)
     return result
+
 
 def DebugOutput(mode, message, *args):
     if "all" in gyp.debug or mode in gyp.debug:
@@ -76,11 +78,11 @@ def Load(
     circular_check=True,
 ):
     """
-  Loads one or more specified build files.
-  default_variables and includes will be copied before use.
-  Returns the generator for the specified format and the
-  data returned by loading the specified build files.
-  """
+    Loads one or more specified build files.
+    default_variables and includes will be copied before use.
+    Returns the generator for the specified format and the
+    data returned by loading the specified build files.
+    """
     if params is None:
         params = {}
 
@@ -114,7 +116,7 @@ def Load(
     # These parameters are passed in order (as opposed to by key)
     # because ActivePython cannot handle key parameters to __import__.
     generator = __import__(generator_name, globals(), locals(), generator_name)
-    for (key, val) in generator.generator_default_variables.items():
+    for key, val in generator.generator_default_variables.items():
         default_variables.setdefault(key, val)
 
     output_dir = params["options"].generator_output or params["options"].toplevel_dir
@@ -184,10 +186,10 @@ def Load(
 
 def NameValueListToDict(name_value_list):
     """
-  Takes an array of strings of the form 'NAME=VALUE' and creates a dictionary
-  of the pairs.  If a string is simply NAME, then the value in the dictionary
-  is set to True.  If VALUE can be converted to an integer, it is.
-  """
+    Takes an array of strings of the form 'NAME=VALUE' and creates a dictionary
+    of the pairs.  If a string is simply NAME, then the value in the dictionary
+    is set to True.  If VALUE can be converted to an integer, it is.
+    """
     result = {}
     for item in name_value_list:
         tokens = item.split("=", 1)
@@ -220,13 +222,13 @@ def FormatOpt(opt, value):
 def RegenerateAppendFlag(flag, values, predicate, env_name, options):
     """Regenerate a list of command line flags, for an option of action='append'.
 
-  The |env_name|, if given, is checked in the environment and used to generate
-  an initial list of options, then the options that were specified on the
-  command line (given in |values|) are appended.  This matches the handling of
-  environment variables and command line flags where command line flags override
-  the environment, while not requiring the environment to be set when the flags
-  are used again.
-  """
+    The |env_name|, if given, is checked in the environment and used to generate
+    an initial list of options, then the options that were specified on the
+    command line (given in |values|) are appended.  This matches the handling of
+    environment variables and command line flags where command line flags override
+    the environment, while not requiring the environment to be set when the flags
+    are used again.
+    """
     flags = []
     if options.use_environment and env_name:
         for flag_value in ShlexEnv(env_name):
@@ -242,14 +244,14 @@ def RegenerateAppendFlag(flag, values, predicate, env_name, options):
 
 def RegenerateFlags(options):
     """Given a parsed options object, and taking the environment variables into
-  account, returns a list of flags that should regenerate an equivalent options
-  object (even in the absence of the environment variables.)
+    account, returns a list of flags that should regenerate an equivalent options
+    object (even in the absence of the environment variables.)
 
-  Any path options will be normalized relative to depth.
+    Any path options will be normalized relative to depth.
 
-  The format flag is not included, as it is assumed the calling generator will
-  set that as appropriate.
-  """
+    The format flag is not included, as it is assumed the calling generator will
+    set that as appropriate.
+    """
 
     def FixPath(path):
         path = gyp.common.FixIfRelativePath(path, options.depth)
@@ -307,15 +309,15 @@ class RegeneratableOptionParser(argparse.ArgumentParser):
     def add_argument(self, *args, **kw):
         """Add an option to the parser.
 
-    This accepts the same arguments as ArgumentParser.add_argument, plus the
-    following:
-      regenerate: can be set to False to prevent this option from being included
-                  in regeneration.
-      env_name: name of environment variable that additional values for this
-                option come from.
-      type: adds type='path', to tell the regenerator that the values of
-            this option need to be made relative to options.depth
-    """
+        This accepts the same arguments as ArgumentParser.add_argument, plus the
+        following:
+          regenerate: can be set to False to prevent this option from being included
+                      in regeneration.
+          env_name: name of environment variable that additional values for this
+                    option come from.
+          type: adds type='path', to tell the regenerator that the values of
+                this option need to be made relative to options.depth
+        """
         env_name = kw.pop("env_name", None)
         if "dest" in kw and kw.pop("regenerate", True):
             dest = kw["dest"]
@@ -343,7 +345,7 @@ class RegeneratableOptionParser(argparse.ArgumentParser):
 
 def gyp_main(args):
     my_name = os.path.basename(sys.argv[0])
-    usage = "usage: %(prog)s [options ...] [build_file ...]"
+    usage = "%(prog)s [options ...] [build_file ...]"
 
     parser = RegeneratableOptionParser(usage=usage.replace("%s", "%(prog)s"))
     parser.add_argument(
@@ -490,6 +492,7 @@ def gyp_main(args):
     options, build_files_arg = parser.parse_args(args)
     if options.version:
         import pkg_resources  # noqa: PLC0415
+
         print(f"v{pkg_resources.get_distribution('gyp-next').version}")
         return 0
     build_files = build_files_arg

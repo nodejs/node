@@ -11,7 +11,7 @@
 #include <internal/thread_arch.h>
 
 CRYPTO_THREAD *ossl_crypto_thread_native_start(CRYPTO_THREAD_ROUTINE routine,
-                                               void *data, int joinable)
+    void *data, int joinable)
 {
     CRYPTO_THREAD *handle;
 

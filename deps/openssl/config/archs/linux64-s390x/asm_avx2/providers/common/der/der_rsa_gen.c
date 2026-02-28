@@ -13,6 +13,7 @@
 #include "prov/der_rsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * hashAlgs OBJECT IDENTIFIER ::= { nistAlgorithms 2 }
@@ -172,3 +173,4 @@ const unsigned char ossl_der_oid_mdc2WithRSASignature[DER_OID_SZ_mdc2WithRSASign
     DER_OID_V_mdc2WithRSASignature
 };
 
+/* clang-format on */

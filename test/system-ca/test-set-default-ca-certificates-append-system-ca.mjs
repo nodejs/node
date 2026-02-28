@@ -6,7 +6,7 @@
 
 import * as common from '../common/index.mjs';
 import assert from 'node:assert/strict';
-import fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import { once } from 'events';
 
 if (!common.hasCrypto) {

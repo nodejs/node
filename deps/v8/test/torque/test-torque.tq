@@ -1346,6 +1346,14 @@ macro TestCreateLazyNodeFromTorque(): void {
   const result4 = TestRunLazyTwice(lazy4);
   check(result4 == 30);
 }
+
+@export
+macro TestCellAccessors(implicit context: Context)(cell: Cell): void {
+  // Some usages to avoid complains about unused LoadCellValue and
+  // StoreCellValue macros in Torque when Wasm is not enabled.
+  if (TaggedIsSmi(cell.value)) return;
+  cell.value = SmiConstant(0);
+}
 }
 
 builtin ThrowAsBuiltin(implicit context: Context)(str: String): never {

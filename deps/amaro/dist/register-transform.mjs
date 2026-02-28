@@ -6,7 +6,7 @@ const hasSourceMaps =
 	env.NODE_OPTIONS?.includes("--enable-source-maps");
 
 if (!hasSourceMaps) {
-	emitWarning("Source maps are disabled, stack traces will not accurate");
+	emitWarning("Source maps are disabled, stack traces will not be accurate");
 }
 
 register("./transform-loader.js", import.meta.url);

@@ -9,7 +9,7 @@ const nodeUtil = require('node:util')
 class FormData {
   #state = []
 
-  constructor (form) {
+  constructor (form = undefined) {
     webidl.util.markAsUncloneable(this)
 
     if (form !== undefined) {

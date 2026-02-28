@@ -5,6 +5,9 @@
 #ifndef V8_BASE_DISCRIMINATED_UNION_H_
 #define V8_BASE_DISCRIMINATED_UNION_H_
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 

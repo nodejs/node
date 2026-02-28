@@ -45,6 +45,9 @@ int PrintHelp(char** argv) {
       << "    Show distribution of function sizes in the given module.\n"
       << "    An optional bucket size and bucket count can be passed.\n"
 
+      << " --type-stats\n"
+      << "    Show information about types defined in the module\n"
+
       << " --single-wat FUNC_INDEX\n"
       << "     Print function FUNC_INDEX in .wat format\n"
 
@@ -951,6 +954,91 @@ class FormatConverter {
     stats.WriteTo(out_);
   }
 
+  void TypeStats() {
+    DCHECK_EQ(status_, kModuleReady);
+    auto Count = [](uint32_t value, std::vector<uint32_t>& list) {
+      if (list.size() <= value) list.resize(value + 1, 0u);
+      list[value]++;
+    };
+    uint32_t num_types = static_cast<uint32_t>(module()->types.size());
+    uint32_t num_structs = 0;
+    uint32_t num_arrays = 0;
+    uint32_t num_funcs = 0;
+    uint32_t num_conts = 0;
+    uint32_t num_has_descriptor = 0;
+    uint32_t num_is_descriptor = 0;
+    uint32_t num_with_super = 0;
+    uint32_t num_final = 0;
+    uint32_t num_shared = 0;
+    std::vector<uint32_t> field_counts;
+    std::vector<uint32_t> params;
+    std::vector<uint32_t> results;
+    std::vector<uint32_t> depths;
+    for (const TypeDefinition& type : module()->types) {
+      if (type.supertype.valid()) num_with_super++;
+      if (type.has_descriptor()) num_has_descriptor++;
+      if (type.is_descriptor()) num_is_descriptor++;
+      if (type.is_final) num_final++;
+      if (type.is_shared) num_shared++;
+      Count(type.subtyping_depth, depths);
+      switch (type.kind) {
+        case TypeDefinition::kFunction:
+          num_funcs++;
+          Count(static_cast<uint32_t>(type.function_sig->parameter_count()),
+                params);
+          Count(static_cast<uint32_t>(type.function_sig->return_count()),
+                results);
+          break;
+        case TypeDefinition::kStruct:
+          num_structs++;
+          Count(type.struct_type->field_count(), field_counts);
+          break;
+        case TypeDefinition::kArray:
+          num_arrays++;
+          break;
+        case TypeDefinition::kCont:
+          num_conts++;
+          break;
+      }
+    }
+    DCHECK_EQ(num_types, num_structs + num_arrays + num_funcs + num_conts);
+    out_ << num_types << " types\n";
+    out_ << num_final << " types are final\n";
+    out_ << num_shared << " types are shared\n";
+    out_ << num_has_descriptor << " types have a descriptor\n";
+    out_ << num_is_descriptor << " types are descriptors\n";
+
+    out_ << "\n" << num_with_super << " types have a supertype:\n";
+    for (size_t i = 1; i < depths.size(); i++) {
+      uint32_t count = depths[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " types have subtyping depth " << i << "\n";
+    }
+
+    out_ << "\n" << num_arrays << " array types\n";
+    out_ << "\n" << num_conts << " continuation types\n";
+
+    out_ << "\n" << num_structs << " struct types, field count distribution:\n";
+    for (size_t i = 0; i < field_counts.size(); i++) {
+      uint32_t count = field_counts[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " structs have " << i << " fields\n";
+    }
+
+    out_ << "\n" << num_funcs << " function types, signature distribution:\n";
+    for (size_t i = 0; i < params.size(); i++) {
+      uint32_t count = params[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " functions have " << i << " parameters\n";
+    }
+    out_ << "\n";
+    for (size_t i = 0; i < results.size(); i++) {
+      uint32_t count = results[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " functions have " << i << " results\n";
+    }
+  }
+
   void DisassembleFunction(uint32_t func_index, OutputMode mode) {
     DCHECK_EQ(status_, kModuleReady);
     MultiLineStringBuilder sb;
@@ -1238,6 +1326,7 @@ enum class Action {
   kSectionStats,
   kInstructionStats,
   kFunctionStats,
+  kTypeStats,
   kFullWat,
   kFullHexdump,
   kMjsunit,
@@ -1300,6 +1389,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
           return PrintHelp(argv);
         }
       }
+    } else if (strcmp(argv[i], "--type-stats") == 0) {
+      options->action = Action::kTypeStats;
     } else if (strcmp(argv[i], "--full-wat") == 0) {
       options->action = Action::kFullWat;
     } else if (strcmp(argv[i], "--full-hexdump") == 0) {
@@ -1406,6 +1497,9 @@ int main(int argc, char** argv) {
       break;
     case Action::kFunctionStats:
       fc.FunctionStats(options.fct_bucket_size, options.fct_bucket_count);
+      break;
+    case Action::kTypeStats:
+      fc.TypeStats();
       break;
     case Action::kSingleWat:
       fc.DisassembleFunction(options.func_index, OutputMode::kWat);

@@ -17,7 +17,7 @@ p.on('close', common.mustCall((code, signal) => {
 
 p.stdout.read();
 
-const spawnWithReadable = () => {
+const spawnWithReadable = common.mustCall(() => {
   const buffer = [];
   const p = cp.spawn('echo', ['123'], opts);
   p.on('close', common.mustCall((code, signal) => {
@@ -30,4 +30,4 @@ const spawnWithReadable = () => {
     while ((buf = p.stdout.read()) !== null)
       buffer.push(buf);
   });
-};
+});

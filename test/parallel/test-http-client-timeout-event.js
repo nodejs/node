@@ -33,7 +33,7 @@ const options = {
 
 const server = http.createServer();
 
-server.listen(0, options.host, function() {
+server.listen(0, options.host, common.mustCall(function() {
   options.port = this.address().port;
   const req = http.request(options);
   req.on('error', function() {
@@ -52,4 +52,4 @@ server.listen(0, options.host, function() {
       }, 100);
     });
   }));
-});
+}));

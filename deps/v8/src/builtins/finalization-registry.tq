@@ -17,6 +17,7 @@ extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeHeldWeakly(JSAny):
 
 transitioning macro PushCell(
     finalizationRegistry: JSFinalizationRegistry, cell: WeakCell): void {
+  dcheck(finalizationRegistry == cell.finalization_registry);
   cell.next = finalizationRegistry.active_cells;
   typeswitch (finalizationRegistry.active_cells) {
     case (Undefined): {
@@ -101,15 +102,12 @@ transitioning javascript builtin FinalizationRegistryRegister(
 
   // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
   //    heldValue, [[UnregisterToken]]: unregisterToken }.
-  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
-  // handling is only implemented in the old space 2) they're supposedly
-  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
-  const cell = new (Pretenured) WeakCell{
+  const cell = new WeakCell{
     map: GetWeakCellMap(),
     finalization_registry: finalizationRegistry,
+    holdings: heldValue,
     target: target,
     unregister_token: unregisterToken,
-    holdings: heldValue,
     prev: Undefined,
     next: Undefined,
     key_list_prev: Undefined,

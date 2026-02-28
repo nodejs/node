@@ -66,7 +66,7 @@ class GrowableStacksReducer : public Next {
           call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
       __ Call(
           builtin, {param_slots_size}, ts_stub_call_descriptor,
-          OpEffects().CanReadMemory().RequiredWhenUnused().CanCreateIdentity());
+          OpEffects().CanReadMemory().RequiredWhenUnused().CanThrowOrTrap());
     }
 
     return V<None>::Invalid();

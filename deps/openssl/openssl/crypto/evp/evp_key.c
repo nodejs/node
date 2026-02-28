@@ -15,7 +15,7 @@
 #include <openssl/ui.h>
 
 #ifndef BUFSIZ
-# define BUFSIZ 256
+#define BUFSIZ 256
 #endif
 
 /* should be init to zeros. */
@@ -50,7 +50,7 @@ int EVP_read_pw_string(char *buf, int len, const char *prompt, int verify)
 }
 
 int EVP_read_pw_string_min(char *buf, int min, int len, const char *prompt,
-                           int verify)
+    int verify)
 {
     int ret = -1;
     char buff[BUFSIZ];
@@ -62,23 +62,25 @@ int EVP_read_pw_string_min(char *buf, int min, int len, const char *prompt,
     if (ui == NULL)
         return ret;
     if (UI_add_input_string(ui, prompt, 0, buf, min,
-                            (len >= BUFSIZ) ? BUFSIZ - 1 : len) < 0
+            (len >= BUFSIZ) ? BUFSIZ - 1 : len)
+            < 0
         || (verify
             && UI_add_verify_string(ui, prompt, 0, buff, min,
-                                    (len >= BUFSIZ) ? BUFSIZ - 1 : len,
-                                    buf) < 0))
+                   (len >= BUFSIZ) ? BUFSIZ - 1 : len,
+                   buf)
+                < 0))
         goto end;
     ret = UI_process(ui);
     OPENSSL_cleanse(buff, BUFSIZ);
- end:
+end:
     UI_free(ui);
     return ret;
 }
 
 int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
-                   const unsigned char *salt, const unsigned char *data,
-                   int datal, int count, unsigned char *key,
-                   unsigned char *iv)
+    const unsigned char *salt, const unsigned char *data,
+    int datal, int count, unsigned char *key,
+    unsigned char *iv)
 {
     EVP_MD_CTX *c;
     unsigned char md_buf[EVP_MAX_MD_SIZE];
@@ -147,7 +149,7 @@ int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
             break;
     }
     rv = EVP_CIPHER_get_key_length(type);
- err:
+err:
     EVP_MD_CTX_free(c);
     OPENSSL_cleanse(md_buf, sizeof(md_buf));
     return rv;

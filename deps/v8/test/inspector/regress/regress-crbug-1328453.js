@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --inspector-live-edit
+
 const {contextGroup, Protocol} = InspectorTest.start(
   'Don\'t crash when live editing an unused inner function [crbug.com/1328453]');
 

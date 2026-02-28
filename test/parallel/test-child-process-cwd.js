@@ -32,7 +32,7 @@ const { spawn } = require('child_process');
 // - whether the child pid is undefined or number,
 // - whether the exit code equals expectCode,
 // - optionally whether the trimmed stdout result matches expectData
-function testCwd(options, expectPidType, expectCode = 0, expectData) {
+function testCwd(options, expectPidType, expectCode = 0, expectData, shouldCallExit = true) {
   const child = spawn(...common.pwdCommand, options);
 
   assert.strictEqual(typeof child.pid, expectPidType);
@@ -47,9 +47,9 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 
   // Can't assert callback, as stayed in to API:
   // _The 'exit' event may or may not fire after an error has occurred._
-  child.on('exit', function(code, signal) {
+  child.on('exit', shouldCallExit ? common.mustCall((code) => {
     assert.strictEqual(code, expectCode);
-  });
+  }) : common.mustNotCall());
 
   child.on('close', common.mustCall(function() {
     if (expectData) {
@@ -68,7 +68,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
 {
-  testCwd({ cwd: 'does-not-exist' }, 'undefined', -1)
+  testCwd({ cwd: 'does-not-exist' }, 'undefined', -1, undefined, false)
     .on('error', common.mustCall(function(e) {
       assert.strictEqual(e.code, 'ENOENT');
     }));

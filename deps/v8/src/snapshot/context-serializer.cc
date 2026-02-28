@@ -90,15 +90,6 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
   reference_map()->AddAttachedReference(context_->global_proxy());
   reference_map()->AddAttachedReference(context_->global_proxy()->map());
 
-  // The bootstrap snapshot has a code-stub context. When serializing the
-  // context snapshot, it is chained into the weak context list on the isolate
-  // and it's next context pointer may point to the code-stub context.  Clear
-  // it before serializing, it will get re-added to the context list
-  // explicitly when it's loaded.
-  // TODO(v8:10416): These mutations should not observably affect the running
-  // context.
-  context_->SetNoCell(Context::NEXT_CONTEXT_LINK,
-                      ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!IsUndefined(context_->global_object()));
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
@@ -273,12 +264,6 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
          IsScopeInfo(o) || IsAccessorInfo(o) || IsTemplateInfo(o) ||
          IsClassPositions(o) ||
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
-}
-
-bool ContextSerializer::ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o) {
-  // v8_flags.shared_string_table may be true during deserialization, so put
-  // internalized strings into the shared object snapshot.
-  return IsInternalizedString(o);
 }
 
 namespace {

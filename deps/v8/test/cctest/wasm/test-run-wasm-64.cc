@@ -12,7 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -1356,7 +1356,7 @@ WASM_EXEC_TEST(I64Global) {
                                WASM_I64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
            WASM_ZERO});
 
-  r.builder().WriteMemory<int64_t>(global, 0xFFFFFFFFFFFFFFFFLL);
+  *global = 0xFFFFFFFFFFFFFFFFLL;
   for (int i = 9; i < 444444; i += 111111) {
     int64_t expected = *global & i;
     r.Call(i);

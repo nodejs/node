@@ -174,8 +174,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
   // pretenured. A too small capacity means frequent GCs. Objects thus don't get
   // a chance to die before being promoted, which may lead to wrong pretenuring
   // decisions.
-  static constexpr size_t kDefaultMinNewSpaceCapacityForPretenuring =
-      8192 * KB * Heap::kPointerMultiplier;
+  static constexpr size_t kDefaultMinNewSpaceCapacityForPretenuring = 8 * MB;
 
   DCHECK(heap_->tracer()->IsInAtomicPause());
 

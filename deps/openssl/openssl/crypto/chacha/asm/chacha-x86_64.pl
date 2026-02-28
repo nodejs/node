@@ -71,14 +71,15 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25);
+		=~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0; # 3.1->3.01, 3.10->3.10
+	$avx = ($ver >= 2.19) + ($ver >= 2.22) + ($ver >= 2.25);
 }
 
 if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	   `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-	$avx = ($1>=2.09) + ($1>=2.10) + ($1>=2.12);
-	$avx += 1 if ($1==2.11 && $2>=8);
+	   `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)(?:\.([0-9]+))?/) {
+	my $ver = $1 + $2/100.0 + $3/10000.0; # 3.1.0->3.01, 3.10.1->3.1001
+	$avx = ($ver >= 2.09) + ($ver >= 2.10) + ($ver >= 2.1108);
 }
 
 if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&

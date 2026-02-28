@@ -1,30 +1,17 @@
 'use strict';
 
 require('../common');
-const ArrayStream = require('../common/arraystream');
-
 const assert = require('node:assert');
 const fs = require('node:fs');
-const repl = require('node:repl');
 const path = require('node:path');
+const { startNewREPLServer } = require('../common/repl');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 // Test for saving a REPL session in editor mode
 
-const input = new ArrayStream();
-
-const replServer = repl.start({
-  prompt: '',
-  input,
-  output: new ArrayStream(),
-  allowBlockingCompletions: true,
-  terminal: true,
-});
-
-// Some errors are passed to the domain, but do not callback
-replServer._domain.on('error', assert.ifError);
+const { replServer, input } = startNewREPLServer();
 
 input.run(['.editor']);
 

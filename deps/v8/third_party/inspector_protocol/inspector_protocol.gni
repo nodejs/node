@@ -47,6 +47,7 @@ template("inspector_protocol_generate") {
       "$inspector_protocol_dir/templates/TypeBuilder_cpp.template",
       "$inspector_protocol_dir/templates/TypeBuilder_h.template",
     ]
+
     if (defined(invoker.inputs)) {
       inputs += invoker.inputs
     }
@@ -61,6 +62,12 @@ template("inspector_protocol_generate") {
       ]
     }
 
+    outputs = get_path_info(rebase_path(invoker.outputs, ".", invoker.out_dir),
+                            "abspath")
+
+    _stampfile = outputs[0]
+    depfile = "${invoker.out_dir}/${target_name}.d"
+
     args = [
       "--jinja_dir",
       rebase_path(jinja_dir, root_build_dir),
@@ -70,6 +77,10 @@ template("inspector_protocol_generate") {
       rebase_path(invoker.config_file, root_build_dir),
       "--inspector_protocol_dir",
       "$inspector_protocol_dir",
+      "--depfile",
+      rebase_path(depfile, root_build_dir),
+      "--stamp",
+      rebase_path(_stampfile, root_build_dir),
     ]
     if (use_embedder_types) {
       args += [
@@ -86,8 +97,55 @@ template("inspector_protocol_generate") {
       }
     }
 
-    outputs = get_path_info(rebase_path(invoker.outputs, ".", invoker.out_dir),
-                            "abspath")
+    forward_variables_from(invoker,
+                           [
+                             "visibility",
+                             "deps",
+                             "public_deps",
+                           ])
+  }
+}
+
+# This template concatenates multiple protocol files
+# into a single (JSON) file.
+#
+# Inputs
+#
+#   inputs  (required)
+#       Paths to .pdl or .json files with protocol definitions.
+#
+#   output_file  (required)
+#       Path to put the concatenated file in. It must be inside output or
+#       generated file directory.
+#
+#   inspector_protocol_dir (required)
+#       Path to the inspector_protocol directory.
+#
+template("inspector_protocol_concatenate") {
+  assert(defined(invoker.inputs))
+  assert(defined(invoker.output_file))
+  assert(defined(invoker.inspector_protocol_dir))
+  _inspector_protocol_dir = invoker.inspector_protocol_dir
+
+  action(target_name) {
+    script = "$_inspector_protocol_dir/concatenate_protocols.py"
+
+    inputs = invoker.inputs
+    outputs = []
+    depfile = "${invoker.output_file}_${target_name}.d"
+
+    args = [
+      "--depfile",
+      rebase_path(depfile, root_build_dir),
+      "--stamp",
+      rebase_path(invoker.output_file, root_build_dir),
+    ]
+
+    inputs += invoker.inputs
+    args += rebase_path(invoker.inputs, root_build_dir)
+
+    outputs += [ invoker.output_file ]
+    args += [ rebase_path(invoker.output_file, root_build_dir) ]
 
     forward_variables_from(invoker,
                            [

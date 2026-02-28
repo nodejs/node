@@ -31,6 +31,14 @@ function swap(array, p1, p2) {
 }
 
 /**
+ * Toggle a boolean flag with a probability.
+ */
+function toggle(flag, prob) {
+  assert(typeof flag == 'boolean');
+  return Boolean(choose(prob) ^ flag);
+}
+
+/**
  * Returns "count" elements, randomly selected from "highProbArray" and
  * "lowProbArray". Elements from highProbArray have a "factor" times
  * higher chance to be chosen. As a side effect, this swaps the chosen
@@ -123,6 +131,7 @@ module.exports = {
   sampleOfTwo: sampleOfTwo,
   shuffle: shuffle,
   single: single,
+  toggle: toggle,
   twoBucketSample: twoBucketSample,
   uniform: uniform,
 }

@@ -35,18 +35,18 @@ if (process.argv[2] === 'child') {
 
   // Verify that the default kill signal is SIGTERM.
   {
-    const child = spawn(undefined, (opts) => {
+    const child = spawn(undefined, common.mustCall((opts) => {
       assert.strictEqual(opts.killSignal, undefined);
-    });
+    }));
 
     assert.strictEqual(child.signal, 'SIGTERM');
   }
 
   // Verify that a string signal name is handled properly.
   {
-    const child = spawn('SIGKILL', (opts) => {
+    const child = spawn('SIGKILL', common.mustCall((opts) => {
       assert.strictEqual(opts.killSignal, SIGKILL);
-    });
+    }));
 
     assert.strictEqual(child.signal, 'SIGKILL');
   }
@@ -55,9 +55,9 @@ if (process.argv[2] === 'child') {
   {
     assert.strictEqual(typeof SIGKILL, 'number');
 
-    const child = spawn(SIGKILL, (opts) => {
+    const child = spawn(SIGKILL, common.mustCall((opts) => {
       assert.strictEqual(opts.killSignal, SIGKILL);
-    });
+    }));
 
     assert.strictEqual(child.signal, 'SIGKILL');
   }

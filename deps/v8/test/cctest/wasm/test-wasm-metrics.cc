@@ -17,9 +17,7 @@
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace {
 
@@ -222,7 +220,6 @@ class TestCompileResolver : public CompilationResultResolver {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate()); \
   v8::Context::Scope context_scope(context);                            \
   Isolate* i_isolate = CcTest::i_isolate();                             \
-  testing::SetupIsolateForWasmModule(i_isolate);                        \
   RunCompile_##name(&platform, i_isolate);
 
 #define COMPILE_TEST(name)                                                     \
@@ -326,12 +323,7 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_EQ(v8_flags.wasm_lazy_compilation,
            recorder->module_compiled_.back().lazy);
   CHECK_LT(0, recorder->module_compiled_.back().code_size_in_bytes);
-  // We currently cannot ensure that no code is attributed to Liftoff after the
-  // WasmModuleCompiled event has been emitted. We therefore only assume the
-  // liftoff_code_size() to be an upper limit for the reported size.
-  CHECK_GE(native_module->liftoff_code_size(),
-           recorder->module_compiled_.back().code_size_in_bytes);
-  CHECK_GE(native_module->generated_code_size(),
+  CHECK_EQ(native_module->generated_code_size(),
            recorder->module_compiled_.back().code_size_in_bytes);
   CHECK_LE(0, recorder->module_compiled_.back().wall_clock_duration_in_us);
 
@@ -343,6 +335,4 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_LE(0, recorder->module_instantiated_.back().wall_clock_duration_in_us);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

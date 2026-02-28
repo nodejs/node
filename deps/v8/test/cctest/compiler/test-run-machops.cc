@@ -7102,17 +7102,17 @@ TEST(RunChangeInt64ToFloat64) {
 
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;
-  Float64 output;
+  uint64_t output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      output.get_bits_address(), MachineRepresentation::kFloat64,
+      &output, MachineRepresentation::kFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, MachineType::Int64())));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
     input = i;
     CHECK_EQ(11, m.Call());
     Float64 expected = Float64::FromBits(input);
-    CHECK_EQ(expected.get_bits(), output.get_bits());
+    CHECK_EQ(expected.get_bits(), output);
   }
 }
 
@@ -7503,17 +7503,17 @@ TEST(RunRoundUint32ToFloat32) {
 
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
-  Float32 output;
+  uint32_t output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      output.get_bits_address(), MachineRepresentation::kFloat32,
+      &output, MachineRepresentation::kFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, MachineType::Int32())));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {
     input = i;
     CHECK_EQ(11, m.Call());
     Float32 expected = Float32::FromBits(input);
-    CHECK_EQ(expected.get_bits(), output.get_bits());
+    CHECK_EQ(expected.get_bits(), output);
   }
 }
 
@@ -7549,7 +7549,7 @@ TEST(RunComputedCodeObject) {
   Signature<LinkageLocation> loc(1, 0, ret);
   auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
-      kDefaultCodeEntrypointTag,                         // tag
+      kCodeEntrypointTagForTesting,                      // tag
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
       &loc,                                              // location_sig

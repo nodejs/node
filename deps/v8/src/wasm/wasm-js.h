@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "src/common/globals.h"
+#include "src/wasm/wasm-features.h"
 
 namespace v8 {
 class Value;
@@ -84,6 +85,11 @@ class WasmJs {
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
       Isolate* isolate, DirectHandle<NativeContext> context);
 
+  // Parse compile time imports from a given argument.
+  V8_EXPORT_PRIVATE static wasm::CompileTimeImports
+  CompileTimeImportsFromArgument(DirectHandle<Object> arg, Isolate*,
+                                 wasm::WasmEnabledFeatures);
+
  private:
   V8_EXPORT_PRIVATE static void InstallModule(
       Isolate* isolate, DirectHandle<JSObject> webassembly);
@@ -101,10 +107,6 @@ class WasmJs {
       DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static void InstallResizableBufferIntegration(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
-
-  V8_EXPORT_PRIVATE static bool InstallCustomDescriptors(
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
 };

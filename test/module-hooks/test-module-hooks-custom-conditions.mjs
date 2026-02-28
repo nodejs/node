@@ -1,5 +1,5 @@
 // This tests that custom conditions can be used in module resolution hooks.
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import { registerHooks } from 'node:module';
 import assert from 'node:assert';
 import { cjs, esm } from '../fixtures/es-modules/custom-condition/load.cjs';
@@ -12,11 +12,11 @@ assert.strictEqual((await esm('foo')).result, 'default');
 // allow a CJS to be resolved with that condition.
 {
   const hooks = registerHooks({
-    resolve(specifier, context, nextResolve) {
+    resolve: common.mustCall((specifier, context, nextResolve) => {
       assert(Array.isArray(context.conditions));
       context.conditions = ['foo', ...context.conditions];
       return nextResolve(specifier, context);
-    },
+    }, 2),
   });
   assert.strictEqual(cjs('foo/second').result, 'foo');
   assert.strictEqual((await esm('foo/second')).result, 'foo');
@@ -27,11 +27,11 @@ assert.strictEqual((await esm('foo')).result, 'default');
 // allow a ESM to be resolved with that condition.
 {
   const hooks = registerHooks({
-    resolve(specifier, context, nextResolve) {
+    resolve: common.mustCall((specifier, context, nextResolve) => {
       assert(Array.isArray(context.conditions));
       context.conditions = ['foo-esm', ...context.conditions];
       return nextResolve(specifier, context);
-    },
+    }, 2),
   });
   assert.strictEqual(cjs('foo/third').result, 'foo-esm');
   assert.strictEqual((await esm('foo/third')).result, 'foo-esm');
@@ -41,11 +41,11 @@ assert.strictEqual((await esm('foo')).result, 'default');
 // Duplicating the 'foo' condition in the resolve hook should not change the result.
 {
   const hooks = registerHooks({
-    resolve(specifier, context, nextResolve) {
+    resolve: common.mustCall((specifier, context, nextResolve) => {
       assert(Array.isArray(context.conditions));
       context.conditions = ['foo', ...context.conditions, 'foo'];
       return nextResolve(specifier, context);
-    },
+    }, 2),
   });
   assert.strictEqual(cjs('foo/fourth').result, 'foo');
   assert.strictEqual((await esm('foo/fourth')).result, 'foo');

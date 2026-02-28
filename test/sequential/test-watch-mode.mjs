@@ -54,14 +54,23 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
           stdout = [];
           stderr = '';
         } else if (data.startsWith('Failed running')) {
-          if (shouldFail) {
-            future.resolve({ stderr, stdout });
+          const settle = () => {
+            if (shouldFail) {
+              future.resolve({ stderr, stdout });
+            } else {
+              future.reject({ stderr, stdout });
+            }
+            future = Promise.withResolvers();
+            stdout = [];
+            stderr = '';
+          };
+          // If stderr is empty, wait for it to receive data before settling.
+          // This handles the race condition where stdout arrives before stderr.
+          if (stderr === '') {
+            child.stderr.once('data', settle);
           } else {
-            future.reject({ stderr, stdout });
+            settle();
           }
-          future = Promise.withResolvers();
-          stdout = [];
-          stderr = '';
         }
       }
     });
@@ -86,7 +95,7 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
       return future.promise.finally(() => {
         clearTimeout(timer);
       });
-    }
+    },
   };
 }
 
@@ -98,7 +107,7 @@ async function runWriteSucceed({
   completed = 'Completed running',
   restarts = 2,
   options = {},
-  shouldFail = false
+  shouldFail = false,
 }) {
   args.unshift('--no-warnings');
   if (watchFlag !== null) args.unshift(watchFlag);
@@ -165,7 +174,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
-      timeout: 10000
+      timeout: 10000,
     } });
 
     assert.strictEqual(stderr, '');
@@ -274,7 +283,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
       file,
       watchedFile: file,
       completed: 'Failed running',
-      shouldFail: true
+      shouldFail: true,
     });
 
     assert.match(stderr, /Error: fails\r?\n/);
@@ -307,7 +316,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const dir = tmpdir.resolve('subdir2');
     mkdirSync(dir);
@@ -319,7 +328,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
       watchedFile,
       args,
       completed: 'Failed running',
-      shouldFail: true
+      shouldFail: true,
     });
 
     assert.match(stderr, /Error: Cannot find module/g);
@@ -331,7 +340,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path with equals', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const dir = tmpdir.resolve('subdir3');
     mkdirSync(dir);
@@ -343,7 +352,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
       watchedFile,
       args,
       completed: 'Failed running',
-      shouldFail: true
+      shouldFail: true,
     });
 
     assert.match(stderr, /Error: Cannot find module/g);
@@ -481,21 +490,21 @@ console.log(values.random);
 
   // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
   it('should not watch when running an missing file', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const nonExistingfile = tmpdir.resolve(`${tmpFiles++}.js`);
     await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
   });
 
   it('should not watch when running an missing mjs file', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const nonExistingfile = tmpdir.resolve(`${tmpFiles++}.mjs`);
     await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
   });
 
   it('should watch changes to previously missing dependency', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const dependency = tmpdir.resolve(`${tmpFiles++}.js`);
     const relativeDependencyPath = `./${path.basename(dependency)}`;
@@ -505,7 +514,7 @@ console.log(values.random);
   });
 
   it('should watch changes to previously missing ESM dependency', {
-    skip: !supportsRecursive
+    skip: !supportsRecursive,
   }, async () => {
     const relativeDependencyPath = `./${tmpFiles++}.mjs`;
     const dependency = tmpdir.resolve(relativeDependencyPath);
@@ -559,8 +568,8 @@ console.log(values.random);
     const args = [`--watch-path=${dir}`, '--require', './some.js', file];
     const { stdout, stderr } = await runWriteSucceed({
       file, watchedFile, args, options: {
-        cwd: projectDir
-      }
+        cwd: projectDir,
+      },
     });
 
     assert.strictEqual(stderr, '');
@@ -591,8 +600,8 @@ console.log(values.random);
     const args = [`--watch-path=${dir}`, '--require=./some.js', file];
     const { stdout, stderr } = await runWriteSucceed({
       file, watchedFile, args, options: {
-        cwd: projectDir
-      }
+        cwd: projectDir,
+      },
     });
 
     assert.strictEqual(stderr, '');
@@ -623,8 +632,8 @@ console.log(values.random);
     const args = ['--watch-path', `${dir}`, '--require', './some.js', file];
     const { stdout, stderr } = await runWriteSucceed({
       file, watchedFile, args, options: {
-        cwd: projectDir
-      }
+        cwd: projectDir,
+      },
     });
 
     assert.strictEqual(stderr, '');
@@ -655,8 +664,8 @@ console.log(values.random);
     const args = ['--watch-path', `${dir}`, '--require=./some.js', file];
     const { stdout, stderr } = await runWriteSucceed({
       file, watchedFile, args, options: {
-        cwd: projectDir
-      }
+        cwd: projectDir,
+      },
     });
 
     assert.strictEqual(stderr, '');
@@ -671,7 +680,7 @@ console.log(values.random);
     ]);
   });
 
-  it('should run when `--watch --inspect`', async () => {
+  it('should run when `--watch --inspect`', { skip: !process.features.inspector }, async () => {
     const file = createTmpFile();
     const args = ['--watch', '--inspect', file];
     const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args });
@@ -697,7 +706,7 @@ console.log(values.random);
     const file = createTmpFile("console.log('running');", '.js', projectDir);
     const args = ['--watch', '-r', './some.js', file];
     const { stdout, stderr } = await runWriteSucceed({
-      file, watchedFile: file, watchFlag: null, args, options: { cwd: projectDir }
+      file, watchedFile: file, watchFlag: null, args, options: { cwd: projectDir },
     });
 
     assert.strictEqual(stderr, '');
@@ -790,5 +799,127 @@ process.on('message', (message) => {
       'Received: second message',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
+  });
+
+  it('should watch changes to a file from config file', async () => {
+    const file = createTmpFile();
+    const configFile = createTmpFile(JSON.stringify({ watch: { 'watch': true } }), '.json');
+    const { stderr, stdout } = await runWriteSucceed({
+      file, watchedFile: file, args: ['--experimental-config-file', configFile, file], options: {
+        timeout: 10000,
+      },
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+
+  it('should watch changes to a file with watch-path from config file', {
+    skip: !supportsRecursive,
+  }, async () => {
+    const dir = tmpdir.resolve('subdir4');
+    mkdirSync(dir);
+    const file = createTmpFile();
+    const watchedFile = createTmpFile('', '.js', dir);
+    const configFile = createTmpFile(JSON.stringify({ watch: { 'watch-path': [dir] } }), '.json', dir);
+
+    const args = ['--experimental-config-file', configFile, file];
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+    assert.strictEqual(stderr, '');
+  });
+
+  it('should watch changes to a file from default config file', async () => {
+    const dir = tmpdir.resolve('subdir5');
+    mkdirSync(dir);
+
+    const file = createTmpFile('console.log("running");', '.js', dir);
+    writeFileSync(path.join(dir, 'node.config.json'), JSON.stringify({ watch: { 'watch': true } }));
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: file,
+      args: ['--experimental-default-config-file', file],
+      options: {
+        timeout: 10000,
+        cwd: dir,
+      },
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+
+  it('should support multiple --env-file flags', async () => {
+    const envKey = `TEST_ENV_A_${Date.now()}`;
+    const envKey2 = `TEST_ENV_B_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV_A: ' + process.env.${envKey} + '\\n' + 'ENV_B: ' + process.env.${envKey2});`);
+    const envFileA = createTmpFile(`${envKey}=123`, '.env');
+    const envFileB = createTmpFile(`${envKey2}=456`, '.env');
+    const { done, restart } = runInBackground({
+      args: ['--watch', `--env-file=${envFileA}`, `--env-file=${envFileB}`, jsFile],
+    });
+
+    try {
+      const { stderr, stdout } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        'ENV_A: 123',
+        'ENV_B: 456',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
+
+  it('should respect the order for --env-file and --env-file-if-exists', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+
+    const envFile = createTmpFile(`${envKey}=base`, '.env');
+    const envFileIfExists = createTmpFile(`${envKey}=override`, '.env');
+
+    const { done, restart } = runInBackground({
+      args: [
+        '--watch',
+        `--env-file=${envFile}`,
+        `--env-file-if-exists=${envFileIfExists}`,
+        jsFile,
+      ],
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        'ENV: override',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
   });
 });

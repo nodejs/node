@@ -17,7 +17,7 @@ namespace internal {
 DirectHandle<Tuple2> WasmInterpreterObject::New(
     DirectHandle<WasmInstanceObject> instance) {
   DCHECK(v8_flags.wasm_jitless);
-  Isolate* isolate = instance->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
   DirectHandle<WasmTrustedInstanceData> trusted_data(
       instance->trusted_data(isolate), isolate);
@@ -78,7 +78,7 @@ WasmInterpreterObject::GetInterpretedStack(Tagged<Tuple2> interpreter_object,
                                            Address frame_pointer) {
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
-  return Cast<Managed<wasm::InterpreterHandle>>(handle_obj)
+  return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
       ->raw()
       ->GetInterpretedStack(frame_pointer);
 }
@@ -88,7 +88,7 @@ int WasmInterpreterObject::GetFunctionIndex(Tagged<Tuple2> interpreter_object,
                                             Address frame_pointer, int index) {
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
-  return Cast<Managed<wasm::InterpreterHandle>>(handle_obj)
+  return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
       ->raw()
       ->GetFunctionIndex(frame_pointer, index);
 }

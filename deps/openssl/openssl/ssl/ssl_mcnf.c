@@ -42,7 +42,7 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
     if (!conf_ssl_name_find(name, &idx)) {
         if (!system)
             ERR_raise_data(ERR_LIB_SSL, SSL_R_INVALID_CONFIGURATION_NAME,
-                           "name=%s", name);
+                "name=%s", name);
         goto err;
     }
     cmds = conf_ssl_get(idx, &name, &cmd_count);
@@ -85,7 +85,7 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
     }
     if (!SSL_CONF_CTX_finish(cctx))
         ++err;
- err:
+err:
     OSSL_LIB_CTX_set0_default(prev_libctx);
     SSL_CONF_CTX_free(cctx);
     return err == 0 || (system && !conf_diagnostics);

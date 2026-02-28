@@ -1,10 +1,10 @@
 'use strict'
 
+const { collectASequenceOfCodePointsFast } = require('../infra')
 const { maxNameValuePairSize, maxAttributeValueSize } = require('./constants')
 const { isCTLExcludingHtab } = require('./util')
-const { collectASequenceOfCodePointsFast } = require('../fetch/data-url')
 const assert = require('node:assert')
-const { unescape } = require('node:querystring')
+const { unescape: qsUnescape } = require('node:querystring')
 
 /**
  * @description Parses the field-value attributes of a set-cookie header string.
@@ -82,7 +82,7 @@ function parseSetCookie (header) {
   // store arbitrary data in a cookie-value SHOULD encode that data, for
   // example, using Base64 [RFC4648].
   return {
-    name, value: unescape(value), ...parseUnparsedAttributes(unparsedAttributes)
+    name, value: qsUnescape(value), ...parseUnparsedAttributes(unparsedAttributes)
   }
 }
 

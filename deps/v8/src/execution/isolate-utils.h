@@ -18,16 +18,6 @@ class HeapObjectLayout;
 // returns nullptr.
 V8_INLINE PtrComprCageBase GetPtrComprCageBase(Tagged<HeapObject> object);
 
-V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object);
-
-V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object);
-
-// Support `*this` for HeapObjectLayout subclasses.
-// TODO(leszeks): Change the NEVER_READ_ONLY_SPACE_IMPL macro to pass `this`
-// instead of `*this` and use `const HeapObjectLayout*` here.
-V8_INLINE Heap* GetHeapFromWritableObject(const HeapObjectLayout& object);
-V8_INLINE Isolate* GetIsolateFromWritableObject(const HeapObjectLayout& object);
-
 // Returns true if it succeeded to obtain isolate from given object.
 // If it fails then the object is definitely a read-only object but it may also
 // succeed for read only objects if pointer compression is enabled.

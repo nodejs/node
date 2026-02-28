@@ -29,7 +29,8 @@ bool IsCompatibleReceiver(Isolate* isolate, Tagged<FunctionTemplateInfo> info,
   Tagged<Object> recv_type = info->signature();
   // No signature, so function can be called with any receiver.
   if (!IsFunctionTemplateInfo(recv_type)) return true;
-  // A Proxy cannot have been created from the signature template.
+  // A Proxy or Wasm object cannot have been created from the signature
+  // template.
   if (!IsJSObject(receiver)) return false;
 
   Tagged<JSObject> js_obj_receiver = Cast<JSObject>(receiver);
@@ -80,7 +81,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     js_receiver = indirect_handle(Cast<JSReceiver>(receiver), isolate);
 
     if (!fun_data->accept_any_receiver() && IsAccessCheckNeeded(*js_receiver)) {
-      // Proxies never need access checks.
+      // Proxies and Wasm objects never need access checks.
       DCHECK(IsJSObject(*js_receiver));
       DirectHandle<JSObject> js_object = Cast<JSObject>(js_receiver);
       if (!isolate->MayAccess(isolate->native_context(), js_object)) {

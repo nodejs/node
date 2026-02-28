@@ -108,11 +108,6 @@ class V8_EXPORT Message {
  public:
   Local<String> Get() const;
 
-  /**
-   * Return the isolate to which the Message belongs.
-   */
-  Isolate* GetIsolate() const;
-
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSource(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(

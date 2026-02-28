@@ -19,6 +19,12 @@ function run_test(algorithmNames) {
 
     var allTestVectors = [ // Parameters that should work for importKey / exportKey
         {name: "Ed25519", privateUsages: ["sign"], publicUsages: ["verify"]},
+        {name: "ML-DSA-44", privateUsages: ["sign"], publicUsages: ["verify"]},
+        {name: "ML-DSA-65", privateUsages: ["sign"], publicUsages: ["verify"]},
+        {name: "ML-DSA-87", privateUsages: ["sign"], publicUsages: ["verify"]},
+        {name: "ML-KEM-512", privateUsages: ["decapsulateKey", "decapsulateBits"], publicUsages: ["encapsulateKey", "encapsulateBits"]},
+        {name: "ML-KEM-768", privateUsages: ["decapsulateKey", "decapsulateBits"], publicUsages: ["encapsulateKey", "encapsulateBits"]},
+        {name: "ML-KEM-1024", privateUsages: ["decapsulateKey", "decapsulateBits"], publicUsages: ["encapsulateKey", "encapsulateBits"]},
         {name: "Ed448", privateUsages: ["sign"], publicUsages: ["verify"]},
         {name: "ECDSA", privateUsages: ["sign"], publicUsages: ["verify"]},
         {name: "X25519",  privateUsages: ["deriveKey", "deriveBits"], publicUsages: []},
@@ -43,7 +49,7 @@ function run_test(algorithmNames) {
 
         var jwk_label = "";
         if (format === "jwk")
-            jwk_label = data.d === undefined ? " (public) " : "(private)";
+            jwk_label = isPublicKey(data) ? " (public) " : "(private)";
 
         var result = "(" +
                         objectToString(format) + jwk_label + ", " +
@@ -101,18 +107,22 @@ function run_test(algorithmNames) {
     }
 
     function validUsages(usages, format, data) {
-        if (format === 'spki' || format === 'raw') return usages.publicUsages
-        if (format === 'pkcs8') return usages.privateUsages
+        if (format === 'spki' || format === 'raw' || format === 'raw-public') return usages.publicUsages
+        if (format === 'pkcs8' || format === 'raw-private' || format === 'raw-seed') return usages.privateUsages
         if (format === 'jwk') {
             if (data === undefined)
                 return [];
-            return data.d === undefined ? usages.publicUsages : usages.privateUsages;
+            return isPublicKey(data) ? usages.publicUsages : usages.privateUsages;
         }
         return [];
     }
 
+    function isPublicKey(data) {
+        return data.d === undefined && data.priv === undefined;
+    }
+
     function isPrivateKey(data) {
-        return data.d !== undefined;
+        return !isPublicKey(data);
     }
 
 // Now test for properly handling errors

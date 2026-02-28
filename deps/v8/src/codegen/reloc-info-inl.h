@@ -63,6 +63,22 @@ RelocIteratorBase<RelocInfoT>::RelocIteratorBase(RelocInfoT reloc_info,
   next();
 }
 
+Address RelocInfo::target_address_address_for_gc() {
+  DCHECK(IsGCRelocMode(rmode_));
+  if (rmode_ == JS_DISPATCH_HANDLE) {
+    return pc_;
+  }
+  return target_address_address();
+}
+
+uint32_t RelocInfo::target_address_size_for_gc() {
+  DCHECK(IsGCRelocMode(rmode_));
+  if (rmode_ == JS_DISPATCH_HANDLE) {
+    return kJSDispatchHandleSize;
+  }
+  return target_address_size();
+}
+
 }  // namespace internal
 }  // namespace v8
 

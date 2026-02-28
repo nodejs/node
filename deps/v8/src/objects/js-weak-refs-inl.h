@@ -21,7 +21,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry)
 
@@ -71,7 +70,8 @@ template <typename GCNotifyUpdatedSlotCallback>
 bool JSFinalizationRegistry::RemoveUnregisterToken(
     Tagged<HeapObject> unregister_token, Isolate* isolate,
     RemoveUnregisterTokenMode removal_mode,
-    GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
+    GCNotifyUpdatedSlotCallback gc_notify_updated_slot,
+    WriteBarrierMode write_barrier_mode) {
   // This method is called from both FinalizationRegistry#unregister and for
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
@@ -104,7 +104,6 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // identity hashes, and identity hashes may collide.
   while (!IsUndefined(value, isolate)) {
     Tagged<WeakCell> weak_cell = Cast<WeakCell>(value);
-    DCHECK(!HeapLayout::InYoungGeneration(weak_cell));
     value = weak_cell->key_list_next();
     if (weak_cell->unregister_token() == unregister_token) {
       // weak_cell has the same unregister token; remove it from the key list.
@@ -117,27 +116,24 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
           break;
       }
       // Clear unregister token-related fields.
-      weak_cell->set_unregister_token(undefined);
-      weak_cell->set_key_list_prev(undefined);
-      weak_cell->set_key_list_next(undefined);
+      weak_cell->set_unregister_token(undefined, SKIP_WRITE_BARRIER);
+      weak_cell->set_key_list_prev(undefined, SKIP_WRITE_BARRIER);
+      weak_cell->set_key_list_next(undefined, SKIP_WRITE_BARRIER);
       was_present = true;
     } else {
       // weak_cell has a different unregister token with the same key (hash
       // collision); fix up the list.
-      weak_cell->set_key_list_prev(new_key_list_prev);
-      gc_notify_updated_slot(weak_cell,
-                             weak_cell->RawField(WeakCell::kKeyListPrevOffset),
+      weak_cell->set_key_list_prev(new_key_list_prev, write_barrier_mode);
+      gc_notify_updated_slot(weak_cell, ObjectSlot(&weak_cell->key_list_prev_),
                              new_key_list_prev);
-      weak_cell->set_key_list_next(undefined);
+      weak_cell->set_key_list_next(undefined, SKIP_WRITE_BARRIER);
       if (IsUndefined(new_key_list_prev, isolate)) {
         new_key_list_head = weak_cell;
       } else {
-        DCHECK(IsWeakCell(new_key_list_head));
         Tagged<WeakCell> prev_cell = Cast<WeakCell>(new_key_list_prev);
-        prev_cell->set_key_list_next(weak_cell);
+        prev_cell->set_key_list_next(weak_cell, write_barrier_mode);
         gc_notify_updated_slot(
-            prev_cell, prev_cell->RawField(WeakCell::kKeyListNextOffset),
-            weak_cell);
+            prev_cell, ObjectSlot(&prev_cell->key_list_next_), weak_cell);
       }
       new_key_list_prev = weak_cell;
     }
@@ -158,60 +154,139 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return IsWeakCell(cleared_cells());
 }
 
+Tagged<JSFinalizationRegistry> WeakCell::finalization_registry() const {
+  return finalization_registry_.load();
+}
+void WeakCell::set_finalization_registry(Tagged<JSFinalizationRegistry> value,
+                                         WriteBarrierMode mode) {
+  // `finalization_registry_` is never updated after it is initialized.
+  DCHECK_EQ(finalization_registry_.ptr(), kNullAddress);
+  finalization_registry_.store(this, value, mode);
+}
+
+Tagged<JSAny> WeakCell::holdings() const { return holdings_.load(); }
+void WeakCell::set_holdings(Tagged<JSAny> value, WriteBarrierMode mode) {
+  // `holdings_` is never updated after it is initialized.
+  DCHECK_EQ(holdings_.ptr(), kNullAddress);
+  holdings_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::target() const {
+  return target_.load();
+}
+void WeakCell::set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                          WriteBarrierMode mode) {
+  // `target_` is set once during initialization to a non-undefined object.
+  // After that, it can only be set to Undefined or for updating pointers to a
+  // forwarding address.
+  DCHECK_IMPLIES(!IsUndefined(value),
+                 HeapLayout::IsForwardedPointerTo(target(), value));
+  target_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::unregister_token()
+    const {
+  return unregister_token_.load();
+}
+void WeakCell::set_unregister_token(
+    Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+    WriteBarrierMode mode) {
+  // `unregister_token_` is set once during initialization to a non-undefined
+  // object. After that, it can only be set to Undefined or for updating
+  // pointers to a forwarding address.
+  DCHECK_IMPLIES(!IsUndefined(value),
+                 HeapLayout::IsForwardedPointerTo(unregister_token(), value));
+  unregister_token_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> WeakCell::prev() const {
+  return prev_.load();
+}
+void WeakCell::set_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                        WriteBarrierMode mode) {
+  prev_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> WeakCell::next() const {
+  return next_.load();
+}
+void WeakCell::set_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                        WriteBarrierMode mode) {
+  next_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> WeakCell::key_list_prev() const {
+  return key_list_prev_.load();
+}
+void WeakCell::set_key_list_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                 WriteBarrierMode mode) {
+  key_list_prev_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> WeakCell::key_list_next() const {
+  return key_list_next_.load();
+}
+void WeakCell::set_key_list_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                 WriteBarrierMode mode) {
+  key_list_next_.store(this, value, mode);
+}
+
 Tagged<HeapObject> WeakCell::relaxed_target() const {
-  return TaggedField<HeapObject>::Relaxed_Load(*this, kTargetOffset);
+  return target_.Relaxed_Load();
 }
 
 Tagged<HeapObject> WeakCell::relaxed_unregister_token() const {
-  return TaggedField<HeapObject>::Relaxed_Load(*this, kUnregisterTokenOffset);
+  return unregister_token_.Relaxed_Load();
 }
 
 template <typename GCNotifyUpdatedSlotCallback>
 void WeakCell::Nullify(Isolate* isolate,
                        GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
+  // This method is only ever called during GC atomic pause. It is safe to use
+  // `SKIP_WRITE_BARRIER_FOR_GC` since any needed barriers will be handled by
+  // `gc_notify_updated_slot`.
+  DCHECK(isolate->heap()->IsInGC());
+  DCHECK(isolate->heap()->tracer()->IsInAtomicPause());
   // Remove from the WeakCell from the "active_cells" list of its
   // JSFinalizationRegistry and insert it into the "cleared_cells" list. This is
   // only called for WeakCells which haven't been unregistered yet, so they will
   // be in the active_cells list. (The caller must guard against calling this
   // for unregistered WeakCells by checking that the target is not undefined.)
   DCHECK(Object::CanBeHeldWeakly(target()));
-  set_target(ReadOnlyRoots(isolate).undefined_value());
+  set_target(ReadOnlyRoots(isolate).undefined_value(), SKIP_WRITE_BARRIER);
 
   Tagged<JSFinalizationRegistry> fr =
       Cast<JSFinalizationRegistry>(finalization_registry());
   if (IsWeakCell(prev())) {
-    DCHECK_NE(fr->active_cells(), *this);
+    DCHECK_NE(fr->active_cells(), this);
     Tagged<WeakCell> prev_cell = Cast<WeakCell>(prev());
-    prev_cell->set_next(next());
-    gc_notify_updated_slot(prev_cell,
-                           prev_cell->RawField(WeakCell::kNextOffset), next());
+    prev_cell->set_next(next(), SKIP_WRITE_BARRIER_FOR_GC);
+    gc_notify_updated_slot(prev_cell, ObjectSlot(&prev_cell->next_), next());
   } else {
-    DCHECK_EQ(fr->active_cells(), *this);
-    fr->set_active_cells(next());
+    DCHECK_EQ(fr->active_cells(), this);
+    fr->set_active_cells(next(), SKIP_WRITE_BARRIER_FOR_GC);
     gc_notify_updated_slot(
         fr, fr->RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
   }
   if (IsWeakCell(next())) {
     Tagged<WeakCell> next_cell = Cast<WeakCell>(next());
-    next_cell->set_prev(prev());
-    gc_notify_updated_slot(next_cell,
-                           next_cell->RawField(WeakCell::kPrevOffset), prev());
+    next_cell->set_prev(prev(), SKIP_WRITE_BARRIER_FOR_GC);
+    gc_notify_updated_slot(next_cell, ObjectSlot(&next_cell->prev_), prev());
   }
 
-  set_prev(ReadOnlyRoots(isolate).undefined_value());
+  set_prev(ReadOnlyRoots(isolate).undefined_value(), SKIP_WRITE_BARRIER);
   Tagged<UnionOf<Undefined, WeakCell>> cleared_head = fr->cleared_cells();
   if (IsWeakCell(cleared_head)) {
     Tagged<WeakCell> cleared_head_cell = Cast<WeakCell>(cleared_head);
-    cleared_head_cell->set_prev(*this);
+    cleared_head_cell->set_prev(Tagged(this), SKIP_WRITE_BARRIER_FOR_GC);
     gc_notify_updated_slot(cleared_head_cell,
-                           cleared_head_cell->RawField(WeakCell::kPrevOffset),
-                           *this);
+                           ObjectSlot(&cleared_head_cell->prev_), this);
   }
-  set_next(fr->cleared_cells());
-  gc_notify_updated_slot(*this, RawField(WeakCell::kNextOffset), next());
-  fr->set_cleared_cells(*this);
+  set_next(cleared_head, SKIP_WRITE_BARRIER_FOR_GC);
+  gc_notify_updated_slot(this, ObjectSlot(&next_), next());
+  fr->set_cleared_cells(Tagged(this), SKIP_WRITE_BARRIER_FOR_GC);
   gc_notify_updated_slot(
-      fr, fr->RawField(JSFinalizationRegistry::kClearedCellsOffset), *this);
+      fr, fr->RawField(JSFinalizationRegistry::kClearedCellsOffset), this);
 }
 
 void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
@@ -221,14 +296,14 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
   // It's important to set_target to undefined here. This guards that we won't
   // call Nullify (which assumes that the WeakCell is in active_cells).
   DCHECK(IsUndefined(target()) || Object::CanBeHeldWeakly(target()));
-  set_target(ReadOnlyRoots(isolate).undefined_value());
+  set_target(ReadOnlyRoots(isolate).undefined_value(), SKIP_WRITE_BARRIER);
 
   Tagged<JSFinalizationRegistry> fr =
       Cast<JSFinalizationRegistry>(finalization_registry());
-  if (fr->active_cells() == *this) {
+  if (fr->active_cells() == this) {
     DCHECK(IsUndefined(prev(), isolate));
     fr->set_active_cells(next());
-  } else if (fr->cleared_cells() == *this) {
+  } else if (fr->cleared_cells() == this) {
     DCHECK(!IsWeakCell(prev()));
     fr->set_cleared_cells(next());
   } else {

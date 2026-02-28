@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-turbofan --turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 // Check that constant-folding of ToString operations works properly for NaN.
 (function() {

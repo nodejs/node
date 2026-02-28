@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -20,6 +20,8 @@ function wrapScriptInUrlWorker(script) {
   new Worker(new URL(${JSON.stringify(convertScriptSourceToDataUrl(script))}));
   `;
 }
+
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
 
 describe('import.meta.main in evaluated scripts', () => {
   const importMetaMainScript = `
@@ -85,7 +87,7 @@ const { isMain: importedModuleIsMain } = await import(
 assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluate false in imported module');
 `;
 
-  it('should evaluate true in evaluated script', async () => {
+  it('should evaluate true in evaluated script', onlyWithAmaro, async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module-typescript', '--disable-warning=ExperimentalWarning', '--eval', importMetaMainTSScript],
@@ -98,7 +100,7 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
     });
   });
 
-  it('should evaluate true in worker instantiated with module source by evaluated script', async () => {
+  it('should evaluate true in worker instantiated with module source by evaluated script', onlyWithAmaro, async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module-typescript',
@@ -114,7 +116,7 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
     });
   });
 
-  it('should evaluate true in worker instantiated with `data:` URL by evaluated script', async () => {
+  it('should evaluate true in worker instantiated with `data:` URL by evaluated script', onlyWithAmaro, async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module',

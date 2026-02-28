@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -17,7 +17,7 @@ function makeConnection() {
   const err = client.connect(req, '127.0.0.1', this.address().port);
   assert.strictEqual(err, 0);
 
-  req.oncomplete = function(status, client_, req_, readable, writable) {
+  req.oncomplete = common.mustCall((status, client_, req_, readable, writable) => {
     assert.strictEqual(status, 0);
     assert.strictEqual(client_, client);
     assert.strictEqual(req_, req);
@@ -28,14 +28,14 @@ function makeConnection() {
     const err = client.shutdown(shutdownReq);
     assert.strictEqual(err, 0);
 
-    shutdownReq.oncomplete = function(status, client_, error) {
+    shutdownReq.oncomplete = common.mustCall((status, client_, error) => {
       assert.strictEqual(status, 0);
       assert.strictEqual(client_, client);
       assert.strictEqual(error, undefined);
       shutdownCount++;
       client.close();
-    };
-  };
+    });
+  });
 }
 
 let connectCount = 0;

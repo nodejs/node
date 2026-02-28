@@ -32,6 +32,36 @@ namespace hwy {
 // The maximum vector size used in tests when defining test data. DEPRECATED.
 HWY_MAYBE_UNUSED constexpr size_t kTestMaxVectorSize = 64;
 
+// For tests that involve loops, adjust the trip count so that emulated tests
+// finish quickly (but always at least 2 iterations to ensure some diversity).
+constexpr size_t AdjustedReps(size_t max_reps) {
+#if HWY_ARCH_RISCV
+  return HWY_MAX(max_reps / 32, 2);
+#elif HWY_IS_DEBUG_BUILD
+  return HWY_MAX(max_reps / 8, 2);
+#elif HWY_ARCH_ARM
+  return HWY_MAX(max_reps / 4, 2);
+#elif HWY_COMPILER_MSVC
+  return HWY_MAX(max_reps / 2, 2);
+#else
+  return HWY_MAX(max_reps, 2);
+#endif
+}
+
+// Same as above, but the loop trip count will be 1 << max_pow2.
+constexpr size_t AdjustedLog2Reps(size_t max_pow2) {
+  // If "negative" (unsigned wraparound), use original.
+#if HWY_ARCH_RISCV
+  return HWY_MIN(max_pow2 - 4, max_pow2);
+#elif HWY_IS_DEBUG_BUILD
+  return HWY_MIN(max_pow2 - 1, max_pow2);
+#elif HWY_ARCH_ARM
+  return HWY_MIN(max_pow2 - 1, max_pow2);
+#else
+  return max_pow2;
+#endif
+}
+
 // 64-bit random generator (Xorshift128+). Much smaller state than std::mt19937,
 // which triggers a compiler bug.
 class RandomState {

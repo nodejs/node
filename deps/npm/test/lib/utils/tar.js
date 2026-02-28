@@ -1,3 +1,4 @@
+const path = require('node:path')
 const t = require('tap')
 const tar = require('tar')
 const pack = require('libnpmpack')
@@ -163,13 +164,14 @@ t.test('should getContents of a tarball with a node_modules directory included',
     },
   })
 
+  const fileName = path.join(testDir, 'npm-example-v1.tgz')
   await tar.c({
     gzip: true,
-    file: 'npm-example-v1.tgz',
+    file: fileName,
     C: testDir,
   }, ['package'])
 
-  const tarball = await readFile(`npm-example-v1.tgz`)
+  const tarball = await readFile(fileName)
 
   const tarballContents = await getContents({
     name: 'my-cool-pkg',
@@ -222,4 +224,38 @@ t.test('should getContents of a tarball with a node_modules directory included',
     bundled: ['bundle-dep'],
   }, 'contents are correct')
   t.end()
+})
+
+t.test('should log byte sizes correctly', async (t) => {
+  const cases = [
+    [0, '0 B', '0B'],
+    [1, '1 B', '1B'],
+    [10, '10 B', '10B'],
+    [999, '999 B', '999B'],
+    [1000, '1.0 kB', '1.0kB'],
+    [1001, '1.0 kB', '1.0kB'],
+    [1500, '1.5 kB', '1.5kB'],
+    [999999, '1.0 MB', '1.0MB'],
+    [1000000, '1.0 MB', '1.0MB'],
+    [999999999, '1.0 GB', '1.0GB'],
+    [1000000000, '1.0 GB', '1.0GB'],
+  ]
+
+  for (const [size, expected, expectedNoSpace] of cases) {
+    const logs = printLogs({
+      name: 'pkg',
+      version: '1.0.0',
+      files: [
+        { path: 'file.txt', size: size },
+      ],
+      bundled: [],
+      size: size,
+      unpackedSize: size,
+      integrity: 'sha512-xxx',
+    })
+
+    t.match(logs, `package size: ${expected}`, `package size: ${expected}`)
+    t.match(logs, `unpacked size: ${expected}`, `unpacked size: ${expected}`)
+    t.match(logs, `${expectedNoSpace} file.txt`, `file size: ${expectedNoSpace}`)
+  }
 })

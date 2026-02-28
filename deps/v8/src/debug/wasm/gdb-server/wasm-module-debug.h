@@ -56,8 +56,8 @@ class WasmModuleDebug {
   // associated to this module.
   // Returns the number of byte copied to {buffer}, or 0 is case of error.
   // Note: only one Memory for Module is currently supported.
-  uint32_t GetWasmData(Isolate* isolate, uint32_t offset, uint8_t* buffer,
-                       uint32_t size);
+  uint32_t GetWasmData(Zone* zone, Isolate* isolate, uint32_t offset,
+                       uint8_t* buffer, uint32_t size);
 
   // Gets {size} bytes, starting from {offset}, from the Code space of this
   // module.
@@ -82,8 +82,8 @@ class WasmModuleDebug {
  private:
   // Returns the module WasmInstance associated to the {frame_index}th frame
   // in the call stack.
-  static Handle<WasmInstanceObject> GetWasmInstance(Isolate* isolate,
-                                                    uint32_t frame_index);
+  static DirectHandle<WasmInstanceObject> GetWasmInstance(Isolate* isolate,
+                                                          uint32_t frame_index);
 
   // Returns its first WasmInstance for this Wasm module.
   Handle<WasmInstanceObject> GetFirstWasmInstance();

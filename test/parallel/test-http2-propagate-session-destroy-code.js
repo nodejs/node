@@ -12,7 +12,7 @@ const destroyCode = http2.constants.NGHTTP2_REFUSED_STREAM;
 
 server.on('error', common.mustNotCall());
 
-server.on('session', (session) => {
+server.on('session', common.mustCall((session) => {
   session.on('close', common.mustCall());
   session.on('error', common.mustCall((err) => {
     assert.match(err.message, errRegEx);
@@ -30,7 +30,7 @@ server.on('session', (session) => {
 
     session.destroy(destroyCode);
   }));
-});
+}));
 
 server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);

@@ -21,7 +21,7 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 })();
 
-// Mock Date.
+// Mock Date and Temporal.Now
 (function() {
   let index = 0;
   let mockDate = 1477662728696;
@@ -68,13 +68,31 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 
   Date = new Proxy(Date, handler);
-})();
 
-// Mock performance methods.
-performance.now = function() { return 1.2; };
-performance.mark = function() { return undefined; };
-performance.measure = function() { return undefined; };
-performance.measureMemory = function() { return []; };
+  // Temporal.Now also accesses local time; but it is just a bag of functions
+  // we can replace without needing a proxy
+  if (typeof Temporal != "undefined") {
+    const mockZDTNow = function(tz) {
+      return new Temporal.ZonedDateTime(BigInt(mockDateNow()) * 1_000_000n, tz || "utc");
+    }
+
+    Temporal.Now.instant = function(tz) {
+      return mockZDTNow(tz).toInstant();
+    }
+    Temporal.Now.plainDateISO = function(tz) {
+      return mockZDTNow(tz).toPlainDate();
+    }
+    Temporal.Now.plainTimeISO = function(tz) {
+      return mockZDTNow(tz).toPlainTime();
+    }
+    Temporal.Now.plainDateTimeISO = function(tz) {
+      return mockZDTNow(tz).toPlainDateTime();
+    }
+    Temporal.Now.zonedDateTimeISO = function(tz) {
+      return mockZDTNow(tz);
+    }
+  }
+})();
 
 // Mock readline so that test cases don't hang.
 readline = function() { return "foo"; };
@@ -101,10 +119,17 @@ Object.defineProperty(
     // Remove NaN values from parameters to "set" function.
     const set = type.prototype.set;
     type.prototype.set = function(array, offset) {
-      if (origArrayIsArray(array)) {
-        array = applyOrigArrayMap(array, [deNaNify]);
+      // The 'set' function also treats passed objects as array-like if they
+      // have a length property.
+      if (origArrayIsArray(array) || array.length) {
+        array = applyOrigArrayMap(Array.from(array), [deNaNify]);
       }
       set.apply(this, [array, offset]);
+    };
+
+    const fill = type.prototype.fill;
+    type.prototype.fill = function(value, start, end) {
+      fill.apply(this, [deNaNify(value), start, end]);
     };
 
     const handler = {
@@ -140,14 +165,37 @@ Object.defineProperty(
     return new Proxy(type, handler);
   }
 
+  Float16Array = mock(Float16Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
+
+  const origObjectDefineProperty = Object.defineProperty;
+  const safeFloat16Array = Float16Array;
+  const safeFloat32Array = Float32Array;
+  const safeFloat64Array = Float64Array;
+
+  // Mock float-array access via Object.defineProperty.
+  Object.defineProperty = function (obj, prop, descriptor) {
+    let newDescriptor = descriptor;
+    const isFloatArray = (
+        obj instanceof safeFloat16Array ||
+        obj instanceof safeFloat32Array ||
+        obj instanceof safeFloat64Array);
+    if (isFloatArray && !origIsNaN(prop)) {
+      newDescriptor = { value : deNaNify(descriptor?.value) };
+    }
+    origObjectDefineProperty(obj, prop, newDescriptor);
+  };
 })();
 
 // Mock buffer access via DataViews because of varying NaN patterns.
 (function() {
   const origIsNaN = isNaN;
   const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
+  const origSetFloat16 = DataView.prototype.setFloat16;
+  DataView.prototype.setFloat16 = function(offset, value, ...rest) {
+    origSetFloat16.call(this, offset, deNaNify(value), ...rest);
+  };
   const origSetFloat32 = DataView.prototype.setFloat32;
   DataView.prototype.setFloat32 = function(offset, value, ...rest) {
     origSetFloat32.call(this, offset, deNaNify(value), ...rest);
@@ -206,6 +254,7 @@ Object.defineProperty(
   Uint32Array = mock(Uint32Array);
   BigInt64Array = mock(BigInt64Array);
   BigUint64Array = mock(BigUint64Array);
+  Float16Array = mock(Float16Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
@@ -224,6 +273,7 @@ Object.defineProperty(
     Uint32Array,
     BigInt64Array,
     BigUint64Array,
+    Float16Array,
     Float32Array,
     Float64Array,
   ];

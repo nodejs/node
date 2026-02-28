@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Iterator prototype objects</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
+  const iteratorProto = Object.getPrototypeOf(new URLSearchParams().entries());
+  assert_equals(Object.getPrototypeOf(iteratorProto), esIteratorPrototype);
+}, "Has %IteratorPrototype% as prototype");
+
+test(() => {
+  const iteratorProto = Object.getPrototypeOf(new URLSearchParams().entries());
+  const desc = Object.getOwnPropertyDescriptor(iteratorProto, "next");
+  assert_equals(typeof desc.value, "function");
+  assert_equals(desc.writable, true);
+  assert_equals(desc.enumerable, true);
+  assert_equals(desc.configurable, true);
+}, "next() exists and is writable, enumerable, and configurable");
+
+test(() => {
+  const usp = new URLSearchParams();
+  const iteratorProto = Object.getPrototypeOf(usp.entries());
+
+  assert_throws_js(TypeError, () => {
+    iteratorProto.next();
+  });
+  assert_throws_js(TypeError, () => {
+    iteratorProto.next.call(undefined);
+  });
+  assert_throws_js(TypeError, () => {
+    iteratorProto.next.call(42);
+  });
+  assert_throws_js(TypeError, () => {
+    iteratorProto.next.call(new Headers().entries());
+  });
+}, "next() throws TypeError when called on ineligible receiver");
+
+// class string behavior tested in a dedicated file
+
+test(() => {
+  const iteratorProto1 = Object.getPrototypeOf(new URLSearchParams().entries());
+  const iteratorProto2 = Object.getPrototypeOf(new Headers().entries());
+  assert_not_equals(iteratorProto1, iteratorProto2);
+}, "Is specific to an interface");
+</script>

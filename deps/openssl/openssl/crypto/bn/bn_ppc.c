@@ -13,18 +13,18 @@
 #include "bn_local.h"
 
 int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                const BN_ULONG *np, const BN_ULONG *n0, int num)
+    const BN_ULONG *np, const BN_ULONG *n0, int num)
 {
-    int bn_mul_mont_int(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                        const BN_ULONG *np, const BN_ULONG *n0, int num);
-    int bn_mul4x_mont_int(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                          const BN_ULONG *np, const BN_ULONG *n0, int num);
-    int bn_mul_mont_fixed_n6(BN_ULONG *rp, const BN_ULONG *ap,
-                             const BN_ULONG *bp, const BN_ULONG *np,
-                             const BN_ULONG *n0, int num);
-    int bn_mul_mont_300_fixed_n6(BN_ULONG *rp, const BN_ULONG *ap,
-                                 const BN_ULONG *bp, const BN_ULONG *np,
-                                 const BN_ULONG *n0, int num);
+    int bn_mul_mont_int(BN_ULONG * rp, const BN_ULONG *ap, const BN_ULONG *bp,
+        const BN_ULONG *np, const BN_ULONG *n0, int num);
+    int bn_mul4x_mont_int(BN_ULONG * rp, const BN_ULONG *ap, const BN_ULONG *bp,
+        const BN_ULONG *np, const BN_ULONG *n0, int num);
+    int bn_mul_mont_fixed_n6(BN_ULONG * rp, const BN_ULONG *ap,
+        const BN_ULONG *bp, const BN_ULONG *np,
+        const BN_ULONG *n0, int num);
+    int bn_mul_mont_300_fixed_n6(BN_ULONG * rp, const BN_ULONG *ap,
+        const BN_ULONG *bp, const BN_ULONG *np,
+        const BN_ULONG *n0, int num);
 
     if (num < 4)
         return 0;
@@ -42,14 +42,14 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 
 #if defined(_ARCH_PPC64) && !defined(__ILP32__)
     /* Minerva side-channel fix danny */
-# if defined(USE_FIXED_N6)
+#if defined(USE_FIXED_N6)
     if (num == 6) {
         if (OPENSSL_ppccap_P & PPC_MADD300)
             return bn_mul_mont_300_fixed_n6(rp, ap, bp, np, n0, num);
         else
             return bn_mul_mont_fixed_n6(rp, ap, bp, np, n0, num);
     }
-# endif
+#endif
 #endif
 
     return bn_mul_mont_int(rp, ap, bp, np, n0, num);

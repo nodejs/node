@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --fuzzing --no-testing-d8-test-runner
+// Flags: --allow-natives-syntax
+
+const topLevel = %GetFunctionForCurrentFrame();
+%PrepareFunctionForOptimization(topLevel);
 
 const v2 = -2147483649;
 for (let v3 = 0; v3 < 5; v3++) {

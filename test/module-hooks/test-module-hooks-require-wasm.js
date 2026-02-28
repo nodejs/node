@@ -9,7 +9,7 @@ const { registerHooks } = require('module');
 const { readFileSync } = require('fs');
 
 registerHooks({
-  load(url, context, nextLoad) {
+  load: common.mustCall((url, context, nextLoad) => {
     assert.match(url, /simple\.wasm$/);
     const source =
       `const buf = Buffer.from([${Array.from(readFileSync(new URL(url))).join(',')}]);
@@ -20,7 +20,7 @@ registerHooks({
       source,
       format: 'commonjs',
     };
-  },
+  }, 2),
 });
 
 // Checks that it works with require.

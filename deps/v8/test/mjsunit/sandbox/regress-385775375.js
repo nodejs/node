@@ -30,6 +30,6 @@ let bit_field2_val = sbx_memory.getUint8(bit_field2_addr);
 let worker = corruptInBackground(
     bit_field2_addr, bit_field2_val, bit_field2_val ^ 0xff);
 
-for (let i = 0; i < 10000; ++i) {
+for (let i = 0; i < 100; ++i) {
   ar.sort();
 }

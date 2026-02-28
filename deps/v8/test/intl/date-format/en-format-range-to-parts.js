@@ -39,7 +39,7 @@ const expected2 = [
   {type: "hour", value: "7", source: "startRange"},
   {type: "literal", value: "\u2009–\u2009", source: "shared"},
   {type: "hour", value: "10", source: "endRange"},
-  {type: "literal", value: "\u202f", source: "shared"},
+  {type: "literal", value: " ", source: "shared"},
   {type: "dayPeriod", value: "PM", source: "shared"}
 ];
 dtf = new Intl.DateTimeFormat(["en"], {month: "short", day: "numeric", hour: "numeric"});

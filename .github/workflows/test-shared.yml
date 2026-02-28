@@ -1,0 +1,202 @@
+# This action uses the following secrets:
+#   CACHIX_AUTH_TOKEN: Write access to nodejs.cachix.org – without it, the cache is read-only.
+name: Test Shared libraries
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - deps/ada/**
+      - deps/brotli/**
+      - deps/cares/**
+      - deps/crates/**
+      - deps/corepack/**
+      - deps/googletest/**
+      - deps/histogram/**
+      - deps/icu-small/**
+      - deps/icu-tmp/**
+      - deps/llhttp/**
+      - deps/merve/**
+      - deps/nbytes/**
+      - deps/nghttp2/**
+      - deps/ngtcp2/**
+      - deps/openssl/*/**
+      - deps/simdjson/**
+      - deps/sqlite/**
+      - deps/uv/**
+      - deps/uvwasi/**
+      - deps/zlib/**
+      - deps/zstd/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
+      - '!.github/workflows/test-shared.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - '**.md'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - deps/ada/**
+      - deps/brotli/**
+      - deps/cares/**
+      - deps/crates/**
+      - deps/corepack/**
+      - deps/googletest/**
+      - deps/histogram/**
+      - deps/icu-small/**
+      - deps/icu-tmp/**
+      - deps/llhttp/**
+      - deps/merve/**
+      - deps/nbytes/**
+      - deps/nghttp2/**
+      - deps/ngtcp2/**
+      - deps/openssl/*/**
+      - deps/simdjson/**
+      - deps/sqlite/**
+      - deps/uv/**
+      - deps/uvwasi/**
+      - deps/zlib/**
+      - deps/zstd/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
+      - '!.github/workflows/test-shared.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  build-tarball:
+    if: github.event.pull_request.draft == false
+    name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        with:
+          persist-credentials: false
+
+      - name: Make tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          export DATESTRING=$(date "+%Y-%m-%d")
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+        env:
+          DISTTYPE: nightly
+
+      - name: Upload tarball artifact
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: tarballs
+          path: '*.tar.gz'
+          compression-level: 0
+
+  build:
+    needs: build-tarball
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-15-intel
+            system: x86_64-darwin
+          - runner: macos-latest
+            system: aarch64-darwin
+    name: '${{ matrix.system }}: with shared libraries'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        with:
+          name: tarballs
+          path: tarballs
+
+      - name: Extract tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
+          echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
+
+      - uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1  # v16
+        with:
+          name: nodejs
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Configure sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
+        with:
+          script: |
+            core.exportVariable('SCCACHE_GHA_ENABLED', 'on');
+            core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            core.exportVariable('NIX_SCCACHE', '(import <nixpkgs> {}).sccache');
+
+      - name: Build Node.js and run tests
+        run: |
+          nix-shell \
+            -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS \
+            --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
+            --arg loadJSBuiltinsDynamically false \
+            --arg useSeparateDerivationForV8 true \
+            --arg ccache "${NIX_SCCACHE:-null}" \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+            --run '
+                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+            ' "$TAR_DIR/shell.nix"

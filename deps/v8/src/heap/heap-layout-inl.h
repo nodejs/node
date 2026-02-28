@@ -18,6 +18,15 @@ namespace v8::internal {
 
 // static
 bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+#ifdef DEBUG
+  // See `kContiguousReadOnlySpaceMask` definition for explanation.
+  const bool ro_via_address =
+      (object.ptr() & kContiguousReadOnlySpaceMask) == 0;
+  DCHECK_EQ(ro_via_address,
+            MemoryChunk::FromHeapObject(object)->InReadOnlySpace());
+#endif  // DEBUG
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 
@@ -76,16 +85,6 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
   return HeapLayout::InWritableSharedSpace(object);
 }
 
-// static
-bool HeapLayout::InCodeSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->InCodeSpace();
-}
-
-// static
-bool HeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->InTrustedSpace();
-}
-
 bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
   DCHECK(v8_flags.black_allocated_pages);
   return MemoryChunk::FromHeapObject(object)->GetFlags() &
@@ -93,8 +92,27 @@ bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
 }
 
 // static
-bool HeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->GetHeap();
+bool HeapLayout::InAnyLargeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->IsLargePage();
+}
+
+// static
+bool TrustedHeapLayout::InCodeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)
+      ->MetadataNoIsolateCheck()
+      ->is_executable();
+}
+
+// static
+bool TrustedHeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)
+      ->MetadataNoIsolateCheck()
+      ->is_trusted();
+}
+
+// static
+bool TrustedHeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
 }
 
 }  // namespace v8::internal

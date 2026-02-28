@@ -575,6 +575,23 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
   /* at this point we keep on waiting for the next query to finish */
 }
 
+static ares_bool_t numeric_service_to_port(const char *service,
+                                           unsigned short *port)
+{
+  char *end;
+  unsigned long val;
+
+  errno = 0;
+  val   = strtoul(service, &end, 10);
+
+  if (errno == 0 && *end == '\0' && val <= 65535) {
+    *port = (unsigned short)val;
+    return ARES_TRUE;
+  }
+
+  return ARES_FALSE;
+}
+
 static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
                                  const char                       *service,
                                  const struct ares_addrinfo_hints *hints,
@@ -606,25 +623,17 @@ static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
 
   if (service) {
     if (hints->ai_flags & ARES_AI_NUMERICSERV) {
-      unsigned long val;
-      errno = 0;
-      val   = strtoul(service, NULL, 0);
-      if ((val == 0 && errno != 0) || val > 65535) {
+      if (!numeric_service_to_port(service, &port)) {
         callback(arg, ARES_ESERVICE, 0, NULL);
         return;
       }
-      port = (unsigned short)val;
     } else {
       port = lookup_service(service, 0);
       if (!port) {
-        unsigned long val;
-        errno = 0;
-        val   = strtoul(service, NULL, 0);
-        if ((val == 0 && errno != 0) || val > 65535) {
+        if (!numeric_service_to_port(service, &port)) {
           callback(arg, ARES_ESERVICE, 0, NULL);
           return;
         }
-        port = (unsigned short)val;
       }
     }
   }

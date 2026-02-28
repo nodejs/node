@@ -1,7 +1,7 @@
 'use strict';
 
-require('../common');
-const { ok, strictEqual } = require('assert');
+const common = require('../common');
+const assert = require('assert');
 const { setImmediate: sleep } = require('timers/promises');
 const {
   transferableAbortSignal,
@@ -25,25 +25,25 @@ test('Can create a transferable abort controller', async () => {
   const abort3 = Promise.withResolvers();
   const abortResolvers = [abort1, abort2, abort3];
 
-  mc.port1.onmessage = ({ data }) => {
-    data.addEventListener('abort', () => {
-      strictEqual(data.reason, 'boom');
+  mc.port1.onmessage = common.mustCallAtLeast(({ data }) => {
+    data.addEventListener('abort', common.mustCall(() => {
+      assert.strictEqual(data.reason, 'boom');
       abortResolvers.shift().resolve();
-    });
+    }));
     setupResolvers.shift().resolve();
-  };
+  });
 
   mc.port2.postMessage(ac.signal, [ac.signal]);
 
-  // Can be cloned/transferd multiple times and they all still work
+  // Can be cloned/transferred multiple times and they all still work
   mc.port2.postMessage(ac.signal, [ac.signal]);
 
   // Although we're using transfer semantics, the local AbortSignal
   // is still usable locally.
-  ac.signal.addEventListener('abort', () => {
-    strictEqual(ac.signal.reason, 'boom');
+  ac.signal.addEventListener('abort', common.mustCall(() => {
+    assert.strictEqual(ac.signal.reason, 'boom');
     abortResolvers.shift().resolve();
-  });
+  }));
 
   await Promise.all([ setup1.promise, setup2.promise ]);
 
@@ -57,16 +57,16 @@ test('Can create a transferable abort controller', async () => {
 
 test('Can create a transferable abort signal', async () => {
   const signal = transferableAbortSignal(AbortSignal.abort('boom'));
-  ok(signal.aborted);
-  strictEqual(signal.reason, 'boom');
+  assert.ok(signal.aborted);
+  assert.strictEqual(signal.reason, 'boom');
   const mc = new MessageChannel();
   const { promise, resolve } = Promise.withResolvers();
-  mc.port1.onmessage = ({ data }) => {
-    ok(data instanceof AbortSignal);
-    ok(data.aborted);
-    strictEqual(data.reason, 'boom');
+  mc.port1.onmessage = common.mustCallAtLeast(({ data }) => {
+    assert.ok(data instanceof AbortSignal);
+    assert.ok(data.aborted);
+    assert.strictEqual(data.reason, 'boom');
     resolve();
-  };
+  });
   mc.port2.postMessage(signal, [signal]);
   await promise;
   mc.port1.close();
@@ -86,6 +86,6 @@ test('A cloned AbortSignal does not keep the event loop open', async () => {
   // the loop runs long enough for the test to complete.
   await sleep();
   await sleep();
-  strictEqual(fn.mock.calls.length, 1);
+  assert.strictEqual(fn.mock.calls.length, 1);
   mc.port2.close();
 });

@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
   int bytecode_offset = args.smi_value_at(1);
   Handle<Object> accumulator = args.at(2);
 
@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
   int bytecode_offset = args.smi_value_at(1);
   Handle<Object> accumulator = args.at(2);
 

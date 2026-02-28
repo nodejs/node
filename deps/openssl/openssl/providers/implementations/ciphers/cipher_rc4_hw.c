@@ -16,18 +16,18 @@
 #include "cipher_rc4.h"
 
 static int cipher_hw_rc4_initkey(PROV_CIPHER_CTX *ctx,
-                                 const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
-    PROV_RC4_CTX *rctx =  (PROV_RC4_CTX *)ctx;
+    PROV_RC4_CTX *rctx = (PROV_RC4_CTX *)ctx;
 
     RC4_set_key(&rctx->ks.ks, keylen, key);
     return 1;
 }
 
 static int cipher_hw_rc4_cipher(PROV_CIPHER_CTX *ctx, unsigned char *out,
-                                const unsigned char *in, size_t len)
+    const unsigned char *in, size_t len)
 {
-    PROV_RC4_CTX *rctx =  (PROV_RC4_CTX *)ctx;
+    PROV_RC4_CTX *rctx = (PROV_RC4_CTX *)ctx;
 
     RC4(&rctx->ks.ks, len, in, out);
     return 1;
@@ -41,4 +41,3 @@ const PROV_CIPHER_HW *ossl_prov_cipher_hw_rc4(size_t keybits)
 {
     return &rc4_hw;
 }
-

@@ -4,15 +4,6 @@ import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
 describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  const defaultTransform = snapshot
-    .transform(
-      snapshot.replaceWindowsLineEndings,
-      snapshot.transformProjectRoot('*'),
-      snapshot.replaceWindowsPaths,
-      snapshot.replaceInternalStackTrace,
-      snapshot.replaceNodeVersion
-    );
-
   const tests = [
     { name: 'source-map/output/source_map_disabled_by_api.js' },
     { name: 'source-map/output/source_map_disabled_by_process_api.js' },
@@ -33,9 +24,10 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     { name: 'source-map/output/source_map_throw_icu.js' },
     { name: 'source-map/output/source_map_throw_set_immediate.js' },
   ];
-  for (const { name, transform } of tests) {
-    it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+  for (const { name } of tests) {
+    const skip = name.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    it(name, { skip }, async () => {
+      await snapshot.spawnAndAssert(fixtures.path(name), snapshot.defaultTransform);
     });
   }
 });

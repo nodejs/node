@@ -350,7 +350,7 @@ TEST(Uint128, Multiply) {
   c = a * b;
   EXPECT_EQ(absl::MakeUint128(0x530EDA741C71D4C3, 0xBF25975319080000), c);
   EXPECT_EQ(0, c - b * a);
-  EXPECT_EQ(a*a - b*b, (a+b) * (a-b));
+  EXPECT_EQ(a * a - b * b, (a + b) * (a - b));
 
   // Verified with dc.
   a = absl::MakeUint128(0x0123456789abcdef, 0xfedcba9876543210);
@@ -358,7 +358,7 @@ TEST(Uint128, Multiply) {
   c = a * b;
   EXPECT_EQ(absl::MakeUint128(0x97a87f4f261ba3f2, 0x342d0bbf48948200), c);
   EXPECT_EQ(0, c - b * a);
-  EXPECT_EQ(a*a - b*b, (a+b) * (a-b));
+  EXPECT_EQ(a * a - b * b, (a + b) * (a - b));
 }
 
 TEST(Uint128, AliasTests) {
@@ -462,6 +462,26 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(zero, absl::uint128(0));
   EXPECT_EQ(one, absl::uint128(1));
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
+
+  constexpr double f = static_cast<float>(absl::uint128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::uint128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::uint128(123));
+  EXPECT_EQ(ld, 123.0);
+
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  constexpr absl::uint128 division = absl::uint128(10) / absl::uint128(2);
+  EXPECT_EQ(division, absl::uint128(5));
+
+  constexpr absl::uint128 modulus = absl::int128(10) % absl::int128(3);
+  EXPECT_EQ(modulus, absl::uint128(1));
+
+  constexpr absl::uint128 multiplication = absl::uint128(10) * absl::uint128(3);
+  EXPECT_EQ(multiplication, absl::uint128(30));
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 }
 
 TEST(Uint128, NumericLimitsTest) {
@@ -522,7 +542,6 @@ TEST(Uint128, Hash) {
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
 }
 
-
 TEST(Int128Uint128, ConversionTest) {
   absl::int128 nonnegative_signed_values[] = {
       0,
@@ -540,8 +559,7 @@ TEST(Int128Uint128, ConversionTest) {
   }
 
   absl::int128 negative_values[] = {
-      -1, -0x1234567890abcdef,
-      absl::MakeInt128(-0x5544332211ffeedd, 0),
+      -1, -0x1234567890abcdef, absl::MakeInt128(-0x5544332211ffeedd, 0),
       -absl::MakeInt128(0x76543210fedcba98, 0xabcdef0123456789)};
   for (absl::int128 value : negative_values) {
     EXPECT_EQ(absl::uint128(-value), -absl::uint128(value));
@@ -769,6 +787,35 @@ TEST(Int128, ConstexprTest) {
   EXPECT_EQ(minus_two, absl::MakeInt128(-1, -2));
   EXPECT_GT(max, one);
   EXPECT_LT(min, minus_two);
+
+  constexpr double f = static_cast<float>(absl::int128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::int128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::int128(123));
+  EXPECT_EQ(ld, 123.0);
+
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  constexpr absl::int128 f_int128(static_cast<float>(123.0));
+  EXPECT_EQ(f_int128, absl::int128(123));
+
+  constexpr absl::int128 d_int128(static_cast<double>(123.0));
+  EXPECT_EQ(d_int128, absl::int128(123));
+
+  constexpr absl::int128 ld_int128(static_cast<long double>(123.0));
+  EXPECT_EQ(ld_int128, absl::int128(123));
+
+  constexpr absl::int128 division = absl::int128(10) / absl::int128(2);
+  EXPECT_EQ(division, absl::int128(5));
+
+  constexpr absl::int128 modulus = absl::int128(10) % absl::int128(3);
+  EXPECT_EQ(modulus, absl::int128(1));
+
+  constexpr absl::int128 multiplication = absl::int128(10) * absl::int128(3);
+  EXPECT_EQ(multiplication, absl::int128(30));
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 }
 
 TEST(Int128, ComparisonTest) {

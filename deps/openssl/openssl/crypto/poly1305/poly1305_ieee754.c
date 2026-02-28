@@ -46,8 +46,8 @@
  * SPARC T4             16.1
  */
 
-#if !(defined(__GNUC__) && __GNUC__>=2)
-# error "this is gcc-specific template"
+#if !(defined(__GNUC__) && __GNUC__ >= 2)
+#error "this is gcc-specific template"
 #endif
 
 #include <stdlib.h>
@@ -55,35 +55,37 @@
 typedef unsigned char u8;
 typedef unsigned int u32;
 typedef unsigned long long u64;
-typedef union { double d; u64 u; } elem64;
+typedef union {
+    double d;
+    u64 u;
+} elem64;
 
-#define TWO(p)          ((double)(1ULL<<(p)))
-#define TWO0            TWO(0)
-#define TWO32           TWO(32)
-#define TWO64           (TWO32*TWO(32))
-#define TWO96           (TWO64*TWO(32))
-#define TWO130          (TWO96*TWO(34))
+#define TWO(p) ((double)(1ULL << (p)))
+#define TWO0 TWO(0)
+#define TWO32 TWO(32)
+#define TWO64 (TWO32 * TWO(32))
+#define TWO96 (TWO64 * TWO(32))
+#define TWO130 (TWO96 * TWO(34))
 
-#define EXP(p)          ((1023ULL+(p))<<52)
+#define EXP(p) ((1023ULL + (p)) << 52)
 
 #if defined(__x86_64__) || (defined(__PPC__) && defined(__LITTLE_ENDIAN__))
-# define U8TOU32(p)     (*(const u32 *)(p))
-# define U32TO8(p,v)    (*(u32 *)(p) = (v))
+#define U8TOU32(p) (*(const u32 *)(p))
+#define U32TO8(p, v) (*(u32 *)(p) = (v))
 #elif defined(__PPC__) || defined(__POWERPC__)
-# define U8TOU32(p)     ({u32 ret; asm ("lwbrx	%0,0,%1":"=r"(ret):"b"(p)); ret; })
-# define U32TO8(p,v)    asm ("stwbrx %0,0,%1"::"r"(v),"b"(p):"memory")
+#define U8TOU32(p) ({u32 ret; asm ("lwbrx	%0,0,%1":"=r"(ret):"b"(p)); ret; })
+#define U32TO8(p, v) asm("stwbrx %0,0,%1" ::"r"(v), "b"(p) : "memory")
 #elif defined(__s390x__)
-# define U8TOU32(p)     ({u32 ret; asm ("lrv	%0,%1":"=d"(ret):"m"(*(u32 *)(p))); ret; })
-# define U32TO8(p,v)    asm ("strv	%1,%0":"=m"(*(u32 *)(p)):"d"(v))
+#define U8TOU32(p) ({u32 ret; asm ("lrv	%0,%1":"=d"(ret):"m"(*(u32 *)(p))); ret; })
+#define U32TO8(p, v) asm("strv	%1,%0" : "=m"(*(u32 *)(p)) : "d"(v))
 #endif
 
 #ifndef U8TOU32
-# define U8TOU32(p)     ((u32)(p)[0]     | (u32)(p)[1]<<8 |     \
-                         (u32)(p)[2]<<16 | (u32)(p)[3]<<24  )
+#define U8TOU32(p) ((u32)(p)[0] | (u32)(p)[1] << 8 | (u32)(p)[2] << 16 | (u32)(p)[3] << 24)
 #endif
 #ifndef U32TO8
-# define U32TO8(p,v)    ((p)[0] = (u8)(v),       (p)[1] = (u8)((v)>>8), \
-                         (p)[2] = (u8)((v)>>16), (p)[3] = (u8)((v)>>24) )
+#define U32TO8(p, v) ((p)[0] = (u8)(v), (p)[1] = (u8)((v) >> 8), \
+    (p)[2] = (u8)((v) >> 16), (p)[3] = (u8)((v) >> 24))
 #endif
 
 typedef struct {
@@ -100,7 +102,7 @@ static const u64 one = 1;
 #elif defined(__s390x__)
 static const u32 fpc = 1;
 #elif defined(__sparc__)
-static const u64 fsr = 1ULL<<30;
+static const u64 fsr = 1ULL << 30;
 #elif defined(__mips__)
 static const u32 fcsr = 1;
 #else
@@ -109,7 +111,7 @@ static const u32 fcsr = 1;
 
 int poly1305_init(void *ctx, const unsigned char key[16])
 {
-    poly1305_internal *st = (poly1305_internal *) ctx;
+    poly1305_internal *st = (poly1305_internal *)ctx;
     elem64 r0, r1, r2, r3;
 
     /* h = 0, biased */
@@ -119,10 +121,10 @@ int poly1305_init(void *ctx, const unsigned char key[16])
     st->h[2].d = TWO(52)*TWO64;
     st->h[3].d = TWO(52)*TWO96;
 #else
-    st->h[0].u = EXP(52+0);
-    st->h[1].u = EXP(52+32);
-    st->h[2].u = EXP(52+64);
-    st->h[3].u = EXP(52+96);
+    st->h[0].u = EXP(52 + 0);
+    st->h[1].u = EXP(52 + 32);
+    st->h[2].u = EXP(52 + 64);
+    st->h[3].u = EXP(52 + 96);
 #endif
 
     if (key) {
@@ -132,89 +134,82 @@ int poly1305_init(void *ctx, const unsigned char key[16])
 #if defined(__x86_64__)
         u32 mxcsr_orig;
 
-        asm volatile ("stmxcsr	%0":"=m"(mxcsr_orig));
-        asm volatile ("ldmxcsr	%0"::"m"(mxcsr));
+        asm volatile("stmxcsr	%0" : "=m"(mxcsr_orig));
+        asm volatile("ldmxcsr	%0" ::"m"(mxcsr));
 #elif defined(__PPC__) || defined(__POWERPC__)
         double fpscr_orig, fpscr = *(double *)&one;
 
-        asm volatile ("mffs	%0":"=f"(fpscr_orig));
-        asm volatile ("mtfsf	255,%0"::"f"(fpscr));
+        asm volatile("mffs	%0" : "=f"(fpscr_orig));
+        asm volatile("mtfsf	255,%0" ::"f"(fpscr));
 #elif defined(__s390x__)
         u32 fpc_orig;
 
-        asm volatile ("stfpc	%0":"=m"(fpc_orig));
-        asm volatile ("lfpc	%0"::"m"(fpc));
+        asm volatile("stfpc	%0" : "=m"(fpc_orig));
+        asm volatile("lfpc	%0" ::"m"(fpc));
 #elif defined(__sparc__)
         u64 fsr_orig;
 
-        asm volatile ("stx	%%fsr,%0":"=m"(fsr_orig));
-        asm volatile ("ldx	%0,%%fsr"::"m"(fsr));
+        asm volatile("stx	%%fsr,%0" : "=m"(fsr_orig));
+        asm volatile("ldx	%0,%%fsr" ::"m"(fsr));
 #elif defined(__mips__)
         u32 fcsr_orig;
 
-        asm volatile ("cfc1	%0,$31":"=r"(fcsr_orig));
-        asm volatile ("ctc1	%0,$31"::"r"(fcsr));
+        asm volatile("cfc1	%0,$31" : "=r"(fcsr_orig));
+        asm volatile("ctc1	%0,$31" ::"r"(fcsr));
 #endif
 
         /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-        r0.u = EXP(52+0)  | (U8TOU32(&key[0])  & 0x0fffffff);
-        r1.u = EXP(52+32) | (U8TOU32(&key[4])  & 0x0ffffffc);
-        r2.u = EXP(52+64) | (U8TOU32(&key[8])  & 0x0ffffffc);
-        r3.u = EXP(52+96) | (U8TOU32(&key[12]) & 0x0ffffffc);
+        r0.u = EXP(52 + 0) | (U8TOU32(&key[0]) & 0x0fffffff);
+        r1.u = EXP(52 + 32) | (U8TOU32(&key[4]) & 0x0ffffffc);
+        r2.u = EXP(52 + 64) | (U8TOU32(&key[8]) & 0x0ffffffc);
+        r3.u = EXP(52 + 96) | (U8TOU32(&key[12]) & 0x0ffffffc);
 
-        st->r[0] = r0.d - TWO(52)*TWO0;
-        st->r[2] = r1.d - TWO(52)*TWO32;
-        st->r[4] = r2.d - TWO(52)*TWO64;
-        st->r[6] = r3.d - TWO(52)*TWO96;
+        st->r[0] = r0.d - TWO(52) * TWO0;
+        st->r[2] = r1.d - TWO(52) * TWO32;
+        st->r[4] = r2.d - TWO(52) * TWO64;
+        st->r[6] = r3.d - TWO(52) * TWO96;
 
-        st->s[0] = st->r[2] * (5.0/TWO130);
-        st->s[2] = st->r[4] * (5.0/TWO130);
-        st->s[4] = st->r[6] * (5.0/TWO130);
+        st->s[0] = st->r[2] * (5.0 / TWO130);
+        st->s[2] = st->r[4] * (5.0 / TWO130);
+        st->s[4] = st->r[6] * (5.0 / TWO130);
 
         /*
          * base 2^32 -> base 2^16
          */
-        st->r[1] = (st->r[0] + TWO(52)*TWO(16)*TWO0) -
-                               TWO(52)*TWO(16)*TWO0;
+        st->r[1] = (st->r[0] + TWO(52) * TWO(16) * TWO0) - TWO(52) * TWO(16) * TWO0;
         st->r[0] -= st->r[1];
 
-        st->r[3] = (st->r[2] + TWO(52)*TWO(16)*TWO32) -
-                               TWO(52)*TWO(16)*TWO32;
+        st->r[3] = (st->r[2] + TWO(52) * TWO(16) * TWO32) - TWO(52) * TWO(16) * TWO32;
         st->r[2] -= st->r[3];
 
-        st->r[5] = (st->r[4] + TWO(52)*TWO(16)*TWO64) -
-                               TWO(52)*TWO(16)*TWO64;
+        st->r[5] = (st->r[4] + TWO(52) * TWO(16) * TWO64) - TWO(52) * TWO(16) * TWO64;
         st->r[4] -= st->r[5];
 
-        st->r[7] = (st->r[6] + TWO(52)*TWO(16)*TWO96) -
-                               TWO(52)*TWO(16)*TWO96;
+        st->r[7] = (st->r[6] + TWO(52) * TWO(16) * TWO96) - TWO(52) * TWO(16) * TWO96;
         st->r[6] -= st->r[7];
 
-        st->s[1] = (st->s[0] + TWO(52)*TWO(16)*TWO0/TWO96) -
-                               TWO(52)*TWO(16)*TWO0/TWO96;
+        st->s[1] = (st->s[0] + TWO(52) * TWO(16) * TWO0 / TWO96) - TWO(52) * TWO(16) * TWO0 / TWO96;
         st->s[0] -= st->s[1];
 
-        st->s[3] = (st->s[2] + TWO(52)*TWO(16)*TWO32/TWO96) -
-                               TWO(52)*TWO(16)*TWO32/TWO96;
+        st->s[3] = (st->s[2] + TWO(52) * TWO(16) * TWO32 / TWO96) - TWO(52) * TWO(16) * TWO32 / TWO96;
         st->s[2] -= st->s[3];
 
-        st->s[5] = (st->s[4] + TWO(52)*TWO(16)*TWO64/TWO96) -
-                               TWO(52)*TWO(16)*TWO64/TWO96;
+        st->s[5] = (st->s[4] + TWO(52) * TWO(16) * TWO64 / TWO96) - TWO(52) * TWO(16) * TWO64 / TWO96;
         st->s[4] -= st->s[5];
 
         /*
          * restore original FPU control register
          */
 #if defined(__x86_64__)
-        asm volatile ("ldmxcsr	%0"::"m"(mxcsr_orig));
+        asm volatile("ldmxcsr	%0" ::"m"(mxcsr_orig));
 #elif defined(__PPC__) || defined(__POWERPC__)
-        asm volatile ("mtfsf	255,%0"::"f"(fpscr_orig));
+        asm volatile("mtfsf	255,%0" ::"f"(fpscr_orig));
 #elif defined(__s390x__)
-        asm volatile ("lfpc	%0"::"m"(fpc_orig));
+        asm volatile("lfpc	%0" ::"m"(fpc_orig));
 #elif defined(__sparc__)
-        asm volatile ("ldx	%0,%%fsr"::"m"(fsr_orig));
+        asm volatile("ldx	%0,%%fsr" ::"m"(fsr_orig));
 #elif defined(__mips__)
-        asm volatile ("ctc1	%0,$31"::"r"(fcsr_orig));
+        asm volatile("ctc1	%0,$31" ::"r"(fcsr_orig));
 #endif
     }
 
@@ -222,11 +217,11 @@ int poly1305_init(void *ctx, const unsigned char key[16])
 }
 
 void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
-                     int padbit)
+    int padbit)
 {
     poly1305_internal *st = (poly1305_internal *)ctx;
     elem64 in0, in1, in2, in3;
-    u64 pad = (u64)padbit<<32;
+    u64 pad = (u64)padbit << 32;
 
     double x0, x1, x2, x3;
     double h0lo, h0hi, h1lo, h1hi, h2lo, h2hi, h3lo, h3hi;
@@ -254,37 +249,37 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 #if defined(__x86_64__)
     u32 mxcsr_orig;
 
-    asm volatile ("stmxcsr	%0":"=m"(mxcsr_orig));
-    asm volatile ("ldmxcsr	%0"::"m"(mxcsr));
+    asm volatile("stmxcsr	%0" : "=m"(mxcsr_orig));
+    asm volatile("ldmxcsr	%0" ::"m"(mxcsr));
 #elif defined(__PPC__) || defined(__POWERPC__)
     double fpscr_orig, fpscr = *(double *)&one;
 
-    asm volatile ("mffs		%0":"=f"(fpscr_orig));
-    asm volatile ("mtfsf	255,%0"::"f"(fpscr));
+    asm volatile("mffs		%0" : "=f"(fpscr_orig));
+    asm volatile("mtfsf	255,%0" ::"f"(fpscr));
 #elif defined(__s390x__)
     u32 fpc_orig;
 
-    asm volatile ("stfpc	%0":"=m"(fpc_orig));
-    asm volatile ("lfpc		%0"::"m"(fpc));
+    asm volatile("stfpc	%0" : "=m"(fpc_orig));
+    asm volatile("lfpc		%0" ::"m"(fpc));
 #elif defined(__sparc__)
     u64 fsr_orig;
 
-    asm volatile ("stx		%%fsr,%0":"=m"(fsr_orig));
-    asm volatile ("ldx		%0,%%fsr"::"m"(fsr));
+    asm volatile("stx		%%fsr,%0" : "=m"(fsr_orig));
+    asm volatile("ldx		%0,%%fsr" ::"m"(fsr));
 #elif defined(__mips__)
     u32 fcsr_orig;
 
-    asm volatile ("cfc1		%0,$31":"=r"(fcsr_orig));
-    asm volatile ("ctc1		%0,$31"::"r"(fcsr));
+    asm volatile("cfc1		%0,$31" : "=r"(fcsr_orig));
+    asm volatile("ctc1		%0,$31" ::"r"(fcsr));
 #endif
 
     /*
      * load base 2^32 and de-bias
      */
-    h0lo = st->h[0].d - TWO(52)*TWO0;
-    h1lo = st->h[1].d - TWO(52)*TWO32;
-    h2lo = st->h[2].d - TWO(52)*TWO64;
-    h3lo = st->h[3].d - TWO(52)*TWO96;
+    h0lo = st->h[0].d - TWO(52) * TWO0;
+    h1lo = st->h[1].d - TWO(52) * TWO32;
+    h2lo = st->h[2].d - TWO(52) * TWO64;
+    h3lo = st->h[3].d - TWO(52) * TWO96;
 
 #ifdef __clang__
     h0hi = 0;
@@ -292,15 +287,15 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
     h2hi = 0;
     h3hi = 0;
 #else
-    in0.u = EXP(52+0)  | U8TOU32(&inp[0]);
-    in1.u = EXP(52+32) | U8TOU32(&inp[4]);
-    in2.u = EXP(52+64) | U8TOU32(&inp[8]);
-    in3.u = EXP(52+96) | U8TOU32(&inp[12]) | pad;
+    in0.u = EXP(52 + 0) | U8TOU32(&inp[0]);
+    in1.u = EXP(52 + 32) | U8TOU32(&inp[4]);
+    in2.u = EXP(52 + 64) | U8TOU32(&inp[8]);
+    in3.u = EXP(52 + 96) | U8TOU32(&inp[12]) | pad;
 
-    x0 = in0.d - TWO(52)*TWO0;
-    x1 = in1.d - TWO(52)*TWO32;
-    x2 = in2.d - TWO(52)*TWO64;
-    x3 = in3.d - TWO(52)*TWO96;
+    x0 = in0.d - TWO(52) * TWO0;
+    x1 = in1.d - TWO(52) * TWO32;
+    x2 = in2.d - TWO(52) * TWO64;
+    x3 = in3.d - TWO(52) * TWO96;
 
     x0 += h0lo;
     x1 += h1lo;
@@ -311,15 +306,15 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 #endif
 
     do {
-        in0.u = EXP(52+0)  | U8TOU32(&inp[0]);
-        in1.u = EXP(52+32) | U8TOU32(&inp[4]);
-        in2.u = EXP(52+64) | U8TOU32(&inp[8]);
-        in3.u = EXP(52+96) | U8TOU32(&inp[12]) | pad;
+        in0.u = EXP(52 + 0) | U8TOU32(&inp[0]);
+        in1.u = EXP(52 + 32) | U8TOU32(&inp[4]);
+        in2.u = EXP(52 + 64) | U8TOU32(&inp[8]);
+        in3.u = EXP(52 + 96) | U8TOU32(&inp[12]) | pad;
 
-        x0 = in0.d - TWO(52)*TWO0;
-        x1 = in1.d - TWO(52)*TWO32;
-        x2 = in2.d - TWO(52)*TWO64;
-        x3 = in3.d - TWO(52)*TWO96;
+        x0 = in0.d - TWO(52) * TWO0;
+        x1 = in1.d - TWO(52) * TWO32;
+        x2 = in2.d - TWO(52) * TWO64;
+        x3 = in3.d - TWO(52) * TWO96;
 
         /*
          * note that there are multiple ways to accumulate input, e.g.
@@ -333,28 +328,28 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
         /*
          * carries that cross 32n-bit (and 130-bit) boundaries
          */
-        c0lo = (h0lo + TWO(52)*TWO32)  - TWO(52)*TWO32;
-        c1lo = (h1lo + TWO(52)*TWO64)  - TWO(52)*TWO64;
-        c2lo = (h2lo + TWO(52)*TWO96)  - TWO(52)*TWO96;
-        c3lo = (h3lo + TWO(52)*TWO130) - TWO(52)*TWO130;
+        c0lo = (h0lo + TWO(52) * TWO32) - TWO(52) * TWO32;
+        c1lo = (h1lo + TWO(52) * TWO64) - TWO(52) * TWO64;
+        c2lo = (h2lo + TWO(52) * TWO96) - TWO(52) * TWO96;
+        c3lo = (h3lo + TWO(52) * TWO130) - TWO(52) * TWO130;
 
-        c0hi = (h0hi + TWO(52)*TWO32)  - TWO(52)*TWO32;
-        c1hi = (h1hi + TWO(52)*TWO64)  - TWO(52)*TWO64;
-        c2hi = (h2hi + TWO(52)*TWO96)  - TWO(52)*TWO96;
-        c3hi = (h3hi + TWO(52)*TWO130) - TWO(52)*TWO130;
+        c0hi = (h0hi + TWO(52) * TWO32) - TWO(52) * TWO32;
+        c1hi = (h1hi + TWO(52) * TWO64) - TWO(52) * TWO64;
+        c2hi = (h2hi + TWO(52) * TWO96) - TWO(52) * TWO96;
+        c3hi = (h3hi + TWO(52) * TWO130) - TWO(52) * TWO130;
 
         /*
          * base 2^48 -> base 2^32 with last reduction step
          */
-        x1 =  (h1lo - c1lo) + c0lo;
-        x2 =  (h2lo - c2lo) + c1lo;
-        x3 =  (h3lo - c3lo) + c2lo;
-        x0 =  (h0lo - c0lo) + c3lo * (5.0/TWO130);
+        x1 = (h1lo - c1lo) + c0lo;
+        x2 = (h2lo - c2lo) + c1lo;
+        x3 = (h3lo - c3lo) + c2lo;
+        x0 = (h0lo - c0lo) + c3lo * (5.0 / TWO130);
 
         x1 += (h1hi - c1hi) + c0hi;
         x2 += (h2hi - c2hi) + c1hi;
         x3 += (h3hi - c3hi) + c2hi;
-        x0 += (h0hi - c0hi) + c3hi * (5.0/TWO130);
+        x0 += (h0hi - c0hi) + c3hi * (5.0 / TWO130);
 
 #ifndef __clang__
     fast_entry:
@@ -380,56 +375,56 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
     /*
      * carries that cross 32n-bit (and 130-bit) boundaries
      */
-    c0lo = (h0lo + TWO(52)*TWO32)  - TWO(52)*TWO32;
-    c1lo = (h1lo + TWO(52)*TWO64)  - TWO(52)*TWO64;
-    c2lo = (h2lo + TWO(52)*TWO96)  - TWO(52)*TWO96;
-    c3lo = (h3lo + TWO(52)*TWO130) - TWO(52)*TWO130;
+    c0lo = (h0lo + TWO(52) * TWO32) - TWO(52) * TWO32;
+    c1lo = (h1lo + TWO(52) * TWO64) - TWO(52) * TWO64;
+    c2lo = (h2lo + TWO(52) * TWO96) - TWO(52) * TWO96;
+    c3lo = (h3lo + TWO(52) * TWO130) - TWO(52) * TWO130;
 
-    c0hi = (h0hi + TWO(52)*TWO32)  - TWO(52)*TWO32;
-    c1hi = (h1hi + TWO(52)*TWO64)  - TWO(52)*TWO64;
-    c2hi = (h2hi + TWO(52)*TWO96)  - TWO(52)*TWO96;
-    c3hi = (h3hi + TWO(52)*TWO130) - TWO(52)*TWO130;
+    c0hi = (h0hi + TWO(52) * TWO32) - TWO(52) * TWO32;
+    c1hi = (h1hi + TWO(52) * TWO64) - TWO(52) * TWO64;
+    c2hi = (h2hi + TWO(52) * TWO96) - TWO(52) * TWO96;
+    c3hi = (h3hi + TWO(52) * TWO130) - TWO(52) * TWO130;
 
     /*
      * base 2^48 -> base 2^32 with last reduction step
      */
-    x1 =  (h1lo - c1lo) + c0lo;
-    x2 =  (h2lo - c2lo) + c1lo;
-    x3 =  (h3lo - c3lo) + c2lo;
-    x0 =  (h0lo - c0lo) + c3lo * (5.0/TWO130);
+    x1 = (h1lo - c1lo) + c0lo;
+    x2 = (h2lo - c2lo) + c1lo;
+    x3 = (h3lo - c3lo) + c2lo;
+    x0 = (h0lo - c0lo) + c3lo * (5.0 / TWO130);
 
     x1 += (h1hi - c1hi) + c0hi;
     x2 += (h2hi - c2hi) + c1hi;
     x3 += (h3hi - c3hi) + c2hi;
-    x0 += (h0hi - c0hi) + c3hi * (5.0/TWO130);
+    x0 += (h0hi - c0hi) + c3hi * (5.0 / TWO130);
 
     /*
      * store base 2^32, with bias
      */
-    st->h[1].d = x1 + TWO(52)*TWO32;
-    st->h[2].d = x2 + TWO(52)*TWO64;
-    st->h[3].d = x3 + TWO(52)*TWO96;
-    st->h[0].d = x0 + TWO(52)*TWO0;
+    st->h[1].d = x1 + TWO(52) * TWO32;
+    st->h[2].d = x2 + TWO(52) * TWO64;
+    st->h[3].d = x3 + TWO(52) * TWO96;
+    st->h[0].d = x0 + TWO(52) * TWO0;
 
     /*
      * restore original FPU control register
      */
 #if defined(__x86_64__)
-    asm volatile ("ldmxcsr	%0"::"m"(mxcsr_orig));
+    asm volatile("ldmxcsr	%0" ::"m"(mxcsr_orig));
 #elif defined(__PPC__) || defined(__POWERPC__)
-    asm volatile ("mtfsf	255,%0"::"f"(fpscr_orig));
+    asm volatile("mtfsf	255,%0" ::"f"(fpscr_orig));
 #elif defined(__s390x__)
-    asm volatile ("lfpc		%0"::"m"(fpc_orig));
+    asm volatile("lfpc		%0" ::"m"(fpc_orig));
 #elif defined(__sparc__)
-    asm volatile ("ldx		%0,%%fsr"::"m"(fsr_orig));
+    asm volatile("ldx		%0,%%fsr" ::"m"(fsr_orig));
 #elif defined(__mips__)
-    asm volatile ("ctc1		%0,$31"::"r"(fcsr_orig));
+    asm volatile("ctc1		%0,$31" ::"r"(fcsr_orig));
 #endif
 }
 
 void poly1305_emit(void *ctx, unsigned char mac[16], const u32 nonce[4])
 {
-    poly1305_internal *st = (poly1305_internal *) ctx;
+    poly1305_internal *st = (poly1305_internal *)ctx;
     u64 h0, h1, h2, h3, h4;
     u32 g0, g1, g2, g3, g4;
     u64 t;
@@ -446,15 +441,19 @@ void poly1305_emit(void *ctx, unsigned char mac[16], const u32 nonce[4])
     /*
      * can be partially reduced, so reduce...
      */
-    h4 = h3>>32; h3 &= 0xffffffffU;
-    g4 = h4&-4;
+    h4 = h3 >> 32;
+    h3 &= 0xffffffffU;
+    g4 = h4 & -4;
     h4 &= 3;
-    g4 += g4>>2;
+    g4 += g4 >> 2;
 
     h0 += g4;
-    h1 += h0>>32; h0 &= 0xffffffffU;
-    h2 += h1>>32; h1 &= 0xffffffffU;
-    h3 += h2>>32; h2 &= 0xffffffffU;
+    h1 += h0 >> 32;
+    h0 &= 0xffffffffU;
+    h2 += h1 >> 32;
+    h1 &= 0xffffffffU;
+    h3 += h2 >> 32;
+    h2 &= 0xffffffffU;
 
     /* compute h + -p */
     g0 = (u32)(t = h0 + 5);

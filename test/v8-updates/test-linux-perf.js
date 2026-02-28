@@ -61,7 +61,6 @@ const perfCompiledFramesArgs = [
   '--',
   process.execPath,
   ...nodeCommonFlags,
-  '--always-turbofan',
   fixtures.path('linux-perf.js'),
   `${sleepTime}`,
   `${repeat}`,

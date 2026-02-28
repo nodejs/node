@@ -31,9 +31,8 @@ class memoize:
 
 class GypError(Exception):
     """Error class representing an error, which is to be presented
-  to the user.  The main entry point will catch and display this.
-  """
-
+    to the user.  The main entry point will catch and display this.
+    """
 
 
 def ExceptionAppend(e, msg):
@@ -48,9 +47,9 @@ def ExceptionAppend(e, msg):
 
 def FindQualifiedTargets(target, qualified_list):
     """
-  Given a list of qualified targets, return the qualified targets for the
-  specified |target|.
-  """
+    Given a list of qualified targets, return the qualified targets for the
+    specified |target|.
+    """
     return [t for t in qualified_list if ParseQualifiedTarget(t)[1] == target]
 
 
@@ -115,7 +114,7 @@ def BuildFile(fully_qualified_target):
 
 def GetEnvironFallback(var_list, default):
     """Look up a key in the environment, with fallback to secondary keys
-  and finally falling back to a default value."""
+    and finally falling back to a default value."""
     for var in var_list:
         if var in os.environ:
             return os.environ[var]
@@ -178,11 +177,11 @@ def RelativePath(path, relative_to, follow_path_symlink=True):
 @memoize
 def InvertRelativePath(path, toplevel_dir=None):
     """Given a path like foo/bar that is relative to toplevel_dir, return
-  the inverse relative path back to the toplevel_dir.
+    the inverse relative path back to the toplevel_dir.
 
-  E.g. os.path.normpath(os.path.join(path, InvertRelativePath(path)))
-  should always produce the empty string, unless the path contains symlinks.
-  """
+    E.g. os.path.normpath(os.path.join(path, InvertRelativePath(path)))
+    should always produce the empty string, unless the path contains symlinks.
+    """
     if not path:
         return path
     toplevel_dir = "." if toplevel_dir is None else toplevel_dir
@@ -262,12 +261,12 @@ _escape = re.compile(r'(["\\`])')
 def EncodePOSIXShellArgument(argument):
     """Encodes |argument| suitably for consumption by POSIX shells.
 
-  argument may be quoted and escaped as necessary to ensure that POSIX shells
-  treat the returned value as a literal representing the argument passed to
-  this function.  Parameter (variable) expansions beginning with $ are allowed
-  to remain intact without escaping the $, to allow the argument to contain
-  references to variables to be expanded by the shell.
-  """
+    argument may be quoted and escaped as necessary to ensure that POSIX shells
+    treat the returned value as a literal representing the argument passed to
+    this function.  Parameter (variable) expansions beginning with $ are allowed
+    to remain intact without escaping the $, to allow the argument to contain
+    references to variables to be expanded by the shell.
+    """
 
     if not isinstance(argument, str):
         argument = str(argument)
@@ -282,9 +281,9 @@ def EncodePOSIXShellArgument(argument):
 def EncodePOSIXShellList(list):
     """Encodes |list| suitably for consumption by POSIX shells.
 
-  Returns EncodePOSIXShellArgument for each item in list, and joins them
-  together using the space character as an argument separator.
-  """
+    Returns EncodePOSIXShellArgument for each item in list, and joins them
+    together using the space character as an argument separator.
+    """
 
     encoded_arguments = []
     for argument in list:
@@ -312,14 +311,12 @@ def DeepDependencyTargets(target_dicts, roots):
 
 
 def BuildFileTargets(target_list, build_file):
-    """From a target_list, returns the subset from the specified build_file.
-  """
+    """From a target_list, returns the subset from the specified build_file."""
     return [p for p in target_list if BuildFile(p) == build_file]
 
 
 def AllTargets(target_list, target_dicts, build_file):
-    """Returns all targets (direct and dependencies) for the specified build_file.
-  """
+    """Returns all targets (direct and dependencies) for the specified build_file."""
     bftargets = BuildFileTargets(target_list, build_file)
     deptargets = DeepDependencyTargets(target_dicts, bftargets)
     return bftargets + deptargets
@@ -328,12 +325,12 @@ def AllTargets(target_list, target_dicts, build_file):
 def WriteOnDiff(filename):
     """Write to a file only if the new contents differ.
 
-  Arguments:
-    filename: name of the file to potentially write to.
-  Returns:
-    A file like object which will write to temporary file and only overwrite
-    the target if it differs (on close).
-  """
+    Arguments:
+      filename: name of the file to potentially write to.
+    Returns:
+      A file like object which will write to temporary file and only overwrite
+      the target if it differs (on close).
+    """
 
     class Writer:
         """Wrapper around file which only covers the target if it differs."""
@@ -421,6 +418,7 @@ def EnsureDirExists(path):
     except OSError:
         pass
 
+
 def GetCompilerPredefines():  # -> dict
     cmd = []
     defines = {}
@@ -448,15 +446,14 @@ def GetCompilerPredefines():  # -> dict
         try:
             os.close(fd)
             stdout = subprocess.run(
-                real_cmd, shell=True,
-                capture_output=True, check=True
+                real_cmd, shell=True, capture_output=True, check=True
             ).stdout
         except subprocess.CalledProcessError as e:
             print(
                 "Warning: failed to get compiler predefines\n"
                 "cmd: %s\n"
                 "status: %d" % (e.cmd, e.returncode),
-                file=sys.stderr
+                file=sys.stderr,
             )
             return defines
         finally:
@@ -466,15 +463,14 @@ def GetCompilerPredefines():  # -> dict
         real_cmd = [*cmd, "-dM", "-E", "-x", "c", input]
         try:
             stdout = subprocess.run(
-                real_cmd, shell=False,
-                capture_output=True, check=True
+                real_cmd, shell=False, capture_output=True, check=True
             ).stdout
         except subprocess.CalledProcessError as e:
             print(
                 "Warning: failed to get compiler predefines\n"
                 "cmd: %s\n"
                 "status: %d" % (e.cmd, e.returncode),
-                file=sys.stderr
+                file=sys.stderr,
             )
             return defines
 
@@ -484,6 +480,7 @@ def GetCompilerPredefines():  # -> dict
             _, key, *value = line.split(" ")
             defines[key] = " ".join(value)
     return defines
+
 
 def GetFlavorByPlatform():
     """Returns |params.flavor| if it's set, the system's default flavor else."""
@@ -512,6 +509,7 @@ def GetFlavorByPlatform():
 
     return "linux"
 
+
 def GetFlavor(params):
     if "flavor" in params:
         return params["flavor"]
@@ -527,7 +525,7 @@ def GetFlavor(params):
 
 def CopyTool(flavor, out_path, generator_flags={}):
     """Finds (flock|mac|win)_tool.gyp in the gyp directory and copies it
-  to |out_path|."""
+    to |out_path|."""
     # aix and solaris just need flock emulation. mac and win use more complicated
     # support scripts.
     prefix = {
@@ -662,24 +660,24 @@ class CycleError(Exception):
 def TopologicallySorted(graph, get_edges):
     r"""Topologically sort based on a user provided edge definition.
 
-  Args:
-    graph: A list of node names.
-    get_edges: A function mapping from node name to a hashable collection
-               of node names which this node has outgoing edges to.
-  Returns:
-    A list containing all of the node in graph in topological order.
-    It is assumed that calling get_edges once for each node and caching is
-    cheaper than repeatedly calling get_edges.
-  Raises:
-    CycleError in the event of a cycle.
-  Example:
-    graph = {'a': '$(b) $(c)', 'b': 'hi', 'c': '$(b)'}
-    def GetEdges(node):
-      return re.findall(r'\$\(([^))]\)', graph[node])
-    print TopologicallySorted(graph.keys(), GetEdges)
-    ==>
-    ['a', 'c', b']
-  """
+    Args:
+      graph: A list of node names.
+      get_edges: A function mapping from node name to a hashable collection
+                 of node names which this node has outgoing edges to.
+    Returns:
+      A list containing all of the node in graph in topological order.
+      It is assumed that calling get_edges once for each node and caching is
+      cheaper than repeatedly calling get_edges.
+    Raises:
+      CycleError in the event of a cycle.
+    Example:
+      graph = {'a': '$(b) $(c)', 'b': 'hi', 'c': '$(b)'}
+      def GetEdges(node):
+        return re.findall(r'\$\(([^))]\)', graph[node])
+      print TopologicallySorted(graph.keys(), GetEdges)
+      ==>
+      ['a', 'c', b']
+    """
     get_edges = memoize(get_edges)
     visited = set()
     visiting = set()

@@ -68,7 +68,7 @@ async function chdirDoesNotAffectRemoval() {
 
 async function errorsAreReThrown() {
   // It is difficult to arrange for rmdir to fail on windows
-  if (common.isWindows) return;
+  if (common.isWindows || process.getuid() === 0) return;
   const base = await fsPromises.mkdtempDisposable(tmpdir.resolve('foo.'));
 
   // On Unix we can prevent removal by making the parent directory read-only

@@ -89,6 +89,7 @@
 
 #include "gtest/gtest-message.h"
 #include "gtest/gtest-spi.h"
+#include "gtest/gtest.h"
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 #include "src/gtest-internal-inl.h"
@@ -320,13 +321,13 @@ Mutex::~Mutex() {
   }
 }
 
-void Mutex::Lock() {
+void Mutex::lock() {
   ThreadSafeLazyInit();
   ::EnterCriticalSection(critical_section_);
   owner_thread_id_ = ::GetCurrentThreadId();
 }
 
-void Mutex::Unlock() {
+void Mutex::unlock() {
   ThreadSafeLazyInit();
   // We don't protect writing to owner_thread_id_ here, as it's the
   // caller's responsibility to ensure that the current thread holds the
@@ -499,7 +500,7 @@ class ThreadLocalRegistryImpl {
     MemoryIsNotDeallocated memory_is_not_deallocated;
 #endif  // _MSC_VER
     DWORD current_thread = ::GetCurrentThreadId();
-    MutexLock lock(&mutex_);
+    MutexLock lock(mutex_);
     ThreadIdToThreadLocals* const thread_to_thread_locals =
         GetThreadLocalsMapLocked();
     ThreadIdToThreadLocals::iterator thread_local_pos =
@@ -532,7 +533,7 @@ class ThreadLocalRegistryImpl {
     // Clean up the ThreadLocalValues data structure while holding the lock, but
     // defer the destruction of the ThreadLocalValueHolderBases.
     {
-      MutexLock lock(&mutex_);
+      MutexLock lock(mutex_);
       ThreadIdToThreadLocals* const thread_to_thread_locals =
           GetThreadLocalsMapLocked();
       for (ThreadIdToThreadLocals::iterator it =
@@ -559,7 +560,7 @@ class ThreadLocalRegistryImpl {
     // Clean up the ThreadIdToThreadLocals data structure while holding the
     // lock, but defer the destruction of the ThreadLocalValueHolderBases.
     {
-      MutexLock lock(&mutex_);
+      MutexLock lock(mutex_);
       ThreadIdToThreadLocals* const thread_to_thread_locals =
           GetThreadLocalsMapLocked();
       ThreadIdToThreadLocals::iterator thread_local_pos =
@@ -729,7 +730,7 @@ void RE::Init(const char* regex) {
   char* const full_pattern = new char[full_regex_len];
 
   snprintf(full_pattern, full_regex_len, "^(%s)$", regex);
-  is_valid_ = regcomp(&full_regex_, full_pattern, reg_flags) == 0;
+  int error = regcomp(&full_regex_, full_pattern, reg_flags);
   // We want to call regcomp(&partial_regex_, ...) even if the
   // previous expression returns false.  Otherwise partial_regex_ may
   // not be properly initialized can may cause trouble when it's
@@ -738,13 +739,13 @@ void RE::Init(const char* regex) {
   // Some implementation of POSIX regex (e.g. on at least some
   // versions of Cygwin) doesn't accept the empty string as a valid
   // regex.  We change it to an equivalent form "()" to be safe.
-  if (is_valid_) {
+  if (!error) {
     const char* const partial_regex = (*regex == '\0') ? "()" : regex;
-    is_valid_ = regcomp(&partial_regex_, partial_regex, reg_flags) == 0;
+    error = regcomp(&partial_regex_, partial_regex, reg_flags);
   }
-  EXPECT_TRUE(is_valid_)
-      << "Regular expression \"" << regex
-      << "\" is not a valid POSIX Extended regular expression.";
+  is_valid_ = error == 0;
+  EXPECT_EQ(error, 0) << "Regular expression \"" << regex
+                      << "\" is not a valid POSIX Extended regular expression.";
 
   delete[] full_pattern;
 }

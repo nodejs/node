@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.21.1](https://github.com/nodejs/gyp-next/compare/v0.21.0...v0.21.1) (2026-01-24)
+
+
+### Bug Fixes
+
+* replace weak hash functions with SHA-256 ([#329](https://github.com/nodejs/gyp-next/issues/329)) ([958029e](https://github.com/nodejs/gyp-next/commit/958029e6e4969a871d15e78cd083bb102bebb381))
+
+## [0.21.0](https://github.com/nodejs/gyp-next/compare/v0.20.5...v0.21.0) (2025-11-04)
+
+
+### Features
+
+* add support for Visual Studio 2026 ([#319](https://github.com/nodejs/gyp-next/issues/319)) ([cb13bbc](https://github.com/nodejs/gyp-next/commit/cb13bbc4ab7a7d86b51221b39ebee4281e1d3e19))
+
+## [0.20.5](https://github.com/nodejs/gyp-next/compare/v0.20.4...v0.20.5) (2025-10-13)
+
+
+### Bug Fixes
+
+* Fix ruff v0.13.0 adds ruff rule RUF059 ([bd4491a](https://github.com/nodejs/gyp-next/commit/bd4491a3ba641eeb040b785bbce367f72c3baf19))
+* handle `None` case in xcode_emulation regexes ([#311](https://github.com/nodejs/gyp-next/issues/311)) ([b21ee31](https://github.com/nodejs/gyp-next/commit/b21ee3150eea9fc1a8811e910e5ba64f42e1fb77))
+
+## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate usage ([#308](https://github.com/nodejs/gyp-next/issues/308)) ([0996f60](https://github.com/nodejs/gyp-next/commit/0996f60e9bc83ec9d7b31e39bebd23f8dc990130))
+* **docs:** Add running gyp via uv ([#306](https://github.com/nodejs/gyp-next/issues/306)) ([0e43f61](https://github.com/nodejs/gyp-next/commit/0e43f61da8154f9b460ccba9ce4c0a25d2383ac4))
+
+## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
+
+
+### Bug Fixes
+
+* compilation failure on the OpenHarmony platform ([#301](https://github.com/nodejs/gyp-next/issues/301)) ([0cf7a14](https://github.com/nodejs/gyp-next/commit/0cf7a142be06f686b8b42849791de902f177cf9f))
+* make xcode_emulation handle `xcodebuild` not in the `PATH` ([#303](https://github.com/nodejs/gyp-next/issues/303)) ([8224dee](https://github.com/nodejs/gyp-next/commit/8224deef984add7e7afe846cfb82c9d3fa6da1fb))
+
 ## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
 
 

@@ -34,6 +34,9 @@ class ElementAccessInfo final {
  public:
   ElementAccessInfo(ZoneVector<MapRef>&& lookup_start_object_maps,
                     ElementsKind elements_kind, Zone* zone);
+  // For Proxy-on-Prototype mode.
+  ElementAccessInfo(MapRef map, ObjectRef accessor, ObjectRef target,
+                    bool string_keys, Zone* zone);
 
   ElementsKind elements_kind() const { return elements_kind_; }
   ZoneVector<MapRef> const& lookup_start_object_maps() const {
@@ -48,10 +51,29 @@ class ElementAccessInfo final {
     transition_sources_.push_back(map);
   }
 
+  // Indicates whether this {ElementAccessInfo} is for the standard case
+  // where elements are directly on the receiver, or the special case where
+  // Proxy traps found on the prototype chain are handling the access.
+  bool is_proxy_on_prototype() const {
+    // Either both of {accessor_} and {target_} must be present, or neither.
+    DCHECK_EQ(accessor_.has_value(), target_.has_value());
+    DCHECK_IMPLIES(!accessor_.has_value(), !string_keys_);
+    return accessor_.has_value();
+  }
+
+  // Only for Proxy-on-Prototype mode: records whether the Proxy trap expects
+  // string keys or integer keys.
+  bool string_keys() const { return string_keys_; }
+  OptionalObjectRef accessor() const { return accessor_; }
+  OptionalObjectRef target() const { return target_; }
+
  private:
   ElementsKind elements_kind_;
+  bool string_keys_{false};
   ZoneVector<MapRef> lookup_start_object_maps_;
   ZoneVector<MapRef> transition_sources_;
+  OptionalObjectRef accessor_;
+  OptionalObjectRef target_;
 };
 
 // This class encapsulates all information required to access a certain
@@ -264,9 +286,14 @@ class AccessInfoFactory final {
       ZoneVector<PropertyAccessInfo> infos, AccessMode access_mode) const;
 
  private:
+  enum class KeyType { kString, kIndex };
+
   std::optional<ElementAccessInfo> ConsolidateElementLoad(
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
+  PropertyAccessInfo LookupSpecialFieldAccessorInHolder(
+      MapRef receiver_map, NameRef name, JSObjectRef holder,
+      PropertyDetails details, InternalIndex index) const;
   PropertyAccessInfo LookupTransition(MapRef map, NameRef name,
                                       OptionalJSObjectRef holder,
                                       PropertyAttributes attrs) const;
@@ -290,6 +317,10 @@ class AccessInfoFactory final {
   bool TryLoadPropertyDetails(MapRef map, OptionalJSObjectRef maybe_holder,
                               NameRef name, InternalIndex* index_out,
                               PropertyDetails* details_out) const;
+
+  bool ObjectMayHaveElements(JSObjectRef obj, MapRef map) const;
+  bool ObjectMayHaveOwnProperties(JSObjectRef obj, MapRef map) const;
+  bool ObjectIsSuitableProxyTarget(KeyType key_type, JSObjectRef obj) const;
 
   CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }

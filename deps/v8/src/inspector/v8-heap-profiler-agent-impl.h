@@ -60,7 +60,7 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
                            String16* heapSnapshotObjectId) override;
 
   Response startSampling(
-      std::optional<double> samplingInterval,
+      std::optional<double> samplingInterval, std::optional<double> stackDepth,
       std::optional<bool> includeObjectsCollectedByMajorGC,
       std::optional<bool> includeObjectsCollectedByMinorGC) override;
   Response stopSampling(

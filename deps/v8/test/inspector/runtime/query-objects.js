@@ -132,7 +132,7 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({
       returnByValue: true,
       expression: `
-        global.dummyFunction = () => {
+        function dummyFunction() {
           [42];
           {foo: 'bar'};
           [1,2,3];

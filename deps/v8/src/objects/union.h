@@ -10,6 +10,9 @@
 
 namespace v8::internal {
 
+class Smi;
+class Hole;
+
 // Union<Ts...> represents a union of multiple V8 types.
 //
 // Unions are required to be non-nested (i.e. no unions of unions), and to

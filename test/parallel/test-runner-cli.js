@@ -62,10 +62,10 @@ for (const isolation of ['none', 'process']) {
     assert.doesNotMatch(stdout, /ok 4 - this should pass/);
   }
 
-  for (const type of ['strip', 'transform']) {
+  {
     // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
     const args = ['--test', '--test-reporter=tap', '--no-warnings',
-                  `--experimental-${type}-types`, `--test-isolation=${isolation}`];
+                  '--experimental-strip-types', `--test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
     if (!process.config.variables.node_use_amaro) {

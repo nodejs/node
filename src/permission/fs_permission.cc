@@ -69,7 +69,14 @@ bool is_tree_granted(
     resolved_param.erase(0, 2);
   }
 #endif
-  return granted_tree->Lookup(resolved_param, true);
+  auto _is_granted = granted_tree->Lookup(resolved_param, true);
+  node::Debug(env,
+              node::DebugCategory::PERMISSION_MODEL,
+              "Access %d to %s\n",
+              _is_granted,
+              param);
+
+  return _is_granted;
 }
 
 static const char* kBoxDrawingsLightUpAndRight = "└─ ";
@@ -95,10 +102,8 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
       }
     }
 
-    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                             "%s%s\n",
-                             indent.c_str(),
-                             node->prefix.c_str());
+    node::per_process::Debug(
+        node::DebugCategory::PERMISSION_MODEL, "%s%s\n", indent, node->prefix);
   }
 
   if (node->children.size() > 0) {
@@ -169,13 +174,17 @@ bool FSPermission::is_granted(Environment* env,
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
     case PermissionScope::kFileSystemRead:
+      if (param.empty()) {
+        return allow_all_in_;
+      }
       return !deny_all_in_ &&
-             ((param.empty() && allow_all_in_) || allow_all_in_ ||
-              is_tree_granted(env, &granted_in_fs_, param));
+             (allow_all_in_ || is_tree_granted(env, &granted_in_fs_, param));
     case PermissionScope::kFileSystemWrite:
+      if (param.empty()) {
+        return allow_all_out_;
+      }
       return !deny_all_out_ &&
-             ((param.empty() && allow_all_out_) || allow_all_out_ ||
-              is_tree_granted(env, &granted_out_fs_, param));
+             (allow_all_out_ || is_tree_granted(env, &granted_out_fs_, param));
     default:
       return false;
   }

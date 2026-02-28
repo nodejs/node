@@ -17,16 +17,16 @@ FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block,
       is_wasm_to_js_(is_wasm_to_js) {}
 
 void FrameElider::Run() {
-  if (!v8_flags.turbo_elide_frames) {
+  if (v8_flags.turbo_elide_frames) {
+    MarkBlocks();
+    PropagateMarks();
+  } else {
 #ifdef DEBUG
     for (InstructionBlock* block : instruction_blocks()) {
       CHECK(block->needs_frame());
     }
 #endif
-    return;
   }
-  MarkBlocks();
-  PropagateMarks();
   MarkDeConstruction();
 }
 
@@ -90,8 +90,7 @@ void FrameElider::MarkDeConstruction() {
           DCHECK_EQ(1U, block->SuccessorCount());
           const Instruction* last =
               InstructionAt(block->last_instruction_index());
-          if (last->IsThrow() || last->IsTailCall() ||
-              last->IsDeoptimizeCall()) {
+          if (last->IsTailCall() || last->IsDeoptimizeCall()) {
             // We need to keep the frame if we exit the block through any
             // of these.
             continue;

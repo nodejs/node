@@ -27,18 +27,22 @@
 #include "nghttp3_macro.h"
 
 void nghttp3_range_init(nghttp3_range *r, uint64_t begin, uint64_t end) {
-  r->begin = begin;
-  r->end = end;
+  *r = (nghttp3_range){
+    .begin = begin,
+    .end = end,
+  };
 }
 
 nghttp3_range nghttp3_range_intersect(const nghttp3_range *a,
                                       const nghttp3_range *b) {
-  nghttp3_range r = {0};
+  nghttp3_range r;
   uint64_t begin = nghttp3_max_uint64(a->begin, b->begin);
   uint64_t end = nghttp3_min_uint64(a->end, b->end);
 
   if (begin < end) {
     nghttp3_range_init(&r, begin, end);
+  } else {
+    r = (nghttp3_range){0};
   }
 
   return r;
@@ -53,10 +57,14 @@ int nghttp3_range_eq(const nghttp3_range *a, const nghttp3_range *b) {
 void nghttp3_range_cut(nghttp3_range *left, nghttp3_range *right,
                        const nghttp3_range *a, const nghttp3_range *b) {
   /* Assume that b is included in a */
-  left->begin = a->begin;
-  left->end = b->begin;
-  right->begin = b->end;
-  right->end = a->end;
+  *left = (nghttp3_range){
+    .begin = a->begin,
+    .end = b->begin,
+  };
+  *right = (nghttp3_range){
+    .begin = b->end,
+    .end = a->end,
+  };
 }
 
 int nghttp3_range_not_after(const nghttp3_range *a, const nghttp3_range *b) {

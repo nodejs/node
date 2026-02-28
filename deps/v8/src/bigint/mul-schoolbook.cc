@@ -14,7 +14,7 @@ void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
   DCHECK(y != 0);
   digit_t carry = 0;
   digit_t high = 0;
-  for (int i = 0; i < X.len(); i++) {
+  for (uint32_t i = 0; i < X.len(); i++) {
     digit_t new_high;
     digit_t low = digit_mul(X[i], y, &new_high);
     Z[i] = digit_add3(low, high, carry, &carry);
@@ -22,11 +22,11 @@ void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
   }
   AddWorkEstimate(X.len());
   Z[X.len()] = carry + high;
-  for (int i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
+  for (uint32_t i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
 }
 
 #define BODY(min, max)                              \
-  for (int j = min; j <= max; j++) {                \
+  for (uint32_t j = min; j <= max; j++) {           \
     digit_t high;                                   \
     digit_t low = digit_mul(X[j], Y[i - j], &high); \
     digit_t carrybit;                               \
@@ -55,7 +55,7 @@ void ProcessorImpl::MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
   digit_t next, next_carry = 0, carry = 0;
   // Unrolled first iteration: it's trivial.
   Z[0] = digit_mul(X[0], Y[0], &next);
-  int i = 1;
+  uint32_t i = 1;
   // Unrolled second iteration: a little less setup.
   if (i < Y.len()) {
     digit_t zi = next;
@@ -73,11 +73,11 @@ void ProcessorImpl::MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
     AddWorkEstimate(i);
   }
   // Last part: i exceeds Y now, we have to be careful about bounds.
-  int loop_end = X.len() + Y.len() - 2;
+  uint32_t loop_end = X.len() + Y.len() - 2;
   for (; i <= loop_end; i++) {
-    int max_x_index = std::min(i, X.len() - 1);
-    int max_y_index = Y.len() - 1;
-    int min_x_index = i - max_y_index;
+    uint32_t max_x_index = std::min(i, X.len() - 1);
+    uint32_t max_y_index = Y.len() - 1;
+    uint32_t min_x_index = i - max_y_index;
     digit_t zi = digit_add2(next, carry, &carry);
     next = next_carry + carry;
     carry = 0;

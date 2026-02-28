@@ -815,13 +815,11 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
   // `InlinedVector::clear()`
   //
   // Destroys all elements in the inlined vector, setting the size to `0` and
-  // deallocating any held memory.
+  // preserving capacity.
   void clear() noexcept {
     inlined_vector_internal::DestroyAdapter<A>::DestroyElements(
         storage_.GetAllocator(), data(), size());
-    storage_.DeallocateIfAllocated();
-
-    storage_.SetInlinedSize(0);
+    storage_.SetSize(0);
   }
 
   // `InlinedVector::reserve(...)`
@@ -1008,9 +1006,17 @@ bool operator>=(const absl::InlinedVector<T, N, A>& a,
 // call this directly.
 template <typename H, typename T, size_t N, typename A>
 H AbslHashValue(H h, const absl::InlinedVector<T, N, A>& a) {
-  auto size = a.size();
-  return H::combine(H::combine_contiguous(std::move(h), a.data(), size),
-                    hash_internal::WeaklyMixedInteger{size});
+  return H::combine_contiguous(std::move(h), a.data(), a.size());
+}
+
+template <typename T, size_t N, typename A, typename Predicate>
+constexpr typename InlinedVector<T, N, A>::size_type erase_if(
+    InlinedVector<T, N, A>& v, Predicate pred) {
+  const auto it = std::remove_if(v.begin(), v.end(), std::move(pred));
+  const auto removed = static_cast<typename InlinedVector<T, N, A>::size_type>(
+      std::distance(it, v.end()));
+  v.erase(it, v.end());
+  return removed;
 }
 
 ABSL_NAMESPACE_END

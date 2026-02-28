@@ -74,8 +74,7 @@ def EncodeRspFileList(args, quote_cmd):
         program = call + " " + os.path.normpath(program)
     else:
         program = os.path.normpath(args[0])
-    return (program + " "
-            + " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:]))
+    return program + " " + " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:])
 
 
 def _GenericRetrieve(root, default, path):
@@ -934,14 +933,17 @@ class MsvsSettings:
         includes whether it should run under cygwin (msvs_cygwin_shell), and
         whether the commands should be quoted (msvs_quote_cmd)."""
         # If the variable is unset, or set to 1 we use cygwin
-        cygwin = int(rule.get("msvs_cygwin_shell",
-                              self.spec.get("msvs_cygwin_shell", 1))) != 0
+        cygwin = (
+            int(rule.get("msvs_cygwin_shell", self.spec.get("msvs_cygwin_shell", 1)))
+            != 0
+        )
         # Default to quoting. There's only a few special instances where the
         # target command uses non-standard command line parsing and handle quotes
         # and quote escaping differently.
         quote_cmd = int(rule.get("msvs_quote_cmd", 1))
-        assert quote_cmd != 0 or cygwin != 1, \
-               "msvs_quote_cmd=0 only applicable for msvs_cygwin_shell=0"
+        assert quote_cmd != 0 or cygwin != 1, (
+            "msvs_quote_cmd=0 only applicable for msvs_cygwin_shell=0"
+        )
         return MsvsSettings.RuleShellFlags(cygwin, quote_cmd)
 
     def _HasExplicitRuleForExtension(self, spec, extension):
@@ -1129,8 +1131,7 @@ def _ExtractImportantEnvironment(output_of_set):
     for required in ("SYSTEMROOT", "TEMP", "TMP"):
         if required not in env:
             raise Exception(
-                'Environment variable "%s" '
-                "required to be set to valid path" % required
+                'Environment variable "%s" required to be set to valid path' % required
             )
     return env
 

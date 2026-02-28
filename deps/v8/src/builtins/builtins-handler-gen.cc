@@ -314,9 +314,29 @@ void HandlerBuiltinsAssembler::Generate_StoreFastElementIC(
                   maybe_converted_value.value(), slot, vector, receiver, key);
 }
 
+#if V8_ENABLE_GEARBOX
+TF_BUILTIN(StoreFastElementIC_InBounds, HandlerBuiltinsAssembler) {
+  // TODO(Wenqin): we may not generate StoreFastElementIC_InBounds builtin,
+  // but generate another Code object which just share the instruction start,
+  // size, meta data size and etc.
+  Unreachable();
+}
+
+TF_BUILTIN(StoreFastElementIC_InBounds_Generic, HandlerBuiltinsAssembler) {
+  Generate_StoreFastElementIC(KeyedAccessStoreMode::kInBounds);
+}
+
+TF_BUILTIN(StoreFastElementIC_InBounds_ISX, HandlerBuiltinsAssembler) {
+  Generate_StoreFastElementIC(KeyedAccessStoreMode::kInBounds);
+}
+
+#else
+
 TF_BUILTIN(StoreFastElementIC_InBounds, HandlerBuiltinsAssembler) {
   Generate_StoreFastElementIC(KeyedAccessStoreMode::kInBounds);
 }
+
+#endif  // V8_ENABLE_GEARBOX
 
 TF_BUILTIN(StoreFastElementIC_NoTransitionGrowAndHandleCOW,
            HandlerBuiltinsAssembler) {

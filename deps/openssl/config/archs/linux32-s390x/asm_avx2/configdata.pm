@@ -174,7 +174,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.5.1",
+    "full_version" => "3.5.5",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -237,7 +237,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
-    "patch" => "1",
+    "patch" => "5",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -290,11 +290,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned char",
-    "release_date" => "1 Jul 2025",
+    "release_date" => "27 Jan 2026",
     "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "linux32-s390x",
-    "version" => "3.5.1"
+    "version" => "3.5.5"
 );
 our %target = (
     "AR" => "ar",
@@ -2672,6 +2672,9 @@ our %unified_info = (
         "doc/html/man3/BIO_set_callback.html" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/html/man3/BIO_set_flags.html" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/html/man3/BIO_should_retry.html" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -2749,6 +2752,9 @@ our %unified_info = (
         ],
         "doc/html/man3/CMS_EncryptedData_encrypt.html" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/html/man3/CMS_EncryptedData_set1_key.html" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/html/man3/CMS_EnvelopedData_create.html" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -2992,6 +2998,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_BytesToKey.html" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -3349,6 +3358,9 @@ our %unified_info = (
         ],
         "doc/html/man3/OPENSSL_malloc.html" => [
             "doc/man3/OPENSSL_malloc.pod"
+        ],
+        "doc/html/man3/OPENSSL_ppccap.html" => [
+            "doc/man3/OPENSSL_ppccap.pod"
         ],
         "doc/html/man3/OPENSSL_riscvcap.html" => [
             "doc/man3/OPENSSL_riscvcap.pod"
@@ -5351,6 +5363,9 @@ our %unified_info = (
         "doc/man/man3/BIO_set_callback.3" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/man/man3/BIO_set_flags.3" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/man/man3/BIO_should_retry.3" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -5428,6 +5443,9 @@ our %unified_info = (
         ],
         "doc/man/man3/CMS_EncryptedData_encrypt.3" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/man/man3/CMS_EncryptedData_set1_key.3" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/man/man3/CMS_EnvelopedData_create.3" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -5671,6 +5689,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_BytesToKey.3" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -6028,6 +6049,9 @@ our %unified_info = (
         ],
         "doc/man/man3/OPENSSL_malloc.3" => [
             "doc/man3/OPENSSL_malloc.pod"
+        ],
+        "doc/man/man3/OPENSSL_ppccap.3" => [
+            "doc/man3/OPENSSL_ppccap.pod"
         ],
         "doc/man/man3/OPENSSL_riscvcap.3" => [
             "doc/man3/OPENSSL_riscvcap.pod"
@@ -12166,6 +12190,7 @@ our %unified_info = (
                 "test/testutil/libtestutil-lib-apps_shims.o",
                 "test/testutil/libtestutil-lib-basic_output.o",
                 "test/testutil/libtestutil-lib-cb.o",
+                "test/testutil/libtestutil-lib-compare.o",
                 "test/testutil/libtestutil-lib-driver.o",
                 "test/testutil/libtestutil-lib-fake_random.o",
                 "test/testutil/libtestutil-lib-format_output.o",
@@ -13265,6 +13290,9 @@ our %unified_info = (
         "doc/html/man3/BIO_set_callback.html" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/html/man3/BIO_set_flags.html" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/html/man3/BIO_should_retry.html" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -13342,6 +13370,9 @@ our %unified_info = (
         ],
         "doc/html/man3/CMS_EncryptedData_encrypt.html" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/html/man3/CMS_EncryptedData_set1_key.html" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/html/man3/CMS_EnvelopedData_create.html" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -13585,6 +13616,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_BytesToKey.html" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -13942,6 +13976,9 @@ our %unified_info = (
         ],
         "doc/html/man3/OPENSSL_malloc.html" => [
             "doc/man3/OPENSSL_malloc.pod"
+        ],
+        "doc/html/man3/OPENSSL_ppccap.html" => [
+            "doc/man3/OPENSSL_ppccap.pod"
         ],
         "doc/html/man3/OPENSSL_riscvcap.html" => [
             "doc/man3/OPENSSL_riscvcap.pod"
@@ -15944,6 +15981,9 @@ our %unified_info = (
         "doc/man/man3/BIO_set_callback.3" => [
             "doc/man3/BIO_set_callback.pod"
         ],
+        "doc/man/man3/BIO_set_flags.3" => [
+            "doc/man3/BIO_set_flags.pod"
+        ],
         "doc/man/man3/BIO_should_retry.3" => [
             "doc/man3/BIO_should_retry.pod"
         ],
@@ -16021,6 +16061,9 @@ our %unified_info = (
         ],
         "doc/man/man3/CMS_EncryptedData_encrypt.3" => [
             "doc/man3/CMS_EncryptedData_encrypt.pod"
+        ],
+        "doc/man/man3/CMS_EncryptedData_set1_key.3" => [
+            "doc/man3/CMS_EncryptedData_set1_key.pod"
         ],
         "doc/man/man3/CMS_EnvelopedData_create.3" => [
             "doc/man3/CMS_EnvelopedData_create.pod"
@@ -16264,6 +16307,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_BytesToKey.3" => [
             "doc/man3/EVP_BytesToKey.pod"
+        ],
+        "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3" => [
+            "doc/man3/EVP_CIPHER_CTX_get_app_data.pod"
         ],
         "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3" => [
             "doc/man3/EVP_CIPHER_CTX_get_cipher_data.pod"
@@ -16621,6 +16667,9 @@ our %unified_info = (
         ],
         "doc/man/man3/OPENSSL_malloc.3" => [
             "doc/man3/OPENSSL_malloc.pod"
+        ],
+        "doc/man/man3/OPENSSL_ppccap.3" => [
+            "doc/man3/OPENSSL_ppccap.pod"
         ],
         "doc/man/man3/OPENSSL_riscvcap.3" => [
             "doc/man3/OPENSSL_riscvcap.pod"
@@ -19075,6 +19124,7 @@ our %unified_info = (
             "doc/html/man3/BIO_s_socket.html",
             "doc/html/man3/BIO_sendmmsg.html",
             "doc/html/man3/BIO_set_callback.html",
+            "doc/html/man3/BIO_set_flags.html",
             "doc/html/man3/BIO_should_retry.html",
             "doc/html/man3/BIO_socket_wait.html",
             "doc/html/man3/BN_BLINDING_new.html",
@@ -19101,6 +19151,7 @@ our %unified_info = (
             "doc/html/man3/CMAC_CTX.html",
             "doc/html/man3/CMS_EncryptedData_decrypt.html",
             "doc/html/man3/CMS_EncryptedData_encrypt.html",
+            "doc/html/man3/CMS_EncryptedData_set1_key.html",
             "doc/html/man3/CMS_EnvelopedData_create.html",
             "doc/html/man3/CMS_add0_cert.html",
             "doc/html/man3/CMS_add1_recipient_cert.html",
@@ -19182,6 +19233,7 @@ our %unified_info = (
             "doc/html/man3/ERR_set_mark.html",
             "doc/html/man3/EVP_ASYM_CIPHER_free.html",
             "doc/html/man3/EVP_BytesToKey.html",
+            "doc/html/man3/EVP_CIPHER_CTX_get_app_data.html",
             "doc/html/man3/EVP_CIPHER_CTX_get_cipher_data.html",
             "doc/html/man3/EVP_CIPHER_CTX_get_original_iv.html",
             "doc/html/man3/EVP_CIPHER_meth_new.html",
@@ -19301,6 +19353,7 @@ our %unified_info = (
             "doc/html/man3/OPENSSL_load_builtin_modules.html",
             "doc/html/man3/OPENSSL_load_u16_le.html",
             "doc/html/man3/OPENSSL_malloc.html",
+            "doc/html/man3/OPENSSL_ppccap.html",
             "doc/html/man3/OPENSSL_riscvcap.html",
             "doc/html/man3/OPENSSL_s390xcap.html",
             "doc/html/man3/OPENSSL_secure_malloc.html",
@@ -22756,6 +22809,7 @@ our %unified_info = (
             "doc/man/man3/BIO_s_socket.3",
             "doc/man/man3/BIO_sendmmsg.3",
             "doc/man/man3/BIO_set_callback.3",
+            "doc/man/man3/BIO_set_flags.3",
             "doc/man/man3/BIO_should_retry.3",
             "doc/man/man3/BIO_socket_wait.3",
             "doc/man/man3/BN_BLINDING_new.3",
@@ -22782,6 +22836,7 @@ our %unified_info = (
             "doc/man/man3/CMAC_CTX.3",
             "doc/man/man3/CMS_EncryptedData_decrypt.3",
             "doc/man/man3/CMS_EncryptedData_encrypt.3",
+            "doc/man/man3/CMS_EncryptedData_set1_key.3",
             "doc/man/man3/CMS_EnvelopedData_create.3",
             "doc/man/man3/CMS_add0_cert.3",
             "doc/man/man3/CMS_add1_recipient_cert.3",
@@ -22863,6 +22918,7 @@ our %unified_info = (
             "doc/man/man3/ERR_set_mark.3",
             "doc/man/man3/EVP_ASYM_CIPHER_free.3",
             "doc/man/man3/EVP_BytesToKey.3",
+            "doc/man/man3/EVP_CIPHER_CTX_get_app_data.3",
             "doc/man/man3/EVP_CIPHER_CTX_get_cipher_data.3",
             "doc/man/man3/EVP_CIPHER_CTX_get_original_iv.3",
             "doc/man/man3/EVP_CIPHER_meth_new.3",
@@ -22982,6 +23038,7 @@ our %unified_info = (
             "doc/man/man3/OPENSSL_load_builtin_modules.3",
             "doc/man/man3/OPENSSL_load_u16_le.3",
             "doc/man/man3/OPENSSL_malloc.3",
+            "doc/man/man3/OPENSSL_ppccap.3",
             "doc/man/man3/OPENSSL_riscvcap.3",
             "doc/man/man3/OPENSSL_s390xcap.3",
             "doc/man/man3/OPENSSL_secure_malloc.3",
@@ -31633,6 +31690,7 @@ our %unified_info = (
             "test/testutil/libtestutil-lib-apps_shims.o",
             "test/testutil/libtestutil-lib-basic_output.o",
             "test/testutil/libtestutil-lib-cb.o",
+            "test/testutil/libtestutil-lib-compare.o",
             "test/testutil/libtestutil-lib-driver.o",
             "test/testutil/libtestutil-lib-fake_random.o",
             "test/testutil/libtestutil-lib-format_output.o",
@@ -32348,6 +32406,9 @@ our %unified_info = (
         ],
         "test/testutil/libtestutil-lib-cb.o" => [
             "test/testutil/cb.c"
+        ],
+        "test/testutil/libtestutil-lib-compare.o" => [
+            "test/testutil/compare.c"
         ],
         "test/testutil/libtestutil-lib-driver.o" => [
             "test/testutil/driver.c"

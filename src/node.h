@@ -76,8 +76,7 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#define NAPI_EXPERIMENTAL
-#include "node_api.h"
+#include "node_api_types.h"  //  napi_addon_register_func
 
 #include <functional>
 #include <memory>
@@ -125,6 +124,7 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
+struct napi_module;
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
@@ -713,14 +713,60 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     const char* child_url,
     const char* name);
 
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    std::string_view child_url,
+    std::string_view name);
+
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
   v8::Local<v8::Function> native_require;
   v8::Local<v8::Function> run_cjs;
 };
 
+enum class ModuleFormat : uint8_t {
+  kCommonJS,
+  kModule,  // i.e. ES Module/SourceTextModule
+  // TODO(joyeecheung): support TypeScriptModule, TypeScriptCommonJS
+};
+
+// Information passed to embedder callbacks during environment startup.
+// This class is created by Node.js and passed to the embedder's callback.
+// The layout is opaque to allow future additions without breaking ABI.
+class NODE_EXTERN StartExecutionCallbackInfoWithModule {
+ public:
+  StartExecutionCallbackInfoWithModule();
+  ~StartExecutionCallbackInfoWithModule();
+
+  StartExecutionCallbackInfoWithModule(
+      const StartExecutionCallbackInfoWithModule&) = delete;
+  StartExecutionCallbackInfoWithModule& operator=(
+      const StartExecutionCallbackInfoWithModule&) = delete;
+  StartExecutionCallbackInfoWithModule(StartExecutionCallbackInfoWithModule&&);
+  StartExecutionCallbackInfoWithModule& operator=(
+      StartExecutionCallbackInfoWithModule&&);
+
+  Environment* env() const;
+  v8::Local<v8::Object> process_object() const;
+  v8::Local<v8::Function> native_require() const;
+  v8::Local<v8::Function> run_module() const;
+
+  void set_env(Environment* env);
+  void set_process_object(v8::Local<v8::Object> process_object);
+  void set_native_require(v8::Local<v8::Function> native_require);
+  void set_run_module(v8::Local<v8::Function> run_module);
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
 using StartExecutionCallback =
     std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
+using StartExecutionCallbackWithModule =
+    std::function<v8::MaybeLocal<v8::Value>(
+        const StartExecutionCallbackInfoWithModule&)>;
 using EmbedderPreloadCallback =
     std::function<void(Environment* env,
                        v8::Local<v8::Value> process,
@@ -744,10 +790,48 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb,
     EmbedderPreloadCallback preload = nullptr);
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
+    Environment* env,
+    StartExecutionCallbackWithModule cb,
+    EmbedderPreloadCallback preload = nullptr);
+
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     std::string_view main_script_source_utf8,
     EmbedderPreloadCallback preload = nullptr);
+
+// Data for specifying an entry point script for LoadEnvironment().
+// This class uses an opaque layout to allow future additions without
+// breaking ABI. Use the setter methods to configure the entry point.
+class NODE_EXTERN ModuleData {
+ public:
+  ModuleData();
+  ~ModuleData();
+
+  ModuleData(const ModuleData&) = delete;
+  ModuleData& operator=(const ModuleData&) = delete;
+  ModuleData(ModuleData&&);
+  ModuleData& operator=(ModuleData&&);
+
+  void set_source(std::string_view source);
+  void set_format(ModuleFormat format);
+  void set_resource_name(std::string_view name);
+
+  std::string_view source() const;
+  ModuleFormat format() const;
+  std::string_view resource_name() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
+    Environment* env,
+    const ModuleData* entry_point,
+    EmbedderPreloadCallback preload = nullptr);
+
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -788,23 +872,23 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
 // is included in the report.
 // Returns the filename of the written report.
 NODE_EXTERN std::string TriggerNodeReport(v8::Isolate* isolate,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN std::string TriggerNodeReport(Environment* env,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN void GetNodeReport(v8::Isolate* isolate,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 NODE_EXTERN void GetNodeReport(Environment* env,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 
@@ -995,7 +1079,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                 \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1011,7 +1095,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                          \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1396,6 +1480,10 @@ NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
                                         const char* name,
                                         async_id trigger_async_id = -1);
+NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
+                                        v8::Local<v8::Object> resource,
+                                        std::string_view name,
+                                        async_id trigger_async_id = -1);
 
 NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
@@ -1438,6 +1526,12 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(Environment* env,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
+  // `resource` needs to outlive the scope in this case.
+  // This is for the rare situation in which `CallbackScope` cannot be
+  // stack-allocated. `resource` needs to outlive this scope.
+  CallbackScope(Environment* env,
+                v8::Global<v8::Object>* resource,
+                async_context asyncContext);
   ~CallbackScope();
 
   void operator=(const CallbackScope&) = delete;
@@ -1446,6 +1540,11 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
+  [[maybe_unused]] void* reserved_;
+  union {
+    v8::Local<v8::Object> local;
+    v8::Global<v8::Object>* global_ptr;
+  } resource_storage_;
   InternalCallbackScope* private_;
   v8::TryCatch try_catch_;
 };
@@ -1490,6 +1589,10 @@ class NODE_EXTERN AsyncResource {
   AsyncResource(v8::Isolate* isolate,
                 v8::Local<v8::Object> resource,
                 const char* name,
+                async_id trigger_async_id = -1);
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                std::string_view name,
                 async_id trigger_async_id = -1);
 
   virtual ~AsyncResource();
@@ -1548,10 +1651,11 @@ void RegisterSignalHandler(int signal,
 // objects on Node.js versions without v8::Object::Wrap(). Addons created to
 // work with only Node.js versions with v8::Object::Wrap() should use that
 // instead.
-NODE_DEPRECATED("Use v8::Object::Wrap()",
-                NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
-                                                   v8::Local<v8::Object> object,
-                                                   void* wrappable));
+NODE_DEPRECATED(
+    "Use v8::Object::Wrap()",
+    NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> object,
+                                       v8::Object::Wrappable* wrappable));
 
 }  // namespace node
 

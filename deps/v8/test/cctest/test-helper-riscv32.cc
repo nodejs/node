@@ -24,6 +24,9 @@ int32_t GenAndRunTest(Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
   auto f = GeneratedCode<int32_t()>::FromCode(isolate, *code);
   return f.Call();
 }

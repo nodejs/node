@@ -398,6 +398,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
+  void CallVerifySkippedWriteBarrierStubSaveRegisters(Register object,
+                                                      Register value,
+                                                      SaveFPRegsMode fp_mode);
+  void CallVerifySkippedWriteBarrierStub(Register object, Register value);
+
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.
@@ -754,6 +759,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   inline void Move(FPURegister dst, FPURegister src) { Move_d(dst, src); }
 
   inline void Move(Register dst_low, Register dst_high, FPURegister src) {
@@ -806,14 +814,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Move(FPURegister dst, uint64_t src);
 
   // DaddOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void DaddOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
   // DsubOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void DsubOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
-  // [D]MulOverflow set overflow register to zero if no overflow occured
+  // [D]MulOverflow set overflow register to zero if no overflow occurred
   void MulOverflow(Register dst, Register left, const Operand& right,
                    Register overflow);
   void DMulOverflow(Register dst, Register left, const Operand& right,
@@ -841,6 +849,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);

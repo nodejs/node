@@ -28,8 +28,6 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
                         Runtime::FunctionId format_func_id,
                         const char* method_name);
 
-  TNode<JSArray> AllocateEmptyJSArray(TNode<Context> context);
-
   TNode<IntPtrT> PointerToSeqStringData(TNode<String> seq_string) {
     CSA_DCHECK(this,
                IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
@@ -77,21 +75,24 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
     kToLocaleLowerCase,
   };
   void ToLowerCaseImpl(TNode<String> string, TNode<Object> maybe_locales,
-                       TNode<Context> context, ToLowerCaseKind kind,
+                       TNode<ContextOrEmptyContext> context,
+                       ToLowerCaseKind kind,
                        std::function<void(TNode<JSAny>)> ReturnFct);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  const auto string = Parameter<String>(Descriptor::kString);
-  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, TNode<Context>(),
+  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto string = Parameter<String>(Descriptor::kString);
+  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
                   [this](TNode<Object> ret) { Return(ret); });
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  const auto string = Parameter<String>(Descriptor::kString);
-  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, TNode<Context>(),
+  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto string = Parameter<String>(Descriptor::kString);
+  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
                   [this](TNode<Object> ret) { Return(ret); });
 }
@@ -122,8 +123,9 @@ TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
 }
 
 void IntlBuiltinsAssembler::ToLowerCaseImpl(
-    TNode<String> string, TNode<Object> maybe_locales, TNode<Context> context,
-    ToLowerCaseKind kind, std::function<void(TNode<JSAny>)> ReturnFct) {
+    TNode<String> string, TNode<Object> maybe_locales,
+    TNode<ContextOrEmptyContext> context, ToLowerCaseKind kind,
+    std::function<void(TNode<JSAny>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
@@ -245,8 +247,8 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
                                  string, maybe_locales));
   } else {
     DCHECK_EQ(kind, ToLowerCaseKind::kToLowerCase);
-    ReturnFct(CallRuntime<JSAny>(Runtime::kStringToLowerCaseIntl,
-                                 NoContextConstant(), string));
+    ReturnFct(
+        CallRuntime<JSAny>(Runtime::kStringToLowerCaseIntl, context, string));
   }
 }
 
@@ -276,14 +278,6 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
     args.PopAndReturn(
         CallRuntime<JSAny>(format_func_id, context, list_format, string_list));
   }
-}
-
-TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
-    TNode<Context> context) {
-  return CodeStubAssembler::AllocateJSArray(
-      PACKED_ELEMENTS,
-      LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      IntPtrConstant(0), SmiConstant(0));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {

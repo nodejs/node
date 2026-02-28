@@ -13,7 +13,7 @@ function request(server) {
 }
 
 {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     //  Hack to not remove parser out of server.connectionList
     //  See `freeParser` in _http_common.js
     req.socket.parser.free = common.mustCall();
@@ -21,13 +21,13 @@ function request(server) {
       server.close();
     }));
     res.end('ok');
-  }).listen(0, common.mustCall(() => {
+  })).listen(0, common.mustCall(() => {
     request(server);
   }));
 }
 
 {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     // See `freeParser` in _http_common.js
     const { parser } = req.socket;
     parser.free = common.mustCall(() => {
@@ -41,7 +41,7 @@ function request(server) {
       }));
     }));
     res.end('ok');
-  }).listen(0, common.mustCall(() => {
+  })).listen(0, common.mustCall(() => {
     request(server);
   }));
 }

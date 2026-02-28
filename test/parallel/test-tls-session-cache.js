@@ -74,16 +74,16 @@ function doTest(testOptions, callback) {
     ++requestCount;
     cleartext.end('');
   });
-  server.on('newSession', function(id, data, cb) {
+  server.on('newSession', common.mustCallAtLeast((id, data, cb) => {
     ++newSessionCount;
     // Emulate asynchronous store
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       assert.ok(!session);
       session = { id, data };
       cb();
-    });
-  });
-  server.on('resumeSession', function(id, callback) {
+    }));
+  }, 0));
+  server.on('resumeSession', common.mustCallAtLeast((id, callback) => {
     ++resumeCount;
     assert.ok(session);
     assert.strictEqual(session.id.toString('hex'), id.toString('hex'));
@@ -100,9 +100,9 @@ function doTest(testOptions, callback) {
     setImmediate(() => {
       callback(null, data);
     });
-  });
+  }, 0));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(function() {
     const args = [
       's_client',
       '-tls1',
@@ -143,7 +143,7 @@ function doTest(testOptions, callback) {
     }
 
     spawnClient();
-  });
+  }));
 
   process.on('exit', function() {
     // Each test run connects 6 times: an initial request and 5 reconnect

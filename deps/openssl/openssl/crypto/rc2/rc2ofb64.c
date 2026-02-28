@@ -22,8 +22,8 @@
  * used is contained in *num;
  */
 void RC2_ofb64_encrypt(const unsigned char *in, unsigned char *out,
-                       long length, RC2_KEY *schedule, unsigned char *ivec,
-                       int *num)
+    long length, RC2_KEY *schedule, unsigned char *ivec,
+    int *num)
 {
     register unsigned long v0, v1, t;
     register int n = *num;

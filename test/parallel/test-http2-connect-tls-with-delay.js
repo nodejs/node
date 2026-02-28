@@ -26,8 +26,8 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
     rejectUnauthorized: false
   };
 
-  const socket = tls.connect(options, async () => {
-    socket.once('readable', () => {
+  const socket = tls.connect(options, common.mustCall(async () => {
+    socket.once('readable', common.mustCall(() => {
       const client = http2.connect(
         'https://localhost:' + server.address().port,
         { ...options, createConnection: () => socket }
@@ -45,6 +45,6 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
         }));
         req.end();
       }));
-    });
-  });
+    }));
+  }));
 }));

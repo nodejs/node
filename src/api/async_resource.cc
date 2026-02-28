@@ -16,6 +16,13 @@ AsyncResource::AsyncResource(Isolate* isolate,
                              Local<Object> resource,
                              const char* name,
                              async_id trigger_async_id)
+    : AsyncResource(
+          isolate, resource, std::string_view(name), trigger_async_id) {}
+
+AsyncResource::AsyncResource(Isolate* isolate,
+                             Local<Object> resource,
+                             std::string_view name,
+                             async_id trigger_async_id)
     : env_(Environment::GetCurrent(isolate)),
       resource_(isolate, resource),
       context_frame_(isolate, async_context_frame::current(isolate)) {

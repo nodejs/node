@@ -772,7 +772,7 @@ class NfaInterpreter {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
-        if (IsException(result, isolate_)) {
+        if (IsExceptionHole(result, isolate_)) {
           return RegExp::kInternalRegExpException;
         }
 

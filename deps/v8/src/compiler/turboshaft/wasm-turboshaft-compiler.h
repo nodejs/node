@@ -25,7 +25,7 @@ namespace turboshaft {
 
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv*, WasmCompilationData&, wasm::WasmDetectedFeatures*,
-    Counters*);
+    DelayedCounterUpdates*);
 
 class TurboshaftCompilationJob : public OptimizedCompilationJob {
  public:

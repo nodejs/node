@@ -30,7 +30,7 @@ const SIZE = 1000 * 1024;
 const N = 40;
 let finished = false;
 
-function doSpawn(i) {
+const doSpawn = common.mustCall((i) => {
   const child = spawn(python, ['-c', `print(${SIZE} * "C")`]);
   let count = 0;
 
@@ -43,7 +43,7 @@ function doSpawn(i) {
     console.log(`stderr: ${chunk}`);
   });
 
-  child.on('close', () => {
+  child.on('close', common.mustCall(() => {
     // + 1 for \n or + 2 for \r\n on Windows
     assert.strictEqual(count, SIZE + (common.isWindows ? 2 : 1));
     if (i < N) {
@@ -51,8 +51,8 @@ function doSpawn(i) {
     } else {
       finished = true;
     }
-  });
-}
+  }));
+}, N + 1);
 
 doSpawn(0);
 

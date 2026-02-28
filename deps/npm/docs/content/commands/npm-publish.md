@@ -14,79 +14,81 @@ npm publish <package-spec>
 
 Publishes a package to the registry so that it can be installed by name.
 
-By default npm will publish to the public registry. This can be
-overridden by specifying a different default registry or using a
-[`scope`](/using-npm/scope) in the name, combined with a
-scope-configured registry (see
-[`package.json`](/configuring-npm/package-json)).
+### Examples
+
+Publish the package in the current directory:
+
+```bash
+npm publish
+```
+
+Publish a specific workspace:
+
+```bash
+npm publish --workspace=<workspace-name>
+```
+
+Publish multiple workspaces:
+
+```bash
+npm publish --workspace=workspace-a --workspace=workspace-b
+```
+
+Publish all workspaces:
+
+```bash
+npm publish --workspaces
+```
+
+By default npm will publish to the public registry.
+This can be overridden by specifying a different default registry or using a [`scope`](/using-npm/scope) in the name, combined with a scope-configured registry (see [`package.json`](/configuring-npm/package-json)).
 
 
-A `package` is interpreted the same way as other commands (like
-`npm install`) and can be:
+A `package` is interpreted the same way as other commands (like `npm install`) and can be:
 
-* a) a folder containing a program described by a
-  [`package.json`](/configuring-npm/package-json) file
+* a) a folder containing a program described by a [`package.json`](/configuring-npm/package-json) file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
-* d) a `<name>@<version>` that is published on the registry (see
-  [`registry`](/using-npm/registry)) with (c)
-* e) a `<name>@<tag>` (see [`npm dist-tag`](/commands/npm-dist-tag)) that
-  points to (d)
+* d) a `<name>@<version>` that is published on the registry (see [`registry`](/using-npm/registry)) with (c)
+* e) a `<name>@<tag>` (see [`npm dist-tag`](/commands/npm-dist-tag)) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (a)
 
-The publish will fail if the package name and version combination already
-exists in the specified registry.
+The publish will fail if the package name and version combination already exists in the specified registry.
 
-Once a package is published with a given name and version, that specific
-name and version combination can never be used again, even if it is removed
-with [`npm unpublish`](/commands/npm-unpublish).
+Once a package is published with a given name and version, that specific name and version combination can never be used again, even if it is removed with [`npm unpublish`](/commands/npm-unpublish).
 
-As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
-tarball will be submitted to the registry during publication. Subsequent
-installs will use the strongest supported algorithm to verify downloads.
+As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the tarball will be submitted to the registry during publication.
+Subsequent installs will use the strongest supported algorithm to verify downloads.
 
-Similar to `--dry-run` see [`npm pack`](/commands/npm-pack), which figures
-out the files to be included and packs them into a tarball to be uploaded
-to the registry.
+Similar to `--dry-run` see [`npm pack`](/commands/npm-pack), which figures out the files to be included and packs them into a tarball to be uploaded to the registry.
 
 ### Files included in package
 
-To see what will be included in your package, run `npm pack --dry-run`.  All
-files are included by default, with the following exceptions:
+To see what will be included in your package, run `npm pack --dry-run`.
+All files are included by default, with the following exceptions:
 
-- Certain files that are relevant to package installation and distribution
-  are always included.  For example, `package.json`, `README.md`,
+- Certain files that are relevant to package installation and distribution are always included.
+For example, `package.json`, `README.md`,
   `LICENSE`, and so on.
 
-- If there is a "files" list in
-  [`package.json`](/configuring-npm/package-json), then only the files
-  specified will be included.  (If directories are specified, then they
-  will be walked recursively and their contents included, subject to the
-  same ignore rules.)
+- If there is a "files" list in [`package.json`](/configuring-npm/package-json), then only the files specified will be included.
+ (If directories are specified, then they will be walked recursively and their contents included, subject to the same ignore rules.)
 
-- If there is a `.gitignore` or `.npmignore` file, then ignored files in
-  that and all child directories will be excluded from the package.  If
-  _both_ files exist, then the `.gitignore` is ignored, and only the
+- If there is a `.gitignore` or `.npmignore` file, then ignored files in that and all child directories will be excluded from the package.
+  If _both_ files exist, then the `.gitignore` is ignored, and only the
   `.npmignore` is used.
 
-  `.npmignore` files follow the [same pattern
-  rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring)
-  as `.gitignore` files
+  `.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring) as `.gitignore` files
 
-- If the file matches certain patterns, then it will _never_ be included,
-  unless explicitly added to the `"files"` list in `package.json`, or
-  un-ignored with a `!` rule in a `.npmignore` or `.gitignore` file.
+- If the file matches certain patterns, then it will _never_ be included, unless explicitly added to the `"files"` list in `package.json`, or un-ignored with a `!` rule in a `.npmignore` or `.gitignore` file.
 
 - Symbolic links are never included in npm packages.
 
 
-See [`developers`](/using-npm/developers) for full details on what's
-included in the published package, as well as details on how the package is
-built.
+See [`developers`](/using-npm/developers) for full details on what's included in the published package, as well as details on how the package is built.
 
-See [`package.json`](/configuring-npm/package-json) for more info on
-what can and can't be ignored.
+See [`package.json`](/configuring-npm/package-json) for more info on what can and can't be ignored.
 
 ### Configuration
 
@@ -118,7 +120,7 @@ the package submitted to the registry.
 If you do not want your scoped package to be publicly viewable (and
 installable) set `--access=restricted`.
 
-Unscoped packages can not be set to `restricted`.
+Unscoped packages cannot be set to `restricted`.
 
 Note: This defaults to not changing the current access level for existing
 packages. Specifying a value of `restricted` or `public` during publish will
@@ -216,7 +218,7 @@ This value is not exported to the environment for child processes.
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
 
-This config can not be used with: `provenance-file`
+This config cannot be used with: `provenance-file`
 
 #### `provenance-file`
 
@@ -225,7 +227,7 @@ This config can not be used with: `provenance-file`
 
 When publishing, the provenance bundle at the given path will be used.
 
-This config can not be used with: `provenance`
+This config cannot be used with: `provenance`
 
 ### See Also
 

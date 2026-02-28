@@ -12,7 +12,7 @@
 #include <openssl/err.h>
 
 int ossl_quic_gen_rand_conn_id(OSSL_LIB_CTX *libctx, size_t len,
-                               QUIC_CONN_ID *cid)
+    QUIC_CONN_ID *cid)
 {
     if (len > QUIC_MAX_CONN_ID_LEN)
         return 0;

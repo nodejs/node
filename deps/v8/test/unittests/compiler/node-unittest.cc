@@ -20,7 +20,7 @@ namespace node_unittest {
 
 class NodeTest : public TestWithZone {
  public:
-  NodeTest() : TestWithZone(kCompressGraphZone) {}
+  NodeTest() = default;
 };
 
 const IrOpcode::Value kOpcode0 = static_cast<IrOpcode::Value>(0);

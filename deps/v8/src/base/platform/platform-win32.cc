@@ -821,6 +821,12 @@ bool OS::IsHardwareEnforcedShadowStacksEnabled() {
 }
 
 // static
+void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+  // Not supported on Windows.
+  UNREACHABLE();
+}
+
+// static
 size_t OS::AllocatePageSize() {
   static size_t allocate_alignment = 0;
   if (allocate_alignment == 0) {
@@ -989,7 +995,10 @@ void CheckIsOOMError(int error) {
 
 // static
 void* OS::Allocate(void* hint, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access, PlatformSharedMemoryHandle handle) {
+  // File handles aren't supported.
+  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
+
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -1132,8 +1141,10 @@ bool OS::CanReserveAddressSpace() {
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    PlatformSharedMemoryHandle handle) {
+  // File handles aren't supported.
+  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
   CHECK(CanReserveAddressSpace());
 
   size_t page_size = AllocatePageSize();
@@ -1250,6 +1261,7 @@ void OS::Abort() {
       ExitProcess(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
+    case AbortMode::kExitIfNoSecurityImpact:
     case AbortMode::kDefault:
       break;
   }

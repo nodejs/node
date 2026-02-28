@@ -24,6 +24,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/v8threads.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
@@ -328,7 +329,8 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
     : debug_info_(debug_info),
       break_index_(-1),
       source_position_iterator_(
-          debug_info->DebugBytecodeArray(isolate())->SourcePositionTable()) {
+          debug_info->DebugBytecodeArray(Isolate::Current())
+              ->SourcePositionTable()) {
   position_ = debug_info->shared()->StartPosition();
   statement_position_ = position_;
   // There is at least one break location.
@@ -359,6 +361,7 @@ void BreakIterator::Next() {
     if (!first) source_position_iterator_.Advance();
     first = false;
     if (Done()) return;
+    if (!source_position_iterator_.is_breakable()) continue;
     position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
@@ -374,7 +377,7 @@ void BreakIterator::Next() {
 
 DebugBreakType BreakIterator::GetDebugBreakType() {
   Tagged<BytecodeArray> bytecode_array =
-      debug_info_->OriginalBytecodeArray(isolate());
+      debug_info_->OriginalBytecodeArray(Isolate::Current());
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
@@ -410,26 +413,27 @@ void BreakIterator::SkipToPosition(int position) {
 
 void BreakIterator::SetDebugBreak() {
   DCHECK(GetDebugBreakType() >= DEBUGGER_STATEMENT);
-  HandleScope scope(isolate());
-  Handle<BytecodeArray> bytecode_array(
-      debug_info_->DebugBytecodeArray(isolate()), isolate());
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+  Handle<BytecodeArray> bytecode_array(debug_info_->DebugBytecodeArray(isolate),
+                                       isolate);
   interpreter::BytecodeArrayIterator(bytecode_array, code_offset())
       .ApplyDebugBreak();
 }
 
 void BreakIterator::ClearDebugBreak() {
   DCHECK(GetDebugBreakType() >= DEBUGGER_STATEMENT);
+  Isolate* isolate = Isolate::Current();
   Tagged<BytecodeArray> bytecode_array =
-      debug_info_->DebugBytecodeArray(isolate());
-  Tagged<BytecodeArray> original =
-      debug_info_->OriginalBytecodeArray(isolate());
+      debug_info_->DebugBytecodeArray(isolate);
+  Tagged<BytecodeArray> original = debug_info_->OriginalBytecodeArray(isolate);
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
 BreakLocation BreakIterator::GetBreakLocation() {
+  Isolate* isolate = Isolate::Current();
   Handle<AbstractCode> code(
-      Cast<AbstractCode>(debug_info_->DebugBytecodeArray(isolate())),
-      isolate());
+      Cast<AbstractCode>(debug_info_->DebugBytecodeArray(isolate)), isolate);
   DebugBreakType type = GetDebugBreakType();
   int generator_object_reg_index = -1;
   int generator_suspend_id = -1;
@@ -440,9 +444,9 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
     Tagged<BytecodeArray> bytecode_array =
-        debug_info_->OriginalBytecodeArray(isolate());
-    interpreter::BytecodeArrayIterator iterator(
-        handle(bytecode_array, isolate()), code_offset());
+        debug_info_->OriginalBytecodeArray(isolate);
+    interpreter::BytecodeArrayIterator iterator(handle(bytecode_array, isolate),
+                                                code_offset());
 
     DCHECK_EQ(iterator.current_bytecode(),
               interpreter::Bytecode::kSuspendGenerator);
@@ -456,8 +460,6 @@ BreakLocation BreakIterator::GetBreakLocation() {
   return BreakLocation(code, type, code_offset(), position_,
                        generator_object_reg_index, generator_suspend_id);
 }
-
-Isolate* BreakIterator::isolate() { return debug_info_->GetIsolate(); }
 
 // Threading support.
 void Debug::ThreadInit() {
@@ -1133,7 +1135,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared->HasWasmExportedFunctionData()) {
+  if (shared->HasWasmExportedFunctionData(isolate_)) {
     Tagged<WasmExportedFunctionData> function_data =
         shared->wasm_exported_function_data();
     int func_index = function_data->function_index();
@@ -1712,6 +1714,11 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
       // but we need to update remaining baseline stack frames as well.
       if (code->kind() == CodeKind::BASELINE) {
         UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
+        if (v8_flags.trace_baseline) {
+          PrintF("[Sparkplug] discarding on-stack ");
+          ShortPrint(*code);
+          PrintF("\n");
+        }
         int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
             frame->pc(), frame->GetBytecodeArray());
         Address* pc_addr = frame->pc_address();
@@ -1745,6 +1752,11 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(shared->HasBaselineCode());
+  if (v8_flags.trace_baseline) {
+    PrintF("[Sparkplug] discarding baseline code for ");
+    ShortPrint(*shared);
+    PrintF("\n");
+  }
   DiscardBaselineCodeVisitor visitor(shared);
   visitor.VisitThread(isolate_, isolate_->thread_local_top());
   isolate_->thread_manager()->IterateArchivedThreads(&visitor);
@@ -1765,6 +1777,9 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
 
 void Debug::DiscardAllBaselineCode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  if (v8_flags.trace_baseline) {
+    PrintF("[Sparkplug] discarding all baseline code\n");
+  }
   DiscardBaselineCodeVisitor visitor;
   visitor.VisitThread(isolate_, isolate_->thread_local_top());
   HeapObjectIterator iterator(isolate_->heap());
@@ -1901,7 +1916,7 @@ void Debug::InstallDebugBreakTrampoline() {
       } else if (IsJSObject(obj)) {
         Tagged<JSObject> object = Cast<JSObject>(obj);
         Tagged<DescriptorArray> descriptors =
-            object->map()->instance_descriptors(kRelaxedLoad);
+            object->map()->instance_descriptors(kAcquireLoad);
 
         for (InternalIndex i : object->map()->IterateOwnDescriptors()) {
           if (descriptors->GetDetails(i).kind() == PropertyKind::kAccessor) {
@@ -2569,17 +2584,16 @@ void Debug::OnException(DirectHandle<Object> exception,
           }
           break;  // Stop at first debuggable function
         }
-      }
 #if V8_ENABLE_WEBASSEMBLY
-      else if (it.frame()->is_wasm()) {
+      } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());
         if (IsMutedAtWasmLocation(frame->script(), frame->position())) {
           return;
         }
         // Wasm is always subject to debugging
         break;
-      }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      }
     }
 
     if (it.done()) return;  // Do not trigger an event with an empty stack.
@@ -2747,10 +2761,16 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                             debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
-  running_live_edit_ = true;
-  LiveEdit::PatchScript(isolate_, script, source, preview,
-                        allow_top_frame_live_editing, result);
-  running_live_edit_ = false;
+
+  if (v8_flags.inspector_live_edit) {
+    running_live_edit_ = true;
+    LiveEdit::PatchScript(isolate_, script, source, preview,
+                          allow_top_frame_live_editing, result);
+    running_live_edit_ = false;
+  } else {
+    result->status = debug::LiveEditResult::FEATURE_DISABLED;
+  }
+
   return result->status == debug::LiveEditResult::OK;
 }
 
@@ -2965,7 +2985,7 @@ DebugScope::DebugScope(Debug* debug)
 
   // Create the new break info. If there is no proper frames there is no break
   // frame id.
-  DebuggableStackFrameIterator it(isolate());
+  DebuggableStackFrameIterator it(Isolate::Current());
   bool has_frames = !it.done();
   debug_->thread_local_.break_frame_id_ =
       has_frames ? it.frame()->id() : StackFrameId::NO_ID;

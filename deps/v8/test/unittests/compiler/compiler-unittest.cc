@@ -195,7 +195,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   const char* source = "throw 42;";
   DirectHandle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
-  Isolate* isolate = fun->GetIsolate();
+  Isolate* isolate = i_isolate();
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
@@ -224,7 +224,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
 
   DirectHandle<JSFunction> fun0 = Compile(source);
   EXPECT_TRUE(!fun0.is_null());
-  Isolate* isolate = fun0->GetIsolate();
+  Isolate* isolate = i_isolate();
 
   // Run the generated code to populate the global object with 'foo'.
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -280,7 +280,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::v8_flags.always_turbofan || !i::v8_flags.turbofan) return;
+  if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax = true;
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
@@ -298,7 +298,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   DirectHandle<FeedbackVector> feedback_vector(f->feedback_vector(),
-                                               f->GetIsolate());
+                                               i_isolate());
   EXPECT_TRUE(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
   Tagged<MaybeObject> object = feedback_vector->Get(slot_for_a);
@@ -322,8 +322,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::v8_flags.always_turbofan || !i::v8_flags.lazy ||
-      i::v8_flags.lite_mode) {
+  if (!i::v8_flags.lazy || i::v8_flags.lite_mode) {
     return;
   }
   v8::HandleScope scope(isolate());
@@ -403,7 +402,6 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
 }
 
 TEST_F(CompilerTest, CompileFunction) {
-  if (i::v8_flags.always_turbofan) return;
   v8::HandleScope scope(isolate());
   RunJS("var r = 10;");
   v8::Local<v8::Object> math = v8::Local<v8::Object>::Cast(
@@ -733,7 +731,6 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 TEST_F(CompilerTest, InvocationCount) {
   if (v8_flags.lite_mode) return;
   v8_flags.allow_natives_syntax = true;
-  v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -753,7 +750,6 @@ TEST_F(CompilerTest, InvocationCount) {
 }
 
 TEST_F(CompilerTest, ShallowEagerCompilation) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -773,7 +769,6 @@ TEST_F(CompilerTest, ShallowEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilation) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -799,7 +794,6 @@ TEST_F(CompilerTest, DeepEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
-  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f() {"
@@ -1020,10 +1014,11 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 
-    CHECK_EQ(top_level->shared()->function_literal_id(), kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(), kHId);
+    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+             kTopLevelId);
+    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
 
     // Age everything so that subsequent GCs can pick it up if possible.
     SharedFunctionInfo::EnsureOldForTesting(top_level->shared());
@@ -1124,10 +1119,11 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 
-    CHECK_EQ(top_level->shared()->function_literal_id(), kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(), kHId);
+    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+             kTopLevelId);
+    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
 
     CHECK_EQ(top_level->shared()->script(), *old_script);
     CHECK_EQ(f->shared()->script(), *old_script);

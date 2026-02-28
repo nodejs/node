@@ -34,10 +34,11 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   // each other. The main legitimate case when such "mixed" comparison could
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use AbstractCode's == operator instead of Object's one or SafeEquals().
-  CHECK_EQ(HeapLayout::InCodeSpace(obj_a), HeapLayout::InCodeSpace(obj_b));
+  CHECK_EQ(TrustedHeapLayout::InCodeSpace(obj_a),
+           TrustedHeapLayout::InCodeSpace(obj_b));
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(HeapLayout::InTrustedSpace(obj_a),
-           HeapLayout::InTrustedSpace(obj_b));
+  CHECK_EQ(TrustedHeapLayout::InTrustedSpace(obj_a),
+           TrustedHeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
   // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)

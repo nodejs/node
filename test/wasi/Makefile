@@ -12,5 +12,7 @@ wasm/pthread.wasm : c/pthread.c
 wasm/%.wasm : c/%.c
 	$(CC) $< $(CFLAGS) --target=$(TARGET) --sysroot=$(SYSROOT) -s -o $@
 
-.PHONY clean:
+.PHONY: clean
+.NOTPARALLEL: clean
+clean:
 	rm -f $(OBJ)

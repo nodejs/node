@@ -158,7 +158,7 @@ const definitions = {
     If you do not want your scoped package to be publicly viewable (and
     installable) set \`--access=restricted\`.
 
-    Unscoped packages can not be set to \`restricted\`.
+    Unscoped packages cannot be set to \`restricted\`.
 
     Note: This defaults to not changing the current access level for existing
     packages.  Specifying a value of \`restricted\` or \`public\` during
@@ -184,6 +184,20 @@ const definitions = {
     description: `
     Prevents throwing an error when \`npm version\` is used to set the new
     version to the same value as the current version.
+  `,
+    flatten,
+  }),
+  'allow-git': new Definition('allow-git', {
+    default: 'all',
+    type: ['all', 'none', 'root'],
+    description: `
+      Limits the ability for npm to fetch dependencies from git references.
+      That is, dependencies that point to a git repo instead of a version or semver range.
+      Please note that this could leave your tree incomplete and some packages may not function as intended or designed.
+
+      \`all\` allows any git dependencies to be fetched and installed.
+      \`none\` prevents any git dependencies from being fetched and installed.
+      \`root\` only allows git dependencies defined in your project's package.json to be fetched installed.  Also allows git dependencies to be fetched for other commands like \`npm view\`
   `,
     flatten,
   }),
@@ -232,6 +246,7 @@ const definitions = {
     default: null,
     hint: '<date>',
     type: [null, Date],
+    exclusive: ['min-release-age'],
     description: `
       If passed to \`npm install\`, will rebuild the npm tree such that only
       versions that were available **on or before** the given date are
@@ -271,6 +286,16 @@ const definitions = {
     terminal.
 
     Set to \`true\` to use default system URL opener.
+    `,
+    flatten,
+  }),
+  'bypass-2fa': new Definition('bypass-2fa', {
+    default: false,
+    type: Boolean,
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      setting this to true will allow the token to bypass two-factor
+      authentication. This is useful for automation and CI/CD workflows.
     `,
     flatten,
   }),
@@ -398,14 +423,14 @@ const definitions = {
       \`\`\`
 
       It is _not_ the path to a certificate file, though you can set a registry-scoped
-      "cafile" path like "//other-registry.tld/:cafile=/path/to/cert.pem".
+      "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`cafile\` instead.
+      Use registry scoped \`keyfile\` and \`certfile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:cafile=/path/to/cert.crt
+      //other-registry.tld/:certfile=/path/to/cert.crt
     `,
     flatten,
   }),
@@ -462,7 +487,7 @@ const definitions = {
   depth: new Definition('depth', {
     default: null,
     defaultDescription: `
-      \`Infinity\` if \`--all\` is set, otherwise \`0\`
+      \`Infinity\` if \`--all\` is set; otherwise, \`0\`
     `,
     type: [null, Number],
     description: `
@@ -623,6 +648,16 @@ const definitions = {
       Tells npm whether or not to expect results from the command.
       Can be either true (expect some results) or false (expect no results).
     `,
+  }),
+  expires: new Definition('expires', {
+    default: null,
+    type: [null, Number],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this sets the expiration in days. If not specified, the server
+      will determine the default expiration.
+    `,
+    flatten,
   }),
   'fetch-retries': new Definition('fetch-retries', {
     default: 2,
@@ -1094,10 +1129,10 @@ const definitions = {
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`cafile\` instead.
+      Use registry scoped \`keyfile\` and \`certfile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:cafile=/path/to/cert.crt
+      //other-registry.tld/:certfile=/path/to/cert.crt
     `,
     flatten,
   }),
@@ -1205,7 +1240,7 @@ const definitions = {
     default: null,
     type: [null, 1, 2, 3, '1', '2', '3'],
     defaultDescription: `
-      Version 3 if no lockfile, auto-converting v1 lockfiles to v3, otherwise
+      Version 3 if no lockfile, auto-converting v1 lockfiles to v3; otherwise,
       maintain current lockfile version.`,
     description: `
       Set the lockfile format version to be used in package-lock.json and
@@ -1281,6 +1316,16 @@ const definitions = {
       Show extended information in \`ls\`, \`search\`, and \`help-search\`.
     `,
   }),
+  name: new Definition('name', {
+    default: null,
+    type: [null, String],
+    hint: '<name>',
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this sets the name/description for the token.
+    `,
+    flatten,
+  }),
   maxsockets: new Definition('maxsockets', {
     default: 15,
     type: Number,
@@ -1303,8 +1348,36 @@ const definitions = {
     `,
     flatten,
   }),
+  'min-release-age': new Definition('min-release-age', {
+    default: null,
+    hint: '<days>',
+    type: [null, Number],
+    exclusive: ['before'],
+    description: `
+       If set, npm will build the npm tree such that only versions that were
+       available more than the given number of days ago will be installed.  If
+       there are no versions available for the current set of dependencies, the
+       command will error.
+
+       This flag is a complement to \`before\`, which accepts an exact date
+       instead of a relative number of days.
+    `,
+    flatten: (key, obj, flatOptions) => {
+      if (obj['min-release-age'] !== null) {
+        flatOptions.before = new Date(Date.now() - (86400000 * obj['min-release-age']))
+        obj.before = flatOptions.before
+        delete obj['min-release-age']
+      }
+    },
+  }),
   'node-gyp': new Definition('node-gyp', {
-    default: require.resolve('node-gyp/bin/node-gyp.js'),
+    default: (() => {
+      try {
+        return require.resolve('node-gyp/bin/node-gyp.js')
+      } catch {
+        return ''
+      }
+    })(),
     defaultDescription: `
       The path to the node-gyp bin that ships with npm
     `,
@@ -1356,8 +1429,8 @@ const definitions = {
   omit: new Definition('omit', {
     default: process.env.NODE_ENV === 'production' ? ['dev'] : [],
     defaultDescription: `
-      'dev' if the \`NODE_ENV\` environment variable is set to 'production',
-      otherwise empty.
+      'dev' if the \`NODE_ENV\` environment variable is set to 'production';
+      otherwise, empty.
     `,
     type: [Array, 'dev', 'optional', 'peer'],
     description: `
@@ -1402,6 +1475,15 @@ const definitions = {
     flatten (key, obj, flatOptions) {
       definitions.omit.flatten('omit', obj, flatOptions)
     },
+  }),
+  orgs: new Definition('orgs', {
+    default: null,
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific organizations.
+    `,
+    flatten,
   }),
   optional: new Definition('optional', {
     default: null,
@@ -1496,6 +1578,15 @@ const definitions = {
     type: String,
     description: `
       Directory in which \`npm pack\` will save tarballs.
+    `,
+    flatten,
+  }),
+  packages: new Definition('packages', {
+    default: [],
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific packages.
     `,
     flatten,
   }),
@@ -1893,6 +1984,63 @@ const definitions = {
       // projectScope is kept for compatibility with npm-registry-fetch
       flatOptions.projectScope = scope
     },
+  }),
+  scopes: new Definition('scopes', {
+    default: null,
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific scopes. Provide
+      a scope name (with or without @ prefix).
+    `,
+    flatten,
+  }),
+  'packages-all': new Definition('packages-all', {
+    default: false,
+    type: Boolean,
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      grants the token access to all packages instead of limiting to
+      specific packages.
+    `,
+    flatten,
+  }),
+  'packages-and-scopes-permission': new Definition('packages-and-scopes-permission', {
+    default: null,
+    type: [null, 'read-only', 'read-write', 'no-access'],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      sets the permission level for packages and scopes. Options are
+      "read-only", "read-write", or "no-access".
+    `,
+    flatten,
+  }),
+  'orgs-permission': new Definition('orgs-permission', {
+    default: null,
+    type: [null, 'read-only', 'read-write', 'no-access'],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      sets the permission level for organizations. Options are
+      "read-only", "read-write", or "no-access".
+    `,
+    flatten,
+  }),
+  password: new Definition('password', {
+    default: null,
+    type: [null, String],
+    description: `
+      Password for authentication. Can be provided via command line when
+      creating tokens, though it's generally safer to be prompted for it.
+    `,
+    flatten,
+  }),
+  'token-description': new Definition('token-description', {
+    default: null,
+    type: [null, String],
+    description: `
+      Description text for the token when using \`npm token create\`.
+    `,
+    flatten,
   }),
   'script-shell': new Definition('script-shell', {
     default: null,

@@ -61,217 +61,305 @@ namespace hwy {
 //------------------------------------------------------------------------------
 // Export user functions for static/dynamic dispatch
 
+// The static target is the best baseline. When using foreach_target.h, this is
+// the last target compiled. Otherwise, it is the only target.
+
 // Evaluates to 0 inside a translation unit if it is generating anything but the
-// static target (the last one if multiple targets are enabled). Used to prevent
-// redefinitions of HWY_EXPORT. Unless foreach_target.h is included, we only
-// compile once anyway, so this is 1 unless it is or has been included.
+// static target. Used to prevent redefinitions of HWY_EXPORT. Unless
+// foreach_target.h is included, we only compile once anyway, so this is 1
+// unless it is or has been included.
 #ifndef HWY_ONCE
 #define HWY_ONCE 1
 #endif
 
-// HWY_STATIC_DISPATCH(FUNC_NAME) is the namespace-qualified FUNC_NAME for
-// HWY_STATIC_TARGET (the only defined namespace unless HWY_TARGET_INCLUDE is
-// defined), and can be used to deduce the return type of Choose*.
+// `HWY_STATIC_NAMESPACE` expands to its namespace name, e.g. `N_AVX2`.
 #if HWY_STATIC_TARGET == HWY_SCALAR
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SCALAR::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_SCALAR
 #elif HWY_STATIC_TARGET == HWY_EMU128
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_EMU128::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_RVV
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_RVV::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_WASM_EMU256
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_WASM_EMU256::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_EMU128
 #elif HWY_STATIC_TARGET == HWY_WASM
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_WASM::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_NEON_WITHOUT_AES
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_NEON_WITHOUT_AES::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_NEON
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_NEON::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_NEON_BF16
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_NEON_BF16::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_SVE
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SVE::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_SVE2
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SVE2::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_SVE_256
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SVE_256::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_SVE2_128
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SVE2_128::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_PPC8
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_PPC8::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_PPC9
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_PPC9::FUNC_NAME
-#elif HWY_STATIC_TARGET == HWY_PPC10
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_PPC10::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_WASM
+#elif HWY_STATIC_TARGET == HWY_WASM_EMU256
+#define HWY_STATIC_NAMESPACE N_WASM_EMU256
 #elif HWY_STATIC_TARGET == HWY_Z14
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_Z14::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_Z14
 #elif HWY_STATIC_TARGET == HWY_Z15
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_Z15::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_Z15
+#elif HWY_STATIC_TARGET == HWY_PPC8
+#define HWY_STATIC_NAMESPACE N_PPC8
+#elif HWY_STATIC_TARGET == HWY_PPC9
+#define HWY_STATIC_NAMESPACE N_PPC9
+#elif HWY_STATIC_TARGET == HWY_PPC10
+#define HWY_STATIC_NAMESPACE N_PPC10
+#elif HWY_STATIC_TARGET == HWY_LSX
+#define HWY_STATIC_NAMESPACE N_LSX
+#elif HWY_STATIC_TARGET == HWY_LASX
+#define HWY_STATIC_NAMESPACE N_LASX
+#elif HWY_STATIC_TARGET == HWY_RVV
+#define HWY_STATIC_NAMESPACE N_RVV
+#elif HWY_STATIC_TARGET == HWY_NEON_WITHOUT_AES
+#define HWY_STATIC_NAMESPACE N_NEON_WITHOUT_AES
+#elif HWY_STATIC_TARGET == HWY_NEON
+#define HWY_STATIC_NAMESPACE N_NEON
+#elif HWY_STATIC_TARGET == HWY_NEON_BF16
+#define HWY_STATIC_NAMESPACE N_NEON_BF16
+#elif HWY_STATIC_TARGET == HWY_SVE
+#define HWY_STATIC_NAMESPACE N_SVE
+#elif HWY_STATIC_TARGET == HWY_SVE2
+#define HWY_STATIC_NAMESPACE N_SVE2
+#elif HWY_STATIC_TARGET == HWY_SVE_256
+#define HWY_STATIC_NAMESPACE N_SVE_256
+#elif HWY_STATIC_TARGET == HWY_SVE2_128
+#define HWY_STATIC_NAMESPACE N_SVE2_128
 #elif HWY_STATIC_TARGET == HWY_SSE2
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SSE2::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_SSE2
 #elif HWY_STATIC_TARGET == HWY_SSSE3
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SSSE3::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_SSSE3
 #elif HWY_STATIC_TARGET == HWY_SSE4
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_SSE4::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_SSE4
 #elif HWY_STATIC_TARGET == HWY_AVX2
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_AVX2::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_AVX2
 #elif HWY_STATIC_TARGET == HWY_AVX3
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_AVX3::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_AVX3
 #elif HWY_STATIC_TARGET == HWY_AVX3_DL
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_AVX3_DL::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_AVX3_DL
 #elif HWY_STATIC_TARGET == HWY_AVX3_ZEN4
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_AVX3_ZEN4::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_AVX3_ZEN4
 #elif HWY_STATIC_TARGET == HWY_AVX3_SPR
-#define HWY_STATIC_DISPATCH(FUNC_NAME) N_AVX3_SPR::FUNC_NAME
+#define HWY_STATIC_NAMESPACE N_AVX3_SPR
+#elif HWY_STATIC_TARGET == HWY_AVX10_2
+#define HWY_STATIC_NAMESPACE N_AVX10_2
 #endif
 
-// HWY_CHOOSE_*(FUNC_NAME) expands to the function pointer for that target or
-// nullptr is that target was not compiled.
+// `HWY_STATIC_DISPATCH(FUNC_NAME)` is the namespace-qualified FUNC_NAME for
+// `HWY_STATIC_TARGET`, and can be used to deduce the return type of Choose*.
+#define HWY_STATIC_DISPATCH(FUNC_NAME) HWY_STATIC_NAMESPACE::FUNC_NAME
+
+// `HWY_CHOOSE_*(FUNC_NAME)` expands to the function pointer for that target or
+// nullptr if that target was not compiled.
+// `HWY_VISIT_*(VISITOR)` expands to `VISITOR(TARGET, NAMESPACE)` or nothing if
+// that target was not compiled.
 #if HWY_TARGETS & HWY_EMU128
 #define HWY_CHOOSE_FALLBACK(FUNC_NAME) &N_EMU128::FUNC_NAME
+#define HWY_VISIT_FALLBACK(VISITOR) VISITOR(HWY_EMU128, N_EMU128)
 #elif HWY_TARGETS & HWY_SCALAR
 #define HWY_CHOOSE_FALLBACK(FUNC_NAME) &N_SCALAR::FUNC_NAME
+#define HWY_VISIT_FALLBACK(VISITOR) VISITOR(HWY_SCALAR, N_SCALAR)
 #else
 // When HWY_SCALAR/HWY_EMU128 are not present and other targets were disabled at
 // runtime, fall back to the baseline with HWY_STATIC_DISPATCH().
 #define HWY_CHOOSE_FALLBACK(FUNC_NAME) &HWY_STATIC_DISPATCH(FUNC_NAME)
-#endif
-
-#if HWY_TARGETS & HWY_WASM_EMU256
-#define HWY_CHOOSE_WASM_EMU256(FUNC_NAME) &N_WASM_EMU256::FUNC_NAME
-#else
-#define HWY_CHOOSE_WASM_EMU256(FUNC_NAME) nullptr
+#define HWY_VISIT_FALLBACK(VISITOR) \
+  VISITOR(HWY_STATIC_TARGET, HWY_STATIC_NAMESPACE)
 #endif
 
 #if HWY_TARGETS & HWY_WASM
 #define HWY_CHOOSE_WASM(FUNC_NAME) &N_WASM::FUNC_NAME
+#define HWY_VISIT_WASM(VISITOR) VISITOR(HWY_WASM, N_WASM)
 #else
 #define HWY_CHOOSE_WASM(FUNC_NAME) nullptr
+#define HWY_VISIT_WASM(VISITOR)
 #endif
 
-#if HWY_TARGETS & HWY_RVV
-#define HWY_CHOOSE_RVV(FUNC_NAME) &N_RVV::FUNC_NAME
+#if HWY_TARGETS & HWY_WASM_EMU256
+#define HWY_CHOOSE_WASM_EMU256(FUNC_NAME) &N_WASM_EMU256::FUNC_NAME
+#define HWY_VISIT_WASM_EMU256(VISITOR) VISITOR(HWY_WASM_EMU256, N_WASM_EMU256)
 #else
-#define HWY_CHOOSE_RVV(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_NEON_WITHOUT_AES
-#define HWY_CHOOSE_NEON_WITHOUT_AES(FUNC_NAME) &N_NEON_WITHOUT_AES::FUNC_NAME
-#else
-#define HWY_CHOOSE_NEON_WITHOUT_AES(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_NEON
-#define HWY_CHOOSE_NEON(FUNC_NAME) &N_NEON::FUNC_NAME
-#else
-#define HWY_CHOOSE_NEON(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_NEON_BF16
-#define HWY_CHOOSE_NEON_BF16(FUNC_NAME) &N_NEON_BF16::FUNC_NAME
-#else
-#define HWY_CHOOSE_NEON_BF16(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_SVE
-#define HWY_CHOOSE_SVE(FUNC_NAME) &N_SVE::FUNC_NAME
-#else
-#define HWY_CHOOSE_SVE(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_SVE2
-#define HWY_CHOOSE_SVE2(FUNC_NAME) &N_SVE2::FUNC_NAME
-#else
-#define HWY_CHOOSE_SVE2(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_SVE_256
-#define HWY_CHOOSE_SVE_256(FUNC_NAME) &N_SVE_256::FUNC_NAME
-#else
-#define HWY_CHOOSE_SVE_256(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_SVE2_128
-#define HWY_CHOOSE_SVE2_128(FUNC_NAME) &N_SVE2_128::FUNC_NAME
-#else
-#define HWY_CHOOSE_SVE2_128(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_PPC8
-#define HWY_CHOOSE_PPC8(FUNC_NAME) &N_PPC8::FUNC_NAME
-#else
-#define HWY_CHOOSE_PPC8(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_PPC9
-#define HWY_CHOOSE_PPC9(FUNC_NAME) &N_PPC9::FUNC_NAME
-#else
-#define HWY_CHOOSE_PPC9(FUNC_NAME) nullptr
-#endif
-
-#if HWY_TARGETS & HWY_PPC10
-#define HWY_CHOOSE_PPC10(FUNC_NAME) &N_PPC10::FUNC_NAME
-#else
-#define HWY_CHOOSE_PPC10(FUNC_NAME) nullptr
+#define HWY_CHOOSE_WASM_EMU256(FUNC_NAME) nullptr
+#define HWY_VISIT_WASM_EMU256(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_Z14
 #define HWY_CHOOSE_Z14(FUNC_NAME) &N_Z14::FUNC_NAME
+#define HWY_VISIT_Z14(VISITOR) VISITOR(HWY_Z14, N_Z14)
 #else
 #define HWY_CHOOSE_Z14(FUNC_NAME) nullptr
+#define HWY_VISIT_Z14(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_Z15
 #define HWY_CHOOSE_Z15(FUNC_NAME) &N_Z15::FUNC_NAME
+#define HWY_VISIT_Z15(VISITOR) VISITOR(HWY_Z15, N_Z15)
 #else
 #define HWY_CHOOSE_Z15(FUNC_NAME) nullptr
+#define HWY_VISIT_Z15(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_PPC8
+#define HWY_CHOOSE_PPC8(FUNC_NAME) &N_PPC8::FUNC_NAME
+#define HWY_VISIT_PPC8(VISITOR) VISITOR(HWY_PPC8, N_PPC8)
+#else
+#define HWY_CHOOSE_PPC8(FUNC_NAME) nullptr
+#define HWY_VISIT_PPC8(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_PPC9
+#define HWY_CHOOSE_PPC9(FUNC_NAME) &N_PPC9::FUNC_NAME
+#define HWY_VISIT_PPC9(VISITOR) VISITOR(HWY_PPC9, N_PPC9)
+#else
+#define HWY_CHOOSE_PPC9(FUNC_NAME) nullptr
+#define HWY_VISIT_PPC9(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_LSX
+#define HWY_CHOOSE_LSX(FUNC_NAME) &N_LSX::FUNC_NAME
+#define HWY_VISIT_LSX(VISITOR) VISITOR(HWY_LSX, N_LSX)
+#else
+#define HWY_CHOOSE_LSX(FUNC_NAME) nullptr
+#define HWY_VISIT_LSX(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_LASX
+#define HWY_CHOOSE_LASX(FUNC_NAME) &N_LASX::FUNC_NAME
+#define HWY_VISIT_LASX(VISITOR) VISITOR(HWY_LASX, N_LASX)
+#else
+#define HWY_CHOOSE_LASX(FUNC_NAME) nullptr
+#define HWY_VISIT_LASX(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_PPC10
+#define HWY_CHOOSE_PPC10(FUNC_NAME) &N_PPC10::FUNC_NAME
+#define HWY_VISIT_PPC10(VISITOR) VISITOR(HWY_PPC10, N_PPC10)
+#else
+#define HWY_CHOOSE_PPC10(FUNC_NAME) nullptr
+#define HWY_VISIT_PPC10(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_RVV
+#define HWY_CHOOSE_RVV(FUNC_NAME) &N_RVV::FUNC_NAME
+#define HWY_VISIT_RVV(VISITOR) VISITOR(HWY_RVV, N_RVV)
+#else
+#define HWY_CHOOSE_RVV(FUNC_NAME) nullptr
+#define HWY_VISIT_RVV(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_NEON_WITHOUT_AES
+#define HWY_CHOOSE_NEON_WITHOUT_AES(FUNC_NAME) &N_NEON_WITHOUT_AES::FUNC_NAME
+#define HWY_VISIT_NEON_WITHOUT_AES(VISITOR) \
+  VISITOR(HWY_NEON_WITHOUT_AES, N_NEON_WITHOUT_AES)
+#else
+#define HWY_CHOOSE_NEON_WITHOUT_AES(FUNC_NAME) nullptr
+#define HWY_VISIT_NEON_WITHOUT_AES(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_NEON
+#define HWY_CHOOSE_NEON(FUNC_NAME) &N_NEON::FUNC_NAME
+#define HWY_VISIT_NEON(VISITOR) VISITOR(HWY_NEON, N_NEON)
+#else
+#define HWY_CHOOSE_NEON(FUNC_NAME) nullptr
+#define HWY_VISIT_NEON(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_NEON_BF16
+#define HWY_CHOOSE_NEON_BF16(FUNC_NAME) &N_NEON_BF16::FUNC_NAME
+#define HWY_VISIT_NEON_BF16(VISITOR) VISITOR(HWY_NEON_BF16, N_NEON_BF16)
+#else
+#define HWY_CHOOSE_NEON_BF16(FUNC_NAME) nullptr
+#define HWY_VISIT_NEON_BF16(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_SVE
+#define HWY_CHOOSE_SVE(FUNC_NAME) &N_SVE::FUNC_NAME
+#define HWY_VISIT_SVE(VISITOR) VISITOR(HWY_SVE, N_SVE)
+#else
+#define HWY_CHOOSE_SVE(FUNC_NAME) nullptr
+#define HWY_VISIT_SVE(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_SVE2
+#define HWY_CHOOSE_SVE2(FUNC_NAME) &N_SVE2::FUNC_NAME
+#define HWY_VISIT_SVE2(VISITOR) VISITOR(HWY_SVE2, N_SVE2)
+#else
+#define HWY_CHOOSE_SVE2(FUNC_NAME) nullptr
+#define HWY_VISIT_SVE2(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_SVE_256
+#define HWY_CHOOSE_SVE_256(FUNC_NAME) &N_SVE_256::FUNC_NAME
+#define HWY_VISIT_SVE_256(VISITOR) VISITOR(HWY_SVE_256, N_SVE_256)
+#else
+#define HWY_CHOOSE_SVE_256(FUNC_NAME) nullptr
+#define HWY_VISIT_SVE_256(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_SVE2_128
+#define HWY_CHOOSE_SVE2_128(FUNC_NAME) &N_SVE2_128::FUNC_NAME
+#define HWY_VISIT_SVE2_128(VISITOR) VISITOR(HWY_SVE2_128, N_SVE2_128)
+#else
+#define HWY_CHOOSE_SVE2_128(FUNC_NAME) nullptr
+#define HWY_VISIT_SVE2_128(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_SSE2
 #define HWY_CHOOSE_SSE2(FUNC_NAME) &N_SSE2::FUNC_NAME
+#define HWY_VISIT_SSE2(VISITOR) VISITOR(HWY_SSE2, N_SSE2)
 #else
 #define HWY_CHOOSE_SSE2(FUNC_NAME) nullptr
+#define HWY_VISIT_SSE2(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_SSSE3
 #define HWY_CHOOSE_SSSE3(FUNC_NAME) &N_SSSE3::FUNC_NAME
+#define HWY_VISIT_SSSE3(VISITOR) VISITOR(HWY_SSSE3, N_SSSE3)
 #else
 #define HWY_CHOOSE_SSSE3(FUNC_NAME) nullptr
+#define HWY_VISIT_SSSE3(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_SSE4
 #define HWY_CHOOSE_SSE4(FUNC_NAME) &N_SSE4::FUNC_NAME
+#define HWY_VISIT_SSE4(VISITOR) VISITOR(HWY_SSE4, N_SSE4)
 #else
 #define HWY_CHOOSE_SSE4(FUNC_NAME) nullptr
+#define HWY_VISIT_SSE4(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_AVX2
 #define HWY_CHOOSE_AVX2(FUNC_NAME) &N_AVX2::FUNC_NAME
+#define HWY_VISIT_AVX2(VISITOR) VISITOR(HWY_AVX2, N_AVX2)
 #else
 #define HWY_CHOOSE_AVX2(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX2(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_AVX3
 #define HWY_CHOOSE_AVX3(FUNC_NAME) &N_AVX3::FUNC_NAME
+#define HWY_VISIT_AVX3(VISITOR) VISITOR(HWY_AVX3, N_AVX3)
 #else
 #define HWY_CHOOSE_AVX3(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX3(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_AVX3_DL
 #define HWY_CHOOSE_AVX3_DL(FUNC_NAME) &N_AVX3_DL::FUNC_NAME
+#define HWY_VISIT_AVX3_DL(VISITOR) VISITOR(HWY_AVX3_DL, N_AVX3_DL)
 #else
 #define HWY_CHOOSE_AVX3_DL(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX3_DL(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_AVX3_ZEN4
 #define HWY_CHOOSE_AVX3_ZEN4(FUNC_NAME) &N_AVX3_ZEN4::FUNC_NAME
+#define HWY_VISIT_AVX3_ZEN4(VISITOR) VISITOR(HWY_AVX3_ZEN4, N_AVX3_ZEN4)
 #else
 #define HWY_CHOOSE_AVX3_ZEN4(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX3_ZEN4(VISITOR)
 #endif
 
 #if HWY_TARGETS & HWY_AVX3_SPR
 #define HWY_CHOOSE_AVX3_SPR(FUNC_NAME) &N_AVX3_SPR::FUNC_NAME
+#define HWY_VISIT_AVX3_SPR(VISITOR) VISITOR(HWY_AVX3_SPR, N_AVX3_SPR)
 #else
 #define HWY_CHOOSE_AVX3_SPR(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX3_SPR(VISITOR)
+#endif
+
+#if HWY_TARGETS & HWY_AVX10_2
+#define HWY_CHOOSE_AVX10_2(FUNC_NAME) &N_AVX10_2::FUNC_NAME
+#define HWY_VISIT_AVX10_2(VISITOR) VISITOR(HWY_AVX10_2, N_AVX10_2)
+#else
+#define HWY_CHOOSE_AVX10_2(FUNC_NAME) nullptr
+#define HWY_VISIT_AVX10_2(VISITOR)
 #endif
 
 // MSVC 2017 workaround: the non-type template parameter to ChooseAndCall
@@ -535,7 +623,23 @@ struct AddExport {
   (HWY_DISPATCH_TABLE(FUNC_NAME)[hwy::GetChosenTarget().GetIndex()])
 
 // Calls the function pointer for the chosen target.
+#if HWY_COMPILER_GCC || HWY_COMPILER_CLANG
+
+// On GCC or Clang, we call hwy::PreventElision(...) to work around a compiler
+// crash where the LLVM inliner crashes due to inlining incompatible intrinsics.
+
+#define HWY_DYNAMIC_DISPATCH(FUNC_NAME)         \
+  __extension__({                               \
+    auto HWY_CONCAT(hwy_tmp_, __LINE__) = *(HWY_DYNAMIC_POINTER(FUNC_NAME)); \
+    hwy::PreventElision(HWY_CONCAT(hwy_tmp_, __LINE__));                     \
+    HWY_CONCAT(hwy_tmp_, __LINE__);                                          \
+  })
+
+#else  // !(HWY_COMPILER_GCC || HWY_COMPILER_CLANG)
+
 #define HWY_DYNAMIC_DISPATCH(FUNC_NAME) (*(HWY_DYNAMIC_POINTER(FUNC_NAME)))
+
+#endif  // HWY_COMPILER_GCC || HWY_COMPILER_CLANG
 
 // Same as DISPATCH, but provide a different arg name to clarify usage.
 #define HWY_DYNAMIC_DISPATCH_T(TABLE_NAME) HWY_DYNAMIC_DISPATCH(TABLE_NAME)
@@ -573,14 +677,28 @@ struct AddExport {
 #define HWY_HIGHWAY_PER_TARGET
 #endif
 
+// No SIMD target enabled, skip header inclusion.
+#if HWY_ENABLED_BASELINE == 0
+
+// We would expect that HWY_TARGET and HWY_STATIC_TARGET are now both 0.
+#if HWY_TARGET != 0
+#error "Why is HWY_TARGET not 0 when HWY_ENABLED_BASELINE == 0?"
+#endif
+#if HWY_STATIC_TARGET != 0
+#error "Why is HWY_STATIC_TARGET not 0 when HWY_ENABLED_BASELINE == 0?"
+#endif
+
+#else
+
 // These define ops inside namespace hwy::HWY_NAMESPACE.
 #if HWY_TARGET == HWY_SSE2 || HWY_TARGET == HWY_SSSE3 || HWY_TARGET == HWY_SSE4
 #include "hwy/ops/x86_128-inl.h"
 #elif HWY_TARGET == HWY_AVX2
 #include "hwy/ops/x86_256-inl.h"
-#elif HWY_TARGET == HWY_AVX3 || HWY_TARGET == HWY_AVX3_DL || \
-    HWY_TARGET == HWY_AVX3_ZEN4 || HWY_TARGET == HWY_AVX3_SPR
-#include "hwy/ops/x86_512-inl.h"
+#elif HWY_TARGET == HWY_AVX3 || HWY_TARGET == HWY_AVX3_DL ||     \
+    HWY_TARGET == HWY_AVX3_ZEN4 || HWY_TARGET == HWY_AVX3_SPR || \
+    HWY_TARGET == HWY_AVX10_2
+#include "hwy/ops/x86_avx3-inl.h"
 #elif HWY_TARGET == HWY_Z14 || HWY_TARGET == HWY_Z15 || \
     (HWY_TARGET & HWY_ALL_PPC)
 #include "hwy/ops/ppc_vsx-inl.h"
@@ -594,6 +712,10 @@ struct AddExport {
 #include "hwy/ops/wasm_128-inl.h"
 #elif HWY_TARGET == HWY_RVV
 #include "hwy/ops/rvv-inl.h"
+#elif HWY_TARGET == HWY_LSX
+#include "hwy/ops/loongarch_lsx-inl.h"
+#elif HWY_TARGET == HWY_LASX
+#include "hwy/ops/loongarch_lasx-inl.h"
 #elif HWY_TARGET == HWY_EMU128
 #include "hwy/ops/emu128-inl.h"
 #elif HWY_TARGET == HWY_SCALAR
@@ -603,5 +725,7 @@ struct AddExport {
 #endif  // HWY_TARGET
 
 #include "hwy/ops/generic_ops-inl.h"
+
+#endif  // HWY_ENABLED_BASELINE
 
 #endif  // HWY_HIGHWAY_PER_TARGET

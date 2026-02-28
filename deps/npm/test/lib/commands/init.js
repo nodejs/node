@@ -16,7 +16,7 @@ const mockNpm = async (t, { noLog, libnpmexec, initPackageJson, ...opts } = {}) 
     },
     globals: {
       // init-package-json prints directly to console.log
-      // this avoids poluting test output with those logs
+      // this avoids polluting test output with those logs
       ...(noLog ? { 'console.log': () => {} } : {}),
     },
   })
@@ -324,7 +324,7 @@ t.test('workspaces', async t => {
     )
   })
 
-  await t.test('missing top-level package.json when settting workspace', async t => {
+  await t.test('missing top-level package.json when setting workspace', async t => {
     const { npm, logs } = await mockNpm(t, {
       config: { workspace: 'a' },
     })
@@ -338,7 +338,7 @@ t.test('workspaces', async t => {
     t.equal(logs.warn[0], 'init Missing package.json. Try with `--include-workspace-root`.')
   })
 
-  await t.test('bad package.json when settting workspace', async t => {
+  await t.test('bad package.json when setting workspace', async t => {
     const { npm, logs } = await mockNpm(t, {
       prefixDir: {
         'package.json': '{{{{',

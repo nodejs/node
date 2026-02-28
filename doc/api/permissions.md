@@ -51,7 +51,8 @@ flag.
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
 spawn processes, use `node:worker_threads`, use native addons, use WASI, and
-enable the runtime inspector will be restricted.
+enable the runtime inspector will be restricted (the listener for SIGUSR1 won't
+be created).
 
 ```console
 $ node --permission index.js
@@ -151,6 +152,35 @@ does not exist, the wildcard will not be added, and access will be limited to
 `/home/test/files`. If you want to allow access to a folder that does not exist
 yet, make sure to explicitly include the wildcard:
 `/my-path/folder-do-not-exist/*`.
+
+#### Configuration file support
+
+In addition to passing permission flags on the command line, they can also be
+declared in a Node.js configuration file when using the experimental
+\[`--experimental-config-file`]\[] flag. Permission options must be placed inside
+the `permission` top-level object.
+
+Example `node.config.json`:
+
+```json
+{
+  "permission": {
+    "allow-fs-read": ["./foo"],
+    "allow-fs-write": ["./bar"],
+    "allow-child-process": true,
+    "allow-worker": true,
+    "allow-net": true,
+    "allow-addons": false
+  }
+}
+```
+
+When the `permission` namespace is present in the configuration file, Node.js
+automatically enables the `--permission` flag. Run with:
+
+```console
+$ node --experimental-default-config-file app.js
+```
 
 #### Using the Permission Model with `npx`
 

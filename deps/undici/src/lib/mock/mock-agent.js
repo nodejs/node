@@ -22,23 +22,23 @@ const {
 } = require('./mock-symbols')
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
-const { matchValue, normalizeSearchParams, buildAndValidateMockOptions } = require('./mock-utils')
+const { matchValue, normalizeSearchParams, buildAndValidateMockOptions, normalizeOrigin } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
 const Dispatcher = require('../dispatcher/dispatcher')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 const { MockCallHistory } = require('./mock-call-history')
 
 class MockAgent extends Dispatcher {
-  constructor (opts) {
+  constructor (opts = {}) {
     super(opts)
 
     const mockOptions = buildAndValidateMockOptions(opts)
 
     this[kNetConnect] = true
     this[kIsMockActive] = true
-    this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
-    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
-    this[kIgnoreTrailingSlash] = mockOptions?.ignoreTrailingSlash ?? false
+    this[kMockAgentIsCallHistoryEnabled] = mockOptions.enableCallHistory ?? false
+    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions.acceptNonStandardSearchParameters ?? false
+    this[kIgnoreTrailingSlash] = mockOptions.ignoreTrailingSlash ?? false
 
     // Instantiate Agent and encapsulate
     if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
@@ -56,9 +56,9 @@ class MockAgent extends Dispatcher {
   }
 
   get (origin) {
-    const originKey = this[kIgnoreTrailingSlash]
-      ? origin.replace(/\/$/, '')
-      : origin
+    // Normalize origin to handle URL objects and case-insensitive hostnames
+    const normalizedOrigin = normalizeOrigin(origin)
+    const originKey = this[kIgnoreTrailingSlash] ? normalizedOrigin.replace(/\/$/, '') : normalizedOrigin
 
     let dispatcher = this[kMockAgentGet](originKey)
 
@@ -70,6 +70,8 @@ class MockAgent extends Dispatcher {
   }
 
   dispatch (opts, handler) {
+    opts.origin = normalizeOrigin(opts.origin)
+
     // Call MockAgent.get to perform additional setup before dispatching as normal
     this.get(opts.origin)
 

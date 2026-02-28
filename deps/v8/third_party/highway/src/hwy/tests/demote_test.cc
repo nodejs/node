@@ -16,8 +16,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <cmath>  // std::isfinite
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/demote_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
@@ -53,8 +51,7 @@ struct TestDemoteTo {
     RandomState rng;
     for (size_t rep = 0; rep < AdjustedReps(1000); ++rep) {
       for (size_t i = 0; i < N; ++i) {
-        const uint64_t bits = rng();
-        CopyBytes<sizeof(T)>(&bits, &from[i]);  // not same size
+        from[i] = RandomFiniteValue<T>(&rng);
         expected[i] = static_cast<ToT>(HWY_MIN(HWY_MAX(min, from[i]), max));
       }
       const auto in = Load(from_d, from.get());

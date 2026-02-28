@@ -14,12 +14,9 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-This command repurposes `package-lock.json` into a publishable
-`npm-shrinkwrap.json` or simply creates a new one. The file created and
-updated by this command will then take precedence over any other existing
-or future `package-lock.json` files. For a detailed explanation of the
-design and purpose of package locks in npm, see
-[package-lock-json](/configuring-npm/package-lock-json).
+This command repurposes `package-lock.json` into a publishable `npm-shrinkwrap.json` or simply creates a new one.
+The file created and updated by this command will then take precedence over any other existing or future `package-lock.json` files.
+For a detailed explanation of the design and purpose of package locks in npm, see [package-lock-json](/configuring-npm/package-lock-json).
 
 ### See Also
 

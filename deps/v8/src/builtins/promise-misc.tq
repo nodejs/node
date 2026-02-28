@@ -462,7 +462,13 @@ transitioning macro BranchIfAccessCheckFailed(
 @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
 transitioning javascript builtin GetContinuationPreservedEmbedderData(
     js-implicit context: Context, receiver: JSAny)(): JSAny {
-  return UnsafeCast<JSAny>(macros::GetContinuationPreservedEmbedderData());
+  // The embbeder API allows storing arbitrary Data, which might not be
+  // something that can be exposed to script.
+  const data = macros::GetContinuationPreservedEmbedderData();
+  if (!Is<JSAny>(data)) {
+    return Undefined;
+  }
+  return UnsafeCast<JSAny>(data);
 }
 
 @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)

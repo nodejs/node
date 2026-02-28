@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,30 +20,34 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_OUT, OPT_ENGINE, OPT_BASE64, OPT_HEX,
-    OPT_R_ENUM, OPT_PROV_ENUM
+    OPT_OUT,
+    OPT_ENGINE,
+    OPT_BASE64,
+    OPT_HEX,
+    OPT_R_ENUM,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS rand_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] num[K|M|G|T]\n"},
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] num[K|M|G|T]\n" },
 
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"base64", OPT_BASE64, '-', "Base64 encode output"},
-    {"hex", OPT_HEX, '-', "Hex encode output"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "base64", OPT_BASE64, '-', "Base64 encode output" },
+    { "hex", OPT_HEX, '-', "Hex encode output" },
 
     OPT_R_OPTIONS,
     OPT_PROV_OPTIONS,
 
     OPT_PARAMETERS(),
-    {"num", 0, 0, "Number of bytes to generate"},
-    {NULL}
+    { "num", 0, 0, "Number of bytes to generate" },
+    { NULL }
 };
 
 int rand_main(int argc, char **argv)
@@ -63,7 +67,7 @@ int rand_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -124,7 +128,7 @@ int rand_main(int argc, char **argv)
              */
             while (argv[0][factoridx]) {
                 if (!isdigit((int)(argv[0][factoridx]))) {
-                    switch(argv[0][factoridx]) {
+                    switch (argv[0][factoridx]) {
                     case 'K':
                         shift = 10;
                         break;
@@ -139,7 +143,7 @@ int rand_main(int argc, char **argv)
                         break;
                     default:
                         BIO_printf(bio_err, "Invalid size suffix %s\n",
-                                   &argv[0][factoridx]);
+                            &argv[0][factoridx]);
                         goto opthelp;
                     }
                     break;
@@ -149,7 +153,7 @@ int rand_main(int argc, char **argv)
 
             if (shift != 0 && strlen(&argv[0][factoridx]) != 1) {
                 BIO_printf(bio_err, "Invalid size suffix %s\n",
-                           &argv[0][factoridx]);
+                    &argv[0][factoridx]);
                 goto opthelp;
             }
         }
@@ -164,7 +168,7 @@ int rand_main(int argc, char **argv)
             /* check for overflow */
             if ((UINT64_MAX >> shift) < (size_t)num) {
                 BIO_printf(bio_err, "%lu bytes with suffix overflows\n",
-                           num);
+                    num);
                 goto opthelp;
             }
             scaled_num = num << shift;
@@ -199,7 +203,7 @@ int rand_main(int argc, char **argv)
         int chunk;
 
         chunk = scaled_num > buflen ? (int)buflen : (int)scaled_num;
-        r = RAND_bytes(buf, chunk);
+        r = RAND_bytes_ex(app_get0_libctx(), buf, chunk, 0);
         if (r <= 0)
             goto end;
         if (format != FORMAT_TEXT) {
@@ -219,7 +223,7 @@ int rand_main(int argc, char **argv)
 
     ret = 0;
 
- end:
+end:
     if (ret != 0)
         ERR_print_errors(bio_err);
     OPENSSL_free(buf);

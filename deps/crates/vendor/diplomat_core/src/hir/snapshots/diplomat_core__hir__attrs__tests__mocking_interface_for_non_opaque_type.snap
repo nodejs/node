@@ -1,0 +1,5 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in Foo::get_y: `generate_mocking_interface` can only be used on opaque types

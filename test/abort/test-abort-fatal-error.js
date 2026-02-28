@@ -36,7 +36,7 @@ exec(...cmdline, common.mustCall((err, stdout, stderr) => {
   if (!err) {
     console.log(stdout);
     console.log(stderr);
-    assert(false, 'this test should fail');
+    assert.fail('this test should fail');
   }
 
   assert(common.nodeProcessAborted(err.code, err.signal));

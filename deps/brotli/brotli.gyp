@@ -13,7 +13,9 @@
       'c/dec/bit_reader.c',
       'c/dec/decode.c',
       'c/dec/huffman.c',
+      'c/dec/prefix.c',
       'c/dec/state.c',
+      'c/dec/static_init.c',
 
       # Encoder
       'c/enc/backward_references.c',
@@ -36,6 +38,8 @@
       'c/enc/memory.c',
       'c/enc/metablock.c',
       'c/enc/static_dict.c',
+      'c/enc/static_dict_lut.c',
+      'c/enc/static_init.c',
       'c/enc/utf8_util.c',
     ]
   },

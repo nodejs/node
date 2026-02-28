@@ -34,7 +34,7 @@ V8_INLINE void InitSelfIndirectPointerField(
         IsolateGroup::current()
             ->code_pointer_table()
             ->AllocateAndInitializeEntry(space, host.address(), kNullAddress,
-                                         kDefaultCodeEntrypointTag);
+                                         kUninitializedEntrypointTag);
   } else {
     TrustedPointerTable::Space* space =
         isolate.GetTrustedPointerTableSpaceFor(tag);

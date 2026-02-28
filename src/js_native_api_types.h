@@ -1,9 +1,36 @@
 #ifndef SRC_JS_NATIVE_API_TYPES_H_
 #define SRC_JS_NATIVE_API_TYPES_H_
 
+// Use INT_MAX, this should only be consumed by the pre-processor anyway.
+#define NAPI_VERSION_EXPERIMENTAL 2147483647
+#ifndef NAPI_VERSION
+#ifdef NAPI_EXPERIMENTAL
+#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
+#else
+// The baseline version for Node-API.
+// NAPI_VERSION controls which version is used by default when compiling
+// a native addon. If the addon developer wants to use functions from a
+// newer Node-API version not yet available in all LTS versions, they can
+// set NAPI_VERSION to explicitly depend on that version.
+#define NAPI_VERSION 8
+#endif
+#endif
+
+#if defined(NAPI_EXPERIMENTAL) &&                                              \
+    !defined(NODE_API_EXPERIMENTAL_NO_WARNING) &&                              \
+    !defined(NODE_WANT_INTERNALS)
+#ifdef _MSC_VER
+#pragma message("NAPI_EXPERIMENTAL is enabled. "                               \
+                "Experimental features may be unstable.")
+#else
+#warning "NAPI_EXPERIMENTAL is enabled. " \
+       "Experimental features may be unstable."
+#endif
+#endif
+
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
-// became part of it's API.
+// become part of its API.
 #include <stddef.h>  // NOLINT(modernize-deprecated-headers)
 #include <stdint.h>  // NOLINT(modernize-deprecated-headers)
 
@@ -105,6 +132,8 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+#define NODE_API_HAS_FLOAT16_ARRAY
+  napi_float16_array,
 } napi_typedarray_type;
 
 typedef enum {
