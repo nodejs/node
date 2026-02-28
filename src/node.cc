@@ -1046,6 +1046,45 @@ static ExitCode InitializeNodeWithArgsInternal(
   return ExitCode::kNoFailure;
 }
 
+#if NODE_USE_V8_WASM_TRAP_HANDLER
+bool CanEnableWebAssemblyTrapHandler() {
+// On POSIX, the machine may have a limit on the amount of virtual memory
+// available, if it's not enough to allocate at least one cage for WASM,
+// then the trap-handler-based bound checks cannot be used.
+#ifdef __POSIX__
+  struct rlimit lim;
+  if (getrlimit(RLIMIT_AS, &lim) != 0 || lim.rlim_cur == RLIM_INFINITY) {
+    // Can't get the limit or there's no limit, assume trap handler can be
+    // enabled.
+    return true;
+  }
+  uint64_t virtual_memory_available = static_cast<uint64_t>(lim.rlim_cur);
+
+  size_t byte_capacity = 64 * 1024;  // 64KB, the minimum size of a WASM memory.
+  uint64_t cage_size_needed_32 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, byte_capacity);
+  uint64_t cage_size_needed_64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, byte_capacity);
+  uint64_t cage_size_needed =
+      std::max(cage_size_needed_32, cage_size_needed_64);
+  bool can_enable = virtual_memory_available >= cage_size_needed;
+  per_process::Debug(DebugCategory::BOOTSTRAP,
+                     "Virtual memory available: %" PRIu64 " bytes,\n"
+                     "cage size needed for 32-bit: %" PRIu64 " bytes,\n"
+                     "cage size needed for 64-bit: %" PRIu64 " bytes,\n"
+                     "Can%senable WASM trap handler\n",
+                     virtual_memory_available,
+                     cage_size_needed_32,
+                     cage_size_needed_64,
+                     can_enable ? " " : " not ");
+
+  return can_enable;
+#else
+  return true;
+#endif  // __POSIX__
+}
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+
 static std::shared_ptr<InitializationResultImpl>
 InitializeOncePerProcessInternal(const std::vector<std::string>& args,
                                  ProcessInitializationFlags::Flags flags =
@@ -1248,7 +1287,9 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   bool use_wasm_trap_handler =
       !per_process::cli_options->disable_wasm_trap_handler;
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
-      use_wasm_trap_handler) {
+      use_wasm_trap_handler && CanEnableWebAssemblyTrapHandler()) {
+    per_process::Debug(DebugCategory::BOOTSTRAP,
+                       "Enabling WebAssembly trap handler for bounds checks\n");
 #if defined(_WIN32)
     constexpr ULONG first = TRUE;
     per_process::old_vectored_exception_handler =
