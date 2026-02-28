@@ -648,7 +648,7 @@ robocopy /e doc\api %config%\doc\api
 
 %doc_kit_exe% ^
   generate ^
-  -t legacy-html-all legacy-json-all api-links ^
+  -t web legacy-json-all api-links ^
   -i doc/api/*.md ^
   -i lib/*.js ^
   -o %config%/doc/api/ ^
