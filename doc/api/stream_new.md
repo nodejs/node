@@ -1,0 +1,1215 @@
+# Stream (new)
+
+<!--introduced_in=REPLACEME-->
+
+> Stability: 1 - Experimental
+
+<!-- source_link=lib/stream/new.js -->
+
+The `node:stream/new` module provides a new streaming API built on iterables
+rather than the event-driven `Readable`/`Writable`/`Transform` class hierarchy.
+
+Streams are represented as `AsyncIterable<Uint8Array[]>` (async) or
+`Iterable<Uint8Array[]>` (sync). There are no base classes to extend -- any
+object implementing the iterable protocol can participate. Transforms are plain
+functions or objects with a `transform` method.
+
+Data flows in **batches** (`Uint8Array[]` per iteration) to amortize the cost
+of async operations.
+
+```mjs
+import { from, pull, text, compressGzip, decompressGzip } from 'node:stream/new';
+
+// Compress and decompress a string
+const compressed = pull(from('Hello, world!'), compressGzip());
+const result = await text(pull(compressed, decompressGzip()));
+console.log(result); // 'Hello, world!'
+```
+
+```cjs
+const { from, pull, text, compressGzip, decompressGzip } = require('node:stream/new');
+
+async function run() {
+  // Compress and decompress a string
+  const compressed = pull(from('Hello, world!'), compressGzip());
+  const result = await text(pull(compressed, decompressGzip()));
+  console.log(result); // 'Hello, world!'
+}
+
+run().catch(console.error);
+```
+
+```mjs
+import { open } from 'node:fs/promises';
+import { text, compressGzip, decompressGzip, pipeTo } from 'node:stream/new';
+
+// Read a file, compress, write to another file
+const src = await open('input.txt', 'r');
+const dst = await open('output.gz', 'w');
+await pipeTo(src.pull(), compressGzip(), dst.writer({ autoClose: true }));
+await src.close();
+
+// Read it back
+const gz = await open('output.gz', 'r');
+console.log(await text(gz.pull(decompressGzip(), { autoClose: true })));
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { text, compressGzip, decompressGzip, pipeTo } = require('node:stream/new');
+
+async function run() {
+  // Read a file, compress, write to another file
+  const src = await open('input.txt', 'r');
+  const dst = await open('output.gz', 'w');
+  await pipeTo(src.pull(), compressGzip(), dst.writer({ autoClose: true }));
+  await src.close();
+
+  // Read it back
+  const gz = await open('output.gz', 'r');
+  console.log(await text(gz.pull(decompressGzip(), { autoClose: true })));
+}
+
+run().catch(console.error);
+```
+
+## Concepts
+
+### Byte streams
+
+All data in the new streams API is represented as `Uint8Array` bytes. Strings
+are automatically UTF-8 encoded when passed to `from()`, `push()`, or
+`pipeTo()`. This removes ambiguity around encodings and enables zero-copy
+transfers between streams and native code.
+
+### Batching
+
+Each iteration yields a **batch** -- an array of `Uint8Array` chunks
+(`Uint8Array[]`). Batching amortizes the cost of `await` and Promise creation
+across multiple chunks. A consumer that processes one chunk at a time can
+simply iterate the inner array:
+
+```mjs
+for await (const batch of source) {
+  for (const chunk of batch) {
+    handle(chunk);
+  }
+}
+```
+
+```cjs
+async function run() {
+  for await (const batch of source) {
+    for (const chunk of batch) {
+      handle(chunk);
+    }
+  }
+}
+```
+
+### Transforms
+
+Transforms come in two forms:
+
+* **Stateless** -- a function `(chunks) => result` called once per batch.
+  Receives `Uint8Array[]` (or `null` as the flush signal). Returns
+  `Uint8Array[]`, `null`, or an iterable of chunks.
+
+* **Stateful** -- an object `{ transform(source) }` where `transform` is a
+  generator (sync or async) that receives the entire upstream iterable and
+  yields output. This form is used for compression, encryption, and any
+  transform that needs to buffer across batches.
+
+The flush signal (`null`) is sent after the source ends, giving transforms
+a chance to emit trailing data (e.g., compression footers).
+
+```js
+// Stateless: uppercase transform
+const upper = (chunks) => {
+  if (chunks === null) return null; // flush
+  return chunks.map((c) => new TextEncoder().encode(
+    new TextDecoder().decode(c).toUpperCase(),
+  ));
+};
+
+// Stateful: line splitter
+const lines = {
+  transform: async function*(source) {
+    let partial = '';
+    for await (const chunks of source) {
+      if (chunks === null) {
+        if (partial) yield [new TextEncoder().encode(partial)];
+        continue;
+      }
+      for (const chunk of chunks) {
+        const str = partial + new TextDecoder().decode(chunk);
+        const parts = str.split('\n');
+        partial = parts.pop();
+        for (const line of parts) {
+          yield [new TextEncoder().encode(`${line}\n`)];
+        }
+      }
+    }
+  },
+};
+```
+
+### Pull vs. push
+
+The API supports two models:
+
+* **Pull** -- data flows on demand. `pull()` and `pullSync()` create lazy
+  pipelines that only read from the source when the consumer iterates.
+
+* **Push** -- data is written explicitly. `push()` creates a writer/readable
+  pair with backpressure. The writer pushes data in; the readable is consumed
+  as an async iterable.
+
+### Writers
+
+A writer is any object with a `write(chunk)` method. Writers optionally
+support `writev(chunks)` for batch writes (mapped to scatter/gather I/O where
+available), `end()` to signal completion, and `abort(reason)` to signal
+failure.
+
+## `require('node:stream/new')`
+
+All functions are available both as named exports and as properties of the
+`Stream` namespace object:
+
+```mjs
+// Named exports
+import { from, pull, bytes, Stream } from 'node:stream/new';
+
+// Namespace access
+Stream.from('hello');
+```
+
+```cjs
+// Named exports
+const { from, pull, bytes, Stream } = require('node:stream/new');
+
+// Namespace access
+Stream.from('hello');
+```
+
+## Sources
+
+### `from(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string|ArrayBuffer|ArrayBufferView|Iterable|AsyncIterable}
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Create an async byte stream from the given input. Strings are UTF-8 encoded.
+`ArrayBuffer` and `ArrayBufferView` values are wrapped as `Uint8Array`. Arrays
+and iterables are recursively flattened and normalized.
+
+Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
+`Symbol.for('Stream.toStreamable')` are converted via those protocols.
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { from, text } from 'node:stream/new';
+
+console.log(await text(from('hello')));       // 'hello'
+console.log(await text(from(Buffer.from('hello')))); // 'hello'
+```
+
+```cjs
+const { from, text } = require('node:stream/new');
+
+async function run() {
+  console.log(await text(from('hello')));       // 'hello'
+  console.log(await text(from(Buffer.from('hello')))); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+### `fromSync(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string|ArrayBuffer|ArrayBufferView|Iterable}
+* Returns: {Iterable\<Uint8Array\[]>}
+
+Synchronous version of [`from()`][]. Returns a sync iterable. Cannot accept
+async iterables or promises.
+
+```mjs
+import { fromSync, textSync } from 'node:stream/new';
+
+console.log(textSync(fromSync('hello'))); // 'hello'
+```
+
+```cjs
+const { fromSync, textSync } = require('node:stream/new');
+
+console.log(textSync(fromSync('hello'))); // 'hello'
+```
+
+## Pipelines
+
+### `pipeTo(source[, ...transforms], writer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable|Iterable} The data source.
+* `...transforms` {Function|Object} Zero or more transforms to apply.
+* `writer` {Object} Destination with `write(chunk)` method.
+* `options` {Object}
+  * `signal` {AbortSignal} Abort the pipeline.
+  * `preventClose` {boolean} If `true`, do not call `writer.end()` when
+    the source ends. **Default:** `false`.
+  * `preventAbort` {boolean} If `true`, do not call `writer.abort()` on
+    error. **Default:** `false`.
+* Returns: {Promise\<number>} Total bytes written.
+
+Pipe a source through transforms into a writer. If the writer has a
+`writev(chunks)` method, entire batches are passed in a single call (enabling
+scatter/gather I/O).
+
+```mjs
+import { from, pipeTo, compressGzip } from 'node:stream/new';
+import { open } from 'node:fs/promises';
+
+const fh = await open('output.gz', 'w');
+const totalBytes = await pipeTo(
+  from('Hello, world!'),
+  compressGzip(),
+  fh.writer({ autoClose: true }),
+);
+```
+
+```cjs
+const { from, pipeTo, compressGzip } = require('node:stream/new');
+const { open } = require('node:fs/promises');
+
+async function run() {
+  const fh = await open('output.gz', 'w');
+  const totalBytes = await pipeTo(
+    from('Hello, world!'),
+    compressGzip(),
+    fh.writer({ autoClose: true }),
+  );
+}
+
+run().catch(console.error);
+```
+
+### `pipeToSync(source[, ...transforms], writer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable} The sync data source.
+* `...transforms` {Function|Object} Zero or more sync transforms.
+* `writer` {Object} Destination with `write(chunk)` method.
+* `options` {Object}
+  * `preventClose` {boolean} **Default:** `false`.
+  * `preventAbort` {boolean} **Default:** `false`.
+* Returns: {number} Total bytes written.
+
+Synchronous version of [`pipeTo()`][].
+
+### `pull(source[, ...transforms][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable|Iterable} The data source.
+* `...transforms` {Function|Object} Zero or more transforms to apply.
+* `options` {Object}
+  * `signal` {AbortSignal} Abort the pipeline.
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Create a lazy async pipeline. Data is not read from `source` until the
+returned iterable is consumed. Transforms are applied in order.
+
+```mjs
+import { from, pull, text } from 'node:stream/new';
+
+const upper = (chunks) => {
+  if (chunks === null) return null;
+  return chunks.map((c) =>
+    new TextEncoder().encode(new TextDecoder().decode(c).toUpperCase()),
+  );
+};
+
+const result = pull(from('hello'), upper);
+console.log(await text(result)); // 'HELLO'
+```
+
+```cjs
+const { from, pull, text } = require('node:stream/new');
+
+const upper = (chunks) => {
+  if (chunks === null) return null;
+  return chunks.map((c) =>
+    new TextEncoder().encode(new TextDecoder().decode(c).toUpperCase()),
+  );
+};
+
+async function run() {
+  const result = pull(from('hello'), upper);
+  console.log(await text(result)); // 'HELLO'
+}
+
+run().catch(console.error);
+```
+
+Using an `AbortSignal`:
+
+```mjs
+import { pull } from 'node:stream/new';
+
+const ac = new AbortController();
+const result = pull(source, transform, { signal: ac.signal });
+ac.abort(); // Pipeline throws AbortError on next iteration
+```
+
+```cjs
+const { pull } = require('node:stream/new');
+
+const ac = new AbortController();
+const result = pull(source, transform, { signal: ac.signal });
+ac.abort(); // Pipeline throws AbortError on next iteration
+```
+
+### `pullSync(source[, ...transforms])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable} The sync data source.
+* `...transforms` {Function|Object} Zero or more sync transforms.
+* Returns: {Iterable\<Uint8Array\[]>}
+
+Synchronous version of [`pull()`][]. All transforms must be synchronous.
+
+## Push streams
+
+### `push([...transforms][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...transforms` {Function|Object} Optional transforms applied to the
+  readable side.
+* `options` {Object}
+  * `highWaterMark` {number} Maximum number of buffered slots before
+    backpressure is applied. **Default:** `1`.
+  * `backpressure` {string} Backpressure policy: `'strict'`, `'block'`,
+    `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
+  * `signal` {AbortSignal} Abort the stream.
+* Returns: {Object}
+  * `writer` {PushWriter} The writer side.
+  * `readable` {AsyncIterable\<Uint8Array\[]>} The readable side.
+
+Create a push stream with backpressure. The writer pushes data in; the
+readable side is consumed as an async iterable.
+
+```mjs
+import { push, text } from 'node:stream/new';
+
+const { writer, readable } = push();
+writer.write('hello');
+writer.write(' world');
+writer.end();
+
+console.log(await text(readable)); // 'hello world'
+```
+
+```cjs
+const { push, text } = require('node:stream/new');
+
+async function run() {
+  const { writer, readable } = push();
+  writer.write('hello');
+  writer.write(' world');
+  writer.end();
+
+  console.log(await text(readable)); // 'hello world'
+}
+
+run().catch(console.error);
+```
+
+#### Writer
+
+The writer returned by `push()` has the following methods:
+
+##### `writer.abort(reason)`
+
+* `reason` {Error}
+* Returns: {Promise\<void>}
+
+Abort the stream with an error.
+
+##### `writer.desiredSize`
+
+* {number|null}
+
+The number of buffer slots available before the high water mark is reached.
+Returns `null` if the writer is closed or the consumer has disconnected.
+
+##### `writer.end()`
+
+* Returns: {Promise\<number>} Total bytes written.
+
+Signal that no more data will be written.
+
+##### `writer.write(chunk)`
+
+* `chunk` {Uint8Array|string}
+* Returns: {Promise\<void>}
+
+Write a chunk. The promise resolves when buffer space is available.
+
+##### `writer.writeSync(chunk)`
+
+* `chunk` {Uint8Array|string}
+* Returns: {boolean} `true` if the write was accepted, `false` if the
+  buffer is full.
+
+Synchronous write. Does not block; returns `false` if backpressure is active.
+
+##### `writer.writev(chunks)`
+
+* `chunks` {Uint8Array\[]|string\[]}
+* Returns: {Promise\<void>}
+
+Write multiple chunks as a single batch.
+
+##### `writer.writevSync(chunks)`
+
+* `chunks` {Uint8Array\[]|string\[]}
+* Returns: {boolean}
+
+Synchronous batch write.
+
+## Consumers
+
+### `array(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `limit` {number}
+* Returns: {Promise\<Uint8Array\[]>}
+
+Collect all chunks as an array of `Uint8Array` values (without concatenating).
+
+### `arrayBuffer(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `limit` {number}
+* Returns: {Promise\<ArrayBuffer>}
+
+Collect all bytes into an `ArrayBuffer`.
+
+### `arrayBufferSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `limit` {number}
+* Returns: {ArrayBuffer}
+
+Synchronous version of [`arrayBuffer()`][].
+
+### `arraySync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `limit` {number}
+* Returns: {Uint8Array\[]}
+
+Synchronous version of [`array()`][].
+
+### `bytes(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `limit` {number} Maximum bytes to collect. Throws if exceeded.
+* Returns: {Promise\<Uint8Array>}
+
+Collect all bytes from a stream into a single `Uint8Array`.
+
+```mjs
+import { from, bytes } from 'node:stream/new';
+
+const data = await bytes(from('hello'));
+console.log(data); // Uint8Array(5) [ 104, 101, 108, 108, 111 ]
+```
+
+```cjs
+const { from, bytes } = require('node:stream/new');
+
+async function run() {
+  const data = await bytes(from('hello'));
+  console.log(data); // Uint8Array(5) [ 104, 101, 108, 108, 111 ]
+}
+
+run().catch(console.error);
+```
+
+### `bytesSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `limit` {number}
+* Returns: {Uint8Array}
+
+Synchronous version of [`bytes()`][].
+
+### `text(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `encoding` {string} Text encoding. **Default:** `'utf-8'`.
+  * `signal` {AbortSignal}
+  * `limit` {number}
+* Returns: {Promise\<string>}
+
+Collect all bytes and decode as text.
+
+```mjs
+import { from, text } from 'node:stream/new';
+
+console.log(await text(from('hello'))); // 'hello'
+```
+
+```cjs
+const { from, text } = require('node:stream/new');
+
+async function run() {
+  console.log(await text(from('hello'))); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+### `textSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable\<Uint8Array\[]>}
+* `options` {Object}
+  * `encoding` {string} **Default:** `'utf-8'`.
+  * `limit` {number}
+* Returns: {string}
+
+Synchronous version of [`text()`][].
+
+## Utilities
+
+### `merge(...sources[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...sources` {AsyncIterable\<Uint8Array\[]>} Two or more async iterables.
+* `options` {Object}
+  * `signal` {AbortSignal}
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Merge multiple async iterables by yielding batches in temporal order
+(whichever source produces data first). All sources are consumed
+concurrently.
+
+```mjs
+import { from, merge, text } from 'node:stream/new';
+
+const merged = merge(from('hello '), from('world'));
+console.log(await text(merged)); // Order depends on timing
+```
+
+```cjs
+const { from, merge, text } = require('node:stream/new');
+
+async function run() {
+  const merged = merge(from('hello '), from('world'));
+  console.log(await text(merged)); // Order depends on timing
+}
+
+run().catch(console.error);
+```
+
+### `ondrain(drainable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `drainable` {Object} An object implementing the drainable protocol.
+* Returns: {Promise\<boolean>|null}
+
+Wait for a drainable writer's backpressure to clear. Returns a promise that
+resolves to `true` when the writer can accept more data, or `null` if the
+object does not implement the drainable protocol.
+
+```mjs
+import { push, ondrain } from 'node:stream/new';
+
+const { writer, readable } = push({ highWaterMark: 2 });
+writer.writeSync('a');
+writer.writeSync('b');
+
+// Buffer is full -- wait for drain
+const canWrite = await ondrain(writer);
+```
+
+```cjs
+const { push, ondrain } = require('node:stream/new');
+
+async function run() {
+  const { writer, readable } = push({ highWaterMark: 2 });
+  writer.writeSync('a');
+  writer.writeSync('b');
+
+  // Buffer is full -- wait for drain
+  const canWrite = await ondrain(writer);
+}
+
+run().catch(console.error);
+```
+
+### `tap(callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} `(chunks) => void` Called with each batch.
+* Returns: {Function} A stateless transform.
+
+Create a pass-through transform that observes batches without modifying them.
+Useful for logging, metrics, or debugging.
+
+```mjs
+import { from, pull, text, tap } from 'node:stream/new';
+
+const result = pull(
+  from('hello'),
+  tap((chunks) => console.log('Batch size:', chunks.length)),
+);
+console.log(await text(result));
+```
+
+```cjs
+const { from, pull, text, tap } = require('node:stream/new');
+
+async function run() {
+  const result = pull(
+    from('hello'),
+    tap((chunks) => console.log('Batch size:', chunks.length)),
+  );
+  console.log(await text(result));
+}
+
+run().catch(console.error);
+```
+
+### `tapSync(callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function}
+* Returns: {Function}
+
+Synchronous version of [`tap()`][].
+
+## Multi-consumer
+
+### `broadcast([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `highWaterMark` {number} Buffer size in slots. **Default:** `16`.
+  * `backpressure` {string} `'strict'` or `'block'`. **Default:** `'strict'`.
+  * `signal` {AbortSignal}
+* Returns: {Object}
+  * `writer` {BroadcastWriter}
+  * `broadcast` {Broadcast}
+
+Create a push-model multi-consumer broadcast channel. A single writer pushes
+data to multiple consumers. Each consumer has an independent cursor into a
+shared buffer.
+
+```mjs
+import { broadcast, text } from 'node:stream/new';
+
+const { writer, broadcast: bc } = broadcast();
+
+const c1 = bc.push();  // Consumer 1
+const c2 = bc.push();  // Consumer 2
+
+writer.write('hello');
+writer.end();
+
+console.log(await text(c1)); // 'hello'
+console.log(await text(c2)); // 'hello'
+```
+
+```cjs
+const { broadcast, text } = require('node:stream/new');
+
+async function run() {
+  const { writer, broadcast: bc } = broadcast();
+
+  const c1 = bc.push();  // Consumer 1
+  const c2 = bc.push();  // Consumer 2
+
+  writer.write('hello');
+  writer.end();
+
+  console.log(await text(c1)); // 'hello'
+  console.log(await text(c2)); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+#### `broadcast.cancel([reason])`
+
+* `reason` {Error}
+
+Cancel the broadcast. All consumers receive an error.
+
+#### `broadcast.push([...transforms][, options])`
+
+* `...transforms` {Function|Object}
+* `options` {Object}
+  * `signal` {AbortSignal}
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Create a new consumer. Each consumer receives all data written to the
+broadcast from the point of subscription onward. Optional transforms are
+applied to this consumer's view of the data.
+
+#### `broadcast[Symbol.dispose]()`
+
+Alias for `broadcast.cancel()`.
+
+### `Broadcast.from(input[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {AsyncIterable|Iterable|Broadcastable}
+* `options` {Object} Same as `broadcast()`.
+* Returns: {Object} `{ writer, broadcast }`
+
+Create a broadcast from an existing source. The source is consumed
+automatically and pushed to all subscribers.
+
+### `share(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable} The source to share.
+* `options` {Object}
+  * `highWaterMark` {number} Buffer size. **Default:** `16`.
+  * `backpressure` {string} `'strict'`, `'block'`, or `'drop-oldest'`.
+    **Default:** `'strict'`.
+* Returns: {Share}
+
+Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the
+source is only read when a consumer pulls. Multiple consumers share a single
+buffer.
+
+```mjs
+import { from, share, text } from 'node:stream/new';
+
+const shared = share(from('hello'));
+
+const c1 = shared.pull();
+const c2 = shared.pull();
+
+console.log(await text(c1)); // 'hello'
+console.log(await text(c2)); // 'hello'
+```
+
+```cjs
+const { from, share, text } = require('node:stream/new');
+
+async function run() {
+  const shared = share(from('hello'));
+
+  const c1 = shared.pull();
+  const c2 = shared.pull();
+
+  console.log(await text(c1)); // 'hello'
+  console.log(await text(c2)); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+#### `share.cancel([reason])`
+
+* `reason` {Error}
+
+Cancel the share. All consumers receive an error.
+
+#### `share.pull([...transforms][, options])`
+
+* `...transforms` {Function|Object}
+* `options` {Object}
+  * `signal` {AbortSignal}
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Create a new consumer of the shared source.
+
+#### `share[Symbol.dispose]()`
+
+Alias for `share.cancel()`.
+
+### `Share.from(input[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {AsyncIterable|Shareable}
+* `options` {Object} Same as `share()`.
+* Returns: {Share}
+
+Create a share from an existing source.
+
+### `shareSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable} The sync source to share.
+* `options` {Object}
+  * `highWaterMark` {number} **Default:** `16`.
+  * `backpressure` {string} **Default:** `'strict'`.
+* Returns: {SyncShare}
+
+Synchronous version of [`share()`][].
+
+### `SyncShare.fromSync(input[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {Iterable|SyncShareable}
+* `options` {Object}
+* Returns: {SyncShare}
+
+## Compression and decompression
+
+These transforms use the built-in zlib, Brotli, and Zstd compression
+available in Node.js. Compression work is performed asynchronously,
+overlapping with upstream I/O for maximum throughput.
+
+All compression transforms are stateful (they return `{ transform }` objects)
+and can be passed to `pull()`, `pipeTo()`, or `push()`.
+
+### `compressBrotli([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} **Default:** `16384`.
+  * `params` {Object} Key-value object where keys and values are
+    `zlib.constants` entries. The most important compressor parameters are:
+    * `BROTLI_PARAM_MODE` -- `BROTLI_MODE_GENERIC` (default),
+      `BROTLI_MODE_TEXT`, or `BROTLI_MODE_FONT`.
+    * `BROTLI_PARAM_QUALITY` -- ranges from `BROTLI_MIN_QUALITY` to
+      `BROTLI_MAX_QUALITY`. **Default:** `BROTLI_DEFAULT_QUALITY`.
+    * `BROTLI_PARAM_SIZE_HINT` -- expected input size. **Default:** `0`
+      (unknown).
+    * `BROTLI_PARAM_LGWIN` -- window size (log2). Ranges from
+      `BROTLI_MIN_WINDOW_BITS` to `BROTLI_MAX_WINDOW_BITS`.
+    * `BROTLI_PARAM_LGBLOCK` -- input block size (log2).
+      See the [Brotli compressor options][] in the zlib documentation for the
+      full list.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a Brotli compression transform. Output is compatible with
+`zlib.brotliDecompress()` and `decompressBrotli()`.
+
+### `compressDeflate([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} Output buffer size. **Default:** `16384`.
+  * `level` {number} Compression level (`0`-`9`). **Default:** `Z_DEFAULT_COMPRESSION`.
+  * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS`.
+  * `memLevel` {number} **Default:** `Z_DEFAULT_MEMLEVEL`.
+  * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a deflate compression transform. Output is compatible with
+`zlib.inflate()` and `decompressDeflate()`.
+
+### `compressGzip([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} Output buffer size. **Default:** `16384`.
+  * `level` {number} Compression level (`0`-`9`). **Default:** `Z_DEFAULT_COMPRESSION`.
+  * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS`.
+  * `memLevel` {number} **Default:** `Z_DEFAULT_MEMLEVEL`.
+  * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a gzip compression transform. Output is compatible with `zlib.gunzip()`
+and `decompressGzip()`.
+
+```mjs
+import { from, pull, bytes, text, compressGzip, decompressGzip } from 'node:stream/new';
+
+const compressed = await bytes(pull(from('hello'), compressGzip()));
+const original = await text(pull(from(compressed), decompressGzip()));
+console.log(original); // 'hello'
+```
+
+```cjs
+const { from, pull, bytes, text, compressGzip, decompressGzip } = require('node:stream/new');
+
+async function run() {
+  const compressed = await bytes(pull(from('hello'), compressGzip()));
+  const original = await text(pull(from(compressed), decompressGzip()));
+  console.log(original); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+### `compressZstd([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} **Default:** `16384`.
+  * `params` {Object} Key-value object where keys and values are
+    `zlib.constants` entries. The most important compressor parameters are:
+    * `ZSTD_c_compressionLevel` -- **Default:** `ZSTD_CLEVEL_DEFAULT` (3).
+    * `ZSTD_c_checksumFlag` -- generate a checksum. **Default:** `0`.
+    * `ZSTD_c_strategy` -- compression strategy. Values include
+      `ZSTD_fast`, `ZSTD_dfast`, `ZSTD_greedy`, `ZSTD_lazy`,
+      `ZSTD_lazy2`, `ZSTD_btlazy2`, `ZSTD_btopt`, `ZSTD_btultra`,
+      `ZSTD_btultra2`.
+      See the [Zstd compressor options][] in the zlib documentation for the
+      full list.
+  * `pledgedSrcSize` {number} Expected uncompressed size (optional hint).
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a Zstandard compression transform. Output is compatible with
+`zlib.zstdDecompress()` and `decompressZstd()`.
+
+### `decompressBrotli([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} **Default:** `16384`.
+  * `params` {Object} Key-value object where keys and values are
+    `zlib.constants` entries. Available decompressor parameters:
+    * `BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION` -- boolean
+      flag affecting internal memory allocation.
+    * `BROTLI_DECODER_PARAM_LARGE_WINDOW` -- boolean flag enabling "Large
+      Window Brotli" mode (not compatible with [RFC 7932][]).
+      See the [Brotli decompressor options][] in the zlib documentation for
+      details.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a Brotli decompression transform.
+
+### `decompressDeflate([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} Output buffer size. **Default:** `16384`.
+  * `level` {number} Compression level (`0`-`9`). **Default:** `Z_DEFAULT_COMPRESSION`.
+  * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS`.
+  * `memLevel` {number} **Default:** `Z_DEFAULT_MEMLEVEL`.
+  * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a deflate decompression transform.
+
+### `decompressGzip([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} Output buffer size. **Default:** `16384`.
+  * `level` {number} Compression level (`0`-`9`). **Default:** `Z_DEFAULT_COMPRESSION`.
+  * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS`.
+  * `memLevel` {number} **Default:** `Z_DEFAULT_MEMLEVEL`.
+  * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a gzip decompression transform.
+
+### `decompressZstd([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunkSize` {number} **Default:** `16384`.
+  * `params` {Object} Key-value object where keys and values are
+    `zlib.constants` entries. Available decompressor parameters:
+    * `ZSTD_d_windowLogMax` -- maximum window size (log2) the decompressor
+      will allocate. Limits memory usage against malicious input.
+      See the [Zstd decompressor options][] in the zlib documentation for
+      details.
+  * `dictionary` {Buffer|TypedArray|DataView}
+* Returns: {Object} A stateful transform.
+
+Create a Zstandard decompression transform.
+
+## Protocol symbols
+
+These well-known symbols allow third-party objects to participate in the
+streaming protocol without importing from `node:stream/new` directly.
+
+### `Stream.broadcastProtocol`
+
+* Value: `Symbol.for('Stream.broadcastProtocol')`
+
+Implement to make an object usable with `Broadcast.from()`.
+
+### `Stream.drainableProtocol`
+
+* Value: `Symbol.for('Stream.drainableProtocol')`
+
+Implement to make a writer compatible with `ondrain()`. The method should
+return a promise that resolves when backpressure clears, or `null` if no
+backpressure.
+
+### `Stream.shareProtocol`
+
+* Value: `Symbol.for('Stream.shareProtocol')`
+
+Implement to make an object usable with `Share.from()`.
+
+### `Stream.shareSyncProtocol`
+
+* Value: `Symbol.for('Stream.shareSyncProtocol')`
+
+Implement to make an object usable with `SyncShare.fromSync()`.
+
+### `Stream.toAsyncStreamable`
+
+* Value: `Symbol.for('Stream.toAsyncStreamable')`
+
+Async version of `toStreamable`. The method may return a promise.
+
+### `Stream.toStreamable`
+
+* Value: `Symbol.for('Stream.toStreamable')`
+
+Implement this symbol as a method that returns a sync-streamable value
+(string, `Uint8Array`, `Iterable`, etc.). Used by `from()` and `fromSync()`.
+
+```js
+const obj = {
+  [Symbol.for('Stream.toStreamable')]() {
+    return 'hello from custom object';
+  },
+};
+// from(obj) and fromSync(obj) will UTF-8 encode the returned string.
+```
+
+[Brotli compressor options]: zlib.md#compressor-options
+[Brotli decompressor options]: zlib.md#decompressor-options
+[RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932
+[Zstd compressor options]: zlib.md#compressor-options-1
+[Zstd decompressor options]: zlib.md#decompressor-options-1
+[`array()`]: #arraysource-options
+[`arrayBuffer()`]: #arraybuffersource-options
+[`bytes()`]: #bytessource-options
+[`from()`]: #frominput
+[`pipeTo()`]: #pipetosource-transforms-writer-options
+[`pull()`]: #pullsource-transforms-options
+[`share()`]: #sharesource-options
+[`tap()`]: #tapcallback
+[`text()`]: #textsource-options
