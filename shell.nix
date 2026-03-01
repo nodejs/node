@@ -72,7 +72,7 @@ let
   ]) (builtins.attrNames sharedLibDeps);
 in
 pkgs.mkShell {
-  inherit (pkgs.nodejs_latest) nativeBuildInputs;
+  inherit (pkgs.nodejs-slim_latest) nativeBuildInputs;
 
   buildInputs =
     buildInputs
