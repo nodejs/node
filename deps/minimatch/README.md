@@ -7,6 +7,43 @@ This is the matching library used internally by npm.
 It works by converting glob expressions into JavaScript `RegExp`
 objects.
 
+## Important Security Consideration!
+
+> [!WARNING]  
+> This library uses JavaScript regular expressions. Please read
+> the following warning carefully, and be thoughtful about what
+> you provide to this library in production systems.
+
+_Any_ library in JavaScript that deals with matching string
+patterns using regular expressions will be  subject to
+[ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS)
+if the pattern is generated using untrusted input.
+
+Efforts have been made to mitigate risk as much as is feasible in
+such a library, providing maximum recursion depths and so forth,
+but these measures can only ultimately protect against accidents,
+not malice. A dedicated attacker can _always_ find patterns that
+cannot be defended against by a bash-compatible glob pattern
+matching system that uses JavaScript regular expressions.
+
+To be extremely clear:
+
+> [!WARNING]  
+> **If you create a system where you take user input, and use
+> that input as the source of a Regular Expression pattern, in
+> this or any extant glob matcher in JavaScript, you will be
+> pwned.**
+
+A future version of this library _may_ use a different matching
+algorithm which does not exhibit backtracking problems. If and
+when that happens, it will likely be a sweeping change, and those
+improvements will **not** be backported to legacy versions.
+
+In the near term, it is not reasonable to continue to play
+whack-a-mole with security advisories, and so any future ReDoS
+reports will be considered "working as intended", and resolved
+entirely by this warning.
+
 ## Usage
 
 ```js
@@ -395,6 +432,42 @@ behaviors (special handling for UNC paths, and treating `\` as
 separators in file paths for comparison.)
 
 Defaults to the value of `process.platform`.
+
+### maxGlobstarRecursion
+
+Max number of non-adjacent `**` patterns to recursively walk
+down.
+
+The default of `200` is almost certainly high enough for most
+purposes, and can handle absurdly excessive patterns.
+
+If the limit is exceeded (which would require very excessively
+long patterns and paths containing lots of `**` patterns!), then
+it is treated as non-matching, even if the path would normally
+match the pattern provided.
+
+That is, this is an intentional false negative, deemed an
+acceptable break in correctness for security and performance.
+
+### maxExtglobRecursion
+
+Max depth to traverse for nested extglobs like `*(a|b|c)`
+
+Default is 2, which is quite low, but any higher value swiftly
+results in punishing performance impacts. Note that this is _not_
+relevant when the globstar types can be safely coalesced into a
+single set.
+
+For example, `*(a|@(b|c)|d)` would be flattened into
+`*(a|b|c|d)`. Thus, many common extglobs will retain good
+performance and never hit this limit, even if they are
+excessively deep and complicated.
+
+If the limit is hit, then the extglob characters are simply not
+parsed, and the pattern effectively switches into `noextglob:
+true` mode for the contents of that nested sub-pattern. This will
+typically _not_ result in a match, but is considered a valid
+trade-off for security and performance.
 
 ## Comparisons to other fnmatch/glob implementations
 

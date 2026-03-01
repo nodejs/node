@@ -71,6 +71,34 @@ export interface MinimatchOptions {
      * max number of `{...}` patterns to expand. Default 100_000.
      */
     braceExpandMax?: number;
+    /**
+     * Max number of non-adjacent `**` patterns to recursively walk down.
+     *
+     * The default of 200 is almost certainly high enough for most purposes,
+     * and can handle absurdly excessive patterns.
+     */
+    maxGlobstarRecursion?: number;
+    /**
+     * Max depth to traverse for nested extglobs like `*(a|b|c)`
+     *
+     * Default is 2, which is quite low, but any higher value
+     * swiftly results in punishing performance impacts. Note
+     * that this is *not*  relevant when the globstar types can
+     * be safely coalesced into a single set.
+     *
+     * For example, `*(a|@(b|c)|d)` would be flattened into
+     * `*(a|b|c|d)`. Thus, many common extglobs will retain good
+     * performance and  never hit this limit, even if they are
+     * excessively deep and complicated.
+     *
+     * If the limit is hit, then the extglob characters are simply
+     * not parsed, and the pattern effectively switches into
+     * `noextglob: true` mode for the contents of that nested
+     * sub-pattern. This will typically _not_ result in a match,
+     * but is considered a valid trade-off for security and
+     * performance.
+     */
+    maxExtglobRecursion?: number;
 }
 export declare const minimatch: {
     (p: string, pattern: string, options?: MinimatchOptions): boolean;
@@ -101,6 +129,7 @@ export type MMRegExp = RegExp & {
 export type ParseReturnFiltered = string | MMRegExp | typeof GLOBSTAR;
 export type ParseReturn = ParseReturnFiltered | false;
 export declare class Minimatch {
+    #private;
     options: MinimatchOptions;
     set: ParseReturnFiltered[][];
     pattern: string;
@@ -117,6 +146,7 @@ export declare class Minimatch {
     isWindows: boolean;
     platform: Platform;
     windowsNoMagicRoot: boolean;
+    maxGlobstarRecursion: number;
     regexp: false | null | MMRegExp;
     constructor(pattern: string, options?: MinimatchOptions);
     hasMagic(): boolean;
