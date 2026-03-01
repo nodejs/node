@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
-          persist-credentials: false
+          persist-credentials: true 
       - name: Check commit message
         id: commit-check
         run: npx -q core-validate-commit "$COMMIT"
@@ -56,3 +56,12 @@ jobs:
             After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
           SLACK_USERNAME: nodejs-bot
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      
+      - name: Setup Jira
+              # You may pin to the exact commit or the version.
+        uses: atlassian/gajira-cli@7b8487d76cd88bf5d50ba00c6cca6edff1ddd507
+            uses: atlassian/gajira-cli@v3
+         with:
+                Version of the CLI to use
+           version:  optional, default is 1.0.27
+          
