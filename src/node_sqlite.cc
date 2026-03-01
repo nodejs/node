@@ -2293,6 +2293,13 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
                             buf.data(),
                             static_cast<sqlite3_uint64>(buf.length()),
                             SQLITE_TRANSIENT);
+  } else if (value->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = value.As<ArrayBuffer>();
+    r = sqlite3_bind_blob64(statement_,
+                            index,
+                            ab->Data(),
+                            static_cast<sqlite3_uint64>(ab->ByteLength()),
+                            SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
