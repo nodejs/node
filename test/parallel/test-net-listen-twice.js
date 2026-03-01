@@ -19,7 +19,7 @@ if (cluster.isPrimary) {
     server.listen();
   } catch (e) {
     console.error(e);
-    process.exit(0);
+    return;
   }
   let i = 0;
   process.on('internalMessage', (msg) => {
