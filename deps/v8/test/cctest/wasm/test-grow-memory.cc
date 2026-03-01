@@ -42,7 +42,8 @@ TEST(GrowMemDetaches) {
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
                               wasm::AddressType::kI32)
             .ToHandleChecked();
-    DirectHandle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
+    DirectHandle<JSArrayBuffer> buffer =
+        WasmMemoryObject::GetArrayBuffer(isolate, memory_object);
     int32_t result = WasmMemoryObject::Grow(isolate, memory_object, 0);
     CHECK_EQ(16, result);
     CHECK_NE(*buffer, memory_object->array_buffer());
@@ -60,7 +61,7 @@ TEST(Externalized_GrowMemMemSize) {
                               wasm::AddressType::kI32)
             .ToHandleChecked();
     ManuallyExternalizedBuffer external(
-        handle(memory_object->array_buffer(), isolate));
+        WasmMemoryObject::GetArrayBuffer(isolate, memory_object));
     int32_t result = WasmMemoryObject::Grow(isolate, memory_object, 0);
     CHECK_EQ(16, result);
     CHECK_NE(*external.buffer_, memory_object->array_buffer());
@@ -96,7 +97,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
 
     // Fake the Embedder flow by externalizing the array buffer.
     ManuallyExternalizedBuffer external1(
-        handle(memory_object->array_buffer(), isolate));
+        WasmMemoryObject::GetArrayBuffer(isolate, memory_object));
 
     // Grow using the API.
     uint32_t result = WasmMemoryObject::Grow(isolate, memory_object, 4);
@@ -108,7 +109,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
 
     // Fake the Embedder flow by externalizing the array buffer.
     ManuallyExternalizedBuffer external2(
-        handle(memory_object->array_buffer(), isolate));
+        WasmMemoryObject::GetArrayBuffer(isolate, memory_object));
 
     // Grow using an internal Wasm bytecode.
     result = testing::CallWasmFunctionForTesting(isolate, instance, "main", {});

@@ -4,6 +4,7 @@
 
 #include "src/wasm/module-decoder.h"
 
+#include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
@@ -68,26 +69,43 @@ const char* SectionName(SectionCode code) {
       return kBranchHintsString;
     case kCompilationPrioritySectionCode:
       return kCompilationPriorityString;
-    case kDescriptorsSectionCode:
-      return kDescriptorsString;
     default:
       return "<unknown>";
   }
 }
 
+ModuleResult DecodeWasmModule(Isolate* isolate,
+                              WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> wire_bytes,
+                              bool validate_functions, ModuleOrigin origin,
+                              DecodingMethod decoding_method,
+                              WasmDetectedFeatures* detected_features) {
+  DelayedCounterUpdates delayed_counters;
+  std::optional<v8::metrics::WasmModuleDecoded> metrics_event;
+  ModuleResult result = DecodeWasmModule(
+      enabled_features, wire_bytes, validate_functions, origin,
+      &delayed_counters, &metrics_event, decoding_method, detected_features);
+
+  delayed_counters.Publish(isolate);
+  isolate->metrics_recorder()->AddMainThreadEvent(
+      metrics_event.value(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()));
+
+  return result;
+}
+
 ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, Counters* counters,
-    std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    WasmDetectedFeatures* detected_features) {
-  if (counters) {
-    auto size_counter =
-        SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
-    static_assert(kV8MaxWasmModuleSize < kMaxInt);
-    size_counter->AddSample(static_cast<int>(wire_bytes.size()));
-  }
+    ModuleOrigin origin, DelayedCounterUpdates* delayed_counters,
+    std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features) {
+  auto module_size_histogram = origin == kWasmOrigin
+                                   ? &Counters::wasm_wasm_module_size_bytes
+                                   : &Counters::wasm_asm_module_size_bytes;
+  static_assert(kV8MaxWasmModuleSize < kMaxInt);
+  delayed_counters->AddSample(module_size_histogram,
+                              static_cast<int>(wire_bytes.size()));
 
   base::TimeTicks start;
   if (base::TimeTicks::IsHighResolution()) start = base::TimeTicks::Now();
@@ -95,15 +113,17 @@ ModuleResult DecodeWasmModule(
   ModuleResult result =
       DecodeWasmModule(enabled_features, wire_bytes, validate_functions, origin,
                        detected_features);
-  if (counters && result.ok()) {
-    auto counter =
-        SELECT_WASM_COUNTER(counters, origin, wasm_functions_per, module);
-    counter->AddSample(
-        static_cast<int>(result.value()->num_declared_functions));
+  if (result.ok()) {
+    auto histogram = origin == kWasmOrigin
+                         ? &Counters::wasm_functions_per_wasm_module
+                         : &Counters::wasm_functions_per_asm_module;
+    delayed_counters->AddSample(
+        histogram, static_cast<int>(result.value()->num_declared_functions));
   }
 
   // Record event metrics.
-  v8::metrics::WasmModuleDecoded metrics_event{
+  DCHECK(!metrics_event->has_value());
+  metrics_event->emplace(v8::metrics::WasmModuleDecoded{
       .async = decoding_method == DecodingMethod::kAsync ||
                decoding_method == DecodingMethod::kAsyncStream,
       .streamed = decoding_method == DecodingMethod::kSyncStream ||
@@ -111,12 +131,11 @@ ModuleResult DecodeWasmModule(
       .success = result.ok(),
       .module_size_in_bytes = wire_bytes.size(),
       .function_count =
-          result.ok() ? result.value()->num_declared_functions : 0};
+          result.ok() ? result.value()->num_declared_functions : 0});
   if (!start.IsNull()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start;
-    metrics_event.wall_clock_duration_in_us = duration.InMicroseconds();
+    (*metrics_event)->wall_clock_duration_in_us = duration.InMicroseconds();
   }
-  metrics_recorder->DelayMainThreadEvent(metrics_event, context_id);
 
   return result;
 }
@@ -193,38 +212,16 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 
 bool ModuleDecoder::ok() const { return impl_->ok(); }
 
-Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes) {
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes) {
   WasmDetectedFeatures unused_detected_features;
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
                             &unused_detected_features};
-  return decoder.toResult(
-      decoder.DecodeFunctionSignatureForTesting(zone, bytes.begin()));
-}
-
-ConstantExpression DecodeWasmInitExprForTesting(
-    WasmEnabledFeatures enabled_features, base::Vector<const uint8_t> bytes,
-    ValueType expected) {
-  WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
-                            &unused_detected_features};
-  return decoder.DecodeInitExprForTesting(expected);
-}
-
-FunctionResult DecodeWasmFunctionForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    ModuleWireBytes wire_bytes, const WasmModule* module,
-    base::Vector<const uint8_t> function_bytes) {
-  if (function_bytes.size() > kV8MaxWasmFunctionSize) {
-    return FunctionResult{
-        WasmError{0, "size > maximum function size (%zu): %zu",
-                  kV8MaxWasmFunctionSize, function_bytes.size()}};
-  }
-  WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin,
-                            &unused_detected_features};
-  return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
+  const FunctionSig* sig =
+      decoder.DecodeFunctionSignatureForTesting(bytes.begin());
+  return decoder.toResult(std::make_pair(
+      std::move(decoder.shared_module()->signature_storage), sig));
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(
@@ -536,7 +533,7 @@ class ValidateFunctionsTask : public JobTask {
                  "wasm.ValidateFunctionsTask");
 
     WasmDetectedFeatures detected_features;
-    Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
+    Zone zone(GetWasmEngine()->allocator(), "Wasm ValidateFunctionsTask");
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the

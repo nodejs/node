@@ -18,17 +18,16 @@ template <typename IsolateT>
 void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
     IsolateT* isolate, Handle<Script> script) {
   if (!boilerplate_description_.is_null()) return;
-  int prop_sz = static_cast<int>(properties_.size());
+  const uint32_t prop_sz = static_cast<uint32_t>(properties_.size());
   Handle<ObjectBoilerplateDescription> boilerplate_description =
-      isolate->factory()->NewObjectBoilerplateDescription(prop_sz, prop_sz, 0,
-                                                          false);
+      isolate->factory()->NewObjectBoilerplateDescription(prop_sz, prop_sz);
 
   int position = 0;
   for (size_t i = 0; i < properties_.size(); i++) {
-    auto pair = properties_.at(i);
+    PrototypeAssignment pair = properties_.at(i);
     const AstRawString* key_str = pair.first;
 
-    DirectHandle<Object> key = Cast<Object>(key_str->string());
+    DirectHandle<InternalizedString> key = key_str->string();
     DirectHandle<Object> value =
         GetBoilerplateValue(pair.second, isolate, script);
     boilerplate_description->set_key_value(position++, *key, *value);

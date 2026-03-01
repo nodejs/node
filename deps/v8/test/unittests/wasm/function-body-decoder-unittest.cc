@@ -107,7 +107,7 @@ class TestModuleBuilder {
     const bool is_final = true;
     const bool is_shared = false;
     ModuleTypeIndex funIndex = AddSignature(sig);
-    mod.AddContTypeForTesting(mod.signature_zone.New<ContType>(funIndex),
+    mod.AddContTypeForTesting(mod.signature_storage.New<ContType>(funIndex),
                               kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
@@ -135,7 +135,7 @@ class TestModuleBuilder {
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                    uint32_t maximum_size,
                    AddressType address_type = AddressType::kI32) {
-    CHECK(type.is_object_reference());
+    CHECK(type.is_ref());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;
@@ -149,9 +149,9 @@ class TestModuleBuilder {
   HeapType AddStruct(std::initializer_list<F> fields,
                      ModuleTypeIndex supertype = kNoSuperType,
                      bool is_shared = false) {
-    StructType::Builder type_builder(&mod.signature_zone,
-                                     static_cast<uint32_t>(fields.size()),
-                                     false, is_shared);
+    StructType::Builder<WasmModuleSignatureStorage> type_builder(
+        &mod.signature_storage, static_cast<uint32_t>(fields.size()), false,
+        is_shared);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
@@ -167,7 +167,7 @@ class TestModuleBuilder {
   }
 
   HeapType AddArray(ValueType type, bool mutability, bool is_shared = false) {
-    ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
+    ArrayType* array = mod.signature_storage.New<ArrayType>(type, mutability);
     const bool is_final = true;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
@@ -4012,15 +4012,21 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   HeapType immutable_struct_type = builder.AddStruct({F(kWasmI32, false)});
   ModuleTypeIndex immutable_struct_type_index =
       immutable_struct_type.ref_index();
+  HeapType struct_waitqueue_type =
+      builder.AddStruct({F(kWasmWaitQueue, false)});
+  ModuleTypeIndex struct_waitqueue_type_index =
+      struct_waitqueue_type.ref_index();
   uint8_t field_index = 0;
 
   ValueType struct_type = ValueType::Ref(struct_heaptype);
   ValueType reps_i_r[] = {kWasmI32, struct_type};
   ValueType reps_f_r[] = {kWasmF32, struct_type};
+  ValueType reps_i_w[] = {kWasmI32, ValueType::Ref(struct_waitqueue_type)};
   const FunctionSig sig_i_r(1, 1, reps_i_r);
   const FunctionSig sig_v_r(0, 1, &struct_type);
   const FunctionSig sig_r_v(1, 0, &struct_type);
   const FunctionSig sig_f_r(1, 1, reps_f_r);
+  const FunctionSig sig_i_w(1, 1, reps_i_w);
 
   /** struct.new **/
   ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
@@ -4106,15 +4112,27 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       &sig_i_r,
       {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_s: Field 0 of type 0 has non-packed type i32. Use struct.get "
-      "instead.");
+      "struct.get_s: Field 0 of type 0 has type i32. Use struct.get instead.");
 
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_u: Field 0 of type 0 has non-packed type i32. Use struct.get "
-      "instead.");
+      "struct.get_u: Field 0 of type 0 has type i32. Use struct.get instead.");
+
+  ExpectFailure(&sig_i_w,
+                {WASM_STRUCT_GET_S(struct_waitqueue_type_index, field_index,
+                                   WASM_LOCAL_GET(0))},
+                kAppendEnd,
+                "struct.get_s: Field 0 of type 3 has type waitqueue. Use "
+                "struct.get instead.");
+
+  ExpectFailure(&sig_i_w,
+                {WASM_STRUCT_GET_U(struct_waitqueue_type_index, field_index,
+                                   WASM_LOCAL_GET(0))},
+                kAppendEnd,
+                "struct.get_u: Field 0 of type 3 has type waitqueue. Use "
+                "struct.get instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -4199,14 +4217,12 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s: Array type 0 has non-packed type funcref. Use array.get "
-      "instead.");
+      "array.get_s: Array type 0 has type funcref. Use array.get instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u: Array type 0 has non-packed type funcref. Use array.get "
-      "instead.");
+      "array.get_u: Array type 0 has type funcref. Use array.get instead.");
 
   /** array.set **/
   ExpectValidates(&sig_v_r,
@@ -4328,14 +4344,14 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                 {WASM_ARRAY_GET(array_type_index,
                                 WASM_REF_NULL(array_type_index), WASM_I32V(0))},
                 kAppendEnd,
-                "array.get: Array type 0 has packed type i8. Use array.get_s "
-                "or array.get_u instead.");
+                "array.get: Array type 0 has type i8. Use array.get_s or "
+                "array.get_u instead.");
   ExpectFailure(sigs.i_v(),
                 {WASM_STRUCT_GET(struct_type_index, field_index,
                                  WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
-                "struct.get: Field 0 of type 1 has packed type i16. "
-                "Use struct.get_s or struct.get_u instead.");
+                "struct.get: Field 0 of type 1 has type i16. Use struct.get_s "
+                "or struct.get_u instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
@@ -4800,6 +4816,248 @@ TEST_F(FunctionBodyDecoderTest, ExternConvertAny) {
                 {WASM_GC_EXTERN_CONVERT_ANY(WASM_LOCAL_GET(0))}, kAppendEnd,
                 "extern.convert_any[0] expected type anyref, found "
                 "local.get of type externref");
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderValid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  for (uint8_t order :
+       {static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst),
+        static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel)}) {
+    const uint8_t kAlignment = 2;
+    const uint8_t kOffset = 0;
+    const uint8_t kMemAccess = kAlignment | 0x20;
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      kAtomicPrefix, U32V_1(kExprI32AtomicLoad), kMemAccess, order, kOffset,
+      kExprDrop,
+      WASM_LOCAL_GET(0),
+      WASM_I32V_1(42),
+      kAtomicPrefix, U32V_1(kExprI32AtomicStore), kMemAccess, order, kOffset,
+    };
+    ExpectValidates(sigs.v_i(), code);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderSeqCstImplicit) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t code[] = {
+    WASM_LOCAL_GET(0),
+    kAtomicPrefix, U32V_1(kExprI32AtomicLoad), kAlignment, kOffset, kExprDrop,
+    WASM_LOCAL_GET(0),
+    WASM_I32V_1(42),
+    kAtomicPrefix, U32V_1(kExprI32AtomicStore), kAlignment, kOffset,
+  };
+  ExpectValidates(sigs.v_i(), code);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderInvalid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  uint8_t order = static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) + 1;
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "invalid memory ordering";
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      kAtomicPrefix, U32V_1(kExprI32AtomicLoad), kMemAccess, order,  kOffset,
+      kExprDrop,
+    };
+    ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      WASM_I32V_1(42),
+      kAtomicPrefix, U32V_1(kExprI32AtomicStore), kMemAccess, order, kOffset,
+    };
+    ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderInvalidImmediate) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  // Test invalid memory order immediate with upper bits set.
+  uint8_t order = 16;
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "invalid memory ordering immediate";
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      kAtomicPrefix, U32V_1(kExprI32AtomicLoad), kMemAccess, order, kOffset,
+      kExprDrop,
+  };
+  ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      WASM_I32V_1(42),
+      kAtomicPrefix, U32V_1(kExprI32AtomicStore), kMemAccess, order, kOffset,
+    };
+    ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderAcqRelFeatureGated) {
+  WASM_FEATURE_SCOPE(shared);
+  enabled_features_.Remove(WasmEnabledFeature::acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const uint8_t order = static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel);
+  const char* error_msg =
+      "invalid memory ordering: acquire-release requires "
+      "--experimental-wasm-acquire-release flag";
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      kAtomicPrefix, U32V_1(kExprI32AtomicLoad), kMemAccess, order,  kOffset,
+      kExprDrop,
+    };
+    ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+  {
+    const uint8_t code[] = {
+      WASM_LOCAL_GET(0),
+      WASM_I32V_1(42),
+      kAtomicPrefix, U32V_1(kExprI32AtomicStore), kMemAccess, order, kOffset,
+    };
+    ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderValid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+
+  // seqcst read, seqcst write
+  uint8_t order_seqcst =
+      (static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst) << 4) |
+      static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst);
+  const uint8_t code_seqcst[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order_seqcst,
+      kOffset,           kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code_seqcst);
+
+  // acqrel read, acqrel write
+  uint8_t order_acqrel =
+      (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+      static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel);
+  const uint8_t code_acqrel[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order_acqrel,
+      kOffset,           kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code_acqrel);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderSeqCstImplicit) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kAlignment,        kOffset,
+      kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderInvalid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "mismatched read and write memory ordering";
+
+  // Mismatched orderings.
+  uint8_t order = (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+                  static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst);
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderInvalidImmediate) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  // Test invalid memory order immediate with an invalid ordering value.
+  uint8_t order = 0x22;
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "invalid memory ordering";
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderAcqRelFeatureGated) {
+  WASM_FEATURE_SCOPE(shared);
+  enabled_features_.Remove(WasmEnabledFeature::acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg =
+      "invalid memory ordering: acquire-release requires "
+      "--experimental-wasm-acquire-release flag";
+
+  uint8_t order = (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+                  static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel);
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
 }
 
 class BranchTableIteratorTest : public TestWithZone {
@@ -6075,6 +6333,61 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
        WASM_DROP, WASM_DROP});
 }
 
+#define WASM_GEN_EXNREF(ex)                                       \
+  kExprBlock, kExnRefCode, kExprTryTable, kExnRefCode, U32V_1(1), \
+      CatchKind::kCatchAllRef, 0, kExprThrow, ex, kExprEnd, kExprEnd
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  WASM_FEATURE_SCOPE(exnref);
+
+  ModuleTypeIndex cont1_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont2_index = builder.AddCont(sigs.i_v());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  // sig1: [] -> [i32, ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(),
+      {kWasmI32, ValueType::Ref(cont1_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [ref $ct] where $ct : cont [] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont2_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_GEN_EXNREF(tag_v_v), WASM_REF_FUNC(func_index),
+                   WASM_CONT_NEW(ToByte(cont1_index)),
+                   WASM_RESUME_THROW_REF(ToByte(cont1_index), 0), WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(tag_v_v),
+                    WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont1_index)),
+                    WASM_RESUME_THROW_REF(ToByte(cont1_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(
+           sig2_index,
+           WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(tag_v_v),
+                        WASM_REF_FUNC(func_index),
+                        WASM_CONT_NEW(ToByte(cont1_index)),
+                        WASM_RESUME_THROW_REF(ToByte(cont1_index), 2,
+                                              WASM_ON_TAG(tag_i_i, 0),
+                                              WASM_ON_TAG(tag_v_v, 1)),
+                        WASM_RETURN0),
+           WASM_DROP, WASM_DROP, WASM_RETURN0),
+       WASM_DROP});
+}
+
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
   WASM_FEATURE_SCOPE(wasmfx);
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
@@ -6143,6 +6456,41 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
                               WASM_RETURN0),
                  WASM_DROP},
                 kAppendEnd, "invalid branch depth: 2");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  WASM_FEATURE_SCOPE(exnref);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t vd_tag = builder.AddTag(sigs.v_v());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+  // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(vd_tag),
+                    WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "handler generates 2 operands, target block returns 1");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)), WASM_GEN_EXNREF(vd_tag),
+                    WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
+                                          WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "expected type (ref null 1), found block of type exnref");
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
@@ -6269,11 +6617,16 @@ TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
                 kAppendEnd,
                 "Invalid opcode 0xe3 (enable with --experimental-wasm-wasmfx)");
 
+  ExpectFailure(sigs.v_v(),
+                {WASM_RESUME_THROW_REF(ToByte(cont_index), 0), WASM_DROP},
+                kAppendEnd,
+                "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
+
   ExpectFailure(
       sigs.v_v(),
       {WASM_SWITCH(ToByte(cont_index), tag_i_i), WASM_DROP, WASM_DROP},
       kAppendEnd,
-      "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
+      "Invalid opcode 0xe6 (enable with --experimental-wasm-wasmfx)");
 }
 
 /*******************************************************************************
@@ -6289,7 +6642,7 @@ class FunctionBodyDecoderTestAtomicInvalid
 std::string PrintAtomicGetInvalidParams(
     ::testing::TestParamInfo<TestAtomicParamT> info) {
   const auto [element_type, mutability, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
@@ -6316,11 +6669,11 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Struct) {
       builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
   FunctionSig* sig_get =
-      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+      FunctionSig::Build(storage, {element_type.Unpacked()}, {struct_type});
   FunctionSig* sig_set =
-      FunctionSig::Build(zone, {}, {struct_type, element_type.Unpacked()});
+      FunctionSig::Build(storage, {}, {struct_type, element_type.Unpacked()});
 
   ExpectFailure(
       sig_get,
@@ -6349,12 +6702,12 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+  FunctionSig* sig_get = FunctionSig::Build(storage, {element_type.Unpacked()},
                                             {array_type, kWasmI32});
   FunctionSig* sig_set = FunctionSig::Build(
-      zone, {}, {array_type, kWasmI32, element_type.Unpacked()});
+      storage, {}, {array_type, kWasmI32, element_type.Unpacked()});
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET(0, array_type_index, WASM_LOCAL_GET(0),
                                        WASM_LOCAL_GET(1))},
@@ -6383,7 +6736,7 @@ class FunctionBodyDecoderTestAtomicInvalidPacked
 std::string PrintAtomicGetPackedInvalidParams(
     ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
   const auto [element_type, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
@@ -6412,18 +6765,18 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
       builder.AddStruct({F(element_type, true)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
   FunctionSig* sig_get =
-      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+      FunctionSig::Build(storage, {element_type.Unpacked()}, {struct_type});
 
   ExpectFailure(
       sig_get,
       {WASM_STRUCT_ATOMIC_GET_S(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
-      kAppendEnd, "struct.atomic.get_s: Field 0 of type 0 has non-packed type");
+      kAppendEnd, "struct.atomic.get_s: Field 0 of type 0 has type");
   ExpectFailure(
       sig_get,
       {WASM_STRUCT_ATOMIC_GET_U(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
-      kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has non-packed type");
+      kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has type");
 }
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
@@ -6433,21 +6786,19 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, true, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+  FunctionSig* sig_get = FunctionSig::Build(storage, {element_type.Unpacked()},
                                             {array_type, kWasmI32});
 
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET_S(0, array_type_index, WASM_LOCAL_GET(0),
                                          WASM_LOCAL_GET(1))},
-                kAppendEnd,
-                "array.atomic.get_s: Array type 0 has non-packed type");
+                kAppendEnd, "array.atomic.get_s: Array type 0 has type");
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET_U(0, array_type_index, WASM_LOCAL_GET(0),
                                          WASM_LOCAL_GET(1))},
-                kAppendEnd,
-                "array.atomic.get_u: Array type 0 has non-packed type");
+                kAppendEnd, "array.atomic.get_u: Array type 0 has type");
 }
 
 class FunctionBodyDecoderTestAtomicRMWInvalid
@@ -6476,12 +6827,13 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
       builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  const FunctionSig* sig = FunctionSig::Build(
-      zone, {element_type.Unpacked()}, {struct_type, element_type.Unpacked()});
+  const FunctionSig* sig =
+      FunctionSig::Build(storage, {element_type.Unpacked()},
+                         {struct_type, element_type.Unpacked()});
   const FunctionSig* sig_cmpxchg = FunctionSig::Build(
-      zone, {element_type.Unpacked()},
+      storage, {element_type.Unpacked()},
       {struct_type, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Field 0 of type 0 has invalid type"
@@ -6529,13 +6881,13 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
   const FunctionSig* sig =
-      FunctionSig::Build(zone, {element_type.Unpacked()},
+      FunctionSig::Build(storage, {element_type.Unpacked()},
                          {array_type, kWasmI32, element_type.Unpacked()});
   const FunctionSig* sig_cmpxchg = FunctionSig::Build(
-      zone, {element_type.Unpacked()},
+      storage, {element_type.Unpacked()},
       {array_type, kWasmI32, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Array type 0 has invalid type"
@@ -6598,24 +6950,24 @@ TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
   ValueType array_i16 = ValueType::Ref(array_i16_heaptype);
 
   const char* error = "invalid memory ordering 2";
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
   FunctionSig* sig_struct_load_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i32});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i32});
   FunctionSig* sig_struct_load_i16 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i16});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i16});
   FunctionSig* sig_struct_store_i32 =
-      FunctionSig::Build(zone, {}, {struct_i32, kWasmI32});
+      FunctionSig::Build(storage, {}, {struct_i32, kWasmI32});
   FunctionSig* sig_struct_rmw_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i32, kWasmI32});
   FunctionSig* sig_array_load_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i32, kWasmI32});
   FunctionSig* sig_array_load_i16 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i16, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i16, kWasmI32});
   FunctionSig* sig_array_store_i32 =
-      FunctionSig::Build(zone, {}, {array_i32, kWasmI32, kWasmI32});
+      FunctionSig::Build(storage, {}, {array_i32, kWasmI32, kWasmI32});
   FunctionSig* sig_array_rmw_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
 
   for (uint8_t memory_order = 0; memory_order < 3; ++memory_order) {
     // TODO(c++20): Replace with std::format once available on all compilers

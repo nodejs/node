@@ -60,7 +60,7 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
       if (IsSmi(obj)) return true;
       Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
       if (i::IsSymbol(heap_object)) {
-        return !Cast<Symbol>(heap_object)->is_private();
+        return !Cast<Symbol>(heap_object)->is_any_private();
       }
       return IsPrimitiveHeapObject(heap_object) || IsJSReceiver(heap_object);
     }

@@ -4,7 +4,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,7 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   DCHECK_EQ(1, args.length());
 
   auto f = Cast<JSFunction>(args[0]);
-  return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
+  return ReadOnlyRoots(isolate).boolean_value(f->shared()->IsApiFunction());
 }
 
 RUNTIME_FUNCTION(Runtime_Call) {

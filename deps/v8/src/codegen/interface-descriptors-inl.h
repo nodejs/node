@@ -360,10 +360,6 @@ constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
   saved_registers.set(IndirectPointerTagRegister());
   return saved_registers;
 }
-// static
-constexpr Register ApiGetterDescriptor::ReceiverRegister() {
-  return LoadDescriptor::ReceiverRegister();
-}
 
 // static
 constexpr Register LoadGlobalNoFeedbackDescriptor::ICKindRegister() {
@@ -544,7 +540,7 @@ constexpr auto AllocateDescriptor::registers() {
 }
 
 // static
-constexpr auto CEntry1ArgvOnStackDescriptor::registers() {
+constexpr auto CEntryForCPPBuiltinDescriptor::registers() {
   return RegisterArray(kRuntimeCallArgCountRegister,
                        kRuntimeCallFunctionRegister);
 }
@@ -722,10 +718,33 @@ constexpr auto CallApiCallbackGenericDescriptor::registers() {
 }
 
 // static
-constexpr auto ApiGetterDescriptor::registers() {
-  return RegisterArray(ReceiverRegister(), HolderRegister(),
-                       CallbackRegister());
+constexpr auto CallApiGetterDescriptor::registers() {
+#if V8_TARGET_ARCH_ARM64
+  return RegisterArray(NameRegister());
+#else
+  return RegisterArray(NameRegister(), CallbackRegister());
+#endif  // V8_TARGET_ARCH_ARM64
 }
+
+// static
+constexpr auto CallApiSetterDescriptor::registers() {
+#if V8_TARGET_ARCH_ARM64
+  return RegisterArray(NameRegister());
+#else
+  return RegisterArray(NameRegister(), CallbackRegister());
+#endif  // V8_TARGET_ARCH_ARM64
+}
+
+// static
+constexpr Register CallApiSetterDescriptor::NameRegister() {
+  return CallApiGetterDescriptor::NameRegister();
+}
+#if !V8_TARGET_ARCH_ARM64
+// static
+constexpr Register CallApiSetterDescriptor::CallbackRegister() {
+  return CallApiGetterDescriptor::CallbackRegister();
+}
+#endif  // !V8_TARGET_ARCH_ARM64
 
 // static
 constexpr auto ContextOnlyDescriptor::registers() { return RegisterArray(); }
@@ -813,11 +832,22 @@ constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
 
 #if V8_ENABLE_WEBASSEMBLY
 constexpr auto WasmFXResumeDescriptor::registers() {
-  return RegisterArray(wasm::kGpParamRegisters[0]);
+  return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1]);
+}
+constexpr auto WasmFXResumeThrowDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1],
+                       wasm::kGpParamRegisters[2], wasm::kGpParamRegisters[3]);
+}
+constexpr auto WasmFXResumeThrowRefDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1]);
 }
 constexpr auto WasmFXSuspendDescriptor::registers() {
   // Reg 0 is the context register.
-  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2]);
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3]);
+}
+constexpr auto WasmFXReturnDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0]);
 }
 #endif
 

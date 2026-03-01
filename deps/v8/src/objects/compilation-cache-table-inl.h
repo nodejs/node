@@ -78,7 +78,7 @@ class ScriptCacheKey : public HashTableKey {
     DisallowGarbageCollection no_gc;
     DCHECK(IsWeakFixedArray(obj));
     Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(obj);
-    DCHECK_EQ(array->length(), kEnd);
+    DCHECK_EQ(array->ulength().value(), static_cast<uint32_t>(kEnd));
 
     Tagged<MaybeObject> maybe_script = array->get(kWeakScript);
     if (Tagged<HeapObject> script; maybe_script.GetHeapObjectIfWeak(&script)) {
@@ -157,7 +157,7 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
   // Eval: See EvalCacheKey::ToHandle for the encoding.
   Tagged<FixedArray> val = Cast<FixedArray>(object);
   DCHECK_EQ(val->map(), roots.fixed_cow_array_map());
-  DCHECK_EQ(4, val->length());
+  DCHECK_EQ(4u, val->ulength().value());
   Tagged<String> source = Cast<String>(val->get(1));
   int language_unchecked = Smi::ToInt(val->get(2));
   DCHECK(is_valid_language_mode(language_unchecked));

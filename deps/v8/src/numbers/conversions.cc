@@ -14,7 +14,7 @@
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/small-vector.h"
-#include "src/bigint/bigint.h"
+#include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"

@@ -652,7 +652,7 @@ class DebugInfoImpl {
           return WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())));
         } else if (value->type == kWasmI64) {
           return WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
-        } else if (value->type.is_reference()) {
+        } else if (value->type.is_ref()) {
           DirectHandle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);
@@ -710,6 +710,7 @@ class DebugInfoImpl {
       case kI8:
       case kI16:
       case kF16:
+      case kWaitQueue:
       case kVoid:
       case kTop:
       case kBottom:
@@ -760,7 +761,8 @@ class DebugInfoImpl {
     }
 #else
     PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
-                                     kSystemPointerSize);
+                                     kSystemPointerSize,
+                                     frame->iteration_depth());
 #endif
     // The frame position should still be the same after OSR.
     DCHECK_EQ(old_position, frame->position());
@@ -1023,8 +1025,9 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
   // or positive.
   DCHECK(position == WasmScript::kOnEntryBreakpointPosition || position > 0);
 
-  int left = 0;                            // inclusive
-  int right = breakpoint_infos->length();  // exclusive
+  int left = 0;  // inclusive
+  int right =
+      static_cast<int>(breakpoint_infos->ulength().value());  // exclusive
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
     Tagged<Object> mid_obj = breakpoint_infos->get(mid);
@@ -1050,10 +1053,14 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
   DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
                                             isolate);
 
-  int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  int int_pos =
+      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  DCHECK_GE(int_pos, 0);
+  uint32_t pos = static_cast<uint32_t>(int_pos);
+  uint32_t breakpoint_infos_len = breakpoint_infos->ulength().value();
 
   // Does a BreakPointInfo object already exist for this position?
-  if (pos == breakpoint_infos->length()) return false;
+  if (pos == breakpoint_infos_len) return false;
 
   DirectHandle<BreakPointInfo> info(
       Cast<BreakPointInfo>(breakpoint_infos->get(pos)), isolate);
@@ -1062,13 +1069,13 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
   // Check if there are no more breakpoints at this location.
   if (info->GetBreakPointCount(isolate) == 0) {
     // Update array by moving breakpoints up one position.
-    for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
+    for (uint32_t i = pos; i < breakpoint_infos_len - 1; i++) {
       Tagged<Object> entry = breakpoint_infos->get(i + 1);
       breakpoint_infos->set(i, entry);
       if (IsUndefined(entry, isolate)) break;
     }
     // Make sure last array element is empty as a result.
-    breakpoint_infos->set(breakpoint_infos->length() - 1,
+    breakpoint_infos->set(breakpoint_infos_len - 1,
                           ReadOnlyRoots{isolate}.undefined_value(),
                           SKIP_WRITE_BARRIER);
   }
@@ -1098,9 +1105,10 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
   DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
                                             isolate);
   // If the array exists, it should not be empty.
-  DCHECK_LT(0, breakpoint_infos->length());
+  uint32_t breakpoint_infos_len = breakpoint_infos->ulength().value();
+  DCHECK_LT(0, breakpoint_infos_len);
 
-  for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
+  for (uint32_t i = 0, e = breakpoint_infos_len; i < e; ++i) {
     DirectHandle<Object> obj(breakpoint_infos->get(i), isolate);
     if (IsUndefined(*obj, isolate)) {
       continue;
@@ -1140,10 +1148,11 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
 
   int insert_pos =
       FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  uint32_t breakpoint_infos_len = breakpoint_infos->ulength().value();
 
   // If a BreakPointInfo object already exists for this position, add the new
   // breakpoint object and return.
-  if (insert_pos < breakpoint_infos->length() &&
+  if (insert_pos < static_cast<int>(breakpoint_infos_len) &&
       GetBreakpointPos(isolate, breakpoint_infos->get(insert_pos)) ==
           position) {
     DirectHandle<BreakPointInfo> old_info(
@@ -1153,12 +1162,12 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
   }
 
   // Enlarge break positions array if necessary.
-  bool need_realloc = !IsUndefined(
-      breakpoint_infos->get(breakpoint_infos->length() - 1), isolate);
+  bool need_realloc =
+      !IsUndefined(breakpoint_infos->get(breakpoint_infos_len - 1), isolate);
   DirectHandle<FixedArray> new_breakpoint_infos = breakpoint_infos;
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
-        2 * breakpoint_infos->length(), AllocationType::kOld);
+        2 * breakpoint_infos_len, AllocationType::kOld);
     script->set_wasm_breakpoint_infos(*new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
     for (int i = 0; i < insert_pos; ++i)
@@ -1166,7 +1175,8 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
   }
 
   // Move elements [insert_pos, ...] up by one.
-  for (int i = breakpoint_infos->length() - 1; i >= insert_pos; --i) {
+  for (int i = static_cast<int>(breakpoint_infos_len) - 1; i >= insert_pos;
+       --i) {
     Tagged<Object> entry = breakpoint_infos->get(i);
     if (IsUndefined(entry, isolate)) continue;
     new_breakpoint_infos->set(i + 1, entry);
@@ -1282,7 +1292,8 @@ MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
                                             isolate);
   int insert_pos =
       FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
-  if (insert_pos >= breakpoint_infos->length()) return {};
+  if (insert_pos >= static_cast<int>(breakpoint_infos->ulength().value()))
+    return {};
 
   DirectHandle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
                                              isolate);
@@ -1309,8 +1320,9 @@ MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
   auto array = Cast<FixedArray>(break_points);
   DirectHandle<FixedArray> break_points_hit =
       isolate->factory()->NewFixedArray(array->length());
-  int break_points_hit_count = 0;
-  for (int i = 0; i < array->length(); ++i) {
+  uint32_t break_points_hit_count = 0;
+  uint32_t array_len = array->ulength().value();
+  for (uint32_t i = 0; i < array_len; ++i) {
     DirectHandle<BreakPoint> break_point(Cast<BreakPoint>(array->get(i)),
                                          isolate);
     if (CheckBreakPoint(isolate, break_point, frame_id)) {

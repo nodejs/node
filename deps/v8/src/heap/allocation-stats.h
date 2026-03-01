@@ -10,7 +10,7 @@
 
 #include "src/base/hashing.h"
 #include "src/base/macros.h"
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/base-page.h"
 
 namespace v8 {
 namespace internal {
@@ -54,12 +54,12 @@ class AllocationStats {
   size_t MaxCapacity() const { return max_capacity_; }
   size_t Size() const { return size_; }
 #ifdef DEBUG
-  size_t AllocatedOnPage(const MemoryChunkMetadata* page) const {
+  size_t AllocatedOnPage(const BasePage* page) const {
     return allocated_on_page_.at(page);
   }
 #endif
 
-  void IncreaseAllocatedBytes(size_t bytes, const MemoryChunkMetadata* page) {
+  void IncreaseAllocatedBytes(size_t bytes, const BasePage* page) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(bytes, kObjectAlignment8GbHeap));
 #ifdef DEBUG
@@ -72,7 +72,7 @@ class AllocationStats {
 #endif
   }
 
-  void DecreaseAllocatedBytes(size_t bytes, const MemoryChunkMetadata* page) {
+  void DecreaseAllocatedBytes(size_t bytes, const BasePage* page) {
     DCHECK_GE(size_, bytes);
     size_.fetch_sub(bytes);
 #ifdef DEBUG
@@ -109,8 +109,7 @@ class AllocationStats {
   std::atomic<size_t> size_;
 
 #ifdef DEBUG
-  std::unordered_map<const MemoryChunkMetadata*, size_t,
-                     base::hash<const MemoryChunkMetadata*>>
+  std::unordered_map<const BasePage*, size_t, base::hash<const BasePage*>>
       allocated_on_page_;
 #endif
 };

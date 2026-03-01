@@ -7,11 +7,13 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/arm/register-arm.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
@@ -675,6 +677,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
     return fp;
   }
   LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   ldr(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   cmp(old_fp.gp(),
@@ -906,8 +909,14 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
   AtomicLoad(LiftoffRegister(dst), src_addr, offset_reg, offset_imm,
-             LoadType::kI32Load, protected_load_pc, {}, false);
+             LoadType::kI32Load, protected_load_pc, AtomicMemoryOrder::kSeqCst,
+             {}, false);
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
@@ -924,12 +933,10 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   ldr(dst, src_op);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   static_assert(kTaggedSize == kInt32Size);
   UseScratchRegisterScope temps{this};
   Register actual_offset_reg = offset_reg;
@@ -953,7 +960,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
@@ -1168,12 +1175,19 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Register dst_addr,
   }
 }
 
-inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
-                       Register offset_reg, uint32_t offset_imm,
-                       LiftoffRegister value,
-                       std::optional<LiftoffRegister> result,
-                       void (*op)(LiftoffAssembler*, LiftoffRegister,
-                                  LiftoffRegister, LiftoffRegister)) {
+inline void I64Store(LiftoffAssembler* lasm, LiftoffRegister dst,
+                     LiftoffRegister, LiftoffRegister src) {
+  __ mov(dst.low_gp(), src.low_gp());
+  __ mov(dst.high_gp(), src.high_gp());
+}
+
+inline void AtomicOp64(
+    LiftoffAssembler* lasm, Register dst_addr, Register offset_reg,
+    uint32_t offset_imm, LiftoffRegister value,
+    std::optional<LiftoffRegister> result,
+    void (*op)(LiftoffAssembler*, LiftoffRegister, LiftoffRegister,
+               LiftoffRegister),
+    AtomicMemoryOrder memory_order = AtomicMemoryOrder::kSeqCst) {
   // strexd loads a 64 bit word into two registers. The first register needs
   // to have an even index, e.g. r8, the second register needs to be the one
   // with the next higher index, e.g. r9 if the first register is r8. In the
@@ -1241,7 +1255,10 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
   __ strexd(store_result, dst_low, dst_high, actual_addr);
   __ cmp(store_result, Operand(0));
   __ b(ne, &retry);
-  __ dmb(ISH);
+  // We need a dmb (ISH) for all the operations except store when memory_order
+  // is AcqRel.
+  if (!(memory_order == AtomicMemoryOrder::kAcqRel && op == &liftoff::I64Store))
+    __ dmb(ISH);
 
   if (result.has_value()) {
     if (result_low != result.value().low_gp()) {
@@ -1253,21 +1270,17 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
   }
 }
 
-inline void I64Store(LiftoffAssembler* lasm, LiftoffRegister dst,
-                     LiftoffRegister, LiftoffRegister src) {
-  __ mov(dst.low_gp(), src.low_gp());
-  __ mov(dst.high_gp(), src.high_gp());
-}
-
 #undef __
 }  // namespace liftoff
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */,
                                   bool /* i64_offset */,
                                   Endianness /* endianness */) {
+  // acquire and seqcst loads are the same: a load followed by a dmb(ISH).
   if (type.value() != LoadType::kI64Load) {
     Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc, true);
     dmb(ISH);
@@ -1297,26 +1310,39 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool /* i64_offset */,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+
   if (type.value() == StoreType::kI64Store) {
     liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, src, {},
-                        liftoff::I64Store);
+                        liftoff::I64Store, memory_order);
     return;
   }
 
   dmb(ISH);
-  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true);
-  dmb(ISH);
-  return;
+  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, protected_store_pc,
+        true);
+  // A seqcst store needs a dmb(ISH) after the store.
+  if (memory_order == AtomicMemoryOrder::kSeqCst) {
+    dmb(ISH);
+  }
 }
 
 void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
   AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
-              StoreType::kI32Store, protected_store_pc, pinned, false);
+              StoreType::kI32Store, protected_store_pc,
+              AtomicMemoryOrder::kSeqCst, pinned, false);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,

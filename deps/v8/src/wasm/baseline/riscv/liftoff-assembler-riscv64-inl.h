@@ -6,7 +6,7 @@
 #define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV64_INL_H_
 
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -297,12 +297,10 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
 }
 #endif
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList /* pinned */, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   UseScratchRegisterScope temps(this);
   Operand offset_op =
       offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
@@ -328,7 +326,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
 
   if (v8_flags.disable_write_barriers) return;
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
@@ -504,86 +502,181 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, temps, dst_addr, offset_reg, offset_imm);
 
-  // Allocate an additional {temp} register to hold the result that should be
-  // stored to memory. Note that {temp} and {store_result} are not allowed to be
-  // the same register.
-  Register temp = temps.Acquire();
-
   Label retry;
   __ bind(&retry);
-  if (protected_load_pc) *protected_load_pc = lasm->pc_offset();
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      __ lbu(result_reg, actual_addr, 0);
-      __ sync();
-      break;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      __ lhu(result_reg, actual_addr, 0);
-      __ sync();
-      break;
-    case StoreType::kI64Store32:
-      __ lr_w(true, false, result_reg, actual_addr);
-      __ ZeroExtendWord(result_reg, result_reg);
-      break;
-    case StoreType::kI32Store:
-      __ lr_w(true, false, result_reg, actual_addr);
-      break;
-    case StoreType::kI64Store:
-      __ lr_d(true, false, result_reg, actual_addr);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  if (type.value() == StoreType::kI32Store ||
+      type.value() == StoreType::kI64Store) {
+    auto trapper = [protected_load_pc](int offset) {
+      if (protected_load_pc) *protected_load_pc = static_cast<uint32_t>(offset);
+    };
+    switch (op) {
+      case Binop::kAdd:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAdd_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAdd_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kSub:
+        __ neg(result_reg, value.gp());
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAdd_w(true, true, result_reg, actual_addr, result_reg,
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAdd_d(true, true, result_reg, actual_addr, result_reg,
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kAnd:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAnd_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAnd_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kOr:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoOr_w(true, true, result_reg, actual_addr, value.gp(),
+                       trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoOr_d(true, true, result_reg, actual_addr, value.gp(),
+                       trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kXor:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoXor_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoXor_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kExchange:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            trapper(lasm->pc_offset());
+            __ AmoSwap_w(true, true, result_reg, actual_addr, value.gp(),
+                         trapper);
+            break;
+          case StoreType::kI64Store:
+            trapper(lasm->pc_offset());
+            __ AmoSwap_d(true, true, result_reg, actual_addr, value.gp(),
+                         trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+    }
+  } else {
+    // Allocate an additional {temp} register to hold the result that should be
+    // stored to memory. Note that {temp} and {store_result} are not allowed to
+    // be the same register.
+    Register temp = temps.Acquire();
+    if (protected_load_pc) *protected_load_pc = lasm->pc_offset();
+    // TODO(riscv): use Zabha instruction if enabled
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        __ lbu(result_reg, actual_addr, 0);
+        __ sync();
+        break;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        __ lhu(result_reg, actual_addr, 0);
+        __ sync();
+        break;
+      case StoreType::kI64Store32:
+        __ lr_w(true, false, result_reg, actual_addr);
+        __ ZeroExtendWord(result_reg, result_reg);
+        break;
+      case StoreType::kI32Store:
+        __ lr_w(true, false, result_reg, actual_addr);
+        break;
+      case StoreType::kI64Store:
+        __ lr_d(true, false, result_reg, actual_addr);
+        break;
+      default:
+        UNREACHABLE();
+    }
 
-  switch (op) {
-    case Binop::kAdd:
-      __ add(temp, result_reg, value.gp());
-      break;
-    case Binop::kSub:
-      __ sub(temp, result_reg, value.gp());
-      break;
-    case Binop::kAnd:
-      __ and_(temp, result_reg, value.gp());
-      break;
-    case Binop::kOr:
-      __ or_(temp, result_reg, value.gp());
-      break;
-    case Binop::kXor:
-      __ xor_(temp, result_reg, value.gp());
-      break;
-    case Binop::kExchange:
-      __ mv(temp, value.gp());
-      break;
+    switch (op) {
+      case Binop::kAdd:
+        __ add(temp, result_reg, value.gp());
+        break;
+      case Binop::kSub:
+        __ sub(temp, result_reg, value.gp());
+        break;
+      case Binop::kAnd:
+        __ and_(temp, result_reg, value.gp());
+        break;
+      case Binop::kOr:
+        __ or_(temp, result_reg, value.gp());
+        break;
+      case Binop::kXor:
+        __ xor_(temp, result_reg, value.gp());
+        break;
+      case Binop::kExchange:
+        __ mv(temp, value.gp());
+        break;
+    }
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        __ sync();
+        __ sb(temp, actual_addr, 0);
+        __ sync();
+        __ mv(store_result, zero_reg);
+        break;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        __ sync();
+        __ sh(temp, actual_addr, 0);
+        __ sync();
+        __ mv(store_result, zero_reg);
+        break;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        __ sc_w(false, true, store_result, actual_addr, temp);
+        break;
+      case StoreType::kI64Store:
+        __ sc_d(false, true, store_result, actual_addr, temp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ bnez(store_result, &retry);
   }
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      __ sync();
-      __ sb(temp, actual_addr, 0);
-      __ sync();
-      __ mv(store_result, zero_reg);
-      break;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      __ sync();
-      __ sh(temp, actual_addr, 0);
-      __ sync();
-      __ mv(store_result, zero_reg);
-      break;
-    case StoreType::kI64Store32:
-    case StoreType::kI32Store:
-      __ sc_w(false, true, store_result, actual_addr, temp);
-      break;
-    case StoreType::kI64Store:
-      __ sc_d(false, true, store_result, actual_addr, temp);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bnez(store_result, &retry);
   if (result_reg != result.gp()) {
     __ mv(result.gp(), result_reg);
   }
@@ -679,6 +772,7 @@ inline void AtomicCompareExchange(LiftoffAssembler* lasm, Register dst_addr,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order  */,
                                   LiftoffRegList /* pinned */,
                                   bool /* i64_offset */,
                                   Endianness /* endianness */) {
@@ -746,6 +840,7 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder /* memory_order */,
                                    LiftoffRegList /* pinned */,
                                    bool /* i64_offset */,
                                    Endianness /* endianness */) {
@@ -1035,6 +1130,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     case kTop:
     case kBottom:
     case kF16:
+    case kWaitQueue:
       UNREACHABLE();
   }
 }
@@ -2093,6 +2189,11 @@ void LiftoffStackSlots::Construct(int param_slots) {
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                             Label* trap_label) {
+  Branch(trap_label, kUnsignedGreaterThanEqual, index, Operand(max_index));
+}
 
 }  // namespace v8::internal::wasm
 

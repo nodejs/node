@@ -7,24 +7,31 @@
 
 #include <type_traits>
 
-template <class T>
-struct Identity {
-  using type = T;
-};
-
-template <class T>
-struct UnderlyingTypeHelper : Identity<std::underlying_type_t<T>> {};
-
-template <class T>
-using UnderlyingTypeIfEnum =
-    std::conditional_t<std::is_enum_v<T>, UnderlyingTypeHelper<T>,
-                       Identity<T>>::type;
-
 // Utility for extracting the underlying type of an enum, returns the type
 // itself if not an enum.
 template <class T>
-UnderlyingTypeIfEnum<T> CastToUnderlyingTypeIfEnum(T x) {
-  return static_cast<UnderlyingTypeIfEnum<T>>(x);
+auto CastToUnderlyingTypeIfEnum(T x) {
+  if constexpr (std::is_enum_v<T>) {
+    return static_cast<std::underlying_type_t<T>>(x);
+  } else {
+    return x;
+  }
+}
+
+template <class To, class From>
+auto CastIfEnumClass(From x) {
+  // Enum classes don't implicitly convert to their underlying type, so we
+  // have to explicitly convert them.
+  if constexpr (std::is_enum_v<From>) {
+    // Nested if-else since `underlying_type_t` is not available for non-enum.
+    if constexpr (!std::is_convertible_v<From, std::underlying_type_t<From>>) {
+      return static_cast<To>(x);
+    } else {
+      return x;
+    }
+  } else {
+    return x;
+  }
 }
 
 #endif  // V8_TORQUE_RUNTIME_SUPPORT_H_

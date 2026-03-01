@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
@@ -115,7 +115,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
-    CHECK_EQ(!IsAnyHole(obj) && IsHeapNumber(obj), in_nr_range);
+    CHECK_EQ(IsHeapNumber(obj), in_nr_range);
   }
 }
 

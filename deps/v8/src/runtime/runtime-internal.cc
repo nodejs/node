@@ -722,6 +722,9 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
+  // Valid context is required for reporting an unhandled exception.
+  DCHECK(!isolate->context().is_null());
+
   DirectHandle<Object> exception = args.at(0);
 
   DCHECK(!isolate->has_exception());

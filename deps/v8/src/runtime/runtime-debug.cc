@@ -11,7 +11,6 @@
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -29,8 +28,52 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#include "src/builtins/builtins-iterator-inl.h"
+
 namespace v8 {
 namespace internal {
+
+RUNTIME_FUNCTION(Runtime_IterableForEach) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> iterable = args.at(0);
+  Handle<JSReceiver> callback = args.at<JSReceiver>(1);
+
+  auto int_visitor = [&](int val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {isolate->factory()->NewNumberFromInt(val)};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  auto double_visitor = [&](double val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {isolate->factory()->NewNumber(val)};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  auto generic_visitor = [&](DirectHandle<Object> val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {val};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  if (IterableForEach(isolate, iterable, int_visitor, double_visitor,
+                      generic_visitor)
+          .is_null()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   using interpreter::Bytecode;
@@ -465,7 +508,7 @@ RUNTIME_FUNCTION(Runtime_SetGeneratorScopeVariableValue) {
   DirectHandle<Object> new_value = args.at(3);
   ScopeIterator it(isolate, gen);
   bool res = SetScopeVariableValue(&it, index, variable_name, new_value);
-  return isolate->heap()->ToBoolean(res);
+  return ReadOnlyRoots(isolate).boolean_value(res);
 }
 
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
@@ -519,7 +562,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
   }
 
   // Convert the script objects to proper JS objects.
-  for (int i = 0; i < instances->length(); i++) {
+  uint32_t instances_len = instances->ulength().value();
+  for (uint32_t i = 0; i < instances_len; i++) {
     DirectHandle<Script> script(Cast<Script>(instances->get(i)), isolate);
     instances->set(i, Smi::FromInt(script->id()));
   }
@@ -552,8 +596,9 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 namespace {
 
 int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
-                       int line) {
-  if (line < 0) return -1;
+                       int int_line) {
+  if (int_line < 0) return -1;
+  uint32_t line = static_cast<uint32_t>(int_line);
 
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::Type::kWasm) {
@@ -565,8 +610,7 @@ int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
   Script::InitLineEnds(isolate, script);
 
   Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
-  const int line_count = line_ends_array->length();
-  DCHECK_LT(0, line_count);
+  const uint32_t line_count = line_ends_array->ulength().value();
 
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.

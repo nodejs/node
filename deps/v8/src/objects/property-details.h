@@ -295,13 +295,28 @@ class PropertyDetails {
   constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                             PropertyLocation location,
                             PropertyConstness constness,
-                            Representation representation, int field_index = 0)
+                            Representation representation, int field_index,
+                            bool in_object)
       : value_(
             KindField::encode(kind) | AttributesField::encode(attributes) |
             LocationField::encode(location) |
             ConstnessField::encode(constness) |
             RepresentationField::encode(EncodeRepresentation(representation)) |
-            FieldIndexField::encode(field_index)) {}
+            FieldIndexField::encode(field_index) |
+            InObjectField::encode(in_object)) {}
+
+  // Property details describing a fast mode property without specifying its
+  // actual index.
+  constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                            PropertyLocation location,
+                            PropertyConstness constness,
+                            Representation representation)
+      : value_(
+            KindField::encode(kind) | AttributesField::encode(attributes) |
+            LocationField::encode(location) |
+            ConstnessField::encode(constness) |
+            RepresentationField::encode(EncodeRepresentation(representation))) {
+  }
 
   static constexpr PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
@@ -399,6 +414,8 @@ class PropertyDetails {
     return PropertyCellTypeField::decode(value_);
   }
 
+  bool is_in_object() const { return InObjectField::decode(value_); }
+
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   using KindField = base::BitField<PropertyKind, 0, 1>;
@@ -422,10 +439,11 @@ class PropertyDetails {
       RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
   using FieldIndexField =
       DescriptorPointer::Next<uint32_t, kDescriptorIndexBitCount>;
+  using InObjectField = FieldIndexField::Next<bool, 1>;
 
   // All bits for both fast and slow objects must fit in a smi.
   static_assert(DictionaryStorageField::kLastUsedBit < 31);
-  static_assert(FieldIndexField::kLastUsedBit < 31);
+  static_assert(InObjectField::kLastUsedBit < 31);
 
   // DictionaryStorageField must be the last field, so that overflowing it
   // doesn't overwrite other fields.

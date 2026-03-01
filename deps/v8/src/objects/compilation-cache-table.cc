@@ -4,6 +4,8 @@
 
 #include "src/objects/compilation-cache-table.h"
 
+#include <optional>
+
 #include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/compilation-cache-table-inl.h"
@@ -26,8 +28,8 @@ Tagged<JSFunction> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
   DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
   if (IsWeakFixedArray(obj)) {
     Tagged<WeakFixedArray> literals_map = Cast<WeakFixedArray>(obj);
-    int length = literals_map->length();
-    for (int i = 0; i < length; i++) {
+    uint32_t length = literals_map->ulength().value();
+    for (uint32_t i = 0; i < length; i++) {
       DCHECK(literals_map->get(i).IsWeakOrCleared());
       Tagged<JSFunction> js_function;
       if (literals_map->get(i).GetHeapObjectIfWeak(&js_function) &&
@@ -44,14 +46,14 @@ void AddToJSFunctionMap(DirectHandle<CompilationCacheTable> cache,
                         DirectHandle<JSFunction> js_function) {
   Isolate* isolate = Isolate::Current();
   DirectHandle<WeakFixedArray> new_js_functions;
-  int entry = -1;
+  std::optional<uint32_t> entry;
 
   Tagged<Object> obj = cache->EvalJSFunctionsValueAt(cache_entry);
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
   DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
-  if (IsTheHole(obj) || Cast<WeakFixedArray>(obj)->length() == 0) {
+  if (IsTheHole(obj) || Cast<WeakFixedArray>(obj)->ulength().value() == 0) {
     new_js_functions =
         isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
     entry = 0;
@@ -59,9 +61,9 @@ void AddToJSFunctionMap(DirectHandle<CompilationCacheTable> cache,
     DirectHandle<WeakFixedArray> old_js_functions(Cast<WeakFixedArray>(obj),
                                                   isolate);
     // Can we reuse an entry?
-    DCHECK_LT(entry, 0);
-    int length = old_js_functions->length();
-    for (int i = 0; i < length; i++) {
+    DCHECK(!entry);
+    uint32_t length = old_js_functions->ulength().value();
+    for (uint32_t i = 0; i < length; i++) {
       if (old_js_functions->get(i).IsCleared()) {
         new_js_functions = old_js_functions;
         entry = i;
@@ -69,18 +71,18 @@ void AddToJSFunctionMap(DirectHandle<CompilationCacheTable> cache,
       }
     }
 
-    if (entry < 0) {
+    if (!entry) {
       // Copy old optimized code map and append one new entry.
       new_js_functions =
           isolate->factory()->CopyWeakFixedArrayAndGrow(old_js_functions, 1);
-      entry = old_js_functions->length();
+      entry = old_js_functions->ulength().value();
     }
   }
 
-  new_js_functions->set(entry, MakeWeak(*js_function));
+  new_js_functions->set(*entry, MakeWeak(*js_function));
 
 #ifdef DEBUG
-  for (int i = 0; i < new_js_functions->length(); i++) {
+  for (uint32_t i = 0; i < new_js_functions->ulength().value(); i++) {
     Tagged<MaybeObject> object = new_js_functions->get(i);
     DCHECK_IMPLIES(!object.IsCleared(),
                    IsJSFunction(object.GetHeapObjectAssumeWeak()));
@@ -239,11 +241,11 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
     }
     Tagged<FixedArray> wrapped_arguments = *wrapped_arguments_handle;
     Tagged<FixedArray> other_wrapped_arguments = script->wrapped_arguments();
-    int length = wrapped_arguments->length();
-    if (length != other_wrapped_arguments->length()) {
+    uint32_t length = wrapped_arguments->ulength().value();
+    if (length != other_wrapped_arguments->ulength().value()) {
       return false;
     }
-    for (int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
       Tagged<Object> arg = wrapped_arguments->get(i);
       Tagged<Object> other_arg = other_wrapped_arguments->get(i);
       DCHECK(IsString(arg));
@@ -272,10 +274,10 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
       Cast<FixedArray>(*maybe_host_defined_options);
   Tagged<FixedArray> script_options =
       Cast<FixedArray>(script->host_defined_options());
-  int length = host_defined_options->length();
-  if (length != script_options->length()) return false;
+  uint32_t length = host_defined_options->ulength().value();
+  if (length != script_options->ulength().value()) return false;
 
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     // host-defined options is a v8::PrimitiveArray.
     DCHECK(IsPrimitive(host_defined_options->get(i)));
     DCHECK(IsPrimitive(script_options->get(i)));
@@ -318,8 +320,8 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
 #ifdef DEBUG
   DirectHandle<FixedArray> wrapped_arguments;
   if (maybe_wrapped_arguments.ToHandle(&wrapped_arguments)) {
-    int length = wrapped_arguments->length();
-    for (int i = 0; i < length; i++) {
+    uint32_t length = wrapped_arguments->ulength().value();
+    for (uint32_t i = 0; i < length; i++) {
       Tagged<Object> arg = wrapped_arguments->get(i);
       DCHECK(IsString(arg));
     }
@@ -331,7 +333,7 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsWeakFixedArray(other));
   Tagged<WeakFixedArray> other_array = Cast<WeakFixedArray>(other);
-  DCHECK_EQ(other_array->length(), kEnd);
+  DCHECK_EQ(other_array->ulength().value(), kEnd);
 
   // A hash check can quickly reject many non-matches, even though this step
   // isn't strictly necessary.
@@ -353,7 +355,7 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
 DirectHandle<Object> ScriptCacheKey::AsHandle(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   DirectHandle<WeakFixedArray> array =
-      isolate->factory()->NewWeakFixedArray(kEnd);
+      isolate->factory()->NewWeakFixedArray(static_cast<uint32_t>(kEnd));
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(IsScript(shared->script()));

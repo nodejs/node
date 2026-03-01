@@ -44,18 +44,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     // An out-of-bounds trapping initialization should not have an effect on the
     // table.
     assertTraps(kTrapTableOutOfBounds, () => wasm.table_init(3, 0, 3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(0));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(1));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(2));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(4));
+    assertTraps(kTrapNullFunc, () => wasm.call(0));
+    assertTraps(kTrapNullFunc, () => wasm.call(1));
+    assertTraps(kTrapNullFunc, () => wasm.call(2));
+    assertTraps(kTrapNullFunc, () => wasm.call(3));
+    assertTraps(kTrapNullFunc, () => wasm.call(4));
 
     assertTraps(kTrapElementSegmentOutOfBounds, () => wasm.table_init(0, 3, 3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(0));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(1));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(2));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(4));
+    assertTraps(kTrapNullFunc, () => wasm.call(0));
+    assertTraps(kTrapNullFunc, () => wasm.call(1));
+    assertTraps(kTrapNullFunc, () => wasm.call(2));
+    assertTraps(kTrapNullFunc, () => wasm.call(3));
+    assertTraps(kTrapNullFunc, () => wasm.call(4));
 
     // 0-count is still oob if target is invalid.
     assertTraps(kTrapTableOutOfBounds,
@@ -86,24 +86,24 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     wasm.table_init(0, 0, 1);
     assertEquals(0, wasm.call(0));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(1));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(2));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(4));
+    assertTraps(kTrapNullFunc, () => wasm.call(1));
+    assertTraps(kTrapNullFunc, () => wasm.call(2));
+    assertTraps(kTrapNullFunc, () => wasm.call(3));
+    assertTraps(kTrapNullFunc, () => wasm.call(4));
 
     wasm.table_init(0, 0, 2);
     assertEquals(0, wasm.call(0));
     assertEquals(1, wasm.call(1));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(2));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(4));
+    assertTraps(kTrapNullFunc, () => wasm.call(2));
+    assertTraps(kTrapNullFunc, () => wasm.call(3));
+    assertTraps(kTrapNullFunc, () => wasm.call(4));
 
     wasm.table_init(0, 0, 3);
     assertEquals(0, wasm.call(0));
     assertEquals(1, wasm.call(1));
     assertEquals(2, wasm.call(2));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(3));
-    assertTraps(kTrapFuncSigMismatch, () => wasm.call(4));
+    assertTraps(kTrapNullFunc, () => wasm.call(3));
+    assertTraps(kTrapNullFunc, () => wasm.call(4));
 
     wasm.table_init(3, 0, 2);
     assertEquals(0, wasm.call(0));

@@ -116,7 +116,10 @@ extern class SharedFunctionInfo extends HeapObject {
   // Age used for code flushing.
   // TODO(dinfuehr): Merge this field with function_literal_id to save memory.
   age: uint16;
-  padding: uint16;
+
+  // Feedback Slot needed to instantiate Lazy Closure not instantiated during
+  // SetPrototypeProperties.
+  feedback_slot: uint16;
 }
 
 // A wrapper around a SharedFunctionInfo in trusted space.

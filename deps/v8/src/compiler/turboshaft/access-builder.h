@@ -17,6 +17,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 class AccessBuilderTS;
+using JSReceiverOrNull = UnionOf<JSReceiver, Null>;
 
 // TODO(nicohartmann): Rename this to `FieldAccess` and rely on proper
 // namespaces.
@@ -64,6 +65,11 @@ class AccessBuilderTS : public AllStatic {
   TF_FIELD_ACCESS(HeapNumberOrOddball, Float64, ForHeapNumberOrOddballValue)
   TF_FIELD_ACCESS(BigInt, Word32, ForBigIntBitfield)
   TF_FIELD_ACCESS(BigInt, Word64, ForBigIntLeastSignificantDigit64)
+  TF_FIELD_ACCESS(Map, JSReceiverOrNull, ForMapPrototype)
+  TF_FIELD_ACCESS(Map, Word32, ForMapBitField)
+  TF_FIELD_ACCESS(Map, Word32, ForMapBitField3)
+  TF_FIELD_ACCESS(Map, NativeContext, ForMapNativeContext)
+  TF_FIELD_ACCESS(JSAny, Object, ForJSObjectPropertiesOrHash)
 #undef TF_ACCESS
   static FieldAccessTS<Object, Map> ForMap(
       WriteBarrierKind write_barrier = kMapWriteBarrier) {
@@ -75,6 +81,10 @@ class AccessBuilderTS : public AllStatic {
         BaseTaggedness::kTaggedBase, FeedbackVector::kLengthOffset,
         Handle<Name>(), OptionalMapRef(), TypeCache::Get()->kInt32,
         MachineType::Int32(), WriteBarrierKind::kNoWriteBarrier});
+  }
+  static FieldAccessTS<Cell, MaybeObject> ForCellMaybeValue() {
+    return FieldAccessTS<Cell, MaybeObject>(
+        compiler::AccessBuilder::ForCellValue());
   }
   static FieldAccessTS<PropertyCell, Object> ForPropertyCellValue() {
     return FieldAccessTS<PropertyCell, Object>(compiler::FieldAccess{
@@ -88,6 +98,22 @@ class AccessBuilderTS : public AllStatic {
         BaseTaggedness::kTaggedBase, JSPrimitiveWrapper::kValueOffset,
         Handle<Name>(), OptionalMapRef(), compiler::Type::Any(),
         MachineType::AnyTagged(), WriteBarrierKind::kFullWriteBarrier});
+  }
+  static FieldAccessTS<JSArray, Number> ForJSArrayLength() {
+    // NOTE: The only difference between elements kinds is the TF type of the
+    // field, which we don't care about in TS.
+    return FieldAccessTS<JSArray, Number>(
+        compiler::AccessBuilder::ForJSArrayLength(ElementsKind::NO_ELEMENTS));
+  }
+  static FieldAccessTS<Context, Object> ForContextSlot(size_t index) {
+    return FieldAccessTS<Context, Object>(
+        compiler::AccessBuilder::ForContextSlot(index));
+  }
+  static FieldAccessTS<Symbol, Word32> ForSymbolFlags() {
+    return FieldAccessTS<Symbol, Word32>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, offsetof(Symbol, flags_), Handle<Name>(),
+        OptionalMapRef(), compiler::Type::Any(), MachineType::Uint32(),
+        WriteBarrierKind::kNoWriteBarrier});
   }
 
 #define TF_ELEMENT_ACCESS(Class, T, name)                                     \

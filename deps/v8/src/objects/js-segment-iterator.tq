@@ -9,9 +9,8 @@ bitfield struct JSSegmentIteratorFlags extends uint31 {
 }
 
 extern class JSSegmentIterator extends JSObject {
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  icu_iterator_with_text: Foreign;  // Managed<IcuBreakIteratorWithText>
   raw_string: String;
-  unicode_string: Foreign;  // Managed<icu::UnicodeString>
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 

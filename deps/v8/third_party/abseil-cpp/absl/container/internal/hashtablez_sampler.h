@@ -87,7 +87,6 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> total_probe_length;
   std::atomic<size_t> hashes_bitwise_or;
   std::atomic<size_t> hashes_bitwise_and;
-  std::atomic<size_t> hashes_bitwise_xor;
   std::atomic<size_t> max_reserve;
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
@@ -118,8 +117,8 @@ void RecordClearedReservationSlow(HashtablezInfo* info);
 void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                               size_t capacity);
 
-void RecordInsertSlow(HashtablezInfo* info, size_t hash,
-                      size_t distance_from_desired);
+void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
+                          size_t distance_from_desired);
 
 void RecordEraseSlow(HashtablezInfo* info);
 
@@ -174,9 +173,9 @@ class HashtablezInfoHandle {
     RecordClearedReservationSlow(info_);
   }
 
-  inline void RecordInsert(size_t hash, size_t distance_from_desired) {
+  inline void RecordInsertMiss(size_t hash, size_t distance_from_desired) {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
-    RecordInsertSlow(info_, hash, distance_from_desired);
+    RecordInsertMissSlow(info_, hash, distance_from_desired);
   }
 
   inline void RecordErase() {
@@ -207,7 +206,8 @@ class HashtablezInfoHandle {
   inline void RecordRehash(size_t /*total_probe_length*/) {}
   inline void RecordReservation(size_t /*target_capacity*/) {}
   inline void RecordClearedReservation() {}
-  inline void RecordInsert(size_t /*hash*/, size_t /*distance_from_desired*/) {}
+  inline void RecordInsertMiss(size_t /*hash*/,
+                               size_t /*distance_from_desired*/) {}
   inline void RecordErase() {}
 
   friend inline void swap(HashtablezInfoHandle& /*lhs*/,

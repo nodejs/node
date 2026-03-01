@@ -47,23 +47,30 @@ class WasmInterpreterRuntime {
   inline DirectHandle<Object> GetGlobalRef(uint32_t index) const;
   inline void SetGlobalRef(uint32_t index, DirectHandle<Object> ref) const;
 
-  int32_t MemoryGrow(uint32_t delta_pages);
-  inline uint64_t MemorySize() const;
-  inline bool IsMemory64() const;
-  inline uint8_t* GetMemoryStart() const { return memory_start_; }
+  int32_t MemoryGrow(uint32_t memory_index, uint32_t delta_pages);
+  inline uint64_t MemorySize(uint32_t memory_index) const;
+  inline bool IsMemory64(uint32_t memory_index) const;
+  inline uint8_t* GetMemoryStart(uint32_t memory_index) const;
+  inline uint8_t* GetMemoryStart() const;
+  inline size_t GetMemorySize(uint32_t memory_index) const;
   inline size_t GetMemorySize() const;
 
   bool MemoryInit(const uint8_t*& current_code, uint32_t data_segment_index,
-                  uint64_t dst, uint64_t src, uint64_t size);
-  bool MemoryCopy(const uint8_t*& current_code, uint64_t dst, uint64_t src,
+                  uint32_t memory_index, uint64_t dst, uint64_t src,
                   uint64_t size);
-  bool MemoryFill(const uint8_t*& current_code, uint64_t dst, uint32_t value,
+  bool MemoryCopy(const uint8_t*& current_code, uint32_t dst_memory_index,
+                  uint32_t src_memory_index, uint64_t dst, uint64_t src,
                   uint64_t size);
+  bool MemoryFill(const uint8_t*& current_code, uint32_t memory_index,
+                  uint64_t dst, uint32_t value, uint64_t size);
 
   bool AllowsAtomicsWait() const;
-  int32_t AtomicNotify(uint64_t effective_index, int32_t val);
-  int32_t I32AtomicWait(uint64_t effective_index, int32_t val, int64_t timeout);
-  int32_t I64AtomicWait(uint64_t effective_index, int64_t val, int64_t timeout);
+  int32_t AtomicNotify(uint64_t effective_index, uint32_t memory_index,
+                       int32_t val);
+  int32_t I32AtomicWait(uint64_t effective_index, uint32_t memory_index,
+                        int32_t val, int64_t timeout);
+  int32_t I64AtomicWait(uint64_t effective_index, uint32_t memory_index,
+                        int64_t val, int64_t timeout);
 
   inline bool WasmStackCheck(const uint8_t* current_bytecode,
                              const uint8_t*& code);
@@ -91,7 +98,8 @@ class WasmInterpreterRuntime {
       Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
       uint32_t table_index, uint32_t entry_index);
 
-  static void UpdateMemoryAddress(DirectHandle<WasmInstanceObject> instance);
+  static void UpdateMemoryAddress(DirectHandle<WasmInstanceObject> instance,
+                                  uint32_t memory_index);
 
   inline void DataDrop(uint32_t index);
   inline void ElemDrop(uint32_t index);
@@ -159,15 +167,22 @@ class WasmInterpreterRuntime {
 
   void PrintStack(uint32_t* sp, RegMode reg_mode, int64_t r0, double fp0);
 
-  void SetTrap(TrapReason trap_reason, pc_t trap_pc);
-  void SetTrap(TrapReason trap_reason, const uint8_t*& current_code);
+  void SetTrap(MessageTemplate message_template, pc_t trap_pc);
+  void SetTrap(MessageTemplate message_template, const uint8_t*& current_code);
 
   // GC helpers.
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
   std::pair<DirectHandle<WasmStruct>, const StructType*> StructNewUninitialized(
       uint32_t index) const;
-  std::pair<DirectHandle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
-      uint32_t length, uint32_t array_index) const;
+
+  struct ArrayNewResult {
+    DirectHandle<WasmArray> array;
+    const ArrayType* type;
+    bool is_shared;
+  };
+  ArrayNewResult ArrayNewUninitialized(uint32_t length,
+                                       uint32_t array_index) const;
+
   WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
                               uint32_t offset, uint32_t length);
   bool WasmArrayInitSegment(uint32_t segment_index, WasmRef wasm_array,
@@ -207,6 +222,14 @@ class WasmInterpreterRuntime {
   static int memory_start_offset();
   static int instruction_table_offset();
 
+#if defined(V8_ENABLE_DRUMBRAKE_TRACING) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+  static int trace_pop_func_offset();
+  static int trace_pop2_func_offset();
+  static int trace_push_func_offset();
+  static int trace_replace_func_offset();
+#endif  // defined(V8_ENABLE_DRUMBRAKE_TRACING) &&
+        // !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+
   size_t TotalBytecodeSize() const { return codemap_->TotalBytecodeSize(); }
 
   void ResetCurrentHandleScope();
@@ -239,7 +262,14 @@ class WasmInterpreterRuntime {
                                             uint32_t* sp,
                                             uint32_t return_slot_offset);
 
-  inline Address EffectiveAddress(uint64_t index) const;
+  ExternalCallResult CallExternalWasmFunction(uint32_t function_index,
+                                              DirectHandle<Object> object_ref,
+                                              const FunctionSig* sig,
+                                              uint32_t* sp,
+                                              uint32_t return_slot_offset,
+                                              uint32_t ref_stack_fp_offset);
+
+  inline Address EffectiveAddress(uint32_t memory_index, uint64_t index) const;
 
   // Checks if [index, index+size) is in range [0, WasmMemSize), where
   // WasmMemSize is the size of the Memory object associated to
@@ -247,14 +277,17 @@ class WasmInterpreterRuntime {
   // If not in range, {size} is clamped to its valid range.
   // It in range, out_address contains the (virtual memory) address of the
   // {index}th memory location in the Wasm memory.
-  inline bool BoundsCheckMemRange(uint64_t index, uint64_t* size,
-                                  Address* out_address) const;
+  inline bool BoundsCheckMemRange(uint32_t memory_index, uint64_t index,
+                                  uint64_t* size, Address* out_address) const;
 
   void InitGlobalAddressCache();
   inline void InitMemoryAddresses();
   void InitIndirectFunctionTables();
-  bool CheckIndirectCallSignature(uint32_t table_index, uint32_t entry_index,
-                                  uint32_t sig_index) const;
+
+  enum class IndirectCallCheck { kValid, kInvalid, kNull };
+  IndirectCallCheck CheckIndirectCallSignature(uint32_t table_index,
+                                               uint32_t entry_index,
+                                               uint32_t sig_index) const;
 
   void StoreRefArgsIntoStackSlots(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                   const FunctionSig* sig);
@@ -304,6 +337,8 @@ class WasmInterpreterRuntime {
   base::TimeTicks fuzzer_start_time_;
 
   uint8_t* memory_start_;
+  std::vector<uint8_t*> memory_starts_;
+  std::vector<bool> is_memory64_;
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -402,6 +437,48 @@ class WasmInterpreterRuntime {
 
   std::unique_ptr<InterpreterTracer> tracer_;
   ShadowStack* shadow_stack_;
+
+#ifndef V8_DRUMBRAKE_BOUNDS_CHECKS
+  enum class TracePopType : bool {
+    kNormal,     // pop once
+    kDuplicate,  // pop twice
+  };
+
+  template <TracePopType type>
+  static void TracePopWithCheck(WasmInterpreterRuntime* wasm_runtime) {
+    if (v8_flags.trace_drumbrake_execution) {
+      if constexpr (type == TracePopType::kDuplicate) {
+        wasm_runtime->TracePop();
+      }
+      wasm_runtime->TracePop();
+    }
+  }
+
+  enum class TracePushType : bool {
+    kNormal,   // push once
+    kReplace,  // pop and push
+  };
+
+  template <TracePushType type>
+  static void TracePushWithCheck(WasmInterpreterRuntime* wasm_runtime,
+                                 ValueKind kind, uint32_t slot_offset) {
+    if (v8_flags.trace_drumbrake_execution) {
+      if constexpr (type == TracePushType::kReplace) {
+        wasm_runtime->TracePop();
+      }
+      wasm_runtime->TracePush(kind, slot_offset);
+    }
+  }
+
+  using TracePopFuncT = void (*)(WasmInterpreterRuntime*);
+  using TracePushFuncT = void (*)(WasmInterpreterRuntime*, ValueKind, uint32_t);
+  TracePopFuncT trace_pop_func_ = &TracePopWithCheck<TracePopType::kNormal>;
+  TracePopFuncT trace_pop2_func_ = &TracePopWithCheck<TracePopType::kDuplicate>;
+  TracePushFuncT trace_push_func_ = &TracePushWithCheck<TracePushType::kNormal>;
+  TracePushFuncT trace_replace_func_ =
+      &TracePushWithCheck<TracePushType::kReplace>;
+#endif  // V8_DRUMBRAKE_BOUNDS_CHECKS
+
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
   WasmInterpreterRuntime(const WasmInterpreterRuntime&) = delete;

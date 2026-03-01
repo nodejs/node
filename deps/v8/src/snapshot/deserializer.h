@@ -86,14 +86,19 @@ class Deserializer : public SerializerDeserializer {
       const {
     return {new_allocation_sites_.data(), new_allocation_sites_.size()};
   }
-  base::Vector<const DirectHandle<InstructionStream>> new_code_objects() const {
-    return {new_code_objects_.data(), new_code_objects_.size()};
+  base::Vector<const DirectHandle<InstructionStream>>
+  new_instruction_stream_objects() const {
+    return {new_instruction_stream_objects_.data(),
+            new_instruction_stream_objects_.size()};
   }
   base::Vector<const DirectHandle<Map>> new_maps() const {
     return {new_maps_.data(), new_maps_.size()};
   }
   base::Vector<const DirectHandle<AccessorInfo>> accessor_infos() const {
     return {accessor_infos_.data(), accessor_infos_.size()};
+  }
+  base::Vector<const DirectHandle<InterceptorInfo>> interceptor_infos() const {
+    return {interceptor_infos_.data(), interceptor_infos_.size()};
   }
   base::Vector<const DirectHandle<FunctionTemplateInfo>>
   function_template_infos() const {
@@ -283,8 +288,9 @@ class Deserializer : public SerializerDeserializer {
   HotObjectsList hot_objects_;
   DirectHandleVector<Map> new_maps_;
   DirectHandleVector<AllocationSite> new_allocation_sites_;
-  DirectHandleVector<InstructionStream> new_code_objects_;
+  DirectHandleVector<InstructionStream> new_instruction_stream_objects_;
   DirectHandleVector<AccessorInfo> accessor_infos_;
+  DirectHandleVector<InterceptorInfo> interceptor_infos_;
   DirectHandleVector<FunctionTemplateInfo> function_template_infos_;
   DirectHandleVector<Script> new_scripts_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
@@ -362,10 +368,10 @@ enum class DeserializingUserCodeOption {
 class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(
-      Isolate* isolate, DirectHandle<String> string,
+      Isolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
   explicit StringTableInsertionKey(
-      LocalIsolate* isolate, DirectHandle<String> string,
+      LocalIsolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
 
   template <typename IsolateT>
@@ -379,13 +385,13 @@ class StringTableInsertionKey final : public StringTableKey {
                DeserializingUserCodeOption::kIsDeserializingUserCode);
   }
   void PrepareForInsertion(LocalIsolate* isolate) {}
-  V8_WARN_UNUSED_RESULT DirectHandle<String> GetHandleForInsertion(
+  V8_WARN_UNUSED_RESULT DirectHandle<InternalizedString> GetHandleForInsertion(
       Isolate* isolate) {
     return string_;
   }
 
  private:
-  DirectHandle<String> string_;
+  DirectHandle<InternalizedString> string_;
 #ifdef DEBUG
   DeserializingUserCodeOption deserializing_user_code_;
 #endif

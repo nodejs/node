@@ -118,12 +118,14 @@ void TransitionArray::SetPrototypeTransitions(
   WeakFixedArray::set(kPrototypeTransitionsIndex, transitions, kReleaseStore);
 }
 
-int TransitionArray::NumberOfPrototypeTransitions(
+uint32_t TransitionArray::NumberOfPrototypeTransitions(
     Tagged<WeakFixedArray> proto_transitions) {
-  if (proto_transitions->length() == 0) return 0;
+  if (proto_transitions->ulength().value() == 0) return 0;
   Tagged<MaybeObject> raw =
       proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-  return raw.ToSmi().value();
+  int32_t transitions = raw.ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 Tagged<Name> TransitionArray::GetKey(int transition_number) {
@@ -135,6 +137,7 @@ Tagged<Name> TransitionArray::GetKey(int transition_number) {
 Tagged<Name> TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
@@ -201,6 +204,7 @@ Tagged<Map> TransitionArray::GetTarget(int transition_number) {
 Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
@@ -270,9 +274,6 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
     return kNotFound;
   }
 
-  // Do linear search for small arrays, and for searches in the background
-  // thread.
-  const int kMaxElementsForLinearSearch = 8;
   if (number_of_transitions() <= kMaxElementsForLinearSearch ||
       concurrent_search) {
     return LinearSearchName(name, out_insertion_index);
@@ -284,6 +285,9 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
 int TransitionArray::BinarySearchName(Tagged<Name> name,
                                       int* out_insertion_index) {
   int end = number_of_transitions();
+  // Binary search must not be used for small number of descriptors since
+  // the descriptor array is not sorted yet.
+  DCHECK_LT(kMaxElementsForLinearSearch, end);
   uint32_t hash = name->hash();
 
   // Find the first index whose key's hash is greater-than-or-equal-to the
@@ -364,6 +368,8 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
       return kFullTransitionArray;
     } else if (IsPrototypeInfo(heap_object)) {
       return kPrototypeInfo;
+    } else if (IsPrototypeSharedClosureInfo(heap_object)) {
+      return kPrototypeSharedClosureInfo;
     } else {
       DCHECK(IsMap(heap_object));
       return kMigrationTarget;
@@ -408,9 +414,12 @@ MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
   return MaybeHandle<Map>(result, isolate);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::number_of_transitions() const {
-  if (length() < kFirstIndex) return 0;
-  return get(kTransitionLengthIndex).ToSmi().value();
+  if (ulength().value() < kFirstIndex) return 0;
+  int transitions = get(kTransitionLengthIndex).ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 int TransitionArray::CompareKeys(Tagged<Name> key1, uint32_t hash1,
@@ -457,9 +466,11 @@ void TransitionArray::Set(int transition_number, Tagged<Name> key,
   WeakFixedArray::set(ToTargetIndex(transition_number), target);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::Capacity() {
-  if (length() <= kFirstIndex) return 0;
-  return (length() - kFirstIndex) / kEntrySize;
+  uint32_t len = ulength().value();
+  if (len <= kFirstIndex) return 0;
+  return (len - kFirstIndex) / kEntrySize;
 }
 
 void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
@@ -488,6 +499,7 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
   DisallowGarbageCollection no_gc;
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return {Handle<String>::null(), Handle<Map>::null()};
@@ -530,6 +542,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
     SideStepCallback side_step_transition_callback) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return;
@@ -561,8 +574,9 @@ void TransitionsAccessor::ForEachTransitionWithKey(
         if (transitions()->HasPrototypeTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetPrototypeTransitions();
-          int length = TransitionArray::NumberOfPrototypeTransitions(cache);
-          for (int i = 0; i < length; i++) {
+          const uint32_t length =
+              TransitionArray::NumberOfPrototypeTransitions(cache);
+          for (uint32_t i = 0; i < length; i++) {
             Tagged<MaybeObject> target =
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;

@@ -69,7 +69,6 @@ StatusOr<std::string> MarshalHashtableProfile(
   const auto key_size_id = builder.InternString("key_size");
   const auto value_size_id = builder.InternString("value_size");
   const auto soo_capacity_id = builder.InternString("soo_capacity");
-  const auto checksum_id = builder.InternString("checksum");
   const auto table_age_id = builder.InternString("table_age");
   const auto max_reserve_id = builder.InternString("max_reserve");
 
@@ -102,8 +101,6 @@ StatusOr<std::string> MarshalHashtableProfile(
         add_label(key_size_id, info.key_size);
         add_label(value_size_id, info.value_size);
         add_label(soo_capacity_id, info.soo_capacity);
-        add_label(checksum_id,
-                  info.hashes_bitwise_xor.load(std::memory_order_relaxed));
         add_label(
             table_age_id,
             static_cast<uint64_t>(ToInt64Microseconds(now - info.create_time)));

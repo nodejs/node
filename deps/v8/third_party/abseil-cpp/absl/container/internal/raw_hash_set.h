@@ -221,6 +221,10 @@
 #include "absl/numeric/bits.h"
 #include "absl/utility/utility.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -437,38 +441,21 @@ class PerTableSeed {
   // It is big enough to ensure non-determinism of iteration order.
   // We store the seed inside a uint64_t together with size and other metadata.
   // Using 16 bits allows us to save one `and` instruction in H1 (we use
-  // sign-extended move instead of mov+and).
+  // zero-extended move instead of mov+and). When absl::Hash is inlined, it can
+  // also have lower latency knowing that the high bits of the seed are zero.
   static constexpr size_t kBitCount = 16;
-  static constexpr size_t kSignBit = uint64_t{1} << (kBitCount - 1);
 
   // Returns the seed for the table.
-  size_t seed() const {
-    // We use a sign-extended load to ensure high bits are non-zero.
-    int16_t seed_signed = absl::bit_cast<int16_t>(seed_);
-    auto seed_sign_extended =
-        static_cast<std::make_signed_t<size_t>>(seed_signed);
-    return absl::bit_cast<size_t>(seed_sign_extended);
-  }
+  size_t seed() const { return seed_; }
 
  private:
   friend class HashtableSize;
-  explicit PerTableSeed(uint16_t seed) : seed_(seed) {
-    ABSL_SWISSTABLE_ASSERT((seed & kSignBit) != 0 || seed == 0);
-  }
+  explicit PerTableSeed(uint16_t seed) : seed_(seed) {}
 
   // The most significant bit of the seed is always 1 when there is a non-zero
   // seed. This way, when sign-extended the seed has non-zero high bits.
   const uint16_t seed_;
 };
-
-// Returns next per-table seed.
-inline uint16_t NextSeed() {
-  static_assert(PerTableSeed::kBitCount == 16);
-  thread_local uint16_t seed =
-      static_cast<uint16_t>(reinterpret_cast<uintptr_t>(&seed));
-  seed += uint16_t{0xad53};
-  return seed;
-}
 
 // The size and also has additionally
 // 1) one bit that stores whether we have infoz.
@@ -501,10 +488,10 @@ class HashtableSize {
 
   // We need to use a constant seed when the table is sampled so that sampled
   // hashes use the same seed and can e.g. identify stuck bits accurately.
-  void set_sampled_seed() { set_seed(PerTableSeed::kSignBit); }
+  void set_sampled_seed() { set_seed((std::numeric_limits<uint16_t>::max)()); }
 
   bool is_sampled_seed() const {
-    return (data_ & kSeedMask) == PerTableSeed::kSignBit;
+    return (data_ & kSeedMask) == (std::numeric_limits<uint16_t>::max)();
   }
 
   // Returns true if the table has infoz.
@@ -517,10 +504,11 @@ class HashtableSize {
 
   void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
 
+  // Returns next per-table seed.
+  static uint16_t NextSeed();
+
  private:
-  void set_seed(uint16_t seed) {
-    data_ = (data_ & ~kSeedMask) | (seed | PerTableSeed::kSignBit);
-  }
+  void set_seed(uint16_t seed) { data_ = (data_ & ~kSeedMask) | seed; }
   static constexpr size_t kSizeShift = 64 - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
@@ -1144,7 +1132,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   HeapOrSoo heap_or_soo_;
 };
 
-template <class Policy, class Hash, class Eq, class Alloc>
+template <class Policy, class... Params>
 class raw_hash_set;
 
 // Returns the next valid capacity after `n`.
@@ -1175,32 +1163,30 @@ constexpr size_t NormalizeCapacity(size_t n) {
 }
 
 // General notes on capacity/growth methods below:
-// - We use 27/32 as maximum load factor. For 16-wide groups, that gives an
-//   average of 2.5 empty slots per group.
+// - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
+//   average of two empty slots per group.
+// - For (capacity+1) >= Group::kWidth, growth is 7/8*capacity.
 // - For (capacity+1) < Group::kWidth, growth == capacity. In this case, we
 //   never need to probe (the whole table fits in one group) so we don't need a
 //   load factor less than 1.
-// - For (capacity+1) == Group::kWidth, growth is capacity - 1 since we need
-//   at least one empty slot for probing algorithm.
-// - For (capacity+1) > Group::kWidth, growth is 27/32*capacity.
 
 // Given `capacity`, applies the load factor; i.e., it returns the maximum
 // number of values we should put into the table before a resizing rehash.
 constexpr size_t CapacityToGrowth(size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
-  // `capacity*27/32`
+  // `capacity*7/8`
   if (Group::kWidth == 8 && capacity == 7) {
-    // formula does not work when x==7.
+    // x-x/8 does not work when x==7.
     return 6;
   }
-  return capacity - capacity / 8 - capacity / 32;
+  return capacity - capacity / 8;
 }
 
 // Given `size`, "unapplies" the load factor to find how large the capacity
 // should be to stay within the load factor.
 //
 // For size == 0, returns 0.
-// For other values, returns the same as `NormalizeCapacity(size*32/27)`.
+// For other values, returns the same as `NormalizeCapacity(size*8/7)`.
 constexpr size_t SizeToCapacity(size_t size) {
   if (size == 0) {
     return 0;
@@ -1209,10 +1195,18 @@ constexpr size_t SizeToCapacity(size_t size) {
   // Shifting right `~size_t{}` by `leading_zeros` yields
   // NormalizeCapacity(size).
   int leading_zeros = absl::countl_zero(size);
-  size_t next_capacity = ~size_t{} >> leading_zeros;
-  size_t max_size_for_next_capacity = CapacityToGrowth(next_capacity);
+  constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
+  // max_size_for_next_capacity = max_load_factor * next_capacity
+  //                            = (7/8) * (~size_t{} >> leading_zeros)
+  //                            = (7/8*~size_t{}) >> leading_zeros
+  //                            = kLast3Bits >> leading_zeros
+  size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
   // Decrease shift if size is too big for the minimum capacity.
   leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
+  if constexpr (Group::kWidth == 8) {
+    // Formula doesn't work when size==7 for 8-wide groups.
+    leading_zeros -= (size == 7);
+  }
   return (~size_t{}) >> leading_zeros;
 }
 
@@ -1492,10 +1486,12 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
 
 // Allocates `n` bytes for a backing array.
 template <size_t AlignOfBackingArray, typename Alloc>
-ABSL_ATTRIBUTE_NOINLINE void* AllocateBackingArray(void* alloc, size_t n) {
+void* AllocateBackingArray(void* alloc, size_t n) {
   return Allocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), n);
 }
 
+// Note: we mark this function as ABSL_ATTRIBUTE_NOINLINE because we don't want
+// it to be inlined into e.g. the destructor to save code size.
 template <size_t AlignOfBackingArray, typename Alloc>
 ABSL_ATTRIBUTE_NOINLINE void DeallocateBackingArray(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
@@ -1758,31 +1754,61 @@ size_t PrepareInsertLargeGenerationsEnabled(
     Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
     absl::FunctionRef<size_t(size_t)> recompute_hash);
 
+template <typename Policy, typename Hash, typename Eq, typename Alloc>
+struct InstantiateRawHashSet {
+  using type = typename ApplyWithoutDefaultSuffix<
+      raw_hash_set,
+      TypeList<void, typename Policy::DefaultHash, typename Policy::DefaultEq,
+               typename Policy::DefaultAlloc>,
+      TypeList<Policy, Hash, Eq, Alloc>>::type;
+};
+
 // A SwissTable.
 //
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
 //
+// Params...: a variadic list of parameters that allows us to omit default
+//            types. This reduces the mangled name of the class and the size of
+//            debug strings like __PRETTY_FUNCTION__. Default types do not give
+//            any new information.
+//
 // Hash: a (possibly polymorphic) functor that hashes keys of the hashtable. The
 // functor should accept a key and return size_t as hash. For best performance
 // it is important that the hash function provides high entropy across all bits
 // of the hash.
+// This is the first element in `Params...` if it exists, or Policy::DefaultHash
+// otherwise.
 //
 // Eq: a (possibly polymorphic) functor that compares two keys for equality. It
 // should accept two (of possibly different type) keys and return a bool: true
 // if they are equal, false if they are not. If two keys compare equal, then
 // their hash values as defined by Hash MUST be equal.
+// This is the second element in `Params...` if it exists, or Policy::DefaultEq
+// otherwise.
 //
 // Allocator: an Allocator
 // [https://en.cppreference.com/w/cpp/named_req/Allocator] with which
 // the storage of the hashtable will be allocated and the elements will be
 // constructed and destroyed.
-template <class Policy, class Hash, class Eq, class Alloc>
+// This is the third element in `Params...` if it exists, or
+// Policy::DefaultAlloc otherwise.
+template <class Policy, class... Params>
 class raw_hash_set {
   using PolicyTraits = hash_policy_traits<Policy>;
+  using Hash = GetFromListOr<typename Policy::DefaultHash, 0, Params...>;
+  using Eq = GetFromListOr<typename Policy::DefaultEq, 1, Params...>;
+  using Alloc = GetFromListOr<typename Policy::DefaultAlloc, 2, Params...>;
   using KeyArgImpl =
       KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
+
+  static_assert(
+      std::is_same_v<
+          typename InstantiateRawHashSet<Policy, Hash, Eq, Alloc>::type,
+          raw_hash_set>,
+      "Redundant template parameters were passed. Use InstantiateRawHashSet<> "
+      "instead");
 
  public:
   using init_type = typename PolicyTraits::init_type;
@@ -2116,6 +2142,28 @@ class raw_hash_set {
   raw_hash_set(InputIter first, InputIter last, size_t bucket_count,
                const allocator_type& alloc)
       : raw_hash_set(first, last, bucket_count, hasher(), key_equal(), alloc) {}
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count = 0,
+               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
+               const allocator_type& alloc = allocator_type())
+      : raw_hash_set(std::begin(rg), std::end(rg), bucket_count, hash, eq,
+                     alloc) {}
+
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+               const allocator_type& alloc)
+      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count,
+                     hasher(), key_equal(), alloc) {}
+
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+               const hasher& hash, const allocator_type& alloc)
+      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count, hash,
+                     key_equal(), alloc) {}
+#endif
 
   template <class InputIter>
   raw_hash_set(InputIter first, InputIter last, const allocator_type& alloc)
@@ -2638,8 +2686,11 @@ class raw_hash_set {
 
   // Moves elements from `src` into `this`.
   // If the element already exists in `this`, it is left unmodified in `src`.
-  template <typename H, typename E>
-  void merge(raw_hash_set<Policy, H, E, Alloc>& src) {  // NOLINT
+  template <
+      typename... Params2,
+      typename = std::enable_if_t<std::is_same_v<
+          Alloc, typename raw_hash_set<Policy, Params2...>::allocator_type>>>
+  void merge(raw_hash_set<Policy, Params2...>& src) {  // NOLINT
     AssertNotDebugCapacity();
     src.AssertNotDebugCapacity();
     assert(this != &src);
@@ -2663,8 +2714,11 @@ class raw_hash_set {
     }
   }
 
-  template <typename H, typename E>
-  void merge(raw_hash_set<Policy, H, E, Alloc>&& src) {
+  template <
+      typename... Params2,
+      typename = std::enable_if_t<std::is_same_v<
+          Alloc, typename raw_hash_set<Policy, Params2...>::allocator_type>>>
+  void merge(raw_hash_set<Policy, Params2...>&& src) {  // NOLINT
     merge(src);
   }
 
@@ -3618,19 +3672,19 @@ struct HashtableFreeFunctionsAccess {
 };
 
 // Erases all elements that satisfy the predicate `pred` from the container `c`.
-template <typename P, typename H, typename E, typename A, typename Predicate>
-typename raw_hash_set<P, H, E, A>::size_type EraseIf(
-    Predicate& pred, raw_hash_set<P, H, E, A>* c) {
+template <typename P, typename... Params, typename Predicate>
+typename raw_hash_set<P, Params...>::size_type EraseIf(
+    Predicate& pred, raw_hash_set<P, Params...>* c) {
   return HashtableFreeFunctionsAccess::EraseIf(pred, c);
 }
 
 // Calls `cb` for all elements in the container `c`.
-template <typename P, typename H, typename E, typename A, typename Callback>
-void ForEach(Callback& cb, raw_hash_set<P, H, E, A>* c) {
+template <typename P, typename... Params, typename Callback>
+void ForEach(Callback& cb, raw_hash_set<P, Params...>* c) {
   return HashtableFreeFunctionsAccess::ForEach(cb, c);
 }
-template <typename P, typename H, typename E, typename A, typename Callback>
-void ForEach(Callback& cb, const raw_hash_set<P, H, E, A>* c) {
+template <typename P, typename... Params, typename Callback>
+void ForEach(Callback& cb, const raw_hash_set<P, Params...>* c) {
   return HashtableFreeFunctionsAccess::ForEach(cb, c);
 }
 
@@ -3702,6 +3756,14 @@ extern template size_t GrowSooTableToNextCapacityAndPrepareInsert<16, true>(
     CommonFields&, const PolicyFunctions&, absl::FunctionRef<size_t(size_t)>,
     bool);
 #endif
+
+extern template void* AllocateBackingArray<
+    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(void* alloc,
+                                                                  size_t n);
+extern template void DeallocateBackingArray<
+    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
+    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+    size_t slot_align, bool had_infoz);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

@@ -23,11 +23,11 @@ template <template <typename> typename HandleType>
       std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
 HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                               HandleType<FixedArray> array,
-                                              int index,
+                                              uint32_t index,
                                               DirectHandle<Object> value) {
-  int len = array->length();
+  const uint32_t len = array->ulength().value();
   if (index >= len) {
-    int new_capacity = FixedArray::NewCapacityForIndex(index, len);
+    const uint32_t new_capacity = FixedArray::NewCapacityForIndex(index, len);
     array = Cast<FixedArray>(FixedArray::Resize(isolate, array, new_capacity));
     // TODO(jgruber): This is somewhat subtle - other FixedArray methods
     // use `undefined` as a filler. Make this more explicit.
@@ -39,13 +39,13 @@ HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
 }
 
 template DirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, DirectHandle<FixedArray> array, int index,
+    Isolate* isolate, DirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 template IndirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, IndirectHandle<FixedArray> array, int index,
+    Isolate* isolate, IndirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 
-void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
+void FixedArray::RightTrim(Isolate* isolate, uint32_t new_capacity) {
   DCHECK_NE(map(), ReadOnlyRoots{isolate}.fixed_cow_array_map());
   Super::RightTrim(isolate, new_capacity);
 }
@@ -54,7 +54,7 @@ template <template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
 HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
-    Isolate* isolate, HandleType<FixedArray> array, int new_length) {
+    Isolate* isolate, HandleType<FixedArray> array, uint32_t new_length) {
   if (new_length == 0) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -64,20 +64,21 @@ HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     DirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
-        Isolate* isolate, DirectHandle<FixedArray> array, int new_length);
+        Isolate* isolate, DirectHandle<FixedArray> array, uint32_t new_length);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     IndirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
-        Isolate* isolate, IndirectHandle<FixedArray> array, int new_length);
+        Isolate* isolate, IndirectHandle<FixedArray> array,
+        uint32_t new_length);
 
 // static
 DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<ArrayList> array,
                                        Tagged<Smi> obj,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 1;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length, obj, SKIP_WRITE_BARRIER);
@@ -90,10 +91,10 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<ArrayList> array,
                                        DirectHandle<Object> obj,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 1;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length, *obj);
@@ -107,10 +108,10 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<Object> obj0,
                                        DirectHandle<Object> obj1,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 2;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 2;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length + 0, *obj0);
@@ -123,7 +124,7 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
 DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
                                                  DirectHandle<ArrayList> array,
                                                  AllocationType allocation) {
-  int length = array->length();
+  const uint32_t length = array->ulength().value();
   if (length == 0) return isolate->factory()->empty_fixed_array();
 
   DirectHandle<FixedArray> result =
@@ -136,9 +137,9 @@ DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
   return result;
 }
 
-void ArrayList::RightTrim(Isolate* isolate, int new_capacity) {
+void ArrayList::RightTrim(Isolate* isolate, uint32_t new_capacity) {
   Super::RightTrim(isolate, new_capacity);
-  if (new_capacity < length()) set_length(new_capacity);
+  if (new_capacity < ulength().value()) set_length(new_capacity);
 }
 
 // static
@@ -147,10 +148,10 @@ DirectHandle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                                int length,
                                                AllocationType allocation) {
   DCHECK_LT(0, length);
-  int old_capacity = array->capacity();
-  if (old_capacity >= length) return array;
+  const uint32_t old_capacity = array->capacity().value();
+  if (old_capacity >= static_cast<uint32_t>(length)) return array;
 
-  int old_length = array->length();
+  const uint32_t old_length = array->ulength().value();
   // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
   int new_capacity = length + std::max(length / 2, 2);
   DirectHandle<ArrayList> new_array =

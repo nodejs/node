@@ -91,7 +91,23 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   void* data =
       ToCData<void*, kMicrotaskCallbackDataTag>(isolate, microtask_data);
   callback(data);
-  RETURN_FAILURE_IF_EXCEPTION(isolate);
+
+  if (isolate->has_exception()) {
+    if (isolate->is_execution_terminating()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
+    // C++ callbacks must catch exceptions thrown during execution, otherwise
+    // it's not possible to figure out the context in which the uncaught
+    // exception should be reported.
+    // In case this happens, report a soft crash and swallow the exception.
+    isolate->PushParamsAndContinue(
+        reinterpret_cast<void*>(callback), data,
+        reinterpret_cast<void*>(isolate->exception().ptr()));
+    // The above call should record all required information for debugging
+    // but if it didn't for some reason do crash here.
+    CHECK(v8_flags.ignore_exceptions_in_cpp_microtasks);
+    isolate->clear_exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -48,7 +48,8 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
 
 void JSArray::SetContent(Isolate* isolate, DirectHandle<JSArray> array,
                          DirectHandle<FixedArrayBase> storage) {
-  EnsureCanContainElements(isolate, array, storage, storage->length(),
+  const uint32_t storage_len = storage->ulength().value();
+  EnsureCanContainElements(isolate, array, storage, storage_len,
                            ALLOW_COPIED_DOUBLE_ELEMENTS);
 #ifdef DEBUG
   ReadOnlyRoots roots = GetReadOnlyRoots();
@@ -59,8 +60,9 @@ void JSArray::SetContent(Isolate* isolate, DirectHandle<JSArray> array,
     DCHECK_NE(map, roots.fixed_double_array_map());
     if (IsSmiElementsKind(array->GetElementsKind())) {
       auto elems = Cast<FixedArray>(storage);
+      const uint32_t elems_len = elems->ulength().value();
       Tagged<Object> the_hole = roots.the_hole_value();
-      for (int i = 0; i < elems->length(); i++) {
+      for (uint32_t i = 0; i < elems_len; i++) {
         Tagged<Object> candidate = elems->get(i);
         DCHECK(IsSmi(candidate) || candidate == the_hole);
       }
@@ -70,7 +72,7 @@ void JSArray::SetContent(Isolate* isolate, DirectHandle<JSArray> array,
   }
 #endif  // DEBUG
   array->set_elements(*storage);
-  array->set_length(Smi::FromInt(storage->length()));
+  array->set_length(Smi::FromUInt(storage_len));
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {

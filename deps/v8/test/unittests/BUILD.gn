@@ -308,11 +308,13 @@ v8_source_set("v8_unittests_sources") {
     "base/virtual-address-space-unittest.cc",
     "base/vlq-base64-unittest.cc",
     "base/vlq-unittest.cc",
+    "builtins/builtins-math-unittest.cc",
     "codegen/aligned-slot-allocator-unittest.cc",
     "codegen/code-layout-unittest.cc",
     "codegen/code-pages-unittest.cc",
     "codegen/factory-unittest.cc",
     "codegen/register-configuration-unittest.cc",
+    "codegen/safepoint-table-unittest.cc",
     "codegen/source-position-table-unittest.cc",
     "common/thread-isolation-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
@@ -324,6 +326,7 @@ v8_source_set("v8_unittests_sources") {
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
+    "dumpling/dumpling-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
@@ -368,6 +371,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
+    "heap/page-casting-unittest.cc",
     "heap/page-promotion-unittest.cc",
     "heap/persistent-handles-unittest.cc",
     "heap/pool-unittest.cc",
@@ -414,7 +418,9 @@ v8_source_set("v8_unittests_sources") {
     "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
+    "maglev/hamt-unittest.cc",
     "maglev/maglev-assembler-unittest.cc",
+    "maglev/maglev-graph-builder-unittest.cc",
     "maglev/maglev-test.cc",
     "maglev/maglev-test.h",
     "maglev/node-type-unittest.cc",
@@ -466,9 +472,12 @@ v8_source_set("v8_unittests_sources") {
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
+    "sandbox/bytecode-verifier-unittest.cc",
+    "sandbox/libcxx-hardening-unittest.cc",
     "sandbox/pointer-table-unittest.cc",
     "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
+    "sandbox/sandbox-violation-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
@@ -575,6 +584,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
       "compiler/turboshaft/load-store-address-hoisting-unittest.cc",
@@ -612,6 +622,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/wasm-address-reassociation-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
       "wasm/basic-block-calculator-unittest.cc",
+      "wasm/compilation-hints-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
@@ -675,8 +686,12 @@ v8_source_set("v8_unittests_sources") {
 
   if (v8_current_cpu == "arm") {
     sources += [
+      "assembler/assembler-arm-unittest.cc",
+      "assembler/assembler-helper-arm.cc",
+      "assembler/assembler-helper-arm.h",
       "assembler/disasm-arm-unittest.cc",
       "assembler/macro-assembler-arm-unittest.cc",
+      "assembler/sync-primitives-arm-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [
@@ -686,20 +701,20 @@ v8_source_set("v8_unittests_sources") {
     }
   } else if (v8_current_cpu == "arm64") {
     sources += [
+      "assembler/assembler-arm64-unittest.cc",
       "assembler/disasm-arm64-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
+      "assembler/test-utils-arm64.cc",
+      "assembler/test-utils-arm64.h",
       "execution/pointer-auth-arm64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources +=
           [ "compiler/arm64/turboshaft-instruction-selector-arm64-unittest.cc" ]
     }
-    if (v8_enable_webassembly && current_cpu == "arm64" &&
-        !v8_target_is_simulator) {
-      sources += [ "wasm/trap-handler-native-unittest.cc" ]
-    }
   } else if (v8_current_cpu == "x86") {
     sources += [
+      "assembler/assembler-ia32-unittest.cc",
       "assembler/disasm-ia32-unittest.cc",
       "assembler/macro-assembler-ia32-unittest.cc",
     ]
@@ -709,26 +724,37 @@ v8_source_set("v8_unittests_sources") {
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
+      "assembler/assembler-mips64-unittest.cc",
       "assembler/disasm-mips64-unittest.cc",
       "assembler/macro-assembler-mips64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/mips64/turboshaft-instruction-selector-mips64-unittest.cc",
+      ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
+      "assembler/assembler-riscv64-unittest.cc",
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/macro-assembler-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv64-unittest.cc",
+      "assembler/simple-riscv64-unittest.cc",
+      "assembler/test-helper-riscv64.cc",
+      "assembler/test-helper-riscv64.h",
     ]
     if (v8_enable_turbofan) {
       sources += [
         "compiler/riscv64/turboshaft-instruction-selector-riscv64-unittest.cc",
       ]
     }
-    if (v8_enable_webassembly && current_cpu == "riscv64") {
-      sources += [ "wasm/trap-handler-native-unittest.cc" ]
-    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
+      "assembler/assembler-riscv32-unittest.cc",
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/macro-assembler-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv32-unittest.cc",
+      "assembler/simple-riscv32-unittest.cc",
+      "assembler/test-helper-riscv32.cc",
+      "assembler/test-helper-riscv32.h",
     ]
     if (v8_enable_turbofan) {
       sources += [
@@ -745,11 +771,9 @@ v8_source_set("v8_unittests_sources") {
       sources +=
           [ "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc" ]
     }
-    if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-native-unittest.cc" ]
-    }
   } else if (v8_current_cpu == "ppc64") {
     sources += [
+      "assembler/assembler-ppc-unittest.cc",
       "assembler/disasm-ppc-unittest.cc",
       "assembler/macro-assembler-ppc-unittest.cc",
     ]
@@ -758,19 +782,30 @@ v8_source_set("v8_unittests_sources") {
     }
   } else if (v8_current_cpu == "s390x") {
     sources += [
+      "assembler/assembler-s390-unittest.cc",
       "assembler/disasm-s390-unittest.cc",
       "assembler/macro-assembler-s390-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
     }
+    if (current_os == "zos" && is_component_build) {
+      # for OpcodeFormatTable:
+      sources += [
+        "../../src/codegen/s390/constants-s390.cc",
+        "../../src/codegen/s390/constants-s390.h",
+      ]
+    }
   } else if (v8_current_cpu == "loong64") {
     sources += [
+      "assembler/assembler-loong64-unittest.cc",
       "assembler/disasm-loong64-unittest.cc",
       "assembler/macro-assembler-loong64-unittest.cc",
     ]
-    if (v8_enable_webassembly && current_cpu == "loong64") {
-      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/loong64/turboshaft-instruction-selector-loong64-unittest.cc",
+      ]
     }
   }
 
@@ -791,6 +826,13 @@ v8_source_set("v8_unittests_sources") {
         (current_cpu == "arm64" && (is_linux || is_mac) &&
          v8_target_is_simulator)) {
       sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
+    }
+
+    # Include this test on native builds (for architectures supporting it).
+    if (v8_current_cpu == current_cpu && !v8_target_is_simulator &&
+        (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+         v8_current_cpu == "riscv64" || v8_current_cpu == "loong64")) {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   }
 

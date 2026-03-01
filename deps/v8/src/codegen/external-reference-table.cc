@@ -25,7 +25,10 @@ namespace internal {
 #define ADD_EXT_REF_NAME(name, desc) desc,
 #define ADD_BUILTIN_NAME(Name, ...) "Builtin_" #Name,
 #define ADD_RUNTIME_FUNCTION(name, ...) "Runtime::" #name,
-#define ADD_ISOLATE_ADDR(Name, name) "Isolate::" #name "_address",
+#define ADD_ISOLATE_DATA_FIELD_ADDR(Name, Size, name) "IsolateData::" #name "_",
+#define ADD_ISOLATE_DATA_SUBFIELD_ADDR(CamelName, name, holder_field_name, \
+                                       ...)                                \
+  "IsolateData::" #name "_address()",
 #define ADD_ACCESSOR_INFO_NAME(_, __, AccessorName, ...) \
   "Accessors::" #AccessorName "Getter",
 #define ADD_ACCESSOR_GETTER_NAME(name) "Accessors::" #name,
@@ -55,8 +58,9 @@ const char* const
         // === Isolate dependent ===
         // External references (with isolate):
         EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(ADD_EXT_REF_NAME)
-        // Isolate addresses:
-        FOR_EACH_ISOLATE_ADDRESS_NAME(ADD_ISOLATE_ADDR)
+        // IsolateData addresses:
+        ISOLATE_DATA_FIELDS(ADD_ISOLATE_DATA_FIELD_ADDR)
+        ISOLATE_DATA_SUBFIELDS(ADD_ISOLATE_DATA_SUBFIELD_ADDR)
         // Stub cache:
         "Load StubCache::primary_->key",
         "Load StubCache::primary_->value",
@@ -77,7 +81,8 @@ const char* const
 #undef ADD_EXT_REF_NAME
 #undef ADD_BUILTIN_NAME
 #undef ADD_RUNTIME_FUNCTION
-#undef ADD_ISOLATE_ADDR
+#undef ADD_ISOLATE_DATA_FIELD_ADDR
+#undef ADD_ISOLATE_DATA_SUBFIELD_ADDR
 #undef ADD_ACCESSOR_INFO_NAME
 #undef ADD_ACCESSOR_SETTER_NAME
 #undef ADD_ACCESSOR_CALLBACK_NAME
@@ -105,7 +110,7 @@ void ExternalReferenceTable::Init(Isolate* isolate) {
 
   int index = kSizeIsolateIndependent;
   AddIsolateDependentReferences(isolate, &index);
-  AddIsolateAddresses(isolate, &index);
+  AddIsolateFields(isolate, &index);
   AddStubCache(isolate, &index);
   AddNativeCodeStatsCounters(isolate, &index);
   CHECK_EQ(kSize, index);
@@ -246,16 +251,17 @@ void ExternalReferenceTable::CopyIsolateIndependentReferences(
   *index += kSizeIsolateIndependent;
 }
 
-void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddIsolateFields(Isolate* isolate, int* index) {
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent,
            *index);
 
-  for (int i = 0; i < IsolateAddressId::kIsolateAddressCount; ++i) {
-    Add(isolate->get_address_from_id(static_cast<IsolateAddressId>(i)), index);
+  for (int i = 0; i < kNumIsolateFieldIds; ++i) {
+    IsolateFieldId field_id = static_cast<IsolateFieldId>(i);
+    Add(isolate->isolate_data()->GetAddress(field_id), index);
   }
 
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-               kIsolateAddressReferenceCount,
+               kIsolateFieldReferenceCount,
            *index);
 }
 
@@ -300,7 +306,7 @@ void ExternalReferenceTable::AddAccessors(
 
 void ExternalReferenceTable::AddStubCache(Isolate* isolate, int* index) {
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-               kIsolateAddressReferenceCount,
+               kIsolateFieldReferenceCount,
            *index);
 
   // Stub cache tables
@@ -318,7 +324,7 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate, int* index) {
   }
 
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-               kIsolateAddressReferenceCount + kStubCacheReferenceCount,
+               kIsolateFieldReferenceCount + kStubCacheReferenceCount,
            *index);
 }
 
@@ -334,7 +340,7 @@ Address ExternalReferenceTable::GetStatsCounterAddress(StatsCounter* counter) {
 void ExternalReferenceTable::AddNativeCodeStatsCounters(Isolate* isolate,
                                                         int* index) {
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-               kIsolateAddressReferenceCount + kStubCacheReferenceCount,
+               kIsolateFieldReferenceCount + kStubCacheReferenceCount,
            *index);
 
   Counters* counters = isolate->counters();
@@ -344,7 +350,7 @@ void ExternalReferenceTable::AddNativeCodeStatsCounters(Isolate* isolate,
 #undef SC
 
   CHECK_EQ(kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
-               kIsolateAddressReferenceCount + kStubCacheReferenceCount +
+               kIsolateFieldReferenceCount + kStubCacheReferenceCount +
                kStatsCountersReferenceCount,
            *index);
   CHECK_EQ(kSize, *index);

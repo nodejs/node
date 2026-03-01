@@ -17,12 +17,8 @@
   'memory64/table64': [FAIL],
   'table': [FAIL],
 
-  # TODO(jkummerow): Implement changes in https://github.com/WebAssembly/custom-descriptors/pull/72
-  'proposals/custom-descriptors/custom-descriptors/exact-func-import': [FAIL],
-
   # Implementation in progress.
   'proposals/stack-switching/stack-switching/cont': [FAIL],
-  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -85,10 +81,27 @@
 }],  # 'arch == s390x'
 
 ##############################################################################
-# TODO(v8:7777): Change this once wasm is supported in jitless mode.
-['not has_webassembly or variant == jitless', {
+['not has_webassembly', {
   '*': [SKIP],
-}],  # not has_webassembly or variant == jitless
+}],  # not has_webassembly
+
+##############################################################################
+['not has_wasm_interpreter and variant == jitless', {
+  '*': [SKIP],
+}],  # not has_wasm_interpreter and variant == jitless
+
+##############################################################################
+['has_wasm_interpreter and variant == jitless', {
+  'memory64/*': [SKIP],
+  'multi-memory/*': [SKIP],
+  'instance': [SKIP],
+  'proposals/*': [SKIP],
+  'ref_null': [SKIP],
+  'exceptions/throw': [SKIP],
+  'exceptions/throw_ref': [SKIP],
+  'exceptions/try_table': [SKIP],
+  'simd/simd_memory-multi': [SKIP],
+ }],  # has_wasm_interpreter and variant == jitless
 
 ##############################################################################
 ['variant == stress_snapshot', {
@@ -117,10 +130,5 @@
 ['tsan == True', {
   'bulk-memory/memory_copy': [SKIP],
 }],  # tsan == True
-
-['variant == nooptimization', {
-  # No Liftoff implementation yet.
-  'proposals/stack-switching/stack-switching/*': [FAIL],
-}],
 
 ]

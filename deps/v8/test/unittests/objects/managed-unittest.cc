@@ -4,10 +4,10 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,6 +28,17 @@ class DeleteCounter {
 
  private:
   int* deleted_;
+};
+
+class WithSharedManagedTag {
+ public:
+  static constexpr ExternalPointerTag kManagedTag =
+      kWasmFutexManagedObjectWaitListTag;
+  explicit WithSharedManagedTag(int dummy) : dummy_(dummy) {}
+  int dummy() { return dummy_; }
+
+ private:
+  int dummy_;
 };
 
 TEST_F(ManagedTest, GCCausesDestruction) {
@@ -84,7 +95,7 @@ TEST_F(ManagedTest, DisposeCausesDestruction2) {
   }
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
   ManagedPtrDestructor* destructor =
-      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter);
+      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter, false);
   i_isolate->RegisterManagedPtrDestructor(destructor);
 
   isolate->Exit();
@@ -114,6 +125,49 @@ TEST_F(ManagedTest, DisposeWithAnotherSharedPtr) {
   // Should be deleted after the second shared pointer is destroyed.
   CHECK_EQ(1, deleted1);
 }
+
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+TEST_F(TestWithZone, DisposeAcrossIsolatesShared) {
+  FlagScope<bool> shared_heap_flag_scope(&v8_flags.shared_heap, true);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      ArrayBuffer::Allocator::NewDefaultAllocator();
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  Isolate* i_isolate1 = reinterpret_cast<i::Isolate*>(isolate1);
+  isolate1->Enter();
+
+  {
+    HandleScope scope1(i_isolate1);
+    DirectHandle<Managed<WithSharedManagedTag>> managed1;
+
+    v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+    Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
+    isolate2->Enter();
+
+    {
+      HandleScope scope2(i_isolate2);
+      auto shared = std::make_shared<WithSharedManagedTag>(42);
+      DirectHandle<Managed<WithSharedManagedTag>> managed2 =
+          Managed<WithSharedManagedTag>::From(
+              i_isolate2, sizeof(WithSharedManagedTag), shared,
+              AllocationType::kSharedOld);
+      CHECK_EQ(managed2->raw()->dummy(), 42);
+      isolate2->Exit();
+      CHECK_EQ(managed2->raw()->dummy(), 42);
+      managed1 =
+          DirectHandle<Managed<WithSharedManagedTag>>(*managed2, i_isolate1);
+    }
+
+    isolate2->Dispose();
+    CHECK_EQ(managed1->raw()->dummy(), 42);
+  }
+
+  isolate1->Exit();
+  isolate1->Dispose();
+  delete create_params.array_buffer_allocator;
+}
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
 
 TEST_F(ManagedTest, DisposeAcrossIsolates) {
   v8::Isolate::CreateParams create_params;

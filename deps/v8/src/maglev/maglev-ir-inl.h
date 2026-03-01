@@ -84,31 +84,26 @@ inline void UseFixed(Input input, DoubleRegister reg) {
       compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
+inline void UseAndClobberFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+  input.node()->SetHint(input.operand());
+}
 
 CallKnownJSFunction::CallKnownJSFunction(
-    uint64_t bitfield,
-#ifdef V8_ENABLE_LEAPTIERING
-    JSDispatchHandle dispatch_handle,
-#endif
+    uint64_t bitfield, JSDispatchHandle dispatch_handle,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
     ValueNode* context, ValueNode* receiver, ValueNode* new_target,
     const compiler::FeedbackSource& feedback_source)
     : Base(bitfield),
-#ifdef V8_ENABLE_LEAPTIERING
       dispatch_handle_(dispatch_handle),
-#endif
       shared_function_info_(shared_function_info),
       expected_parameter_count_(
-#ifdef V8_ENABLE_LEAPTIERING
-          IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-              dispatch_handle)
-#else
-          shared_function_info
-              .internal_formal_parameter_count_with_receiver_deprecated()
-#endif
-              ),
+          Isolate::Current()->js_dispatch_table().GetParameterCount(
+              dispatch_handle)),
       feedback_source_(feedback_source) {
-  set_input(kClosureIndex, closure);
+  set_input(kTargetIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);
   set_input(kNewTargetIndex, new_target);
@@ -116,7 +111,7 @@ CallKnownJSFunction::CallKnownJSFunction(
 
 void NodeBase::UnwrapDeoptFrames() {
   // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
-  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
+  if (properties().has_eager_deopt_info()) {
     eager_deopt_info()->Unwrap();
   }
   if (properties().can_lazy_deopt()) {

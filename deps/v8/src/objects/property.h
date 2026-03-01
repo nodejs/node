@@ -30,23 +30,22 @@ class V8_EXPORT_PRIVATE Descriptor final {
   MaybeObjectDirectHandle GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
 
+  int GetSortedKeyIndex() const { return details_.pointer(); }
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
   static Descriptor DataField(Isolate* isolate, DirectHandle<Name> key,
                               int field_index, PropertyAttributes attributes,
-                              Representation representation);
+                              Representation representation, bool in_object);
 
-  static Descriptor DataField(
-      DirectHandle<Name> key, int field_index, PropertyAttributes attributes,
-      PropertyConstness constness, Representation representation,
-      const MaybeObjectDirectHandle& wrapped_field_type);
+  static Descriptor DataField(DirectHandle<Name> key, int field_index,
+                              PropertyAttributes attributes,
+                              PropertyConstness constness,
+                              Representation representation,
+                              const MaybeObjectDirectHandle& wrapped_field_type,
+                              bool in_object);
 
   static Descriptor DataConstant(DirectHandle<Name> key,
                                  DirectHandle<Object> value,
-                                 PropertyAttributes attributes);
-
-  static Descriptor DataConstant(Isolate* isolate, DirectHandle<Name> key,
-                                 int field_index, DirectHandle<Object> value,
                                  PropertyAttributes attributes);
 
   static Descriptor AccessorConstant(DirectHandle<Name> key,
@@ -65,8 +64,7 @@ class V8_EXPORT_PRIVATE Descriptor final {
   Descriptor(DirectHandle<Name> key, const MaybeObjectDirectHandle& value,
              PropertyKind kind, PropertyAttributes attributes,
              PropertyLocation location, PropertyConstness constness,
-             Representation representation, int field_index);
-
+             Representation representation, int field_index, bool in_object);
   friend class MapUpdater;
 };
 

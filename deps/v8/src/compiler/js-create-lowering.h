@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -96,11 +97,13 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Node* TryAllocateRestArguments(Node* effect, Node* control,
                                  FrameState frame_state, int start_index);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control,
-                                    FrameState frame_state, Node* context,
-                                    SharedFunctionInfoRef shared,
+                                    FrameState frame_state,
+                                    int parameter_count_without_receiver,
+                                    Node* context, SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control, Node* context,
                                     Node* arguments_length,
+                                    int parameter_count_without_receiver,
                                     SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   std::optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,

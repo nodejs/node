@@ -58,11 +58,13 @@ enum class FunctionKind : uint8_t {
   kConciseMethod,
   kStaticConciseMethod,
   kClassMembersInitializerFunction,
+  kClassMembersInitializerFunctionPrecededByStatic,
   kClassStaticInitializerFunction,
+  kClassStaticInitializerFunctionPrecededByMember,
   // END concise methods 2
   kInvalid,
 
-  kLastFunctionKind = kClassStaticInitializerFunction,
+  kLastFunctionKind = kClassStaticInitializerFunctionPrecededByMember,
 };
 
 constexpr int kFunctionKindBitSize = 5;
@@ -105,8 +107,9 @@ inline bool IsResumableFunction(FunctionKind kind) {
 inline bool IsConciseMethod(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
                          FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
-         base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kClassStaticInitializerFunction);
+         base::IsInRange(
+             kind, FunctionKind::kConciseGeneratorMethod,
+             FunctionKind::kClassStaticInitializerFunctionPrecededByMember);
 }
 
 inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
@@ -114,8 +117,9 @@ inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
                          FunctionKind::kAsyncArrowFunction) ||
          base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
                          FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
-         base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kClassStaticInitializerFunction);
+         base::IsInRange(
+             kind, FunctionKind::kConciseGeneratorMethod,
+             FunctionKind::kClassStaticInitializerFunctionPrecededByMember);
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
@@ -153,9 +157,22 @@ inline bool IsClassConstructor(FunctionKind kind) {
                          FunctionKind::kDerivedConstructor);
 }
 
-inline bool IsClassMembersInitializerFunction(FunctionKind kind) {
-  return base::IsInRange(kind, FunctionKind::kClassMembersInitializerFunction,
-                         FunctionKind::kClassStaticInitializerFunction);
+inline bool IsClassInitializerFunction(FunctionKind kind) {
+  return base::IsInRange(
+      kind, FunctionKind::kClassMembersInitializerFunction,
+      FunctionKind::kClassStaticInitializerFunctionPrecededByMember);
+}
+
+inline bool IsClassInstanceInitializerFunction(FunctionKind kind) {
+  return base::IsInRange(
+      kind, FunctionKind::kClassMembersInitializerFunction,
+      FunctionKind::kClassMembersInitializerFunctionPrecededByStatic);
+}
+
+inline bool IsClassStaticInitializerFunction(FunctionKind kind) {
+  return base::IsInRange(
+      kind, FunctionKind::kClassStaticInitializerFunction,
+      FunctionKind::kClassStaticInitializerFunctionPrecededByMember);
 }
 
 inline bool IsConstructable(FunctionKind kind) {
@@ -172,6 +189,7 @@ inline bool IsStatic(FunctionKind kind) {
     case FunctionKind::kStaticAsyncConciseMethod:
     case FunctionKind::kStaticAsyncConciseGeneratorMethod:
     case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return true;
     default:
       return false;
@@ -217,6 +235,10 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "ClassMembersInitializerFunction";
     case FunctionKind::kClassStaticInitializerFunction:
       return "ClassStaticInitializerFunction";
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+      return "ClassMembersInitializerFunctionPrecededByStatic";
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
+      return "ClassStaticInitializerFunctionPrecededByMember";
     case FunctionKind::kDefaultBaseConstructor:
       return "DefaultBaseConstructor";
     case FunctionKind::kDefaultDerivedConstructor:

@@ -12,7 +12,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/map-updater.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
@@ -170,54 +169,20 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
   DirectHandle<JSAny> object = args.at<JSAny>(0);
 
-  if (IsJSModuleNamespace(*object)) {
-    LookupIterator it(isolate, object, key, LookupIterator::OWN);
-    PropertyDescriptor desc;
-    Maybe<bool> result = JSReceiver::GetOwnPropertyDescriptor(&it, &desc);
-    if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
-    return isolate->heap()->ToBoolean(result.FromJust());
-
-  } else if (IsJSObject(*object)) {
-    DirectHandle<JSObject> js_obj = Cast<JSObject>(object);
-    // Fast case: either the key is a real named property or it is not
-    // an array index and there are no interceptors or hidden
-    // prototypes.
-    // TODO(jkummerow): Make JSReceiver::HasOwnProperty fast enough to
-    // handle all cases directly (without this custom fast path).
-    {
-      LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-      LookupIterator it(isolate, js_obj, key, js_obj, c);
-      Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-      if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-      DCHECK(!isolate->has_exception());
-      if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
+  if (IsJSReceiver(*object)) {
+    DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(object);
+    Maybe<bool> maybe;
+    if (key.is_element()) {
+      maybe = JSReceiver::HasOwnProperty(isolate, receiver, key.index());
+    } else {
+      maybe = JSReceiver::HasOwnProperty(isolate, receiver, key.name());
     }
-
-    Tagged<Map> map = js_obj->map();
-    if (!IsJSGlobalProxyMap(map) &&
-        (key.is_element() && key.index() <= JSObject::kMaxElementIndex
-             ? !map->has_indexed_interceptor()
-             : !map->has_named_interceptor())) {
-      return ReadOnlyRoots(isolate).false_value();
-    }
-
-    // Slow case.
-    LookupIterator it(isolate, js_obj, key, js_obj, LookupIterator::OWN);
-    Maybe<bool> maybe = JSReceiver::HasProperty(&it);
     if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
     DCHECK(!isolate->has_exception());
-    return isolate->heap()->ToBoolean(maybe.FromJust());
-
-  } else if (IsJSProxy(*object)) {
-    LookupIterator it(isolate, object, key, Cast<JSProxy>(object),
-                      LookupIterator::OWN);
-    Maybe<PropertyAttributes> attributes =
-        JSReceiver::GetPropertyAttributes(&it);
-    if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
-    return isolate->heap()->ToBoolean(attributes.FromJust() != ABSENT);
+    return ReadOnlyRoots(isolate).boolean_value(maybe.FromJust());
 
   } else if (IsString(*object)) {
-    return isolate->heap()->ToBoolean(
+    return ReadOnlyRoots(isolate).boolean_value(
         key.is_element()
             ? key.index() < static_cast<size_t>(Cast<String>(*object)->length())
             : key.name()->Equals(ReadOnlyRoots(isolate).length_string()));
@@ -245,10 +210,10 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
 
     switch (it.state()) {
       case LookupIterator::NOT_FOUND:
-        return isolate->heap()->ToBoolean(false);
+        return ReadOnlyRoots(isolate).boolean_value(false);
       case LookupIterator::DATA:
-        return isolate->heap()->ToBoolean(it.constness() ==
-                                          PropertyConstness::kConst);
+        return ReadOnlyRoots(isolate).boolean_value(it.constness() ==
+                                                    PropertyConstness::kConst);
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
       case LookupIterator::ACCESS_CHECK:
@@ -256,6 +221,7 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
       case LookupIterator::WASM_OBJECT:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::ACCESSOR:
+      case LookupIterator::MODULE_NAMESPACE:
         return ReadOnlyRoots(isolate).undefined_value();
 
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
@@ -268,7 +234,8 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
-  return isolate->heap()->ToBoolean(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  return ReadOnlyRoots(isolate).boolean_value(
+      V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 }
 
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
@@ -313,7 +280,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DirectHandle<Symbol> brand = args.at<Symbol>(1);
   DirectHandle<Context> context = args.at<Context>(2);
   int depth = args.smi_value_at(3);
-  DCHECK(brand->is_private_name());
+  DCHECK(brand->is_any_private_name());
 
   LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
 
@@ -409,7 +376,7 @@ MaybeDirectHandle<Object> Runtime::SetObjectProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeDirectHandle<Object>();
   LookupIterator it(isolate, receiver, lookup_key, lookup_start_obj);
-  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_any_private_name()) {
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, false);
     MAYBE_RETURN_NULL(can_store);
     if (!can_store.FromJust()) {
@@ -454,7 +421,7 @@ MaybeDirectHandle<Object> Runtime::DefineObjectOwnProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeDirectHandle<Object>();
 
-  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_any_private_name()) {
     LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, true);
     MAYBE_RETURN_NULL(can_store);
@@ -566,7 +533,7 @@ RUNTIME_FUNCTION(Runtime_ObjectIsExtensible) {
           ? JSReceiver::IsExtensible(isolate, Cast<JSReceiver>(object))
           : Just(false);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_JSReceiverPreventExtensionsThrow) {
@@ -658,13 +625,16 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   if (IsJSObject(*lookup_start_obj)) {
     DirectHandle<JSObject> lookup_start_object =
         Cast<JSObject>(lookup_start_obj);
-    if (!IsJSGlobalProxy(*lookup_start_object) &&
-        !IsAccessCheckNeeded(*lookup_start_object) && IsName(*key_obj)) {
+    if (IsName(*key_obj) &&
+        (!IsSpecialReceiverMap(lookup_start_object->map()) ||
+         (IsJSGlobalObject(*lookup_start_obj) &&
+          !lookup_start_object->map()->has_named_interceptor()))) {
       DirectHandle<Name> key = Cast<Name>(key_obj);
       key_obj = key = isolate->factory()->InternalizeName(key);
 
       DisallowGarbageCollection no_gc;
       if (IsJSGlobalObject(*lookup_start_object)) {
+        CHECK(!lookup_start_object->map()->is_access_check_needed());
         // Attempt dictionary lookup.
         Tagged<GlobalDictionary> dictionary =
             Cast<JSGlobalObject>(*lookup_start_object)
@@ -686,7 +656,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, *key);
           if (entry.is_found() &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         } else {
           Tagged<NameDictionary> dictionary =
@@ -694,7 +667,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, key);
           if ((entry.is_found()) &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         }
       }
@@ -707,7 +683,9 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       // become PACKED_DOUBLE_ELEMENTS.
       ElementsKind elements_kind = lookup_start_object->GetElementsKind();
       if (IsDoubleElementsKind(elements_kind)) {
-        if (Smi::ToInt(*key_obj) >= lookup_start_object->elements()->length()) {
+        if (Smi::ToInt(*key_obj) >=
+            static_cast<int>(
+                lookup_start_object->elements()->ulength().value())) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(isolate, lookup_start_object,
@@ -786,7 +764,7 @@ Tagged<Object> DeleteProperty(Isolate* isolate, DirectHandle<Object> object,
   Maybe<bool> result =
       Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 }  // namespace
@@ -841,7 +819,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   // Lookup the {name} on {receiver}.
   Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-  return isolate->heap()->ToBoolean(maybe.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(maybe.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
@@ -1066,7 +1044,7 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   auto obj = Cast<HeapObject>(args[0]);
-  return isolate->heap()->ToBoolean(
+  return ReadOnlyRoots(isolate).boolean_value(
       IsFastPackedElementsKind(obj->map()->elements_kind()));
 }
 
@@ -1074,7 +1052,7 @@ RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSReceiver(obj));
+  return ReadOnlyRoots(isolate).boolean_value(IsJSReceiver(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_GetFunctionName) {
@@ -1305,7 +1283,7 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   Maybe<bool> result = JSReceiver::HasInPrototypeChain(
       isolate, Cast<JSReceiver>(object), prototype);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 // ES6 section 7.4.7 CreateIterResultObject ( value, done )
@@ -1430,10 +1408,11 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
     }
   }
 
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Object> obj_key(keys->get(i), isolate);
     Handle<Symbol> symbol(Cast<Symbol>(*obj_key), isolate);
-    CHECK(symbol->is_private_name());
+    CHECK(symbol->is_any_private_name());
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                Object::GetProperty(isolate, receiver, symbol));

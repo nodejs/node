@@ -45,7 +45,9 @@ inline void JSDisposableStackBase::Add(
     DirectHandle<Object> value, DirectHandle<Object> method,
     DisposeMethodCallType type, DisposeMethodHint hint) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
-  int length = disposable_stack->length();
+  const int int_length = disposable_stack->length();
+  DCHECK_GE(int_length, 0);
+  uint32_t length = static_cast<uint32_t>(int_length);
   int stack_type =
       DisposeCallTypeBit::encode(type) | DisposeHintBit::encode(hint);
   DirectHandle<Smi> stack_type_handle(Smi::FromInt(stack_type), isolate);

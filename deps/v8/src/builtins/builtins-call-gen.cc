@@ -82,6 +82,18 @@ void Builtins::Generate_CallApiCallbackOptimized(MacroAssembler* masm) {
   Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kOptimized);
 }
 
+void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, false, false);
+}
+
+void Builtins::Generate_CallNamedInterceptorGetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, true, false);
+}
+
+void Builtins::Generate_CallNamedInterceptorSetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, true, true);
+}
+
 // TODO(cbruni): Try reusing code between builtin versions to avoid binary
 // overhead.
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline_Compact,
@@ -300,8 +312,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> length = var_length.value();
     {
       Label normalize_done(this);
-      CSA_DCHECK(this, Int32LessThanOrEqual(
-                           length, Int32Constant(FixedArray::kMaxLength)));
+      CSA_DCHECK(this, Uint32LessThanOrEqual(
+                           length, Uint32Constant(FixedArray::kMaxLength)));
       GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
       // Make sure we don't accidentally pass along the
       // empty_fixed_double_array since the tailed-called stubs cannot handle
@@ -346,8 +358,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  CSA_DCHECK(this, Int32LessThanOrEqual(length,
-                                        Int32Constant(FixedArray::kMaxLength)));
+  CSA_DCHECK(this, Uint32LessThanOrEqual(
+                       length, Uint32Constant(FixedArray::kMaxLength)));
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
   CSA_DCHECK(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
@@ -457,8 +469,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
         var_js_array.value(), JSArray::kLengthOffset);
     TNode<FixedArrayBase> elements = var_elements.value();
-    CSA_DCHECK(this, Int32LessThanOrEqual(
-                         length, Int32Constant(FixedArray::kMaxLength)));
+    CSA_DCHECK(this, Uint32LessThanOrEqual(
+                         length, Uint32Constant(FixedArray::kMaxLength)));
 
     if (!new_target) {
       TailCallBuiltin(Builtin::kCallVarargs, context, target, args_count,

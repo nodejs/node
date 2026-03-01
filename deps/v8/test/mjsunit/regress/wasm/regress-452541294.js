@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-custom-descriptors
+// Flags: --experimental-wasm-custom-descriptors --experimental-wasm-js-interop
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -18,7 +18,7 @@ builder.addFunction("make", makeSig([kWasmExternRef], [kWasmAnyRef]))
   .exportFunc()
   .addBody([kExprLocalGet, 0,
             kGCPrefix, kExprStructNew, $desc0,
-            kGCPrefix, kExprStructNewDefault, $struct0,
+            kGCPrefix, kExprStructNewDefaultDesc, $struct0,
             ]);
 
 let instance = builder.instantiate();

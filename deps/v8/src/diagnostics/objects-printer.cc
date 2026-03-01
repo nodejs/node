@@ -61,11 +61,9 @@ void PrintDouble(std::ostream& os, double val) {
     // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   } else if (std::isnan(val)) {
     os << val << " (0x" << std::hex << base::double_to_uint64(val) << std::dec
        << ")";
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   } else {
     os << val;
   }
@@ -73,6 +71,23 @@ void PrintDouble(std::ostream& os, double val) {
 }  // namespace
 
 #ifdef OBJECT_PRINT
+
+const char* JSIteratorHelperStateToString(JSIteratorHelperState state) {
+  switch (state) {
+    case JSIteratorHelperState::kSuspendedStart:
+      return "SUSPENDED_START";
+    case JSIteratorHelperState::kSuspendedYield:
+      return "SUSPENDED_YIELD";
+    case JSIteratorHelperState::kExecuting:
+      return "EXECUTING";
+    case JSIteratorHelperState::kCompleted:
+      return "COMPLETED";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorHelperState state) {
+  return os << JSIteratorHelperStateToString(state);
+}
 
 void Print(Tagged<Object> obj) {
   // Output into debugger's command window if a debugger is attached.
@@ -99,22 +114,29 @@ namespace {
 #define AS_PTR(x) reinterpret_cast<void*>(x)
 #define AS_OBJ(x) Brief(Tagged<Object>(x))
 
-void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
-                               Address length, std::ostream& os) {
+void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
   using FCA = FunctionCallbackArguments;
 
-  static_assert(FCA::kArgsLength == 6);
-  os << "FunctionCallbackInfo: "  //
-     << "\n - isolate: " << AS_PTR(implicit_args[FCA::kIsolateIndex])
-     << "\n - return_value: " << AS_OBJ(implicit_args[FCA::kReturnValueIndex])
-     << "\n - target: " << AS_OBJ(implicit_args[FCA::kTargetIndex])
-     << "\n - new_target: " << AS_OBJ(implicit_args[FCA::kNewTargetIndex])
+  static_assert(FCA::kApiArgsLength == 4);
+  uint32_t argc = static_cast<uint32_t>(values[FCA::kArgcIndex]);
+  bool is_construct = values[FCA::kFrameTypeIndex] ==
+                      Smi::FromEnum(StackFrame::API_CONSTRUCT_EXIT).ptr();
 
-     << "\n - argc: " << length  //
-     << "\n - receiver: " << AS_OBJ(js_args[0]);
+  os << "FunctionCallbackInfo: "
+     << (is_construct ? "[[Construct]]" : "[[Call]]")
+     << "\n - isolate: " << AS_PTR(values[FCA::kIsolateIndex])
+     << "\n - return_value: " << AS_OBJ(values[FCA::kReturnValueIndex])
+     << "\n - target: " << AS_OBJ(values[FCA::kTargetIndex]);
 
-  constexpr int kMaxArgs = 4;
-  for (int i = 0; i < std::min(static_cast<int>(length), kMaxArgs); i++) {
+  if (is_construct) {
+    os << "\n - new_target: " << AS_OBJ(values[FCA::kNewTargetIndex]);
+  }
+  os << "\n - argc: " << argc
+     << "\n - receiver: " << AS_OBJ(values[FCA::kReceiverIndex]);
+
+  constexpr uint32_t kMaxArgs = 4;
+  Address* js_args = &values[FCA::kFirstJSArgumentIndex];
+  for (uint32_t i = 0; i < std::min(argc, kMaxArgs); i++) {
     os << "\n - arg[" << i << "]: " << AS_OBJ(js_args[i]);
   }
   os << "\n";
@@ -123,20 +145,28 @@ void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kArgsLength == 8);
-  os << "PropertyCallbackInfo: "  //
+  static_assert(PCA::kFullArgsLength == 11 || PCA::kFullArgsLength == 12);
+  bool is_named = args[PCA::kFrameTypeIndex] ==
+                  Smi::FromEnum(StackFrame::API_NAMED_ACCESSOR_EXIT).ptr();
+
+  os << "PropertyCallbackInfo: " << (is_named ? "(named)" : "(indexed)")
      << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
-     << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
-     << "\n - holderV2: " << AS_OBJ(args[PCA::kHolderV2Index])
-     << "\n - data: " << AS_OBJ(args[PCA::kDataIndex])  //
-     << "\n - property_key: " << AS_OBJ(args[PCA::kPropertyKeyIndex])
-     << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
+     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex]);
 
-  // In case it's a setter call there will be additional |value| parameter,
-  // print it as a raw pointer to avoid crashing.
-  os << "\n - value?: " << AS_PTR(args[PCA::kArgsLength]);
+  if (is_named) {
+    os << "\n - property_name: " << AS_OBJ(args[PCA::kPropertyKeyIndex]);
+  } else {
+    os << "\n - property_index: " << args[PCA::kPropertyKeyIndex];
+  }
+
+  // In case it's a setter/definer/deleter call there will be additional
+  // |should_throw_on_error| and |value| parameters, print them as a raw
+  // pointer to avoid crashing. |value| parameter is initialized only for
+  // calls through builtin.
+  os << "\n - should_throw?: " << AS_PTR(args[PCA::kShouldThrowOnErrorIndex])
+     << "\n - value?: " << AS_PTR(args[PCA::kValueIndex]);
   os << "\n";
 }
 
@@ -149,16 +179,13 @@ void PrintFunctionCallbackInfo(void* function_callback_info) {
   using FCI = v8::FunctionCallbackInfo<v8::Value>;
   FCI& info = *reinterpret_cast<FCI*>(function_callback_info);
 
-  // |values| points to the first argument after the receiver.
-  Address* js_args = info.values_ - 1;
-
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
-  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, dbg_os);
+  PrintFunctionCallbackInfo(info.values_, dbg_os);
   dbg_os << std::flush;
 
   StdoutStream os;
-  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, os);
+  PrintFunctionCallbackInfo(info.values_, os);
   os << std::flush;
 }
 
@@ -238,10 +265,6 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (SafeIsAnyHole(Tagged(*this))) {
-    Cast<Hole>(*this)->HolePrint(os);
-    return;
-  }
 
   InstanceType instance_type = map(cage_base)->instance_type();
 
@@ -456,11 +479,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
 
 template <typename T>
 void PrintByteArrayElements(std::ostream& os, const T* array) {
-  int length = array->length();
-  int i = 0;
+  uint32_t length = array->ulength().value();
+  uint32_t i = 0;
   while (i < length) {
     os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i << ":";
-    int line_end = std::min(i + 16, length);
+    uint32_t line_end = std::min(i + 16, length);
     for (; i < line_end; ++i) {
       os << " " << std::setfill('0') << std::setw(2) << std::hex
          << static_cast<int>(array->get(i));
@@ -503,7 +526,6 @@ bool JSObject::PrintProperties(std::ostream& os) {
   if (HasFastProperties()) {
     Tagged<DescriptorArray> descs =
         map()->instance_descriptors(Isolate::Current());
-    int nof_inobject_properties = map()->GetInObjectProperties();
     for (InternalIndex i : map()->IterateOwnDescriptors()) {
       os << "\n    ";
       descs->GetKey(i)->NamePrint(os);
@@ -521,19 +543,6 @@ bool JSObject::PrintProperties(std::ostream& os) {
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() == PropertyLocation::kField) {
-        os << " @ ";
-        FieldType::PrintTo(descs->GetFieldType(i), os);
-        int field_index = details.field_index();
-        if (field_index < nof_inobject_properties) {
-          os << ", location: in-object";
-        } else {
-          field_index -= nof_inobject_properties;
-          os << ", location: properties[" << field_index << "]";
-        }
-      } else {
-        os << ", location: descriptor";
-      }
     }
     return map()->NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject(*this)) {
@@ -559,7 +568,6 @@ bool IsTheHoleAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_the_hole(index);
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <class T>
 bool IsUndefinedAt(Tagged<T> array, int index) {
   return false;
@@ -567,9 +575,12 @@ bool IsUndefinedAt(Tagged<T> array, int index) {
 
 template <>
 bool IsUndefinedAt(Tagged<FixedDoubleArray> array, int index) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   return array->is_undefined(index);
-}
+#else
+  return false;
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+}
 
 template <class T>
 double GetScalarElement(Tagged<T> array, int index) {
@@ -580,14 +591,14 @@ double GetScalarElement(Tagged<T> array, int index) {
 }
 
 template <class T>
-void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
-  const bool print_the_hole = std::is_same_v<T, FixedDoubleArray>;
+void DoPrintElements(std::ostream& os, Tagged<Object> object, uint32_t length) {
+  const bool print_nans = std::is_same_v<T, FixedDoubleArray>;
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
-  int previous_index = 0;
+  uint32_t previous_index = 0;
   uint64_t previous_representation = array->get_representation(0);
   uint64_t representation = 0;
-  int i;
+  uint32_t i;
   for (i = 1; i <= length; i++) {
     if (i < length) {
       representation = array->get_representation(i);
@@ -600,14 +611,17 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole && IsTheHoleAt(array, i - 1)) {
+    if (print_nans && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    } else if (IsUndefinedAt(array, i - 1)) {
+    } else if (print_nans && IsUndefinedAt(array, i - 1)) {
       os << "undefined";
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     } else {
-      os << GetScalarElement(array, i - 1);
+      auto value = GetScalarElement(array, i - 1);
+      os << value;
+      if constexpr (print_nans) {
+        os << " (0x" << std::hex << base::double_to_uint64(value) << std::dec
+           << ")";
+      }
     }
     previous_index = i;
     previous_representation = representation;
@@ -644,7 +658,6 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if constexpr (std::is_floating_point_v<ElementType>) {
       if (std::isnan(previous_value)) {
         os << std::setw(12) << ss.str() << ": " << +previous_value << " (0x"
@@ -660,7 +673,6 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
         continue;
       }
     }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     os << std::setw(12) << ss.str() << ": " << +previous_value;
     previous_index = i;
     previous_value = value;
@@ -668,14 +680,15 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
-                             Tagged<Object> (*get)(Tagged<T>, int)) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             uint32_t capacity,
+                             Tagged<Object> (*get)(Tagged<T>, uint32_t)) {
   // Print in array notation for non-sparse arrays.
   if (capacity == 0) return;
   Tagged<Object> previous_value = get(array, 0);
   Tagged<Object> value;
-  int previous_index = 0;
-  int i;
+  uint32_t previous_index = 0;
+  uint32_t i;
   for (i = 1; i <= capacity; i++) {
     if (i < capacity) value = get(array, i);
     if (previous_value == value && i != capacity) {
@@ -694,22 +707,21 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             uint32_t array_len) {
+  DCHECK_EQ(array->ulength().value(), array_len);
   PrintFixedArrayElements<T>(
-      os, array, array->length(),
-      [](Tagged<T> xs, int i) { return Cast<Object>(xs->get(i)); });
+      os, array, array_len,
+      [](Tagged<T> xs, uint32_t i) { return Cast<Object>(xs->get(i)); });
 }
 
-void PrintDictionaryElements(std::ostream& os,
-                             Tagged<FixedArrayBase> elements) {
-  // Print some internal fields
-  Tagged<NumberDictionary> dict = Cast<NumberDictionary>(elements);
+void PrintNumberDictionaryFlags(std::ostream& os,
+                                Tagged<NumberDictionary> dict) {
   if (dict->requires_slow_elements()) {
-    os << "\n   - requires_slow_elements";
+    os << "\n - requires_slow_elements";
   } else {
-    os << "\n   - max_number_key: " << dict->max_number_key();
+    os << "\n - max_number_key: " << dict->max_number_key();
   }
-  PrintDictionaryContents(os, dict);
 }
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
@@ -718,7 +730,8 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   os << "\n    0: context: " << Brief(elements->context())
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
-  for (int i = 0; i < elements->length(); i++) {
+  uint32_t elements_len = elements->ulength().value();
+  for (uint32_t i = 0; i < elements_len; i++) {
     Tagged<Object> mapped_entry = elements->mapped_entries(i, kRelaxedLoad);
     os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
     if (IsTheHole(mapped_entry)) {
@@ -727,15 +740,16 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
       os << " in the context";
     }
   }
-  if (arguments_store->length() == 0) return;
+  uint32_t arg_elements_len = arguments_store->ulength().value();
+  if (arg_elements_len == 0) return;
   os << "\n }"
      << "\n - arguments_store: " << Brief(arguments_store) << " "
      << ElementsKindToString(arguments_store->map()->elements_kind()) << " {";
   if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
-    PrintFixedArrayElements(os, arguments_store);
+    PrintFixedArrayElements(os, arguments_store, arg_elements_len);
   } else {
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    PrintDictionaryElements(os, arguments_store);
+    PrintDictionaryContents(os, Cast<NumberDictionary>(arguments_store));
   }
 }
 
@@ -756,28 +770,24 @@ void JSObject::PrintElements(std::ostream& os) {
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
   os << " - elements: " << Brief(elements()) << " {";
-  switch (map()->elements_kind()) {
-    case HOLEY_SMI_ELEMENTS:
-    case PACKED_SMI_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case HOLEY_FROZEN_ELEMENTS:
-    case HOLEY_SEALED_ELEMENTS:
-    case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case PACKED_ELEMENTS:
-    case PACKED_FROZEN_ELEMENTS:
-    case PACKED_SEALED_ELEMENTS:
-    case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
-      PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
-      break;
-    }
-    case HOLEY_DOUBLE_ELEMENTS:
-    case PACKED_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
-      break;
-    }
 
+  // We sometimes print out objects in an inconsistent state e.g., when first
+  // changing the map and then updating the elements. The code below tries to
+  // look at what elements() is, as opposed to what it should be according to
+  // the map(), as much as possible.
+
+  if (IsFixedArrayExact(elements())) {
+    auto array = Cast<FixedArray>(elements());
+    PrintFixedArrayElements(os, array, array->ulength().value());
+  } else if (IsFixedDoubleArray(elements())) {
+    DoPrintElements<FixedDoubleArray>(os, elements(),
+                                      elements()->ulength().value());
+  } else if (IsTypedArrayOrRabGsabTypedArrayElementsKind(
+                 map()->elements_kind())) {
+    // elements() is a ByteArray, and we need to look at the map to figure out
+    // the ElementsKind. These kind of objects shouldn't be involved in
+    // transitions where we might print inconsistent objects.
+    switch (map()->elements_kind()) {
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                          \
   case TYPE##_ELEMENTS: {                                                      \
     size_t length = Cast<JSTypedArray>(*this)->GetLength();                    \
@@ -790,21 +800,16 @@ void JSObject::PrintElements(std::ostream& os) {
       TYPED_ARRAYS(PRINT_ELEMENTS)
       RAB_GSAB_TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
-
-    case DICTIONARY_ELEMENTS:
-    case SLOW_STRING_WRAPPER_ELEMENTS:
-      PrintDictionaryElements(os, elements());
-      break;
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-      PrintSloppyArgumentElements(os, map()->elements_kind(),
-                                  Cast<SloppyArgumentsElements>(elements()));
-      break;
-    case WASM_ARRAY_ELEMENTS:
-      // WasmArrayPrint() should be called instead.
-      UNREACHABLE();
-    case NO_ELEMENTS:
-      break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (IsNumberDictionary(elements())) {
+    PrintDictionaryContents(os, Cast<NumberDictionary>(elements()));
+  } else if (IsSloppyArgumentsElements(elements())) {
+    PrintSloppyArgumentElements(os, map()->elements_kind(),
+                                Cast<SloppyArgumentsElements>(elements()));
+  } else {
+    os << "   Unexpected elements backing store\n";
   }
   os << "\n }\n";
 }
@@ -860,7 +865,7 @@ void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
 
   if (print_elements) {
     size_t length = IsJSTypedArray(obj) ? Cast<JSTypedArray>(obj)->GetLength()
-                                        : obj->elements()->length();
+                                        : obj->elements()->ulength().value();
     if (length > 0) obj->PrintElements(os);
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
@@ -1062,21 +1067,27 @@ void Symbol::SymbolPrint(std::ostream& os) {
   if (IsUndefined(description())) {
     os << " (" << PrivateSymbolToName() << ")";
   }
-  os << "\n - private: " << is_private();
-  os << "\n - private_name: " << is_private_name();
-  os << "\n - private_brand: " << is_private_brand();
+  os << "\n - private_symbol_kind: " << private_symbol_kind();
   os << "\n - is_interesting_symbol: " << is_interesting_symbol();
   os << "\n - is_well_known_symbol: " << is_well_known_symbol();
+  os << "\n";
+}
+
+void EnumCache::EnumCachePrint(std::ostream& os) {
+  PrintHeader(os, "EnumCache");
+  os << "\n - keys: " << Brief(keys());
+  os << "\n - indices: " << Brief(indices());
   os << "\n";
 }
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintHeader(os, "DescriptorArray");
   os << "\n - enum_cache: ";
-  if (enum_cache()->keys()->length() == 0) {
+  uint32_t keys_len = enum_cache()->keys()->ulength().value();
+  if (keys_len == 0) {
     os << "empty";
   } else {
-    os << enum_cache()->keys()->length();
+    os << keys_len;
     os << "\n   - keys: " << Brief(enum_cache()->keys());
     os << "\n   - indices: " << Brief(enum_cache()->indices());
   }
@@ -1106,22 +1117,24 @@ namespace {
 template <typename T>
 void PrintFixedArrayWithHeader(std::ostream& os, T* array, const char* type) {
   array->PrintHeader(os, type);
-  os << "\n - length: " << array->length();
-  PrintFixedArrayElements(os, Tagged(array));
+  uint32_t length = array->ulength().value();
+  os << "\n - length: " << length;
+  PrintFixedArrayElements(os, Tagged(array), length);
   os << "\n";
 }
 
 template <typename T>
-void PrintWeakArrayElements(std::ostream& os, T* array) {
+void PrintWeakArrayElements(std::ostream& os, T* array, uint32_t array_len) {
   // Print in array notation for non-sparse arrays.
+  DCHECK_EQ(array->ulength().value(), array_len);
   Tagged<MaybeObject> previous_value =
-      array->length() > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
+      array_len > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
   Tagged<MaybeObject> value;
-  int previous_index = 0;
-  int i;
-  for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get(i);
-    if (previous_value == value && i != array->length()) {
+  uint32_t previous_index = 0;
+  uint32_t i;
+  for (i = 1; i <= array_len; i++) {
+    if (i < array_len) value = array->get(i);
+    if (previous_value == value && i != array_len) {
       continue;
     }
     os << "\n";
@@ -1138,15 +1151,33 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 
 }  // namespace
 
+void PropertyDescriptorObject::PropertyDescriptorObjectPrint(std::ostream& os) {
+  PrintHeader(os, "PropertyDescriptorObject");
+  os << "\n - flags: " << flags();
+  os << "\n - value: " << Brief(value());
+  os << "\n - get: " << Brief(get());
+  os << "\n - set: " << Brief(set());
+  os << "\n";
+}
+
+void TemplateObjectDescription::TemplateObjectDescriptionPrint(
+    std::ostream& os) {
+  PrintHeader(os, "TemplateObjectDescription");
+  os << "\n - raw_strings: " << Brief(raw_strings());
+  os << "\n - cooked_strings: " << Brief(cooked_strings());
+  os << "\n";
+}
+
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
   PrintHeader(os, "ObjectBoilerplateDescription");
-  os << "\n - capacity: " << capacity();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
   os << "\n - backing_store_size: " << backing_store_size();
   os << "\n - flags: " << flags();
   os << "\n - elements:";
   PrintFixedArrayElements<ObjectBoilerplateDescription>(
-      os, this, capacity(), [](Tagged<ObjectBoilerplateDescription> xs, int i) {
+      os, this, cap, [](Tagged<ObjectBoilerplateDescription> xs, uint32_t i) {
         return xs->get(i);
       });
   os << "\n";
@@ -1201,23 +1232,28 @@ void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
 
 void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintHeader(os, "ArrayList");
-  os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length();
+  const uint32_t len = ulength().value();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
+  os << "\n - length: " << len;
   os << "\n - elements:";
   PrintFixedArrayElements<ArrayList>(
-      os, this, length(),
-      [](Tagged<ArrayList> xs, int i) { return xs->get(i); });
+      os, this, len,
+      [](Tagged<ArrayList> xs, uint32_t i) { return xs->get(i); });
   os << "\n";
 }
 
 void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
   PrintHeader(os, "ScriptContextTable");
-  os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length(kAcquireLoad);
+  const int len = length(kAcquireLoad);
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
+  os << "\n - length: " << len;
   os << "\n - names_to_context_index: " << names_to_context_index();
   os << "\n - elements:";
   PrintFixedArrayElements<ScriptContextTable>(
-      os, this, length(kAcquireLoad), [](Tagged<ScriptContextTable> xs, int i) {
+      os, this, static_cast<uint32_t>(len),
+      [](Tagged<ScriptContextTable> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1225,13 +1261,14 @@ void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
 
 void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   PrintHeader(os, "RegExpMatchInfo");
-  os << "\n - capacity: " << capacity();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
   os << "\n - number_of_capture_registers: " << number_of_capture_registers();
   os << "\n - last_subject: " << last_subject();
   os << "\n - last_input: " << last_input();
   os << "\n - captures:";
   PrintFixedArrayElements<RegExpMatchInfo>(
-      os, this, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
+      os, this, cap, [](Tagged<RegExpMatchInfo> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1239,12 +1276,13 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
 
 void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
   PrintHeader(os, "SloppyArgumentsElements");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - context: " << Brief(context());
   os << "\n - arguments: " << Brief(arguments());
   os << "\n - mapped_entries:";
   PrintFixedArrayElements<SloppyArgumentsElements>(
-      os, this, length(), [](Tagged<SloppyArgumentsElements> xs, int i) {
+      os, this, len, [](Tagged<SloppyArgumentsElements> xs, uint32_t i) {
         return Cast<Object>(xs->mapped_entries(i, kRelaxedLoad));
       });
   os << '\n';
@@ -1278,16 +1316,26 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   if (GetIsolateFromHeapObject(*this, &isolate)) {
     os << "\n - getter: " << AS_PTR(getter(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_getter: "
-         << AS_PTR(maybe_redirected_getter(isolate));
+      os << "\n - getter (redirected): " << AS_PTR(getter_raw(isolate));
     }
     os << "\n - setter: " << AS_PTR(setter(isolate));
   } else {
     os << "\n - getter: " << kUnavailableString;
-    os << "\n - maybe_redirected_getter: " << kUnavailableString;
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - getter (redirected): " << kUnavailableString;
+    }
     os << "\n - setter: " << kUnavailableString;
   }
   os << '\n';
+}
+
+void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {
+  PrintHeader(os, "AccessCheckInfo");
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - named_interceptor: " << Brief(named_interceptor());
+  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
+  os << "\n - data: " << Brief(data());
+  os << "\n";
 }
 
 void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
@@ -1296,6 +1344,9 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   if (is_named()) {
     os << " - getter: " << AS_PTR(named_getter(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - getter (redirected): " << AS_PTR(named_getter_raw(isolate));
+    }
     os << "\n - setter: " << AS_PTR(named_setter(isolate));
     os << "\n - query: " << AS_PTR(named_query(isolate));
     os << "\n - descriptor: " << AS_PTR(named_descriptor(isolate));
@@ -1320,8 +1371,6 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
-#undef AS_PTR
-
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   TorqueGeneratedFunctionTemplateInfo<
       FunctionTemplateInfo,
@@ -1329,14 +1378,15 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
 
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
-    os << " - callback: " << reinterpret_cast<void*>(callback(isolate));
+    os << " - callback: " << AS_PTR(callback(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_callback: "
-         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
+      os << "\n - callback (redirected): " << AS_PTR(callback_raw(isolate));
     }
   } else {
     os << "\n - callback: " << kUnavailableString;
-    os << "\n - maybe_redirected_callback: " << kUnavailableString;
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - callback (redirected): " << kUnavailableString;
+    }
   }
 
   os << "\n - serial_number: ";
@@ -1369,6 +1419,8 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
+#undef AS_PTR
+
 void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   PrintHeader(os, type);
   os << "\n - type: " << map()->instance_type();
@@ -1381,7 +1433,8 @@ void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   os << "\n - length: " << length();
   os << "\n - elements:";
   PrintFixedArrayElements<Context>(
-      os, *this, length(), [](Tagged<Context> xs, int i) {
+      os, *this, static_cast<uint32_t>(length()),
+      [](Tagged<Context> xs, uint32_t i) {
         return Cast<Object>(xs->get(i, kRelaxedLoad));
       });
   os << "\n";
@@ -1540,6 +1593,7 @@ void RegisteredSymbolTable::RegisteredSymbolTablePrint(std::ostream& os) {
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
   PrintHashTableHeader(os, this, "NumberDictionary");
+  PrintNumberDictionaryFlags(os, this);
   PrintDictionaryContentsFull(os, this);
 }
 
@@ -1659,45 +1713,51 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {
   PrintHeader(os, "PropertyArray");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - hash: " << Hash();
-  PrintFixedArrayElements(os, Tagged(*this));
+  PrintFixedArrayElements(os, Tagged(*this), len);
   os << "\n";
 }
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {
   PrintHeader(os, "FixedDoubleArray");
-  os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray>(os, this, length());
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  DoPrintElements<FixedDoubleArray>(os, this, len);
   os << "\n";
 }
 
 void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "WeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "TrustedWeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void ProtectedWeakFixedArray::ProtectedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "ProtectedWeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
   PrintHeader(os, "WeakArrayList");
+  uint32_t len = ulength().value();
   os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
@@ -1721,20 +1781,18 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   }
   os << "\n - value: " << Brief(value());
   os << "\n - interrupt_budget: " << interrupt_budget();
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = Isolate::Current()->js_dispatch_table();
   if (dispatch_handle() != kNullJSDispatchHandle &&
-      jdt->IsTieringRequested(dispatch_handle())) {
+      jdt.IsTieringRequested(dispatch_handle())) {
     os << "\n - tiering request ";
     if (Tagged<FeedbackVector> fbv;
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
       os << "in_progress ";
     }
-    jdt->PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
+    jdt.PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
   }
 
-#endif  // V8_ENABLE_LEAPTIERING
   os << "\n";
 }
 
@@ -1794,9 +1852,10 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayPrint(std::ostream& os) {
   PrintHeader(os, "ClosureFeedbackCellArray");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - elements:";
-  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, this);
+  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, this, len);
   os << "\n";
 }
 
@@ -1809,19 +1868,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   }
 
   os << "\n - shared function info: " << Brief(shared_function_info());
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - tiering_in_progress: " << tiering_in_progress();
-#else
-  os << "\n - tiering state: " << tiering_state();
-  if (has_optimized_code()) {
-    os << "\n - optimized code: "
-       << Brief(optimized_code(GetCurrentIsolateForSandbox()));
-  } else {
-    os << "\n - no optimized code";
-  }
-  os << "\n - maybe has maglev code: " << maybe_has_maglev_code();
-  os << "\n - maybe has turbofan code: " << maybe_has_turbofan_code();
-#endif  // !V8_ENABLE_LEAPTIERING
   os << "\n - osr_tiering_in_progress: " << osr_tiering_in_progress();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - closure feedback cell array: ";
@@ -1924,7 +1971,8 @@ void FeedbackNexus::Print(std::ostream& os) {
         } else {
           array = Cast<WeakFixedArray>(feedback);
         }
-        for (int i = 0; i < array->length(); i += 2) {
+        uint32_t array_len = array->ulength().value();
+        for (uint32_t i = 0; i < array_len; i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
           if (!array->get(i + 1).IsCleared()) {
             LoadHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
@@ -1978,7 +2026,8 @@ void FeedbackNexus::Print(std::ostream& os) {
         } else {
           array = Cast<WeakFixedArray>(feedback);
         }
-        for (int i = 0; i < array->length(); i += 2) {
+        uint32_t array_len = array->ulength().value();
+        for (uint32_t i = 0; i < array_len; i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
           if (!array->get(i + 1).IsCleared()) {
             StoreHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
@@ -2125,8 +2174,8 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    base::ScopedVector<char> buf(100);
-    SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
+    auto buf = base::OwnedVector<char>::NewForOverwrite(100);
+    SNPrintF(buf.as_vector(), "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
              weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
              IsSmi(year()) ? Smi::ToInt(year()) : -1,
              IsSmi(month()) ? Smi::ToInt(month()) : -1,
@@ -2271,43 +2320,56 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
 void JSIteratorHelper::JSIteratorHelperPrintHeader(std::ostream& os,
                                                    const char* helper_name) {
   JSObjectPrintHeader(os, *this, helper_name);
-  os << "\n - underlying.object: " << Brief(underlying_object());
-  os << "\n - underlying.next: " << Brief(underlying_next());
+  os << "\n - state: " << state();
+}
+
+void JSIteratorHelperSimple::JSIteratorHelperSimplePrintHeader(
+    std::ostream& os, const char* helper_name) {
+  JSIteratorHelperPrintHeader(os, helper_name);
+  os << "\n - underlying.object: " << Brief(underlying_iterator_object());
+  os << "\n - underlying.next: " << Brief(underlying_iterator_next());
 }
 
 void JSIteratorMapHelper::JSIteratorMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFilterHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFilterHelper");
   os << "\n - predicate: " << Brief(predicate());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorTakeHelper");
   os << "\n - remaining: " << remaining();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFlatMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFlatMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
-  os << "\n - innerIterator.object" << Brief(innerIterator_object());
-  os << "\n - innerIterator.next" << Brief(innerIterator_next());
-  os << "\n - innerAlive" << innerAlive();
+  os << "\n - inner_iterator.object" << Brief(inner_iterator_object());
+  os << "\n - inner_iterator.next" << Brief(inner_iterator_next());
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorConcatHelper");
+  os << "\n - iterables: " << Brief(iterables()) << " {";
+  PrintFixedArrayElements(os, iterables(), iterables()->ulength().value());
+  os << "\n - current: " << current();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2328,13 +2390,46 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << GetByteLength();
   os << "\n - max_byte_length: " << max_byte_length();
-  os << "\n - detach key: " << detach_key();
+  if (has_detach_key()) {
+    os << "\n - detach key: " << Brief(detach_key()->value());
+    os << "\n - views: (many views)";
+  } else {
+    os << "\n - detach key: (undefined)";
+    if (views() == kNoView) {
+      os << "\n - views: (no views)";
+    } else if (views() == kManyViews) {
+      os << "\n - views: (many views)";
+    } else {
+      os << "\n - views: " << Brief(views());
+    }
+  }
   if (is_external()) os << "\n - external";
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
   if (is_resizable_by_js()) os << "\n - resizable_by_js";
   JSObjectPrintBody(os, *this, !was_detached());
+}
+
+void JSDetachedTypedArray::JSDetachedTypedArrayPrint(std::ostream& os) {
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSDetachedTypedArray");
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - byte_offset: " << byte_offset();
+  if (byte_length() != 0) {
+    os << "\n - invalid length";
+  }
+  if (!WasDetached()) {
+    os << "\n - invalid detached state!";
+  }
+  os << "\n - data_ptr: " << DataPtr();
+  Tagged_t base_ptr = static_cast<Tagged_t>(base_pointer().ptr());
+  os << "\n   - base_pointer: "
+     << reinterpret_cast<void*>(static_cast<Address>(base_ptr));
+  if (!IsJSArrayBuffer(buffer())) {
+    os << "\n <invalid buffer>\n";
+    return;
+  }
+  JSObjectPrintBody(os, *this, false);
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
@@ -2439,23 +2534,21 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code(isolate));
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
   if (has_feedback_vector() &&
       raw_feedback_cell()->dispatch_handle() != dispatch_handle()) {
     os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
        << raw_feedback_cell()->dispatch_handle() << std::dec;
   }
-  if (IsTieringRequestedOrInProgress()) {
+  if (IsTieringRequestedOrInProgress(isolate)) {
     os << "\n - tiering request ";
     if (tiering_in_progress()) {
       os << "in_progress ";
     }
-    IsolateGroup::current()->js_dispatch_table()->PrintCurrentTieringRequest(
+    isolate->js_dispatch_table().PrintCurrentTieringRequest(
         dispatch_handle(), Isolate::Current(), os);
   }
 
-#endif  // V8_ENABLE_LEAPTIERING
   CodeKind code_kind = code(isolate)->kind();
   if (code_kind == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
@@ -2498,6 +2591,11 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
 
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
+#if V8_ENABLE_WEBASSEMBLY
+    // asm.js functions have HasSourceCode() == true, but their start/end
+    // positions refer to module wire bytes, so the code below won't work.
+    if (HasWasmExportedFunctionData(GetCurrentIsolateForSandbox())) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
     os << "\n - source code: ";
     Tagged<String> source = Cast<String>(Cast<Script>(script())->source());
     int start = StartPosition();
@@ -2597,7 +2695,8 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalObject");
-  os << "\n - global proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy_for_api: " << Brief(global_proxy_for_api());
   JSObjectPrintBody(os, *this);
 }
 
@@ -2666,10 +2765,8 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
        << Brief(istream->relocation_info());
     os << "\n - instruction_stream.body_size: " << istream->body_size();
   }
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << js_dispatch_handle()
      << std::dec;
-#endif  // V8_ENABLE_LEAPTIERING
   os << "\n";
 
   // Finally, the disassembly:
@@ -2755,6 +2852,21 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PrototypeSharedClosureInfo");
+  os << "\n - context: " << Brief(context());
+  os << "\n - closure feedback cell array: "
+     << Brief(closure_feedback_cell_array());
+}
+
+void JSDeferredModuleNamespace::JSDeferredModuleNamespacePrint(
+    std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSDeferredModuleNamespace");
+  os << "\n - deferred module: " << Brief(module());
+  JSObjectPrintBody(os, *this);
+}
+
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "PrototypeInfo");
   os << "\n - module namespace: " << Brief(module_namespace());
@@ -2764,6 +2876,8 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n - prototype_chain_enum_cache: "
      << Brief(prototype_chain_enum_cache());
+  os << "\n - prototype_shared_closure_info: "
+     << Brief(prototype_shared_closure_info());
   for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
     os << "\n - cached_handler[" << i << "]: " << Brief(cached_handler(i));
   }
@@ -2815,6 +2929,18 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
+      case wasm::kWaitQueue: {
+        os << base::ReadUnalignedValue<int32_t>(field_address) << ", ";
+        Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(
+            field_address + wasm::kWaitQueueManagedOffset);
+#if V8_COMPRESS_POINTERS
+        Address obj = V8HeapCompressionScheme::DecompressTagged(raw);
+#else
+        Address obj = raw;
+#endif
+        os << Brief(Tagged<Object>(obj));
+        break;
+      }
       case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;
@@ -2876,6 +3002,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (element_type.kind()) {
     case wasm::kI32:
+    case wasm::kWaitQueue:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);
       break;
@@ -3022,8 +3149,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_starts, Brief);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, Brief);
+  PRINT_WASM_INSTANCE_FIELD(data_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(element_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
@@ -3170,7 +3296,7 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference()) {
+  if (unsafe_type().is_ref()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());
@@ -3178,7 +3304,7 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   os << "\n - offset: " << offset();
   os << "\n - raw_type: " << raw_type();
   os << "\n - is_mutable: " << is_mutable();
-  os << "\n - type: " << type();
+  os << "\n - type: " << unsafe_type();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }
@@ -3275,17 +3401,102 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {
 void AllocationMemento::AllocationMementoPrint(std::ostream& os) {
   PrintHeader(os, "AllocationMemento");
   os << "\n - allocation site: ";
-  if (IsValid()) {
-    GetAllocationSite()->AllocationSitePrint(os);
-  } else {
-    os << "<invalid>\n";
-  }
+  GetAllocationSite()->AllocationSitePrint(os);
 }
 
 void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {
   PrintHeader(os, "ScriptOrModule");
   os << "\n - host_defined_options: " << Brief(host_defined_options());
   os << "\n - resource_name: " << Brief(resource_name());
+}
+
+void CallSiteInfo::CallSiteInfoPrint(std::ostream& os) {
+  PrintHeader(os, "CallSiteInfo");
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  os << "\n - code_object: " << Brief(code_object(isolate));
+  os << "\n - receiver_or_instance: " << Brief(receiver_or_instance());
+  os << "\n - function: " << Brief(function());
+  os << "\n - code_offset_or_source_position: "
+     << code_offset_or_source_position();
+  os << "\n - flags: " << flags();
+  os << "\n - parameters: " << Brief(parameters());
+  os << "\n";
+}
+
+void Microtask::MicrotaskPrint(std::ostream& os) {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  os << "\n - continuation_preserved_embedder_data: "
+     << Brief(continuation_preserved_embedder_data());
+#endif
+}
+
+void CallbackTask::CallbackTaskPrint(std::ostream& os) {
+  PrintHeader(os, "CallbackTask");
+  MicrotaskPrint(os);
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - data: " << Brief(data());
+  os << "\n";
+}
+
+void CallableTask::CallableTaskPrint(std::ostream& os) {
+  PrintHeader(os, "CallableTask");
+  MicrotaskPrint(os);
+  os << "\n - callable: " << Brief(callable());
+  os << "\n - context: " << Brief(context());
+  os << "\n";
+}
+
+void PromiseReactionJobTask::PromiseReactionJobTaskPrint(std::ostream& os) {
+  MicrotaskPrint(os);
+  os << "\n - argument: " << Brief(argument());
+  os << "\n - context: " << Brief(context());
+  os << "\n - handler: " << Brief(handler());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
+  os << "\n";
+}
+
+void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseFulfillReactionJobTask");
+  PromiseReactionJobTaskPrint(os);
+}
+
+void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseRejectReactionJobTask");
+  PromiseReactionJobTaskPrint(os);
+}
+
+void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseResolveThenableJobTask");
+  MicrotaskPrint(os);
+  os << "\n - context: " << Brief(context());
+  os << "\n - promise_to_resolve: " << Brief(promise_to_resolve());
+  os << "\n - thenable: " << Brief(thenable());
+  os << "\n - then: " << Brief(then());
+  os << "\n";
+}
+
+void PromiseCapability::PromiseCapabilityPrint(std::ostream& os) {
+  PrintHeader(os, "PromiseCapability");
+  os << "\n - promise: " << Brief(promise());
+  os << "\n - resolve: " << Brief(resolve());
+  os << "\n - reject: " << Brief(reject());
+  os << "\n";
+}
+
+void PromiseReaction::PromiseReactionPrint(std::ostream& os) {
+  PrintHeader(os, "PromiseReaction");
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  os << "\n - continuation_preserved_embedder_data: "
+     << Brief(continuation_preserved_embedder_data());
+#endif
+  os << "\n - next: " << Brief(next());
+  os << "\n - reject_handler: " << Brief(reject_handler());
+  os << "\n - fulfill_handler: " << Brief(fulfill_handler());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
+  os << "\n";
 }
 
 void Script::ScriptPrint(std::ostream& os) {
@@ -3377,8 +3588,8 @@ void JSRawJson::JSRawJsonPrint(std::ostream& os) {
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - break iterator: " << Brief(break_iterator());
-  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - bound adopt text: " << Brief(bound_adopt_text());
   os << "\n - bound first: " << Brief(bound_first());
   os << "\n - bound next: " << Brief(bound_next());
@@ -3465,7 +3676,8 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(std::ostream& os) {
 
 void JSSegmentIterator::JSSegmentIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegmentIterator");
-  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   os << "\n";
 }
@@ -3480,8 +3692,8 @@ void JSSegmenter::JSSegmenterPrint(std::ostream& os) {
 
 void JSSegments::JSSegmentsPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegments");
-  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
-  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   JSObjectPrintBody(os, *this);
 }
@@ -3645,17 +3857,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (SafeIsAnyHole(Tagged(*this))) {
-#define PRINT_HOLE(Type, Value, _) \
-  if (Is##Type(*this)) {           \
-    os << "<" #Value ">";          \
-    return;                        \
-  }
-    HOLE_LIST(PRINT_HOLE)
-#undef PRINT_HOLE
-    UNREACHABLE();
-  }
-
   if (IsString(*this, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
@@ -3740,7 +3941,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
       os << "<ScriptContextTable["
-         << Cast<ScriptContextTable>(*this)->capacity() << "]>";
+         << Cast<ScriptContextTable>(*this)->capacity().value() << "]>";
       break;
     case HASH_TABLE_TYPE:
       os << "<HashTable[" << Cast<FixedArray>(*this)->length() << "]>";
@@ -3934,6 +4135,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case HOLE_TYPE: {
+#define PRINT_HOLE(Type, Value, _) \
+  if (Is##Type(*this)) {           \
+    os << "<" #Value ">";          \
+    break;                         \
+  }
+      HOLE_LIST(PRINT_HOLE)
+#undef PRINT_HOLE
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
@@ -3975,7 +4183,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
     case BIGINT_TYPE: {
       os << "<BigInt ";
-      Cast<BigInt>(*this)->BigIntShortPrint(os);
+      Cast<BigInt>(*this)->BigIntBaseShortPrint(os);
       os << ">";
       break;
     }
@@ -4103,6 +4311,11 @@ void Map::PrintMapDetails(std::ostream& os) {
 
 void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = instance_type() == MAP_TYPE;
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_map = IsWasmObjectMap(*this);
+#else
+  constexpr bool is_wasm_map = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
   PrintHeader(os, is_meta_map ? "MetaMap" : "Map");
 #else
@@ -4139,8 +4352,9 @@ void Map::MapPrint(std::ostream& os) {
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (may_have_interesting_properties())
+  if (may_have_interesting_properties()) {
     os << "\n - may_have_interesting_properties";
+  }
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
@@ -4155,14 +4369,22 @@ void Map::MapPrint(std::ostream& os) {
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (is_wasm_map) {
+    os << "\n - wasm_type_info: " << Brief(wasm_type_info());
+    Tagged<Object> proto_info = prototype_info();
+    if (!IsSmi(proto_info)) os << "\n - prototype info: " << Brief(proto_info);
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
   os << "\n - prototype_validity_cell: "
      << Brief(prototype_validity_cell(kRelaxedLoad));
-  os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
-     << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+  if (!is_wasm_map) {
+    os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
+       << "#" << NumberOfOwnDescriptors() << ": "
+       << Brief(instance_descriptors());
+  }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
@@ -4275,6 +4497,8 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
        << ")";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
+  } else if (key == roots.detached_symbol()) {
+    os << " (transition to detached array buffer view)";
   } else {
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
@@ -4302,10 +4526,11 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 
   if (HasPrototypeTransitions()) {
     auto prototype_transitions = GetPrototypeTransitions();
-    int num_transitions = NumberOfPrototypeTransitions(prototype_transitions);
+    const uint32_t num_transitions =
+        NumberOfPrototypeTransitions(prototype_transitions);
     os << "\n   Prototype transitions #" << num_transitions << ": "
        << Brief(prototype_transitions);
-    for (int i = 0; i < num_transitions; i++) {
+    for (uint32_t i = 0; i < num_transitions; i++) {
       auto maybe = prototype_transitions->get(
           TransitionArray::kProtoTransitionHeaderSize + i);
       Tagged<HeapObject> target;
@@ -4319,10 +4544,10 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 
   if (HasSideStepTransitions()) {
     auto sidestep_transitions = GetSideStepTransitions();
-    int num_transitions = sidestep_transitions->length();
+    uint32_t num_transitions = sidestep_transitions->ulength().value();
     os << "\n   Sidestep transitions #" << num_transitions << ": "
        << Brief(sidestep_transitions);
-    for (int i = 0; i < num_transitions; i++) {
+    for (uint32_t i = 0; i < num_transitions; i++) {
       SideStepTransition::Kind kind = static_cast<SideStepTransition::Kind>(i);
       auto maybe_target = sidestep_transitions->get(i);
       os << "\n     " << kind << " -> " << Brief(maybe_target);
@@ -4333,6 +4558,7 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 void TransitionsAccessor::PrintTransitions(std::ostream& os) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return;
@@ -4383,6 +4609,8 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
+        } else if (key == roots.detached_symbol()) {
+          os << "to detached array buffer view";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);
@@ -4431,6 +4659,7 @@ void JSObject::PrintTransitions(std::ostream& os) {
 }
 
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
+
 }  // namespace v8::internal
 
 namespace {
@@ -4562,13 +4791,11 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Code(void* object) {
 #endif
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
-  i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(
+  i::Isolate::Current()->js_dispatch_table().PrintEntry(
       i::JSDispatchHandle(handle));
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_OnlyCode(
     void* object, size_t range_limit) {
@@ -4603,6 +4830,11 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_OnlyCode(
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
+}
+
+V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTraceConcise() {
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->PrintStack(stdout, i::Isolate::PrintStackMode::kPrintStackConcise);
 }
 
 namespace _v8_internal_debugonly {

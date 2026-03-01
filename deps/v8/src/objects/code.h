@@ -308,9 +308,6 @@ class Code : public ExposedTrustedObject {
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   // Support for short builtin calls END.
 
-  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
-
   void SetMarkedForDeoptimization(Isolate* isolate,
                                   LazyDeoptimizeReason reason);
   void TraceMarkForDeoptimization(Isolate* isolate,
@@ -486,6 +483,7 @@ class Code : public ExposedTrustedObject {
   static const int kArgumentsBits = 16;
   // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
   // on the call nodes without overflowing the uint16_t input_count.
+  // TODO(375937549): Convert to use uint32_t.
   static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:

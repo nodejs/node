@@ -18,13 +18,15 @@ class TrustedByteArray;
 class RegExpBytecodeIterator {
  public:
   explicit RegExpBytecodeIterator(DirectHandle<TrustedByteArray> bytecode);
+  RegExpBytecodeIterator(DirectHandle<TrustedByteArray> bytecode,
+                         uint32_t offset);
   ~RegExpBytecodeIterator();
 
   inline bool done() const;
   inline void advance();
   inline RegExpBytecode current_bytecode() const;
   inline uint8_t current_size() const;
-  inline int current_offset() const;
+  inline uint32_t current_offset() const;
   inline uint8_t* current_address() const;
   inline void reset();
 

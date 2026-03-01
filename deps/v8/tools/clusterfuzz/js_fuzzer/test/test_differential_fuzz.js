@@ -13,6 +13,7 @@ const path = require('path');
 const program = require('commander');
 const sinon = require('sinon');
 
+const corpus = require('../corpus.js');
 const helpers = require('./helpers.js');
 const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
@@ -54,6 +55,8 @@ describe('Differential fuzzing', () => {
     // Make remaining places deterministic that don't use global settings, e.g.
     // try-catch skip behavior.
     helpers.deterministicRandom(sandbox);
+
+    sandbox.stub(corpus, 'TRANSPILE_PROB').value(0.0);
   });
 
   afterEach(() => {
@@ -237,6 +240,8 @@ describe('Differential fuzzing with fuzzilli', () => {
         helpers.BASE_DIR, 'differential_fuzz_fuzzilli');
 
     helpers.deterministicRandom(sandbox);
+
+    sandbox.stub(corpus, 'TRANSPILE_PROB').value(0.0);
   });
 
   afterEach(() => {

@@ -125,10 +125,11 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
                               function_is_shared, RefTypeKind::kFunction);
-  // Imported functions can be subtypes of their static import type,
-  // for non-imported functions we can return an exact type.
+  // Imported functions can be subtypes of their static import type; for
+  // non-imported or exactly imported functions we can return an exact type.
   if (decoder->enabled_.has_custom_descriptors() &&
-      function_index >= module_->num_imported_functions) {
+      (function_index >= module_->num_imported_functions ||
+       module_->functions[function_index].exact)) {
     type = type.AsExact();
   }
   DirectHandle<WasmFuncRef> func_ref =
@@ -204,6 +205,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   DirectHandle<WasmStruct> obj;
   WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
+    // TODO(14616): Support shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
@@ -211,21 +214,40 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
-    mode = SKIP_WRITE_BARRIER;  // Object is in new space.
-  }
-  DisallowGarbageCollection no_gc;  // Must initialize fields first.
-
-  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    int offset = struct_type->field_offset(i);
-    if (struct_type->field(i).is_numeric()) {
-      uint8_t* address =
-          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-      args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
-    } else {
-      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+    if (!type.is_shared && !v8_flags.single_generation) {
+      mode = SKIP_WRITE_BARRIER;  // Object is in new space.
     }
   }
+  {
+    DisallowGarbageCollection no_gc;  // Must initialize fields first.
+
+    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+      int offset = struct_type->field_offset(i);
+      if (struct_type->field(i).is_numeric()) {
+        uint8_t* address =
+            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+        args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
+        if (struct_type->field(i) == kWasmWaitQueue) {
+          // We have to allocate the Managed part of waitqueue after finishing
+          // initialization of the fresh struct object. Therefore we initialize
+          // it with 0 here.
+          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
+                                   Smi::FromInt(0));
+        }
+      } else {
+        obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
+      }
+    }
+  }
+
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    if (struct_type->field(i) != kWasmWaitQueue) continue;
+    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
+  }
+
   result->runtime_value = WasmValue(
       obj,
       decoder->module_->canonical_type(
@@ -260,6 +282,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
     case kI32:
     case kI8:
     case kI16:
+    case kWaitQueue:
       return WasmValue(0);
     case kI64:
       return WasmValue(int64_t{0});
@@ -305,28 +328,48 @@ void ConstantExpressionInterface::StructNewDefault(
 
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
+    // TODO(14616): Implement shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
   }
-  DisallowGarbageCollection no_gc;  // Must initialize fields first.
+
+  {
+    DisallowGarbageCollection no_gc;  // Must initialize fields first.
+
+    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+      int offset = struct_type->field_offset(i);
+      ValueType ftype = struct_type->field(i);
+      if (ftype.is_numeric()) {
+        uint8_t* address =
+            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+        DefaultValueForType(ftype, isolate_, module_)
+            .Packed(ftype)
+            .CopyTo(address);
+        if (struct_type->field(i) == kWasmWaitQueue) {
+          // We have to allocate the Managed part of waitqueue after finishing
+          // initialization of the fresh struct object. Therefore we initialize
+          // it with 0 here.
+          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
+                                   Smi::FromInt(0));
+        }
+      } else {
+        // No write barrier needed, as read-only-space objects never move.
+        TaggedField<Object, WasmStruct::kHeaderSize>::store(
+            *obj, offset,
+            *DefaultValueForType(ftype, isolate_, module_).to_ref());
+      }
+    }
+  }
 
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    int offset = struct_type->field_offset(i);
-    ValueType ftype = struct_type->field(i);
-    if (ftype.is_numeric()) {
-      uint8_t* address =
-          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-      DefaultValueForType(ftype, isolate_, module_)
-          .Packed(ftype)
-          .CopyTo(address);
-    } else {
-      TaggedField<Object, WasmStruct::kHeaderSize>::store(
-          *obj, offset,
-          *DefaultValueForType(ftype, isolate_, module_).to_ref());
-    }
+    if (struct_type->field(i) != kWasmWaitQueue) continue;
+    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
   }
 
   result->runtime_value = WasmValue(
@@ -341,6 +384,29 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                            const Value& initial_value,
                                            Value* result) {
   if (!generate_value()) return;
+  bool in_old_space =
+      decoder->module_->type(imm.index).is_shared || v8_flags.single_generation;
+  ArrayNewImpl(decoder, imm, length, initial_value, result,
+               in_old_space && imm.array_type->element_type().is_ref()
+                   ? UPDATE_WRITE_BARRIER
+                   : SKIP_WRITE_BARRIER);
+}
+
+void ConstantExpressionInterface::ArrayNewDefault(
+    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
+    Value* result) {
+  if (!generate_value()) return;
+  Value initial_value(decoder->pc(), imm.array_type->element_type());
+  initial_value.runtime_value = DefaultValueForType(
+      imm.array_type->element_type(), isolate_, decoder->module_);
+  // We can skip the write barriers because default values live in RO-space.
+  return ArrayNewImpl(decoder, imm, length, initial_value, result,
+                      SKIP_WRITE_BARRIER);
+}
+
+void ConstantExpressionInterface::ArrayNewImpl(
+    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
+    const Value& initial_value, Value* result, WriteBarrierMode write_barrier) {
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
   DirectHandle<Map> rtt{
@@ -351,21 +417,11 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
     return;
   }
   result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArray(imm.array_type->element_type(),
-                                        length.runtime_value.to_u32(),
-                                        initial_value.runtime_value, rtt),
+      isolate_->factory()->NewWasmArray(
+          imm.array_type->element_type(), length.runtime_value.to_u32(),
+          initial_value.runtime_value, rtt, write_barrier),
       decoder->module_->canonical_type(
           ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
-}
-
-void ConstantExpressionInterface::ArrayNewDefault(
-    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
-    Value* result) {
-  if (!generate_value()) return;
-  Value initial_value(decoder->pc(), imm.array_type->element_type());
-  initial_value.runtime_value = DefaultValueForType(
-      imm.array_type->element_type(), isolate_, decoder->module_);
-  return ArrayNew(decoder, imm, length, initial_value, result);
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(
@@ -382,12 +438,17 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
-                    array_imm.array_type, element_values, rtt),
-                decoder->module_->canonical_type(
-                    ValueType::Ref(array_imm.heap_type())
-                        .AsExactIfEnabled(decoder->enabled_)));
+  bool in_old_space = decoder->module_->type(array_imm.index).is_shared ||
+                      v8_flags.single_generation;
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmArrayFromElements(
+          array_imm.array_type, element_values, rtt,
+          in_old_space && array_imm.array_type->element_type().is_ref()
+              ? UPDATE_WRITE_BARRIER
+              : SKIP_WRITE_BARRIER),
+      decoder->module_->canonical_type(
+          ValueType::Ref(array_imm.heap_type())
+              .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to
@@ -419,19 +480,17 @@ void ConstantExpressionInterface::ArrayNewSegment(
   CanonicalValueType result_type =
       rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
   if (element_type.is_numeric()) {
-    const WasmDataSegment& data_segment =
-        module_->data_segments[segment_imm.index];
     uint32_t length_in_bytes =
         length * array_imm.array_type->element_type().value_kind_size();
-
+    WireBytesRef segment_source = data->data_segments()->get(segment_imm.index);
     if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
-                                    data_segment.source.length())) {
+                                    segment_source.length())) {
       error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
       return;
     }
 
-    Address source =
-        data->data_segment_starts()->get(segment_imm.index) + offset;
+    base::Vector<const uint8_t> source =
+        data->native_module()->wire_bytes() + offset;
     DirectHandle<WasmArray> array_value =
         isolate_->factory()->NewWasmArrayFromMemory(length, rtt, element_type,
                                                     source);
@@ -439,8 +498,9 @@ void ConstantExpressionInterface::ArrayNewSegment(
   } else {
     const wasm::WasmElemSegment* elem_segment =
         &decoder->module_->elem_segments[segment_imm.index];
-    // A constant expression should not observe if a passive segment is dropped.
-    // However, it should consider active and declarative segments as empty.
+    // A constant expression should not observe if a passive segment_source is
+    // dropped. However, it should consider active and declarative segments as
+    // empty.
     if (!base::IsInBounds<size_t>(
             offset, length,
             elem_segment->status == WasmElemSegment::kStatusPassive

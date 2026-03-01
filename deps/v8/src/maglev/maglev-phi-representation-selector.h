@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
@@ -29,10 +30,12 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kCheckedObjectToIndex:
     case Opcode::kTruncateCheckedNumberOrOddballToInt32:
     case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
+    case Opcode::kTruncateCheckedNumberAsSafeIntToInt32:
+    case Opcode::kTruncateUnsafeNumberAsSafeIntToInt32:
     case Opcode::kCheckedNumberOrOddballToFloat64:
     case Opcode::kCheckedNumberToFloat64:
-    case Opcode::kUncheckedNumberOrOddballToFloat64:
-    case Opcode::kUncheckedNumberToFloat64:
+    case Opcode::kUnsafeNumberOrOddballToFloat64:
+    case Opcode::kUnsafeNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
       return true;
     default:
@@ -77,6 +80,7 @@ class MaglevPhiRepresentationSelector {
   }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState&) {
+    eager_deopt_frame_ = &node->eager_deopt_info()->top_frame();
     FixLoopPhisBackedge(node->target());
     return ProcessResult::kContinue;
   }
@@ -95,19 +99,75 @@ class MaglevPhiRepresentationSelector {
     return eager_deopt_frame_;
   }
 
- private:
-  enum class HoistType : uint8_t {
+  enum class UntaggingKind : uint8_t {
     kNone,
-    kLoopEntry,
-    kLoopEntryUnchecked,
-    kPrologue,
-  };
-  using HoistTypeList = base::SmallVector<HoistType, 8>;
 
+    // SmiConstants can trivially be turned into Int32Constant or
+    // Float64Constant.
+    kSmiConstant,
+
+    // HeapNumberConstants can be turned into Float64Constant and sometimes
+    // Int32Constants as well.
+    kHeapNumberConstant,
+
+    // Untagged inputs can be retrieved by taking the input of a conversion
+    // nodes.
+    kConversion,
+
+    // Already untagged phis are by definition untagged.
+    kUntaggedPhi,
+
+    // Nodes with static untaggable type (like kSmi or kNumber) can be untagged
+    // by inserting unchecked conversion nodes in the corresponding
+    // predecessors.
+    kKnownSmi,
+    kKnownNumber,
+
+    // A backedge that is equal to the Phi itself. Something like
+    // `n10 = Phi(n3, n10)`.
+    kSelfBackedge,
+
+    // Note that the following cases can currently lead to deopt loops (but we
+    // accept that since in general they do improve performance).
+    //
+    // We allow speculative untagging of backedge phis in loops with a peeled
+    // iteration (if the forward edge (which is actually the peeled backedge) is
+    // itself untaggable: we take this as a strong signal that the backedge can
+    // be untagged without deopting).
+    kSpeculativePhiBackedge,
+
+    // Speculatively untagging loop phi input (in predecessor) without any
+    // specific knowledge that this makes sense (except for the fact that the
+    // other inputs should look untaggable and the use hints should also look
+    // compatible with untagging).
+    kSpeculativeAny,
+
+    // InitialValues in OSR graphs can be speculatively untagged, in which case
+    // the untagging goes into the prologue.
+    kSpeculativeOSRValue,
+  };
+  using UntaggingKindList = base::SmallVector<UntaggingKind, 8>;
+
+ private:
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
-                          const HoistTypeList& hoist_untagging);
+                          const UntaggingKindList& untagging_kinds,
+                          bool truncating = false);
+  void UntagInputWithHoistedUntagging(Phi* phi, ValueRepresentation repr,
+                                      bool truncating, int input_index,
+                                      ValueNode* input,
+                                      UntaggingKind untagging_kind);
+  void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
+                             int input_index, const SmiConstant* input);
+  void UntagConstantInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                          int input_index, const Constant* input);
+  void UntagConversionInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                            int input_index, ValueNode* input);
+  void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,
+                             bool truncating, int input_index, Phi* input_phi);
+  void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
+                             int input_index, Phi* input_phi);
   template <class NodeT>
   ValueNode* GetReplacementForPhiInputConversion(ValueNode* input, Phi* phi,
                                                  uint32_t input_index);
@@ -166,9 +226,15 @@ class MaglevPhiRepresentationSelector {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult UpdateNodePhiInput(NumberToString* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
+                                   const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(CheckMaglevType* node, Phi* phi,
+                                   int input_index,
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
                                    Phi* phi, int input_index,
@@ -194,11 +260,14 @@ class MaglevPhiRepresentationSelector {
   // then {predecessor_index} should be set to the id of this input (ie, 0 for
   // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
   // to find existing tagging for {phi} in the {predecessor_index}th predecessor
-  // of the current block.
+  // of the current block. If {force_smi} is true, then the inserted tagging
+  // will produce a Smi or deopt (eg, instead of a Int32ToNumber we'll insert a
+  // CheckedSmiTagInt32).
   ValueNode* EnsurePhiTagged(
       Phi* phi, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
-      std::optional<int> predecessor_index = std::nullopt);
+      std::optional<int> predecessor_index = std::nullopt,
+      bool force_smi = false);
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(BasicBlock* block, BasicBlockPosition pos,
@@ -229,6 +298,8 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
+  bool is_turbolev() const { return graph_->compilation_info()->is_turbolev(); }
+
   Graph* graph_;
 
   MaglevReducer<MaglevPhiRepresentationSelector> reducer_;
@@ -248,6 +319,9 @@ class MaglevPhiRepresentationSelector {
 
   DeoptFrame* eager_deopt_frame_ = nullptr;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         MaglevPhiRepresentationSelector::UntaggingKind kind);
 
 }  // namespace maglev
 }  // namespace internal

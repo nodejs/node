@@ -130,7 +130,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
 
   // Copy the relocation info first before we unlock the Jit allocation.
   // TODO(sroettger): reloc info should live in protected memory.
-  DCHECK_EQ(reloc_info->length(), desc.reloc_size);
+  DCHECK_EQ(reloc_info->ulength().value(),
+            static_cast<uint32_t>(desc.reloc_size));
   CopyBytes(reloc_info->begin(), desc.buffer + desc.reloc_offset,
             static_cast<size_t>(desc.reloc_size));
 
@@ -227,7 +228,8 @@ uint8_t* InstructionStream::relocation_end() const {
 }
 
 int InstructionStream::relocation_size() const {
-  return relocation_info()->length();
+  // TODO(375937549): Covert to uint32_t.
+  return static_cast<int>(relocation_info()->ulength().value());
 }
 
 int InstructionStream::Size() const { return SizeFor(body_size()); }

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
@@ -15,7 +16,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/compiler/linkage.h"
 #include "src/flags/flags.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/baseline/parallel-move.h"
@@ -370,11 +371,12 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   if (!v8_flags.experimental_wasm_growable_stacks) {
     return rbp;
   }
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   cmpq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
        Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   j(equal, &call_runtime);
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
   movq(old_fp.gp(), rbp);
   jmp(&done);
 
@@ -561,12 +563,10 @@ void LiftoffAssembler::EmitWriteBarrier(Register target_object,
   bind(&exit);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   DCHECK_GE(offset_imm, 0);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
                                      static_cast<uint32_t>(offset_imm));
@@ -575,7 +575,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
@@ -597,8 +597,10 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */, bool i64_offset,
                                   Endianness /* endianness */) {
+  // x64 loads are suitable for both acquire and seqcst loads.
   Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc, true,
        i64_offset);
 }
@@ -710,8 +712,17 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList /* pinned */, bool i64_offset,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  if (memory_order == AtomicMemoryOrder::kAcqRel) {
+    // x64 stores have release semantics.
+    Store(dst_addr, offset_reg, offset_imm, src, type, {}, protected_store_pc,
+          true, i64_offset);
+    return;
+  }
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Register src_reg = src.gp();
@@ -1371,6 +1382,8 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
                                                                      lhs, rhs);
 }
 
+void LiftoffAssembler::SpillDivRegisters() { SpillRegisters(rax, rdx); }
+
 namespace liftoff {
 enum class DivOrRem : uint8_t { kDiv, kRem };
 template <typename type, DivOrRem div_or_rem>
@@ -1392,12 +1405,11 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     }                             \
   } while (false)
 
-  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
-  // these registers are unused. If {rhs} is stored in one of them, move it to
-  // another temporary register.
-  // Do all this before any branch, such that the code is executed
-  // unconditionally, as the cache state will also be modified unconditionally.
-  assm->SpillRegisters(rdx, rax);
+  // For division, the lhs is always taken from {rdx:rax}. Callers need to
+  // make sure these registers are unused. If {rhs} is stored in one of them,
+  // move it to another temporary register.
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(rax)));
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(rdx)));
   if (rhs == rax || rhs == rdx) {
     iop(mov, kScratchRegister, rhs);
     rhs = kScratchRegister;
@@ -1454,6 +1466,7 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     iop(mov, dst, kResultReg);
   }
   if (special_case_minus_1) assm->bind(&done);
+#undef iop
 }
 }  // namespace liftoff
 
@@ -3572,7 +3585,12 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
                                                     LiftoffRegister lhs,
                                                     LiftoffRegister rhs) {
-  I16x8DotI8x16I7x16S(dst.fp(), lhs.fp(), rhs.fp());
+  DoubleRegister lhs_src = lhs.fp();
+  if (!CpuFeatures::IsSupported(AVX) && dst == lhs && dst != rhs) {
+    movdqa(kScratchDoubleReg, lhs.fp());
+    lhs_src = kScratchDoubleReg;
+  }
+  I16x8DotI8x16I7x16S(dst.fp(), lhs_src, rhs.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,

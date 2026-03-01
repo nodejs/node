@@ -195,11 +195,11 @@ Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
       isolate->factory()->NewTrustedFixedArray(static_cast<int>(size()));
   MemsetTagged(fixed_array->RawFieldOfFirstElement(),
                *isolate->factory()->the_hole_value(), size());
-  int array_index = 0;
+  uint32_t array_index = 0;
+  uint32_t array_len = fixed_array->ulength().value();
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
-    DCHECK(array_index == 0 ||
-           base::bits::IsPowerOfTwo(static_cast<uint32_t>(array_index)));
+    DCHECK(array_index == 0 || base::bits::IsPowerOfTwo(array_index));
 #if DEBUG
     // Different slices might contain the same element due to reservations, but
     // all elements within a slice should be unique.
@@ -213,12 +213,12 @@ Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
     }
     // Leave holes where reservations led to unused slots.
     size_t padding = slice->capacity() - slice->size();
-    if (static_cast<size_t>(fixed_array->length() - array_index) <= padding) {
+    if (static_cast<size_t>(array_len - array_index) <= padding) {
       break;
     }
     array_index += padding;
   }
-  DCHECK_GE(array_index, fixed_array->length());
+  DCHECK_GE(array_index, array_len);
   return fixed_array;
 }
 
@@ -404,8 +404,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(IsolateT* isolate) const {
     case Tag::kJumpTableSmi:
       return handle(smi_, isolate);
     case Tag::kUninitializedJumpTableSmi:
-      // TODO(leszeks): There's probably a better value we could use here.
-      return isolate->factory()->the_hole_value();
+      UNREACHABLE();
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kConsString:

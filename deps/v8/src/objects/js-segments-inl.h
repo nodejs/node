@@ -25,11 +25,9 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegments)
 
 // Base segments accessors.
-ACCESSORS(JSSegments, icu_break_iterator, Tagged<Managed<icu::BreakIterator>>,
-          kIcuBreakIteratorOffset)
+ACCESSORS(JSSegments, icu_iterator_with_text,
+          Tagged<Managed<IcuBreakIteratorWithText>>, kIcuIteratorWithTextOffset)
 ACCESSORS(JSSegments, raw_string, Tagged<String>, kRawStringOffset)
-ACCESSORS(JSSegments, unicode_string, Tagged<Managed<icu::UnicodeString>>,
-          kUnicodeStringOffset)
 
 inline void JSSegments::set_granularity(JSSegmenter::Granularity granularity) {
   DCHECK(GranularityBits::is_valid(granularity));

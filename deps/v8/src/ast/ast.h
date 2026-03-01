@@ -1098,7 +1098,9 @@ class MaterializedLiteral : public Expression {
 // Node for capturing a regexp literal.
 class RegExpLiteral final : public MaterializedLiteral {
  public:
-  DirectHandle<String> pattern() const { return pattern_->string(); }
+  DirectHandle<InternalizedString> pattern() const {
+    return pattern_->string();
+  }
   const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
@@ -1497,7 +1499,7 @@ class VariableProxy final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return !is_new_target(); }
 
-  DirectHandle<String> name() const { return raw_name()->string(); }
+  DirectHandle<InternalizedString> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
     return is_resolved() ? var_->raw_name() : raw_name_;
   }
@@ -1551,8 +1553,13 @@ class VariableProxy final : public Expression {
 
   bool IsPrivateName() const { return raw_name()->IsPrivateName(); }
 
+  enum class BindingMode {
+    kMarkUse,
+    kNoMarkUse,
+  };
+
   // Bind this proxy to the variable var.
-  void BindTo(Variable* var);
+  void BindTo(Variable* var, BindingMode mode = BindingMode::kMarkUse);
 
   V8_INLINE VariableProxy* next_unresolved() { return next_unresolved_; }
   V8_INLINE bool is_removed_from_unresolved() const {
@@ -2775,7 +2782,7 @@ class ClassLiteral final : public Expression {
 
 class NativeFunctionLiteral final : public Expression {
  public:
-  DirectHandle<String> name() const { return name_->string(); }
+  DirectHandle<InternalizedString> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   v8::Extension* extension() const { return extension_; }
 

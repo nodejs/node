@@ -146,7 +146,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
@@ -154,7 +154,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length,
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(uint32_t length,
                                                      bool shared = false);
 
   // Allocates a fixed array-like object with given map and initialized with
@@ -165,37 +165,37 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with Tagged<Smi>(0) entries.
   DirectHandle<FixedArray> NewFixedArrayWithZeroes(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
   Handle<FixedArrayBase> NewFixedDoubleArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values. Length must be > 0.
   Handle<WeakFixedArray> NewWeakFixedArrayWithMap(
-      Tagged<Map> map, int length,
+      Tagged<Map> map, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
   // The function returns a pre-allocated empty weak fixed array for length = 0.
   Handle<WeakFixedArray> NewWeakFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a trusted weak fixed array in trusted space, initialized with
   // zeros.
-  Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(int length);
+  Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(uint32_t length);
 
   // Allocates a protected weak fixed array in trusted space, initialized with
   // zeros.
-  Handle<ProtectedWeakFixedArray> NewProtectedWeakFixedArray(int length);
+  Handle<ProtectedWeakFixedArray> NewProtectedWeakFixedArray(uint32_t length);
 
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
@@ -206,10 +206,14 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation_type = AllocationType::kTrusted);
 
   DirectHandle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(
-      int length);
+      uint32_t length);
   DirectHandle<DeoptimizationFrameTranslation>
   NewDeoptimizationFrameTranslation(int length);
 
+  // Allocates a BytecodeArray object.
+  // The returned object will not yet be "published" (accessible from within
+  // the sandbox) as it must first be verified by the sandbox's
+  // BytecodeVerifier. Only afterwards will the object be usable.
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
       uint16_t parameter_count, uint16_t max_arguments,
@@ -221,9 +225,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationType allocation = AllocationType::kOld);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
-  // calculates the number of properties we need to store in the backing store.
+  // records the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
-      int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
+      uint32_t boilerplate, uint32_t backing_store_size);
 
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
@@ -248,7 +252,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       ScriptEventType event_type = ScriptEventType::kCreate);
 
   DirectHandle<SloppyArgumentsElements> NewSloppyArgumentsElements(
-      int length, DirectHandle<Context> context,
+      uint32_t length, DirectHandle<Context> context,
       DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   DirectHandle<ArrayList> NewArrayList(
@@ -296,19 +300,19 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(base::Vector<const uint8_t> string,
-                                   bool convert_encoding = false);
-  Handle<String> InternalizeString(base::Vector<const uint16_t> string,
-                                   bool convert_encoding = false);
+  Handle<InternalizedString> InternalizeString(
+      base::Vector<const uint8_t> string, bool convert_encoding = false);
+  Handle<InternalizedString> InternalizeString(
+      base::Vector<const uint16_t> string, bool convert_encoding = false);
 
   template <class StringTableKey>
-  Handle<String> InternalizeStringWithKey(StringTableKey* key);
+  Handle<InternalizedString> InternalizeStringWithKey(StringTableKey* key);
 
-  Handle<SeqOneByteString> NewOneByteInternalizedString(
+  Handle<InternalizedString> NewOneByteInternalizedString(
       base::Vector<const uint8_t> str, uint32_t raw_hash_field);
-  Handle<SeqTwoByteString> NewTwoByteInternalizedString(
+  Handle<InternalizedString> NewTwoByteInternalizedString(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
-  DirectHandle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
+  DirectHandle<InternalizedString> NewOneByteInternalizedStringFromTwoByte(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
@@ -353,6 +357,16 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT HandleType<String>::MaybeType NewConsString(
       HandleType<String> left, HandleType<String> right,
       AllocationType allocation = AllocationType::kYoung);
+  template <template <typename> typename HandleType, typename LString,
+            typename RString>
+    requires(std::is_convertible_v<HandleType<LString>, DirectHandle<String>> &&
+             std::is_convertible_v<HandleType<RString>, DirectHandle<String>>)
+  V8_WARN_UNUSED_RESULT HandleType<String>::MaybeType NewConsString(
+      HandleType<LString> left, HandleType<RString> right,
+      AllocationType allocation = AllocationType::kYoung) {
+    return NewConsString(static_cast<HandleType<String>>(left),
+                         static_cast<HandleType<String>>(right), allocation);
+  }
 
   V8_WARN_UNUSED_RESULT Handle<String> NewConsString(
       DirectHandle<String> left, DirectHandle<String> right, int length,
@@ -433,7 +447,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
 
-  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map, int length,
+  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map,
+                                             uint32_t length,
                                              DirectHandle<HeapObject> filler,
                                              AllocationType allocation);
 

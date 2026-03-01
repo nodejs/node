@@ -25,7 +25,7 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
   DirectHandle<Object> export_object(exports->Lookup(export_name), isolate);
 
-  if (IsTheHole(*export_object) || !IsCell(*export_object)) {
+  if (!IsCell(*export_object)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kModuleExportUndefined, export_name));
     return Nothing<bool>();
@@ -56,7 +56,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     DirectHandle<String> module_specifier, DirectHandle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (!IsTheHole(*object) && IsCell(*object)) return Cast<Cell>(object);
+  if (IsCell(*object)) return Cast<Cell>(object);
 
   if (!must_resolve) return kNullMaybeHandle;
 
@@ -75,7 +75,8 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   DirectHandle<FixedArray> export_names(module->export_names(), isolate);
   // Spec step 7: For each export_name in module->export_names...
-  for (int i = 0, n = export_names->length(); i < n; ++i) {
+  const uint32_t export_names_len = export_names->ulength().value();
+  for (uint32_t i = 0; i < export_names_len; ++i) {
     // Spec step 7.1: Create a new mutable binding for export_name.
     // Spec step 7.2: Initialize the new mutable binding to undefined.
     DirectHandle<Cell> cell = isolate->factory()->NewCell();
@@ -93,6 +94,13 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
                                         DirectHandle<SyntheticModule> module) {
   module->SetStatus(kLinked);
+
+  // Ensure that if the namespace binding was created it is not empty.
+  if (!IsUndefined(module->module_namespace())) {
+    Module::GetModuleNamespace(isolate, handle(*module, isolate));
+    DCHECK(!IsUndefined(Cast<Cell>(module->module_namespace())->value()));
+  }
+
   return true;
 }
 

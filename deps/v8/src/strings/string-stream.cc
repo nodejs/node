@@ -194,12 +194,11 @@ void StringStream::Add(base::Vector<const char> format,
 
 void StringStream::PrintObject(Tagged<Object> o) {
   ShortPrint(o, this);
-  if (SafeIsAnyHole(o)) return;
   if (IsString(o)) {
     if (Cast<String>(o)->length() <= String::kMaxShortPrintLength) {
       return;
     }
-  } else if (IsNumber(o) || IsOddball(o)) {
+  } else if (IsAnyHole(o) || IsNumber(o) || IsOddball(o)) {
     return;
   }
   if (IsHeapObject(o) && object_print_mode_ == kPrintObjectVerbose) {
@@ -331,10 +330,9 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
   }
 }
 
-void StringStream::PrintFixedArray(Tagged<FixedArray> array,
-                                   unsigned int limit) {
+void StringStream::PrintFixedArray(Tagged<FixedArray> array, uint32_t limit) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  for (unsigned int i = 0; i < 10 && i < limit; i++) {
+  for (uint32_t i = 0; i < 10 && i < limit; i++) {
     Tagged<Object> element = array->get(i);
     if (IsTheHole(element, roots)) continue;
     for (int len = 1; len < 18; len++) {
@@ -348,8 +346,8 @@ void StringStream::PrintFixedArray(Tagged<FixedArray> array,
 }
 
 void StringStream::PrintByteArray(Tagged<ByteArray> byte_array) {
-  unsigned int limit = byte_array->length();
-  for (unsigned int i = 0; i < 10 && i < limit; i++) {
+  uint32_t limit = byte_array->ulength().value();
+  for (uint32_t i = 0; i < 10 && i < limit; i++) {
     uint8_t b = byte_array->get(i);
     Add("             %d: %3d 0x%02x", i, b, b);
     if (b >= ' ' && b <= '~') {
@@ -388,8 +386,9 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       if (IsJSArray(printee)) {
         Tagged<JSArray> array = Cast<JSArray>(printee);
         if (array->HasObjectElements()) {
-          unsigned int limit = Cast<FixedArray>(array->elements())->length();
-          unsigned int length = static_cast<uint32_t>(
+          uint32_t limit =
+              Cast<FixedArray>(array->elements())->ulength().value();
+          uint32_t length = static_cast<uint32_t>(
               Object::NumberValue(Cast<JSArray>(array)->length()));
           if (length < limit) limit = length;
           PrintFixedArray(Cast<FixedArray>(array->elements()), limit);
@@ -398,7 +397,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
     } else if (IsByteArray(printee)) {
       PrintByteArray(Cast<ByteArray>(printee));
     } else if (IsFixedArray(printee)) {
-      unsigned int limit = Cast<FixedArray>(printee)->length();
+      uint32_t limit = Cast<FixedArray>(printee)->ulength().value();
       PrintFixedArray(Cast<FixedArray>(printee), limit);
     }
   }

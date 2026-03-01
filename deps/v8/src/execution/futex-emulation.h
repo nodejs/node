@@ -35,9 +35,14 @@ namespace internal {
 
 class BackingStore;
 class FutexWaitList;
+#if V8_ENABLE_WEBASSEMBLY
+class FutexManagedObjectWaitList;
+#endif
 
 class Isolate;
 class JSArrayBuffer;
+class JSPromise;
+class NoGarbageCollectionMutexGuard;
 
 class FutexWaitListNode {
  public:
@@ -47,7 +52,7 @@ class FutexWaitListNode {
   // Create an async FutexWaitListNode.
   FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
                     void* wait_location,
-                    DirectHandle<JSObject> promise_capability,
+                    DirectHandle<JSPromise> promise_capability,
                     Isolate* isolate);
 
   // Disallow copying nodes.
@@ -64,6 +69,9 @@ class FutexWaitListNode {
  private:
   friend class FutexEmulation;
   friend class FutexWaitList;
+#if V8_ENABLE_WEBASSEMBLY
+  friend class FutexManagedObjectWaitList;
+#endif
 
   // Async wait requires substantially more information than synchronous wait.
   // Hence store that additional information in a heap-allocated struct to make
@@ -125,6 +133,13 @@ class FutexWaitListNode {
   // this node is alive.
   void* wait_location_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
+  // The list this node is currently in. This is used to take a lock when we
+  // wake an interrupted thread.
+  std::atomic<FutexManagedObjectWaitList*> futex_managed_object_wait_list_ =
+      nullptr;
+#endif
+
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
   // if this node is currently contained in
   // FutexEmulationGlobalState::wait_list.
@@ -134,6 +149,68 @@ class FutexWaitListNode {
   // State used for an async wait; nullptr on sync waits.
   const std::unique_ptr<AsyncState> async_state_;
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+class FutexManagedObjectWaitList {
+ public:
+  static constexpr internal::ExternalPointerTag kManagedTag =
+      internal::kWasmFutexManagedObjectWaitListTag;
+
+  FutexManagedObjectWaitList() = default;
+  FutexManagedObjectWaitList(const FutexWaitList&) = delete;
+  FutexManagedObjectWaitList& operator=(const FutexWaitList&) = delete;
+
+  void AddNode(FutexWaitListNode* node) {
+    if (head_ == nullptr) {
+      DCHECK_EQ(tail_, nullptr);
+      head_ = tail_ = node;
+    } else {
+      DCHECK_NOT_NULL(tail_);
+      tail_->next_ = node;
+      node->prev_ = tail_;
+      node->next_ = nullptr;
+      tail_ = node;
+    }
+    node->futex_managed_object_wait_list_.store(this);
+  }
+
+  void RemoveNode(FutexWaitListNode* node) {
+    DCHECK(NodeIsOnList(node, head_));
+    if (node->prev_) {
+      node->prev_->next_ = node->next_;
+    } else {
+      DCHECK_EQ(node, head_);
+      head_ = node->next_;
+    }
+    if (node->next_) {
+      node->next_->prev_ = node->prev_;
+    } else {
+      DCHECK_EQ(node, tail_);
+      tail_ = node->prev_;
+    }
+    node->prev_ = node->next_ = nullptr;
+    node->futex_managed_object_wait_list_.store(nullptr);
+  }
+
+  base::Mutex* mutex() { return &mutex_; }
+
+ private:
+  friend class FutexEmulation;
+
+  bool NodeIsOnList(FutexWaitListNode* node, FutexWaitListNode* head) {
+    for (FutexWaitListNode* n = head; n; n = n->next_) {
+      if (n == node) return true;
+    }
+    return false;
+  }
+
+  // Protects the fields below.
+  base::Mutex mutex_;
+
+  FutexWaitListNode* head_ = nullptr;
+  FutexWaitListNode* tail_ = nullptr;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class FutexEmulation : public AllStatic {
  public:
@@ -163,14 +240,20 @@ class FutexEmulation : public AllStatic {
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm32(
-      Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-      int32_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int32_t value,
+      int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm64(
-      Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-      int64_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int64_t value,
+      int64_t rel_timeout_ns);
+
+#if V8_ENABLE_WEBASSEMBLY
+  V8_EXPORT_PRIVATE static Tagged<Object> WaitWasmManagedObject(
+      Isolate* isolate, Tagged<HeapObject> object, int32_t offset,
+      int32_t expected_value, int64_t rel_timeout_ns);
+#endif
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
@@ -181,6 +264,11 @@ class FutexEmulation : public AllStatic {
                                     size_t addr, uint32_t num_waiters_to_wake);
   // Variant 2: Pass raw |addr| (used for WebAssembly atomic.notify).
   static int Wake(void* addr, uint32_t num_waiters_to_wake);
+#if V8_ENABLE_WEBASSEMBLY
+  // Variant 3: Pass an object and offset (used for WebAssembly struct.notify).
+  static int Wake(Address raw_object, int32_t offset,
+                  uint32_t num_waiters_to_wake);
+#endif
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.
   static void IsolateDeinit(Isolate* isolate);
@@ -204,26 +292,26 @@ class FutexEmulation : public AllStatic {
   template <typename T>
   static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
                              DirectHandle<JSArrayBuffer> array_buffer,
-                             size_t addr, T value, double rel_timeout_ms);
+                             size_t addr, T value, double rel_timeout_ms,
+                             CallType call_type);
 
   template <typename T>
-  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
-                             DirectHandle<JSArrayBuffer> array_buffer,
-                             size_t addr, T value, bool use_timeout,
-                             int64_t rel_timeout_ns,
-                             CallType call_type = CallType::kIsNotWasm);
-
-  template <typename T>
-  static Tagged<Object> WaitSync(Isolate* isolate,
-                                 DirectHandle<JSArrayBuffer> array_buffer,
-                                 size_t addr, T value, bool use_timeout,
-                                 int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitSync(Isolate* isolate, void* wait_location, T value,
+                                 bool use_timeout, int64_t rel_timeout_ns,
+                                 CallType call_type);
 
   template <typename T>
   static Tagged<Object> WaitAsync(Isolate* isolate,
                                   DirectHandle<JSArrayBuffer> array_buffer,
                                   size_t addr, T value, bool use_timeout,
                                   int64_t rel_timeout_ns, CallType call_type);
+
+  template <typename WaitList, typename T>
+  static DirectHandle<Object> WaitSyncImpl(
+      Isolate* isolate, WaitList* wait_list, FutexWaitListNode* node,
+      NoGarbageCollectionMutexGuard& lock_guard, bool use_timeout,
+      base::TimeTicks timeout_time, T value, T loaded_value,
+      std::optional<void*> wait_location);
 
   // Resolve the Promises of the async waiters which belong to |isolate|.
   static void ResolveAsyncWaiterPromises(Isolate* isolate);

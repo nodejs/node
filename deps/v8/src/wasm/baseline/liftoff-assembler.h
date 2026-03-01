@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -421,6 +422,7 @@ class LiftoffAssembler : public MacroAssembler {
 
   // Pop a VarState from the stack, updating the register use count accordingly.
   V8_INLINE VarState PopVarState() {
+    DCHECK(!cache_state_.frozen);
     DCHECK(!cache_state_.stack_state.empty());
     VarState slot = cache_state_.stack_state.back();
     cache_state_.stack_state.pop_back();
@@ -467,6 +469,7 @@ class LiftoffAssembler : public MacroAssembler {
   }
 
   void DropValues(int count) {
+    DCHECK(!cache_state_.frozen);
     DCHECK_GE(cache_state_.stack_state.size(), count);
     for (VarState& slot :
          base::VectorOf(cache_state_.stack_state.end() - count, count)) {
@@ -721,18 +724,13 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
                                                int offset_imm);
 #endif
-  enum SkipWriteBarrier : bool {
-    kSkipWriteBarrier = true,
-    kNoSkipWriteBarrier = false
-  };
   enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,
                                Register stored_value, LiftoffRegList pinned);
-  inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
-                                 int32_t offset_imm, Register src,
-                                 LiftoffRegList pinned,
-                                 uint32_t* protected_store_pc = nullptr,
-                                 SkipWriteBarrier = kNoSkipWriteBarrier);
+  inline void StoreTaggedPointer(
+      Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+      LiftoffRegList pinned, uint32_t* protected_store_pc = nullptr,
+      compiler::WriteBarrierKind = compiler::kFullWriteBarrier);
   inline void AtomicStoreTaggedPointer(Register dst_addr, Register offset_reg,
                                        int32_t offset_imm, Register src,
                                        LiftoffRegList pinned,
@@ -753,13 +751,13 @@ class LiftoffAssembler : public MacroAssembler {
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
                          LoadType type, uint32_t* protected_load_pc,
-                         LiftoffRegList pinned, bool i64_offset,
-                         Endianness endianness = kLittle);
+                         AtomicMemoryOrder memory_order, LiftoffRegList pinned,
+                         bool i64_offset, Endianness endianness = kLittle);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
                           StoreType type, uint32_t* protected_store_pc,
-                          LiftoffRegList pinned, bool i64_offset,
-                          Endianness endianness = kLittle);
+                          AtomicMemoryOrder memory_order, LiftoffRegList pinned,
+                          bool i64_offset, Endianness endianness = kLittle);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
@@ -834,6 +832,15 @@ class LiftoffAssembler : public MacroAssembler {
   // 4 bytes on the stack holding half of a 64-bit value.
   inline void FillI64Half(Register, int offset, RegPairHalf);
   inline void FillStackSlotsWithZero(int start, int size);
+
+  // Some architectures need certain fixed registers to be available for
+  // division instructions. We need the ability to spill them before freezing
+  // the cache state.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  inline void SpillDivRegisters();
+#else
+  inline void SpillDivRegisters() {}
+#endif
 
   inline void emit_trace_instruction(uint32_t markid);
 

@@ -169,7 +169,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   std::map<std::vector<uint16_t>, v8::Global<v8::Module>> modules_;
   int last_session_id_ = 0;
   std::map<int, std::shared_ptr<v8_inspector::V8InspectorSession>> sessions_;
-  std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;
+  std::map<int, int> context_group_by_session_id_;
   std::set<int> session_ids_for_cleanup_;
   v8::Global<v8::Value> memory_info_;
   bool current_time_set_ = false;

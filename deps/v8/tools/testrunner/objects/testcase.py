@@ -26,17 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import copy
-import os
 import re
 import shlex
 
 from pathlib import Path
 
 from testrunner.outproc import base as outproc
-from testrunner.local import command
 from testrunner.local import statusfile
-from testrunner.local import utils
-from testrunner.local.variants import ALL_VARIANT_FLAGS
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG

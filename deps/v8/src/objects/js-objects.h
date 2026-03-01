@@ -154,7 +154,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> object,
       DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
-      Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, DirectHandle<JSReceiver> object, size_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSReceiver> receiver, const char* key);
@@ -298,7 +298,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
                            DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
-                           uint32_t index);
+                           size_t index);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetElementAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -994,7 +994,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   class FastBodyDescriptor;
 
   // Gets the number of currently used elements.
-  int GetFastElementsUsage();
+  uint32_t GetFastElementsUsage();
 
   template <typename Dictionary>
   static void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
@@ -1197,8 +1197,7 @@ class JSIteratorResult : public JSObject {
 class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
-  inline bool IsDetachedFrom(Isolate* isolate,
-                             Tagged<JSGlobalObject> global) const;
+  inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
   V8_EXPORT_PRIVATE bool IsDetached();
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1219,7 +1218,7 @@ class JSGlobalObject
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
 
-  inline bool IsDetached(Isolate* isolate);
+  inline bool IsDetached();
   inline Tagged<NativeContext> native_context();
 
   // Dispatched behavior.

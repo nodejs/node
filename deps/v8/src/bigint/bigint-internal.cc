@@ -4,6 +4,8 @@
 
 #include "src/bigint/bigint-internal.h"
 
+#include "src/bigint/bigint-inl.h"
+
 namespace v8 {
 namespace bigint {
 
@@ -38,109 +40,85 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
   Y.Normalize();
   if (X.len() == 0 || Y.len() == 0) return Z.Clear();
   if (X.len() < Y.len()) std::swap(X, Y);
-  if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
-  if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
+  if (Y.len() == 1) {
+    MultiplySingle(Z, X, Y[0]);
+    AddWorkEstimate(X.len());
+    return;
+  }
+  if (Y.len() < config::kKaratsubaThreshold) {
+    MultiplySchoolbook(Z, X, Y);
+    AddWorkEstimate(X.len() * Y.len());
+    return;
+  }
+  return MultiplyLarge(Z, X, Y);
+}
+
+void ProcessorImpl::MultiplyLarge(RWDigits& Z, Digits& X, Digits& Y) {
+  DCHECK(IsDigitNormalized(X));
+  DCHECK(IsDigitNormalized(Y));
+  DCHECK(X.len() >= Y.len());
   CHECK(X.len() <= kMaxNumDigits);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
   return MultiplyKaratsuba(Z, X, Y);
 #else
-  if (Y.len() < kToomThreshold) return MultiplyKaratsuba(Z, X, Y);
-  if (Y.len() < kFftThreshold) return MultiplyToomCook(Z, X, Y);
+  if (Y.len() < config::kToomThreshold) return MultiplyKaratsuba(Z, X, Y);
+  if (Y.len() < config::kFftThreshold) return MultiplyToomCook(Z, X, Y);
   return MultiplyFFT(Z, X, Y);
 #endif
 }
 
-void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
-  A.Normalize();
-  B.Normalize();
-  // While callers are not required to normalize inputs, they must not
-  // provide divisors that normalize to zero.
-  // This must be a Release-mode CHECK because it is load bearing for
-  // security fuzzing: subsequent operations would perform illegal memory
-  // accesses if they attempted to work with zero divisors.
-  CHECK(B.len() > 0);
-  int cmp = CompareNoNormalize(A, B);
-  if (cmp < 0) return Q.Clear();
-  if (cmp == 0) {
-    Q[0] = 1;
-    for (uint32_t i = 1; i < Q.len(); i++) Q[i] = 0;
-    return;
-  }
-  if (B.len() == 1) {
-    digit_t remainder;
-    return DivideSingle(Q, &remainder, A, B[0]);
-  }
-  if (B.len() < kBurnikelThreshold) {
-    return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
+Status Processor::MultiplyLarge(RWDigits& Z, Digits& X, Digits& Y) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  impl->MultiplyLarge(Z, X, Y);
+  return impl->get_and_clear_status();
+}
+
+Status Processor::DivideLarge(RWDigits& Q, Digits& A, Digits& B) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  DCHECK(IsDigitNormalized(A));
+  DCHECK(IsDigitNormalized(B));
+  DCHECK(B.len() > 1);
+  RWDigits R0(nullptr, 0);
+  if (B.len() < config::kBurnikelThreshold) {
+    impl->DivideSchoolbook(Q, R0, A, B);
+    return impl->get_and_clear_status();
   }
   CHECK(A.len() <= kMaxNumDigits);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
-  return DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
+  impl->DivideBurnikelZiegler(Q, R0, A, B);
 #else
-  if (B.len() < kBarrettThreshold || A.len() == B.len()) {
-    DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
+  if (B.len() < config::kBarrettThreshold || A.len() == B.len()) {
+    impl->DivideBurnikelZiegler(Q, R0, A, B);
   } else {
     ScratchDigits R(B.len());
-    DivideBarrett(Q, R, A, B);
+    impl->DivideBarrett(Q, R, A, B);
   }
 #endif
+  return impl->get_and_clear_status();
 }
 
-void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
-  A.Normalize();
-  B.Normalize();
-  // While callers are not required to normalize inputs, they must not
-  // provide divisors that normalize to zero.
-  // This must be a Release-mode CHECK because it is load bearing for
-  // security fuzzing: subsequent operations would perform illegal memory
-  // accesses if they attempted to work with zero divisors.
-  CHECK(B.len() > 0);
-  int cmp = CompareNoNormalize(A, B);
-  if (cmp < 0) {
-    for (uint32_t i = 0; i < B.len(); i++) R[i] = B[i];
-    for (uint32_t i = B.len(); i < R.len(); i++) R[i] = 0;
-    return;
-  }
-  if (cmp == 0) return R.Clear();
-  if (B.len() == 1) {
-    digit_t remainder;
-    DivideSingle(RWDigits(nullptr, 0), &remainder, A, B[0]);
-    R[0] = remainder;
-    for (uint32_t i = 1; i < R.len(); i++) R[i] = 0;
-    return;
-  }
-  if (B.len() < kBurnikelThreshold) {
-    return DivideSchoolbook(RWDigits(nullptr, 0), R, A, B);
+Status Processor::ModuloLarge(RWDigits& R, Digits& A, Digits& B) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  DCHECK(IsDigitNormalized(A));
+  DCHECK(IsDigitNormalized(B));
+  DCHECK(B.len() > 1);
+  if (B.len() < config::kBurnikelThreshold) {
+    RWDigits Q(nullptr, 0);
+    impl->DivideSchoolbook(Q, R, A, B);
+    return impl->get_and_clear_status();
   }
   CHECK(A.len() < kMaxNumDigits);
   uint32_t q_len = DivideResultLength(A, B);
   ScratchDigits Q(q_len);
 #if !V8_ADVANCED_BIGINT_ALGORITHMS
-  return DivideBurnikelZiegler(Q, R, A, B);
+  impl->DivideBurnikelZiegler(Q, R, A, B);
 #else
-  if (B.len() < kBarrettThreshold || A.len() == B.len()) {
-    DivideBurnikelZiegler(Q, R, A, B);
+  if (B.len() < config::kBarrettThreshold || A.len() == B.len()) {
+    impl->DivideBurnikelZiegler(Q, R, A, B);
   } else {
-    DivideBarrett(Q, R, A, B);
+    impl->DivideBarrett(Q, R, A, B);
   }
 #endif
-}
-
-Status Processor::Multiply(RWDigits Z, Digits X, Digits Y) {
-  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
-  impl->Multiply(Z, X, Y);
-  return impl->get_and_clear_status();
-}
-
-Status Processor::Divide(RWDigits Q, Digits A, Digits B) {
-  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
-  impl->Divide(Q, A, B);
-  return impl->get_and_clear_status();
-}
-
-Status Processor::Modulo(RWDigits R, Digits A, Digits B) {
-  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
-  impl->Modulo(R, A, B);
   return impl->get_and_clear_status();
 }
 

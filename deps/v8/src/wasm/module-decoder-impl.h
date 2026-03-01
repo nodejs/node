@@ -27,24 +27,6 @@ namespace v8::internal::wasm {
     if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
-constexpr char kNameString[] = "name";
-constexpr char kSourceMappingURLString[] = "sourceMappingURL";
-constexpr char kInstTraceString[] = "metadata.code.trace_inst";
-constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
-#if V8_CC_GNU
-// TODO(miladfarca): remove once switched to using Clang.
-__attribute__((used))
-#endif
-constexpr char kCompilationPriorityString[] =
-    "metadata.code.compilation_priority";
-constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
-constexpr char kCallTargetsString[] = "metadata.code.call_targets";
-constexpr char kDebugInfoString[] = ".debug_info";
-constexpr char kExternalDebugInfoString[] = "external_debug_info";
-constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
-
 inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
     case kExternalFunction:
@@ -57,6 +39,8 @@ inline const char* ExternalKindName(ImportExportKindCode kind) {
       return "global";
     case kExternalTag:
       return "tag";
+    case kExternalExactFunction:
+      return "exact function";
   }
   return "unknown";
 }
@@ -155,8 +139,7 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
-      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode},
-      {base::StaticCharVector(kDescriptorsString), kDescriptorsSectionCode}};
+      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode}};
 
   auto name_vec = base::Vector<const char>::cast(
       base::VectorOf(section_name_start, string.length()));
@@ -306,7 +289,7 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
   path += buf.begin();
   size_t rv = 0;
   if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
-    rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
+    rv = fwrite(module_bytes.begin(), module_bytes.size(), 1, file);
     base::Fclose(file);
   }
   if (rv != 1) {
@@ -537,9 +520,6 @@ class ModuleDecoderImpl : public Decoder {
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
         break;
-      case kDescriptorsSectionCode:
-        DecodeDescriptorsSection();
-        break;
       case kDataCountSectionCode:
         DecodeDataCountSection();
         break;
@@ -592,7 +572,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     switch (kind) {
       case kWasmFunctionTypeCode: {
-        const FunctionSig* sig = consume_sig(&module_->signature_zone);
+        const FunctionSig* sig = consume_sig();
         if (sig == nullptr) {
           CHECK(!ok());
           return {};
@@ -602,8 +582,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
-        const StructType* type =
-            consume_struct(&module_->signature_zone, is_descriptor, is_shared);
+        const StructType* type = consume_struct(is_descriptor, is_shared);
         if (type == nullptr) {
           CHECK(!ok());
           return {};
@@ -612,7 +591,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array(&module_->signature_zone);
+        const ArrayType* type = consume_array();
         if (type == nullptr) {
           CHECK(!ok());
           return {};
@@ -630,12 +609,13 @@ class ModuleDecoderImpl : public Decoder {
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (!hp.is_index()) {
+        if (!hp.has_index()) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
 
-        ContType* type = module_->signature_zone.New<ContType>(hp.ref_index());
+        ContType* type =
+            module_->signature_storage.New<ContType>(hp.ref_index());
         return {type, kNoSuperType, is_final, is_shared};
       }
       default:
@@ -977,7 +957,8 @@ class ModuleDecoderImpl : public Decoder {
           .module_name = module_name, .field_name = field_name, .kind = kind});
       WasmImport* import = &module_->import_table.back();
       switch (kind) {
-        case kExternalFunction: {
+        case kExternalFunction:
+        case kExternalExactFunction: {
           // ===== Imported function ===========================================
           import->index = static_cast<uint32_t>(module_->functions.size());
           module_->num_imported_functions++;
@@ -986,6 +967,18 @@ class ModuleDecoderImpl : public Decoder {
               .imported = true,
           });
           WasmFunction* function = &module_->functions.back();
+          if (kind == kExternalExactFunction) {
+            if (!enabled_features_.has_custom_descriptors()) {
+              // We haven't decoded any bytes since {consume_u8("kind")}.
+              errorf(pc_ - 1,
+                     "Invalid import kind %d, enable with "
+                     "--experimental-wasm-custom-descriptors",
+                     kind);
+              break;
+            }
+            function->exact = true;
+            detected_features_->add_custom_descriptors();
+          }
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
           break;
@@ -995,7 +988,7 @@ class ModuleDecoderImpl : public Decoder {
           import->index = static_cast<uint32_t>(module_->tables.size());
           const uint8_t* type_position = pc();
           ValueType type = consume_value_type(module_.get());
-          if (!type.is_object_reference()) {
+          if (!type.is_ref()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
@@ -1094,9 +1087,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     if (module_->num_imported_mutable_globals > 0) {
       detected_features_->add_mutable_globals();
@@ -1162,7 +1152,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       ValueType table_type = consume_value_type(module_.get());
-      if (!table_type.is_object_reference()) {
+      if (!table_type.is_ref()) {
         error(type_position, "Only reference types can be used as table types");
         break;
       }
@@ -1232,9 +1222,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     UpdateComputedMemoryInformation();
   }
@@ -1353,6 +1340,7 @@ class ModuleDecoderImpl : public Decoder {
           exp->index = consume_tag_index(module_.get(), &tag);
           break;
         }
+        case kExternalExactFunction:
         default:
           errorf(kind_pos, "invalid export kind 0x%02x", exp->kind);
           break;
@@ -1607,16 +1595,6 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // Skip the whole names section in the outer decoder.
-    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-  }
-
-  void DecodeDescriptorsSection() {
-    if (enabled_features_.has_custom_descriptors() &&
-        !has_seen_unordered_section(kDescriptorsSectionCode)) {
-      set_seen_unordered_section(kDescriptorsSectionCode);
-      module_->descriptors_section = {buffer_offset_,
-                                      static_cast<uint32_t>(end_ - start_)};
-    }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
@@ -1878,9 +1856,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->compilation_priorities = std::move(compilation_priorities);
-      } else {
-        TRACE("DecodeCompilationPriority error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCompilationPriority error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole compilation priority section in the outer decoder.
@@ -1929,12 +1908,17 @@ class ModuleDecoderImpl : public Decoder {
 
           uint8_t frequency = inner.consume_u8("frequency");
 
+          if (!(frequency <= 64 || frequency == 127)) {
+            inner.error("invalid frequency");
+            break;
+          }
+
           // Skip remaining hint bytes.
           if (hint_length > 1) {
             inner.consume_bytes(hint_length - 1);
           }
 
-          frequencies.emplace(std::pair{func_index, byte_offset}, frequency);
+          frequencies[func_index].emplace_back(byte_offset, frequency);
         }
       }
 
@@ -1947,9 +1931,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->instruction_frequencies = std::move(frequencies);
-      } else {
-        TRACE("DecodeInstructionFrequencies error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeInstructionFrequencies error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole instruction frequencies section in the outer decoder.
@@ -2038,8 +2023,8 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
 
-          call_targets.emplace(std::pair{func_index, byte_offset},
-                               call_targets_for_offset);
+          call_targets[func_index].emplace_back(byte_offset,
+                                                call_targets_for_offset);
         }
         if (inner.failed()) break;
       }
@@ -2052,8 +2037,10 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the call-target hints for the module.
       if (inner.ok()) {
         module_->call_targets = std::move(call_targets);
-      } else {
-        TRACE("DecodeCallTargets error: %s", inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCallTargets error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole call-targets section in the outer decoder.
@@ -2189,43 +2176,12 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunctionForTesting(Zone* zone,
-                                                ModuleWireBytes wire_bytes,
-                                                const WasmModule* module) {
-    DCHECK(ok());
-    pc_ = start_;
-    expect_u8("type form", kWasmFunctionTypeCode);
-    WasmFunction function;
-    function.sig = consume_sig(zone);
-    function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
-
-    if (!ok()) return FunctionResult{std::move(error_)};
-
-    constexpr bool kShared = false;
-    FunctionBody body{function.sig, off(pc_), pc_, end_, kShared};
-
-    WasmDetectedFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(zone, enabled_features_, module,
-                                               &unused_detected_features, body);
-
-    if (result.failed()) return FunctionResult{std::move(result).error()};
-
-    return FunctionResult{std::make_unique<WasmFunction>(function)};
-  }
-
   // Decodes a single function signature at {start}.
-  const FunctionSig* DecodeFunctionSignatureForTesting(Zone* zone,
-                                                       const uint8_t* start) {
+  const FunctionSig* DecodeFunctionSignatureForTesting(const uint8_t* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    const FunctionSig* result = consume_sig(zone);
+    const FunctionSig* result = consume_sig();
     return ok() ? result : nullptr;
-  }
-
-  ConstantExpression DecodeInitExprForTesting(ValueType expected) {
-    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-    return consume_init_expr(module_.get(), expected, kIsShared);
   }
 
   // Takes a module as parameter so that wasm-disassembler.cc can pass its own
@@ -2274,7 +2230,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.is_reference()) {
+      } else if (global.type.is_ref()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -2586,7 +2542,8 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = ValueType::Ref(functype, functype_is_shared,
                                           RefTypeKind::kFunction);
           if (enabled_features_.has_custom_descriptors() &&
-              index >= module->num_imported_functions) {
+              (index >= module->num_imported_functions ||
+               module->functions[index].exact)) {
             type = type.AsExact();
           }
           TYPE_CHECK(type)
@@ -2746,13 +2703,23 @@ class ModuleDecoderImpl : public Decoder {
       case kI16Code:
         consume_bytes(1, " i16", tracer_);
         return kWasmI16;
+      case kWaitQueueCode:
+        if (!enabled_features_.has_shared()) {
+          error(
+              "invalid storage type 'waitqueue', enable with "
+              "--experimental-wasm-shared");
+          consume_bytes(1, " waitqueue", tracer_);
+          return kWasmBottom;
+        }
+        consume_bytes(1, " waitqueue", tracer_);
+        return kWasmWaitQueue;
       default:
         // It is not a packed type, so it has to be a value type.
         return consume_value_type();
     }
   }
 
-  const FunctionSig* consume_sig(Zone* zone) {
+  const FunctionSig* consume_sig() {
     if (tracer_) tracer_->NextLine();
     // Parse parameter types.
     uint32_t param_count =
@@ -2775,45 +2742,50 @@ class ModuleDecoderImpl : public Decoder {
     }
     // Now that we know the param count and the return count, we can allocate
     // the permanent storage.
-    ValueType* sig_storage =
-        zone->AllocateArray<ValueType>(param_count + return_count);
-    // Note: Returns come first in the signature storage.
-    std::copy_n(params.begin(), param_count, sig_storage + return_count);
+    FunctionSig::Builder sig_builder{&module_->signature_storage, return_count,
+                                     param_count};
+    for (ValueType t : params) sig_builder.AddParam(t);
     for (uint32_t i = 0; i < return_count; ++i) {
-      sig_storage[i] = consume_value_type();
+      sig_builder.AddReturn(consume_value_type());
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
 
-    return zone->New<FunctionSig>(return_count, param_count, sig_storage);
+    return sig_builder.Get();
   }
 
-  const StructType* consume_struct(Zone* zone, bool is_descriptor,
-                                   bool is_shared) {
+  const StructType* consume_struct(bool is_descriptor, bool is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
-    ValueType* fields = zone->AllocateArray<ValueType>(field_count);
-    bool* mutabilities = zone->AllocateArray<bool>(field_count);
+    ValueType* fields =
+        module_->signature_storage.AllocateArray<ValueType>(field_count);
+    bool* mutabilities =
+        module_->signature_storage.AllocateArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       fields[i] = consume_storage_type();
       mutabilities[i] = consume_mutability();
       if (tracer_) tracer_->NextLine();
     }
     if (failed()) return nullptr;
-    uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
-    StructType* result = zone->New<StructType>(
+    uint32_t* offsets =
+        module_->signature_storage.AllocateArray<uint32_t>(field_count);
+    StructType* result = module_->signature_storage.New<StructType>(
         field_count, offsets, fields, mutabilities, is_descriptor, is_shared);
     result->InitializeOffsets();
     return result;
   }
 
-  const ArrayType* consume_array(Zone* zone) {
+  const ArrayType* consume_array() {
     ValueType element_type = consume_storage_type();
+    if (element_type == kWasmWaitQueue) {
+      error("arrays of waitqueue not supported yet");
+      return nullptr;
+    }
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (failed()) return nullptr;
-    return zone->New<ArrayType>(element_type, mutability);
+    return module_->signature_storage.New<ArrayType>(element_type, mutability);
   }
 
   // Consume the attribute field of an exception.

@@ -77,13 +77,24 @@ class WasmValue {
       : type_(type), bit_pattern_{} {
     static_assert(sizeof(DirectHandle<Object>) <= sizeof(bit_pattern_),
                   "bit_pattern_ must be large enough to fit a Handle");
-    DCHECK(type.is_reference());
+    DCHECK(type.is_ref());
     base::WriteUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
+  // TODO(manoskouk): Do we have to somehow also represent a waitqueue's Managed
+  // object?
+  static WasmValue WaitQueue(int32_t value) {
+    return WasmValue(reinterpret_cast<const uint8_t*>(&value), kWasmWaitQueue);
+  }
+
+  int32_t to_wait_queue_value() const {
+    DCHECK_EQ(type_, kWasmWaitQueue);
+    return to_i32_unchecked();
+  }
+
   DirectHandle<Object> to_ref() const {
-    DCHECK(type_.is_reference());
+    DCHECK(type_.is_ref());
     return base::ReadUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_));
   }
@@ -96,8 +107,8 @@ class WasmValue {
   bool operator==(const WasmValue& other) const {
     return type_ == other.type_ &&
            !memcmp(bit_pattern_, other.bit_pattern_,
-                   type_.is_reference() ? sizeof(DirectHandle<Object>)
-                                        : type_.value_kind_size());
+                   type_.is_ref() ? sizeof(DirectHandle<Object>)
+                                  : type_.value_kind_size());
   }
 
   void CopyTo(uint8_t* to) const {
@@ -107,7 +118,7 @@ class WasmValue {
     memcpy(to, bit_pattern_, type_.value_kind_size());
   }
 
-  // If {packed_type.is_packed()}, create a new value of {packed_type()}.
+  // If {packed_type.is_packed()}, create a new value of {packed_type}.
   // Otherwise, return this object.
   WasmValue Packed(ValueType packed_type) const {
     if (packed_type == kWasmI8) {
@@ -117,6 +128,10 @@ class WasmValue {
     if (packed_type == kWasmI16) {
       DCHECK_EQ(type_, kWasmI32);
       return WasmValue(static_cast<int16_t>(to_i32()));
+    }
+    if (packed_type == kWasmWaitQueue) {
+      DCHECK_EQ(type_, kWasmI32);
+      return WaitQueue(to_i32());
     }
     return *this;
   }
@@ -163,6 +178,8 @@ class WasmValue {
         }
         return stream.str();
       }
+      case kWaitQueue:
+        return "WaitQueue[" + std::to_string(to_wait_queue_value()) + "]";
       case kRefNull:
       case kRef:
         return "DirectHandle [" + std::to_string(to_ref().address()) + "]";

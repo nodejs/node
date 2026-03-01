@@ -648,7 +648,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       .exportFunc();
   let instance = builder.instantiate({m: {table: table}});
   assertDoesNotThrow(() => instance.exports.main(0));
-  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
+  assertTraps(kTrapNullFunc, () => instance.exports.main(1));
   table.set(1, fun);
   assertDoesNotThrow(() => instance.exports.main(1));
 })();

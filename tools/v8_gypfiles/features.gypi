@@ -153,6 +153,10 @@
     # Use pre-generated static root pointer values from static-roots.h.
     'v8_enable_static_roots%': 0,
 
+    # Disable write barriers when GCs are non-incremental and
+    # heap has single generation.
+    'v8_enable_verify_write_barriers%': 0,
+
     # Enable code-generation-time checking of types in the CodeStubAssembler.
     'v8_enable_verify_csa%': 0,
 
@@ -429,6 +433,9 @@
       }],
       ['v8_enable_single_generation==1', {
         'defines': ['V8_ENABLE_SINGLE_GENERATION',],
+      }],
+      ['v8_enable_verify_write_barriers==1', {
+        'defines': ['V8_VERIFY_WRITE_BARRIERS',],
       }],
       ['v8_disable_write_barriers==1', {
         'defines': ['V8_DISABLE_WRITE_BARRIERS',],

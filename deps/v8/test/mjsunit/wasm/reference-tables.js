@@ -621,6 +621,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(11, instance.exports.call_indirect_sub(1, 10));
   assertTraps(kTrapFuncSigMismatch,
               () => instance.exports.call_indirect_sub(0, 10));
-  assertTraps(kTrapFuncSigMismatch,
+  assertTraps(kTrapNullFunc,
               () => instance.exports.call_indirect_sub(2, 10));
 })();

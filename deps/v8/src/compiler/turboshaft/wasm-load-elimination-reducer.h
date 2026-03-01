@@ -679,6 +679,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
+      case Opcode::kWasmFXArgBuffer:
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
@@ -693,6 +694,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
         // really create aliases. (and also, they don't write so it's

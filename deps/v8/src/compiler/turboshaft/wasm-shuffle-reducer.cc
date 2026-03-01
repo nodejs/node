@@ -4,38 +4,47 @@
 
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
+#include "src/base/iterator.h"
+#include "src/flags/flags.h"
 #include "src/wasm/simd-shuffle.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#define TRACE(...)                                             \
+  do {                                                         \
+    if (v8_flags.trace_wasm_simd_shuffle) PrintF(__VA_ARGS__); \
+  } while (false)
+
+DemandedElementAnalysis::LaneBitSet DemandedElementAnalysis::ReduceLanes(
+    LaneBitSet lanes) {
+  // We have a bitset to represent each of the bytes in shuffle, and we will use
+  // the value to produce a mask of which bytes are required, or 'demanded'. So,
+  // by shifting right by half the current count, we will mask out the top half
+  // of the currently demanded lanes.
+  return lanes == k8x1Low ? lanes : lanes >>= lanes.count() / 2;
+}
+
+void DemandedElementAnalysis::AddOp(const Operation& op, LaneBitSet lanes) {
+  // We're trying to find out which SIMD lanes of op are used. If op has more
+  // than a single user we will have to visit it multiple times. Both `Record`
+  // methods will attempt to recursively add more operations.
+  if (op.saturated_use_count.IsOne()) {
+    TRACE("Found Op %d, demanded lanes: %#04x\n", input_graph().Index(op).id(),
+          static_cast<uint32_t>(lanes.to_ulong()));
+    RecordOp(op, lanes);
+  } else {
+    RecordPartialOp(op, lanes);
+  }
+}
 
 void DemandedElementAnalysis::AddUnaryOp(const Simd128UnaryOp& unop,
                                          LaneBitSet lanes) {
   if (Visited(&unop)) return;
   visited_.insert(&unop);
 
-  const Operation& input = input_graph().Get(unop.input());
-  if (!input.saturated_use_count.IsOne()) {
-    return;
-  }
-  // TODO(sparker): Add floating-point conversions:
-  // - PromoteLow
-  // - ConvertLow
-  static constexpr std::array low_half_ops = {
-      Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
-      Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
-      Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low,
-      Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low,
-      Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low,
-      Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low,
-  };
-
-  for (auto const kind : low_half_ops) {
-    if (kind == unop.kind) {
-      DCHECK(lanes == k8x16 || lanes == k8x8Low || lanes == k8x4Low);
-      lanes >>= lanes.count() / 2;
-      RecordOp(&input, lanes);
-      return;
-    }
+  if (IsUnaryLowHalfOp(unop.kind)) {
+    lanes = ReduceLanes(lanes);
+    AddOp(input_graph().Get(unop.input()), lanes);
   }
 }
 
@@ -44,50 +53,146 @@ void DemandedElementAnalysis::AddBinaryOp(const Simd128BinopOp& binop,
   if (Visited(&binop)) return;
   visited_.insert(&binop);
 
-  static constexpr std::array low_half_ops = {
-      Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S,
-      Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U,
-      Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S,
-      Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U,
-      Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4S,
-      Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4U,
-  };
-  const Operation& left = input_graph().Get(binop.left());
-  const Operation& right = input_graph().Get(binop.right());
-  for (auto const& kind : low_half_ops) {
-    if (kind == binop.kind) {
-      DCHECK(lanes == k8x16 || lanes == k8x8Low);
-      lanes >>= lanes.count() / 2;
-      if (left.saturated_use_count.IsOne()) {
-        RecordOp(&left, lanes);
-      }
-      if (right.saturated_use_count.IsOne()) {
-        RecordOp(&right, lanes);
-      }
+  if (IsBinaryLowHalfOp(binop.kind)) {
+    lanes = ReduceLanes(lanes);
+    AddOp(input_graph().Get(binop.left()), lanes);
+    AddOp(input_graph().Get(binop.right()), lanes);
+  }
+}
+
+void DemandedElementAnalysis::RecordOp(const Operation& op, LaneBitSet lanes) {
+  if (auto* unop = op.TryCast<Simd128UnaryOp>()) {
+    AddUnaryOp(*unop, lanes);
+  } else if (auto* binop = op.TryCast<Simd128BinopOp>()) {
+    AddBinaryOp(*binop, lanes);
+  } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
+    if (demanded_elements_.size() < kMaxNumOperations) {
+      demanded_elements_.emplace_back(shuffle, lanes);
+    } else if (!demanded_limit_reached_) {
+      TRACE("Demanded elements limit reached in RecordOp\n");
+      demanded_limit_reached_ = true;
     }
   }
 }
 
-void DemandedElementAnalysis::RecordOp(const Operation* op, LaneBitSet lanes) {
-  if (auto* unop = op->TryCast<Simd128UnaryOp>()) {
-    AddUnaryOp(*unop, lanes);
-  } else if (auto* binop = op->TryCast<Simd128BinopOp>()) {
-    AddBinaryOp(*binop, lanes);
-  } else if (auto* shuffle = op->TryCast<Simd128ShuffleOp>()) {
-    demanded_elements_.emplace_back(shuffle, lanes);
+bool DemandedElementAnalysis::AddUserAndCheckFoundAll(const Operation& op,
+                                                      LaneBitSet lanes) {
+  for (MultiUserBits& multi_use : to_revisit_) {
+    if (multi_use.op() == &op) {
+      multi_use.add(lanes);
+      if (multi_use.FoundAllUsers()) {
+        // Ensure we don't visit this again from the top-level search.
+        visited_.insert(&op);
+        return true;
+      }
+      return false;
+    }
   }
+  if (to_revisit_.size() < kMaxNumOperations) {
+    to_revisit_.emplace_back(&op, lanes, 1);
+  } else if (!revisit_limit_reached_) {
+    TRACE("Revisit limit reached\n");
+    revisit_limit_reached_ = true;
+  }
+  return false;
+}
+
+void DemandedElementAnalysis::RecordPartialOp(const Operation& op,
+                                              LaneBitSet lanes) {
+  TRACE("Recording partial Op %d, demanded lanes: %#04x\n",
+        input_graph().Index(op).id(), static_cast<uint32_t>(lanes.to_ulong()));
+  if (auto* unop = op.TryCast<Simd128UnaryOp>()) {
+    RecordPartialOp(*unop, lanes);
+  } else if (auto* binop = op.TryCast<Simd128BinopOp>()) {
+    RecordPartialOp(*binop, lanes);
+  } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
+    if (AddUserAndCheckFoundAll(*shuffle, lanes)) {
+      TRACE("Found all users (%d) of ShuffleOp %d, demanded lanes: %#04x\n",
+            op.saturated_use_count.Get(), input_graph().Index(op).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+    }
+  }
+}
+
+void DemandedElementAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
+                                              LaneBitSet lanes) {
+  if (IsUnaryLowHalfOp(unop.kind)) {
+    // If we've now visited this unop from all of its users, visit its
+    // operand.
+    if (AddUserAndCheckFoundAll(unop, lanes)) {
+      TRACE("Found all users (%d) of UnaryOp %d, demanded lanes: %#04x\n",
+            unop.saturated_use_count.Get(), input_graph().Index(unop).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+      lanes = ReduceLanes(lanes);
+      RecordPartialOp(input_graph().Get(unop.input()), lanes);
+    }
+  }
+}
+
+void DemandedElementAnalysis::RecordPartialOp(const Simd128BinopOp& binop,
+                                              LaneBitSet lanes) {
+  if (IsBinaryLowHalfOp(binop.kind)) {
+    // If we've now visited this binop from all of its users, visit its
+    // operands.
+    if (AddUserAndCheckFoundAll(binop, lanes)) {
+      TRACE("Found all users (%d) of BinopOp %d, demanded lanes: %#04x\n",
+            binop.saturated_use_count.Get(), input_graph().Index(binop).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+      lanes = ReduceLanes(lanes);
+      RecordPartialOp(input_graph().Get(binop.left()), lanes);
+      RecordPartialOp(input_graph().Get(binop.right()), lanes);
+    }
+  }
+}
+
+void DemandedElementAnalysis::RevisitShuffle(const Simd128ShuffleOp& shuffle,
+                                             LaneBitSet lanes) {
+  // The shuffle may have been recorded previously because it had a single user,
+  // but that user may have been used by multiple others. Once all those users
+  // have been visited, we may now know that fewer lanes are demanded.
+  for (unsigned i = 0; i < demanded_elements_.size(); ++i) {
+    if (demanded_elements_[i].first == &shuffle) {
+      DCHECK_LE(lanes.to_ulong(), demanded_elements_[i].second.to_ulong());
+      demanded_elements_[i].second = lanes;
+      return;
+    }
+  }
+  if (demanded_elements_.size() < kMaxNumOperations) {
+    demanded_elements_.emplace_back(&shuffle, lanes);
+  } else if (!demanded_limit_reached_) {
+    TRACE("Demanded elements limit reached in RevisitShuffle\n");
+    demanded_limit_reached_ = true;
+  }
+}
+
+void DemandedElementAnalysis::Revisit() {
+  for (const MultiUserBits& multi_user : to_revisit_) {
+    if (multi_user.FoundAllUsers()) {
+      const Operation* op = multi_user.op();
+      if (auto* shuffle = op->TryCast<Simd128ShuffleOp>()) {
+        RevisitShuffle(*shuffle, multi_user.used_lanes());
+      }
+    }
+  }
+  to_revisit_.clear();
+  revisit_limit_reached_ = false;
 }
 
 void WasmShuffleAnalyzer::Run() {
+  TRACE("Running WasmShuffleAnalyzer\n");
   for (uint32_t processed = input_graph().block_count(); processed > 0;
        --processed) {
     BlockIndex block_index = static_cast<BlockIndex>(processed - 1);
+    TRACE("BLOCK %d\n", block_index.id());
     const Block& block = input_graph().Get(block_index);
     auto idx_range = input_graph().OperationIndices(block);
-    for (auto it = idx_range.rbegin(); it != idx_range.rend(); ++it) {
-      const Operation& op = input_graph().Get(*it);
+    for (OpIndex op_idx : base::Reversed(idx_range)) {
+      const Operation& op = input_graph().Get(op_idx);
       Process(op);
     }
+    demanded_element_analysis.Revisit();
+    // TODO(sparker): Reset the state after each block? Currently our testing
+    // requires being able to look at demanded_elements.
   }
 }
 
@@ -110,6 +215,11 @@ void WasmShuffleAnalyzer::Process(const Operation& op) {
     ProcessShuffle(*shuffle_op);
     return;
   }
+
+  if (auto* replace_op = op.TryCast<Simd128ReplaceLaneOp>()) {
+    ProcessReplaceLane(*replace_op);
+    return;
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
@@ -120,115 +230,139 @@ void WasmShuffleAnalyzer::ProcessBinary(const Simd128BinopOp& binop) {
   demanded_element_analysis.AddBinaryOp(binop, DemandedElementAnalysis::k8x16);
 }
 
+void WasmShuffleAnalyzer::ProcessReplaceLane(
+    const Simd128ReplaceLaneOp& replace_op) {
+  // FP16 isn't supported.
+  if (replace_op.kind == Simd128ReplaceLaneOp::Kind::kF16x8) return;
+
+  if (const LoadOp* load =
+          input_graph().Get(replace_op.new_lane()).TryCast<LoadOp>()) {
+    int replace_bytes =
+        ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(replace_op.kind));
+    if (load->saturated_use_count.IsOne() &&
+        load->loaded_rep.SizeInBytes() == replace_bytes &&
+        !load->kind.tagged_base && !load->kind.is_atomic) {
+      AddLoadLaneCandidate(load, replace_op);
+    }
+  }
+}
+
 void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
-    const Simd128ShuffleOp& shuffle_op, const Simd128ShuffleOp& shuffle,
+    const Simd128ShuffleOp& shuffle_in, const Simd128ShuffleOp& shuffle_out,
     uint8_t lower_limit, uint8_t upper_limit) {
   // Suppose we have two 16-byte shuffles:
-  // |---a1---|---b3---|--------|--------|  shuffle_op = (a, b)
+  // |---a1---|---b3---|--------|--------|  shuffle_in = (a, b)
   //
-  // |---a1---|---b3---|---c?---|---c?---|  shuffle = (shf0, c)
+  // |---a1---|---b3---|---c?---|---c?---|  shuffle_out = (shuffle_in, c)
   //
-  // As only half of the shf0 is used, it means that half the work of shf0 is
-  // wasted so, here, we try to reduce shf0 to a more narrow kind. In the case
-  // above we can simply truncate shf0.shuffle but there are other situations
-  // which involve more work:
+  // As only half of the shuffle_in is used, it means that half the work of
+  // shuffle_in is wasted so, here, we try to reduce shuffle_in to a more narrow
+  // kind. In the case above we can simply truncate shuffle_in.shuffle but
+  // there are other situations which involve more work:
   //
-  // In the following case, shf0.shuffle needs to be shifted left so that it
-  // writes the required lanes to the low half of the result. This then means
-  // that shf1.shuffle needs to be updated to read from the low half.
+  // In the following case, shuffle_in.shuffle needs to be shifted left so that
+  // it writes the required lanes to the low half of the result. This then means
+  // that shuffle_out.shuffle needs to be updated to read from the low half.
   //
-  // |--------|--------|---a1---|---b3---|  shuffle_op = (a, b)
+  // |--------|--------|---a1---|---b3---|  shuffle_in = (a, b)
   //
-  // |---a1---|---b3---|---c?---|---c?---|  shuffle = (shf0, c)
+  // |---a1---|---b3---|---c?---|---c?---|  shuffle_out = (shuffle_in, c)
   //
 
   struct ShuffleHelper {
+    const uint8_t* shuffle;
+
     explicit ShuffleHelper(const uint8_t* shuffle) : shuffle(shuffle) {}
 
     const uint8_t* begin() const { return shuffle; }
 
-    const uint8_t* midpoint() const {
-      constexpr size_t half_lanes = kSimd128Size / 2;
-      return shuffle + half_lanes;
-    }
+    const uint8_t* midpoint() const { return shuffle + kSimd128HalfSize; }
 
     const uint8_t* end() const { return shuffle + kSimd128Size; }
 
-    const uint8_t* shuffle;
+    // Test whether the low half of the shuffle is within the inclusive range.
+    bool all_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::all_of(begin(), midpoint(),
+                         [lower_limit, upper_limit](uint8_t i) {
+                           return i >= lower_limit && i <= upper_limit;
+                         });
+    }
+    // Test whether the high half of the shuffle is within the inclusive range.
+    bool all_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::all_of(midpoint(), end(),
+                         [lower_limit, upper_limit](uint8_t i) {
+                           return i >= lower_limit && i <= upper_limit;
+                         });
+    }
+    // Test whether none of the low half of the shuffle contains lanes within
+    // the inclusive range.
+    bool none_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::none_of(begin(), midpoint(),
+                          [lower_limit, upper_limit](uint8_t i) {
+                            return i >= lower_limit && i <= upper_limit;
+                          });
+    }
+    // Test whether none of the high half of the shuffle contains lanes within
+    // the inclusive range.
+    bool none_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::none_of(midpoint(), end(),
+                          [lower_limit, upper_limit](uint8_t i) {
+                            return i >= lower_limit && i <= upper_limit;
+                          });
+    }
+
+    bool shuffle_into_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return all_low_half(lower_limit, upper_limit) &&
+             none_high_half(lower_limit, upper_limit);
+    }
+
+    bool shuffle_into_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return all_high_half(lower_limit, upper_limit) &&
+             none_low_half(lower_limit, upper_limit);
+    }
   };
 
-  ShuffleHelper view(shuffle.shuffle);
+  ShuffleHelper view(shuffle_out.shuffle);
+  DCHECK(!(view.shuffle_into_low_half(lower_limit, upper_limit) &&
+           view.shuffle_into_high_half(lower_limit, upper_limit)));
 
-  // Test whether the low half of the shuffle is within the inclusive range.
-  auto all_low_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::all_of(view.begin(), view.midpoint(),
-                       [lower_limit, upper_limit](uint8_t i) {
-                         return i >= lower_limit && i <= upper_limit;
-                       });
-  };
-  // Test whether the high half of the shuffle is within the inclusive range.
-  auto all_high_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::all_of(view.midpoint(), view.end(),
-                       [lower_limit, upper_limit](uint8_t i) {
-                         return i >= lower_limit && i <= upper_limit;
-                       });
-  };
-  // Test whether none of the low half of the shuffle contains lanes within the
-  // inclusive range.
-  auto none_low_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::none_of(view.begin(), view.midpoint(),
-                        [lower_limit, upper_limit](uint8_t i) {
-                          return i >= lower_limit && i <= upper_limit;
-                        });
-  };
-  // Test whether none of the high half of the shuffle contains lanes within the
-  // inclusive range.
-  auto none_high_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::none_of(view.midpoint(), view.end(),
-                        [lower_limit, upper_limit](uint8_t i) {
-                          return i >= lower_limit && i <= upper_limit;
-                        });
-  };
-
-  // lower_ and upper_limit and set from the caller depending on whether we're
+  // lower_ and upper_limit are set from the caller depending on whether we're
   // examining the left or right operand of shuffle. So, here we check if
   // shuffle_op is being exclusively shuffled into the low or high half using
   // either the lower and upper limits of {0,15} or {16,31}.
-  bool shf_into_low_half = all_low_half(lower_limit, upper_limit) &&
-                           none_high_half(lower_limit, upper_limit);
-  bool shf_into_high_half = all_high_half(lower_limit, upper_limit) &&
-                            none_low_half(lower_limit, upper_limit);
-  DCHECK(!(shf_into_low_half && shf_into_high_half));
 
-  constexpr size_t quarter_lanes = kSimd128Size / 4;
-  if (shf_into_low_half) {
-    if (all_low_half(lower_limit + quarter_lanes, upper_limit)) {
-      // Low half of shuffle is sourced from the high half of shuffle_op.
-      demanded_element_analysis.RecordOp(&shuffle_op,
+  if (view.shuffle_into_low_half(lower_limit, upper_limit)) {
+    if (view.all_low_half(lower_limit + kSimd128HalfSize, upper_limit)) {
+      // The low half of the result shuffle is sourced only from the high half
+      // of the input shuffle_op.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
-      shift_shuffles_.push_back(&shuffle_op);
-      low_half_shuffles_.push_back(&shuffle);
-    } else if (all_low_half(lower_limit, upper_limit - quarter_lanes)) {
-      // Low half of shuffle is sourced from the low half of shuffle_op.
-      demanded_element_analysis.RecordOp(&shuffle_op,
+      shift_shuffles_.push_back(&shuffle_in);
+      low_half_shuffles_.push_back(&shuffle_out);
+    } else if (view.all_low_half(lower_limit, upper_limit - kSimd128HalfSize)) {
+      // The low half of the result shuffle is sourced only from the low half
+      // of the input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
     }
-  } else if (shf_into_high_half) {
-    if (all_high_half(lower_limit + quarter_lanes, upper_limit)) {
-      // High half of shuffle is sourced from the high half of shuffle_op.
-      demanded_element_analysis.RecordOp(&shuffle_op,
+  } else if (view.shuffle_into_high_half(lower_limit, upper_limit)) {
+    if (view.all_high_half(lower_limit + kSimd128HalfSize, upper_limit)) {
+      // The high half of the result shuffle is sourced only from the high half
+      // of input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
-      shift_shuffles_.push_back(&shuffle_op);
-      high_half_shuffles_.push_back(&shuffle);
-    } else if (all_high_half(lower_limit, upper_limit - quarter_lanes)) {
-      // High half of shuffle is sourced from the low half of shuffle_op.
-      demanded_element_analysis.RecordOp(&shuffle_op,
+      shift_shuffles_.push_back(&shuffle_in);
+      high_half_shuffles_.push_back(&shuffle_out);
+    } else if (view.all_high_half(lower_limit,
+                                  upper_limit - kSimd128HalfSize)) {
+      // The high half of the result shuffle is sourced only from the low half
+      // of input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
     }
   }
 }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 bool WasmShuffleAnalyzer::CouldLoadPair(const LoadOp& load0,
                                         const LoadOp& load1) const {
   DCHECK_NE(load0, load1);
@@ -376,16 +510,20 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
     }
   }
 }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
+#if V8_TARGET_ARCH_ARM64
+  // Experimental flags controls the generation of deinterleaving loads and
+  // reducing shuffles depending on specific bit patterns.
+  if (!v8_flags.experimental_wasm_simd_opt) return;
+#endif
+
   if (shuffle.kind != Simd128ShuffleOp::Kind::kI8x16) {
     return;
   }
   const Operation& left = input_graph().Get(shuffle.left());
   const Operation& right = input_graph().Get(shuffle.right());
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   auto* load_left = left.TryCast<LoadOp>();
   auto* load_right = right.TryCast<LoadOp>();
 
@@ -395,7 +533,6 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
     ProcessShuffleOfLoads(shuffle, *load_left, *load_right);
     return;
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
   auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();

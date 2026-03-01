@@ -107,6 +107,8 @@ class TestingModuleBuilder {
                        TestExecutionTier, Isolate* isolate);
   ~TestingModuleBuilder();
 
+  WasmModule* module() const { return module_.get(); }
+
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
                      AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
@@ -126,16 +128,13 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  Zone& SignatureZone() { return test_module_->signature_zone; }
-
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
     const bool is_shared = false;
-    test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
-                                         is_shared);
-    GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
-    size_t size = test_module_->types.size();
+    module_->AddSignatureForTesting(sig, kNoSuperType, is_final, is_shared);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module_.get(), 1);
+    size_t size = module_->types.size();
     // The {ModuleTypeIndex} can handle more, but users of this class
     // often assume that each generated index fits into a byte, so
     // ensure that here.
@@ -144,7 +143,7 @@ class TestingModuleBuilder {
   }
 
   uint32_t mem_size() const {
-    CHECK_EQ(1, test_module_->memories.size());
+    CHECK_EQ(1, module_->memories.size());
     return mem0_size_;
   }
 
@@ -199,8 +198,8 @@ class TestingModuleBuilder {
   }
 
   void SetMemoryShared() {
-    CHECK_EQ(1, test_module_->memories.size());
-    test_module_->memories[0].is_shared = true;
+    CHECK_EQ(1, module_->memories.size());
+    module_->memories[0].is_shared = true;
   }
 
   enum FunctionType { kImport, kWasm };
@@ -226,9 +225,7 @@ class TestingModuleBuilder {
 
   uint32_t AddPassiveDataSegment(base::Vector<const uint8_t> bytes);
 
-  WasmFunction* GetFunctionAt(int index) {
-    return &test_module_->functions[index];
-  }
+  WasmFunction* GetFunctionAt(int index) { return &module_->functions[index]; }
 
   Isolate* isolate() const { return isolate_; }
   DirectHandle<WasmInstanceObject> instance_object() const {
@@ -281,7 +278,7 @@ class TestingModuleBuilder {
   }
 
  private:
-  std::shared_ptr<WasmModule> test_module_;
+  std::shared_ptr<WasmModule> module_;
   Isolate* isolate_;
   WasmEnabledFeatures enabled_features_;
   uint32_t global_offset_ = 0;
@@ -294,11 +291,6 @@ class TestingModuleBuilder {
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
-
-  // Data segment arrays that are normally allocated on the instance.
-  std::vector<uint8_t> data_segment_data_;
-  std::vector<Address> data_segment_starts_;
-  std::vector<uint32_t> data_segment_sizes_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -320,16 +312,19 @@ class WasmFunctionCompiler {
   }
   void Build(base::Vector<const uint8_t> bytes);
 
-  uint8_t AllocateLocal(ValueType type) {
-    uint32_t index = local_decls_.AddLocals(1, type);
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    uint32_t index = local_decls_.AddLocals(count, type);
     uint8_t result = static_cast<uint8_t>(index);
     DCHECK_EQ(index, result);
     return result;
   }
+  uint8_t AllocateLocal(ValueType type) { return AllocateLocals(1, type); }
 
   void SetSigIndex(ModuleTypeIndex sig_index) {
     function_->sig_index = sig_index;
   }
+
+  Zone* zone() { return zone_; }
 
  private:
   friend class WasmRunnerBase;
@@ -392,6 +387,9 @@ class WasmRunnerBase {
 
   uint8_t AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
+  }
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    return functions_[0]->AllocateLocals(count, type);
   }
 
   uint32_t function_index() { return functions_[0]->function_index(); }

@@ -118,11 +118,16 @@ struct NodeHashSetPolicy;
 //   if (ducks.contains("dewey")) {
 //     std::cout << "We found dewey!" << std::endl;
 //   }
-template <class T, class Hash = DefaultHashContainerHash<T>,
-          class Eq = DefaultHashContainerEq<T>, class Alloc = std::allocator<T>>
+template <
+    class T,
+    class Hash = typename container_internal::NodeHashSetPolicy<T>::DefaultHash,
+    class Eq = typename container_internal::NodeHashSetPolicy<T>::DefaultEq,
+    class Alloc =
+        typename container_internal::NodeHashSetPolicy<T>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER node_hash_set
-    : public absl::container_internal::raw_hash_set<
-          absl::container_internal::NodeHashSetPolicy<T>, Hash, Eq, Alloc> {
+    : public absl::container_internal::InstantiateRawHashSet<
+          absl::container_internal::NodeHashSetPolicy<T>, Hash, Eq,
+          Alloc>::type {
   using Base = typename node_hash_set::raw_hash_set;
 
  public:
@@ -166,6 +171,11 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::node_hash_set<std::string> set7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::node_hash_set<std::string> set8(std::from_range, v);
   node_hash_set() {}
   using Base::Base;
 
@@ -528,6 +538,10 @@ struct NodeHashSetPolicy
   using key_type = T;
   using init_type = T;
   using constant_iterators = std::true_type;
+
+  using DefaultHash = DefaultHashContainerHash<T>;
+  using DefaultEq = DefaultHashContainerEq<T>;
+  using DefaultAlloc = std::allocator<T>;
 
   template <class Allocator, class... Args>
   static T* new_element(Allocator* alloc, Args&&... args) {

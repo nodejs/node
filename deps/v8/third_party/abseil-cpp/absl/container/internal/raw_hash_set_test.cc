@@ -302,7 +302,7 @@ TEST(Util, CapacityToGrowthSmallValues) {
   }
   EXPECT_EQ(CapacityToGrowth(15), 14);
   EXPECT_EQ(CapacityToGrowth(31), 28);
-  EXPECT_EQ(CapacityToGrowth(63), 55);
+  EXPECT_EQ(CapacityToGrowth(63), 56);
 }
 
 TEST(Util, GrowthAndCapacity) {
@@ -381,6 +381,10 @@ struct ValuePolicy {
   using slot_type = T;
   using key_type = T;
   using init_type = T;
+
+  using DefaultHash = hash_default_hash<T>;
+  using DefaultEq = std::equal_to<T>;
+  using DefaultAlloc = std::allocator<T>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
@@ -529,6 +533,10 @@ class StringPolicy {
   using key_type = std::string;
   using init_type = std::pair<std::string, std::string>;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot, Args... args) {
     std::allocator_traits<allocator_type>::construct(
@@ -581,9 +589,9 @@ struct StringTable
 
 template <typename T, bool kTransferable = false, bool kSoo = false,
           class Alloc = std::allocator<T>>
-struct ValueTable
-    : raw_hash_set<ValuePolicy<T, kTransferable, kSoo>, hash_default_hash<T>,
-                   std::equal_to<T>, Alloc> {
+struct ValueTable : InstantiateRawHashSet<ValuePolicy<T, kTransferable, kSoo>,
+                                          hash_default_hash<T>,
+                                          std::equal_to<T>, Alloc>::type {
   using Base = typename ValueTable::raw_hash_set;
   using Base::Base;
 };
@@ -780,6 +788,34 @@ TEST(Table, EmptyFunctorOptimization) {
       sizeof(
           raw_hash_set<StringPolicy, StatefulHash,
                        std::equal_to<absl::string_view>, std::allocator<int>>));
+}
+
+TEST(InstantiateRawHashSetTest, VerifyTypes) {
+  using P = ValuePolicy<int>;
+  using DA = typename P::DefaultHash;
+  using DB = typename P::DefaultEq;
+  using DC = typename P::DefaultAlloc;
+
+  struct A {};
+  struct B {};
+  struct C {};
+
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, A, B, C>::type,
+                              raw_hash_set<P, A, B, C>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, A, B, DC>::type,
+                              raw_hash_set<P, A, B>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, A, DB, C>::type,
+                              raw_hash_set<P, A, DB, C>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, A, DB, DC>::type,
+                              raw_hash_set<P, A>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, DA, B, C>::type,
+                              raw_hash_set<P, DA, B, C>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, DA, B, DC>::type,
+                              raw_hash_set<P, DA, B>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, DA, DB, C>::type,
+                              raw_hash_set<P, DA, DB, C>>));
+  EXPECT_TRUE((std::is_same_v<InstantiateRawHashSet<P, DA, DB, DC>::type,
+                              raw_hash_set<P>>));
 }
 
 template <class TableType>
@@ -1143,6 +1179,10 @@ struct DecomposePolicy {
   using slot_type = DecomposeType;
   using key_type = DecomposeType;
   using init_type = DecomposeType;
+
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
 
   template <typename T>
   static void construct(void*, DecomposeType* slot, T&& v) {
@@ -2430,8 +2470,9 @@ TEST(Table, IteratorEmplaceConstructibleRequirement) {
     }
   };
 
-  struct Table : raw_hash_set<ValuePolicy<Value>, H, std::equal_to<Value>,
-                              std::allocator<Value>> {
+  struct Table
+      : InstantiateRawHashSet<ValuePolicy<Value>, H, std::equal_to<Value>,
+                              std::allocator<Value>>::type {
     using Base = typename Table::raw_hash_set;
     using Base::Base;
   };
@@ -2560,7 +2601,7 @@ std::vector<int> OrderOfIteration(const T& t) {
 // in seed.
 void GenerateIrrelevantSeeds(int cnt) {
   for (int i = cnt % 17; i > 0; --i) {
-    NextSeed();
+    HashtableSize::NextSeed();
   }
 }
 
@@ -2820,8 +2861,6 @@ TYPED_TEST(RawHashSamplerTest, Sample) {
   end_size += sampler.Iterate([&](const HashtablezInfo& info) {
     ++end_size;
     if (preexisting_info.contains(&info)) return;
-    observed_checksums[info.hashes_bitwise_xor.load(
-        std::memory_order_relaxed)]++;
     reservations[info.max_reserve.load(std::memory_order_relaxed)]++;
     EXPECT_EQ(info.inline_element_size, sizeof(typename TypeParam::value_type));
     EXPECT_EQ(info.key_size, sizeof(typename TypeParam::key_type));
@@ -2837,10 +2876,6 @@ TYPED_TEST(RawHashSamplerTest, Sample) {
   // Expect that we sampled at the requested sampling rate of ~1%.
   EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
               0.01, 0.005);
-  ASSERT_EQ(observed_checksums.size(), 5);
-  for (const auto& [_, count] : observed_checksums) {
-    EXPECT_NEAR((100 * count) / static_cast<double>(tables.size()), 0.2, 0.05);
-  }
 
   ASSERT_EQ(reservations.size(), 10);
   for (const auto& [reservation, count] : reservations) {
@@ -4102,16 +4137,6 @@ TEST(Table, GrowExtremelyLargeTable) {
     }
   }
   EXPECT_EQ(t.capacity(), kTargetCapacity);
-}
-
-// Test that after calling generate_new_seed(), the high bits of the returned
-// seed are non-zero.
-TEST(PerTableSeed, HighBitsAreNonZero) {
-  HashtableSize hs(no_seed_empty_tag_t{});
-  for (int i = 0; i < 100; ++i) {
-    hs.generate_new_seed();
-    ASSERT_GT(hs.seed().seed() >> 16, 0);
-  }
 }
 
 }  // namespace

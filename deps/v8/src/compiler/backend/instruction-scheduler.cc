@@ -289,6 +289,8 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // Instructions that load or set the stack pointer must not be reordered
       // with instructions with side effects or with each other.
       return kHasSideEffect;
+    case kArchTrap:
+      return kHasSideEffect;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case kArchPrepareCallCFunction:
@@ -322,6 +324,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // incorrect to move the instruction across the call. Hence we mark all
       // (non-tail-)calls as barriers.
       return kIsBarrier;
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    case kArchSwitchSandboxMode:
+      return kIsBarrier;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:

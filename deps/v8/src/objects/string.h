@@ -210,7 +210,7 @@ V8_OBJECT class String : public Name {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, Tagged<String> canonical);
+  void MakeThin(IsolateT* isolate, Tagged<InternalizedString> canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -522,6 +522,7 @@ V8_OBJECT class String : public Name {
   // ~536.8M chars.
   // See include/v8.h for the definition.
   static const uint32_t kMaxLength = v8::String::kMaxLength;
+  static_assert(kMaxLength <= kMaxInt);
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.
@@ -1098,8 +1099,8 @@ struct ObjectTraits<ConsString> {
 // ThinStrings can be thought of as "one-part cons strings".
 V8_OBJECT class ThinString : public String {
  public:
-  inline Tagged<String> actual() const;
-  inline void set_actual(Tagged<String> value,
+  inline Tagged<InternalizedString> actual() const;
+  inline void set_actual(Tagged<InternalizedString> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<HeapObject> unchecked_actual() const;
@@ -1126,7 +1127,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<String> actual_;
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>

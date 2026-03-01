@@ -128,6 +128,7 @@ absl_cc_library(
     absl::config
     absl::fast_type_id
     absl::flags_commandlineflag_internal
+    absl::nullability
     absl::optional
     absl::strings
 )

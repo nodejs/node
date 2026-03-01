@@ -6,7 +6,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/js-array-inl.h"
@@ -183,7 +182,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     index = static_cast<uint32_t>(value);
   }
 
-  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t capacity = object->elements()->ulength().value();
 
   if (index >= capacity) {
     bool has_grown;
@@ -205,14 +204,14 @@ RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
   DirectHandle<Object> object = args.at(0);
   Maybe<bool> result = Object::IsArray(object);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSArray(obj));
+  return ReadOnlyRoots(isolate).boolean_value(IsJSArray(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {

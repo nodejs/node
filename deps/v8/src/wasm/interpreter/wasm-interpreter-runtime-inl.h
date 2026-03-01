@@ -21,28 +21,31 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-inline Address WasmInterpreterRuntime::EffectiveAddress(uint64_t index) const {
+inline Address WasmInterpreterRuntime::EffectiveAddress(uint32_t memory_index,
+                                                        uint64_t index) const {
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
-            trusted_data->memory0_size());
-  DCHECK_GE(trusted_data->memory0_size(), index);
+            trusted_data->memory_size(memory_index));
+  DCHECK_GE(trusted_data->memory_size(memory_index), index);
   // Compute the effective address of the access, making sure to condition
   // the index even in the in-bounds case.
-  return reinterpret_cast<Address>(trusted_data->memory0_start()) + index;
+  return reinterpret_cast<Address>(trusted_data->memory_base(memory_index)) +
+         index;
 }
 
 inline bool WasmInterpreterRuntime::BoundsCheckMemRange(
-    uint64_t index, uint64_t* size, Address* out_address) const {
+    uint32_t memory_index, uint64_t index, uint64_t* size,
+    Address* out_address) const {
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
-            trusted_data->memory0_size());
+            trusted_data->memory_size(memory_index));
   if (!base::ClampToBounds<uint64_t>(index, size,
-                                     trusted_data->memory0_size())) {
+                                     trusted_data->memory_size(memory_index))) {
     return false;
   }
-  *out_address = EffectiveAddress(index);
+  *out_address = EffectiveAddress(memory_index, index);
   return true;
 }
 
@@ -55,7 +58,7 @@ inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(
     uint32_t index) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =
@@ -67,7 +70,7 @@ inline void WasmInterpreterRuntime::SetGlobalRef(
     uint32_t index, DirectHandle<Object> ref) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =
@@ -76,15 +79,39 @@ inline void WasmInterpreterRuntime::SetGlobalRef(
 }
 
 inline void WasmInterpreterRuntime::InitMemoryAddresses() {
+  DCHECK_LE(module_->memories.size(), kV8MaxWasmMemories);
   memory_start_ = wasm_trusted_instance_data()->memory0_start();
+  memory_starts_.resize(module_->memories.size());
+  is_memory64_.resize(module_->memories.size());
+  for (size_t i = 0; i < module_->memories.size(); ++i) {
+    memory_starts_[i] =
+        wasm_trusted_instance_data()->memory_base(static_cast<uint32_t>(i));
+    is_memory64_[i] = module_->memories[i].is_memory64();
+  }
 }
 
-inline uint64_t WasmInterpreterRuntime::MemorySize() const {
-  return wasm_trusted_instance_data()->memory0_size() / kWasmPageSize;
+inline uint8_t* WasmInterpreterRuntime::GetMemoryStart(
+    uint32_t memory_index) const {
+  return memory_starts_[memory_index];
 }
 
-inline bool WasmInterpreterRuntime::IsMemory64() const {
-  return !module_->memories.empty() && module_->memories[0].is_memory64();
+inline uint8_t* WasmInterpreterRuntime::GetMemoryStart() const {
+  return memory_start_;
+}
+
+inline uint64_t WasmInterpreterRuntime::MemorySize(
+    uint32_t memory_index) const {
+  return wasm_trusted_instance_data()->memory_size(memory_index) /
+         kWasmPageSize;
+}
+
+inline bool WasmInterpreterRuntime::IsMemory64(uint32_t memory_index) const {
+  return is_memory64_[memory_index];
+}
+
+inline size_t WasmInterpreterRuntime::GetMemorySize(
+    uint32_t memory_index) const {
+  return wasm_trusted_instance_data()->memory_size(memory_index);
 }
 
 inline size_t WasmInterpreterRuntime::GetMemorySize() const {
@@ -164,14 +191,14 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
     if (stack_check.HasOverflowed()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->StackOverflow();
       return false;
     }
     if (isolate_->stack_guard()->HasTerminationRequest()) {
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->TerminateExecution();
       return false;
     }
@@ -184,7 +211,7 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
                           v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
     SealHandleScope shs(isolate_);
     current_frame_.current_function_ = nullptr;
-    SetTrap(TrapReason::kTrapUnreachable, code);
+    SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
     return false;
   }
 

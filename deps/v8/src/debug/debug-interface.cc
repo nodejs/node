@@ -273,7 +273,8 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   auto count_private_entry =
       [&](i::VariableMode mode, i::DirectHandle<i::String>,
           i::DirectHandle<i::Object>) { private_entries_count++; };
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     // Exclude the private brand symbols.
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
     if (key->is_private_brand()) {
@@ -332,10 +333,10 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
                         static_filter, add_private_entry);
   }
 
-  for (int i = 0; i < keys->length(); ++i) {
+  for (uint32_t i = 0; i < keys_len; ++i) {
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
-    CHECK(key->is_private_name());
+    CHECK(key->is_any_private_name());
     i::DirectHandle<i::Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, value, i::Object::GetProperty(isolate, receiver, key), false);
@@ -691,9 +692,11 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
     }
     return {};
   }
-  if (line >= line_ends->length()) {
+  uint32_t lines_end_len = line_ends->ulength().value();
+  if (static_cast<uint32_t>(line) >= lines_end_len) {
     if (mode == GetSourceOffsetMode::kClamp) {
-      return Just(GetSmiValue(line_ends, line_ends->length() - 1));
+      DCHECK_GT(lines_end_len, 0);
+      return Just(GetSmiValue(line_ends, lines_end_len - 1));
     }
     return {};
   }
@@ -713,7 +716,9 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
     // Be permissive with columns that don't exist,
     // as long as they are clearly within the range
     // of the script.
-    if (line < line_ends->length() - 1 || mode == GetSourceOffsetMode::kClamp) {
+    DCHECK_GT(lines_end_len, 0);
+    if (static_cast<uint32_t>(line) < lines_end_len - 1 ||
+        mode == GetSourceOffsetMode::kClamp) {
       return Just(line_end_offset);
     }
     return {};
@@ -1171,7 +1176,7 @@ void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
 ConsoleCallArguments::ConsoleCallArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info)
     : isolate_(info.GetIsolate()),
-      values_(info.values_),
+      values_(info.address_of_first_argument()),
       length_(info.Length()) {}
 
 ConsoleCallArguments::ConsoleCallArguments(
@@ -1462,7 +1467,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::DirectHandle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
-  if (IsAnyHole(*maybeMessage)) return MaybeLocal<Message>();
   if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(i::Cast<i::JSMessageObject>(maybeMessage));
 }
@@ -1470,11 +1474,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);
-}
-
-void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->debug()->NotifyDebuggerPausedEventSent();
 }
 
 uint64_t GetIsolateId(v8::Isolate* v8_isolate) {

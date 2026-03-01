@@ -411,7 +411,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       VariableMode mode, int pos);
   void DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
                               VariableMode mode, Scope* declaration_scope,
-                              bool* was_added, int initializer_position);
+                              bool* was_added, int initializer_position,
+                              VariableProxy::BindingMode binding_mode);
   V8_WARN_UNUSED_RESULT
   Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
                             VariableMode mode, InitializationFlag init,
@@ -452,8 +453,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // cases where we detect an error. It returns false, if we needed to stop
   // parsing or could not identify an error correctly, meaning the caller needs
   // to fully reparse. In this case it resets the scanner and preparser state.
-  bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
-                    FunctionSyntaxKind function_syntax_kind,
+  bool SkipFunction(int func_id, const AstRawString* function_name,
+                    FunctionKind kind, FunctionSyntaxKind function_syntax_kind,
                     DeclarationScope* function_scope, int* num_parameters,
                     int* function_length,
                     ProducedPreparseData** produced_preparsed_scope_data);

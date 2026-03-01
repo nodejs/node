@@ -35,6 +35,7 @@ class DictionaryTemplate;
 class Extension;
 class Signature;
 class Template;
+enum class Intercepted : uint32_t;
 
 namespace internal {
 class JSArrayBufferView;
@@ -94,6 +95,7 @@ class RegisteredExtension {
   V(ToLocal, Module, Module)                                            \
   V(ToLocal, Name, Name)                                                \
   V(ToLocal, String, String)                                            \
+  V(ToLocal, InternalizedString, String)                                \
   V(ToLocal, Symbol, Symbol)                                            \
   V(ToLocal, JSDate, Object)                                            \
   V(ToLocal, JSRegExp, RegExp)                                          \
@@ -107,6 +109,7 @@ class RegisteredExtension {
   V(ToLocal, JSArrayBuffer, ArrayBuffer)                                \
   V(ToLocal, JSArrayBufferView, ArrayBufferView)                        \
   V(ToLocal, JSDataView, DataView)                                      \
+  V(ToLocal, JSPromise, Promise)                                        \
   V(ToLocal, JSRabGsabDataView, DataView)                               \
   V(ToLocal, JSTypedArray, TypedArray)                                  \
   V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                    \
@@ -115,7 +118,6 @@ class RegisteredExtension {
   V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)                \
   V(SignatureToLocal, FunctionTemplateInfo, Signature)                  \
   V(MessageToLocal, Object, Message)                                    \
-  V(PromiseToLocal, JSObject, Promise)                                  \
   V(StackTraceToLocal, StackTraceInfo, StackTrace)                      \
   V(StackFrameToLocal, StackFrameInfo, StackFrame)                      \
   V(NumberToLocal, Object, Number)                                      \
@@ -137,7 +139,6 @@ class RegisteredExtension {
   V(ToLocalShared)            \
   V(SignatureToLocal)         \
   V(MessageToLocal)           \
-  V(PromiseToLocal)           \
   V(StackTraceToLocal)        \
   V(StackFrameToLocal)        \
   V(NumberToLocal)            \
@@ -513,11 +514,25 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
 // or side-effect checking is enabled. It's supposed to set up the runtime
 // call stats scope and check if the getter has side-effects in case debugger
 // enabled the side-effects checking mode.
-// It gets additional argument, the AccessorInfo object, via
-// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info);
+
+// This is a wrapper function called from CallNamedInterceptorGetter builtin
+// when profiling or side-effect checking is enabled. It's supposed to set up
+// the runtime call stats scope and check if the getter has side-effects
+// in case debugger enabled the side-effects checking mode.
+v8::Intercepted InvokeNamedInterceptorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info);
+
+// This is a wrapper function called from CallNamedInterceptorSetter builtin
+// when profiling or side-effect checking is enabled. It's supposed to set up
+// the runtime call stats scope and check if the setter has side-effects
+// in case debugger enabled the side-effects checking mode.
+v8::Intercepted InvokeNamedInterceptorSetterCallback(
+    v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info);
 
 // This is a wrapper function called from CallApiCallback builtin when profiling
 // or side-effect checking is enabled. It's supposed to set up the runtime

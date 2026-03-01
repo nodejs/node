@@ -24,7 +24,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(function_literal_id, script->infos()->length());
+  CHECK_LT(static_cast<uint32_t>(function_literal_id),
+           script->infos()->ulength().value());
   Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||
@@ -142,7 +143,7 @@ bool Script::GetPositionInfo(DirectHandle<Script> script, int position,
 #ifdef DEBUG
   if (script->type() == Type::kWasm) {
     DCHECK(script->has_line_ends());
-    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->length(), 0);
+    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->ulength().value(), 0);
   }
 #endif  // DEBUG
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -328,24 +329,26 @@ int GetLineEnd(const Tagged<FixedArray>& array, int line) {
   return Smi::ToInt(array->get(line));
 }
 
-int GetLength(const String::LineEndsVector& vector) {
-  return static_cast<int>(vector.size());
+uint32_t GetLength(const String::LineEndsVector& vector) {
+  return static_cast<uint32_t>(vector.size());
 }
 
-int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
+uint32_t GetLength(const Tagged<FixedArray>& array) {
+  return array->ulength().value();
+}
 
 template <typename LineEndsContainer>
 bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
                                       int position, Script::PositionInfo* info,
                                       const DisallowGarbageCollection& no_gc) {
-  const int ends_len = GetLength(ends);
+  const uint32_t ends_len = GetLength(ends);
   if (ends_len == 0) return false;
 
   // Return early on invalid positions. Negative positions behave as if 0 was
   // passed, and positions beyond the end of the script return as failure.
   if (position < 0) {
     position = 0;
-  } else if (position > GetLineEnd(ends, ends_len - 1)) {
+  } else if (position > GetLineEnd(ends, static_cast<int>(ends_len - 1))) {
     return false;
   }
 
@@ -356,7 +359,7 @@ bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
     info->column = position;
   } else {
     int left = 0;
-    int right = ends_len - 1;
+    int right = static_cast<int>(ends_len - 1);
 
     while (right > 0) {
       DCHECK_LE(left, right);

@@ -232,7 +232,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   if (!name.name_.empty()) {
     if (name.name_.begin()) {
       os << ":";
-      os.write(name.name_.begin(), name.name_.length());
+      os.write(name.name_.begin(), name.name_.size());
     }
   } else {
     os << "?";
@@ -240,9 +240,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmModule::WasmModule(ModuleOrigin origin)
-    : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
-      origin(origin) {}
+WasmModule::WasmModule(ModuleOrigin origin) : origin(origin) {}
 
 uint64_t WasmModule::signature_hash(const TypeCanonicalizer* type_canonicalizer,
                                     uint32_t function_index) const {
@@ -331,7 +329,7 @@ DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
 }
 
 DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
-                                        ValueType type) {
+                                        ValueType unsafe_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
@@ -342,7 +340,7 @@ DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
-                        ToValueTypeString(isolate, type), NONE);
+                        ToValueTypeString(isolate, unsafe_type), NONE);
 
   return object;
 }
@@ -469,6 +467,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
     DirectHandle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
+      case kExternalExactFunction:
         if (IsCompileTimeImport(well_known_imports.get(import.index))) {
           continue;
         }
@@ -476,6 +475,8 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
           auto& func = module->functions[import.index];
           type_value = GetTypeForFunction(isolate, func.sig);
         }
+        // Since {kExternalExactFunction} is still a function import, it
+        // uses the string "function" here.
         import_kind = function_string;
         break;
       case kExternalTable:
@@ -625,6 +626,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
       case kExternalTag:
         export_kind = tag_string;
         break;
+      case kExternalExactFunction:
       default:
         UNREACHABLE();
     }
@@ -728,7 +730,6 @@ size_t WasmModule::EstimateStoredSize() const {
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
-         signature_zone.allocation_size_for_tracing() +  // --
          ContentSize(types) +                            // --
          ContentSize(isorecursive_canonical_type_ids) +  // --
          ContentSize(functions) +                        // --
@@ -810,11 +811,16 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   );
   size_t result = EstimateStoredSize();
 
+  result += signature_storage.TotalReservedSize();
+
   result += type_feedback.EstimateCurrentMemoryConsumption();
   // For type_feedback.well_known_imports:
   result += num_imported_functions * sizeof(WellKnownImport);
 
   result += lazily_generated_names.EstimateCurrentMemoryConsumption();
+
+  result += ContentSize(marked_for_tierup);
+  result += ContentSize(feedback_slots_to_wire_byte_offsets);
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmModule: %zu\n", result);
@@ -849,8 +855,8 @@ int JumpTableOffset(const WasmModule* module, int func_index) {
 
 size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
   return StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      HashSeed::Default());
+      reinterpret_cast<const char*>(wire_bytes.begin()),
+      static_cast<uint32_t>(wire_bytes.size()), HashSeed::Default());
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {

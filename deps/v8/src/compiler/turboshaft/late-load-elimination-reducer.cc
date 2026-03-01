@@ -181,6 +181,11 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
     if (ShouldSkipOptimizationStep()) continue;
     if (ShouldSkipOperation(op)) continue;
     switch (op.opcode) {
+#if V8_ENABLE_SANDBOX
+      case Opcode::kLoadTrustedPointer:
+        ProcessTrustedLoad(op_idx, op.Cast<LoadTrustedPointerOp>());
+        break;
+#endif
       case Opcode::kLoad:
         // Eliminate load or update state
         ProcessLoad(op_idx, op.Cast<LoadOp>());
@@ -217,6 +222,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kComparison:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
 #endif
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
@@ -244,6 +250,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kCheckException:
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      case Opcode::kSwitchSandboxMode:
+#endif
       case Opcode::kParameter:
       case Opcode::kDebugBreak:
       case Opcode::kJSStackCheck:
@@ -257,6 +266,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kMemoryCopy:
       case Opcode::kMemoryFill:
       case Opcode::kWasmIncCoverageCounter:
+      case Opcode::kWasmFXArgBuffer:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
@@ -381,6 +391,33 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   memory_.Insert(load, op_idx);
 }
 
+#if V8_ENABLE_SANDBOX
+void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
+    OpIndex op_idx, const LoadTrustedPointerOp& load) {
+  TRACE("> ProcessTrustedLoad(" << op_idx << ")");
+
+  // We need to insert the load into the truncation mapping as a key, because
+  // all loads need to be revisited during processing.
+  int32_truncated_loads_[op_idx];
+
+  if (OpIndex existing = memory_.Find(load); existing.valid()) {
+    const Operation& replacement = graph_.Get(existing);
+    USE(replacement);
+    // All trusted loads have the same representation and they can't alias with
+    // any other loads.
+    DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
+    TRACE(">> Found replacement at offset " << existing);
+    replacements_[op_idx] = Replacement::LoadElimination(existing);
+    return;
+  }
+  // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
+  // loop has set it to something else.
+  replacements_[op_idx] = Replacement::None();
+
+  memory_.Insert(load, op_idx);
+}
+#endif
+
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
   TRACE("> ProcessStore(" << op_idx << ")");
@@ -395,7 +432,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     TRACE(
         ">> Raw base or maybe inner pointer ==> Invalidating whole "
         "maybe-aliasing memory");
-    memory_.InvalidateMaybeAliasing();
+    memory_.InvalidateMaybeAliasing(store.base());
   }
 
   if (!store.kind.load_eliminable) {
@@ -445,7 +482,7 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
     return;
   }
   TRACE(">> Invalidating whole maybe-aliasing memory");
-  memory_.InvalidateMaybeAliasing();
+  memory_.InvalidateMaybeAliasing(store.base());
 #endif
 }
 
@@ -476,25 +513,6 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   }
 
   auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
-
-  if (builtin_id) {
-    switch (*builtin_id) {
-      // TODO(dmercadier): extend this list.
-      case Builtin::kCopyFastSmiOrObjectElements:
-        // This function just replaces the Elements array of an object.
-        // It doesn't invalidate any alias or any other memory than this
-        // Elements array.
-        TRACE(
-            ">> Call is CopyFastSmiOrObjectElements, invalidating only "
-            "Elements for "
-            << op.arguments()[0]);
-        memory_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
-                           JSObject::kElementsOffset);
-        return;
-      default:
-        break;
-    }
-  }
 
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.

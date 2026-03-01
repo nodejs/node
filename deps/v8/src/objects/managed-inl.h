@@ -29,11 +29,14 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
+  bool shared = IsSharedAllocationType(allocation_type);
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
-      detail::Destructor<CppType>);
+      detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
+      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
+                                            : isolate),
+      estimated_size);
   DirectHandle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
@@ -54,9 +57,11 @@ DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
     std::shared_ptr<CppType> shared_ptr, bool shared) {
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
-      detail::Destructor<CppType>);
+      detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
+      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
+                                            : isolate),
+      estimated_size);
   DirectHandle<TrustedManaged<CppType>> handle =
       TrustedCast<TrustedManaged<CppType>>(
           isolate->factory()->NewTrustedForeign(

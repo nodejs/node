@@ -7,7 +7,6 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
@@ -144,10 +143,10 @@ DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
                                   *set());
     result->InObjectPropertyAtPut(
         JSAccessorPropertyDescriptor::kEnumerableIndex,
-        isolate->heap()->ToBoolean(enumerable()));
+        ReadOnlyRoots(isolate).boolean_value(enumerable()));
     result->InObjectPropertyAtPut(
         JSAccessorPropertyDescriptor::kConfigurableIndex,
-        isolate->heap()->ToBoolean(configurable()));
+        ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }
   if (IsRegularDataProperty()) {
@@ -156,12 +155,15 @@ DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
         factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
     result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
                                   *value());
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kWritableIndex,
-                                  isolate->heap()->ToBoolean(writable()));
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kEnumerableIndex,
-                                  isolate->heap()->ToBoolean(enumerable()));
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kConfigurableIndex,
-                                  isolate->heap()->ToBoolean(configurable()));
+    result->InObjectPropertyAtPut(
+        JSDataPropertyDescriptor::kWritableIndex,
+        ReadOnlyRoots(isolate).boolean_value(writable()));
+    result->InObjectPropertyAtPut(
+        JSDataPropertyDescriptor::kEnumerableIndex,
+        ReadOnlyRoots(isolate).boolean_value(enumerable()));
+    result->InObjectPropertyAtPut(
+        JSDataPropertyDescriptor::kConfigurableIndex,
+        ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }
   DirectHandle<JSObject> result =

@@ -10,8 +10,12 @@
 #include "src/compiler/turboshaft/duplication-optimization-reducer.h"
 #include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
+#include "src/compiler/turboshaft/load-store-verification-reducer.h"
+#include "src/compiler/turboshaft/maglev-assert-types-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
+#include "src/compiler/turboshaft/store-store-elimination-reducer-inl.h"
+#include "src/objects/objects-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-js-lowering-reducer.h"
@@ -21,9 +25,15 @@ namespace v8::internal::compiler::turboshaft {
 
 void CodeEliminationAndSimplificationPhase::Run(PipelineData* data,
                                                 Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
+  // StoreStoreElimination needs the broken unparked in order to combine
+  // consecutive stores of read-only objects (for the RO check).
+  UnparkedScopeIfNeeded scope(data->broker());
 
-  CopyingPhase<DeadCodeEliminationReducer, StackCheckLoweringReducer,
+  CopyingPhase<MaglevAssertTypesReducer, DeadCodeEliminationReducer,
+               StackCheckLoweringReducer, StoreStoreEliminationReducer,
+#ifdef DEBUG
+               StoreLoadVerificationReducer,
+#endif
 #if V8_ENABLE_WEBASSEMBLY
                WasmJSLoweringReducer,
 #endif

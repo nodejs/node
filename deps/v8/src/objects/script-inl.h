@@ -105,7 +105,8 @@ void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
-  return type() == Type::kWasm && wasm_breakpoint_infos()->length() > 0;
+  return type() == Type::kWasm &&
+         wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {

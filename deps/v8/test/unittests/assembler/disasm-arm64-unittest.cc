@@ -131,6 +131,9 @@ TEST_F(DisasmArm64Test, bootstrap) {
   COMPARE(dci(0x93407c00), "sxtw x0, w0");
   COMPARE(dci(0x2a000020), "orr w0, w1, w0");
   COMPARE(dci(0xa8c67bfd), "ldp fp, lr, [sp], #96");
+  COMPARE(dci(0xf9800800), "prfm pldl1keep, [x0, #16]");
+  COMPARE(dci(0xf8b7c973), "prfm pstl2strm, [x11, w23, sxtw]");
+  COMPARE(dci(0xf98003e4), "prfm pldl3keep, [sp]");
 
   CLEANUP();
 }
@@ -1703,18 +1706,27 @@ TEST_F(DisasmArm64Test, fmov_imm) {
 }
 
 TEST_F(DisasmArm64Test, fmov_reg) {
-  SET_UP_ASM();
-
-  COMPARE(fmov(w3, s13), "fmov w3, s13");
-  COMPARE(fmov(x6, d26), "fmov x6, d26");
-  COMPARE(fmov(s11, w30), "fmov s11, w30");
-  COMPARE(fmov(d31, x2), "fmov d31, x2");
-  COMPARE(fmov(s12, s13), "fmov s12, s13");
-  COMPARE(fmov(d22, d23), "fmov d22, d23");
-  COMPARE(fmov(v0.D(), 1, x13), "fmov v0.D[1], x13");
-  COMPARE(fmov(x13, v0.D(), 1), "fmov x13, v0.D[1]");
-
-  CLEANUP();
+  {
+    SET_UP_ASM();
+    COMPARE(fmov(w3, s13), "fmov w3, s13");
+    COMPARE(fmov(x6, d26), "fmov x6, d26");
+    COMPARE(fmov(s11, w30), "fmov s11, w30");
+    COMPARE(fmov(d31, x2), "fmov d31, x2");
+    COMPARE(fmov(s12, s13), "fmov s12, s13");
+    COMPARE(fmov(d22, d23), "fmov d22, d23");
+    COMPARE(fmov(v0.D(), 1, x13), "fmov v0.D[1], x13");
+    COMPARE(fmov(x13, v0.D(), 1), "fmov x13, v0.D[1]");
+    CLEANUP();
+  }
+  {
+    SET_UP_MASM();
+    COMPARE(Mov(v1.V2S(), v1.V2S()), "mov v1.8b, v1.8b");
+    COMPARE(Mov(v2.V4S(), v2.V4S()), "mov v2.16b, v2.16b");
+    COMPARE(Mov(v3.V2D(), v3.V2D()), "mov v3.16b, v3.16b");
+    COMPARE(Fmov(s4, s4), "fmov s4, s4");
+    COMPARE(Fmov(d5, d5), "fmov d5, d5");
+    CLEANUP();
+  }
 }
 
 TEST_F(DisasmArm64Test, fp_dp1) {

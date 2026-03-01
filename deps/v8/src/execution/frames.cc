@@ -44,6 +44,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #if V8_ENABLE_DRUMBRAKE
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -51,6 +52,18 @@
 
 namespace v8 {
 namespace internal {
+
+static_assert(CommonFrameConstants::kCPSlotSize ==
+              Internals::kFrameCPSlotCount * kSystemPointerSize);
+
+static_assert(Internals::kFrameTypeApiCallExit ==
+              StackFrame::API_CALLBACK_EXIT);
+static_assert(Internals::kFrameTypeApiConstructExit ==
+              StackFrame::API_CONSTRUCT_EXIT);
+static_assert(Internals::kFrameTypeApiNamedAccessorExit ==
+              StackFrame::API_NAMED_ACCESSOR_EXIT);
+static_assert(Internals::kFrameTypeApiIndexedAccessorExit ==
+              StackFrame::API_INDEXED_ACCESSOR_EXIT);
 
 ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
     nullptr;
@@ -181,6 +194,7 @@ void StackFrameIterator::Advance() {
   // handler and the value of any callee-saved register if needed.
   StackFrame::State state;
   StackFrame::Type type;
+  state.iteration_depth = frame_->iteration_depth() + 1;
 #if V8_ENABLE_WEBASSEMBLY
   if (((frame_->type() == StackFrame::WASM_JSPI &&
         Memory<Address>(frame_->fp() +
@@ -223,7 +237,6 @@ void StackFrameIterator::Advance() {
     while (!it.done()) it.Advance();
     handler_ = it.handler();
   }
-
   // Advance to the calling frame.
   SetNewFrame(type, &state);
   // When we're done iterating over the stack frames, the handler
@@ -298,8 +311,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
-  if (stack->jmpbuf()->sp == stack->base() ||
-      stack->jmpbuf()->state == wasm::JumpBuffer::Retired) {
+  if (!stack->has_frames()) {
     // The stack has not been started yet or has already retired.
     return;
   }
@@ -640,10 +652,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
 
 bool StackFrameIteratorForProfiler::IsValidTop(ThreadLocalTop* top) const {
   Address c_entry_fp = Isolate::c_entry_fp(top);
-  if (!IsValidExitFrame(c_entry_fp)) return false;
-  // There should be at least one JS_ENTRY stack handler.
-  Address handler = Isolate::handler(top);
-  return handler != kNullAddress;
+  return IsValidExitFrame(c_entry_fp);
 }
 
 void StackFrameIteratorForProfiler::AdvanceOneFrame() {
@@ -734,7 +743,9 @@ void StackFrameIteratorForProfiler::Advance() {
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     if (frame_->is_exit() || frame_->is_builtin_exit() ||
-        frame_->is_api_accessor_exit() || frame_->is_api_callback_exit()) {
+        frame_->is_api_named_accessor_exit() ||
+        frame_->is_api_indexed_accessor_exit() ||
+        frame_->is_api_callback_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
@@ -843,8 +854,10 @@ StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
 StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
   DCHECK_LE(static_cast<uintptr_t>(candidate), StackFrame::NUMBER_OF_TYPES);
   switch (candidate) {
-    case StackFrame::API_ACCESSOR_EXIT:
+    case StackFrame::API_NAMED_ACCESSOR_EXIT:
+    case StackFrame::API_INDEXED_ACCESSOR_EXIT:
     case StackFrame::API_CALLBACK_EXIT:
+    case StackFrame::API_CONSTRUCT_EXIT:
     case StackFrame::BUILTIN_CONTINUATION:
     case StackFrame::BUILTIN_EXIT:
     case StackFrame::CONSTRUCT:
@@ -1146,6 +1159,11 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
+void ApiNamedAccessorExitFrame::Iterate(RootVisitor* v) const {
+  v->VisitRootPointer(Root::kStackRoots, nullptr, property_key_slot());
+  ApiAccessorExitFrame::Iterate(v);
+}
+
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NO_FRAME_TYPE;
   StackFrame::Type type = ComputeFrameType(fp);
@@ -1175,7 +1193,8 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
-    case API_ACCESSOR_EXIT:
+    case API_NAMED_ACCESSOR_EXIT:
+    case API_INDEXED_ACCESSOR_EXIT:
     case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
@@ -1218,8 +1237,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->constant_pool_address = nullptr;
 }
 
-FrameSummaries BuiltinExitFrame::Summarize() const {
-  DirectHandle<FixedArray> parameters = GetParameters();
+FrameSummaries BuiltinExitFrame::Summarize(bool never_allocate) const {
+  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
@@ -1239,31 +1258,31 @@ Tagged<Object> BuiltinExitFrame::receiver() const {
 }
 
 Tagged<Object> BuiltinExitFrame::GetParameter(int i) const {
-  DCHECK(i >= 0 && i < ComputeParametersCount());
+  DCHECK(i >= 0 && static_cast<uint32_t>(i) < ComputeParametersCount());
   int offset =
       BuiltinExitFrameConstants::kFirstArgumentOffset + i * kSystemPointerSize;
   return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
-int BuiltinExitFrame::ComputeParametersCount() const {
+uint32_t BuiltinExitFrame::ComputeParametersCount() const {
   Tagged<Object> argc_slot = argc_slot_object();
   DCHECK(IsSmi(argc_slot));
   // Argc also counts the receiver and extra arguments for BuiltinExitFrame
   // (target, new target and argc itself), therefore the real argument count
   // has to be adjusted.
-  int argc = Smi::ToInt(argc_slot) -
-             BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
-  DCHECK_GE(argc, 0);
-  return argc;
+  uint32_t argc = Smi::ToUInt(argc_slot);
+  DCHECK_GE(argc, BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
+  return argc - BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
 }
 
-DirectHandle<FixedArray> BuiltinExitFrame::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> BuiltinExitFrame::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
   return parameters;
@@ -1274,22 +1293,48 @@ bool BuiltinExitFrame::IsConstructor() const {
 }
 
 // Ensure layout of v8::FunctionCallbackInfo is in sync with
-// ApiCallbackExitFrameConstants.
-namespace ensure_layout {
-using FC = ApiCallbackExitFrameConstants;
+// ApiCallbackExitFrameConstants/ApiConstructExitFrameConstants.
+namespace ensure_FunctionCallbackInfo_layout {
+// Check ApiCallbackExitFrameConstants/ApiConstructExitFrameConstants constants
+// through the latter since it inherits from the former.
+static_assert(std::is_base_of_v<ApiCallbackExitFrameConstants,
+                                ApiConstructExitFrameConstants>);
+using FC = ApiConstructExitFrameConstants;
 using FCA = FunctionCallbackArguments;
-static_assert(FC::kFunctionCallbackInfoContextIndex == FCA::kContextIndex);
-static_assert(FC::kFunctionCallbackInfoReturnValueIndex ==
-              FCA::kReturnValueIndex);
-static_assert(FC::kFunctionCallbackInfoTargetIndex == FCA::kTargetIndex);
-static_assert(FC::kFunctionCallbackInfoNewTargetIndex == FCA::kNewTargetIndex);
-static_assert(FC::kFunctionCallbackInfoArgsLength == FCA::kArgsLength);
-}  // namespace ensure_layout
+static constexpr uint32_t ArgOffset(int index) {
+  return index * kSystemPointerSize;
+}
+constexpr int FCIOffset(int fp_relative_offset) {
+  return fp_relative_offset - FC::kFunctionCallbackInfoOffset;
+}
+static_assert(FC::kFunctionCallbackInfoApiArgsLength == FCA::kApiArgsLength);
 
-DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
+static_assert(ArgOffset(FCA::kArgcIndex) == FCIOffset(FC::kFCIArgcOffset));
+static_assert(ArgOffset(FCA::kNewTargetIndex) ==
+              FCIOffset(FC::kFCINewTargetOffset));
+static_assert(ArgOffset(FCA::kFrameSPIndex) == FCIOffset(FC::kSPOffset));
+static_assert(ArgOffset(FCA::kFrameTypeIndex) ==
+              FCIOffset(FC::kFrameTypeOffset));
+
+static_assert(ArgOffset(FCA::kContextIndex) == FCIOffset(FC::kContextOffset));
+static_assert(ArgOffset(FCA::kTargetIndex) == FCIOffset(FC::kTargetOffset));
+static_assert(ArgOffset(FCA::kReturnValueIndex) ==
+              FCIOffset(FC::kReturnValueOffset));
+static_assert(ArgOffset(FCA::kReceiverIndex) == FCIOffset(FC::kReceiverOffset));
+static_assert(ArgOffset(FCA::kFirstJSArgumentIndex) ==
+              FCIOffset(FC::kFirstJSArgumentOffset));
+
+}  // namespace ensure_FunctionCallbackInfo_layout
+
+DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction(
+    bool never_allocate) const {
   Tagged<HeapObject> maybe_function = target();
   if (IsJSFunction(maybe_function)) {
     return DirectHandle<JSFunction>::FromSlot(target_slot().location());
+  }
+  if (never_allocate) {
+    // Instantiation would allocate, return empty handle.
+    return {};
   }
   DCHECK(IsFunctionTemplateInfo(maybe_function));
   DirectHandle<FunctionTemplateInfo> function_template_info(
@@ -1322,51 +1367,74 @@ ApiCallbackExitFrame::GetFunctionTemplateInfo() const {
   return direct_handle(Cast<FunctionTemplateInfo>(maybe_function), isolate());
 }
 
-DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
   return parameters;
 }
 
-FrameSummaries ApiCallbackExitFrame::Summarize() const {
-  DirectHandle<FixedArray> parameters = GetParameters();
-  DirectHandle<JSFunction> function = GetFunction();
+FrameSummaries ApiCallbackExitFrame::SummarizeApiFrame(
+    bool is_constructor, bool never_allocate) const {
+  DirectHandle<JSFunction> function = GetFunction(never_allocate);
+  if (function.is_null()) {
+    // GetFunction() would need to instantiate the function, skip this frame.
+    return FrameSummaries{};
+  }
+  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
   std::tie(code, code_offset) = LookupCodeAndOffset();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), *function, Cast<AbstractCode>(code), code_offset,
-      IsConstructor(), *parameters);
+      is_constructor, *parameters);
   return FrameSummaries(summary);
+}
+
+// Garbage collection support.
+void ApiConstructExitFrame::Iterate(RootVisitor* v) const {
+  // New.target slot is located in the frame, so it has to be visited
+  // explicitly.
+  v->VisitRootPointer(Root::kStackRoots, nullptr, new_target_slot());
+  ApiCallbackExitFrame::Iterate(v);
 }
 
 // Ensure layout of v8::PropertyCallbackInfo is in sync with
 // ApiAccessorExitFrameConstants.
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoPropertyKeyIndex ==
-    PropertyCallbackArguments::kPropertyKeyIndex);
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReturnValueIndex ==
-    PropertyCallbackArguments::kReturnValueIndex);
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReceiverIndex ==
-    PropertyCallbackArguments::kThisIndex);
-static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoHolderIndex ==
-              PropertyCallbackArguments::kHolderIndex);
-static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoArgsLength ==
-              PropertyCallbackArguments::kArgsLength);
+namespace ensure_PropertyCallbackInfo_layout {
+using FC = ApiAccessorExitFrameConstants;
+using PCA = PropertyCallbackArguments;
+static constexpr uint32_t ArgOffset(int index) {
+  return index * kSystemPointerSize;
+}
+constexpr int PCIOffset(int fp_relative_offset) {
+  return fp_relative_offset - FC::kPropertyCallbackInfoOffset;
+}
+static_assert(ArgOffset(PCA::kPropertyKeyIndex) ==
+              PCIOffset(FC::kPropertyKeyOffset));
+static_assert(ArgOffset(PCA::kReturnValueIndex) ==
+              PCIOffset(FC::kReturnValueOffset));
+static_assert(ArgOffset(PCA::kHolderIndex) == PCIOffset(FC::kHolderOffset));
+static_assert(FC::kPropertyCallbackInfoGetterApiArgsLength ==
+              PCA::kGetterApiArgsLength);
+static_assert(FC::kPropertyCallbackInfoSetterApiArgsLength ==
+              PCA::kSetterApiArgsLength);
 
-FrameSummaries ApiAccessorExitFrame::Summarize() const {
-  // This frame is not supposed to appear in exception stack traces.
-  DCHECK(IsName(property_name()));
-  DCHECK(IsJSReceiver(receiver()));
+}  // namespace ensure_PropertyCallbackInfo_layout
+
+FrameSummaries ApiAccessorExitFrame::Summarize(bool never_allocate) const {
+  // Theses kinds of frames are not supposed to appear in exception stack
+  // traces.
+  DCHECK_IMPLIES(
+      is_api_named_accessor_exit(),
+      IsName(ApiNamedAccessorExitFrame::cast(this)->property_name()));
   DCHECK(IsJSReceiver(holder()));
   return FrameSummaries();
 }
@@ -1422,16 +1490,17 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",%o", GetParameter(i));
   }
 
   accumulator->Add(")\n");
 }
 
-void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                                 int index) const {
+void ApiCallbackExitFrame::PrintApiFrame(StringStream* accumulator,
+                                         PrintMode mode, int index,
+                                         bool is_constructor) const {
   DirectHandle<JSFunction> function = GetFunction();
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();
@@ -1439,31 +1508,46 @@ void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->PrintSecurityTokenIfChanged(isolate(), *function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("ApiCallbackExitFrame ");
-  if (IsConstructor()) accumulator->Add("new ");
+  if (is_constructor) accumulator->Add("new ");
   accumulator->PrintFunction(isolate(), *function, receiver);
 
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",%o", GetParameter(i));
   }
 
   accumulator->Add(")\n\n");
 }
 
-void ApiAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
+void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
                                  int index) const {
+  return PrintApiFrame(accumulator, mode, index, false);
+}
+
+void ApiConstructExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                                  int index) const {
+  return PrintApiFrame(accumulator, mode, index, true);
+}
+
+void ApiNamedAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                                      int index) const {
   DisallowGarbageCollection no_gc;
 
   PrintIndex(accumulator, mode, index);
   accumulator->Add("api accessor exit frame: ");
 
   Tagged<Name> name = property_name();
-  Tagged<Object> receiver = this->receiver();
   Tagged<Object> holder = this->holder();
-  accumulator->Add("(this=%o, holder=%o, name=%o)\n", receiver, holder, name);
+  accumulator->Add("(holder=%o, name=%o)\n", holder, name);
+}
+
+void ApiIndexedAccessorExitFrame::Print(StringStream* accumulator,
+                                        PrintMode mode, int index) const {
+  // These frames are not created yet.
+  UNREACHABLE();
 }
 
 Address CommonFrame::GetExpressionAddress(int n) const {
@@ -1514,7 +1598,7 @@ void CommonFrame::ComputeCallerState(State* state) const {
       fp() + StandardFrameConstants::kConstantPoolOffset);
 }
 
-FrameSummaries CommonFrame::Summarize() const {
+FrameSummaries CommonFrame::Summarize(bool never_allocate) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
 }
@@ -1623,29 +1707,36 @@ void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
   }
 }
 
-SafepointEntry GetSafepointEntryFromCodeCache(
+SafepointEntry& GetSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->safepoint_entry.is_initialized()) {
-    entry->safepoint_entry =
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer);
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    entry->ToSafepoint();
+    entry->safepoint_entry.CopyFrom(table.FindEntry(inner_pointer));
     DCHECK(entry->safepoint_entry.is_initialized());
   } else {
-    DCHECK_EQ(
-        entry->safepoint_entry,
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer));
+#if DEBUG
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kSafepoint);
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    DCHECK_EQ(entry->safepoint_entry, table.FindEntry(inner_pointer));
+#endif  // DEBUG
   }
   return entry->safepoint_entry;
 }
 
-MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
+MaglevSafepointEntry& GetMaglevSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->maglev_safepoint_entry.is_initialized()) {
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    entry->ToMaglevSafepoint();
     entry->maglev_safepoint_entry = MaglevSafepointTable::FindEntry(
         isolate, entry->code.value(), inner_pointer);
     DCHECK(entry->maglev_safepoint_entry.is_initialized());
   } else {
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kMaglevSafepoint);
     DCHECK_EQ(entry->maglev_safepoint_entry,
               MaglevSafepointTable::FindEntry(isolate, entry->code.value(),
                                               inner_pointer));
@@ -1733,7 +1824,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
       isolate(), maybe_unauthenticated_pc());
   wasm::WasmCode* wasm_code = pair.first;
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
 #else   // !V8_ENABLE_DRUMBRAKE
   std::unique_ptr<DrumBrakeWasmCode> interpreter_wasm_code;
   SafepointEntry safepoint_entry;
@@ -1746,7 +1837,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     auto pair =
         wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
     wasm::WasmCode* wasm_code = pair.first;
-    safepoint_entry = pair.second;
+    safepoint_entry.CopyFrom(pair.second);
     DCHECK(wasm_code);
     interpreter_wasm_code = DrumBrakeWasmCode::Compiled(wasm_code);
   }
@@ -1994,7 +2085,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2008,7 +2099,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -2135,7 +2226,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2295,12 +2386,12 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   const Address inner_pointer = maybe_unauthenticated_pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -2376,7 +2467,7 @@ int StubFrame::LookupExceptionHandlerInTable() {
   return table.LookupReturn(pc_offset);
 }
 
-FrameSummaries StubFrame::Summarize() const {
+FrameSummaries StubFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
 #if V8_ENABLE_WEBASSEMBLY
   Tagged<Code> code = LookupCode();
@@ -2417,11 +2508,12 @@ Tagged<HeapObject> CommonFrameWithJSLinkage::unchecked_code() const {
   return function()->code(isolate());
 }
 
-int TurbofanJSFrame::ComputeParametersCount() const {
+uint32_t TurbofanJSFrame::ComputeParametersCount() const {
   if (GcSafeLookupCode()->kind() == CodeKind::BUILTIN) {
-    return static_cast<int>(
-               Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
-           kJSArgcReceiverSlots;
+    uint32_t argc = static_cast<uint32_t>(
+        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+    DCHECK_GE(argc, kJSArgcReceiverSlots);
+    return argc - kJSArgcReceiverSlots;
   } else {
     return JavaScriptFrame::ComputeParametersCount();
   }
@@ -2474,7 +2566,7 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
   return IsConstructFrame(caller_fp());
 }
 
-FrameSummaries CommonFrameWithJSLinkage::Summarize() const {
+FrameSummaries CommonFrameWithJSLinkage::Summarize(bool never_allocate) const {
   Tagged<GcSafeCode> gcsafe_code;
   int offset = -1;
   std::tie(gcsafe_code, offset) = GcSafeLookupCodeAndOffset();
@@ -2486,7 +2578,7 @@ FrameSummaries CommonFrameWithJSLinkage::Summarize() const {
     return FrameSummaries{};
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  DirectHandle<FixedArray> params = GetParameters();
+  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *Cast<AbstractCode>(code), offset,
       IsConstructor(), *params);
@@ -2587,8 +2679,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         // supplied parameters, not all parameters required)
         PrintF(file, "(this=");
         ShortPrint(frame->receiver(), file);
-        const int length = frame->ComputeParametersCount();
-        for (int i = 0; i < length; i++) {
+        const uint32_t length = frame->ComputeParametersCount();
+        for (uint32_t i = 0; i < length; i++) {
           PrintF(file, ", ");
           ShortPrint(frame->GetParameter(i), file);
         }
@@ -2628,11 +2720,11 @@ Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
   return Tagged<Object>(Memory<Address>(GetParameterSlot(index)));
 }
 
-int CommonFrameWithJSLinkage::ComputeParametersCount() const {
+uint32_t CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
   // Use the (trusted) parameter count from the Bytecode or Code object.
-  int parameter_count;
+  uint32_t parameter_count;
   if (is_interpreted()) {
     const InterpretedFrame* iframe = InterpretedFrame::cast(this);
     parameter_count =
@@ -2648,20 +2740,22 @@ int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   return parameter_count;
 }
 
-int JavaScriptFrame::GetActualArgumentCount() const {
-  return static_cast<int>(
-             Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
-         kJSArgcReceiverSlots;
+uint32_t JavaScriptFrame::GetActualArgumentCount() const {
+  uint32_t argc = static_cast<uint32_t>(
+      Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
-DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   DirectHandle<FixedArray> parameters =
       isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
 
@@ -2673,14 +2767,16 @@ Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
-int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
+uint32_t JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   // Assert that the first allocatable register is also the argument count
   // register.
   DCHECK_EQ(RegisterConfiguration::Default()->GetAllocatableGeneralCode(0),
             kJavaScriptCallArgCountRegister.code());
   Tagged<Object> argc_object(
       Memory<Address>(fp() + BuiltinContinuationFrameConstants::kArgCOffset));
-  return Smi::ToInt(argc_object) - kJSArgcReceiverSlots;
+  uint32_t argc = Smi::ToUInt(argc_object);
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
@@ -2697,10 +2793,10 @@ Tagged<Object> JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Tagged<Object> exception) {
-  int argc = ComputeParametersCount();
+  uint32_t argc = ComputeParametersCount();
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
-      (argc - 1) * kSystemPointerSize;
+      (static_cast<int64_t>(argc) - 1) * kSystemPointerSize;
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -2746,11 +2842,10 @@ void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
 }
 
 bool FrameSummary::JavaScriptFrameSummary::AreSourcePositionsAvailable() const {
-  return !v8_flags.enable_lazy_source_positions ||
-         function()
-             ->shared()
-             ->GetBytecodeArray(isolate())
-             ->HasSourcePositionTable();
+  if (!v8_flags.enable_lazy_source_positions) return true;
+  Tagged<SharedFunctionInfo> sfi = function()->shared();
+  return sfi->HasBytecodeArray() &&
+         sfi->GetBytecodeArray(isolate())->HasSourcePositionTable();
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -3049,7 +3144,7 @@ FRAME_SUMMARY_DISPATCH(DirectHandle<StackFrameInfo>, CreateStackFrameInfo)
 #undef CASE_WASM_INTERPRETED
 #undef FRAME_SUMMARY_DISPATCH
 
-FrameSummaries OptimizedJSFrame::Summarize() const {
+FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
   DCHECK(is_optimized());
   FrameSummaries summaries;
 
@@ -3058,7 +3153,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   DirectHandle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN ||
       code->kind() == CodeKind::FOR_TESTING_JS) {
-    return JavaScriptFrame::Summarize();
+    return JavaScriptFrame::Summarize(never_allocate);
   }
   DCHECK_NE(code->kind(), CodeKind::FOR_TESTING);
 
@@ -3077,7 +3172,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
-      DirectHandle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), receiver(), function(), *abstract_code,
           kFunctionEntryBytecodeOffset, IsConstructor(), *params);
@@ -3134,7 +3229,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       }
 
       // Append full summary of the encountered JS frame.
-      DirectHandle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), *receiver, *function, *abstract_code, code_offset,
           is_constructor, *params);
@@ -3219,7 +3314,7 @@ int TurbofanJSFrame::FindReturnPCForTrampoline(Tagged<Code> code,
   DCHECK_EQ(code->kind(), CodeKind::TURBOFAN_JS);
   DCHECK(code->marked_for_deoptimization());
   SafepointTable safepoints(isolate(), pc(), code);
-  return safepoints.find_return_pc(trampoline_pc);
+  return safepoints.FindReturnPC(trampoline_pc);
 }
 
 Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
@@ -3232,14 +3327,15 @@ Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
   DCHECK(CodeKindCanDeoptimize(code->kind()));
 
   if (code->is_maglevved()) {
-    MaglevSafepointEntry safepoint_entry =
-        code->GetMaglevSafepointEntry(isolate(), pc);
+    MaglevSafepointTable table(isolate(), pc, code);
+    MaglevSafepointEntry safepoint_entry = table.FindEntry(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
     }
   } else {
-    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
+    SafepointTable table(isolate(), pc, code);
+    SafepointEntry& safepoint_entry = table.FindEntry_NoStackSlots(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
@@ -3305,10 +3401,11 @@ int UnoptimizedJSFrame::LookupExceptionHandlerInTable(
   HandlerTable table(GetBytecodeArray());
   int handler_index = table.LookupHandlerIndexForRange(GetBytecodeOffset());
   if (handler_index != HandlerTable::kNoHandlerFound) {
-    if (context_register) *context_register = table.GetRangeData(handler_index);
-    if (prediction) *prediction = table.GetRangePrediction(handler_index);
-    table.MarkHandlerUsed(handler_index);
-    return table.GetRangeHandler(handler_index);
+    uint32_t index = static_cast<uint32_t>(handler_index);
+    if (context_register) *context_register = table.GetRangeData(index);
+    if (prediction) *prediction = table.GetRangePrediction(index);
+    table.MarkHandlerUsed(index);
+    return table.GetRangeHandler(index);
   }
   return handler_index;
 }
@@ -3330,10 +3427,10 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
   return GetExpression(index + register_index);
 }
 
-FrameSummaries UnoptimizedJSFrame::Summarize() const {
+FrameSummaries UnoptimizedJSFrame::Summarize(bool never_allocate) const {
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());
-  DirectHandle<FixedArray> params = GetParameters();
+  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
       IsConstructor(), *params);
@@ -3388,10 +3485,12 @@ Tagged<JSFunction> BuiltinFrame::function() const {
   return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
-int BuiltinFrame::ComputeParametersCount() const {
+uint32_t BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  return Smi::ToInt(Tagged<Object>(base::Memory<Address>(fp() + offset))) -
-         kJSArgcReceiverSlots;
+  uint32_t argc =
+      Smi::ToUInt(Tagged<Object>(base::Memory<Address>(fp() + offset)));
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3483,7 +3582,7 @@ Tagged<Object> WasmFrame::context() const {
   return trusted_instance_data()->native_context();
 }
 
-FrameSummaries WasmFrame::Summarize() const {
+FrameSummaries WasmFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
@@ -3577,7 +3676,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
                                                                  caller_pc());
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {
@@ -3683,7 +3782,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       DCHECK_LE(current_index, param_count);
       for (size_t i = 0; i < current_index; i++) {
         wasm::ValueType type = sig.GetParam(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3709,7 +3808,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       // When converting return values, all results are already in the array.
       for (size_t i = 0; i < return_count; i++) {
         wasm::ValueType type = sig.GetReturn(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3779,6 +3878,11 @@ void WasmJspiFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
 }
 
+wasm::WasmCode* WasmStackEntryFrame::wasm_code() {
+  return wasm::GetWasmStackEntryWrapperCache()->Lookup(
+      maybe_unauthenticated_pc());
+}
+
 #if V8_ENABLE_DRUMBRAKE
 void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
   //  WasmInterpreterEntryFrame stack layout
@@ -3813,7 +3917,7 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-FrameSummaries WasmInterpreterEntryFrame::Summarize() const {
+FrameSummaries WasmInterpreterEntryFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   std::vector<WasmInterpreterStackEntry> interpreted_stack =
@@ -3928,7 +4032,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
       num_int_params++;
     } else if (param == wasm::kWasmI64) {
       num_int_params += kSystemPointerSize == 8 ? 1 : 2;
-    } else if (param.is_reference()) {
+    } else if (param.is_ref()) {
       num_ref_params++;
     }
   }
@@ -4034,8 +4138,8 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",");
     accumulator->Add("%o", GetParameter(i));
   }
@@ -4158,13 +4262,13 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 
 }  // namespace
 
-InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
-InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
+InnerPointerToCodeCache::Entry* InnerPointerToCodeCache::GetCacheEntry(
+    Address inner_pointer) {
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
   uint32_t hash =
       ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
-  InnerPointerToCodeCacheEntry* entry = cache(index);
+  Entry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
     // Why this DCHECK holds is nontrivial:
     //
@@ -4185,11 +4289,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code.value()->is_maglevved()) {
-      entry->maglev_safepoint_entry.Reset();
-    } else {
-      entry->safepoint_entry.Reset();
-    }
+    entry->ResetSafepoint();
     entry->inner_pointer = inner_pointer;
   }
   return entry;

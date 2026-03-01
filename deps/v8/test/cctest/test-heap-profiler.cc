@@ -42,6 +42,7 @@
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/pretenuring-handler.h"
@@ -266,8 +267,8 @@ bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                      const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    v8::base::ScopedVector<char> buffer(10);
-    std::string_view str = i::IntToStringView(i, buffer);
+    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(10);
+    std::string_view str = i::IntToStringView(i, buffer.as_vector());
     // GetProperty requires a null-terminated string.
     const v8::HeapGraphNode* internal = GetProperty(
         isolate, node, v8::HeapGraphEdge::kInternal, std::string(str).c_str());
@@ -1310,12 +1311,12 @@ TEST(HeapSnapshotJSONSerialization) {
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  v8::base::ScopedVector<char> json(stream.size());
-  stream.WriteTo(json);
+  auto json = v8::base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
   v8::internal::OneByteResource* json_res =
-      new v8::internal::OneByteResource(json);
+      new v8::internal::OneByteResource(json.as_vector());
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());
@@ -2099,8 +2100,7 @@ TEST(NativeSnapshotObjectIdMoving) {
     auto local = v8::Local<v8::String>::New(isolate, wrapper);
     i::DirectHandle<i::String> internal = i::Cast<i::String>(
         v8::Utils::OpenDirectHandle(*v8::Local<v8::String>::Cast(local)));
-    i::heap::ForceEvacuationCandidate(
-        i::PageMetadata::FromHeapObject(*internal));
+    i::heap::ForceEvacuationCandidate(i::NormalPage::FromHeapObject(*internal));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
 
@@ -4348,7 +4348,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
       i::v8_flags.stress_incremental_marking ||
       i::v8_flags.stress_concurrent_allocation ||
-      i::v8_flags.single_generation) {
+      i::v8_flags.single_generation || i::v8_flags.scavenger_chaos_mode) {
     return;
   }
 
@@ -4365,8 +4365,8 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  v8::base::ScopedVector<char> source(1024);
-  v8::base::SNPrintF(source,
+  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(source.as_vector(),
                      "var number_elements = %d;"
                      "var elements = new Array(number_elements);"
                      "function f() {"
@@ -4376,7 +4376,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
                      "  return elements[number_elements - 1];"
                      "};"
                      "%%PrepareFunctionForOptimization(f);"
-                     "f(); gc();"
+                     "f(); gc({type: 'minor'});"
                      "f(); f();"
                      "%%OptimizeFunctionOnNextCall(f);"
                      "f();"
@@ -4586,6 +4586,7 @@ TEST(WeakReference) {
       shared_function, feedback_cell_array,
       direct_handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(),
                     i_isolate));
+  USE(fv);
 
   // Create a Code object.
   i::Assembler assm(i_isolate->allocator(), i::AssemblerOptions{});
@@ -4596,17 +4597,6 @@ TEST(WeakReference) {
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
   CHECK(IsCode(*code));
-
-#ifdef V8_ENABLE_LEAPTIERING
-  USE(fv);
-#else
-  // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
-  // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::MakeWeak(code->wrapper()));
-  fv->set_flags(
-      i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
-      i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
-#endif  // V8_ENABLE_LEAPTIERING
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
@@ -4820,8 +4810,8 @@ TEST(HeapSnapshotWithWasmInstance) {
   CHECK_NOT_NULL(trusted_instance_data_node);
   CheckProperties(
       isolate, trusted_instance_data_node,
-      {"dispatch_table0", "dispatch_table_for_imports", "dispatch_tables",
-       "instance_object", "managed_native_module", "map",
+      {"data_segments", "dispatch_table0", "dispatch_table_for_imports",
+       "dispatch_tables", "instance_object", "managed_native_module", "map",
        "memory_bases_and_sizes", "native_context", "shared_part"});
 
   // "module_object" should be the same as the global "module".

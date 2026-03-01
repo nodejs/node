@@ -42,6 +42,8 @@ class WasmInitExpr : public ZoneObject {
     kRefFuncConst,
     kStructNew,
     kStructNewDefault,
+    kStructNewDesc,
+    kStructNewDefaultDesc,
     kArrayNew,
     kArrayNewDefault,
     kArrayNewFixed,
@@ -114,10 +116,22 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr StructNewDefault(
-      ModuleTypeIndex index,
-      ZoneVector<WasmInitExpr>* opt_descriptor = nullptr) {
-    WasmInitExpr expr(kStructNewDefault, opt_descriptor);
+  static WasmInitExpr StructNewDesc(ModuleTypeIndex index,
+                                    ZoneVector<WasmInitExpr>* elements) {
+    WasmInitExpr expr(kStructNewDesc, elements);
+    expr.immediate_.index = index.index;
+    return expr;
+  }
+
+  static WasmInitExpr StructNewDefault(ModuleTypeIndex index) {
+    WasmInitExpr expr(kStructNewDefault);
+    expr.immediate_.index = index.index;
+    return expr;
+  }
+
+  static WasmInitExpr StructNewDefaultDesc(Zone* zone, ModuleTypeIndex index,
+                                           WasmInitExpr descriptor) {
+    WasmInitExpr expr(zone, kStructNewDefaultDesc, {descriptor});
     expr.immediate_.index = index.index;
     return expr;
   }
@@ -172,6 +186,7 @@ class WasmInitExpr : public ZoneObject {
       case kI8:
       case kI16:
       case kI32:
+      case kWaitQueue:
         return WasmInitExpr(int32_t{0});
       case kI64:
         return WasmInitExpr(int64_t{0});

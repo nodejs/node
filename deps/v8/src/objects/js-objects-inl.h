@@ -1013,7 +1013,7 @@ Maybe<bool> JSReceiver::HasPropertyOrElement(Isolate* isolate,
 
 Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
                                        DirectHandle<JSReceiver> object,
-                                       uint32_t index) {
+                                       size_t index) {
   if (IsJSObject(*object)) {  // Shortcut.
     LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
     return HasProperty(&it);
@@ -1042,7 +1042,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index) {
+    Isolate* isolate, DirectHandle<JSReceiver> object, size_t index) {
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
@@ -1063,14 +1063,12 @@ Tagged<NativeContext> JSGlobalObject::native_context() {
   return *GetCreationContext();
 }
 
-bool JSGlobalObject::IsDetached(Isolate* isolate) {
-  return global_proxy()->IsDetachedFrom(isolate, *this);
+bool JSGlobalObject::IsDetached() {
+  return global_proxy()->IsDetachedFrom(*this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(Isolate* isolate,
-                                   Tagged<JSGlobalObject> global) const {
-  const PrototypeIterator iter(isolate, Tagged<JSReceiver>(*this));
-  return iter.GetCurrent() != global;
+bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
+  return map()->prototype() != global;
 }
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {

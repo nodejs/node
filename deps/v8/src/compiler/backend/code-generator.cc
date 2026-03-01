@@ -18,12 +18,14 @@
 #include "src/deoptimizer/translated-state.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/execution/frames.h"
+#include "src/flags/flags.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
 #include "src/utils/utils.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-deopt-data.h"
@@ -247,13 +249,11 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Check that {kJavaScriptCallDispatchHandleRegister} has been set correctly.
   if (v8_flags.debug_code && call_descriptor->IsJSFunctionCall()) {
     masm()->RecordComment("-- Prologue: check dispatch handle register --");
     AssembleDispatchHandleRegisterCheck();
   }
-#endif
 
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
@@ -261,7 +261,9 @@ void CodeGenerator::AssembleCode() {
   if (info->IsOptimizing()) {
     DCHECK(call_descriptor->IsJSFunctionCall());
     masm()->RecordComment("-- Prologue: check for deoptimization --");
-    BailoutIfDeoptimized();
+    if (v8_flags.debug_code) {
+      AssertNotDeoptimized();
+    }
   }
 
   // Define deoptimization literals for all inlined functions.
@@ -577,9 +579,7 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
   auto safepoint = safepoints()->DefineSafepoint(masm(), pc_offset);
 
-  for (int tagged : frame()->tagged_slots()) {
-    safepoint.DefineTaggedStackSlot(tagged);
-  }
+  safepoint.DefineTaggedStackSlots(frame()->tagged_slots());
 
   int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
@@ -860,6 +860,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());
+#ifdef V8_DUMPLING
+      if (v8_flags.turbofan_dumping) {
+        FrameStateDescriptor* descriptor =
+            GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+        if (descriptor->type() == FrameStateType::kUnoptimizedFunction &&
+            !isolate()->dumpling_manager()->IsIsolateDumpDisabled()) {
+          AssembleDumpFrame();
+        }
+      }
+#endif  // V8_DUMPLING
       break;
     }
     case kFlags_set: {
@@ -1022,10 +1032,12 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetWrappedSharedFunctionInfo(Smi::zero());
   }
 
+  const uint32_t protected_deopt_literals_len =
+      static_cast<uint32_t>(protected_deoptimization_literals_.size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       isolate()->factory()->NewProtectedFixedArray(
-          static_cast<int>(protected_deoptimization_literals_.size()));
-  for (unsigned i = 0; i < protected_deoptimization_literals_.size(); i++) {
+          protected_deopt_literals_len);
+  for (uint32_t i = 0; i < protected_deopt_literals_len; i++) {
     IndirectHandle<TrustedObject> object =
         protected_deoptimization_literals_[i];
     CHECK(!object.is_null());
@@ -1033,10 +1045,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetProtectedLiteralArray(*protected_literals);
 
+  const uint32_t deopt_literals_len =
+      static_cast<uint32_t>(deoptimization_literals_.size());
   DirectHandle<DeoptimizationLiteralArray> literals =
-      isolate()->factory()->NewDeoptimizationLiteralArray(
-          static_cast<int>(deoptimization_literals_.size()));
-  for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
+      isolate()->factory()->NewDeoptimizationLiteralArray(deopt_literals_len);
+  for (uint32_t i = 0; i < deopt_literals_len; i++) {
     DirectHandle<Object> object = deoptimization_literals_[i].Reify(isolate());
     CHECK(!object.is_null());
     literals->set(i, *object);
@@ -1134,8 +1147,9 @@ CodeGenerator::GenerateWasmEffectHandler() {
   auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
       effect_handlers_.size());
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
-    handlers[i] = {effect_handlers_[i].pc_offset, effect_handlers_[i].tag_index,
-                   effect_handlers_[i].handler->pos()};
+    const EffectHandlerInfo& old_handler = effect_handlers_[i];
+    handlers[i] = {old_handler.pc_offset, old_handler.tag_and_kind,
+                   old_handler.is_switch() ? 0 : old_handler.handler->pos()};
   }
   return handlers;
 }
@@ -1164,11 +1178,17 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     // Start from the first handler, order matters.
     for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
          handler_idx += 2) {
-      RpoNumber handler_rpo =
-          i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
-      int tag_index = i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32();
-      effect_handlers_.push_back(
-          {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+      wasm::EffectHandlerTagIndex tag_index = wasm::EffectHandlerTagIndex(
+          i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32());
+
+      if (!tag_index.is_switch()) {
+        RpoNumber handler_rpo =
+            i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
+        effect_handlers_.emplace_back(tag_index, GetLabel(handler_rpo),
+                                      masm()->pc_offset());
+      } else {
+        effect_handlers_.emplace_back(tag_index, nullptr, masm()->pc_offset());
+      }
     }
     index = index - 2 * num_handlers - 1;
   }

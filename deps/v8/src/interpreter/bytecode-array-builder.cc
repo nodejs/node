@@ -115,7 +115,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
   DisallowGarbageCollection no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
@@ -567,22 +567,29 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     Token::Value op, Register reg, int feedback_slot) {
   switch (op) {
     case Token::kEq:
-      OutputTestEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kEqStrict:
-      OutputTestEqualStrict(reg, feedback_slot);
+      // feedback is embedded into bytecode array for strict equal
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestEqualStrict(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kLessThan:
-      OutputTestLessThan(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestLessThan(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kGreaterThan:
-      OutputTestGreaterThan(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestGreaterThan(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kLessThanEq:
-      OutputTestLessThanOrEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestLessThanOrEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kGreaterThanEq:
-      OutputTestGreaterThanOrEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestGreaterThanOrEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kInstanceOf:
       OutputTestInstanceOf(reg, feedback_slot);
@@ -793,18 +800,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
-    Register context, Variable* variable, int depth,
-    ContextSlotMutability mutability) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
+                                                            Variable* variable,
+                                                            int depth) {
   int slot_index = variable->index();
-  if (mutability == kImmutableSlot) {
+  if (variable->maybe_assigned() == kNotAssigned) {
     if (context.is_current_context() && depth == 0) {
       OutputLdaImmutableCurrentContextSlot(slot_index);
     } else {
       OutputLdaImmutableContextSlot(context, slot_index, depth);
     }
   } else {
-    DCHECK_EQ(kMutableSlot, mutability);
+    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (variable->scope()->has_context_cells()) {
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
@@ -828,6 +835,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
   int slot_index = variable->index();
   if (variable->maybe_assigned() != kNotAssigned &&
       variable->scope()->has_context_cells()) {
+    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
     } else {
@@ -949,9 +957,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
-                                                      RegisterList value_done) {
+                                                      RegisterList value_done,
+                                                      int call_slot) {
   DCHECK_EQ(2, value_done.register_count());
-  OutputForOfNext(object, next, value_done);
+  OutputForOfNext(object, next, value_done, call_slot);
   return *this;
 }
 
@@ -1690,6 +1699,13 @@ BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
 
   return zone()->New<BytecodeJumpTable>(constant_pool_index, size,
                                         case_value_base, zone());
+}
+
+void BytecodeArrayBuilder::TrimJumpTable(BytecodeJumpTable* jump_table,
+                                         int size) {
+  if (size == jump_table->size()) return;
+
+  bytecode_array_writer_.PatchJumpTableSize(jump_table, size);
 }
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {

@@ -444,12 +444,28 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
         if (ZREAD64(*pzlib_filefunc_def,filestream,buf,uReadSize)!=uReadSize)
             break;
 
-        for (i=(int)uReadSize-3; (i--)>0;)
+        /* Search for the non-zip64 EoCDR and confirm zip64 EoCDL is 20 bytes
+           earlier. This avoids false positives if the file is a non-zip64 zip
+           but contains an uncompressed zip64 near its end. Note: zip64 EoCDL is
+           20 bytes long. */
+        for (i=(int)uReadSize-3; (i--)>20;)
+            // End of central directory record signature (PK\5\6)
             if (((*(buf+i))==0x50) && ((*(buf+i+1))==0x4b) &&
-                ((*(buf+i+2))==0x06) && ((*(buf+i+3))==0x07))
+                ((*(buf+i+2))==0x05) && ((*(buf+i+3))==0x06))
             {
-                uPosFound = uReadPos+(unsigned)i;
-                break;
+                // Zip64 end of central directory locator signature (PK\6\7)
+                if (((*(buf+i-20))==0x50) && ((*(buf+i+1-20))==0x4b) &&
+                    ((*(buf+i+2-20))==0x06) && ((*(buf+i+3-20))==0x07))
+                {
+                    uPosFound = uReadPos+(unsigned)i-20;
+                    break;
+                }
+                else
+                {
+                  /* This is a non-zip64 zip; abandon the search. */
+                  free(buf);
+                  return CENTRALDIRINVALID;
+                }
             }
 
         if (uPosFound!=CENTRALDIRINVALID)

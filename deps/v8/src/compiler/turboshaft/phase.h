@@ -224,11 +224,12 @@ class V8_EXPORT_PRIVATE PipelineData {
                                std::move(bytecode_handler_data));
   }
 
-  void InitializeGraphComponent(SourcePositionTable* source_positions) {
+  void InitializeGraphComponent(SourcePositionTable* source_positions,
+                                Graph::Origin origin) {
     DCHECK(!graph_component_.has_value());
     graph_component_.emplace(zone_stats_);
     auto& zone = graph_component_->zone;
-    graph_component_->graph = zone.New<Graph>(zone);
+    graph_component_->graph = zone.New<Graph>(zone, origin);
     graph_component_->source_positions =
         GraphComponent::Pointer<SourcePositionTable>(source_positions);
     if (info_ && info_->trace_turbo_json()) {
@@ -239,11 +240,12 @@ class V8_EXPORT_PRIVATE PipelineData {
   void InitializeGraphComponentWithGraphZone(
       ZoneWithName<kGraphZoneName> graph_zone,
       ZoneWithNamePointer<SourcePositionTable, kGraphZoneName> source_positions,
-      ZoneWithNamePointer<NodeOriginTable, kGraphZoneName> node_origins) {
+      ZoneWithNamePointer<NodeOriginTable, kGraphZoneName> node_origins,
+      Graph::Origin origin) {
     DCHECK(!graph_component_.has_value());
     graph_component_.emplace(std::move(graph_zone));
     auto& zone = graph_component_->zone;
-    graph_component_->graph = zone.New<Graph>(zone);
+    graph_component_->graph = zone.New<Graph>(zone, origin);
     graph_component_->source_positions = source_positions;
     graph_component_->node_origins = node_origins;
     if (!graph_component_->node_origins && info_ && info_->trace_turbo_json()) {
@@ -408,6 +410,9 @@ class V8_EXPORT_PRIVATE PipelineData {
     pipeline_statistics_ = pipeline_statistics;
   }
 
+  const Linkage* linkage() const { return linkage_; }
+  void set_linkage(const Linkage* linkage) { linkage_ = linkage; }
+
 #if V8_ENABLE_WEBASSEMBLY
   // Module-specific signature: type indices are only valid in the WasmModule*
   // they belong to.
@@ -462,6 +467,13 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
   void clear_wasm_shuffle_analyzer() { wasm_shuffle_analyzer_ = nullptr; }
+
+  bool turbolev_graph_has_inlineable_wasm_calls() const {
+    return turbolev_graph_has_inlineable_wasm_calls_;
+  }
+  void set_turbolev_graph_has_inlineable_wasm_calls() {
+    turbolev_graph_has_inlineable_wasm_calls_ = true;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -524,6 +536,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   MaybeIndirectHandle<Code> code_;
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
+  const Linkage* linkage_ = nullptr;
   // Components
   std::optional<BuiltinComponent> builtin_component_;
   std::optional<GraphComponent> graph_component_;
@@ -539,6 +552,15 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
+  // When creating the Turboshaft graph from Maglev for Turbolev, we record in
+  // {turbolev_graph_has_inlineable_wasm_calls_} whether there are inlineable
+  // Wasm calls. This way, the WasmInJSInliningPhase can be ran conditionally
+  // and avoid a useless CopyingPhase for pure-JS functions, in order to reduce
+  // compile time.
+  // TODO(dmercadier,353475584): once WasmInJSInliningPhase has been merged with
+  // MachineLoweringPhase, we can get rid of this trick, since the
+  // MachineLoweringPhase runs unconditionally anyways.
+  bool turbolev_graph_has_inlineable_wasm_calls_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;
@@ -546,8 +568,8 @@ class V8_EXPORT_PRIVATE PipelineData {
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 
-void PrintTurboshaftGraph(PipelineData* data, Zone* temp_zone,
-                          CodeTracer* code_tracer, const char* phase_name);
+void PrintTurboshaftGraph(PipelineData* data, CodeTracer* code_tracer,
+                          const char* phase_name);
 void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
                                        const Graph& graph,
                                        const char* phase_name,

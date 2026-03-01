@@ -14,10 +14,10 @@
 #include <algorithm>
 #include <utility>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
 #include "src/bigint/util.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -58,7 +58,7 @@ uint32_t RoundUpLen(uint32_t len) {
 uint32_t KaratsubaLength(uint32_t n) {
   n = RoundUpLen(n);
   uint32_t i = 0;
-  while (n > kKaratsubaThreshold) {
+  while (n > config::kKaratsubaThreshold) {
     n >>= 1;
     i++;
   }
@@ -90,7 +90,7 @@ void KaratsubaSubtractionHelper(RWDigits result, Digits X, Digits Y,
 
 void ProcessorImpl::MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y) {
   DCHECK(X.len() >= Y.len());
-  DCHECK(Y.len() >= kKaratsubaThreshold);
+  DCHECK(Y.len() >= config::kKaratsubaThreshold);
   DCHECK(Z.len() >= X.len() + Y.len());
   uint32_t k = KaratsubaLength(Y.len());
   static_assert(kMaxNumDigits <= UINT32_MAX / 4);
@@ -141,8 +141,16 @@ void ProcessorImpl::KaratsubaChunk(RWDigits Z, Digits X, Digits Y,
   Y.Normalize();
   if (X.len() == 0 || Y.len() == 0) return Z.Clear();
   if (X.len() < Y.len()) std::swap(X, Y);
-  if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
-  if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
+  if (Y.len() == 1) {
+    MultiplySingle(Z, X, Y[0]);
+    AddWorkEstimate(X.len());
+    return;
+  }
+  if (Y.len() < config::kKaratsubaThreshold) {
+    MultiplySchoolbook(Z, X, Y);
+    AddWorkEstimate(X.len() * Y.len());
+    return;
+  }
   uint32_t k = KaratsubaLength(Y.len());
   DCHECK(scratch.len() >= 4 * k);
   return KaratsubaStart(Z, X, Y, scratch, k);
@@ -151,14 +159,16 @@ void ProcessorImpl::KaratsubaChunk(RWDigits Z, Digits X, Digits Y,
 // The main recursive Karatsuba method.
 void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
                                   RWDigits scratch, uint32_t n) {
-  if (n < kKaratsubaThreshold) {
+  if (n < config::kKaratsubaThreshold) {
     X.Normalize();
     Y.Normalize();
     if (X.len() >= Y.len()) {
-      return MultiplySchoolbook(RWDigits(Z, 0, 2 * n), X, Y);
+      MultiplySchoolbook(RWDigits(Z, 0, 2 * n), X, Y);
     } else {
-      return MultiplySchoolbook(RWDigits(Z, 0, 2 * n), Y, X);
+      MultiplySchoolbook(RWDigits(Z, 0, 2 * n), Y, X);
     }
+    AddWorkEstimate(X.len() * Y.len());
+    return;
   }
   DCHECK(scratch.len() >= 4 * n);
   DCHECK((n & 1) == 0);

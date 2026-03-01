@@ -51,6 +51,10 @@ struct IntPolicy {
   using key_type = int64_t;
   using init_type = int64_t;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   static void construct(void*, int64_t* slot, int64_t v) { *slot = v; }
   static void destroy(void*, int64_t*) {}
   static void transfer(void*, int64_t* new_slot, int64_t* old_slot) {
@@ -96,6 +100,10 @@ class StringPolicy {
 
   using key_type = std::string;
   using init_type = std::pair<std::string, std::string>;
+
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
 
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot, Args... args) {
@@ -204,8 +212,7 @@ void BM_CacheInSteadyState(benchmark::State& state) {
   state.SetLabel(absl::StrFormat("load_factor=%.2f", t.load_factor()));
 }
 
-template <typename Benchmark>
-void CacheInSteadyStateArgs(Benchmark* bm) {
+void CacheInSteadyStateArgs(::benchmark::Benchmark* bm) {
   // The default.
   const float max_load_factor = 0.875;
   // When the cache is at the steady state, the probe sequence will equal

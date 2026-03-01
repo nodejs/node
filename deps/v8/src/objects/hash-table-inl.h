@@ -26,7 +26,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsEphemeronHashTable(this));
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
+  DCHECK_LT(static_cast<uint32_t>(index), this->ulength().value());
   objects()[index].Relaxed_Store_no_write_barrier(value);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
@@ -40,7 +40,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value,
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsEphemeronHashTable(this));
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
+  DCHECK_LT(static_cast<uint32_t>(index), this->ulength().value());
   objects()[index].Relaxed_Store_no_write_barrier(value);
 #ifndef V8_DISABLE_WRITE_BARRIERS
 #if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
@@ -175,6 +175,14 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 // static
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
+  // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
+  return !IsUndefined(k, roots) && !IsTheHole(k, roots);
+}
+
+// static
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::IsKey(EarlyReadOnlyRoots roots,
+                                      Tagged<Object> k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
   return !IsUndefined(k, roots) && !IsTheHole(k, roots);
 }

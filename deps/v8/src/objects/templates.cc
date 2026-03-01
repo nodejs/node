@@ -170,7 +170,7 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
 
 int FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return Cast<FixedArray>(GetCFunctionOverloads())->length() /
+  return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value() /
          kFunctionOverloadEntrySize;
 }
 
@@ -254,9 +254,9 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
   Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
-  const int property_names_len = property_names->length();
-  CHECK_EQ(property_names_len, static_cast<int>(property_values.size()));
-  const int num_properties_set = static_cast<int>(std::count_if(
+  const uint32_t property_names_len = property_names->ulength().value();
+  CHECK_EQ(property_names_len, property_values.size());
+  const uint32_t num_properties_set = static_cast<uint32_t>(std::count_if(
       property_values.begin(), property_values.end(),
       [](const auto& maybe_value) { return !maybe_value.IsEmpty(); }));
 

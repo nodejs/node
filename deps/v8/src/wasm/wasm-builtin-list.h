@@ -105,6 +105,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmAllocateDescriptorStruct)                                              \
   V(WasmAllocateSharedStructWithRtt)                                           \
+  V(WasmAllocateWaitQueue)                                                     \
+  V(WasmManagedObjectWait)                                                     \
   V(WasmConfigureAllPrototypesOpt)                                             \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
@@ -152,6 +154,8 @@ namespace v8::internal::wasm {
   V(DebugPrintObject)                                                          \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(WasmFXResume)                                                              \
+  V(WasmFXResumeThrow)                                                         \
+  V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \

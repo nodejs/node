@@ -23,6 +23,8 @@ constexpr uint32_t kWasmMagic = 0x6d736100;
 constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
+// TODO(manoskouk): The spec now defines kWaitQueueCode as 0x68 which is the
+// same as kContRefCode. Fix it when the spec adjusts.
 enum ValueTypeCode : uint8_t {
   // Current value types
   kVoidCode = 0x40,
@@ -56,6 +58,7 @@ enum ValueTypeCode : uint8_t {
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
+  kWaitQueueCode = 0x5c,        // -0x24, packed type.
 
   // For decoding, we build an array for all heap types with these bounds:
   kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
@@ -75,12 +78,14 @@ constexpr uint8_t kWasmDescriptorCode = 0x4d;
 constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
+constexpr uint8_t kExternalExactBit = 1 << 5;
 enum ImportExportKindCode : uint8_t {
   kExternalFunction = 0,
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalTag = 4
+  kExternalTag = 4,
+  kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
 // The limits structure: valid for both memory and table limits.
@@ -140,6 +145,23 @@ enum SectionCode : int8_t {
   kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
+
+// Names of custom sections.
+constexpr char kNameString[] = "name";
+constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kInstTraceString[] = "metadata.code.trace_inst";
+constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
+constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
+constexpr char kCallTargetsString[] = "metadata.code.call_targets";
+constexpr char kDebugInfoString[] = ".debug_info";
+constexpr char kExternalDebugInfoString[] = "external_debug_info";
+constexpr char kBuildIdString[] = "build_id";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {

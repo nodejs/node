@@ -55,8 +55,9 @@ base::Vector<RegExpInstruction> ToInstructionVector(
     const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
-  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
+  uint32_t raw_bytes_len = raw_bytes->ulength().value();
+  uint32_t inst_num = raw_bytes_len / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes_len);
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
@@ -348,8 +349,8 @@ class NfaInterpreter {
         input_index_(input_index),
         clock(0),
         pc_last_input_index_(
-            zone->AllocateArray<LastInputIndex>(bytecode->length()),
-            bytecode->length()),
+            zone->AllocateArray<LastInputIndex>(bytecode->ulength().value()),
+            bytecode->ulength().value()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),
         register_array_allocator_(zone),

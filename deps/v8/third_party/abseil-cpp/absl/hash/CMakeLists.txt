@@ -137,6 +137,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::bits
     absl::endian
 )
 

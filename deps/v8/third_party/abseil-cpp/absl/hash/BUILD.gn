@@ -100,6 +100,7 @@ absl_source_set("city") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:endian",
+    "//third_party/abseil-cpp/absl/numeric:bits",
   ]
 }
 

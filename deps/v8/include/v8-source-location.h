@@ -22,7 +22,7 @@ namespace v8 {
 class V8_EXPORT SourceLocation final {
  public:
   /**
-   * Construct source location information corresponding to the location of the
+   * Constructs source location information corresponding to the location of the
    * call site.
    */
   static constexpr SourceLocation Current(
@@ -70,13 +70,14 @@ class V8_EXPORT SourceLocation final {
    *
    * \returns a human-readable string representing source location information.
    */
-  std::string ToString() const {
-    if (loc_.line() == 0) {
-      return {};
-    }
-    return std::string(loc_.function_name()) + "@" + loc_.file_name() + ":" +
-           std::to_string(loc_.line());
-  }
+  std::string ToString() const;
+
+  /**
+   * Checks whether this object is initialized.
+   *
+   * \returns true if this object is initialized, false otherwise.
+   */
+  operator bool() const { return loc_.line() != 0; }
 
  private:
   constexpr explicit SourceLocation(const std::source_location& loc)

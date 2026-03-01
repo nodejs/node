@@ -13,10 +13,10 @@
 
 #include <algorithm>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/div-helpers.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/div-helpers-inl.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -51,7 +51,7 @@ void ProcessorImpl::InvertBasecase(RWDigits Z, Digits V, RWDigits scratch) {
   for (; i < 2 * n; i++) X[i] = digit_sub2(0, V[i - n], borrow, &borrow);
   DCHECK(borrow == 1);
   RWDigits R(nullptr, 0);  // We don't need the remainder.
-  if (n < kBurnikelThreshold) {
+  if (n < config::kBurnikelThreshold) {
     DivideSchoolbook(Z, R, X, V);
   } else {
     DivideBurnikelZiegler(Z, R, X, V);
@@ -78,7 +78,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   // The base case won't work otherwise.
   DCHECK(V.len() >= 3);
 
-  constexpr uint32_t kBasecasePrecision = kNewtonInversionThreshold - 1;
+  constexpr uint32_t kBasecasePrecision = config::kNewtonInversionThreshold - 1;
   // V must have more digits than the basecase.
   DCHECK(V.len() > kBasecasePrecision);
   DCHECK(IsBitNormalized(V));
@@ -192,7 +192,7 @@ void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
   DCHECK(scratch.len() >= InvertScratchSpace(V.len()));
 
   uint32_t vn = V.len();
-  if (vn >= kNewtonInversionThreshold) {
+  if (vn >= config::kNewtonInversionThreshold) {
     return InvertNewton(Z, V, scratch);
   }
   if (vn == 1) {
@@ -256,7 +256,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
     // (5b): R < 0, so R += B
     digit_t q_sub = 0;
     do {
-      r_high += AddAndReturnCarry(R, R, B);
+      r_high += InplaceAddAndReturnCarry(R, B);
       q_sub++;
       DCHECK(q_sub <= 5);
     } while (r_high != 0);
@@ -265,7 +265,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
     digit_t q_add = 0;
     while (r_high != 0 || GreaterThanOrEqual(R, B)) {
       // (5c): R >= B, so R -= B
-      r_high -= SubtractAndReturnBorrow(R, R, B);
+      r_high -= InplaceSubAndReturnBorrow(R, B);
       q_add++;
       DCHECK(q_add <= 5);
     }

@@ -420,9 +420,11 @@ class ParsingTest : public TestWithContextAndZone {
         int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
         // Plug the source code pieces together.
-        base::ScopedVector<char> program(kProgramSize + 1);
-        int length = base::SNPrintF(program, "%s%s%s", context_data[i][0],
-                                    statement_data[j], context_data[i][1]);
+        auto program =
+            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+        int length =
+            base::SNPrintF(program.as_vector(), "%s%s%s", context_data[i][0],
+                           statement_data[j], context_data[i][1]);
         PrintF("%s\n", program.begin());
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), flags, flags_len, result,
@@ -1416,8 +1418,9 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
       int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
-      base::ScopedVector<char> program(kProgramByteSize + 1);
-      base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+      auto program =
+          base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
+      base::SNPrintF(program.as_vector(), "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
       i::DirectHandle<i::String> source =
           factory->NewStringFromUtf8(base::CStrVector(program.begin()))
@@ -1746,8 +1749,9 @@ TEST_F(ParsingTest, ScopePositions) {
     int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
-    base::ScopedVector<char> program(kProgramByteSize + 1);
-    base::SNPrintF(program, "%s%s%s", source_data[i].outer_prefix,
+    auto program =
+        base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
+    base::SNPrintF(program.as_vector(), "%s%s%s", source_data[i].outer_prefix,
                    source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
@@ -1913,10 +1917,12 @@ TEST_F(ParsingTest, ParserSync) {
                            static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
-        base::ScopedVector<char> program(kProgramSize + 1);
-        int length = base::SNPrintF(program, "label: for (;;) { %s%s%s%s }",
-                                    context_data[i][0], statement_data[j],
-                                    termination_data[k], context_data[i][1]);
+        auto program =
+            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+        int length =
+            base::SNPrintF(program.as_vector(), "label: for (;;) { %s%s%s%s }",
+                           context_data[i][0], statement_data[j],
+                           termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), nullptr, 0);
       }
@@ -3262,8 +3268,9 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
       "};"
       "h();";
 
-  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program, "%s", src);
+  auto program =
+      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program.as_vector(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3309,8 +3316,9 @@ TEST_F(ParsingTest, IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "  }"
       "f(0);";
 
-  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program, "%s", src);
+  auto program =
+      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program.as_vector(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3462,10 +3470,10 @@ TEST_F(ParsingTest, InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        base::ScopedVector<char> program(len + 1);
+        auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
 
-        base::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
-                       suffix);
+        base::SNPrintF(program.as_vector(), "%s%s%s%s%s", prefix, outer, midfix,
+                       inner, suffix);
 
         UnoptimizedCompileState compile_state;
         ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -3585,9 +3593,9 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      base::ScopedVector<char> program(Utf8LengthHelper(source) +
-                                       Utf8LengthHelper(suffix) + 1);
-      base::SNPrintF(program, "%s%s", source, suffix);
+      auto program = base::OwnedVector<char>::NewForOverwrite(
+          Utf8LengthHelper(source) + Utf8LengthHelper(suffix) + 1);
+      base::SNPrintF(program.as_vector(), "%s%s", source, suffix);
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = RunJS(program.begin());
       i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
@@ -8630,8 +8638,13 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
       declarations->AtForTest(12)->var()->raw_name()->IsOneByteEqualTo("foob"));
   CHECK(declarations->AtForTest(12)->var()->mode() == i::VariableMode::kConst);
   CHECK(!declarations->AtForTest(12)->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(12)->var()->location() ==
-        i::VariableLocation::MODULE);
+  if (v8_flags.js_esm_ns_reexport) {
+    CHECK(declarations->AtForTest(12)->var()->location() !=
+          i::VariableLocation::MODULE);
+  } else {
+    CHECK(declarations->AtForTest(12)->var()->location() ==
+          i::VariableLocation::MODULE);
+  }
 
   i::SourceTextModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
@@ -8658,13 +8671,15 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
     }
   }
 
-  CHECK_EQ(3, descriptor->special_exports().size());
+  CHECK_EQ(v8_flags.js_esm_ns_reexport ? 4 : 3,
+           descriptor->special_exports().size());
   CheckEntry(descriptor->special_exports().at(0), "b", nullptr, "a", 0);
   CheckEntry(descriptor->special_exports().at(1), nullptr, nullptr, nullptr, 2);
   CheckEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
              0);  // !!!
 
-  CHECK_EQ(8u, descriptor->regular_exports().size());
+  CHECK_EQ(v8_flags.js_esm_ns_reexport ? 7u : 8u,
+           descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(3)->var()->raw_name())
               ->second;
@@ -8685,10 +8700,6 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
               .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
   CheckEntry(entry, "default", ".default", nullptr, -1);
-  entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(12)->var()->raw_name())
-              ->second;
-  CheckEntry(entry, "foob", "foob", nullptr, -1);
   // TODO(neis): The next lines are terrible. Find a better way.
   auto name_x = declarations->AtForTest(0)->var()->raw_name();
   CHECK_EQ(2u, descriptor->regular_exports().count(name_x));
@@ -8705,9 +8716,16 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
   }
 
   CHECK_EQ(2, descriptor->namespace_imports().size());
-  CheckEntry(descriptor->namespace_imports().at(0), nullptr, "loo", nullptr, 4);
-  CheckEntry(descriptor->namespace_imports().at(1), nullptr, "foob", nullptr,
-             4);
+  if (v8_flags.js_esm_ns_reexport) {
+    const i::AstRawString* loo_string =
+        info.ast_value_factory()->GetOneByteString("loo");
+    const i::AstRawString* foob_string =
+        info.ast_value_factory()->GetOneByteString("foob");
+    CheckEntry(descriptor->namespace_imports().at(loo_string), nullptr, "loo",
+               nullptr, 4);
+    CheckEntry(descriptor->namespace_imports().at(foob_string), nullptr, "foob",
+               nullptr, 4);
+  }
 
   CHECK_EQ(4u, descriptor->regular_imports().size());
   entry = descriptor->regular_imports()
@@ -12377,13 +12395,13 @@ TEST_F(ParsingTest, NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      base::ScopedVector<char> program(len + 1);
-      base::SNPrintF(program, "%s", prefix);
-      base::SNPrintF(program + prefix_len, inner_function, inners[i].params,
-                     inners[i].source);
-      base::SNPrintF(
-          program + prefix_len + inner_function_len + params_len + source_len,
-          "%s", suffix);
+      auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
+      base::SNPrintF(program.as_vector(), "%s", prefix);
+      base::SNPrintF(program.as_vector() + prefix_len, inner_function,
+                     inners[i].params, inners[i].source);
+      base::SNPrintF(program.as_vector() + prefix_len + inner_function_len +
+                         params_len + source_len,
+                     "%s", suffix);
 
       i::DirectHandle<i::String> source =
           factory->InternalizeUtf8String(program.begin());

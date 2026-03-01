@@ -58,6 +58,10 @@ struct Policy {
   using key_type = T;
   using init_type = T;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   template <class allocator_type, class Arg>
   static void construct(allocator_type* alloc, slot_type* slot,
                         const Arg& arg) {
@@ -552,9 +556,11 @@ int main(int argc, char** argv) {
           // Check the regex again. We might had have enabled only one of the
           // stats for the benchmark.
           if (!CanRunBenchmark(name)) return;
+          // Report at least 1, because benchy drops results with zero.
+          double reported_value = std::max(1e9 * result.ratios.*val, 1.0);
           absl::PrintF("    %s{\n", comma);
-          absl::PrintF("      \"cpu_time\": %f,\n", 1e9 * result.ratios.*val);
-          absl::PrintF("      \"real_time\": %f,\n", 1e9 * result.ratios.*val);
+          absl::PrintF("      \"cpu_time\": %f,\n", reported_value);
+          absl::PrintF("      \"real_time\": %f,\n", reported_value);
           absl::PrintF("      \"iterations\": 1,\n");
           absl::PrintF("      \"name\": \"%s\",\n", name);
           absl::PrintF("      \"time_unit\": \"ns\"\n");

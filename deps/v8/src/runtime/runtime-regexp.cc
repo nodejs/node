@@ -11,7 +11,6 @@
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -58,24 +57,26 @@ template <typename Matcher, typename = std::enable_if<std::is_invocable_r_v<
                                 bool, Matcher, Tagged<String>>>>
 int LookupNamedCapture(Matcher name_matches,
                        Tagged<FixedArray> capture_name_map, int* index_in_out) {
-  DCHECK_GE(*index_in_out, 0);
+  int index_in_val = *index_in_out;
+  DCHECK_GE(index_in_val, 0);
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
 
   int maybe_capture_index = -1;
-  const int named_capture_count = capture_name_map->length() >> 1;
-  DCHECK_LE(*index_in_out, named_capture_count);
-  for (int j = *index_in_out; j < named_capture_count; j++) {
+  const uint32_t named_capture_count = capture_name_map->ulength().value() >> 1;
+  DCHECK_LE(static_cast<uint32_t>(index_in_val), named_capture_count);
+  for (uint32_t j = static_cast<uint32_t>(index_in_val);
+       j < named_capture_count; j++) {
     // The format of {capture_name_map} is documented at
     // JSRegExp::kIrregexpCaptureNameMapIndex.
-    const int name_ix = j * 2;
-    const int index_ix = j * 2 + 1;
+    const uint32_t name_ix = j * 2;
+    const uint32_t index_ix = j * 2 + 1;
 
     Tagged<String> capture_name = Cast<String>(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
     maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
-    *index_in_out = j + 1;
+    *index_in_out = static_cast<int>(j + 1);
     break;
   }
 
@@ -100,7 +101,7 @@ class CompiledReplacement {
              int32_t* match);
 
   // Number of distinct parts of the replacement pattern.
-  int parts() { return static_cast<int>(parts_.size()); }
+  uint32_t parts() { return static_cast<uint32_t>(parts_.size()); }
 
  private:
   enum PartType {
@@ -697,7 +698,7 @@ StringReplaceGlobalRegExpWithString(
   // Guessing the number of parts that the final result string is built
   // from. Global regexps can match any number of times, so we guess
   // conservatively.
-  int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
+  uint32_t expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   // TODO(v8:12843): improve the situation where the expected_parts exceeds
   // the maximum size of the backing store.
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
@@ -1219,10 +1220,10 @@ DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
   DirectHandle<JSObject> groups =
       isolate->factory()->NewJSObjectWithNullProto();
 
-  const int named_capture_count = capture_map->length() >> 1;
-  for (int i = 0; i < named_capture_count; i++) {
-    const int name_ix = i * 2;
-    const int index_ix = i * 2 + 1;
+  const uint32_t named_capture_count = capture_map->ulength().value() >> 1;
+  for (uint32_t i = 0; i < named_capture_count; i++) {
+    const uint32_t name_ix = i * 2;
+    const uint32_t index_ix = i * 2 + 1;
 
     DirectHandle<String> capture_name(Cast<String>(capture_map->get(name_ix)),
                                       isolate);
@@ -1318,7 +1319,7 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   bool first = true;
 
   // Two smis before and after the match, for very long strings.
-  static const int kMaxBuilderEntriesPerRegExpMatch = 5;
+  static const uint32_t kMaxBuilderEntriesPerRegExpMatch = 5;
 
   while (true) {
     int32_t* current_match = runner.FetchNext();
@@ -1418,7 +1419,7 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
       }
       DirectHandle<FixedArray> result_fixed_array =
           FixedArray::RightTrimOrEmpty(isolate, builder.array(),
-                                       builder.length());
+                                       builder.length().value());
       // Cache the result and copy the FixedArray into a COW array.
       DirectHandle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(

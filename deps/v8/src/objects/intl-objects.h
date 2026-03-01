@@ -11,10 +11,13 @@
 #include <set>
 #include <string>
 
+#include "include/v8-internal.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/timezone-cache.h"
 #include "src/objects/contexts.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
+#include "unicode/brkiter.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
@@ -25,7 +28,6 @@
 #define V8_MINIMUM_ICU_VERSION 73
 
 namespace U_ICU_NAMESPACE {
-class BreakIterator;
 class Locale;
 class ListFormatter;
 class RelativeDateTimeFormatter;
@@ -46,7 +48,6 @@ class Notation;
 namespace v8::internal {
 
 #define ICU_EXTERNAL_POINTER_TAG_LIST(V)                              \
-  V(icu::UnicodeString, kIcuUnicodeStringTag)                         \
   V(icu::BreakIterator, kIcuBreakIteratorTag)                         \
   V(icu::Locale, kIcuLocaleTag)                                       \
   V(icu::SimpleDateFormat, kIcuSimpleDateFormatTag)                   \
@@ -73,6 +74,37 @@ V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
     std::vector<NumberFormatSpan>* regions);
 
 class JSCollator;
+
+// Owns the ICU break iterator together with the string buffer it refers to.
+class IcuBreakIteratorWithText final {
+ public:
+  static constexpr ExternalPointerTag kManagedTag =
+      kIcuBreakIteratorWithTextTag;
+
+  // Adopts the given iterator with an empty string.
+  explicit IcuBreakIteratorWithText(
+      std::unique_ptr<icu::BreakIterator> iterator);
+  // Clones the given iterator and the string.
+  IcuBreakIteratorWithText(Isolate* isolate,
+                           std::unique_ptr<icu::BreakIterator> iterator,
+                           DirectHandle<String> string);
+  IcuBreakIteratorWithText(const IcuBreakIteratorWithText&) = delete;
+  IcuBreakIteratorWithText(IcuBreakIteratorWithText&&) V8_NOEXCEPT;
+  IcuBreakIteratorWithText& operator=(const IcuBreakIteratorWithText&) = delete;
+  IcuBreakIteratorWithText& operator=(IcuBreakIteratorWithText&&) V8_NOEXCEPT;
+  ~IcuBreakIteratorWithText();
+
+  const icu::BreakIterator* iterator() const { return iterator_.get(); }
+  icu::BreakIterator* iterator() { return iterator_.get(); }
+  const icu::UnicodeString* text() const { return text_.get(); }
+  icu::UnicodeString* text() { return text_.get(); }
+
+  void SetText(Isolate* isolate, DirectHandle<String> string);
+
+ private:
+  std::unique_ptr<icu::UnicodeString> text_;
+  std::unique_ptr<icu::BreakIterator> iterator_;  // may refer to `text_` buffer
+};
 
 class Intl {
  public:
@@ -397,11 +429,6 @@ class Intl {
     std::set<std::string> set_;
   };
 
-  // Utility function to set text to BreakIterator.
-  static DirectHandle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
-      Isolate* isolate, DirectHandle<String> text,
-      icu::BreakIterator* break_iterator);
-
   // ecma262 #sec-string.prototype.normalize
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Normalize(
       Isolate* isolate, DirectHandle<String> string,
@@ -427,7 +454,8 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> ToJSArray(
-      Isolate* isolate, const char* unicode_key,
+      Isolate* isolate,
+      const std::function<std::string(const char*)>& transforms,
       icu::StringEnumeration* enumeration,
       const std::function<bool(const char*)>& removes, bool sort);
 

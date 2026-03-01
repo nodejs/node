@@ -96,6 +96,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return isolate_->is_precise_binary_code_coverage();
   }
 
+  inline bool is_short_builtin_calls_enabled() const;
+
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
@@ -116,6 +118,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   void Throw(Tagged<Object> exception) { UNREACHABLE(); }
   [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location) {
     UNREACHABLE();
+  }
+
+  JSDispatchTable& js_dispatch_table() const {
+    return isolate_->js_dispatch_table();
   }
 
   int GetNextScriptId();

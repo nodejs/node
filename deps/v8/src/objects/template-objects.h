@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/struct.h"
+#include "src/objects/tagged-field.h"
 #include "src/objects/torque-defined-classes.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -23,19 +24,33 @@ class StructBodyDescriptor;
 // TemplateObjectDescription is a tuple of raw strings and cooked strings for
 // tagged template literals. Used to communicate with the runtime for template
 // object creation within the {Runtime_GetTemplateObject} method.
-class TemplateObjectDescription final
-    : public TorqueGeneratedTemplateObjectDescription<TemplateObjectDescription,
-                                                      Struct> {
+V8_OBJECT class TemplateObjectDescription final : public StructLayout {
  public:
   static DirectHandle<JSArray> GetTemplateObject(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateObjectDescription> description,
       DirectHandle<SharedFunctionInfo> shared_info, int slot_id);
 
+  inline Tagged<FixedArray> raw_strings() const;
+  inline void set_raw_strings(Tagged<FixedArray> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> cooked_strings() const;
+  inline void set_cooked_strings(Tagged<FixedArray> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TemplateObjectDescription)
-};
+  DECL_PRINTER(TemplateObjectDescription)
+  DECL_VERIFIER(TemplateObjectDescription)
+
+ private:
+  friend class Factory;
+  friend class TorqueGeneratedTemplateObjectDescriptionAsserts;
+
+  TaggedMember<FixedArray> raw_strings_;
+  TaggedMember<FixedArray> cooked_strings_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

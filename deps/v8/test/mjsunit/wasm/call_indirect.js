@@ -127,7 +127,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapFuncSigMismatch,
               () => importing_instance.exports.main(10, imported_mistyped));
   // Null entry
-  assertTraps(kTrapFuncSigMismatch,
+  assertTraps(kTrapNullFunc,
               () => importing_instance.exports.main(10, table_size - 1));
   assertTraps(kTrapTableOutOfBounds,
               () => importing_instance.exports.main(10, table_size));

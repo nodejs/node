@@ -22,16 +22,17 @@ void RegExpBytecodeIterator::advance() {
 
 RegExpBytecode RegExpBytecodeIterator::current_bytecode() const {
   DCHECK(!done());
-  return RegExpBytecodes::FromByte(*cursor_);
+  DCHECK_LE(cursor_ + sizeof(uint32_t), end_);
+  return RegExpBytecodes::FromPtr(cursor_);
 }
 
 uint8_t RegExpBytecodeIterator::current_size() const {
   DCHECK(!done());
-  return RegExpBytecodes::Size(*cursor_);
+  return RegExpBytecodes::Size(current_bytecode());
 }
 
-int RegExpBytecodeIterator::current_offset() const {
-  return static_cast<int>(cursor_ - start_);
+uint32_t RegExpBytecodeIterator::current_offset() const {
+  return static_cast<uint32_t>(cursor_ - start_);
 }
 
 uint8_t* RegExpBytecodeIterator::current_address() const { return cursor_; }

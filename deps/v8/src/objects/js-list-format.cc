@@ -201,9 +201,9 @@ namespace {
 // Extract String from FixedArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
     Isolate* isolate, DirectHandle<FixedArray> array) {
-  int length = array->length();
+  const uint32_t length = array->ulength().value();
   std::vector<icu::UnicodeString> result;
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     Handle<Object> item(array->get(i), isolate);
     DCHECK(IsString(*item));
     Handle<String> item_str = Cast<String>(item);

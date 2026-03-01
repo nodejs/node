@@ -45,22 +45,7 @@ namespace flags_internal {
 // AbslParseFlag specializations for boolean type.
 
 bool AbslParseFlag(absl::string_view text, bool* dst, std::string*) {
-  const char* kTrue[] = {"1", "t", "true", "y", "yes"};
-  const char* kFalse[] = {"0", "f", "false", "n", "no"};
-  static_assert(sizeof(kTrue) == sizeof(kFalse), "true_false_equal");
-
-  text = absl::StripAsciiWhitespace(text);
-
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTrue); ++i) {
-    if (absl::EqualsIgnoreCase(text, kTrue[i])) {
-      *dst = true;
-      return true;
-    } else if (absl::EqualsIgnoreCase(text, kFalse[i])) {
-      *dst = false;
-      return true;
-    }
-  }
-  return false;  // didn't match a legal input
+  return SimpleAtob(absl::StripAsciiWhitespace(text), dst);
 }
 
 // --------------------------------------------------------------------

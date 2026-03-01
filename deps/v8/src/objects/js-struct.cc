@@ -88,6 +88,9 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   }
   DCHECK(it.property_attributes() == desc->ToAttributes());
   if (desc->has_value()) {
+    if (Object::SameValue(*desc->value(), *current.value())) {
+      return Just(true);
+    }
     return Object::SetDataProperty(&it, desc->value());
   }
   return Just(true);
@@ -168,10 +171,9 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
     MaybeDirectHandle<String> maybe_registry_key) {
   auto* factory = isolate->factory();
 
-  int num_fields = 0;
-  int num_elements = 0;
+  int num_fields = static_cast<int>(field_names.size());
 
-  int num_descriptors = static_cast<int>(field_names.size());
+  int num_descriptors = num_fields;
   // If there are elements, an template NumberDictionary is created and stored
   // as a data constant on a descriptor.
   if (!element_names.empty()) num_descriptors++;
@@ -179,6 +181,13 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
   // descriptor because the registry stores the maps weakly. Storing the key in
   // the map simplifies the weakness handling in the GC.
   if (!maybe_registry_key.is_null()) num_descriptors++;
+
+  // Calculate the size for instances.
+  int instance_size;
+  int in_object_properties;
+  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
+                                          num_fields, &instance_size,
+                                          &in_object_properties);
 
   // Create the DescriptorArray if there are fields or elements.
   DirectHandle<DescriptorArray> descriptors;
@@ -203,7 +212,7 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
     // template NumberDictionary if needed.
     if (!element_names.empty()) {
       DirectHandle<NumberDictionary> elements_template;
-      num_elements = static_cast<int>(element_names.size());
+      int num_elements = static_cast<int>(element_names.size());
       elements_template = NumberDictionary::New(isolate, num_elements,
                                                 AllocationType::kSharedOld);
       for (uint32_t index : element_names) {
@@ -225,25 +234,23 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
 
     DCHECK_LE(special_slots, kSpecialSlots);
 
+    int field_index = 0;
     for (DirectHandle<Name> field_name : field_names) {
       // Shared structs' fields need to be aligned, so make it all tagged.
       PropertyDetails details(
           PropertyKind::kData, SEALED, PropertyLocation::kField,
-          PropertyConstness::kMutable, Representation::Tagged(), num_fields);
-      descriptors->Set(InternalIndex(special_slots + num_fields), *field_name,
+          PropertyConstness::kMutable, Representation::Tagged(), field_index,
+          field_index < in_object_properties);
+      descriptors->Set(InternalIndex(special_slots + field_index), *field_name,
                        FieldType::Any(), details);
-      num_fields++;
+      field_index++;
     }
+    DCHECK_EQ(field_index, num_fields);
 
     descriptors->Sort();
   }
 
-  // Calculate the size for instances and create the map.
-  int instance_size;
-  int in_object_properties;
-  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
-                                          num_fields, &instance_size,
-                                          &in_object_properties);
+  // Create the map.
   DirectHandle<Map> instance_map = factory->NewContextlessMap(
       JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
       in_object_properties, AllocationType::kSharedMap);

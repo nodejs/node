@@ -11,7 +11,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/spaces.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site.h"
@@ -87,7 +87,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
       object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
-  if (!PageMetadata::OnSamePage(object_address, last_memento_word_address)) {
+  if (!NormalPage::OnSamePage(object_address, last_memento_word_address)) {
     return {};
   }
 
@@ -95,7 +95,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   // and bail out.
   if constexpr (mode != FindMementoMode::kForGC) {
     MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
-    PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
+    NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
     if (!object_page->SweepingDone()) {
       return {};
     }
@@ -139,7 +139,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
              memento_address +
                      ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento)) <=
                  top);
-      if ((memento_address != top) && memento_candidate->IsValid()) {
+      if (memento_address != top) {
         return memento_candidate;
       }
       return {};

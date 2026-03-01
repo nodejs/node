@@ -136,6 +136,17 @@ class V8_EXPORT StackTrace {
     kDetailed = kOverview | kIsEval | kIsConstructor | kScriptNameOrSourceURL
   };
 
+  struct ScriptIdAndContext {
+    int id;
+    v8::Local<v8::Context> context;
+  };
+
+  struct ScriptData {
+    int id;
+    v8::Local<v8::Function> function;
+    v8::Local<v8::Context> context;
+  };
+
   /**
    * Returns the (unique) ID of this stack trace.
    */
@@ -174,15 +185,45 @@ class V8_EXPORT StackTrace {
   static Local<String> CurrentScriptNameOrSourceURL(Isolate* isolate);
 
   /**
-   * Returns the first valid script id at the top of
-   * the JS stack. The returned value is Message::kNoScriptIdInfo if no id
-   * was found.
+   * Returns the first valid script id at the top of the JS stack. The returned
+   * value is Message::kNoScriptIdInfo if no id was found.
    *
    * This method is equivalent to calling StackTrace::CurrentStackTrace and
    * walking the resulting frames from the beginning until a non-empty id is
    * found. The difference is that this method won't allocate a stack trace.
    */
   static int CurrentScriptId(Isolate* isolate);
+
+  /**
+   * Writes up to the first `frame_data.size()` valid script ids and function
+   * contexts at the top of the JS stack into the given span. Returns a span
+   * sized to the number of frames worth of data written. It's similar to the
+   * CurrentStackTrace method but doesn't allocate a stack trace. Further, it
+   * skips frames that don't have valid script ids or function contexts. The
+   * final difference is that the script id written for evals or regexp is that
+   * of the script that ran eval() or regexp, not the current context.
+   *
+   */
+  V8_DEPRECATE_SOON("Use CurrentScriptData instead")
+  static v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+  CurrentScriptIdsAndContexts(Isolate* isolate,
+                              v8::MemorySpan<ScriptIdAndContext> frame_data);
+
+  /**
+   * Writes up to the first `frame_data.size()` valid script ids, functions, and
+   * contexts at the top of the JS stack into the given span. Returns a span
+   * sized to the number of frames worth of data written. It's similar to the
+   * CurrentStackTrace method but doesn't allocate a stack trace. Further, it
+   * skips non-js frames and frames that don't have valid script ids or function
+   * contexts. The final difference is that the script id written for evals or
+   * regexp is that of the script that ran eval() or regexp, not the current
+   * context.
+   *
+   * WARNING: This is an unfinished experimental feature. Semantics and
+   * implementation may change frequently.
+   */
+  static v8::MemorySpan<v8::StackTrace::ScriptData> CurrentScriptData(
+      Isolate* isolate, v8::MemorySpan<ScriptData> frame_data);
 };
 
 }  // namespace v8

@@ -5,11 +5,11 @@
 #include <cstring>
 #include <limits>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/div-helpers.h"
+#include "src/bigint/div-helpers-inl.h"
 #include "src/bigint/util.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -156,7 +156,7 @@ class ToStringFormatter {
         MAYBE_INTERRUPT(processor_->AddWorkEstimate(rest.len() * 2));
       } else {
         digit_t chunk;
-        processor_->DivideSingle(rest, &chunk, dividend, chunk_divisor_);
+        DivideSingle(rest, &chunk, dividend, chunk_divisor_);
         out_ = BasecaseMiddle(chunk, out_);
         // Assume that a division is about ten times as expensive as a
         // multiplication.
@@ -516,7 +516,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   if (inverse_len == 0) {
     processor_->DivideSchoolbook(left, right, chunk, level->divisor_);
   } else if (level->divisor_.len() == 1) {
-    processor_->DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
+    DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
     for (uint32_t i = 1; i < right.len(); i++) right[i] = 0;
   } else {
     ScratchDigits scratch(DivideBarrettScratchSpace(chunk.len()));
@@ -555,14 +555,14 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
 
 }  // namespace
 
-void ProcessorImpl::ToString(char* out, uint32_t* out_length, Digits X,
+void ProcessorImpl::ToString(char* out, uint32_t* out_length, Digits& X,
                              int radix, bool sign) {
-  const bool use_fast_algorithm = X.len() >= kToStringFastThreshold;
+  const bool use_fast_algorithm = X.len() >= config::kToStringFastThreshold;
   ToStringImpl(out, out_length, X, radix, sign, use_fast_algorithm);
 }
 
 // Factored out so that tests can call it.
-void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits X,
+void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits& X,
                                  int radix, bool sign, bool fast) {
 #if DEBUG
   for (uint32_t i = 0; i < *out_length; i++) out[i] = kStringZapValue;
@@ -587,8 +587,8 @@ void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits X,
   memset(out + *out_length, 0, excess);
 }
 
-Status Processor::ToString(char* out, uint32_t* out_length, Digits X, int radix,
-                           bool sign) {
+Status Processor::ToString(char* out, uint32_t* out_length, Digits& X,
+                           int radix, bool sign) {
   ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
   impl->ToString(out, out_length, X, radix, sign);
   return impl->get_and_clear_status();

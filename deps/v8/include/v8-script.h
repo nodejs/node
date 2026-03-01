@@ -64,7 +64,13 @@ class V8_EXPORT UnboundScript : public Data {
    */
   Local<Script> BindToCurrentContext();
 
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+  V8_DEPRECATE_SOON("Use ScriptId")
   int GetId() const;
+
   Local<Value> GetScriptName();
 
   /**
@@ -104,7 +110,16 @@ class V8_EXPORT UnboundModuleScript : public Data {
    * Data read from magic sourceMappingURL comments.
    */
   Local<Value> GetSourceMappingURL();
+
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+
+  static const int kNoScriptId = 0;
 };
+
+static_assert(UnboundModuleScript::kNoScriptId == UnboundScript::kNoScriptId);
 
 /**
  * A location in JavaScript source.
@@ -188,6 +203,13 @@ class V8_EXPORT Module : public Data {
   };
 
   /**
+   * If the module is a Source Text Module, returns the name that was passed
+   * by the embedder as resource_name to the ScriptOrigin. If it's a Synthetic
+   * Module, returns the module_name passed to CreateSyntheticModule().
+   */
+  Local<Value> GetResourceName() const;
+
+  /**
    * Returns the module's current status.
    */
   Status GetStatus() const;
@@ -261,11 +283,25 @@ class V8_EXPORT Module : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
+   * Evaluates async dependencies of a module and defer its evaluation
+   *
+   * It implements 13.3.10.4.1 ContinueDynamicImport, Step 6.e.
+   * (https://tc39.es/proposal-defer-import-eval/#sec-ContinueDynamicImport).
+   * This will gather all async dependencies of this module and trigger their
+   * evaluation. It returns a Promise that is similar to a Promise.all for all
+   * modules that are going to be evaluated. This module and its sync
+   * dependencies are not going to be evaluated.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> EvaluateForImportDefer(
+      Local<Context> context);
+
+  /**
    * Returns the namespace object of this module.
    *
    * The module's status must be at least kInstantiated.
    */
-  Local<Value> GetModuleNamespace();
+  Local<Value> GetModuleNamespace(
+      v8::ModuleImportPhase phase = v8::ModuleImportPhase::kEvaluation);
 
   /**
    * Returns the corresponding context-unbound module script.
@@ -389,6 +425,11 @@ class V8_EXPORT Script : public Data {
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
+
+  /**
+   * Returns the id of the corresponding context-unbound script.
+   */
+  int ScriptId() const;
 
   /**
    * The name that was passed by the embedder as ResourceName to the

@@ -72,6 +72,14 @@ bool OSHasAVXSupport() {
   return (feature_mask & 0x6) == 0x6;
 }
 
+#ifdef V8_ENABLE_APX_F
+bool OSHasAPXFSupport() {
+  // Check whether OS claims to support APX_F.
+  uint64_t feature_mask = xgetbv(0);  // XCR_XFEATURE_ENABLED_MASK
+  return (feature_mask >> 19) & 0x1;
+}
+#endif  // V8_ENABLE_APX_F
+
 #endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 }  // namespace
@@ -79,14 +87,74 @@ bool OSHasAVXSupport() {
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsSupported(SSE4_1)) return true;
-  if (v8_flags.wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
 
+static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
+  // Use compiler-defined macros to detect CPU features enabled by -march flags.
+  // These macros are set by Clang/GCC based on the target architecture.
+  // Note: SSE2 and CMOV are baseline x64 requirements and not in the enum.
+  CpuFeatureSet features;
+
+#ifdef __LAHF_SAHF__
+  features.Add(SAHF);
+#endif
+#ifdef __SSE3__
+  features.Add(SSE3);
+#endif
+#ifdef __SSSE3__
+  features.Add(SSSE3);
+#endif
+#ifdef __SSE4_1__
+  features.Add(SSE4_1);
+#endif
+#ifdef __SSE4_2__
+  features.Add(SSE4_2);
+#endif
+#ifdef __AVX__
+  features.Add(AVX);
+#endif
+#ifdef __AVX2__
+  features.Add(AVX2);
+#endif
+#ifdef __AVXVNNI__
+  features.Add(AVX_VNNI);
+#endif
+#ifdef __AVXVNNIINT8__
+  features.Add(AVX_VNNI_INT8);
+#endif
+#ifdef __FMA__
+  features.Add(FMA3);
+#endif
+#ifdef __F16C__
+  features.Add(F16C);
+#endif
+#ifdef __BMI__
+  features.Add(BMI1);
+#endif
+#ifdef __BMI2__
+  features.Add(BMI2);
+#endif
+#ifdef __LZCNT__
+  features.Add(LZCNT);
+#endif
+#ifdef __POPCNT__
+  features.Add(POPCNT);
+#endif
+#ifdef __APX_F__
+  features.Add(APX_F);
+#endif
+
+  return features;
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
-  if (cross_compile) return;
+  if (cross_compile) {
+    supported_ |= CpuFeaturesFromCompiler();
+    return;
+  }
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   base::CPU cpu;
@@ -119,6 +187,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_intel_jcc_erratum() && v8_flags.intel_jcc_erratum_mitigation)
     SetSupported(INTEL_JCC_ERRATUM_MITIGATION);
+#ifdef V8_ENABLE_APX_F
+  if (cpu.has_apx_f() && cpu.has_osxsave() && OSHasAPXFSupport())
+    SetSupported(APX_F);
+#endif  // V8_ENABLE_APX_F
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
@@ -135,6 +207,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     SetUnsupported(AVX_VNNI_INT8);
   if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
   if (!v8_flags.enable_f16c || !IsSupported(AVX)) SetUnsupported(F16C);
+#ifdef V8_ENABLE_APX_F
+  if (!v8_flags.enable_apx_f) SetUnsupported(APX_F);
+#endif  // V8_ENABLE_APX_F
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -159,7 +234,9 @@ void CpuFeatures::PrintFeatures() {
       "BMI1=%d "
       "BMI2=%d "
       "LZCNT=%d "
-      "POPCNT=%d ATOM=%d\n",
+      "POPCNT=%d "
+      "APX_F=%d "
+      "ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
       CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
@@ -167,7 +244,8 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(AVX_VNNI_INT8), CpuFeatures::IsSupported(FMA3),
       CpuFeatures::IsSupported(F16C), CpuFeatures::IsSupported(BMI1),
       CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
-      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(APX_F),
+      CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -604,8 +682,8 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   CHECK(jump_opt->is_optimizing());
 
   auto& dict = jump_opt->may_optimizable_farjmp;
-  if (dict.find(idx) != dict.end()) {
-    auto record_jmp_info = dict[idx];
+  if (auto it = dict.find(idx); it != dict.end()) {
+    auto record_jmp_info = it->second;
 
     int record_pos = record_jmp_info.pos;
 
@@ -928,6 +1006,136 @@ void Assembler::immediate_arithmetic_op_8(uint8_t subcode, Register dst,
   }
 }
 
+#ifdef V8_ENABLE_APX_F
+void Assembler::ccmp_ctest_op(uint8_t op, Register dst, Register rm,
+                              OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix_ccmp_ctest(dst, rm, pp, w, dcc, scc);
+  emit(op);
+  emit_modrm(dst, rm);
+}
+
+void Assembler::ccmp_ctest_op(uint8_t op, Register dst, Operand rm,
+                              OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix_ccmp_ctest(dst, rm, pp, w, dcc, scc);
+  emit(op);
+  emit_operand(dst, rm);
+}
+
+void Assembler::immediate_ccmp_op(uint8_t subcode, Operand dst, Immediate src,
+                                  OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0x80);
+    emit_operand(subcode, dst);
+    emit(src.value_);
+  } else {
+    if (is_int8(src.value_) && RelocInfo::IsNoInfo(src.rmode_)) {
+      emit(0x83);
+      emit_operand(subcode, dst);
+      emit(src.value_);
+    } else {
+      emit(0x81);
+      emit_operand(subcode, dst);
+      if (size == kInt16Size) {
+        emitw(src.value_);
+      } else {
+        emit(src);
+      }
+    }
+  }
+}
+
+void Assembler::immediate_ccmp_op(uint8_t subcode, Register dst, Immediate src,
+                                  OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0x80);
+    emit_modrm(subcode, dst);
+    emit(src.value_);
+  } else {
+    if (is_int8(src.value_) && RelocInfo::IsNoInfo(src.rmode_)) {
+      emit(0x83);
+      emit_modrm(subcode, dst);
+      emit(src.value_);
+    } else {
+      emit(0x81);
+      emit_modrm(subcode, dst);
+      if (size == kInt16Size) {
+        emitw(src.value_);
+      } else {
+        emit(src);
+      }
+    }
+  }
+}
+
+void Assembler::immediate_ctest_op(uint8_t subcode, Operand dst, Immediate src,
+                                   OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0xF6);
+    emit_operand(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0xF7);
+    emit_operand(subcode, dst);
+    if (size == kInt16Size) {
+      emitw(src.value_);
+    } else {
+      emit(src);
+    }
+  }
+}
+
+void Assembler::immediate_ctest_op(uint8_t subcode, Register dst, Immediate src,
+                                   OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0xF6);
+    emit_modrm(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0xF7);
+    emit_modrm(subcode, dst);
+    if (size == kInt16Size) {
+      emitw(src.value_);
+    } else {
+      emit(src);
+    }
+  }
+}
+#endif  // V8_ENABLE_APX_F
+
 void Assembler::shift(Register dst, Immediate shift_amount, int subcode,
                       int size) {
   EnsureSpace ensure_space(this);
@@ -996,6 +1204,22 @@ void Assembler::btq(Operand dst, Register src) {
   emit(0x0F);
   emit(0xA3);
   emit_operand(src, dst);
+}
+
+void Assembler::btq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xA3);
+  emit_modrm(src, dst);
+}
+
+void Assembler::btl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0xA3);
+  emit_modrm(src, dst);
 }
 
 void Assembler::btsq(Operand dst, Register src) {
@@ -4754,6 +4978,135 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 bool RelocInfo::IsInConstantPool() { return false; }
+
+#ifdef V8_ENABLE_APX_F
+void Assembler::poppq(Register dst) {
+  EnsureSpace ensure_space(this);
+  emit_rex2_64(dst, kRex2Map0);
+  emit(0x58 | dst.low_bits());
+}
+
+void Assembler::pushpq(Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex2_64(src, kRex2Map0);
+  emit(0x50 | src.low_bits());
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::push2q(Register src1, Register src2) {
+  DCHECK_NE(src1, rsp);
+  DCHECK_NE(src2, rsp);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(src1, rax /*place holder*/, src2, kNoPrefix,
+                                   kW0, kFlagUpdate, kNewDataDest);
+  emit(0xFF);
+  emit_modrm(6, src2);
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src1 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+  if (xdata_encoder_ && src2 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::push2pq(Register src1, Register src2) {
+  DCHECK_NE(src1, rsp);
+  DCHECK_NE(src2, rsp);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(src1, rax /*place holder*/, src2, kNoPrefix,
+                                   kW1, kFlagUpdate, kNewDataDest);
+  emit(0xFF);
+  emit_modrm(6, src2);
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src1 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+  if (xdata_encoder_ && src2 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::pop2q(Register dst1, Register dst2) {
+  DCHECK_NE(dst1, rsp);
+  DCHECK_NE(dst2, rsp);
+  DCHECK_NE(dst1, dst2);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst1, rax /*place holder*/, dst2, kNoPrefix,
+                                   kW0, kFlagUpdate, kNewDataDest);
+  emit(0x8F);
+  emit_modrm(0, dst2);
+}
+
+void Assembler::pop2pq(Register dst1, Register dst2) {
+  DCHECK_NE(dst1, rsp);
+  DCHECK_NE(dst2, rsp);
+  DCHECK_NE(dst1, dst2);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst1, rax /*place holder*/, dst2, kNoPrefix,
+                                   kW1, kFlagUpdate, kNewDataDest);
+  emit(0x8F);
+  emit_modrm(0, dst2);
+}
+
+void Assembler::emit_legacy_extended_evex_prefix_ccmp_ctest(
+    Register src1, Register src2, SIMDPrefix pp, VexW w, OszcFlags dcc,
+    Condition scc) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2_ccmp_ctest(w, pp, dcc);
+  emit_legacy_extended_evex_byte3_ccmp_ctest(scc);
+}
+
+void Assembler::emit_legacy_extended_evex_prefix_ccmp_ctest(
+    Register src1, Operand src2, SIMDPrefix pp, VexW w, OszcFlags dcc,
+    Condition scc) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2_ccmp_ctest(src2, w, pp, dcc);
+  emit_legacy_extended_evex_byte3_ccmp_ctest(scc);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2_ccmp_ctest(VexW w,
+                                                           SIMDPrefix pp,
+                                                           OszcFlags dcc) {
+  uint8_t x4 = 1;
+  emit(w | (dcc.ToIntegral() << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2_ccmp_ctest(Operand src2, VexW w,
+                                                           SIMDPrefix pp,
+                                                           OszcFlags dcc) {
+  uint8_t x4 = (~src2.rex2() & 0x2) >> 1;
+  emit(w | (dcc.ToIntegral() << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte3_ccmp_ctest(Condition scc) {
+  unsigned int nd = 0;
+  emit((nd << 4) | scc);
+}
+
+void Assembler::setzucc(Condition cc, Register reg) {
+  EnsureSpace ensure_space(this);
+  DCHECK(is_uint4(cc));
+  emit_legacy_extended_evex_prefix(rax /*place holder*/, rax /*place holder*/,
+                                   reg, kF2, kWIG, kFlagUpdate, kNewDataDest);
+  emit(0x40 | cc);
+  emit_modrm(0x0, reg);
+}
+
+void Assembler::jmpabs(Immediate64 target) {
+  emit_rex2_32(rax /* place holder*/, kRex2Map0);
+  emit(0xA1);
+  emit(target);
+}
+#endif  // V8_ENABLE_APX_F
 
 }  // namespace internal
 }  // namespace v8

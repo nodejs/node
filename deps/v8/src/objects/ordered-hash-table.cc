@@ -160,7 +160,6 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(
   for (int raw_entry = HashToEntryRaw(Smi::ToInt(hash)); raw_entry != kNotFound;
        raw_entry = NextChainEntryRaw(raw_entry)) {
     Tagged<Object> candidate_key = KeyAt(InternalIndex(raw_entry));
-    if (IsHashTableHole(candidate_key)) continue;
     if (Object::SameValueZero(candidate_key, key)) {
       return InternalIndex(raw_entry);
     }
@@ -189,7 +188,6 @@ HandleType<OrderedHashSet>::MaybeType OrderedHashSet::Add(
         Tagged<Object> candidate_key =
             raw_table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
-        if (IsHashTableHole(candidate_key)) continue;
         if (Object::SameValueZero(candidate_key, raw_key)) return table;
       }
     }
@@ -227,13 +225,13 @@ OrderedHashSet::Add(Isolate* isolate, DirectHandle<OrderedHashSet> table,
 
 Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
     Isolate* isolate, Handle<OrderedHashSet> table, GetKeysConversion convert) {
-  int length = table->NumberOfElements();
+  const uint32_t length = static_cast<uint32_t>(table->NumberOfElements());
   int nof_buckets = table->NumberOfBuckets();
   // Convert the dictionary to a linear list.
   Handle<FixedArray> result = Cast<FixedArray>(table);
   // From this point on table is no longer a valid OrderedHashSet.
   result->set_map(isolate, ReadOnlyRoots(isolate).fixed_array_map());
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Tagged<Object> key = table->get(index);
     uint32_t index_value;
@@ -453,7 +451,6 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
            raw_entry = raw_table->NextChainEntryRaw(raw_entry)) {
         Tagged<Object> candidate_key =
             raw_table->KeyAt(InternalIndex(raw_entry));
-        if (IsHashTableHole(candidate_key)) continue;
         // Do not add if we have the key already
         if (Object::SameValueZero(candidate_key, raw_key)) return table;
       }
@@ -1039,7 +1036,6 @@ InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
        raw_entry != kNotFound; raw_entry = GetNextEntry(raw_entry)) {
     InternalIndex entry(raw_entry);
     Tagged<Object> candidate_key = KeyAt(entry);
-    if (IsTheHole(candidate_key)) continue;
     if (Object::SameValueZero(candidate_key, key)) return entry;
   }
   return InternalIndex::NotFound();

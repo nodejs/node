@@ -418,19 +418,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     kEnsureDeterministicNan = true
   };
 
-  class Features final {
-   public:
-    Features() : bits_(0) {}
-    explicit Features(unsigned bits) : bits_(bits) {}
-    explicit Features(CpuFeature f) : bits_(1u << f) {}
-    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
-
-    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
-
-   private:
-    unsigned bits_;
-  };
-
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
@@ -440,7 +427,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode, Features features,
+      SourcePositionMode source_position_mode, CpuFeatureSet features,
       EnableScheduling enable_scheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing,
       EnableTraceTurboJson trace_turbo,
@@ -453,7 +440,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode, Features features,
+      SourcePositionMode source_position_mode, CpuFeatureSet features,
       EnableScheduling enable_scheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing,
       EnableTraceTurboJson trace_turbo,
@@ -533,19 +520,13 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       InstructionOperand* temps, FlagsContinuation* cont);
 
   void EmitIdentity(turboshaft::OpIndex node);
+  void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  bool IsSupported(CpuFeature feature) const {
-    return features_.Contains(feature);
-  }
-
-  // Returns the features supported on the target platform.
-  static Features SupportedFeatures() {
-    return Features(CpuFeatures::SupportedFeatures());
-  }
+  bool IsSupported(CpuFeature f) const { return features_.contains(f); }
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -1314,6 +1295,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(StackSlot)
   DECLARE_GENERATOR_T(LoadRootRegister)
   DECLARE_GENERATOR_T(DebugBreak)
+  IF_HARDWARE_SANDBOX(DECLARE_GENERATOR_T, SwitchSandboxMode)
   DECLARE_GENERATOR_T(TryTruncateFloat32ToInt64)
   DECLARE_GENERATOR_T(TryTruncateFloat64ToInt64)
   DECLARE_GENERATOR_T(TryTruncateFloat32ToUint64)
@@ -1378,6 +1360,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
   IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
   IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, WasmFXArgBuffer)
 #undef DECLARE_GENERATOR_T
 
   // Visit the load node with a value and opcode to replace with.
@@ -1393,7 +1376,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       turboshaft::OpIndex call, turboshaft::Block* exception_handler = {},
       base::Vector<turboshaft::EffectHandler> wasm_effect_handlers = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
+#if V8_ENABLE_WEBASSEMBLY
   void VisitTrapIf(turboshaft::OpIndex node);
+  void VisitWasmTrap(turboshaft::OpIndex node);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,
@@ -1458,7 +1444,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
       static_assert(shuffle_size == kSimd128Size ||
-                    shuffle_size == kSimd128HalfSize);
+                    shuffle_size == kSimd128HalfSize ||
+                    shuffle_size == kSimd128QuarterSize);
       DCHECK(view.isSimd128());
       memcpy(shuffle, view.data(), shuffle_size);
     } else if constexpr (simd_size == kSimd256Size) {
@@ -1487,10 +1474,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // to specific architectural instructions.
   void SwapShuffleInputs(SimdShuffleView& node);
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   void VisitSimd128LoadPairDeinterleave(turboshaft::OpIndex node);
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-
   void VisitMemoryCopy(turboshaft::OpIndex node);
   void VisitMemoryFill(turboshaft::OpIndex node);
 
@@ -1590,7 +1574,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   InstructionSequence* const sequence_;
   source_position_table_t* const source_positions_;
   SourcePositionMode const source_position_mode_;
-  Features features_;
+  const CpuFeatureSet features_;
   turboshaft::Graph* const schedule_;
   const turboshaft::Block* current_block_;
   ZoneVector<Instruction*> instructions_;

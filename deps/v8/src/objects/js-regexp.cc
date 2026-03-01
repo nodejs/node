@@ -67,7 +67,7 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
   auto names = Cast<FixedArray>(maybe_names);
-  int num_names = names->length() >> 1;
+  const int num_names = static_cast<int>(names->ulength().value() >> 1);
   DirectHandle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);

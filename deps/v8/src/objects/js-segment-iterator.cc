@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -31,30 +32,24 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
 // ecma402 #sec-createsegmentiterator
 MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
     Isolate* isolate, DirectHandle<String> input_string,
-    icu::BreakIterator* incoming_break_iterator,
+    const icu::BreakIterator& incoming_break_iterator,
     JSSegmenter::Granularity granularity) {
   // Clone a copy for both the ownership and not sharing with containing and
   // other calls to the iterator because icu::BreakIterator keep the iteration
   // position internally and cannot be shared across multiple calls to
   // JSSegmentIterator::Create and JSSegments::Containing.
-  std::shared_ptr<icu::BreakIterator> break_iterator{
-      incoming_break_iterator->clone()};
-  DCHECK_NOT_NULL(break_iterator);
-  DirectHandle<Map> map(isolate->native_context()->intl_segment_iterator_map(),
-                        isolate);
+  std::unique_ptr<icu::BreakIterator> cloned_iterator{
+      incoming_break_iterator.clone()};
+  auto iterator_with_text = std::make_shared<IcuBreakIteratorWithText>(
+      isolate, std::move(cloned_iterator), input_string);
+  DirectHandle<Managed<IcuBreakIteratorWithText>> managed =
+      Managed<IcuBreakIteratorWithText>::From(isolate, 0, iterator_with_text);
 
   // 5. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to 0.
-  break_iterator->first();
-  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::From(isolate, 0, break_iterator);
+  iterator_with_text->iterator()->first();
 
-  std::shared_ptr<icu::UnicodeString> string =
-      std::make_shared<icu::UnicodeString>();
-  break_iterator->getText().getText(*string);
-  DirectHandle<Managed<icu::UnicodeString>> unicode_string =
-      Managed<icu::UnicodeString>::From(isolate, 0, string);
-
-  break_iterator->setText(*string);
+  DirectHandle<Map> map(isolate->native_context()->intl_segment_iterator_map(),
+                        isolate);
 
   // Now all properties are ready, so we can allocate the result object.
   DirectHandle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
@@ -64,9 +59,8 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
 
   segment_iterator->set_flags(0);
   segment_iterator->set_granularity(granularity);
-  segment_iterator->set_icu_break_iterator(*managed_break_iterator);
+  segment_iterator->set_icu_iterator_with_text(*managed);
   segment_iterator->set_raw_string(*input_string);
-  segment_iterator->set_unicode_string(*unicode_string);
 
   return segment_iterator;
 }
@@ -98,8 +92,9 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
   STACK_CHECK(isolate, MaybeDirectHandle<JSReceiver>());
 
   Factory* factory = isolate->factory();
-  icu::BreakIterator* icu_break_iterator =
-      segment_iterator->icu_break_iterator()->raw();
+  IcuBreakIteratorWithText* const iterator_with_text =
+      segment_iterator->icu_iterator_with_text()->raw();
+  icu::BreakIterator* const icu_break_iterator = iterator_with_text->iterator();
   // 5. Let startIndex be iterator.[[IteratedStringNextSegmentCodeUnitIndex]].
   int32_t start_index = icu_break_iterator->current();
   // 6. Let endIndex be ! FindBoundary(segmenter, string, startIndex, after).
@@ -149,8 +144,7 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
         JSSegments::CreateSegmentDataObject(
             isolate, segment_iterator->granularity(), icu_break_iterator,
             direct_handle(segment_iterator->raw_string(), isolate),
-            *segment_iterator->unicode_string()->raw(), start_index,
-            end_index));
+            *iterator_with_text->text(), start_index, end_index));
   }
 
   // 10. Return ! CreateIterResultObject(segmentData, false).

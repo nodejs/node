@@ -913,7 +913,15 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
     return vector()->GetLanguageMode(slot());
   }
 
+  static inline Builtin GetLoadICHandlerForFieldIndex(int field_index,
+                                                      bool is_inobject,
+                                                      bool is_double);
+
   InlineCacheState ic_state() const;
+  static Builtin ic_handler(Tagged<MaybeObject> feedback_extra,
+                            FeedbackSlotKind kind);
+  Builtin ic_handler() const;
+
   bool IsUninitialized() const {
     return ic_state() == InlineCacheState::UNINITIALIZED;
   }
@@ -1010,7 +1018,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigureHandlerMode(const MaybeObjectDirectHandle& handler);
 
   // For CloneObject ICs
-  static constexpr int kCloneObjectPolymorphicEntrySize = 2;
+  static constexpr uint32_t kCloneObjectPolymorphicEntrySize = 2;
   void ConfigureCloneObject(DirectHandle<Map> source_map,
                             const MaybeObjectHandle& handler);
 
@@ -1040,7 +1048,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline Tagged<MaybeObject> MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
-  DirectHandle<WeakFixedArray> CreateArrayOfSize(int length);
+  DirectHandle<WeakFixedArray> CreateArrayOfSize(uint32_t length);
 
   // Helpers to maintain feedback_cache_.
   inline Tagged<MaybeObject> FromHandle(MaybeObjectDirectHandle slot) const;

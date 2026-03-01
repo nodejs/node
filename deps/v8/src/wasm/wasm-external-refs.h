@@ -21,6 +21,7 @@ class Isolate;
 namespace wasm {
 
 class StackMemory;
+class CanonicalSig;
 
 using Address = uintptr_t;
 
@@ -158,6 +159,8 @@ V8_EXPORT_PRIVATE void f16x8_qfma_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f16x8_qfms_wrapper(Address data);
 
+void data_drop_wrapper(Address instance_addr, uint32_t segment_index);
+
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
 int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,
@@ -202,8 +205,10 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw);
+                             Address cont_raw, Address return_buffer,
+                             const CanonicalSig* sig);
 void return_stack(Isolate* isolate, wasm::StackMemory* to);
+void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

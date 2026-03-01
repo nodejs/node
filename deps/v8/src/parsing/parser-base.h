@@ -310,7 +310,10 @@ class ParserBase {
 
   void SkipInfos(int delta) { info_id_ += delta; }
 
-  void ResetInfoId() { info_id_ = 0; }
+  void ResetInfoId(int id) {
+    DCHECK_LE(0, id);
+    info_id_ = id;
+  }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->single_parse_zone(); }
@@ -628,8 +631,11 @@ class ParserBase {
     DeclarationScope* EnsureStaticElementsScope(ParserBase* parser, int beg_pos,
                                                 int info_id) {
       if (!has_static_elements()) {
-        static_elements_scope = parser->NewFunctionScope(
-            FunctionKind::kClassStaticInitializerFunction);
+        FunctionKind kind =
+            has_instance_members()
+                ? FunctionKind::kClassStaticInitializerFunctionPrecededByMember
+                : FunctionKind::kClassStaticInitializerFunction;
+        static_elements_scope = parser->NewFunctionScope(kind);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
         static_elements_function_id = info_id;
@@ -643,8 +649,11 @@ class ParserBase {
     DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser,
                                                  int beg_pos, int info_id) {
       if (!has_instance_members()) {
-        instance_members_scope = parser->NewFunctionScope(
-            FunctionKind::kClassMembersInitializerFunction);
+        FunctionKind kind =
+            has_static_elements()
+                ? FunctionKind::kClassMembersInitializerFunctionPrecededByStatic
+                : FunctionKind::kClassMembersInitializerFunction;
+        instance_members_scope = parser->NewFunctionScope(kind);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
         instance_members_function_id = info_id;
@@ -1290,7 +1299,7 @@ class ParserBase {
       // receiver_scope. Mark through the ExpressionScope for now.
       expression_scope()->RecordThisUse();
     } else {
-      closure_scope->set_has_this_reference();
+      closure_scope->set_has_this_reference(true);
       var->ForceContextAllocation();
     }
   }
@@ -2844,7 +2853,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kSpread:
       impl()->ReportUnexpectedTokenAt(
-          Scanner::Location(name_token_position, name_expression->position()),
+          Scanner::Location(name_token_position,
+                            name_expression->position() == -1
+                                ? name_token_position
+                                : name_expression->position()),
           name_token);
       return impl()->NullLiteralProperty();
   }
@@ -4567,7 +4579,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       DCHECK(!impl()->IsIdentifier(pattern));
     } else {
       // `using` declarations should have an identifier.
-      impl()->ReportMessageAt(Scanner::Location(decl_pos, end_position()),
+      impl()->ReportMessageAt(scanner_->peek_location(),
                               MessageTemplate::kDeclarationMissingInitializer,
                               "using");
       return;
@@ -5118,9 +5130,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         int dummy_function_length = -1;
         DCHECK(IsArrowFunction(kind));
         bool did_preparse_successfully = impl()->SkipFunction(
-            nullptr, kind, FunctionSyntaxKind::kAnonymousExpression,
-            formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, &produced_preparse_data);
+            function_literal_id, nullptr, kind,
+            FunctionSyntaxKind::kAnonymousExpression, formal_parameters.scope,
+            &dummy_num_parameters, &dummy_function_length,
+            &produced_preparse_data);
 
         DCHECK_NULL(produced_preparse_data);
 

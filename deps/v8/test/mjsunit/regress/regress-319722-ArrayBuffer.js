@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --mock-arraybuffer-allocator
+// Flags: --allow-natives-syntax --mock-arraybuffer-allocator --external-memory-max-reasonable-size=0
 
 let kArrayBufferByteLengthLimit = %ArrayBufferMaxByteLength() + 1;
 

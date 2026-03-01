@@ -7,6 +7,7 @@
 #include "src/flags/flags.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp-nodes.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -476,7 +477,9 @@ class FilterGroupsCompileVisitor final : private RegExpVisitor {
       can_compile_node_ = false;
       node->body()->Accept(this, nullptr);
     } else {
-      if (node->CaptureRegisters().is_empty()) {
+      // TODO(v8:10765): Handle stack overflow instead of passing unlimited max
+      // depth here and below.
+      if (node->CaptureRegisters(StackLimiter(kMaxInt)).is_empty()) {
         return nullptr;
       }
 
@@ -511,7 +514,7 @@ class FilterGroupsCompileVisitor final : private RegExpVisitor {
       can_compile_node_ = false;
       node->body()->Accept(this, nullptr);
     } else {
-      if (node->CaptureRegisters().is_empty()) {
+      if (node->CaptureRegisters(StackLimiter(kMaxInt)).is_empty()) {
         return nullptr;
       }
 
@@ -560,7 +563,8 @@ class CompileVisitor : private RegExpVisitor {
                                              RegExpFlags flags, Zone* zone) {
     CompileVisitor compiler(zone);
 
-    if (!IsSticky(flags) && !tree->IsAnchoredAtStart()) {
+    if (!IsSticky(flags) &&
+        !tree->IsCertainlyAnchoredAtStart(RegExpNode::kRecursionBudget)) {
       // The match is not anchored, i.e. may start at any input position, so we
       // emit a preamble corresponding to /.*?/.  This skips an arbitrary
       // prefix in the input non-greedily.
@@ -643,9 +647,11 @@ class CompileVisitor : private RegExpVisitor {
     // If the lookaround is not anchored, we add a /.*?/ at its start, such
     // that the resulting automaton will run over the whole input.
     if ((lookaround->type() == RegExpLookaround::LOOKAHEAD &&
-         !lookaround->body()->IsAnchoredAtEnd()) ||
+         !lookaround->body()->IsCertainlyAnchoredAtEnd(
+             RegExpNode::kRecursionBudget)) ||
         (lookaround->type() == RegExpLookaround::LOOKBEHIND &&
-         !lookaround->body()->IsAnchoredAtStart())) {
+         !lookaround->body()->IsCertainlyAnchoredAtStart(
+             RegExpNode::kRecursionBudget))) {
       CompileNonGreedyStar([&]() { assembler_.ConsumeAnyChar(); });
     }
 
@@ -1052,7 +1058,8 @@ class CompileVisitor : private RegExpVisitor {
     // clear registers in the first node->min() repetitions.
     // Later, and if node->min() == 0, we don't have to clear registers before
     // the first optional repetition.
-    Interval body_registers = node->body()->CaptureRegisters();
+    Interval body_registers =
+        node->body()->CaptureRegisters(StackLimiter(kMaxInt));
     auto emit_body = [&]() {
       if (v8_flags.experimental_regexp_engine_capture_group_opt) {
         assembler_.SetQuantifierToClock(RemapQuantifier(node->index()));
@@ -1191,20 +1198,13 @@ class CompileVisitor : private RegExpVisitor {
     DCHECK(quantifier_id_remapping_.has_value());
     auto& map = quantifier_id_remapping_.value();
 
-    if (!map.contains(id)) {
-      map[id] = static_cast<int>(map.size());
-    }
-
-    return map[id];
+    return map.try_emplace(id, static_cast<int>(map.size())).first->second;
   }
 
   int RemapLookaround(int id) {
-    if (!lookaround_id_remapping_.contains(id)) {
-      lookaround_id_remapping_[id] =
-          static_cast<int>(lookaround_id_remapping_.size());
-    }
-
-    return lookaround_id_remapping_[id];
+    return lookaround_id_remapping_
+        .try_emplace(id, static_cast<int>(lookaround_id_remapping_.size()))
+        .first->second;
   }
 
  private:

@@ -45,6 +45,8 @@ class Variable final : public ZoneObject {
     // Var declared variables never need initialization.
     DCHECK(!(mode == VariableMode::kVar &&
              initialization_flag == kNeedsInitialization));
+    DCHECK_IMPLIES(mode == VariableMode::kConst,
+                   maybe_assigned_flag == kNotAssigned);
     DCHECK_IMPLIES(is_static_flag == IsStaticFlag::kStatic,
                    IsImmutableLexicalOrPrivateVariableMode(mode));
   }
@@ -61,7 +63,7 @@ class Variable final : public ZoneObject {
   // parameter initializers.
   void set_scope(Scope* scope) { scope_ = scope; }
 
-  Handle<String> name() const { return name_->string(); }
+  Handle<InternalizedString> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
   void set_mode(VariableMode mode) {
@@ -306,6 +308,9 @@ class Variable final : public ZoneObject {
     bit_field_ = VariableModeField::update(bit_field_, VariableMode::kLet);
     bit_field_ =
         InitializationFlagField::update(bit_field_, kNeedsInitialization);
+    // It's possible a parameter hasn't been used but when we introduce
+    // temporaries, it will be used in the initialization block.
+    set_is_used();
   }
 
   static InitializationFlag DefaultInitializationFlag(VariableMode mode) {

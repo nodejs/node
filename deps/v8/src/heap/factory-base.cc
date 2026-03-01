@@ -12,9 +12,9 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
@@ -88,7 +88,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Tagged<Code> code = TrustedCast<Code>(
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  code->init_self_indirect_pointer(isolate());
+  code->InitAndPublish(isolate());
   code->initialize_flags(options.kind, options.is_context_specialized,
                          options.is_turbofanned);
   code->set_builtin_id(options.builtin);
@@ -175,7 +175,7 @@ DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
 }
 
 template <typename Impl>
-Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(uint32_t length,
                                                     AllocationType allocation,
                                                     AllocationHint hint) {
   return FixedArray::New(isolate(), length, allocation, hint);
@@ -195,7 +195,7 @@ Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
-    int length, bool shared) {
+    uint32_t length, bool shared) {
   if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length, shared);
 }
@@ -211,8 +211,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   return NewFixedArrayWithFiller(fixed_array_map(), length, the_hole_value(),
                                  allocation);
@@ -220,7 +219,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    DirectHandle<Map> map, int length, DirectHandle<HeapObject> filler,
+    DirectHandle<Map> map, uint32_t length, DirectHandle<HeapObject> filler,
     AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
@@ -235,8 +234,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 
 template <typename Impl>
 DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length > FixedArray::kMaxLength) {
     base::FatalNoSecurityImpact("Invalid FixedArray size %d", length);
@@ -253,13 +251,13 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
 
 template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   return FixedDoubleArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
 Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
-    Tagged<Map> map, int length, AllocationType allocation) {
+    Tagged<Map> map, uint32_t length, AllocationType allocation) {
   // Zero-length case must be handled outside.
   DCHECK_LT(0, length);
   DCHECK(ReadOnlyHeap::Contains(map));
@@ -278,13 +276,13 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 
 template <typename Impl>
 Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   return WeakFixedArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
 Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
-    int length) {
+    uint32_t length) {
   // TODO(saelo): Move this check to TrustedWeakFixedArray::New once we have a
   // RO trusted space.
   if (length == 0) return empty_trusted_weak_fixed_array();
@@ -293,7 +291,7 @@ Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
 
 template <typename Impl>
 Handle<ProtectedWeakFixedArray> FactoryBase<Impl>::NewProtectedWeakFixedArray(
-    int length) {
+    uint32_t length) {
   // TODO(saelo): Move this check to ProtectedWeakFixedArray::New once we have
   // a RO trusted space.
   if (length == 0) return empty_protected_weak_fixed_array();
@@ -315,7 +313,7 @@ Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
 
 template <typename Impl>
 DirectHandle<DeoptimizationLiteralArray>
-FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
+FactoryBase<Impl>::NewDeoptimizationLiteralArray(uint32_t length) {
   return TrustedCast<DeoptimizationLiteralArray>(
       NewTrustedWeakFixedArray(length));
 }
@@ -346,7 +344,9 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, allocation, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = TrustedCast<BytecodeArray>(result);
-  instance->init_self_indirect_pointer(isolate());
+  // BytecodeArrays are initially unpublished and are only published to the
+  // sandbox after bytecode verification.
+  instance->InitDontPublish(isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
@@ -360,7 +360,6 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();
-  wrapper->set_bytecode(instance);
   return handle(instance, isolate());
 }
 
@@ -431,7 +430,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 template <typename Impl>
 DirectHandle<SloppyArgumentsElements>
 FactoryBase<Impl>::NewSloppyArgumentsElements(
-    int length, DirectHandle<Context> context,
+    uint32_t length, DirectHandle<Context> context,
     DirectHandle<FixedArray> arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
       Cast<SloppyArgumentsElements>(AllocateRawWithImmortalMap(
@@ -479,7 +478,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
       Cast<SharedFunctionInfo>(NewWithImmortalMap(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
 
-  shared->clear_padding();
   shared->CopyFrom(*other, isolate());
 
   return handle(shared, isolate());
@@ -526,7 +524,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
       TrustedCast<UncompiledDataWithoutPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -544,7 +542,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
       TrustedCast<UncompiledDataWithPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -564,7 +562,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
       TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -584,7 +582,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       TrustedCast<UncompiledDataWithPreparseDataAndJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -657,13 +655,10 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
 template <typename Impl>
 Handle<ObjectBoilerplateDescription>
-FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
-                                                   int all_properties,
-                                                   int index_keys,
-                                                   bool has_seen_proto) {
+FactoryBase<Impl>::NewObjectBoilerplateDescription(
+    uint32_t boilerplate, uint32_t backing_store_size) {
   return ObjectBoilerplateDescription::New(
-      isolate(), boilerplate, all_properties, index_keys, has_seen_proto,
-      AllocationType::kOld);
+      isolate(), boilerplate, backing_store_size, AllocationType::kOld);
 }
 
 template <typename Impl>
@@ -707,8 +702,12 @@ Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
     DirectHandle<FixedArray> raw_strings,
     DirectHandle<FixedArray> cooked_strings) {
-  DCHECK_EQ(raw_strings->length(), cooked_strings->length());
-  DCHECK_LT(0, raw_strings->length());
+#ifdef DEBUG
+  const uint32_t raw_strings_len = raw_strings->ulength().value();
+  const uint32_t cooked_strings_len = cooked_strings->ulength().value();
+  DCHECK_EQ(raw_strings_len, cooked_strings_len);
+  DCHECK_LT(0, raw_strings_len);
+#endif
   auto result = NewStructInternal<TemplateObjectDescription>(
       TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -767,34 +766,34 @@ Handle<String> FactoryBase<Impl>::MakeOrFindTwoCharacterString(uint16_t c1,
 
 template <typename Impl>
 template <class StringTableKey>
-Handle<String> FactoryBase<Impl>::InternalizeStringWithKey(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeStringWithKey(
     StringTableKey* key) {
   return indirect_handle(isolate()->string_table()->LookupKey(isolate(), key),
                          isolate());
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         OneByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         TwoByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         SeqOneByteSubStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         SeqTwoByteSubStringKey* key);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<LocalFactory>::InternalizeStringWithKey(
-        OneByteStringKey* key);
+    Handle<InternalizedString> FactoryBase<
+        LocalFactory>::InternalizeStringWithKey(OneByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<LocalFactory>::InternalizeStringWithKey(
-        TwoByteStringKey* key);
+    Handle<InternalizedString> FactoryBase<
+        LocalFactory>::InternalizeStringWithKey(TwoByteStringKey* key);
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::InternalizeString(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
     base::Vector<const uint8_t> string, bool convert_encoding) {
   SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
                                    convert_encoding);
@@ -802,7 +801,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::InternalizeString(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
     base::Vector<const uint16_t> string, bool convert_encoding) {
   SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
                                     convert_encoding);
@@ -810,7 +809,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 }
 
 template <typename Impl>
-Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
+Handle<InternalizedString> FactoryBase<Impl>::NewOneByteInternalizedString(
     base::Vector<const uint8_t> str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
@@ -819,11 +818,11 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length());
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>
-Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
+Handle<InternalizedString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
@@ -832,11 +831,11 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length() * base::kUC16Size);
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>
-DirectHandle<SeqOneByteString>
+DirectHandle<InternalizedString>
 FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   DirectHandle<SeqOneByteString> result =
@@ -845,7 +844,7 @@ FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
   CopyChars(
       result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
       str.begin(), str.length());
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>
@@ -1128,9 +1127,9 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   // LINT.IfChange(CheckPreallocatedNumberStrings)
   {
     DCHECK_EQ(kPreallocatedNumberStringTableSize,
-              preallocated_number_string_table()->length());
+              preallocated_number_string_table()->ulength().value());
     int index = number.value();
-    if (static_cast<unsigned>(index) < kPreallocatedNumberStringTableSize) {
+    if (static_cast<uint32_t>(index) < kPreallocatedNumberStringTableSize) {
       return handle(
           Cast<String>(preallocated_number_string_table()->get(index)),
           isolate());
@@ -1341,8 +1340,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(),
-                                      result)
+    LargePage::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(), result)
         ->marking_progress_tracker()
         .Enable(size);
   }
@@ -1352,7 +1350,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
     int length, AllocationType allocation) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
+  if (length < 0 || static_cast<uint32_t>(length) > FixedArray::kMaxLength) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 length);
     UNREACHABLE();
@@ -1363,7 +1361,8 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWeakArrayList(
     int capacity, AllocationType allocation) {
-  if (capacity < 0 || capacity > WeakArrayList::kMaxCapacity) {
+  if (capacity < 0 ||
+      static_cast<uint32_t>(capacity) > WeakArrayList::kMaxCapacity) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 capacity);
     UNREACHABLE();
@@ -1500,15 +1499,15 @@ template <typename Impl>
 JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code,
     JSDispatchTable::Space* space) {
-  JSDispatchTable* jdt = isolate()->isolate_group()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate()->js_dispatch_table();
   auto result =
-      jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+      jdt.TryAllocateAndInitializeEntry(space, parameter_count, *code);
   if (result) {
     return *result;
   }
   auto allocate_callback = [&]() {
-    return (result = jdt->TryAllocateAndInitializeEntry(space, parameter_count,
-                                                        *code))
+    return (result = jdt.TryAllocateAndInitializeEntry(space, parameter_count,
+                                                       *code))
         .has_value();
   };
   // Dispatch entries are only freed on major GCs.

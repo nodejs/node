@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -243,19 +244,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Generates code to check whether the {kJavaScriptCallDispatchHandleRegister}
   // references a valid entry compatible with this code.
   void AssembleDispatchHandleRegisterCheck();
-#endif  // V8_ENABLE_LEAPTIERING
 
-  // When entering a code that is marked for deoptimization, rather continuing
-  // with its execution, we jump to a lazy compiled code. We need to do this
-  // because this code has already been deoptimized and needs to be unlinked
-  // from the JS functions referring it.
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
 
   // Assemble NOP instruction for lazy deoptimization. This place will be
   // patched later as a jump instruction to deoptimization trampoline.
@@ -270,6 +263,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleReturn(InstructionOperand* pop);
 
   void AssembleDeconstructFrame();
+
+#ifdef V8_DUMPLING
+  void AssembleDumpFrame();
+#endif  // V8_DUMPLING
 
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall();
@@ -403,9 +400,15 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   };
 
   struct EffectHandlerInfo {
-    int tag_index;
+    wasm::EffectHandlerTagIndex tag_and_kind;
     Label* handler;
     int pc_offset;
+
+    bool is_switch() const { return tag_and_kind.is_switch(); }
+
+    EffectHandlerInfo(wasm::EffectHandlerTagIndex tag_index, Label* handler,
+                      int pc_offset)
+        : tag_and_kind(tag_index), handler(handler), pc_offset(pc_offset) {}
   };
 
   friend class OutOfLineCode;

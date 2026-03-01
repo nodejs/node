@@ -15,21 +15,27 @@ function foo(size) {
 %PrepareFunctionForOptimization(foo);
 
 if (%Is64Bit()) {
-  foo(100);
-  const largeLength = 8589934592;
-  foo(largeLength);
+  try {
+    foo(100);
+    const largeLength = 8589934592;
+    foo(largeLength);
 
-  %OptimizeMaglevOnNextCall(foo);
-  const a1 = foo(100);
-  assertEquals(1, a1[100]);
-  assertTrue(isMaglevved(foo));
+    %OptimizeMaglevOnNextCall(foo);
+    const a1 = foo(100);
+    assertEquals(1, a1[100]);
+    assertTrue(isMaglevved(foo));
 
-  const a2 = foo(largeLength);
-  assertEquals(1, a2[largeLength]);
+    const a2 = foo(largeLength);
+    assertEquals(1, a2[largeLength]);
 
-  // TODO(389019544): Fix the deopt loop and enable this:
-  // assertTrue(isMaglevved(foo));
-  // Once this is fixed also --no-optimize-maglev-optimizes-to-turbofan
-  // could be removed.
-  assertFalse(isMaglevved(foo));  // This will fail when the issue is fixed.
+    // TODO(389019544): Fix the deopt loop and enable this:
+    // assertTrue(isMaglevved(foo));
+    // Once this is fixed also --no-optimize-maglev-optimizes-to-turbofan
+    // could be removed.
+    assertFalse(isMaglevved(foo));  // This will fail when the issue is fixed.
+  } catch (e) {
+    // If alloating the TypedArray failed, we'll get a RangeError. Other
+    // errors are just normal test failures.
+    assertTrue(e instanceof RangeError);
+  }
 }

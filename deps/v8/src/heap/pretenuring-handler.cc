@@ -10,8 +10,10 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout.h"
+#include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +28,7 @@ namespace {
 static constexpr int kMinMementoCount = 100;
 
 double GetPretenuringRatioThreshold(size_t new_space_capacity) {
-  static constexpr double kScavengerPretenureRatio = 0.85;
+  static constexpr double kScavengerPretenureRatio = 0.80;
   // MinorMS allows for a much larger new space, thus we require a lower
   // survival rate for pretenuring.
   static constexpr double kMinorMSPretenureMaxRatio = 0.8;
@@ -79,10 +81,11 @@ inline bool DigestPretenuringFeedback(
   int create_count = site->memento_create_count();
   int found_count = site->memento_found_count();
   bool minimum_mementos_created = create_count >= kMinMementoCount;
-  double ratio =
-      minimum_mementos_created || v8_flags.trace_pretenuring_statistics
-          ? static_cast<double>(found_count) / create_count
-          : 0.0;
+  double ratio = minimum_mementos_created ||
+                         v8_flags.trace_pretenuring_statistics ||
+                         isolate->heap()->is_gc_tracing_category_enabled()
+                     ? static_cast<double>(found_count) / create_count
+                     : 0.0;
   AllocationSite::PretenureDecision current_decision =
       site->pretenure_decision();
 
@@ -99,6 +102,21 @@ inline bool DigestPretenuringFeedback(
                  reinterpret_cast<void*>(site.ptr()), create_count, found_count,
                  ratio, site->PretenureDecisionName(current_decision),
                  site->PretenureDecisionName(site->pretenure_decision()));
+  }
+
+  if (V8_UNLIKELY(isolate->heap()->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCPretenuringFeedback", "value",
+        [&](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("created", create_count);
+          dict.Add("found", found_count);
+          dict.Add("ratio", ratio);
+          dict.Add("previous_decision",
+                   site->PretenureDecisionName(current_decision));
+          dict.Add("new_decision",
+                   site->PretenureDecisionName(site->pretenure_decision()));
+        });
   }
 
   ResetPretenuringFeedback(site);
@@ -126,6 +144,19 @@ bool PretenureAllocationSiteManually(Isolate* isolate,
                  site->PretenureDecisionName(site->pretenure_decision()));
   }
 
+  if (V8_UNLIKELY(isolate->heap()->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCPretenuringManualRequest",
+        "value", [&](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("site", reinterpret_cast<uintptr_t>(site.ptr()));
+          dict.Add("previous_decision",
+                   site->PretenureDecisionName(current_decision));
+          dict.Add("new_decision",
+                   site->PretenureDecisionName(site->pretenure_decision()));
+        });
+  }
+
   ResetPretenuringFeedback(site);
   return deopt;
 }
@@ -151,8 +182,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
 
     // We have not validated the allocation site yet, since we have not
     // dereferenced the site during collecting information.
-    // This is an inlined check of AllocationMemento::IsValid.
-    if (!IsAllocationSite(site) || site->IsZombie()) continue;
+    if (!IsAllocationSite(site)) continue;
 
     const int value = static_cast<int>(site_and_count.second);
     DCHECK_LT(0, value);
@@ -276,6 +306,24 @@ void PretenuringHandler::ProcessPretenuringFeedback(
         GetPretenuringRatioThreshold(new_space_capacity_target_capacity),
         deopt_maybe_tenured ? 1 : 0, allocation_sites, active_allocation_sites,
         allocation_mementos_found, tenure_decisions, dont_tenure_decisions);
+  }
+
+  if (V8_UNLIKELY(heap_->is_gc_tracing_category_enabled()) &&
+      (allocation_mementos_found > 0 || tenure_decisions > 0 ||
+       dont_tenure_decisions > 0)) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCPretenuringSummary", "value",
+        [&](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("threshold", GetPretenuringRatioThreshold(
+                                    new_space_capacity_target_capacity));
+          dict.Add("deopt_maybe_tenured", deopt_maybe_tenured);
+          dict.Add("visited_sites", allocation_sites);
+          dict.Add("active_sites", active_allocation_sites);
+          dict.Add("mementos", allocation_mementos_found);
+          dict.Add("tenured", tenure_decisions);
+          dict.Add("not_tenured", dont_tenure_decisions);
+        });
   }
 
   global_pretenuring_feedback_.clear();

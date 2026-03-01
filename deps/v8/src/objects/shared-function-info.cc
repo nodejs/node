@@ -68,8 +68,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   UpdateFunctionMapIndex();
 
   set_age(0);
-
-  clear_padding();
+  set_feedback_slot(0);
 }
 
 // LINT.IfChange(GetSharedFunctionInfoCode)
@@ -86,6 +85,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
     if (Tagged<Code> code; TryCast(data, &code)) {
       // Having baseline Code means we are a compiled, baseline function.
       DCHECK(HasBaselineCode());
+      SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
       return code;
     }
     if (IsInterpreterData(data)) {
@@ -156,7 +156,8 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<WeakFixedArray> infos)
     : infos_(infos), index_(0) {}
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
-  while (index_ < infos_->length()) {
+  const uint32_t infos_len = infos_->ulength().value();
+  while (index_ < infos_len) {
     Tagged<MaybeObject> raw = infos_->get(index_++);
     Tagged<HeapObject> heap_object;
     if (!raw.GetHeapObject(&heap_object) ||
@@ -197,7 +198,8 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     Tagged<Script> script = Cast<Script>(script_object);
     Tagged<WeakFixedArray> list = script->infos();
 #ifdef DEBUG
-    DCHECK_LT(function_literal_id, list->length());
+    DCHECK_LT(static_cast<uint32_t>(function_literal_id),
+              list->ulength().value());
     Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
@@ -214,7 +216,7 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
     Tagged<WeakFixedArray> infos = old_script->infos();
-    if (function_literal_id < infos->length()) {
+    if (static_cast<uint32_t>(function_literal_id) < infos->ulength().value()) {
       Tagged<MaybeObject> raw = old_script->infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
@@ -229,16 +231,10 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
 
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                                   IsolateForSandbox isolate) {
-  if (other->HasTrustedData()) {
-    SetTrustedData(
-        TrustedCast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
-  } else {
-    SetUntrustedData(other->GetUntrustedData());
-  }
-
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
                          kReleaseStore);
+
   set_outer_scope_info_or_feedback_metadata(
       other->outer_scope_info_or_feedback_metadata(cage_base));
   set_script(other->script(cage_base, kAcquireLoad), kReleaseStore);
@@ -254,6 +250,16 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_unique_id(other->unique_id());
   set_age(0);
 
+  // Install code last to ensure that the entire SFI is properly initialized if
+  // it's compiled.
+  if (other->HasTrustedData()) {
+    SetTrustedData(
+        TrustedCast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
+  } else {
+    SetUntrustedData(other->GetUntrustedData());
+  }
+
+  set_feedback_slot(other->feedback_slot());
 #if DEBUG
   // This should now be byte-for-byte identical to the input except for the age
   // field (could be reset concurrently). Compare content before age field now:
@@ -341,8 +347,8 @@ Handle<String> SharedFunctionInfo::DebugName(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   FunctionKind function_kind = shared->kind();
-  if (IsClassMembersInitializerFunction(function_kind)) {
-    return function_kind == FunctionKind::kClassMembersInitializerFunction
+  if (IsClassInitializerFunction(function_kind)) {
+    return IsClassInstanceInitializerFunction(function_kind)
                ? isolate->factory()->instance_members_initializer_string()
                : isolate->factory()->static_initializer_string();
   }
@@ -471,8 +477,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCharacter('(');
   DirectHandle<FixedArray> args(
       Cast<Script>(shared->script())->wrapped_arguments(), isolate);
-  int argc = args->length();
-  for (int i = 0; i < argc; i++) {
+  const uint32_t argc = args->ulength().value();
+  for (uint32_t i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
     builder.AppendString(
         DirectHandle<String>(Cast<String>(args->get(i)), isolate));
@@ -891,7 +897,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   std::unordered_set<uint32_t> ids({isolate->next_unique_sfi_id()});
   CombinedHeapObjectIterator it(isolate->heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (IsAnyHole(o) || !IsSharedFunctionInfo(o)) continue;
+    if (!IsSharedFunctionInfo(o)) continue;
     auto result = ids.emplace(Cast<SharedFunctionInfo>(o)->unique_id());
     // If previously inserted...
     if (!result.second) return false;

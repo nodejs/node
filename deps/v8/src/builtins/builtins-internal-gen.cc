@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <bit>
 #include <optional>
 
 #include "src/api/api.h"
@@ -14,10 +15,11 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -166,7 +168,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
     TNode<IntPtrT> chunk = MemoryChunkFromAddress(object);
-    TNode<IntPtrT> page = MemoryChunkMetadataFromMemoryChunk(chunk);
+    TNode<IntPtrT> page = BasePageFromMemoryChunk(chunk);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
@@ -199,10 +201,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
-    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), page,
-             IntPtrConstant(MutablePageMetadata::SlotSetOffset(
-                 RememberedSetType::OLD_TO_NEW))));
+    TNode<IntPtrT> slot_set =
+        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
+                                    IntPtrConstant(MutablePage::SlotSetOffset(
+                                        RememberedSetType::OLD_TO_NEW))));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }
@@ -1297,9 +1299,12 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
+  // Use UniqueInt32Constant instead of Int32Constant here in order to ensure
+  // that the graph structure does not depend on the actual kNumExtraArgs value
+  // (Int32Constant uses cached nodes).
   TNode<Int32T> argc =
       Int32Add(pushed_argc.value(),
-               Int32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
+               UniqueInt32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
 
   const bool builtin_exit_frame = true;
   const bool switch_to_central_stack = false;
@@ -1309,16 +1314,17 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
   static_assert(BuiltinArguments::kNewTargetIndex == 0);
   static_assert(BuiltinArguments::kTargetIndex == 1);
   static_assert(BuiltinArguments::kArgcIndex == 2);
-  static_assert(BuiltinArguments::kPaddingIndex == 3);
+  // Code generator will take care of pushing padding on arm64.
+  static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
-  TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
-                  argc, c_function,    // register arguments
-                  TheHoleConstant(),   // additional stack argument 1 (padding)
-                  SmiFromInt32(argc),  // additional stack argument 2
-                  target,              // additional stack argument 3
-                  new_target);         // additional stack argument 4
+  TailCallBuiltin(centry, context,   // standard arguments for TailCallBuiltin
+                  argc, c_function,  // register arguments
+                  // additional stack arguments
+                  new_target,           // sp[0]
+                  target,               // sp[1]
+                  SmiFromInt32(argc));  // sp[2]
 }
 
 TF_BUILTIN(AdaptorWithBuiltinExitFrame0, CppBuiltinsAdaptorAssembler) {
@@ -1435,18 +1441,6 @@ void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
   Generate_CEntry(masm, 1, ArgvMode::kStack, false, true);
 }
 
-#if !defined(V8_TARGET_ARCH_ARM)
-void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // !defined(V8_TARGET_ARCH_ARM)
-
-#ifndef V8_TARGET_ARCH_IA32
-void Builtins::Generate_MemMove(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // V8_TARGET_ARCH_IA32
-
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
 #ifdef V8_ENABLE_SPARKPLUG
   EmitReturnBaseline(masm);
@@ -1455,23 +1449,10 @@ void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
 #endif  // V8_ENABLE_SPARKPLUG
 }
 
-#if defined(V8_ENABLE_MAGLEV) && !defined(V8_ENABLE_LEAPTIERING)
-void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
-    MacroAssembler* masm) {
-  using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
-  Register flags = D::GetRegisterParameter(D::kFlags);
-  Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
-  Register temporary = D::GetRegisterParameter(D::kTemporary);
-  masm->AssertFeedbackVector(feedback_vector, temporary);
-  masm->OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-  masm->Trap();
-}
-#else
 void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
     MacroAssembler* masm) {
   masm->Trap();
 }
-#endif  // V8_ENABLE_MAGLEV && !V8_ENABLE_LEAPTIERING
 
 #ifndef V8_ENABLE_MAGLEV
 // static
@@ -1654,11 +1635,9 @@ TF_BUILTIN(InstantiateAsmJs, JSTrampolineAssembler) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
-#elif defined(V8_ENABLE_LEAPTIERING)
+#else
   TNode<JSDispatchHandleT> dispatch_handle = ReinterpretCast<JSDispatchHandleT>(
       LoadJSFunctionDispatchHandle(function));
-#else
-  auto dispatch_handle = InvalidDispatchHandleConstant();
 #endif
 
   // This builtin is used on functions with different parameter counts.
@@ -1681,6 +1660,12 @@ TF_BUILTIN(InstantiateAsmJs, JSTrampolineAssembler) {
   BIND(&tailcall_to_function);
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
+  // Make sure that the dispatch table entry is still intact; calling out to JS
+  // might have free'd and re-allocated it (https://crbug.com/462217236).
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(DynamicJSParameterCount(),
+                  LoadParameterCountFromJSDispatchTable(dispatch_handle)));
   TailCallJSFunction(function);
 }
 
@@ -1731,6 +1716,163 @@ TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
   BIND(&call_runtime);
   TailCallRuntime(Runtime::kGetOwnPropertyDescriptorObject, context, receiver,
                   key);
+}
+
+TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto expected_type_smi = Parameter<Smi>(Descriptor::kType);
+  auto allow_widening_smi_to_int32 =
+      Parameter<Smi>(Descriptor::kAllowWideningSmiToInt32);
+
+  TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
+
+  Label is_smi(this), is_heap_number(this), is_string(this), is_symbol(this),
+      is_oddball(this), is_context(this), is_js_receiver(this),
+      is_other_heap_object(this), done(this);
+
+  GotoIf(TaggedIsSmi(object), &is_smi);
+
+  TNode<HeapObject> heap_object = CAST(object);
+  TNode<Map> map = LoadMap(heap_object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> bit_field = LoadMapBitField(map);
+
+  GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
+         &is_heap_number);
+  GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+         &is_string);
+  GotoIf(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)), &is_symbol);
+  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &is_oddball);
+
+  GotoIf(IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE),
+         &is_context);
+
+  GotoIf(IsJSReceiverInstanceType(instance_type), &is_js_receiver);
+
+  Goto(&is_other_heap_object);
+
+  auto CheckType = [&](maglev::NodeType actual_type) {
+    // The actual type is accurate (only 1 bit set) unless it's a string (see
+    // TODO below).
+    DCHECK_IMPLIES(actual_type != maglev::NodeType::kString,
+                   std::popcount(static_cast<unsigned>(actual_type)) == 1);
+    TNode<Word32T> actual_type_int32 =
+        Int32Constant(static_cast<int>(actual_type));
+    GotoIf(Word32NotEqual(Word32And(expected_type, actual_type_int32),
+                          Int32Constant(0)),
+           &done);
+    Print("CheckMaglevType failed");
+    Print(object);
+    Print("Expected type: ", expected_type_smi);
+    Print("Actual type: ", SmiConstant(Smi::FromEnum(actual_type)));
+    Unreachable();
+  };
+
+  BIND(&is_smi);
+  CheckType(maglev::NodeType::kSmi);
+
+  BIND(&is_heap_number);
+  {
+    Label treat_as_heap_number(this), is_int32(this);
+    GotoIf(SmiEqual(allow_widening_smi_to_int32, SmiConstant(0)),
+           &treat_as_heap_number);
+
+    TNode<Float64T> value = LoadHeapNumberValue(heap_object);
+    TNode<Int32T> int32_value = Signed(TruncateFloat64ToWord32(value));
+    Branch(Float64Equal(value, ChangeInt32ToFloat64(int32_value)), &is_int32,
+           &treat_as_heap_number);
+
+    BIND(&is_int32);
+    TNode<Word32T> smi_or_heap_number =
+        Int32Constant(static_cast<int>(maglev::UnionType(
+            maglev::NodeType::kSmi, maglev::NodeType::kHeapNumber)));
+    // If expected_type allows either Smi or HeapNumber, we're done.
+    Branch(Word32NotEqual(Word32And(expected_type, smi_or_heap_number),
+                          Int32Constant(0)),
+           &done, &treat_as_heap_number);
+
+    BIND(&treat_as_heap_number);
+    CheckType(maglev::NodeType::kHeapNumber);
+  }
+
+  BIND(&is_string);
+  // TODO(477184397): Check String subtypes
+  CheckType(maglev::NodeType::kString);
+
+  BIND(&is_symbol);
+  CheckType(maglev::NodeType::kSymbol);
+
+  BIND(&is_oddball);
+  {
+    Label is_null(this), is_undefined(this);
+    GotoIf(TaggedEqual(object, NullConstant()), &is_null);
+    GotoIf(TaggedEqual(object, UndefinedConstant()), &is_undefined);
+    CheckType(maglev::NodeType::kBoolean);
+
+    BIND(&is_null);
+    CheckType(maglev::NodeType::kNull);
+
+    BIND(&is_undefined);
+    CheckType(maglev::NodeType::kUndefined);
+  }
+
+  BIND(&is_context);
+  CheckType(maglev::NodeType::kContext);
+
+  BIND(&is_js_receiver);
+  {
+    Label is_js_array(this), is_js_data_view(this), is_primitive_wrapper(this),
+        is_js_function(this), is_string_wrapper(this), is_other_callable(this);
+
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE)),
+           &is_js_array);
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_DATA_VIEW_TYPE)),
+           &is_js_data_view);
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_PRIMITIVE_WRAPPER_TYPE)),
+           &is_primitive_wrapper);
+    GotoIf(
+        IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE),
+        &is_js_function);
+    GotoIf(IsSetWord32(bit_field, Map::Bits1::IsCallableBit::kMask),
+           &is_other_callable);
+
+    CheckType(maglev::NodeType::kOtherJSReceiver);
+
+    BIND(&is_js_array);
+    CheckType(maglev::NodeType::kJSArray);
+
+    BIND(&is_js_data_view);
+    CheckType(maglev::NodeType::kJSDataView);
+
+    BIND(&is_primitive_wrapper);
+    {
+      TNode<Int32T> kind = LoadMapElementsKind(map);
+      Label check_wrapper(this);
+      GotoIf(Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
+             &is_string_wrapper);
+      GotoIf(Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)),
+             &is_string_wrapper);
+      Goto(&check_wrapper);
+
+      BIND(&check_wrapper);
+      CheckType(maglev::NodeType::kOtherJSReceiver);
+    }
+
+    BIND(&is_js_function);
+    CheckType(maglev::NodeType::kJSFunction);
+
+    BIND(&is_string_wrapper);
+    CheckType(maglev::NodeType::kStringWrapper);
+
+    BIND(&is_other_callable);
+    CheckType(maglev::NodeType::kOtherCallable);
+  }
+
+  BIND(&is_other_heap_object);
+  CheckType(maglev::NodeType::kOtherHeapObject);
+
+  BIND(&done);
+  Return(object);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

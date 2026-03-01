@@ -61,8 +61,7 @@ declare_args() {
   # is still not accessible unless --harmony-temporal is enabled at runtime)
   #
   # Furthermore, some architectures don't have Rust toolchains in Chromium
-  v8_enable_temporal_support = !(defined(build_with_node) && build_with_node) &&
-                               target_cpu != "ppc64" && target_cpu != "s390x"
+  v8_enable_temporal_support = !(defined(build_with_node) && build_with_node)
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
@@ -79,6 +78,12 @@ declare_args() {
 
   # Implement tracing using Perfetto (https://perfetto.dev).
   v8_use_perfetto = false
+
+  # Use Perfetto JSON Export.
+  v8_use_perfetto_json_export = ""
+
+  # Use Perfetto SDK headers.
+  v8_use_perfetto_sdk = false
 
   # Override global symbol level setting for v8.
   v8_symbol_level = symbol_level
@@ -101,21 +106,25 @@ declare_args() {
   # interpreter, where the bounds checking is done in the instruction handler,
   # not using an unhandled exception filter (which also doesn't work with
   # Win-ASAN).
-  # Also enables explicit bounds checks on component builds in platforms other
-  # than Windows because of a problem with function name mangling for vectorcall
-  # ABI on ELF (The vectorcall calling convention requires a mangling that
-  # includes @@, but on ELF an @ indicates that the part after it is the version
-  # of the symbol, with @@ indicating the default symbol version to link against
-  # when none is specified by the caller and this causes linker errors). As a
-  # workaround, we need to disable the vectorcall calling convention for
-  # component builds on Linux and Mac, which means that we cannot use DrumBrake
-  # builtins for Load/Store instruction handlers, because of the different
-  # calling convention.
-  # Windows component builds are also enabled to support cross-compilation.
+  # Trap-handler based Load/Store builtins are supported on x64 and arm64.
+  # On x64, also enables explicit bounds checks on component builds in platforms
+  # other than Windows because of a problem with function name mangling for
+  # vectorcall ABI on ELF (The vectorcall calling convention requires a mangling
+  # that includes @@, but on ELF an @ indicates that the part after it is the
+  # version of the symbol, with @@ indicating the default symbol version to link
+  # against when none is specified by the caller and this causes linker errors).
+  # As a workaround, we need to disable the vectorcall calling convention for
+  # x64 component builds on Linux and Mac, which means that we cannot use
+  # DrumBrake builtins for Load/Store instruction handlers on x64 component
+  # builds because of the different calling convention.
+  # Windows component builds are also affected to support cross-compilation.
+  # On arm64, the builtins use the standard AAPCS64 calling convention, so
+  # component builds work without this restriction.
   v8_drumbrake_bounds_checks =
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
-      !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
-      is_component_build
+      !(is_win || is_linux || is_mac) ||
+      (v8_current_cpu != "x64" && v8_current_cpu != "arm64") || !is_clang ||
+      (is_component_build && v8_current_cpu == "x64")
 
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
@@ -197,7 +206,9 @@ declare_args() {
   # GC.
   cppgc_enable_slim_write_barrier = true
 
-  # Enable pointer compression in cppgc.
+  # Enable pointer compression in cppgc. Note: this is automatically turned on
+  # by cppgc_enable_caged_heap on 64-bit platforms. To unconditionally disable
+  # pointer compression, set cppgc_enable_caged_heap = false.
   cppgc_enable_pointer_compression = false
 
   # Enable support for larger cages, up to 16GB.
@@ -225,7 +236,7 @@ declare_args() {
   # When `v8_enable_pointer_compression_shared_cage` RO space is placed into a
   # contiguous area at the front of the cage. In case RO allocations fails this
   # size needs to be adjusted.
-  v8_contiguous_compressed_ro_space_size_mb = 8
+  v8_contiguous_compressed_ro_space_size_mb = 16
 
   # Change code emission and runtime features to be CET shadow-stack compliant
   # (incomplete and experimental).
@@ -269,11 +280,24 @@ if (v8_enable_backtrace == "") {
   v8_enable_backtrace = is_debug && !v8_optimized_debug
 }
 
-# Chromium is configured to use the perfetto client library, v8 should also
-# use perfetto for tracing.
-if (build_with_chromium) {
+if (v8_use_perfetto_sdk) {
+  # When using perfetto SDK, we also need to enable perfetto support.
   v8_use_perfetto = true
 }
+
+# Chromium is configured to use the perfetto client library, v8 should also
+# use perfetto for tracing.
+if (build_with_chromium && !use_fuzzing_engine) {
+  v8_use_perfetto = true
+}
+
+# Enable JSON export by default when using perfetto but not the SDK.
+if (v8_use_perfetto_json_export == "") {
+  v8_use_perfetto_json_export = v8_use_perfetto && !v8_use_perfetto_sdk
+}
+assert(
+    !(v8_use_perfetto_sdk && v8_use_perfetto_json_export),
+    "Perfetto JSON Export is not available when building with the Perfetto SDK.")
 
 # Includes profiles to optimize builtins if
 #   * it is a Chromium build, and
@@ -305,7 +329,8 @@ if (v8_enable_pointer_compression == "") {
 # Windows, Linux, MacOS and tvOS.
 is_drumbrake_supported =
     v8_enable_webassembly && v8_enable_pointer_compression &&
-    (v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
+    (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+     v8_current_cpu == "riscv64") &&
     (target_os == "win" || target_os == "linux" || target_os == "mac" ||
      target_os == "ios")
 

@@ -263,14 +263,13 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapIllegalCast);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapIllegalCast);
       return OpIndex::Invalid();
     }
     if (type != wasm::ValueType()) {
       CHECK(!type.is_uninhabited());
       CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
-                                      cast_op.config.to.heap_type(), module_));
+                                      cast_op.config.to.heap_type()));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_) &&
@@ -336,8 +335,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (type != wasm::ValueType()) {
       CHECK(!type.is_uninhabited());
-      CHECK(wasm::IsSameTypeHierarchy(
-          type.heap_type(), type_check.config.to.heap_type(), module_));
+      CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
+                                      type_check.config.to.heap_type()));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
                                 type_check.config.to.heap_type(), module_) &&
@@ -400,8 +399,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, assert_not_null.trap_id);
-      __ Unreachable();
+      __ WasmTrap(assert_not_null.trap_id);
       return OpIndex::Invalid();
     }
     if (type.is_non_nullable()) {
@@ -455,8 +453,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -484,8 +481,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -493,7 +489,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
                    struct_set.type_index, struct_set.field_index,
-                   kWithoutNullCheck, struct_set.memory_order);
+                   kWithoutNullCheck, struct_set.memory_order,
+                   struct_set.write_barrier);
       return OpIndex::Invalid();
     }
     goto no_change;

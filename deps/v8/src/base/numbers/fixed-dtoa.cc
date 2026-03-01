@@ -8,89 +8,38 @@
 
 #include <cmath>
 
+#include "absl/numeric/int128.h"
 #include "src/base/logging.h"
 #include "src/base/numbers/double.h"
 
 namespace v8 {
 namespace base {
 
-// Represents a 128bit type. This class should be replaced by a native type on
-// platforms that support 128bit integers.
+// Represents a 128bit type. This class wraps abseil's uint128, which is a
+// native type on platforms that support 128bit integers.
 class UInt128 {
  public:
-  UInt128() : high_bits_(0), low_bits_(0) {}
-  UInt128(uint64_t high, uint64_t low) : high_bits_(high), low_bits_(low) {}
+  UInt128() : value_(0) {}
+  UInt128(uint64_t high, uint64_t low) : value_(absl::MakeUint128(high, low)) {}
 
-  void Multiply(uint32_t multiplicand) {
-    uint64_t accumulator;
+  void Multiply(uint32_t multiplicand) { value_ *= multiplicand; }
 
-    accumulator = (low_bits_ & kMask32) * multiplicand;
-    uint32_t part = static_cast<uint32_t>(accumulator & kMask32);
-    accumulator >>= 32;
-    accumulator = accumulator + (low_bits_ >> 32) * multiplicand;
-    low_bits_ = (accumulator << 32) + part;
-    accumulator >>= 32;
-    accumulator = accumulator + (high_bits_ & kMask32) * multiplicand;
-    part = static_cast<uint32_t>(accumulator & kMask32);
-    accumulator >>= 32;
-    accumulator = accumulator + (high_bits_ >> 32) * multiplicand;
-    high_bits_ = (accumulator << 32) + part;
-    DCHECK_EQ(accumulator >> 32, 0);
-  }
-
-  void Shift(int shift_amount) {
-    DCHECK(-64 <= shift_amount && shift_amount <= 64);
-    if (shift_amount == 0) {
-      return;
-    } else if (shift_amount == -64) {
-      high_bits_ = low_bits_;
-      low_bits_ = 0;
-    } else if (shift_amount == 64) {
-      low_bits_ = high_bits_;
-      high_bits_ = 0;
-    } else if (shift_amount <= 0) {
-      high_bits_ <<= -shift_amount;
-      high_bits_ += low_bits_ >> (64 + shift_amount);
-      low_bits_ <<= -shift_amount;
-    } else {
-      low_bits_ >>= shift_amount;
-      low_bits_ += high_bits_ << (64 - shift_amount);
-      high_bits_ >>= shift_amount;
-    }
-  }
+  void Shift(int shift_amount) { value_ >>= shift_amount; }
 
   // Modifies *this to *this MOD (2^power).
   // Returns *this DIV (2^power).
   int DivModPowerOf2(int power) {
-    if (power >= 64) {
-      int result = static_cast<int>(high_bits_ >> (power - 64));
-      high_bits_ -= static_cast<uint64_t>(result) << (power - 64);
-      return result;
-    } else {
-      uint64_t part_low = low_bits_ >> power;
-      uint64_t part_high = high_bits_ << (64 - power);
-      int result = static_cast<int>(part_low + part_high);
-      high_bits_ = 0;
-      low_bits_ -= part_low << power;
-      return result;
-    }
+    absl::uint128 result = value_ >> power;
+    value_ -= result << power;
+    return static_cast<int>(result);
   }
 
-  bool IsZero() const { return high_bits_ == 0 && low_bits_ == 0; }
+  bool IsZero() const { return value_ == 0; }
 
-  int BitAt(int position) {
-    if (position >= 64) {
-      return static_cast<int>(high_bits_ >> (position - 64)) & 1;
-    } else {
-      return static_cast<int>(low_bits_ >> position) & 1;
-    }
-  }
+  int BitAt(int position) { return static_cast<int>(value_ >> position) & 1; }
 
  private:
-  static const uint64_t kMask32 = 0xFFFFFFFF;
-  // Value == (high_bits_ << 64) + low_bits_
-  uint64_t high_bits_;
-  uint64_t low_bits_;
+  absl::uint128 value_;
 };
 
 static const int kDoubleSignificandSize = 53;  // Includes the hidden bit.

@@ -298,23 +298,23 @@ AstStringConstants::AstStringConstants(Isolate* isolate,
       string_table_(),
       hash_seed_(hash_seed) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-#define F(name, str)                                                  \
-  {                                                                   \
-    static const char data[] = str;                                   \
-    base::Vector<const uint8_t> literal(                              \
-        reinterpret_cast<const uint8_t*>(data),                       \
-        static_cast<int>(arraysize(data) - 1));                       \
-    IndirectHandle<String> handle = isolate->factory()->name();       \
-    uint32_t raw_hash_field = handle->raw_hash_field();               \
-    DCHECK_EQ(raw_hash_field,                                         \
-              StringHasher::HashSequentialString<uint8_t>(            \
-                  literal.begin(), literal.length(), hash_seed_));    \
-    DCHECK_EQ(literal.length(), handle->length());                    \
-    name##_ = zone_.New<AstRawString>(true, literal, raw_hash_field); \
-    /* The Handle returned by the factory is located on the roots */  \
-    /* array, not on the temporary HandleScope, so this is safe.  */  \
-    name##_->set_string(handle);                                      \
-    string_table_.InsertNew(name##_, name##_->Hash());                \
+#define F(name, str)                                                        \
+  {                                                                         \
+    static const char data[] = str;                                         \
+    base::Vector<const uint8_t> literal(                                    \
+        reinterpret_cast<const uint8_t*>(data),                             \
+        static_cast<int>(arraysize(data) - 1));                             \
+    IndirectHandle<InternalizedString> handle = isolate->factory()->name(); \
+    uint32_t raw_hash_field = handle->raw_hash_field();                     \
+    DCHECK_EQ(raw_hash_field,                                               \
+              StringHasher::HashSequentialString<uint8_t>(                  \
+                  literal.begin(), literal.length(), hash_seed_));          \
+    DCHECK_EQ(literal.length(), handle->length());                          \
+    name##_ = zone_.New<AstRawString>(true, literal, raw_hash_field);       \
+    /* The Handle returned by the factory is located on the roots */        \
+    /* array, not on the temporary HandleScope, so this is safe.  */        \
+    name##_->set_string(handle);                                            \
+    string_table_.InsertNew(name##_, name##_->Hash());                      \
   }
   AST_STRING_CONSTANTS(F)
 #undef F

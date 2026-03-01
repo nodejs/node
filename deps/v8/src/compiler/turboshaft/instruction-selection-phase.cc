@@ -346,7 +346,7 @@ std::optional<BailoutReason> InstructionSelectionPhase::Run(
       data->info()->source_positions()
           ? InstructionSelector::kAllSourcePositions
           : InstructionSelector::kCallSourcePositions,
-      InstructionSelector::SupportedFeatures(),
+      CpuFeatures::SupportedFeatures(),
       v8_flags.turbo_instruction_scheduling
           ? InstructionSelector::kEnableScheduling
           : InstructionSelector::kDisableScheduling,

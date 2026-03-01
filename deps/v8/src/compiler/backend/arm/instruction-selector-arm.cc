@@ -1773,7 +1773,10 @@ void InstructionSelector::VisitFloat32Add(OpIndex node) {
   ArmOperandGenerator g(this);
   const FloatBinopOp& add = this->Get(node).template Cast<FloatBinopOp>();
   const Operation& lhs = this->Get(add.left());
-  if (lhs.Is<Opmask::kFloat32Mul>() && CanCover(node, add.left())) {
+  // VMLA.f32 has the multiplication on the RHS, so we cannot use it if we need
+  // deterministic NaN patterns.
+  if (!ensure_deterministic_nan_ && lhs.Is<Opmask::kFloat32Mul>() &&
+      CanCover(node, add.left())) {
     const FloatBinopOp& mul = lhs.Cast<FloatBinopOp>();
     Emit(kArmVmlaF32, g.DefineSameAsFirst(node), g.UseRegister(add.right()),
          g.UseRegister(mul.left()), g.UseRegister(mul.right()));

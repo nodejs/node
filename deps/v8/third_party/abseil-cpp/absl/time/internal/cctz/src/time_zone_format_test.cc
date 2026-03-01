@@ -967,6 +967,9 @@ TEST(Parse, ErrorCases) {
   EXPECT_FALSE(parse("%Ez", "+-0:00", tz, &tp));
   EXPECT_FALSE(parse("%z", "-00-0", tz, &tp));
   EXPECT_FALSE(parse("%Ez", "-00:-0", tz, &tp));
+
+  // Check that we do not accept strings with embedded NULs.
+  EXPECT_FALSE(parse("%Y", std::string("2026\0payload", 12), tz, &tp));
 }
 
 TEST(Parse, PosixConversions) {

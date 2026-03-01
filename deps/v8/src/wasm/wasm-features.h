@@ -169,16 +169,11 @@ class CompileTimeImports {
   CompileTimeImports& operator=(CompileTimeImports&& other) V8_NOEXCEPT {
     bits_ = other.bits_;
     constants_module_ = std::move(other.constants_module_);
+#if DEBUG
+    // Leaving {other} noticeably unusable can flush out bugs.
+    other.bits_.RemoveAll();
+#endif  // DEBUG
     return *this;
-  }
-  static CompileTimeImports FromSerialized(
-      CompileTimeImportFlags::StorageType flags,
-      base::Vector<const char> constants_module) {
-    CompileTimeImports result;
-    result.bits_ = CompileTimeImportFlags::FromIntegral(flags);
-    result.constants_module_.assign(constants_module.begin(),
-                                    constants_module.end());
-    return result;
   }
 
   bool empty() const { return bits_.empty(); }

@@ -66,6 +66,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
           case kI8:
           case kI16:
           case kI32:
+          case kWaitQueue:
             return kGpReg;
           case kI64:
             return kNeedI64RegPair ? kGpRegPair : kGpReg;

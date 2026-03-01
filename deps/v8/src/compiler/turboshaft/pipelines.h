@@ -7,9 +7,10 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
-#include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/basic-block-call-graph-profiler.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/block-instrumentation-phase.h"
@@ -18,15 +19,16 @@
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
+#include "src/compiler/turboshaft/load-elimination-phase.h"
 #include "src/compiler/turboshaft/loop-peeling-phase.h"
 #include "src/compiler/turboshaft/loop-unrolling-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
-#include "src/compiler/turboshaft/optimize-phase.h"
+#include "src/compiler/turboshaft/memory-optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
-#include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
+#include "src/compiler/turboshaft/turbolev-frontend-pipeline.h"
 #include "src/compiler/turboshaft/turbolev-graph-builder.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
@@ -48,9 +50,25 @@ struct SimplificationAndNormalizationPhase {
   void Run(PipelineData* data, Zone* temp_zone);
 };
 
+namespace detail {
+enum class NoLinkage { kNoLinkage };
+}  // namespace detail
+constexpr detail::NoLinkage kNoLinkage = detail::NoLinkage::kNoLinkage;
+
 class V8_EXPORT_PRIVATE Pipeline {
  public:
-  explicit Pipeline(PipelineData* data) : data_(data) {}
+  // TODO(dmercadier): remove Linkage for the arguments here and make it an
+  // input to the PipelineData constructor instead.
+  Pipeline(PipelineData* data, const Linkage* linkage) : data_(data) {
+    DCHECK_NULL(data->linkage());
+    data_->set_linkage(linkage);
+  }
+
+  Pipeline(PipelineData* data, detail::NoLinkage) : data_(data) {
+    DCHECK_NULL(data->linkage());
+  }
+
+  ~Pipeline() { data_->set_linkage(nullptr); }
 
   PipelineData* data() const { return data_; }
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -84,14 +102,14 @@ class V8_EXPORT_PRIVATE Pipeline {
     if constexpr (std::is_same_v<result_t, void>) {
       phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {
-        PrintGraph(temp_zone, Phase::phase_name());
+        PrintGraph(Phase::phase_name());
       }
       return !data_->info()->was_cancelled();
     } else {
       static_assert(std::is_same_v<result_t, std::optional<BailoutReason>>);
       auto result = phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {
-        PrintGraph(temp_zone, Phase::phase_name());
+        PrintGraph(Phase::phase_name());
       }
       return data_->info()->was_cancelled() ? BailoutReason::kCancelled
                                             : result;
@@ -99,7 +117,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     UNREACHABLE();
   }
 
-  void PrintGraph(Zone* zone, const char* phase_name) {
+  void PrintGraph(const char* phase_name) {
     CodeTracer* code_tracer = nullptr;
     if (data_->info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -108,7 +126,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       code_tracer = data_->GetCodeTracer();
       DCHECK_NOT_NULL(code_tracer);
     }
-    PrintTurboshaftGraph(data_, zone, code_tracer, phase_name);
+    PrintTurboshaftGraph(data_, code_tracer, phase_name);
   }
 
   void TraceSequence(const char* phase_name) {
@@ -137,12 +155,24 @@ class V8_EXPORT_PRIVATE Pipeline {
   bool CreateGraphWithMaglev(Linkage* linkage) {
     UnparkedScopeIfNeeded unparked_scope(data_->broker());
 
-    BeginPhaseKind("V8.TFGraphCreation");
+    // TODO(victorgomes): Should we rename this to V8.TurbolevFrontend instead?
+    PhaseScopeKind scope_kind(data_->pipeline_statistics(),
+                              "V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
-    std::optional<BailoutReason> bailout =
-        Run<turboshaft::TurbolevGraphBuildingPhase>(linkage);
-    EndPhaseKind();
 
+    TurbolevFrontendPipeline frontend(data_, linkage);
+    maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
+        frontend.graph_labeller());
+
+    std::optional<maglev::Graph*> maglev_graph = frontend.Run();
+    if (!maglev_graph.has_value()) {
+      data_->info()->AbortOptimization(
+          BailoutReason::kMaglevGraphBuildingFailed);
+      return false;
+    }
+
+    std::optional<BailoutReason> bailout =
+        Run<turboshaft::TurbolevGraphBuildingPhase>(*maglev_graph);
     if (bailout.has_value()) {
       data_->info()->AbortOptimization(bailout.value());
       return false;
@@ -153,8 +183,6 @@ class V8_EXPORT_PRIVATE Pipeline {
 
   bool CreateGraphFromTurbofan(compiler::TFPipelineData* turbofan_data,
                                Linkage* linkage) {
-    CHECK_IMPLIES(!v8_flags.disable_optimizing_compilers, v8_flags.turboshaft);
-
     UnparkedScopeIfNeeded scope(data_->broker(),
                                 v8_flags.turboshaft_trace_reduction ||
                                     v8_flags.turboshaft_trace_emitted);
@@ -185,7 +213,8 @@ class V8_EXPORT_PRIVATE Pipeline {
     // `MachineLoweringPhase` since we can reuse the `DataViewLoweringReducer`
     // there and avoid a separate phase.
     if (v8_flags.turboshaft_wasm_in_js_inlining ||
-        v8_flags.turbolev_inline_js_wasm_wrappers) {
+        (v8_flags.turbolev_inline_js_wasm_wrappers &&
+         data_->turbolev_graph_has_inlineable_wasm_calls())) {
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
     }
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -196,11 +225,9 @@ class V8_EXPORT_PRIVATE Pipeline {
       RUN_MAYBE_ABORT(turboshaft::LoopUnrollingPhase);
     }
 
-    if (v8_flags.turbo_store_elimination) {
-      RUN_MAYBE_ABORT(turboshaft::StoreStoreEliminationPhase);
-    }
+    RUN_MAYBE_ABORT(turboshaft::LoadEliminationPhase);
 
-    RUN_MAYBE_ABORT(turboshaft::OptimizePhase);
+    RUN_MAYBE_ABORT(turboshaft::MemoryOptimizationPhase);
 
     if (v8_flags.turboshaft_typed_optimizations) {
       RUN_MAYBE_ABORT(turboshaft::TypedOptimizationsPhase);
@@ -235,10 +262,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     if (V8_UNLIKELY(data()->pipeline_kind() == TurboshaftPipelineKind::kCSA ||
                     data()->pipeline_kind() ==
                         TurboshaftPipelineKind::kTSABuiltin)) {
-      if (profile) {
-        RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
-      }
-
       if (v8_flags.reorder_builtins &&
           Builtins::IsBuiltinId(info()->builtin())) {
         UnparkedScopeIfNeeded unparked_scope(data()->broker());
@@ -273,6 +296,10 @@ class V8_EXPORT_PRIVATE Pipeline {
         ZoneWithName<kTempZoneName> temp_zone(data()->zone_stats(),
                                               kTempZoneName);
         CopyingPhase<>::Run(data(), temp_zone);
+
+        if (profile) {
+          RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
+        }
       }
     }
 
@@ -521,7 +548,8 @@ class V8_EXPORT_PRIVATE Pipeline {
 
 class BuiltinPipeline : public Pipeline {
  public:
-  explicit BuiltinPipeline(PipelineData* data) : Pipeline(data) {}
+  explicit BuiltinPipeline(PipelineData* data, const Linkage* linkage)
+      : Pipeline(data, linkage) {}
 
   void OptimizeBuiltin();
 

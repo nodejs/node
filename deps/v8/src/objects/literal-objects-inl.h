@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "src/objects/objects-inl.h"
+#include "src/objects/trusted-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -26,18 +27,10 @@ namespace v8::internal {
 // static
 template <class IsolateT>
 Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
-    IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
-    bool has_seen_proto, AllocationType allocation) {
-  DCHECK_GE(boilerplate, 0);
-  DCHECK_GE(all_properties, index_keys);
-  DCHECK_GE(index_keys, 0);
-
-  int capacity = boilerplate * kElementsPerEntry;
-  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
-
-  int backing_store_size =
-      all_properties - index_keys - (has_seen_proto ? 1 : 0);
-  DCHECK_GE(backing_store_size, 0);
+    IsolateT* isolate, uint32_t boilerplate, uint32_t backing_store_size,
+    AllocationType allocation) {
+  const uint32_t capacity = boilerplate * kElementsPerEntry;
+  CHECK_LE(capacity, kMaxCapacity);
 
   // Note we explicitly do NOT canonicalize to the
   // empty_object_boilerplate_description here since `flags` may be modified
@@ -66,73 +59,154 @@ void ObjectBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
-  return get(NameIndex(index));
+Tagged<ObjectBoilerplateDescription::KeyT> ObjectBoilerplateDescription::name(
+    int index) const {
+  return Cast<ObjectBoilerplateDescription::KeyT>(get(NameIndex(index)));
 }
 
 Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
   return get(ValueIndex(index));
 }
 
-void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
-                                                 Tagged<Object> value) {
+void ObjectBoilerplateDescription::set_key_value(
+    int index, Tagged<ObjectBoilerplateDescription::KeyT> key,
+    Tagged<Object> value) {
   DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
   set(NameIndex(index), key);
   set(ValueIndex(index), value);
 }
 
+void ObjectBoilerplateDescription::set_value(int index, Tagged<Object> value) {
+  DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
+  set(ValueIndex(index), value);
+}
+
+// TODO(375937549): Convert to uint32_t.
 int ObjectBoilerplateDescription::boilerplate_properties_count() const {
-  DCHECK_EQ(0, capacity() % kElementsPerEntry);
-  return capacity() / kElementsPerEntry;
+  const uint32_t cap = capacity().value();
+  DCHECK_EQ(0, cap % kElementsPerEntry);
+  return static_cast<int>(cap / kElementsPerEntry);
 }
 
 //
 // ClassBoilerplate
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, Struct)
+int ClassBoilerplate::arguments_count() const {
+  return arguments_count_.load().value();
+}
+void ClassBoilerplate::set_arguments_count(int value) {
+  arguments_count_.store(this, Smi::FromInt(value));
+}
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count, kArgumentsCountOffset)
-ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,
-          kStaticPropertiesTemplateOffset)
-ACCESSORS(ClassBoilerplate, static_elements_template, Tagged<Object>,
-          kStaticElementsTemplateOffset)
-ACCESSORS(ClassBoilerplate, static_computed_properties, Tagged<FixedArray>,
-          kStaticComputedPropertiesOffset)
-ACCESSORS(ClassBoilerplate, instance_properties_template, Tagged<Object>,
-          kInstancePropertiesTemplateOffset)
-ACCESSORS(ClassBoilerplate, instance_elements_template, Tagged<Object>,
-          kInstanceElementsTemplateOffset)
-ACCESSORS(ClassBoilerplate, instance_computed_properties, Tagged<FixedArray>,
-          kInstanceComputedPropertiesOffset)
+Tagged<Object> ClassBoilerplate::static_properties_template() const {
+  return static_properties_template_.load();
+}
+void ClassBoilerplate::set_static_properties_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  static_properties_template_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::static_elements_template() const {
+  return static_elements_template_.load();
+}
+void ClassBoilerplate::set_static_elements_template(Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
+  static_elements_template_.store(this, value, mode);
+}
+
+Tagged<FixedArray> ClassBoilerplate::static_computed_properties() const {
+  return static_computed_properties_.load();
+}
+void ClassBoilerplate::set_static_computed_properties(Tagged<FixedArray> value,
+                                                      WriteBarrierMode mode) {
+  static_computed_properties_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::instance_properties_template() const {
+  return instance_properties_template_.load();
+}
+void ClassBoilerplate::set_instance_properties_template(Tagged<Object> value,
+                                                        WriteBarrierMode mode) {
+  instance_properties_template_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::instance_elements_template() const {
+  return instance_elements_template_.load();
+}
+void ClassBoilerplate::set_instance_elements_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  instance_elements_template_.store(this, value, mode);
+}
+
+Tagged<FixedArray> ClassBoilerplate::instance_computed_properties() const {
+  return instance_computed_properties_.load();
+}
+void ClassBoilerplate::set_instance_computed_properties(
+    Tagged<FixedArray> value, WriteBarrierMode mode) {
+  instance_computed_properties_.store(this, value, mode);
+}
 
 //
 // ArrayBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
+Tagged<Smi> ArrayBoilerplateDescription::flags() const { return flags_.load(); }
+void ArrayBoilerplateDescription::set_flags(Tagged<Smi> value,
+                                            WriteBarrierMode mode) {
+  flags_.store(this, value, mode);
+}
+
+Tagged<FixedArrayBase> ArrayBoilerplateDescription::constant_elements() const {
+  return constant_elements_.load();
+}
+void ArrayBoilerplateDescription::set_constant_elements(
+    Tagged<FixedArrayBase> value, WriteBarrierMode mode) {
+  constant_elements_.store(this, value, mode);
+}
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
-  return static_cast<ElementsKind>(flags());
+  return static_cast<ElementsKind>(flags().value());
 }
 
 void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
-  set_flags(kind);
+  set_flags(Smi::FromInt(kind));
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
-  return constant_elements()->length() == 0;
+  return constant_elements()->ulength().value() == 0;
 }
 
 //
 // RegExpBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription, Struct)
-TRUSTED_POINTER_ACCESSORS(RegExpBoilerplateDescription, data, RegExpData,
-                          kDataOffset, kRegExpDataIndirectPointerTag)
-ACCESSORS(RegExpBoilerplateDescription, source, Tagged<String>, kSourceOffset)
-SMI_ACCESSORS(RegExpBoilerplateDescription, flags, kFlagsOffset)
+Tagged<RegExpData> RegExpBoilerplateDescription::data(
+    IsolateForSandbox isolate) const {
+  return data_.load(isolate);
+}
+
+void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
+                                            WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+Tagged<String> RegExpBoilerplateDescription::source() const {
+  return source_.load();
+}
+void RegExpBoilerplateDescription::set_source(Tagged<String> value,
+                                              WriteBarrierMode mode) {
+  source_.store(this, value, mode);
+}
+
+int RegExpBoilerplateDescription::flags() const {
+  return flags_.load().value();
+}
+void RegExpBoilerplateDescription::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
 
 }  // namespace v8::internal
 

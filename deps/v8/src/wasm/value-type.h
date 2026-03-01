@@ -28,6 +28,9 @@ class Zone;
 
 namespace wasm {
 
+constexpr int kWaitQueueSizeLog2 = kTaggedSize == 4 ? 3 : 4;
+constexpr int kWaitQueueManagedOffset = kTaggedSize == 4 ? 4 : 8;
+
 // Format: kind, log2Size, code, machineType, shortName, typeName
 #define FOREACH_NUMERIC_VALUE_TYPE(V)    \
   V(I32, 2, I32, Int32, 'i', "i32")      \
@@ -37,7 +40,8 @@ namespace wasm {
   V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")      \
-  V(F16, 1, F16, Float16, 'p', "f16")
+  V(F16, 1, F16, Float16, 'p', "f16")    \
+  V(WaitQueue, kWaitQueueSizeLog2, WaitQueue, Int32, 'w', "waitqueue")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
@@ -240,10 +244,10 @@ using RefTypeKindField = IsSharedField::Next<RefTypeKind, 3>;
 static_assert(RefTypeKindField::is_valid(RefTypeKind::kLastValue));
 
 // Stores the index if {has_index()}, or the {StandardType} otherwise.
-using PayloadField = RefTypeKindField::Next<uint32_t, 20>;
+using PayloadField = RefTypeKindField::Next<uint32_t, 21>;
 
 // Reserved for future use.
-using ReservedField = PayloadField::Next<uint32_t, 4>;
+using ReservedField = PayloadField::Next<uint32_t, 3>;
 static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
@@ -311,12 +315,8 @@ constexpr uint32_t ToZeroBasedIndex(NumericKind kind) {
                 kNumberOfGenericKinds);
   uint32_t raw = PayloadField::decode(static_cast<uint32_t>(kind));
   DCHECK_GE(raw, kNumberOfGenericKinds);
-  // As an additional safety net, as long as we happen to have exactly 8
-  // numeric types, we can conveniently apply a mask here. If we need to
-  // accommodate a different number of numeric kinds in the future, we should
-  // consider adding bounds checks at use sites.
-  static_assert(kNumberOfNumericKinds == 8);
-  return (raw - kNumberOfGenericKinds) & 0x7;
+  // TODO(manoskouk): We should consider adding bounds checks at use sites.
+  return raw - kNumberOfGenericKinds;
 }
 
 }  // namespace value_type_impl
@@ -439,6 +439,11 @@ class ValueTypeBase {
     uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
     return bits == static_cast<uint32_t>(GenericKind::kVoid);
   }
+  constexpr bool is_none_or_bottom() const {
+    uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
+    return bits == static_cast<uint32_t>(GenericKind::kNone) ||
+           bits == static_cast<uint32_t>(GenericKind::kBottom);
+  }
   constexpr bool is_string_view() const {
     uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
     return bits == static_cast<uint32_t>(GenericKind::kStringViewWtf8) ||
@@ -448,7 +453,8 @@ class ValueTypeBase {
   constexpr bool is_packed() const {
     return bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
            bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
-           bit_field_ == static_cast<uint32_t>(NumericKind::kF16);
+           bit_field_ == static_cast<uint32_t>(NumericKind::kF16) ||
+           bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue);
   }
   constexpr bool is_reference_to(GenericKind type) const {
     return is_abstract_ref() && generic_kind() == type;
@@ -612,9 +618,6 @@ class ValueTypeBase {
 
   /************************* Incremental transition ***************************/
   // The following methods are deprecated. Their usage should be replaced.
-  constexpr bool is_reference() const { return is_ref(); }
-  constexpr bool is_object_reference() const { return is_ref(); }
-
   static constexpr ValueTypeBase Primitive(ValueKind kind) {
     switch (kind) {
       case kI32:
@@ -633,6 +636,8 @@ class ValueTypeBase {
         return ValueTypeBase(NumericKind::kI16);
       case kF16:
         return ValueTypeBase(NumericKind::kF16);
+      case kWaitQueue:
+        return ValueTypeBase(NumericKind::kWaitQueue);
       case kVoid:
         return ValueTypeBase(GenericKind::kVoid, kNonNullable, false);
       case kRef:
@@ -644,7 +649,7 @@ class ValueTypeBase {
     // The input value of the switch is untrusted, so even if it's exhaustive,
     // it can skip all cases and end up here, triggering UB since there's no
     // return.
-    SBXCHECK(false);
+    UNREACHABLE();
   }
 
   constexpr ValueKind kind() const {
@@ -666,6 +671,8 @@ class ValueTypeBase {
           return kI16;
         case NumericKind::kF16:
           return kF16;
+        case NumericKind::kWaitQueue:
+          return kWaitQueue;
       }
       UNREACHABLE();
     }
@@ -796,10 +803,6 @@ class HeapType : public ValueTypeBase {
     return generic_heaptype_name();
   }
 
-  /************************* Incremental transition ***************************/
-  // The following methods are deprecated. Their usage should be replaced.
-  constexpr bool is_index() const { return has_index(); }
-
  private:
   // Hide inherited methods that don't make sense for HeapTypes.
   constexpr bool is_nullable() const;
@@ -883,7 +886,8 @@ class ValueType : public ValueTypeBase {
 
   constexpr ValueType Unpacked() const {
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
-        bit_field_ == static_cast<uint32_t>(NumericKind::kI16)) {
+        bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
+        bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue)) {
       return Primitive(NumericKind::kI32);
     }
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kF16)) {
@@ -1060,10 +1064,6 @@ constexpr bool is_reference(ValueKind kind) {
   return kind == kRef || kind == kRefNull;
 }
 
-constexpr bool is_object_reference(ValueKind kind) {
-  return kind == kRef || kind == kRefNull;
-}
-
 constexpr int value_kind_size_log2(ValueKind kind) {
   constexpr int8_t kValueKindSizeLog2[] = {
 #define VALUE_KIND_SIZE_LOG2(kind, log2Size, ...) log2Size,
@@ -1127,7 +1127,7 @@ constexpr MachineType machine_type(ValueKind kind) {
 }
 
 constexpr bool is_packed(ValueKind kind) {
-  return kind == kI8 || kind == kI16 || kind == kF16;
+  return kind == kI8 || kind == kI16 || kind == kF16 || kind == kWaitQueue;
 }
 constexpr ValueKind unpacked(ValueKind kind) {
   return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
@@ -1153,6 +1153,7 @@ constexpr IndependentValueType kWasmS128{NumericKind::kS128};
 constexpr IndependentValueType kWasmI8{NumericKind::kI8};
 constexpr IndependentValueType kWasmI16{NumericKind::kI16};
 constexpr IndependentValueType kWasmF16{NumericKind::kF16};
+constexpr IndependentValueType kWasmWaitQueue{NumericKind::kWaitQueue};
 constexpr IndependentHeapType kWasmVoid{GenericKind::kVoid, kNonNullable};
 // The abstract top type (super type of all other types).
 constexpr IndependentHeapType kWasmTop{GenericKind::kTop};
@@ -1210,6 +1211,10 @@ class CanonicalSig : public Signature<CanonicalValueType> {
   CanonicalSig(size_t return_count, size_t parameter_count,
                const CanonicalValueType* reps)
       : Signature<CanonicalValueType>(return_count, parameter_count, reps) {}
+
+  // For predefined signatures, where we know what we're doing.
+  CanonicalSig(size_t return_count, size_t parameter_count,
+               const CanonicalValueType* reps, CanonicalTypeIndex index);
 
   class Builder : public SignatureBuilder<CanonicalSig, CanonicalValueType> {
    public:
@@ -1291,7 +1296,13 @@ class LoadType {
         return is_signed ? kI32Load16S : kI32Load16U;
       case kF16:
         return kF32LoadF16;
-      default:
+      case kWaitQueue:
+        return kI32Load;
+      case kVoid:
+      case kRef:
+      case kRefNull:
+      case kTop:
+      case kBottom:
         UNREACHABLE();
     }
   }
@@ -1379,7 +1390,13 @@ class StoreType {
         return kI32Store16;
       case kF16:
         return kF32StoreF16;
-      default:
+      case kWaitQueue:
+        return kI32Store;
+      case kVoid:
+      case kRef:
+      case kRefNull:
+      case kTop:
+      case kBottom:
         UNREACHABLE();
     }
   }

@@ -226,6 +226,24 @@ class MemoryOptimizationReducer : public Next {
       return V<None>::Invalid();
     }
     DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
+
+    // Checking if we can realx a FullWriteBarrier into a PointerWriteBarrier.
+    // Note that it's important to do this here in REDUCE_INPUT_GRAPH rather
+    // than in a REDUCE method, since this allows DecideObjectIsSmi to see
+    // Allocates from the input_graph (which don't exist in the output graph
+    // since the current reducer lowers them).
+    if (store.write_barrier == WriteBarrierKind::kFullWriteBarrier &&
+        turboshaft::DecideObjectIsSmi(__ input_graph(), store.value()) ==
+            IsSmiDecision::kFalse) {
+      __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
+               __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
+               WriteBarrierKind::kPointerWriteBarrier, store.offset,
+               store.element_size_log2,
+               store.maybe_initializing_or_transitioning,
+               store.indirect_pointer_tag());
+      return V<None>::Invalid();
+    }
+
     return Next::ReduceInputGraphStore(ig_index, store);
   }
 
@@ -292,7 +310,7 @@ class MemoryOptimizationReducer : public Next {
         }
         static_assert(std::is_same_v<Smi, BuiltinPtr>,
                       "BuiltinPtr must be Smi");
-        allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
+        allocate_builtin = __ SmiConstant(Smi::FromEnum(builtin));
       } else {
         if (type == AllocationType::kYoung) {
           allocate_builtin =
@@ -343,9 +361,10 @@ class MemoryOptimizationReducer : public Next {
         __ Goto(done);
       }
       if (constant_size || __ Bind(call_runtime)) {
-        __ SetVariable(
-            result, __ template Call<HeapObject>(allocate_builtin, {size},
-                                                 AllocateBuiltinDescriptor()));
+        __ SetVariable(result,
+                       __ template Call<HeapObject>(allocate_builtin, {size},
+                                                    AllocateBuiltinDescriptor(),
+                                                    OpEffects().CanAllocate()));
         __ Goto(done);
       }
 
@@ -377,7 +396,8 @@ class MemoryOptimizationReducer : public Next {
     // Call the runtime if bump pointer area exhausted.
     if (__ Bind(call_runtime)) {
       V<HeapObject> allocated = __ template Call<HeapObject>(
-          allocate_builtin, {reservation_size}, AllocateBuiltinDescriptor());
+          allocate_builtin, {reservation_size}, AllocateBuiltinDescriptor(),
+          OpEffects().CanAllocate());
       __ SetVariable(top(type),
                      __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
                                    __ IntPtrConstant(kHeapObjectTag)));
@@ -399,9 +419,9 @@ class MemoryOptimizationReducer : public Next {
         __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-  V<WordPtr> REDUCE(DecodeExternalPointer)(V<Word32> handle,
-                                           ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_SANDBOX
+  V<WordPtr> REDUCE(LoadExternalPointer)(V<Word32> handle,
+                                         ExternalPointerTagRange tag_range) {
     // Decode loaded external pointer.
     V<WordPtr> table;
     if (isolate_ != nullptr) {
@@ -425,7 +445,7 @@ class MemoryOptimizationReducer : public Next {
                     ExternalReference::external_pointer_table_address(
                         isolate_));
       table = __ LoadOffHeap(table_address,
-                             Internals::kExternalPointerTableBasePointerOffset,
+                             Internals::kExternalEntityTableBasePointerOffset,
                              MemoryRepresentation::UintPtr());
     } else {
 #if V8_ENABLE_WEBASSEMBLY
@@ -437,12 +457,12 @@ class MemoryOptimizationReducer : public Next {
                     IsolateData::shared_external_pointer_table_offset());
         table = __ Load(table_address, LoadOp::Kind::RawAligned(),
                         MemoryRepresentation::UintPtr(),
-                        Internals::kExternalPointerTableBasePointerOffset);
+                        Internals::kExternalEntityTableBasePointerOffset);
       } else {
         table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
                         MemoryRepresentation::UintPtr(),
                         IsolateData::external_pointer_table_offset() +
-                            Internals::kExternalPointerTableBasePointerOffset);
+                            Internals::kExternalEntityTableBasePointerOffset);
       }
 #else
       UNREACHABLE();
@@ -462,12 +482,11 @@ class MemoryOptimizationReducer : public Next {
     Block* done = __ NewBlock();
     if (tag_range.Size() == 1) {
       // The common and simple case: we expect a specific tag.
-      V<Word64> tag_bits = __ Word64BitwiseAnd(
-          pointer, __ Word64Constant(kExternalPointerTagMask));
+      V<Word64> tag_bits =
+          __ Word64BitwiseAnd(pointer, kExternalPointerTagMask);
       tag_bits = __ Word64ShiftRightLogical(tag_bits, kExternalPointerTagShift);
       V<Word32> tag = __ TruncateWord64ToWord32(tag_bits);
-      V<Word32> expected_tag = __ Word32Constant(tag_range.first);
-      __ GotoIf(__ Word32Equal(tag, expected_tag), done, BranchHint::kTrue);
+      __ GotoIf(__ Word32Equal(tag, tag_range.first), done, BranchHint::kTrue);
       // TODO(saelo): it would be nicer to abort here with
       // AbortReason::kExternalPointerTagMismatch. That might require adding a
       // builtin call here though, which is not currently available.
@@ -479,9 +498,13 @@ class MemoryOptimizationReducer : public Next {
     }
     __ BindReachable(done);
     return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
+  }
 #endif  // V8_ENABLE_SANDBOX
+
+  V<None> REDUCE(MajorGCForCompilerTesting)() {
+    __ template CallRuntime<runtime::MajorGCForCompilerTesting>(
+        __ NoContextConstant(), {});
+    return V<None>::Invalid();
   }
 
  private:

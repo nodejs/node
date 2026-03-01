@@ -47,7 +47,8 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
     MaybeDirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
         isolate, 1, 1, SharedFlag::kNotShared, wasm::AddressType::kI32);
     DirectHandle<WasmMemoryObject> memory_object = result.ToHandleChecked();
-    Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
+    DirectHandle<JSArrayBuffer> buffer =
+        WasmMemoryObject::GetArrayBuffer(isolate, memory_object);
 
     {
       // Embedder requests contents.
@@ -62,7 +63,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
 
     // Make sure the memory object has a new buffer that can be written to.
     uint32_t* int_buffer = reinterpret_cast<uint32_t*>(
-        memory_object->array_buffer()->backing_store());
+        memory_object->backing_store()->buffer_start());
     int_buffer[0] = 0;
   }
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());

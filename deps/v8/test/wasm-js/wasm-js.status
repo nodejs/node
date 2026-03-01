@@ -42,15 +42,25 @@
   'wpt/table/type.tentative': [FAIL],
   'wpt/tag/type.tentative': [FAIL],
 
-  # TODO(449581914): Investigate these failures and fix either in the proposal or in V8.
-  # WebAssembly.Memory(): Unknown address type '0'; pass 'i32' or 'i64'
-  'proposals/threads/memory/constructor': [FAIL],
-  # assert_equals: WebAssembly.Table.set length should be 2 expected 2 but got 1
-  'proposals/threads/interface': [FAIL],
-  # self is not defined
-  'proposals/threads/memory/grow': [FAIL],
-  # assert_throws_js: function "() => table.set(0)" did not throw
-  'proposals/threads/table/get-set': [FAIL],
+  # Broken test (forgot to define JS function 'nulls()').
+  'table/grow-memory64': [FAIL],
+
+  # Needs 'import.source(...)'.
+  'wpt/esm-integration/source-phase.tentative': [FAIL],
+  'wpt/esm-integration/source-phase-string-builtins.tentative': [FAIL],
+
+  # Needs esm-integration.
+  'wpt/esm-integration/exports.tentative': [FAIL],
+  'wpt/esm-integration/global-exports.tentative': [FAIL],
+  'wpt/esm-integration/global-exports-live-bindings.tentative': [FAIL],
+  'wpt/esm-integration/js-wasm-cycle.tentative': [FAIL],
+  'wpt/esm-integration/mutable-global-sharing.tentative': [FAIL],
+  'wpt/esm-integration/namespace-instance.tentative': [FAIL],
+  'wpt/esm-integration/reserved-import-names.tentative': [FAIL],
+  'wpt/esm-integration/resolve-export.tentative': [FAIL],
+  'wpt/esm-integration/string-builtins.tentative': [FAIL],
+  'wpt/esm-integration/v128-tdz.tentative': [FAIL],
+  'wpt/esm-integration/wasm-import-wasm-export.tentative': [FAIL],
 }], # ALWAYS
 
 ['system == android', {
@@ -89,11 +99,11 @@
 }],
 
 ##############################################################################
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x', {
+['arch == mips64 or arch == mips64el', {
   # Stack switching is not supported on all platforms.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
   'wpt/jspi/*': [SKIP]
-}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x)
+}],  # arch == mips64 or arch == mips64el
 
 ##############################################################################
 ['cet_shadow_stack', {
