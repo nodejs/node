@@ -3,6 +3,8 @@ export type ExtglobType = '!' | '?' | '+' | '*' | '@';
 export declare class AST {
     #private;
     type: ExtglobType | null;
+    id: number;
+    get depth(): number;
     constructor(type: ExtglobType | null, parent?: AST, options?: MinimatchOptions);
     get hasMagic(): boolean | undefined;
     toString(): string;
