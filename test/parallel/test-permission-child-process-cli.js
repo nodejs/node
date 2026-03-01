@@ -12,7 +12,7 @@ const assert = require('assert');
 const childProcess = require('child_process');
 
 if (process.argv[2] === 'child') {
-  process.exit(0);
+  return;
 }
 
 // Guarantee the initial state

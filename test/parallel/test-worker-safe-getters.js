@@ -29,6 +29,4 @@ if (isMainThread) {
     assert.strictEqual(w.stdout, stdout);
     assert.strictEqual(w.stderr, stderr);
   }));
-} else {
-  process.exit(0);
 }
