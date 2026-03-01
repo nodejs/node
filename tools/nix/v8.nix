@@ -119,7 +119,7 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
     Libs: -L$out/lib $(for f in $out/lib/lib*.a; do
       b=$(basename "$f" .a)
       printf " -l%s" "''${b#lib}"
-    done)
+    done) -lstdc++
     Cflags: -I${v8Dir}/include -I${v8Dir}/third_party/abseil-cpp -I${v8Dir}/third_party/simdutf
     EOF
   '';
