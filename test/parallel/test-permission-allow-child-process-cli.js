@@ -24,7 +24,7 @@ if (process.argv[2] === 'child') {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
-  process.exit(0);
+  return;
 }
 
 // Guarantee the initial state
