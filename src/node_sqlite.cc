@@ -198,7 +198,8 @@ void JSValueToSQLiteResult(Isolate* isolate,
   } else if (value->IsString()) {
     Utf8Value val(isolate, value.As<String>());
     sqlite3_result_text(ctx, *val, val.length(), SQLITE_TRANSIENT);
-  } else if (value->IsArrayBufferView() || value->IsArrayBuffer() || value->IsSharedArrayBuffer()) {
+  } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
+             value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
     sqlite3_result_blob(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
@@ -2286,7 +2287,8 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     }
   } else if (value->IsNull()) {
     r = sqlite3_bind_null(statement_, index);
-  } else if (value->IsArrayBufferView() || value->IsArrayBuffer() || value->IsSharedArrayBuffer()) {
+  } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
+             value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
     r = sqlite3_bind_blob64(statement_,
                             index,
