@@ -6,7 +6,7 @@ const assert = require('assert');
 const { isMainThread, Worker } = require('worker_threads');
 
 if (!isMainThread) {
-  process.exit(0);
+  return;
 }
 
 // Guarantee the initial state

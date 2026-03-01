@@ -35,7 +35,7 @@ function serialFork() {
 
 if (cluster.isPrimary) {
   Promise.all([serialFork(), serialFork(), serialFork()])
-    .then(common.mustCall((ports) => {
+    .then((ports) => {
       ports.splice(0, 0, process.debugPort);
       // 4 = [primary, worker1, worker2, worker3].length()
       assert.strictEqual(ports.length, 4);
@@ -44,12 +44,8 @@ if (cluster.isPrimary) {
       assert.strictEqual(ports[0] === 65535 ? 1024 : ports[0] + 1, ports[1]);
       assert.strictEqual(ports[1] === 65535 ? 1024 : ports[1] + 1, ports[2]);
       assert.strictEqual(ports[2] === 65535 ? 1024 : ports[2] + 1, ports[3]);
-    }))
-    .catch(
-      (err) => {
-        console.error(err);
-        process.exit(1);
-      });
+    })
+    .then(common.mustCall());
 } else {
-  process.exit(0);
+  process.disconnect();
 }

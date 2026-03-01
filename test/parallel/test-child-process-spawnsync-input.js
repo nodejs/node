@@ -65,7 +65,6 @@ if (process.argv.includes('spawnchild')) {
       checkSpawnSyncRet(ret);
       break;
   }
-  process.exit(0);
   return;
 }
 

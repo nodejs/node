@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const childProcess = require('child_process');
 
@@ -44,9 +44,7 @@ if (process.argv[2] === 'pipe') {
   // Allow child process to self terminate
   child.disconnect();
 
-  child.on('exit', function() {
-    process.exit(0);
-  });
+  child.on('exit', common.mustCall());
 
 } else {
   // Testcase | start primary && child IPC test
