@@ -7,6 +7,7 @@ require('../common');
 const assert = require('assert');
 const { registerHooks } = require('module');
 const fixtures = require('../common/fixtures');
+const { pathToFileURL } = require('url');
 
 const redirectedPath = fixtures.path('module-hooks', 'redirected-assert.js');
 
@@ -16,7 +17,7 @@ const hook = registerHooks({
     if (specifier === 'test-consistency-target') {
       resolvedSpecifiers.push(specifier);
       return {
-        url: `file://${redirectedPath}`,
+        url: pathToFileURL(redirectedPath).href,
         shortCircuit: true,
       };
     }
