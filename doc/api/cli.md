@@ -3612,6 +3612,7 @@ V8 options that are allowed are:
 * `--expose-gc`
 * `--interpreted-frames-native-stack`
 * `--jitless`
+* `--max-heap-size`
 * `--max-old-space-size`
 * `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
@@ -3967,6 +3968,12 @@ documented here:
 ### `--interpreted-frames-native-stack`
 
 ### `--jitless`
+
+### `--max-heap-size`
+
+Specifies the maximum heap size (in megabytes) for the process.
+
+This option is typically used to limit the amount of memory the process can use for its JavaScript heap.
 
 <!-- Anchor to make sure old links find a target -->
 
