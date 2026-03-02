@@ -31,6 +31,20 @@ const testResBody = 'response content\n';
       });
     }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
 
+    assert.throws(() => {
+      res.writeEarlyHints({
+        'link': '</styles.css>; rel=preload; as=style',
+        'x-bad\r\n': 'value',
+      });
+    }, (err) => err.code === 'ERR_INVALID_HTTP_TOKEN');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        'link': '</styles.css>; rel=preload; as=style',
+        'x-custom': 'bad\r\nvalue',
+      });
+    }, (err) => err.code === 'ERR_INVALID_CHAR');
+
     debug('Server sending full response...');
     res.end(testResBody);
     server.close();
