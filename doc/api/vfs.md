@@ -11,7 +11,7 @@ added: REPLACEME
 <!-- source_link=lib/vfs.js -->
 
 The `node:vfs` module provides a virtual file system that can be mounted
-alongside the real file system. Virtual files can be read using standard `fs`
+alongside the real file system. Virtual files can be read using standard `node:fs`
 operations and loaded as modules using `require()` or `import`.
 
 To access it:
@@ -29,7 +29,7 @@ This module is only available under the `node:` scheme.
 ## Overview
 
 The Virtual File System (VFS) allows you to create in-memory file systems that
-integrate seamlessly with the Node.js `fs` module and module loading system. This
+integrate seamlessly with the Node.js `node:fs` module and module loading system. This
 is useful for:
 
 * Bundling assets in Single Executable Applications (SEA)
@@ -75,7 +75,7 @@ See [Security considerations][] for important warnings about overlay mode.
 ## Basic usage
 
 The following example shows how to create a virtual file system, add files,
-and access them through the standard `fs` API:
+and access them through the standard `node:fs` API:
 
 ```mjs
 import vfs from 'node:vfs';
@@ -155,7 +155,7 @@ Each worker thread has its own independent VFS state. A VFS mounted in the
 main thread is not automatically available in worker threads. To use VFS in
 workers, create and mount a new VFS instance within each worker.
 
-### fs.watch limitations
+### `fs.watch` limitations
 
 The `fs.watch()` and `fs.watchFile()` functions work with VFS files but use
 polling internally rather than native file system notifications, since VFS
@@ -226,7 +226,7 @@ added: REPLACEME
 
 The `VirtualFileSystem` class provides a file system interface backed by a
 provider. It supports standard file system operations and can be mounted to
-make virtual files accessible through the `fs` module.
+make virtual files accessible through the `node:fs` module.
 
 ### `new VirtualFileSystem([provider][, options])`
 
@@ -288,7 +288,7 @@ added: REPLACEME
 * Returns: {VirtualFileSystem} The VFS instance (for chaining or `using`).
 
 Mounts the virtual file system at the specified path prefix. After mounting,
-files in the VFS can be accessed via the `fs` module using paths that start
+files in the VFS can be accessed via the `node:fs` module using paths that start
 with the prefix.
 
 If a real file system path already exists at the mount prefix, the VFS
@@ -410,7 +410,7 @@ added: REPLACEME
 -->
 
 Unmounts the virtual file system. After unmounting, virtual files are no longer
-accessible through the `fs` module. The VFS can be remounted at the same or a
+accessible through the `node:fs` module. The VFS can be remounted at the same or a
 different path by calling `mount()` again. Unmounting also resets the virtual
 working directory if one was set.
 
@@ -419,15 +419,15 @@ has no effect.
 
 ### File System Methods
 
-The `VirtualFileSystem` class provides methods that mirror the `fs` module API.
+The `VirtualFileSystem` class provides methods that mirror the `node:fs` module API.
 All paths are relative to the VFS root (not the mount point).
 
-These methods accept the same argument types as their `fs` counterparts,
+These methods accept the same argument types as their `node:fs` counterparts,
 including `string`, `Buffer`, `TypedArray`, and `DataView` where applicable.
 
 #### Overlay mode behavior
 
-When overlay mode is enabled, the following behavior applies to `fs` operations
+When overlay mode is enabled, the following behavior applies to `node:fs` operations
 on mounted paths.
 
 **Path encoding:** The VFS uses UTF-8 encoding for file and directory names
@@ -465,11 +465,11 @@ before VFS operations.
 
 #### Synchronous Methods
 
-The `VirtualFileSystem` class supports all common synchronous `fs` methods
+The `VirtualFileSystem` class supports all common synchronous `node:fs` methods
 for reading, writing, and managing files and directories. Methods mirror the
-`fs` module API.
+`node:fs` module API.
 
-The following `fs` sync methods have **no** VFS equivalent:
+The following `node:fs` sync methods have **no** VFS equivalent:
 
 * `chmodSync()` / `fchmodSync()` - VFS does not support permission changes
 * `chownSync()` / `fchownSync()` - VFS does not support ownership changes
@@ -515,9 +515,7 @@ added: REPLACEME
 The `VirtualProvider` class is an abstract base class for VFS providers.
 Providers implement the actual file system storage and operations.
 
-### Properties
-
-#### `provider.readonly`
+### `provider.readonly`
 
 <!-- YAML
 added: REPLACEME
@@ -691,9 +689,9 @@ added: REPLACEME
 
 The real file system path that this provider wraps.
 
-## Integration with `fs` module
+## Integration with `node:fs` module
 
-When a VFS is mounted, the standard `fs` module automatically routes operations
+When a VFS is mounted, the standard `node:fs` module automatically routes operations
 to the VFS for paths that match the mount prefix:
 
 ```mjs
@@ -765,10 +763,10 @@ console.log(greet('World')); // Hello, World!
 
 ## Implementation details
 
-### Stats objects
+### `Stats` objects
 
-The VFS returns real `fs.Stats` objects from `stat()`, `lstat()`, and `fstat()`
-operations. These Stats objects behave identically to those returned by the real
+The VFS returns real {fs.Stats} objects from `stat()`, `lstat()`, and `fstat()`
+operations. These `Stats` objects behave identically to those returned by the real
 file system:
 
 * `stats.isFile()`, `stats.isDirectory()`, `stats.isSymbolicLink()` work correctly
@@ -955,13 +953,13 @@ fs.readFileSync('/etc/shadow');  // Returns 'intercepted!' (mocked)
 
 This is particularly dangerous because:
 
-* It's harder to detect than full path shadowing
-* Only specific targeted files are affected
-* Other operations appear to work normally
+* It is harder to detect than full path shadowing.
+* Only specific targeted files are affected.
+* Other operations appear to work normally.
 
 ### Monitoring VFS mounts
 
-To help detect unauthorized VFS usage, the `process` object emits events when
+To help detect unauthorized VFS usage, `node:process` emits events when
 a VFS is mounted or unmounted:
 
 ```cjs

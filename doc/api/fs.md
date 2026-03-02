@@ -129,8 +129,8 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-The `fs` module can operate on virtual files when the [`node:vfs`][] module is
-used. When a virtual file system is mounted, `fs` operations on paths under
+The `node:fs` module can operate on virtual files when the [`node:vfs`][] module is
+used. When a virtual file system is mounted, `node:fs` operations on paths under
 the mount point are automatically routed to the VFS instead of the real file
 system.
 
@@ -148,7 +148,7 @@ fs.readFileSync('/virtual/data.txt', 'utf8'); // 'Hello from VFS'
 myVfs.unmount();
 ```
 
-Not all `fs` operations are supported with VFS. See the [`node:vfs`][]
+Not all `node:fs` operations are supported with VFS. See the [`node:vfs`][]
 documentation for the complete list of supported operations and limitations.
 
 ## Promises API
