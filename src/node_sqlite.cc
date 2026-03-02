@@ -13,6 +13,9 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8-isolate.h"
+#include "v8-local-handle.h"
+#include "v8-maybe.h"
+#include "v8-template.h"
 
 #include <array>
 #include <cinttypes>
@@ -2853,6 +2856,49 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   return scope.Escape(Array::New(isolate, rows.data(), rows.size()));
 }
 
+namespace {
+inline Local<DictionaryTemplate> GetRunResultTemplate(Environment* env,
+                                                      Isolate* isolate) {
+  auto run_result_template = env->sqlite_run_result_template();
+  if (run_result_template.IsEmpty()) {
+    static constexpr std::string_view run_result_keys[] = {"changes",
+                                                           "lastInsertRowid"};
+    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
+    env->set_sqlite_run_result_template(run_result_template);
+  }
+  return run_result_template;
+}
+
+inline MaybeLocal<Object> CreateRunResultObject(Environment* env,
+                                                sqlite3_int64 changes,
+                                                sqlite3_int64 last_insert_rowid,
+                                                bool use_big_ints) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Value> changes_val;
+  Local<Value> last_insert_rowid_val;
+
+  if (use_big_ints) {
+    changes_val = BigInt::New(isolate, changes);
+    last_insert_rowid_val = BigInt::New(isolate, last_insert_rowid);
+  } else {
+    changes_val = Number::New(isolate, changes);
+    last_insert_rowid_val = Number::New(isolate, last_insert_rowid);
+  }
+
+  auto run_result_template = GetRunResultTemplate(env, isolate);
+
+  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
+  Local<Object> result;
+  if (!NewDictionaryInstance(context, run_result_template, values)
+           .ToLocal(&result)) {
+    return {};
+  }
+
+  return result;
+}
+}  // namespace
+
 MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
                                                  DatabaseSync* db,
                                                  sqlite3_stmt* stmt,
@@ -2865,28 +2911,9 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
 
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
-  Local<Value> last_insert_rowid_val;
-  Local<Value> changes_val;
 
-  if (use_big_ints) {
-    last_insert_rowid_val = BigInt::New(isolate, last_insert_rowid);
-    changes_val = BigInt::New(isolate, changes);
-  } else {
-    last_insert_rowid_val = Number::New(isolate, last_insert_rowid);
-    changes_val = Number::New(isolate, changes);
-  }
-
-  auto run_result_template = env->sqlite_run_result_template();
-  if (run_result_template.IsEmpty()) {
-    static constexpr std::string_view run_result_keys[] = {"changes",
-                                                           "lastInsertRowid"};
-    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
-    env->set_sqlite_run_result_template(run_result_template);
-  }
-
-  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
   Local<Object> result;
-  if (!NewDictionaryInstance(env->context(), run_result_template, values)
+  if (!CreateRunResultObject(env, changes, last_insert_rowid, use_big_ints)
            .ToLocal(&result)) {
     return MaybeLocal<Object>();
   }
@@ -4147,9 +4174,11 @@ class alignas(64) OperationResult {
       return Rejected::ErrorCode(error_code, error_message);
     }
 
-    void Connect(Isolate* isolate,
+    void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
+      Isolate* isolate = env->isolate();
+
       // Use ToLocalChecked here because we are trying to report a failure and
       // failing to report a failure would be worse than crashing as it would be
       // an API contract violation.
@@ -4201,10 +4230,10 @@ class alignas(64) OperationResult {
   };
   class Void {
    public:
-    void Connect(Isolate* isolate,
+    void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
-      resolver->Resolve(context, Undefined(isolate)).Check();
+      resolver->Resolve(context, Undefined(env->isolate())).Check();
     }
   };
   class PreparedStatement {
@@ -4212,9 +4241,10 @@ class alignas(64) OperationResult {
     explicit PreparedStatement(BaseObjectPtr<Database> db, sqlite3_stmt* stmt)
         : db_(std::move(db)), stmt_(stmt) {}
 
-    void Connect(Isolate* isolate,
+    void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
+      Isolate* isolate = env->isolate();
       auto* stmt = stmt_;
       if (!db_->IsOpen()) {
         // Database is closing, therefore directly create a disposed Statement.
@@ -4245,10 +4275,10 @@ class alignas(64) OperationResult {
    public:
     explicit Value(transfer::value value) : value_(std::move(value)) {}
 
-    void Connect(Isolate* isolate,
+    void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
-      resolver->Resolve(context, transfer::to_v8_value(isolate)(value_))
+      resolver->Resolve(context, transfer::to_v8_value(env->isolate())(value_))
           .Check();
     }
 
@@ -4260,9 +4290,10 @@ class alignas(64) OperationResult {
     explicit Values(std::pmr::vector<transfer::value> values)
         : values_(std::move(values)) {}
 
-    void Connect(Isolate* isolate,
+    void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
+      Isolate* isolate = env->isolate();
       CHECK_LE(values_.size(),
                static_cast<size_t>(std::numeric_limits<int>::max()));
       int size = static_cast<int>(values_.size());
@@ -4277,9 +4308,27 @@ class alignas(64) OperationResult {
    private:
     std::pmr::vector<transfer::value> values_;
   };
+  class RunResult {
+   public:
+    RunResult(sqlite3_int64 changes, sqlite3_int64 last_insert_rowid)
+        : changes_(changes), last_insert_rowid_(last_insert_rowid) {}
+
+    void Connect(Environment* env,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      auto result =
+          CreateRunResultObject(env, changes_, last_insert_rowid_, false)
+              .ToLocalChecked();
+      resolver->Resolve(context, result).Check();
+    }
+
+   private:
+    sqlite3_int64 changes_;
+    sqlite3_int64 last_insert_rowid_;
+  };
 
   using variant_type =
-      std::variant<Void, Value, Values, Rejected, PreparedStatement>;
+      std::variant<Void, Value, Values, Rejected, PreparedStatement, RunResult>;
 
  public:
   static OperationResult RejectErrorCode(OperationBase* origin,
@@ -4301,6 +4350,11 @@ class alignas(64) OperationResult {
       OperationBase* origin, std::pmr::vector<transfer::value>&& values) {
     return OperationResult{origin, Values{std::move(values)}};
   }
+  static OperationResult ResolveRunResult(OperationBase* origin,
+                                          sqlite3_int64 changes,
+                                          sqlite3_int64 last_insert_rowid) {
+    return OperationResult{origin, RunResult{changes, last_insert_rowid}};
+  }
   static OperationResult ResolvePreparedStatement(OperationBase* origin,
                                                   BaseObjectPtr<Database> db,
                                                   sqlite3_stmt* stmt) {
@@ -4312,14 +4366,12 @@ class alignas(64) OperationResult {
   OperationResult(OperationBase* origin, T&& value)
       : origin_(origin), result_(std::forward<T>(value)) {}
 
-  void Connect(Isolate* isolate) const {
-    Local<Context> context = isolate->GetCurrentContext();
-    Local<Promise::Resolver> resolver = origin_->GetResolver(isolate);
-    std::visit(
-        [isolate, &context, &resolver](auto&& value) {
-          value.Connect(isolate, context, *resolver);
-        },
-        result_);
+  void Connect(Environment* env) const {
+    Local<Context> context = env->context();
+    Local<Promise::Resolver> resolver = origin_->GetResolver(env->isolate());
+    std::visit([env, &context, &resolver](
+                   auto&& value) { value.Connect(env, context, *resolver); },
+               result_);
   }
 
  private:
@@ -4450,6 +4502,35 @@ class StatementAllOperation : private OperationBase {
   transfer::value bind_arguments_;
 };
 
+class StatementRunOperation : private OperationBase {
+ public:
+  StatementRunOperation(Global<Promise::Resolver>&& resolver,
+                        sqlite3_stmt* stmt,
+                        transfer::value&& bind_arguments)
+      : OperationBase(std::move(resolver)),
+        stmt_(stmt),
+        bind_arguments_(std::move(bind_arguments)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
+    if (int r = transfer::bind_value(stmt_)(bind_arguments_); r != SQLITE_OK) {
+      return OperationResult::RejectErrorCode(this, r);
+    }
+    (void)sqlite3_step(stmt_);
+    if (sqlite3_reset(stmt_) != SQLITE_OK) {
+      return OperationResult::RejectLastError(this, connection);
+    }
+
+    sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(connection);
+    sqlite3_int64 changes = sqlite3_changes(connection);
+    return OperationResult::ResolveRunResult(this, changes, last_insert_rowid);
+  }
+
+ private:
+  sqlite3_stmt* stmt_;
+  transfer::value bind_arguments_;
+};
+
 class ExecOperation : private OperationBase {
  public:
   ExecOperation(Global<Promise::Resolver>&& resolver, std::pmr::string&& sql)
@@ -4488,6 +4569,7 @@ class CloseOperation : private OperationBase {
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
                                StatementAllOperation,
+                               StatementRunOperation,
                                PrepareStatementOperation,
                                FinalizeStatementOperation,
                                CloseOperation>;
@@ -4662,11 +4744,11 @@ class DatabaseOperationExecutor final : private ThreadPoolWork {
     if (results.empty()) {
       return;
     }
-    Isolate* isolate = env()->isolate();
-    HandleScope handle_scope(isolate);
+    Environment* env = this->env();
+    HandleScope handle_scope(env->isolate());
 
     for (OperationResult& result : results) {
-      result.Connect(isolate);
+      result.Connect(env);
     }
   }
   void ScheduleWork(DatabaseOperationQueue* batch) {
@@ -5026,6 +5108,7 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
                             Statement::IsDisposedGetter);
     SetProtoMethod(isolate, tmpl, "get", Statement::Get);
     SetProtoMethod(isolate, tmpl, "all", Statement::All);
+    SetProtoMethod(isolate, tmpl, "run", Statement::Run);
 
     env->set_sqlite_statement_constructor_template(tmpl);
   }
@@ -5117,6 +5200,29 @@ void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(stmt->db_->Schedule<StatementAllOperation>(
+      stmt->statement_, std::move(bind_arguments)));
+}
+
+void Statement::Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, stmt->IsDisposed(), "statement is disposed");
+
+  transfer::value bind_arguments;
+  if (args.Length() >= 1) {
+    TryCatch try_catch(env->isolate());
+    if (!transfer::ToValue(env->isolate(), args[0].As<Value>())
+             .MoveTo(&bind_arguments)) {
+      if (try_catch.HasCaught() && try_catch.CanContinue()) {
+        RejectErr(env, args, try_catch.Exception());
+      }
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(stmt->db_->Schedule<StatementRunOperation>(
       stmt->statement_, std::move(bind_arguments)));
 }
 

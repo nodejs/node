@@ -275,7 +275,7 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     });
   });
 
-  test.skip('allows unknown named parameters', async (t) => {
+  test('allows unknown named parameters', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { allowUnknownNamedParameters: true });
     t.after(async () => { await db.close(); });
@@ -284,7 +284,7 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     );
     t.assert.strictEqual(setup, undefined);
 
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    using stmt = await db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
     const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
     t.assert.deepStrictEqual(
       await stmt.run(params),

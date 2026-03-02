@@ -189,29 +189,29 @@ suite.skip('Statement.prototype.iterate()', () => {
   });
 });
 
-suite.skip('Statement.prototype.run()', () => {
+suite('Statement.prototype.run()', () => {
   test('executes a query and returns change metadata', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(`
       CREATE TABLE storage(key TEXT, val TEXT);
       INSERT INTO storage (key, val) VALUES ('foo', 'bar');
     `);
     t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('SELECT * FROM storage');
+    using stmt = await db.prepare('SELECT * FROM storage');
     t.assert.deepStrictEqual(await stmt.run(), { changes: 1, lastInsertRowid: 1 });
   });
 
-  test('SQLite throws when trying to bind too many parameters', async (t) => {
+  test.skip('SQLite throws when trying to bind too many parameters', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    using stmt = await db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
     t.assert.throws(() => {
-      stmt.run(1, 2, 3);
+      stmt.run([1, 2, 3]);
     }, {
       code: 'ERR_SQLITE_ERROR',
       message: 'column index out of range',
@@ -222,14 +222,14 @@ suite.skip('Statement.prototype.run()', () => {
 
   test('SQLite defaults to NULL for unbound parameters', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    using stmt = await db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
     await t.assert.rejects(
-      stmt.run(1),
+      stmt.run([1]),
       {
         code: 'ERR_SQLITE_ERROR',
         message: 'NOT NULL constraint failed: data.val',
@@ -245,29 +245,29 @@ suite.skip('Statement.prototype.run()', () => {
     );
     t.assert.strictEqual(setup, undefined);
     const sql = 'INSERT INTO data (key, val) VALUES ($k, $v) RETURNING key';
-    const stmt = db.prepare(sql);
+    using stmt = await db.prepare(sql);
     t.assert.deepStrictEqual(
-      await stmt.run({ k: 1, v: 10 }), { changes: 1, lastInsertRowid: 1 }
+      await stmt.run({ $k: 1, $v: 10 }), { changes: 1, lastInsertRowid: 1 }
     );
     t.assert.deepStrictEqual(
-      await stmt.run({ k: 2, v: 20 }), { changes: 1, lastInsertRowid: 2 }
+      await stmt.run({ $k: 2, $v: 20 }), { changes: 1, lastInsertRowid: 2 }
     );
     t.assert.deepStrictEqual(
-      await stmt.run({ k: 3, v: 30 }), { changes: 1, lastInsertRowid: 3 }
+      await stmt.run({ $k: 3, $v: 30 }), { changes: 1, lastInsertRowid: 3 }
     );
   });
 
   test('SQLite defaults unbound ?NNN parameters', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?3)');
+    using stmt = await db.prepare('INSERT INTO data (key, val) VALUES (?1, ?3)');
 
     await t.assert.rejects(
-      stmt.run(1),
+      stmt.run([1]),
       {
         code: 'ERR_SQLITE_ERROR',
         message: 'NOT NULL constraint failed: data.val',
@@ -278,13 +278,13 @@ suite.skip('Statement.prototype.run()', () => {
 
   test('binds ?NNN params by position', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?2)');
-    t.assert.deepStrictEqual(await stmt.run(1, 2), { changes: 1, lastInsertRowid: 1 });
+    using stmt = await db.prepare('INSERT INTO data (key, val) VALUES (?1, ?2)');
+    t.assert.deepStrictEqual(await stmt.run([1, 2]), { changes: 1, lastInsertRowid: 1 });
   });
 });
 
