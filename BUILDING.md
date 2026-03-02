@@ -134,8 +134,8 @@ welcome.
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10 |
 | GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24 |
 | GNU/Linux        | armv6            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 12 |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36 |                             |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36 |                             |
+| GNU/Linux        | loong64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04           |
+| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04           |
 | FreeBSD          | x64              | >= 13.2                       |                             |
 | OpenHarmony      | arm64            | >= 5.0                        |                             |
 
