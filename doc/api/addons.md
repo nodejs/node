@@ -1359,6 +1359,7 @@ console.log(result);
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Node-API]: n-api.md
 [V8]: https://v8.dev/
+[`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
 [`Worker`]: worker_threads.md#class-worker
 [`libuv`]: https://github.com/libuv/libuv
 [`node-gyp`]: https://github.com/nodejs/node-gyp
@@ -1366,6 +1367,5 @@ console.log(result);
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
 [examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
-[implementation considerations]: n-api.md#implications-of-abi-stability
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [v8-docs]: https://v8docs.nodesource.com/
