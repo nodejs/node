@@ -17,6 +17,7 @@
 #include <array>
 #include <cinttypes>
 #include <cmath>
+#include <concepts>
 #include <limits>
 #include <memory_resource>
 #include <variant>
@@ -89,6 +90,14 @@ using v8::Value;
   do {                                                                         \
     if ((condition)) {                                                         \
       RejectErrInvalidState((env), (args), (msg));                             \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
+#define REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(env, args, condition, msg)       \
+  do {                                                                         \
+    if ((condition)) {                                                         \
+      RejectErrInvalidArgType((env), (args), (msg));                           \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -305,15 +314,40 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   }
 }
 
-inline void RejectErrInvalidState(Environment* env,
-                                  const FunctionCallbackInfo<Value>& args,
-                                  std::string_view message) {
-  Isolate* isolate = env->isolate();
+inline void RejectErr(Environment* env,
+                      const FunctionCallbackInfo<Value>& args,
+                      Local<Value> error) {
   Local<Context> context = env->context();
-  Local<Object> error = ERR_INVALID_STATE(isolate, message);
   auto resolver = Promise::Resolver::New(context).ToLocalChecked();
   resolver->Reject(context, error).ToChecked();
   args.GetReturnValue().Set(resolver->GetPromise());
+}
+
+template <typename ErrFactory>
+  requires requires(ErrFactory err_factory, Isolate* isolate) {
+    { err_factory(isolate) } -> std::convertible_to<Local<Value>>;
+  }
+inline void RejectErr(Environment* env,
+                      const FunctionCallbackInfo<Value>& args,
+                      ErrFactory&& err_factory) {
+  Local<Value> error = err_factory(env->isolate());
+  RejectErr(env, args, error);
+}
+
+inline void RejectErrInvalidState(Environment* env,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  std::string_view message) {
+  RejectErr(env, args, [&](Isolate* isolate) -> Local<Object> {
+    return ERR_INVALID_STATE(isolate, message);
+  });
+}
+
+inline void RejectErrInvalidArgType(Environment* env,
+                                    const FunctionCallbackInfo<Value>& args,
+                                    std::string_view message) {
+  RejectErr(env, args, [&](Isolate* isolate) -> Local<Object> {
+    return ERR_INVALID_ARG_TYPE(isolate, message);
+  });
 }
 
 inline void RejectWithSQLiteError(Environment* env,
@@ -4938,12 +4972,12 @@ void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   REJECT_AND_RETURN_ON_INVALID_STATE(
       env, args, !db->IsOpen(), "database is not open");
+  REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+      env,
+      args,
+      args.Length() < 1 || !args[0]->IsString(),
+      "The \"sql\" argument must be a string.");
 
-  if (!args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"sql\" argument must be a string.");
-    return;
-  }
   Utf8Value sql(env->isolate(), args[0].As<String>());
   args.GetReturnValue().Set(
       db->Schedule<ExecOperation>(std::pmr::string(*sql, sql.length())));
@@ -5048,9 +5082,13 @@ void Statement::Get(const v8::FunctionCallbackInfo<v8::Value>& args) {
       env, args, stmt->IsDisposed(), "statement is disposed");
 
   transfer::value bind_arguments;
-  if (args.Length() > 1) {
+  if (args.Length() >= 1) {
+    TryCatch try_catch(env->isolate());
     if (!transfer::ToValue(env->isolate(), args[0].As<Value>())
              .MoveTo(&bind_arguments)) {
+      if (try_catch.HasCaught() && try_catch.CanContinue()) {
+        RejectErr(env, args, try_catch.Exception());
+      }
       return;
     }
   }
@@ -5067,9 +5105,13 @@ void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
       env, args, stmt->IsDisposed(), "statement is disposed");
 
   transfer::value bind_arguments;
-  if (args.Length() > 1) {
+  if (args.Length() >= 1) {
+    TryCatch try_catch(env->isolate());
     if (!transfer::ToValue(env->isolate(), args[0].As<Value>())
              .MoveTo(&bind_arguments)) {
+      if (try_catch.HasCaught() && try_catch.CanContinue()) {
+        RejectErr(env, args, try_catch.Exception());
+      }
       return;
     }
   }

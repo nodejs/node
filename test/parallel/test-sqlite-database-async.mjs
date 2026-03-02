@@ -508,12 +508,12 @@ suite('Database.prototype.exec()', { timeout: 1000 }, () => {
       });
   });
 
-  test('throws if sql is not a string', (t) => {
+  test('rejects if sql is not a string', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
 
-    t.assert.throws(() => {
-      db.exec();
+    await t.assert.rejects(async () => {
+      await db.exec();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
