@@ -3867,7 +3867,7 @@ Number of times the test has been attempted.
 ### `context.workerId`
 
 <!-- YAML
-added: REPLACEME
+added: v25.8.0
 -->
 
 * Type: {number|undefined}
