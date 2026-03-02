@@ -441,11 +441,11 @@ suite('Database.prototype.prepare()', { timeout: 1000 }, () => {
     t.assert.ok(stmt instanceof Statement);
   });
 
-  test('throws if database is not open', (t) => {
+  test('throws if database is not open', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
-    t.assert.throws(() => {
-      db.prepare();
+    await t.assert.rejects(async () => {
+      await db.prepare();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
@@ -497,15 +497,15 @@ suite('Database.prototype.exec()', { timeout: 1000 }, () => {
       });
   });
 
-  test('throws if database is not open', (t) => {
+  test('throws if database is not open', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
-    t.assert.throws(() => {
-      db.exec();
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /database is not open/,
-    });
+    await t.assert.rejects(
+      db.exec(),
+      {
+        code: 'ERR_INVALID_STATE',
+        message: /database is not open/,
+      });
   });
 
   test('throws if sql is not a string', (t) => {

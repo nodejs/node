@@ -12,6 +12,7 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 #include "uv.h"
+#include "v8-isolate.h"
 
 #include <array>
 #include <cinttypes>
@@ -80,6 +81,14 @@ using v8::Value;
   do {                                                                         \
     if ((condition)) {                                                         \
       THROW_ERR_INVALID_STATE((env), (msg));                                   \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
+#define REJECT_AND_RETURN_ON_INVALID_STATE(env, args, condition, msg)          \
+  do {                                                                         \
+    if ((condition)) {                                                         \
+      RejectErrInvalidState((env), (args), (msg));                             \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -294,6 +303,17 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
           .IsJust()) {
     isolate->ThrowException(error);
   }
+}
+
+inline void RejectErrInvalidState(Environment* env,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  std::string_view message) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> error = ERR_INVALID_STATE(isolate, message);
+  auto resolver = Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Reject(context, error).ToChecked();
+  args.GetReturnValue().Set(resolver->GetPromise());
 }
 
 inline void RejectWithSQLiteError(Environment* env,
@@ -4845,17 +4865,11 @@ void Database::Close(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
 
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
   if (!db->IsOpen()) {
     if (!db->IsDisposed()) {
       db->EnterDisposedStateSync();
     }
-    auto resolver = Promise::Resolver::New(context).ToLocalChecked();
-    resolver
-        ->Reject(context,
-                 ERR_INVALID_STATE(env->isolate(), "database is not open"))
-        .Check();
-    args.GetReturnValue().Set(resolver->GetPromise());
+    RejectErrInvalidState(env, args, "database is not open");
     return;
   }
 
@@ -4897,7 +4911,8 @@ void Database::Prepare(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   // TODO(BurningEnlightenment): these should be rejections
-  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
 
   if (!args[0]->IsString()) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -4921,7 +4936,8 @@ void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // TODO(BurningEnlightenment): these should be rejections
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
 
   if (!args[0]->IsString()) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -5028,8 +5044,8 @@ void Statement::Get(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsDisposed(), "statement is disposed");
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, stmt->IsDisposed(), "statement is disposed");
 
   transfer::value bind_arguments;
   if (args.Length() > 1) {
@@ -5047,8 +5063,8 @@ void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsDisposed(), "statement is disposed");
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, stmt->IsDisposed(), "statement is disposed");
 
   transfer::value bind_arguments;
   if (args.Length() > 1) {
