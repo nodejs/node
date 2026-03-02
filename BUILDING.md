@@ -128,7 +128,7 @@ releases for these platforms. Test failures on experimental platforms do not
 block releases. Contributions to improve support for these platforms are
 welcome.
 
-| Operating System | Architectures    | Versions                      | Notes                                          |
+| Operating System | Architectures    | Versions[^7]                  | Notes                                          |
 | ---------------- | ---------------- | ----------------------------- | ---------------------------------------------- |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10                    |
 | GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24                    |
@@ -167,6 +167,8 @@ welcome.
     `-march=rv64gcv` and doesn't support the `target` attribute at all.
     Cross-compilation from x64 is unaffected (the code is behind
     `V8_HOST_ARCH_RISCV64`).
+
+[^7]: Older kernel or libc versions may work.
 
 <!--lint enable final-definition-->
 
