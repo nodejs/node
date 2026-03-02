@@ -65,33 +65,39 @@ suite('Statement.prototype.get()', () => {
   });
 });
 
-suite.skip('Statement.prototype.all()', () => {
+suite('Statement.prototype.all()', () => {
   test('executes a query and returns an empty array on no results', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.after(async () => { await db.close(); });
+    using stmt = await db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.deepStrictEqual(await stmt.all(), []);
   });
 
-  test('executes a query and returns all results', async (t) => {
+  test.skip('executes a query and returns all results', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
-    t.assert.deepStrictEqual(await stmt.run(), { changes: 0, lastInsertRowid: 0 });
-    stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
-    t.assert.deepStrictEqual(
-      await stmt.run('key1', 'val1'),
-      { changes: 1, lastInsertRowid: 1 },
-    );
-    t.assert.deepStrictEqual(
-      await stmt.run('key2', 'val2'),
-      { changes: 1, lastInsertRowid: 2 },
-    );
-    stmt = db.prepare('SELECT * FROM storage ORDER BY key');
-    t.assert.deepStrictEqual(await stmt.all(), [
-      { __proto__: null, key: 'key1', val: 'val1' },
-      { __proto__: null, key: 'key2', val: 'val2' },
-    ]);
+    t.after(async () => { await db.close(); });
+    {
+      using stmt = await db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+      t.assert.deepStrictEqual(await stmt.run(), { changes: 0, lastInsertRowid: 0 });
+    }
+    {
+      using stmt = await db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
+      t.assert.deepStrictEqual(
+        await stmt.run('key1', 'val1'),
+        { changes: 1, lastInsertRowid: 1 },
+      );
+      t.assert.deepStrictEqual(
+        await stmt.run('key2', 'val2'),
+        { changes: 1, lastInsertRowid: 2 },
+      );
+    }
+    {
+      using stmt = await db.prepare('SELECT * FROM storage ORDER BY key');
+      t.assert.deepStrictEqual(await stmt.all(), [
+        { __proto__: null, key: 'key1', val: 'val1' },
+        { __proto__: null, key: 'key2', val: 'val2' },
+      ]);
+    }
   });
 });
 
@@ -441,8 +447,8 @@ suite.skip('Statement.prototype.get() with array output', () => {
   });
 });
 
-suite.skip('Statement.prototype.all() with array output', () => {
-  test('returns array rows when setReturnArrays is true', async (t) => {
+suite('Statement.prototype.all() with array output', () => {
+  test.skip('returns array rows when setReturnArrays is true', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
     const setup = await db.exec(`
@@ -498,124 +504,12 @@ suite.skip('Statement.prototype.all() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT * FROM wide_table');
-    query.setReturnArrays(true);
+    using query = await db.prepare('SELECT * FROM wide_table', {
+      returnArrays: true,
+    });
 
     const results = await query.all();
     t.assert.strictEqual(results.length, 1);
     t.assert.deepStrictEqual(results[0], expected);
-  });
-});
-
-suite.skip('Statement.prototype.iterate() with array output', () => {
-  test('iterates array rows when setReturnArrays is true', async (t) => {
-    const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    const setup = await db.exec(`
-      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
-      INSERT INTO data (key, val) VALUES (1, 'one');
-      INSERT INTO data (key, val) VALUES (2, 'two');
-    `);
-    t.assert.strictEqual(setup, undefined);
-
-    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
-
-    // Test with objects first
-    const objectRows = [];
-    for (const row of query.iterate()) {
-      objectRows.push(row);
-    }
-    t.assert.deepStrictEqual(objectRows, [
-      { __proto__: null, key: 1, val: 'one' },
-      { __proto__: null, key: 2, val: 'two' },
-    ]);
-
-    // Test with arrays
-    query.setReturnArrays(true);
-    const arrayRows = [];
-    for (const row of query.iterate()) {
-      arrayRows.push(row);
-    }
-    t.assert.deepStrictEqual(arrayRows, [
-      [1, 'one'],
-      [2, 'two'],
-    ]);
-
-    // Test toArray() method
-    t.assert.deepStrictEqual(query.iterate().toArray(), [
-      [1, 'one'],
-      [2, 'two'],
-    ]);
-  });
-
-  test('iterator can be exited early with array rows', async (t) => {
-    const db = new Database(':memory:');
-    await db.exec(`
-      CREATE TABLE test(key TEXT, val TEXT);
-      INSERT INTO test (key, val) VALUES ('key1', 'val1');
-      INSERT INTO test (key, val) VALUES ('key2', 'val2');
-    `);
-    const stmt = db.prepare('SELECT key, val FROM test');
-    stmt.setReturnArrays(true);
-
-    const iterator = stmt.iterate();
-    const results = [];
-
-    for (const item of iterator) {
-      results.push(item);
-      break;
-    }
-
-    t.assert.deepStrictEqual(results, [
-      ['key1', 'val1'],
-    ]);
-    t.assert.deepStrictEqual(
-      iterator.next(),
-      { __proto__: null, done: true, value: null },
-    );
-  });
-});
-
-suite.skip('Statement.prototype.setAllowBareNamedParameters()', () => {
-  test('bare named parameter support can be toggled', async (t) => {
-    const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    const setup = await db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.deepStrictEqual(
-      await stmt.run({ k: 1, v: 2 }),
-      { changes: 1, lastInsertRowid: 1 },
-    );
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), undefined);
-    t.assert.throws(() => {
-      stmt.run({ k: 2, v: 4 });
-    }, {
-      code: 'ERR_INVALID_STATE',
-      message: /Unknown named parameter 'k'/,
-    });
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
-    t.assert.deepStrictEqual(
-      await stmt.run({ k: 3, v: 6 }),
-      { changes: 1, lastInsertRowid: 3 },
-    );
-  });
-
-  test('throws when input is not a boolean', async (t) => {
-    const db = new Database(nextDb());
-    t.after(() => { db.close(); });
-    const setup = await db.exec(
-      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
-    );
-    t.assert.strictEqual(setup, undefined);
-    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.throws(() => {
-      stmt.setAllowBareNamedParameters();
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "allowBareNamedParameters" argument must be a boolean/,
-    });
   });
 });

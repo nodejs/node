@@ -478,7 +478,7 @@ suite('Database.prototype.exec()', { timeout: 1000 }, () => {
       INSERT INTO data (key, val) VALUES (8, 9);
     `);
     t.assert.strictEqual(result, undefined);
-    const stmt = db.prepare('SELECT * FROM data ORDER BY key');
+    using stmt = await db.prepare('SELECT * FROM data ORDER BY key');
     t.assert.deepStrictEqual(await stmt.all(), [
       { __proto__: null, key: 1, val: 2 },
       { __proto__: null, key: 8, val: 9 },
@@ -625,7 +625,7 @@ suite('Async operation ordering', { timeout: 1000 }, () => {
     await Promise.all(ops);
 
     // Check they were inserted in order (sequential execution)
-    const stmt = db.prepare('SELECT id, seq FROM test ORDER BY id');
+    using stmt = await db.prepare('SELECT id, seq FROM test ORDER BY id');
     const rows = await stmt.all();
 
     // Verify sequential: id should match seq + 1 (autoincrement starts at 1)
@@ -638,7 +638,7 @@ suite('Async operation ordering', { timeout: 1000 }, () => {
   test('different connections can execute in parallel', { timeout: 5000 }, async (t) => {
     const db1 = new Database(':memory:');
     const db2 = new Database(':memory:');
-    t.after(() => { db1.close(); db2.close(); });
+    t.after(async () => { await Promise.all([db1.close(), db2.close()]); });
     const times = {};
     const now = () => process.hrtime.bigint();
     const LONG_QUERY = `

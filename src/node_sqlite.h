@@ -530,6 +530,7 @@ class Statement final : public BaseObject {
   bool IsDisposed() const;
 
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SET_MEMORY_INFO_NAME(Statement)
   SET_SELF_SIZE(Statement)

@@ -4201,8 +4201,31 @@ class alignas(64) OperationResult {
    private:
     transfer::value value_;
   };
+  class Values {
+   public:
+    explicit Values(std::pmr::vector<transfer::value> values)
+        : values_(std::move(values)) {}
 
-  using variant_type = std::variant<Void, Value, Rejected, PreparedStatement>;
+    void Connect(Isolate* isolate,
+                 Local<Context> context,
+                 Promise::Resolver* resolver) const {
+      CHECK_LE(values_.size(),
+               static_cast<size_t>(std::numeric_limits<int>::max()));
+      int size = static_cast<int>(values_.size());
+      Local<Array> array = Array::New(isolate, size);
+      for (int i = 0; i < size; ++i) {
+        auto element = transfer::to_v8_value(isolate)(values_[i]);
+        array->Set(context, static_cast<uint32_t>(i), element).Check();
+      }
+      resolver->Resolve(context, array).Check();
+    }
+
+   private:
+    std::pmr::vector<transfer::value> values_;
+  };
+
+  using variant_type =
+      std::variant<Void, Value, Values, Rejected, PreparedStatement>;
 
  public:
   static OperationResult RejectErrorCode(OperationBase* origin,
@@ -4219,6 +4242,10 @@ class alignas(64) OperationResult {
   static OperationResult ResolveValue(OperationBase* origin,
                                       transfer::value&& value) {
     return OperationResult{origin, Value{std::move(value)}};
+  }
+  static OperationResult ResolveValues(
+      OperationBase* origin, std::pmr::vector<transfer::value>&& values) {
+    return OperationResult{origin, Values{std::move(values)}};
   }
   static OperationResult ResolvePreparedStatement(OperationBase* origin,
                                                   BaseObjectPtr<Database> db,
@@ -4328,6 +4355,47 @@ class StatementGetOperation : private OperationBase {
   transfer::value bind_arguments_;
 };
 
+class StatementAllOperation : private OperationBase {
+ public:
+  StatementAllOperation(Global<Promise::Resolver>&& resolver,
+                        sqlite3_stmt* stmt,
+                        transfer::value&& bind_arguments)
+      : OperationBase(std::move(resolver)),
+        stmt_(stmt),
+        bind_arguments_(std::move(bind_arguments)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
+    if (int r = transfer::bind_value(stmt_)(bind_arguments_); r != SQLITE_OK) {
+      return OperationResult::RejectErrorCode(this, r);
+    }
+    auto reset_statement = OnScopeLeave([&] { sqlite3_reset(stmt_); });
+
+    std::pmr::vector<transfer::value> rows;
+    int r;
+    int num_cols = sqlite3_column_count(stmt_);
+    for (r = sqlite3_step(stmt_); r == SQLITE_ROW; r = sqlite3_step(stmt_)) {
+      if (num_cols == 0) {
+        rows.emplace_back(in_place_type<std::pmr::vector<transfer::literal>>);
+        continue;
+      }
+
+      std::pmr::vector<transfer::literal> row;
+      row.reserve(num_cols);
+      for (int i = 0; i < num_cols; ++i) {
+        row.push_back(transfer::FromColumn(connection, stmt_, i));
+      }
+      rows.emplace_back(in_place_type<std::pmr::vector<transfer::literal>>,
+                        std::move(row));
+    }
+    return OperationResult::ResolveValues(this, std::move(rows));
+  }
+
+ private:
+  sqlite3_stmt* stmt_;
+  transfer::value bind_arguments_;
+};
+
 class ExecOperation : private OperationBase {
  public:
   ExecOperation(Global<Promise::Resolver>&& resolver, std::pmr::string&& sql)
@@ -4365,6 +4433,7 @@ class CloseOperation : private OperationBase {
 
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
+                               StatementAllOperation,
                                PrepareStatementOperation,
                                FinalizeStatementOperation,
                                CloseOperation>;
@@ -4906,6 +4975,7 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
                             FIXED_ONE_BYTE_STRING(isolate, "isDisposed"),
                             Statement::IsDisposedGetter);
     SetProtoMethod(isolate, tmpl, "get", Statement::Get);
+    SetProtoMethod(isolate, tmpl, "all", Statement::All);
 
     env->set_sqlite_statement_constructor_template(tmpl);
   }
@@ -4970,6 +5040,25 @@ void Statement::Get(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(stmt->db_->Schedule<StatementGetOperation>(
+      stmt->statement_, std::move(bind_arguments)));
+}
+
+void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsDisposed(), "statement is disposed");
+
+  transfer::value bind_arguments;
+  if (args.Length() > 1) {
+    if (!transfer::ToValue(env->isolate(), args[0].As<Value>())
+             .MoveTo(&bind_arguments)) {
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(stmt->db_->Schedule<StatementAllOperation>(
       stmt->statement_, std::move(bind_arguments)));
 }
 
