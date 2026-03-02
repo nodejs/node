@@ -178,10 +178,14 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 
 ### Virtual File System (VFS) for assets
 
+<!-- YAML
+added: REPLACEME
+-->
+
 > Stability: 1 - Experimental
 
 In addition to using the `node:sea` API to access individual assets, you can use
-the Virtual File System (VFS) to access bundled assets through standard `fs`
+the Virtual File System (VFS) to access bundled assets through standard `node:fs`
 APIs. To enable VFS, set `"useVfs": true` in the SEA configuration. When
 enabled, the VFS is automatically initialized and mounted at `/sea`. All
 assets defined in the SEA configuration are accessible through this virtual
@@ -205,7 +209,7 @@ if (fs.existsSync('/sea/optional.json')) {
 }
 ```
 
-The VFS supports all common `fs` operations for reading files and directories.
+The VFS supports all common `node:fs` operations for reading files and directories.
 Since the SEA VFS is read-only, write operations are not supported. See the
 [VFS documentation][] for the full list of supported and unsupported operations.
 
