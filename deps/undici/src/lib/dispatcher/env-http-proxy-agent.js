@@ -95,16 +95,14 @@ class EnvHttpProxyAgent extends DispatcherBase {
       if (entry.port && entry.port !== port) {
         continue // Skip if ports don't match.
       }
-      if (!/^[.*]/.test(entry.hostname)) {
-        // No wildcards, so don't proxy only if there is not an exact match.
-        if (hostname === entry.hostname) {
-          return false
-        }
-      } else {
-        // Don't proxy if the hostname ends with the no_proxy host.
-        if (hostname.endsWith(entry.hostname.replace(/^\*/, ''))) {
-          return false
-        }
+      // Don't proxy if the hostname is equal with the no_proxy host.
+      if (hostname === entry.hostname) {
+        return false
+      }
+      // Don't proxy if the hostname is the subdomain of the no_proxy host.
+      // Reference - https://github.com/denoland/deno/blob/6fbce91e40cc07fc6da74068e5cc56fdd40f7b4c/ext/fetch/proxy.rs#L485
+      if (hostname.slice(-(entry.hostname.length + 1)) === `.${entry.hostname}`) {
+        return false
       }
     }
 
@@ -123,7 +121,8 @@ class EnvHttpProxyAgent extends DispatcherBase {
       }
       const parsed = entry.match(/^(.+):(\d+)$/)
       noProxyEntries.push({
-        hostname: (parsed ? parsed[1] : entry).toLowerCase(),
+        // strip leading dot or asterisk with dot
+        hostname: (parsed ? parsed[1] : entry).replace(/^\*?\./, '').toLowerCase(),
         port: parsed ? Number.parseInt(parsed[2], 10) : 0
       })
     }
