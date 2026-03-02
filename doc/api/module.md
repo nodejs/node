@@ -2120,9 +2120,9 @@ returned object contains the following keys:
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
+[`HostLoadImportedModule`]: https://tc39.es/ecma262/#sec-HostLoadImportedModule
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
-[`HostLoadImportedModule`]: https://tc39.es/ecma262/#sec-HostLoadImportedModule
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SourceMap`]: #class-modulesourcemap
