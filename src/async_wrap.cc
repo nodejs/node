@@ -25,6 +25,9 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#ifdef DEBUG
+#include <node_process-inl.h>
+#endif
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
@@ -338,8 +341,7 @@ void AsyncWrap::EmitDestroy(bool from_gc) {
       HandleScope handle_scope(env()->isolate());
       USE(object()->Set(env()->context(), env()->resource_symbol(), object()));
     }
-    Isolate* isolate = env()->isolate();
-    context_frame_.Reset(isolate, Undefined(isolate));
+    context_frame_.Reset();
   }
 }
 
@@ -663,7 +665,14 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                           Local<Value>* argv) {
   EmitTraceEventBefore();
 
-  DCHECK(!context_frame_.IsEmpty());
+#ifdef DEBUG
+  if (context_frame_.IsEmpty()) {
+    ProcessEmitWarning(env(),
+                       "MakeCallback() called without context_frame, "
+                       "likely use after destroy of AsyncWrap.");
+  }
+#endif
+
   ProviderType provider = provider_type();
   async_context context { get_async_id(), get_trigger_async_id() };
   MaybeLocal<Value> ret =
