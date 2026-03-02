@@ -165,3 +165,35 @@ class TestWritable extends Writable {
   const writer = writableStream.getWriter();
   writer.closed.then(common.mustCall());
 }
+
+{
+  const duplex = new PassThrough();
+  const writableStream = newWritableStreamFromStreamWritable(duplex);
+  const ec = new TextEncoder();
+  const arrayBuffer = ec.encode('hello').buffer;
+  writableStream
+    .getWriter()
+    .write(arrayBuffer)
+    .then(common.mustCall());
+
+  duplex.on('data', common.mustCall((chunk) => {
+    assert(chunk instanceof Buffer);
+    assert(chunk.equals(Buffer.from('hello')));
+  }));
+}
+
+{
+  const duplex = new PassThrough({ objectMode: true });
+  const writableStream = newWritableStreamFromStreamWritable(duplex);
+  const ec = new TextEncoder();
+  const arrayBuffer = ec.encode('hello').buffer;
+  writableStream
+    .getWriter()
+    .write(arrayBuffer)
+    .then(common.mustCall());
+
+  duplex.on('data', common.mustCall((chunk) => {
+    assert(chunk instanceof ArrayBuffer);
+    assert.strictEqual(chunk, arrayBuffer);
+  }));
+}
