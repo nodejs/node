@@ -1833,7 +1833,7 @@ changes:
 
 `url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
 
-Because it invokes the deprecated [`url.parse()`][], passing a string argument
+Because it invokes the deprecated [`url.parse()`][] internally, passing a string argument
 to `url.format()` is itself deprecated.
 
 Canonicalizing a URL string can be performed using the WHATWG URL API, by
@@ -1951,6 +1951,10 @@ npx codemod@latest @nodejs/node-url-to-whatwg-url
 added: v0.1.25
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: Deprecated again through DEP0169.
+  - version:
       - v15.13.0
       - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
@@ -1973,6 +1977,8 @@ changes:
                  contains a hostname.
 -->
 
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
 
@@ -1985,6 +1991,8 @@ url.resolve('/one/two/three', 'four');         // '/one/two/four'
 url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
+
+Because it invokes the deprecated [`url.parse()`][] internally, `url.resolve()` is itself deprecated.
 
 To achieve the same result using the WHATWG URL API:
 

@@ -2643,10 +2643,14 @@ future release.
 <!-- YAML
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: DEP0169 covers also `url.format()` and `url.resolve()`.
+  - version:
       - v19.0.0
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
-    description: \`url.parse()` is deprecated again in DEP0169.
+    description: DEP0169 deprecates `url.parse()` again.
   - version:
       - v15.13.0
       - v14.17.0
@@ -3729,7 +3733,7 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
-Passing a string argument to [`url.format()`][] invokes `url.parse()`
+Calling [`url.format(urlString)`][] or [`url.resolve()`][] invokes `url.parse()`
 internally, and is therefore also covered by this deprecation.
 
 ### DEP0170: Invalid port when using `url.parse()`
@@ -4503,6 +4507,7 @@ const server = http2.createSecureServer({
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [`url.format()`]: url.md#urlformaturlobject
+[`url.format(urlString)`]: url.md#urlformaturlstring
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
 [`util._extend()`]: util.md#util_extendtarget-source
