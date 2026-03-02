@@ -128,7 +128,7 @@ releases for these platforms. Test failures on experimental platforms do not
 block releases. Contributions to improve support for these platforms are
 welcome.
 
-| Operating System | Architectures    | Versions                      | Notes                                          |
+| Operating System | Architectures    | Versions[^9]                  | Notes                                          |
 | ---------------- | ---------------- | ----------------------------- | ---------------------------------------------- |
 | GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4  | e.g. Alpine 3.19                               |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10                    |
@@ -175,6 +175,8 @@ welcome.
     creating universal binaries for versions of Node.js which are still in support which will
     be compatible with both Apple Silicon-based and Intel-based macOS versions but
     they will be untested.
+
+[^9]: Older kernel or libc versions may work.
 
 <!--lint enable final-definition-->
 
