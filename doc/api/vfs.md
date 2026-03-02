@@ -654,31 +654,6 @@ const fs = require('node:fs');
 const content = fs.readFileSync('/project/src/index.js', 'utf8');
 ```
 
-### Using `virtualCwd` in Worker threads
-
-Since `process.chdir()` is not available in Worker threads, you can use
-`RealFSProvider` to enable virtual working directory support:
-
-```cjs
-const { Worker, isMainThread, parentPort } = require('node:worker_threads');
-const vfs = require('node:vfs');
-
-if (isMainThread) {
-  new Worker(__filename);
-} else {
-  // In worker: mount real file system with virtualCwd enabled
-  const realVfs = vfs.create(
-    new vfs.RealFSProvider('/home/user/project'),
-    { virtualCwd: true },
-  );
-  realVfs.mount('/project');
-
-  // Now we can use virtual chdir in the worker
-  realVfs.chdir('/project/src');
-  console.log(realVfs.cwd()); // '/project/src'
-}
-```
-
 ### `realFSProvider.rootPath`
 
 <!-- YAML
@@ -773,12 +748,6 @@ file system:
 * `stats.size` reflects the actual content size
 * `stats.mtime`, `stats.ctime`, `stats.birthtime` are tracked per file
 * `stats.mode` includes the file type bits and permissions
-
-### File descriptors
-
-Virtual file descriptors start at 10000 to avoid conflicts with real operating
-system file descriptors. This allows the VFS to coexist with real file system
-operations without file descriptor collisions.
 
 ## Use with Single Executable Applications
 
@@ -899,6 +868,31 @@ if (isMainThread) {
 
 2. **Use `RealFSProvider`** - If the data exists on the real file system, use
    `RealFSProvider` in each worker to mount the same directory.
+
+### Using `virtualCwd` in Worker threads
+
+Since `process.chdir()` is not available in Worker threads, you can use
+`RealFSProvider` to enable virtual working directory support:
+
+```cjs
+const { Worker, isMainThread, parentPort } = require('node:worker_threads');
+const vfs = require('node:vfs');
+
+if (isMainThread) {
+  new Worker(__filename);
+} else {
+  // In worker: mount real file system with virtualCwd enabled
+  const realVfs = vfs.create(
+    new vfs.RealFSProvider('/home/user/project'),
+    { virtualCwd: true },
+  );
+  realVfs.mount('/project');
+
+  // Now we can use virtual chdir in the worker
+  realVfs.chdir('/project/src');
+  console.log(realVfs.cwd()); // '/project/src'
+}
+```
 
 This limitation exists because implementing cross-thread VFS access would
 require moving the implementation to C++ with shared memory management, which
