@@ -2,7 +2,15 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  glob,
+  globSync,
+  Dirent,
+  chmodSync,
+  writeFileSync,
+  rmSync,
+  mkdirSync,
+} from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -13,6 +21,64 @@ function assertDirents(dirents) {
 }
 
 tmpdir.refresh();
+
+let nonUtf8Probe;
+let nonUtf8CaseId = 0;
+
+function getNonUtf8Probe() {
+  if (nonUtf8Probe) {
+    return nonUtf8Probe;
+  }
+
+  if (common.isWindows) {
+    nonUtf8Probe = {
+      supported: false,
+      reason: 'raw-byte filenames are unsupported on Windows',
+    };
+    return nonUtf8Probe;
+  }
+
+  const probeDir = tmpdir.resolve(`glob-buffer-probe-${process.pid}`);
+  rmSync(probeDir, { recursive: true, force: true });
+  mkdirSync(probeDir, { recursive: true });
+
+  const raw = Buffer.from([0xe9]);
+  const probePath = Buffer.concat([
+    Buffer.from(probeDir),
+    Buffer.from(sep),
+    raw,
+  ]);
+
+  try {
+    writeFileSync(probePath, 'probe');
+    nonUtf8Probe = { supported: true };
+  } catch (err) {
+    nonUtf8Probe = {
+      supported: false,
+      reason: `non-UTF8 filename probe failed: ${err.code ?? err.message}`,
+    };
+  } finally {
+    rmSync(probeDir, { recursive: true, force: true });
+  }
+
+  return nonUtf8Probe;
+}
+
+function createNonUtf8CaseDir(name) {
+  const dir = tmpdir.resolve(`glob-buffer-${name}-${process.pid}-${nonUtf8CaseId++}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function toHexSet(values) {
+  const hex = [];
+  for (const value of values) {
+    assert(Buffer.isBuffer(value));
+    hex.push(value.toString('hex'));
+  }
+  return hex.sort();
+}
 
 const fixtureDir = tmpdir.resolve('fixtures');
 const absDir = tmpdir.resolve('abs');
@@ -559,5 +625,118 @@ describe('globSync - ENOTDIR', function() {
         // ignore
       }
     }
+  });
+});
+
+describe('glob - encoding buffer', function() {
+  test('globSync preserves raw bytes with encoding buffer', (t) => {
+    const probe = getNonUtf8Probe();
+    if (!probe.supported) {
+      t.skip(probe.reason);
+      return;
+    }
+
+    const cwd = createNonUtf8CaseDir('sync-raw');
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+
+    const rawName = Buffer.from([0xe9]);
+    const fullPath = Buffer.concat([
+      Buffer.from(cwd),
+      Buffer.from(sep),
+      rawName,
+    ]);
+
+    writeFileSync(fullPath, 'x');
+
+    const actual = globSync('[^a-z]', { cwd, encoding: 'buffer' });
+    assert.deepStrictEqual(actual, [rawName]);
+
+    const utf8Actual = globSync('[^a-z]', { cwd });
+    assert.strictEqual(utf8Actual.length, 1);
+    assert.strictEqual(typeof utf8Actual[0], 'string');
+  });
+
+  test('globSync rejects invalid encoding', () => {
+    assert.throws(() => globSync('*', {
+      cwd: fixtureDir,
+      encoding: 'bogus',
+    }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+  });
+
+  test('encoding buffer parity across globSync/glob/fsPromises.glob', async () => {
+    const options = { cwd: fixtureDir, encoding: 'buffer' };
+
+    const syncResults = globSync('a/**', options);
+    assert(syncResults.length > 0);
+    assert(syncResults.every(Buffer.isBuffer));
+
+    const callbackResults = await promisify(glob)('a/**', options);
+    assert(callbackResults.length > 0);
+    assert(callbackResults.every(Buffer.isBuffer));
+
+    const asyncResults = [];
+    for await (const item of asyncGlob('a/**', options)) {
+      asyncResults.push(item);
+    }
+    assert(asyncResults.length > 0);
+    assert(asyncResults.every(Buffer.isBuffer));
+
+    assert.deepStrictEqual(toHexSet(callbackResults), toHexSet(syncResults));
+    assert.deepStrictEqual(toHexSet(asyncResults), toHexSet(syncResults));
+  });
+
+  test('encoding buffer supports absolute patterns', async () => {
+    const pattern = join(fixtureDir, 'a', '**');
+    const options = { encoding: 'buffer' };
+
+    const syncResults = globSync(pattern, options);
+    assert(syncResults.length > 0);
+    assert(syncResults.every(Buffer.isBuffer));
+
+    const callbackResults = await promisify(glob)(pattern, options);
+    assert(callbackResults.length > 0);
+    assert(callbackResults.every(Buffer.isBuffer));
+
+    const asyncResults = [];
+    for await (const item of asyncGlob(pattern, options)) {
+      asyncResults.push(item);
+    }
+    assert(asyncResults.length > 0);
+    assert(asyncResults.every(Buffer.isBuffer));
+
+    assert.deepStrictEqual(toHexSet(callbackResults), toHexSet(syncResults));
+    assert.deepStrictEqual(toHexSet(asyncResults), toHexSet(syncResults));
+  });
+
+  test('encoding buffer withFileTypes returns Buffer dirent names', async () => {
+    const syncDirents = globSync('a/**', {
+      cwd: fixtureDir,
+      encoding: 'buffer',
+      withFileTypes: true,
+      exclude: common.mustCallAtLeast((dirent) => {
+        assert.ok(dirent instanceof Dirent);
+        assert(Buffer.isBuffer(dirent.name));
+        return false;
+      }, 1),
+    });
+
+    assertDirents(syncDirents);
+    assert(syncDirents.length > 0);
+    assert(syncDirents.every((dirent) => Buffer.isBuffer(dirent.name)));
+
+    const asyncDirents = [];
+    for await (const item of asyncGlob('a/**', {
+      cwd: fixtureDir,
+      encoding: 'buffer',
+      withFileTypes: true,
+    })) {
+      asyncDirents.push(item);
+    }
+
+    assertDirents(asyncDirents);
+    assert(asyncDirents.length > 0);
+    assert(asyncDirents.every((dirent) => Buffer.isBuffer(dirent.name)));
   });
 });
