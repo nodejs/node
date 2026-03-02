@@ -46,8 +46,6 @@ module.exports = (opts = {}) => {
   // Convert to lowercase Set for case-insensitive header exclusion from deduplication key
   const excludeHeaderNamesSet = new Set(excludeHeaderNames.map(name => name.toLowerCase()))
 
-  const safeMethodsToNotDeduplicate = util.safeHTTPMethods.filter(method => methods.includes(method) === false)
-
   /**
    * Map of pending requests for deduplication
    * @type {Map<string, DeduplicationHandler>}
@@ -56,7 +54,7 @@ module.exports = (opts = {}) => {
 
   return dispatch => {
     return (opts, handler) => {
-      if (!opts.origin || safeMethodsToNotDeduplicate.includes(opts.method)) {
+      if (!opts.origin || methods.includes(opts.method) === false) {
         return dispatch(opts, handler)
       }
 
