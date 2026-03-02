@@ -2941,8 +2941,21 @@ std::optional<const std::string_view> SSLPointer::GetServerName(
     const SSL* ssl) {
   if (ssl == nullptr) return std::nullopt;
   auto res = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
-  if (res == nullptr) return std::nullopt;
-  return res;
+  if (res != nullptr) return res;
+
+#ifndef OPENSSL_IS_BORINGSSL
+  // SSL_get_servername() returns NULL on server-side TLS 1.3 resumed sessions
+  // because it reads from ssl->ext.hostname rather than the session. Fall back
+  // to the session hostname which OpenSSL persists during the original
+  // handshake and serializes into tickets.
+  const SSL_SESSION* sess = SSL_get_session(ssl);
+  if (sess != nullptr) {
+    res = SSL_SESSION_get0_hostname(sess);
+    if (res != nullptr) return res;
+  }
+#endif
+
+  return std::nullopt;
 }
 
 std::optional<const std::string_view> SSLPointer::getServerName() const {
