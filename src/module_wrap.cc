@@ -40,6 +40,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::Location;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -565,7 +566,7 @@ static Local<Object> createImportAttributesContainer(
 }
 
 static Local<Array> createModuleRequestsContainer(
-    Realm* realm, Isolate* isolate, Local<FixedArray> raw_requests) {
+    Realm* realm, Isolate* isolate, Local<Module> module, Local<FixedArray> raw_requests) {
   EscapableHandleScope scope(isolate);
   Local<Context> context = realm->context();
   LocalVector<Value> requests(isolate, raw_requests->Length());
@@ -584,15 +585,22 @@ static Local<Array> createModuleRequestsContainer(
         createImportAttributesContainer(realm, isolate, raw_attributes, 3);
     ModuleImportPhase phase = module_request->GetPhase();
 
+    int source_offset = module_request->GetSourceOffset();
+    Location loc = module->SourceOffsetToLocation(source_offset);
+
     Local<Name> names[] = {
         realm->isolate_data()->specifier_string(),
         realm->isolate_data()->attributes_string(),
         realm->isolate_data()->phase_string(),
+        realm->isolate_data()->line_string(),
+        realm->isolate_data()->column_string(),
     };
     Local<Value> values[] = {
         specifier,
         attributes,
         Integer::New(isolate, to_phase_constant(phase)),
+        Integer::New(isolate, loc.GetLineNumber()),
+        Integer::New(isolate, loc.GetColumnNumber()),
     };
     DCHECK_EQ(arraysize(names), arraysize(values));
 
@@ -616,7 +624,7 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 
   Local<Module> module = obj->module_.Get(isolate);
   args.GetReturnValue().Set(createModuleRequestsContainer(
-      realm, isolate, module->GetModuleRequests()));
+      realm, isolate, module, module->GetModuleRequests()));
 }
 
 // moduleWrap.link(moduleWraps)

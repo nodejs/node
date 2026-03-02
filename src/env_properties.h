@@ -100,6 +100,7 @@
     "transferList")                                                            \
   V(clone_untransferable_str, "Found invalid value in transferList.")          \
   V(code_string, "code")                                                       \
+  V(column_string, "column")                                                   \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
   V(crypto_dh_string, "dh")                                                    \
@@ -239,6 +240,7 @@
   V(length_string, "length")                                                   \
   V(limits_string, "limits")                                                   \
   V(library_string, "library")                                                 \
+  V(line_string, "line")                                                       \
   V(loop_count, "loopCount")                                                   \
   V(max_buffer_string, "maxBuffer")                                            \
   V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
