@@ -525,7 +525,7 @@ added: REPLACEME
 
 Returns `true` if the provider is read-only.
 
-#### `provider.supportsSymlinks`
+### `provider.supportsSymlinks`
 
 <!-- YAML
 added: REPLACEME
