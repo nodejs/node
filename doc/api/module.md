@@ -72,7 +72,7 @@ const siblingModule = require('./sibling-module');
 added: REPLACEME
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.0 - Early development
 
 * `specifier` {string|URL} The module specifier, as it would have been passed to
   `import()` or `require()`.
@@ -91,20 +91,60 @@ added: REPLACEME
     `resolver` is `'import'`.
 
 Clears module resolution and/or module caches for a module. This enables
-reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for HMR.
+reload patterns similar to deleting from `require.cache` in CommonJS, and is useful for
+hot module reload.
 
 When `caches` is `'module'` or `'all'`, the specifier is resolved using the chosen `resolver`
 and the resolved module is removed from all internal caches (CommonJS `require` cache, ESM
 load cache, and ESM translators cache). When a `file:` URL is resolved, cached module jobs for
-the same file path are cleared even if they differ by search or hash.
+the same file path are cleared even if they differ by search or hash. This means clearing
+`'./mod.mjs?v=1'` will also clear `'./mod.mjs?v=2'` and any other query/hash variants that
+resolve to the same file.
 
 When `caches` is `'resolution'` or `'all'` with `resolver` set to `'import'`, the ESM
 resolution cache entry for the given `(specifier, parentURL, importAttributes)` tuple is
-cleared. CJS does not maintain a separate resolution cache.
+cleared. When `resolver` is `'require'`, internal CJS resolution caches (including the
+relative resolve cache and path cache) are also cleared for the resolved filename.
+When `importAttributes` are provided, they are used to construct the cache key; if a module
+was loaded with multiple different import attribute combinations, only the matching entry
+is cleared from the resolution cache. The module cache itself (`caches: 'module'`) clears
+all attribute variants for the URL.
 
 Clearing a module does not clear cached entries for its dependencies, and other specifiers
 that resolve to the same target may remain. Use consistent specifiers, or call `clearCache()`
 for each specifier you want to re-execute.
+
+#### ECMA-262 spec considerations
+
+Re-importing the exact same `(specifier, parentURL)` pair after clearing the module cache
+technically violates the idempotency invariant of the ECMA-262
+[`HostLoadImportedModule`][] host hook, which expects that the same module request always
+returns the same Module Record for a given referrer. For spec-compliant usage, use
+cache-busting search parameters so that each reload uses a distinct module request:
+
+```mjs
+import { clearCache } from 'node:module';
+import { watch } from 'node:fs';
+
+let version = 0;
+const base = new URL('./app.mjs', import.meta.url);
+
+watch(base, async () => {
+  // Clear the module cache for the previous version.
+  clearCache(new URL(`${base.href}?v=${version}`), {
+    parentURL: import.meta.url,
+    resolver: 'import',
+    caches: 'all',
+  });
+  version++;
+  // Re-import with a new search parameter — this is a distinct module request
+  // and does not violate the ECMA-262 invariant.
+  const mod = await import(`${base.href}?v=${version}`);
+  console.log('reloaded:', mod);
+});
+```
+
+#### Examples
 
 ```mjs
 import { clearCache } from 'node:module';
@@ -2082,6 +2122,7 @@ returned object contains the following keys:
 [`--require`]: cli.md#-r---require-module
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
+[`HostLoadImportedModule`]: https://tc39.es/ecma262/#sec-HostLoadImportedModule
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SourceMap`]: #class-modulesourcemap

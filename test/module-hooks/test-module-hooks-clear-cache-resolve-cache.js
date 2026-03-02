@@ -1,86 +1,76 @@
 // Flags: --expose-internals
+// Tests that caches: 'module' does NOT clear the resolve cache,
+// while caches: 'resolution' and caches: 'all' DO clear it.
+// Uses the exposed hasResolveCacheEntry method instead of monkey-patching.
 'use strict';
 
 const common = require('../common');
 
 const assert = require('node:assert');
+const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { clearCache, registerHooks } = require('node:module');
+const { clearCache } = require('node:module');
 const { getOrInitializeCascadedLoader } = require('internal/modules/esm/loader');
 
-let loadCalls = 0;
-const hook = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier === 'virtual') {
-      return {
-        url: 'virtual://cache-clear-resolve',
-        format: 'module',
-        shortCircuit: true,
-      };
-    }
-    return nextResolve(specifier, context);
-  },
-  load(url, context, nextLoad) {
-    if (url === 'virtual://cache-clear-resolve') {
-      loadCalls++;
-      return {
-        format: 'module',
-        source: 'export const count = ' +
-          '(globalThis.__module_cache_virtual_counter ?? 0) + 1;\n' +
-          'globalThis.__module_cache_virtual_counter = count;\n',
-        shortCircuit: true,
-      };
-    }
-    return nextLoad(url, context);
-  },
-});
+// Use a real file-based specifier so the resolve cache is populated
+// by the default resolver (the resolve cache is used for non-hook paths).
+const fixture = path.join(__dirname, '..', 'fixtures', 'module-cache', 'esm-counter.mjs');
+const specifier = pathToFileURL(fixture).href;
+const parentURL = pathToFileURL(__filename).href;
 
 (async () => {
-  const first = await import('virtual');
-  assert.strictEqual(first.count, 1);
-  assert.strictEqual(loadCalls, 1);
-  const loadCallsAfterFirst = loadCalls;
-
   const cascadedLoader = getOrInitializeCascadedLoader();
-  let deleteResolveCalls = 0;
-  const originalDeleteResolveCacheEntry = cascadedLoader.deleteResolveCacheEntry;
-  cascadedLoader.deleteResolveCacheEntry = function(...args) {
-    deleteResolveCalls++;
-    return originalDeleteResolveCacheEntry.apply(this, args);
-  };
 
-  try {
-    // caches: 'module' should NOT touch the resolve cache.
-    clearCache('virtual', {
-      parentURL: pathToFileURL(__filename),
-      resolver: 'import',
-      caches: 'module',
-    });
-    assert.strictEqual(deleteResolveCalls, 0);
+  // --- Test 1: caches: 'module' should NOT clear the resolve cache ---
+  const first = await import(specifier);
+  assert.strictEqual(first.count, 1);
 
-    // caches: 'resolution' SHOULD clear the resolve cache entry.
-    clearCache('virtual', {
-      parentURL: pathToFileURL(__filename),
-      resolver: 'import',
-      caches: 'resolution',
-    });
-    assert.strictEqual(deleteResolveCalls, 1);
+  // After import, the resolve cache should have an entry.
+  assert.ok(cascadedLoader.hasResolveCacheEntry(specifier, parentURL),
+            'resolve cache should have an entry after import');
 
-    // caches: 'all' SHOULD also clear the resolve cache entry.
-    clearCache('virtual', {
-      parentURL: pathToFileURL(__filename),
-      resolver: 'import',
-      caches: 'all',
-    });
-    assert.strictEqual(deleteResolveCalls, 2);
-  } finally {
-    cascadedLoader.deleteResolveCacheEntry = originalDeleteResolveCacheEntry;
-  }
+  // caches: 'module' should NOT clear the resolve cache entry.
+  clearCache(specifier, {
+    parentURL,
+    resolver: 'import',
+    caches: 'module',
+  });
+  assert.ok(cascadedLoader.hasResolveCacheEntry(specifier, parentURL),
+            'resolve cache should still have entry after caches: "module"');
 
-  const second = await import('virtual');
-  assert.strictEqual(second.count, 2);
-  assert.strictEqual(loadCalls, loadCallsAfterFirst + 1);
+  // Re-import to repopulate the load cache (since 'module' cleared it).
+  const afterModuleClear = await import(specifier);
+  assert.strictEqual(afterModuleClear.count, 2);
 
-  hook.deregister();
-  delete globalThis.__module_cache_virtual_counter;
+  // --- Test 2: caches: 'resolution' SHOULD clear the resolve cache,
+  //             but NOT re-evaluate the module (load cache still holds it) ---
+  clearCache(specifier, {
+    parentURL,
+    resolver: 'import',
+    caches: 'resolution',
+  });
+  assert.ok(!cascadedLoader.hasResolveCacheEntry(specifier, parentURL),
+            'resolve cache should be cleared after caches: "resolution"');
+
+  // Re-import: module should NOT be re-evaluated — load cache still holds it.
+  const afterResClear = await import(specifier);
+  assert.strictEqual(afterResClear.count, 2);
+
+  // --- Test 3: caches: 'all' SHOULD clear both resolve and load caches ---
+  // Repopulate the resolve cache first.
+  await import(specifier);
+
+  clearCache(specifier, {
+    parentURL,
+    resolver: 'import',
+    caches: 'all',
+  });
+  assert.ok(!cascadedLoader.hasResolveCacheEntry(specifier, parentURL),
+            'resolve cache should be cleared after caches: "all"');
+
+  // After 'all', re-import should re-evaluate.
+  const afterAllClear = await import(specifier);
+  assert.strictEqual(afterAllClear.count, 3);
+
+  delete globalThis.__module_cache_esm_counter;
 })().then(common.mustCall());
