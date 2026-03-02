@@ -128,14 +128,14 @@ releases for these platforms. Test failures on experimental platforms do not
 block releases. Contributions to improve support for these platforms are
 welcome.
 
-| Operating System | Architectures    | Versions                      | Notes                                          |
+| Operating System | Architectures    | Versions[^5]                  | Notes                                          |
 | ---------------- | ---------------- | ----------------------------- | ---------------------------------------------- |
 | GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4  | e.g. Alpine 3.19                               |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10                    |
 | GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24                    |
 | GNU/Linux        | armv6            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 12                    |
 | GNU/Linux        | loong64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04                              |
-| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | GCC >= 14 or Clang >= 19 for native builds[^7] |
+| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | GCC >= 14 or Clang >= 19 for native builds[^6] |
 | FreeBSD          | x64              | >= 13.2                       |                                                |
 | OpenHarmony      | arm64            | >= 5.0                        |                                                |
 
@@ -162,7 +162,9 @@ welcome.
 [^4]: Our macOS Binaries are compiled with 13.5 as a target. Xcode 16 is
     required to compile.
 
-[^7]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
+[^5]: Older kernel or libc versions may work.
+
+[^6]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
     includes `<riscv_vector.h>` and uses `target("arch=+v")` in
     `deps/v8/src/base/cpu.cc`. GCC 13's `riscv_vector.h` errors out without
     `-march=rv64gcv` and doesn't support the `target` attribute at all.
@@ -187,13 +189,13 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 
 | Binary package          | Platform and Toolchain                                        |
 | ----------------------- | ------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                       |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^7]                       |
 | darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
 | darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
-| linux-arm64             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-ppc64le           | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-s390x             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-x64               | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-arm64             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^8] |
+| linux-ppc64le           | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^8] |
+| linux-s390x             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^8] |
+| linux-x64               | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^8] |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
@@ -204,10 +206,10 @@ on your Linux distribution.
 
 <!--lint disable final-definition-->
 
-[^5]: Binaries produced on these systems require libstdc++12, available
+[^7]: Binaries produced on these systems require libstdc++12, available
     from the [AIX toolbox][].
 
-[^6]: Binaries produced on these systems are compatible with glibc >= 2.28
+[^8]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
     RHEL 8 and Ubuntu 20.04.
