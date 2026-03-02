@@ -2166,7 +2166,7 @@ following permissions are restricted:
 ### `--permission-audit`
 
 <!-- YAML
-added: REPLACEME
+added: v25.8.0
 -->
 
 Enable audit only for the permission model. When enabled, permission checks
