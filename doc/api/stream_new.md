@@ -640,7 +640,7 @@ added: REPLACEME
 * `options` {Object}
   * `highWaterMark` {number} Maximum number of buffered slots before
     backpressure is applied. Must be >= 1; values below 1 are clamped to 1.
-    **Default:** `1`.
+    **Default:** `4`.
   * `backpressure` {string} Backpressure policy: `'strict'`, `'block'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal} Abort the stream.
