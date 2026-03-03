@@ -753,7 +753,7 @@ void Initialize(Local<Object> target,
   // GCProfiler
   Local<FunctionTemplate> t =
       NewFunctionTemplate(env->isolate(), GCProfiler::New);
-  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(GCProfiler::kInternalFieldCount);
   SetProtoMethod(env->isolate(), t, "start", GCProfiler::Start);
   SetProtoMethod(env->isolate(), t, "stop", GCProfiler::Stop);
   SetConstructorFunction(context, target, "GCProfiler", t);

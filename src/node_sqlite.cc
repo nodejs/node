@@ -3450,7 +3450,7 @@ Local<FunctionTemplate> StatementSyncIterator::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSyncIterator"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StatementSync::kInternalFieldCount);
+        StatementSyncIterator::kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "next", StatementSyncIterator::Next);
     SetProtoMethod(isolate, tmpl, "return", StatementSyncIterator::Return);
     env->set_sqlite_statement_sync_iterator_constructor_template(tmpl);

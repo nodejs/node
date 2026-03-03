@@ -43,6 +43,11 @@ class TLSWrap : public AsyncWrap,
                 public StreamBase,
                 public StreamListener {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
+
   enum class Kind {
     kClient,
     kServer
