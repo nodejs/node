@@ -171,26 +171,42 @@ Object.keys(digestedData).forEach(function (alg) {
           });
       }, alg + ' with ' + length + ' bit output and ' + size + ' source data');
 
-      promise_test(function (test) {
-        var buffer = new Uint8Array(sourceData[size]);
-        return crypto.subtle
-          .digest({ name: alg, length: length }, buffer)
-          .then(function (result) {
-            // Alter the buffer after calling digest
-            if (buffer.length > 0) {
+      if (sourceData[size].length > 0) {
+        promise_test(function (test) {
+          var buffer = new Uint8Array(sourceData[size]);
+          // Alter the buffer before calling digest
+          buffer[0] = ~buffer[0];
+          return crypto.subtle
+            .digest({
+              get name() {
+                // Alter the buffer back while calling digest
+                buffer[0] = sourceData[size][0];
+                return alg;
+              },
+              length
+            }, buffer)
+            .then(function (result) {
+              assert_true(
+                equalBuffers(result, digestedData[alg][length][size]),
+                'digest matches expected'
+              );
+            });
+        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and altered buffer during call');
+
+        promise_test(function (test) {
+          var buffer = new Uint8Array(sourceData[size]);
+          return crypto.subtle
+            .digest({ name: alg, length: length }, buffer)
+            .then(function (result) {
+              // Alter the buffer after calling digest
               buffer[0] = ~buffer[0];
-            }
-            assert_true(
-              equalBuffers(result, digestedData[alg][length][size]),
-              'digest matches expected'
-            );
-          });
-      }, alg +
-        ' with ' +
-        length +
-        ' bit output and ' +
-        size +
-        ' source data and altered buffer after call');
+              assert_true(
+                equalBuffers(result, digestedData[alg][length][size]),
+                'digest matches expected'
+              );
+            });
+        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and altered buffer after call');
+      }
     });
   });
 });
