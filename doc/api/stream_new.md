@@ -216,12 +216,12 @@ that closes when the bucket is full:
 
 How each policy uses these buffers:
 
-| Policy | Slots limit | Pending writes limit |
-|--------|-------------|---------------------|
-| `'strict'` | `highWaterMark` | `highWaterMark` |
-| `'block'` | `highWaterMark` | Unbounded |
-| `'drop-oldest'` | `highWaterMark` | N/A (never waits) |
-| `'drop-newest'` | `highWaterMark` | N/A (never waits) |
+| Policy          | Slots limit     | Pending writes limit |
+| --------------- | --------------- | -------------------- |
+| `'strict'`      | `highWaterMark` | `highWaterMark`      |
+| `'block'`       | `highWaterMark` | Unbounded            |
+| `'drop-oldest'` | `highWaterMark` | N/A (never waits)    |
+| `'drop-newest'` | `highWaterMark` | N/A (never waits)    |
 
 #### Strict (default)
 
