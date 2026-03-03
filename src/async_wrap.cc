@@ -322,6 +322,13 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   wrap->AsyncReset(resource, execution_async_id);
 }
 
+// Useful for debugging async context propagation. Not intended for public use.
+void AsyncWrap::GetAsyncContextFrame(const FunctionCallbackInfo<Value>& args) {
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  args.GetReturnValue().Set(wrap->context_frame());
+}
 
 void AsyncWrap::GetProviderType(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
@@ -372,6 +379,10 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
         FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "getAsyncContextFrameForDebuggingOnly",
+                   AsyncWrap::GetAsyncContextFrame);
     SetProtoMethod(
         isolate, tmpl, "getProviderType", AsyncWrap::GetProviderType);
     isolate_data->set_async_wrap_ctor_template(tmpl);
@@ -501,6 +512,7 @@ void AsyncWrap::RegisterExternalReferences(
   registry->Register(RegisterDestroyHook);
   registry->Register(AsyncWrap::GetAsyncId);
   registry->Register(AsyncWrap::AsyncReset);
+  registry->Register(AsyncWrap::GetAsyncContextFrame);
   registry->Register(AsyncWrap::GetProviderType);
 }
 
