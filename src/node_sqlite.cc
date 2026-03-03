@@ -5026,7 +5026,6 @@ void Database::Prepare(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
-  // TODO(BurningEnlightenment): these should be rejections
   REJECT_AND_RETURN_ON_INVALID_STATE(
       env, args, !db->IsOpen(), "database is not open");
 
@@ -5049,7 +5048,6 @@ void Database::UntrackStatement(Statement* statement) {
 
 void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Database* db;
-  // TODO(BurningEnlightenment): these should be rejections
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   REJECT_AND_RETURN_ON_INVALID_STATE(
