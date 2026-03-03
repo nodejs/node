@@ -459,6 +459,8 @@ This also ensures a more deterministic dependency graph.
 
 However, if a file based `require()` is still needed, that can also be achieved:
 
+<!-- eslint-disable no-global-assign -->
+
 ```js
 const { createRequire } = require('node:module');
 require = createRequire(__filename);
