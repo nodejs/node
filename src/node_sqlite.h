@@ -471,6 +471,7 @@ class Database final : public DatabaseCommon {
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsInTransaction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
   // static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>&
   // args); static void Location(const v8::FunctionCallbackInfo<v8::Value>&
   // args); static void EnableLoadExtension(

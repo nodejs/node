@@ -4582,6 +4582,26 @@ class IsInTransactionOperation : private OperationBase {
   }
 };
 
+class LocationOperation : private OperationBase {
+ public:
+  LocationOperation(Global<Promise::Resolver>&& resolver,
+                    std::pmr::string&& db_name)
+      : OperationBase(std::move(resolver)), db_name_(std::move(db_name)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    const char* location = sqlite3_db_filename(connection, db_name_.c_str());
+    transfer::literal location_literal{transfer::null{}};
+    if (location && location[0] != '\0') {
+      location_literal = transfer::text{location, std::strlen(location)};
+    }
+    return OperationResult::ResolveValue(
+        this, transfer::value{std::move(location_literal)});
+  }
+
+ private:
+  std::pmr::string db_name_;
+};
+
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
                                StatementAllOperation,
@@ -4589,6 +4609,7 @@ using Operation = std::variant<ExecOperation,
                                PrepareStatementOperation,
                                FinalizeStatementOperation,
                                IsInTransactionOperation,
+                               LocationOperation,
                                CloseOperation>;
 
 template <typename T, typename V>
@@ -4891,6 +4912,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
   SetProtoMethod(isolate, tmpl, "prepare", Database::Prepare);
   SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
   SetProtoMethod(isolate, tmpl, "isInTransaction", Database::IsInTransaction);
+  SetProtoMethod(isolate, tmpl, "location", Database::Location);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
@@ -5104,6 +5126,29 @@ Statement::Statement(Environment* env,
     CHECK_NOT_NULL(db_);
     db_->TrackStatement(this);
   }
+}
+
+void Database::Location(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
+
+  std::pmr::string db_name;
+  if (args.Length() > 0) {
+    REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+        env,
+        args,
+        !args[0]->IsString(),
+        "The \"dbName\" argument must be a string.");
+    Utf8Value db_name_utf8(env->isolate(), args[0].As<String>());
+    db_name = std::pmr::string(*db_name_utf8, db_name_utf8.length());
+  } else {
+    db_name = "main";
+  }
+  args.GetReturnValue().Set(
+      db->Schedule<LocationOperation>(std::move(db_name)));
 }
 
 Statement::~Statement() {

@@ -560,40 +560,41 @@ suite('Database.prototype.isInTransaction()', { timeout: 1000 }, () => {
   });
 });
 
-suite.skip('Database.prototype.location()', { timeout: 1000 }, () => {
-  test('throws if database is not open', (t) => {
+suite('Database.prototype.location()', { timeout: 1000 }, () => {
+  test('throws if database is not open', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
-    t.assert.throws(() => {
-      db.location();
+    await t.assert.rejects(async () => {
+      await db.location();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
   });
 
-  test('throws if provided dbName is not string', (t) => {
+  test('throws if provided dbName is not string', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
 
-    t.assert.throws(() => {
-      db.location(null);
+    await t.assert.rejects(async () => {
+      await db.location(null);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "dbName" argument must be a string/,
     });
   });
 
-  test('returns null when connected to in-memory database', (t) => {
+  test('returns null when connected to in-memory database', async (t) => {
     const db = new Database(':memory:');
-    t.assert.strictEqual(db.location(), null);
+    t.after(async () => { await db.close(); });
+    t.assert.strictEqual(await db.location(), null);
   });
 
-  test('returns db path when connected to a persistent database', (t) => {
+  test('returns db path when connected to a persistent database', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
     t.after(async () => { await db.close(); });
-    t.assert.strictEqual(db.location(), dbPath);
+    t.assert.strictEqual(await db.location(), dbPath);
   });
 
   test('returns that specific db path when attached', async (t) => {
@@ -608,7 +609,7 @@ suite.skip('Database.prototype.location()', { timeout: 1000 }, () => {
     const escapedPath = otherPath.replace("'", "''");
     await db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
 
-    t.assert.strictEqual(db.location('other'), otherPath);
+    t.assert.strictEqual(await db.location('other'), otherPath);
   });
 });
 
