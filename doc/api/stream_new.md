@@ -173,6 +173,227 @@ The API supports two models:
   pair with backpressure. The writer pushes data in; the readable is consumed
   as an async iterable.
 
+### Backpressure
+
+Pull streams have natural backpressure -- the consumer drives the pace, so
+the source is never read faster than the consumer can process. Push streams
+need explicit backpressure because the producer and consumer run
+independently. The `highWaterMark` and `backpressure` options on `push()`,
+`broadcast()`, and `share()` control how this works.
+
+#### The two-buffer model
+
+Push streams use a two-part buffering system. Think of it like a bucket
+(slots) being filled through a hose (pending writes), with a float valve
+that closes when the bucket is full:
+
+```text
+                          highWaterMark (e.g., 3)
+                                 |
+    Producer                     v
+       |                    +---------+
+       v                    |         |
+  [ write() ] ----+    +--->| slots   |---> Consumer pulls
+  [ write() ]     |    |    | (bucket)|     for await (...)
+  [ write() ]     v    |    +---------+
+              +--------+         ^
+              | pending|         |
+              | writes |    float valve
+              | (hose) |    (backpressure)
+              +--------+
+                   ^
+                   |
+          'strict' mode limits this too!
+```
+
+* **Slots (the bucket)** -- data ready for the consumer, capped at
+  `highWaterMark`. When the consumer pulls, it drains all slots at once
+  into a single batch.
+
+* **Pending writes (the hose)** -- writes waiting for slot space. After
+  the consumer drains, pending writes are promoted into the now-empty
+  slots and their promises resolve.
+
+How each policy uses these buffers:
+
+| Policy | Slots limit | Pending writes limit |
+|--------|-------------|---------------------|
+| `'strict'` | `highWaterMark` | `highWaterMark` |
+| `'block'` | `highWaterMark` | Unbounded |
+| `'drop-oldest'` | `highWaterMark` | N/A (never waits) |
+| `'drop-newest'` | `highWaterMark` | N/A (never waits) |
+
+#### Strict (default)
+
+Strict mode catches "fire-and-forget" patterns where the producer calls
+`write()` without awaiting, which would cause unbounded memory growth.
+It limits both the slots buffer and the pending writes queue to
+`highWaterMark`.
+
+If you properly await each write, you can only ever have one pending
+write at a time (yours), so you never hit the pending writes limit.
+Unawaited writes accumulate in the pending queue and throw once it
+overflows:
+
+```mjs
+import { push, text } from 'node:stream/new';
+
+const { writer, readable } = push({ highWaterMark: 16 });
+
+// Consumer must run concurrently -- without it, the first write
+// that fills the buffer blocks the producer forever.
+const consuming = text(readable);
+
+// GOOD: awaited writes. The producer waits for the consumer to
+// make room when the buffer is full.
+for (const item of dataset) {
+  await writer.write(item);
+}
+await writer.end();
+console.log(await consuming);
+```
+
+```cjs
+const { push, text } = require('node:stream/new');
+
+async function run() {
+  const { writer, readable } = push({ highWaterMark: 16 });
+
+  // Consumer must run concurrently -- without it, the first write
+  // that fills the buffer blocks the producer forever.
+  const consuming = text(readable);
+
+  // GOOD: awaited writes. The producer waits for the consumer to
+  // make room when the buffer is full.
+  for (const item of dataset) {
+    await writer.write(item);
+  }
+  await writer.end();
+  console.log(await consuming);
+}
+
+run().catch(console.error);
+```
+
+Forgetting to `await` will eventually throw:
+
+```js
+// BAD: fire-and-forget. Strict mode throws once both buffers fill.
+for (const item of dataset) {
+  writer.write(item); // Not awaited -- queues without bound
+}
+// --> throws "Backpressure violation: too many pending writes"
+```
+
+This is the default policy because it catches the exact class of bug
+that push streams exist to prevent.
+
+#### Block
+
+Block mode caps slots at `highWaterMark` but places no limit on the
+pending writes queue. Awaited writes block until the consumer makes room,
+just like strict mode. The difference is that unawaited writes silently
+queue forever instead of throwing -- a potential memory leak if the
+producer forgets to `await`.
+
+This is the mode that existing Node.js classic streams and Web Streams
+default to. Use it when you control the producer and know it awaits
+properly, or when migrating code from those APIs.
+
+```mjs
+import { push, text } from 'node:stream/new';
+
+const { writer, readable } = push({
+  highWaterMark: 16,
+  backpressure: 'block',
+});
+
+const consuming = text(readable);
+
+// Safe -- awaited writes block until the consumer reads.
+for (const item of dataset) {
+  await writer.write(item);
+}
+await writer.end();
+console.log(await consuming);
+```
+
+```cjs
+const { push, text } = require('node:stream/new');
+
+async function run() {
+  const { writer, readable } = push({
+    highWaterMark: 16,
+    backpressure: 'block',
+  });
+
+  const consuming = text(readable);
+
+  // Safe -- awaited writes block until the consumer reads.
+  for (const item of dataset) {
+    await writer.write(item);
+  }
+  await writer.end();
+  console.log(await consuming);
+}
+
+run().catch(console.error);
+```
+
+#### Drop-oldest
+
+Writes never wait. When the slots buffer is full, the oldest buffered
+chunk is evicted to make room for the incoming write. The consumer
+always sees the most recent data. Useful for live feeds, telemetry, or
+any scenario where stale data is less valuable than current data.
+
+```mjs
+import { push } from 'node:stream/new';
+
+// Keep only the 5 most recent readings
+const { writer, readable } = push({
+  highWaterMark: 5,
+  backpressure: 'drop-oldest',
+});
+```
+
+```cjs
+const { push } = require('node:stream/new');
+
+// Keep only the 5 most recent readings
+const { writer, readable } = push({
+  highWaterMark: 5,
+  backpressure: 'drop-oldest',
+});
+```
+
+#### Drop-newest
+
+Writes never wait. When the slots buffer is full, the incoming write is
+silently discarded. The consumer processes what is already buffered
+without being overwhelmed by new data. Useful for rate-limiting or
+shedding load under pressure.
+
+```mjs
+import { push } from 'node:stream/new';
+
+// Accept up to 10 buffered items; discard anything beyond that
+const { writer, readable } = push({
+  highWaterMark: 10,
+  backpressure: 'drop-newest',
+});
+```
+
+```cjs
+const { push } = require('node:stream/new');
+
+// Accept up to 10 buffered items; discard anything beyond that
+const { writer, readable } = push({
+  highWaterMark: 10,
+  backpressure: 'drop-newest',
+});
+```
+
 ### Writers
 
 A writer is any object with a `write(chunk)` method. Writers optionally
@@ -418,7 +639,8 @@ added: REPLACEME
   readable side.
 * `options` {Object}
   * `highWaterMark` {number} Maximum number of buffered slots before
-    backpressure is applied. **Default:** `1`.
+    backpressure is applied. Must be >= 1; values below 1 are clamped to 1.
+    **Default:** `1`.
   * `backpressure` {string} Backpressure policy: `'strict'`, `'block'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal} Abort the stream.
@@ -433,11 +655,17 @@ readable side is consumed as an async iterable.
 import { push, text } from 'node:stream/new';
 
 const { writer, readable } = push();
-writer.write('hello');
-writer.write(' world');
-writer.end();
+
+// Producer and consumer must run concurrently. With strict backpressure
+// (the default), awaited writes block until the consumer reads.
+const producing = (async () => {
+  await writer.write('hello');
+  await writer.write(' world');
+  await writer.end();
+})();
 
 console.log(await text(readable)); // 'hello world'
+await producing;
 ```
 
 ```cjs
@@ -445,11 +673,17 @@ const { push, text } = require('node:stream/new');
 
 async function run() {
   const { writer, readable } = push();
-  writer.write('hello');
-  writer.write(' world');
-  writer.end();
+
+  // Producer and consumer must run concurrently. With strict backpressure
+  // (the default), awaited writes block until the consumer reads.
+  const producing = (async () => {
+    await writer.write('hello');
+    await writer.write(' world');
+    await writer.end();
+  })();
 
   console.log(await text(readable)); // 'hello world'
+  await producing;
 }
 
 run().catch(console.error);
@@ -718,26 +952,42 @@ resolves to `true` when the writer can accept more data, or `null` if the
 object does not implement the drainable protocol.
 
 ```mjs
-import { push, ondrain } from 'node:stream/new';
+import { push, ondrain, text } from 'node:stream/new';
 
 const { writer, readable } = push({ highWaterMark: 2 });
 writer.writeSync('a');
 writer.writeSync('b');
 
+// Start consuming so the buffer can actually drain
+const consuming = text(readable);
+
 // Buffer is full -- wait for drain
 const canWrite = await ondrain(writer);
+if (canWrite) {
+  await writer.write('c');
+}
+await writer.end();
+await consuming;
 ```
 
 ```cjs
-const { push, ondrain } = require('node:stream/new');
+const { push, ondrain, text } = require('node:stream/new');
 
 async function run() {
   const { writer, readable } = push({ highWaterMark: 2 });
   writer.writeSync('a');
   writer.writeSync('b');
 
+  // Start consuming so the buffer can actually drain
+  const consuming = text(readable);
+
   // Buffer is full -- wait for drain
   const canWrite = await ondrain(writer);
+  if (canWrite) {
+    await writer.write('c');
+  }
+  await writer.end();
+  await consuming;
 }
 
 run().catch(console.error);
@@ -799,7 +1049,8 @@ added: REPLACEME
 -->
 
 * `options` {Object}
-  * `highWaterMark` {number} Buffer size in slots. **Default:** `16`.
+  * `highWaterMark` {number} Buffer size in slots. Must be >= 1; values
+    below 1 are clamped to 1. **Default:** `16`.
   * `backpressure` {string} `'strict'` or `'block'`. **Default:** `'strict'`.
   * `signal` {AbortSignal}
 * Returns: {Object}
@@ -815,14 +1066,21 @@ import { broadcast, text } from 'node:stream/new';
 
 const { writer, broadcast: bc } = broadcast();
 
+// Create consumers before writing
 const c1 = bc.push();  // Consumer 1
 const c2 = bc.push();  // Consumer 2
 
-writer.write('hello');
-writer.end();
+// Producer and consumers must run concurrently. Awaited writes
+// block when the buffer fills until consumers read.
+const producing = (async () => {
+  await writer.write('hello');
+  await writer.end();
+})();
 
-console.log(await text(c1)); // 'hello'
-console.log(await text(c2)); // 'hello'
+const [r1, r2] = await Promise.all([text(c1), text(c2)]);
+console.log(r1); // 'hello'
+console.log(r2); // 'hello'
+await producing;
 ```
 
 ```cjs
@@ -831,14 +1089,21 @@ const { broadcast, text } = require('node:stream/new');
 async function run() {
   const { writer, broadcast: bc } = broadcast();
 
+  // Create consumers before writing
   const c1 = bc.push();  // Consumer 1
   const c2 = bc.push();  // Consumer 2
 
-  writer.write('hello');
-  writer.end();
+  // Producer and consumers must run concurrently. Awaited writes
+  // block when the buffer fills until consumers read.
+  const producing = (async () => {
+    await writer.write('hello');
+    await writer.end();
+  })();
 
-  console.log(await text(c1)); // 'hello'
-  console.log(await text(c2)); // 'hello'
+  const [r1, r2] = await Promise.all([text(c1), text(c2)]);
+  console.log(r1); // 'hello'
+  console.log(r2); // 'hello'
+  await producing;
 }
 
 run().catch(console.error);
@@ -886,7 +1151,8 @@ added: REPLACEME
 
 * `source` {AsyncIterable} The source to share.
 * `options` {Object}
-  * `highWaterMark` {number} Buffer size. **Default:** `16`.
+  * `highWaterMark` {number} Buffer size. Must be >= 1; values below 1
+    are clamped to 1. **Default:** `16`.
   * `backpressure` {string} `'strict'`, `'block'`, or `'drop-oldest'`.
     **Default:** `'strict'`.
 * Returns: {Share}
@@ -962,7 +1228,8 @@ added: REPLACEME
 
 * `source` {Iterable} The sync source to share.
 * `options` {Object}
-  * `highWaterMark` {number} **Default:** `16`.
+  * `highWaterMark` {number} Must be >= 1; values below 1 are clamped
+    to 1. **Default:** `16`.
   * `backpressure` {string} **Default:** `'strict'`.
 * Returns: {SyncShare}
 
