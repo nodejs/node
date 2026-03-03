@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+console.log('script STARTED')
+import { version } from 'node:process'
+console.log(version)
