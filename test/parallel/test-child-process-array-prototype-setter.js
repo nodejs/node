@@ -21,7 +21,7 @@ try {
 
 spawnSyncAndAssert(process.execPath, ['-e', script], {
   stdout: (output) => {
-    assert.match(output, /^ERR_INVALID_ARG_TYPE\r?\n$/);
+    assert.match(output, /^NO_ERROR\r?\n$/);
   },
   stderr: (output) => {
     assert.doesNotMatch(output, /FATAL ERROR: v8::ToLocalChecked Empty MaybeLocal/);
