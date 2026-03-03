@@ -139,6 +139,7 @@ Array [
   String(
     github
     gitlab
+    circleci
     list
     revoke
   ),

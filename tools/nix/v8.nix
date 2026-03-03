@@ -8,6 +8,7 @@
 
 let
   nodejs = pkgs.nodejs-slim_latest;
+  v8Dir = ../../deps/v8;
 
   version =
     let
@@ -16,7 +17,7 @@ let
         + "#define V8_MINOR_VERSION ([0-9]+).*"
         + "#define V8_BUILD_NUMBER ([0-9]+).*"
         + "#define V8_PATCH_LEVEL ([0-9]+).*"
-      ) (builtins.readFile ../../deps/v8/include/v8-version.h);
+      ) (builtins.readFile "${v8Dir}/include/v8-version.h");
       v8_embedder_string = builtins.match ".*'v8_embedder_string': '-(node.[0-9]+)'.*" (
         builtins.readFile ../../common.gypi
       );
@@ -41,7 +42,7 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
         ../../configure.py
         ../../deps/inspector_protocol/inspector_protocol.gyp
         ../../deps/ncrypto/ncrypto.gyp
-        ../../deps/v8
+        v8Dir
         ../../node.gyp
         ../../node.gypi
         ../../src/inspector/node_inspector.gypi
@@ -89,7 +90,7 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
   '';
   installPhase = ''
     ${
-      if pkgs.stdenv.buildPlatform.isDarwin then
+      if pkgs.stdenv.hostPlatform.isDarwin then
         # Darwin is excluded from creating thin archive in tools/gyp/pylib/gyp/generator/ninja.py:2488
         "install -Dm644 out/Release/lib* -t $out/lib"
       else
@@ -109,22 +110,17 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
           done
         ''
     }
-    libs=$(for f in $out/lib/lib*.a; do
-      b=$(basename "$f" .a)
-      printf " -l%s" "''${b#lib}"
-    done)
 
-    # copy v8 headers
-    cp -r deps/v8/include $out/
-
-    # create a pkgconfig file for v8
     mkdir -p $out/lib/pkgconfig
     cat -> $out/lib/pkgconfig/v8.pc << EOF
     Name: v8
     Description: V8 JavaScript Engine build for Node.js CI
     Version: ${version}
-    Libs: -L$out/lib $libs
-    Cflags: -I$out/include
+    Libs: -L$out/lib $(for f in $out/lib/lib*.a; do
+      b=$(basename "$f" .a)
+      printf " -l%s" "''${b#lib}"
+    done) -lstdc++
+    Cflags: -I${v8Dir}/include -I${v8Dir}/third_party/abseil-cpp -I${v8Dir}/third_party/simdutf
     EOF
   '';
 })

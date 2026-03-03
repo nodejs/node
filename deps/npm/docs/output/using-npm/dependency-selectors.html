@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----dependency-selectors----11101">
+<h1 id="----dependency-selectors----11110">
     <span>Dependency Selectors</span>
-    <span class="version">@11.10.1</span>
+    <span class="version">@11.11.0</span>
 </h1>
 <span class="description">Dependency Selector Syntax &amp; Querying</span>
 </header>
@@ -255,7 +255,7 @@ npm command-line interface
 <li><code>:missing</code> when a dependency is not found on disk</li>
 <li><code>:semver(&lt;spec&gt;, [selector], [function])</code> match a valid <a href="https://github.com/npm/node-semver"><code>node-semver</code></a> version or range to a selector</li>
 <li><code>:path(&lt;path&gt;)</code> <a href="https://www.npmjs.com/package/glob">glob</a> matching based on dependencies path relative to the project</li>
-<li><code>:type(&lt;type&gt;)</code> <a href="https://github.com/npm/npm-package-arg#result-object">based on currently recognized types</a></li>
+<li><code>:type(&lt;type&gt;)</code> <a href="https://github.com/npm/npm-package-arg#result-object">based on currently recognized types</a>.  You can also use the aggregate type of <code>registry</code> for any registry dependency (e.g. tag, version, range, alias)</li>
 <li><code>:outdated(&lt;type&gt;)</code> when a dependency is outdated</li>
 <li><code>:vuln(&lt;selector&gt;)</code> when a dependency has a known vulnerability</li>
 </ul>

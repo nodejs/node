@@ -106,17 +106,6 @@ pkgs.mkShell {
 
   BUILD_WITH = if (ninja != null) then "ninja" else "make";
   NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
-  CI_SKIP_TESTS = pkgs.lib.concatStringsSep "," (
-    [ ]
-    ++ pkgs.lib.optionals useSharedAda [
-      # Different versions of Ada affect the WPT tests
-      "test-url"
-    ]
-    ++ pkgs.lib.optionals useSharedOpenSSL [
-      # Path to the openssl.cnf is different from the expected one
-      "test-strace-openat-openssl"
-    ]
-  );
   CONFIG_FLAGS = builtins.toString (
     configureFlags ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
   );

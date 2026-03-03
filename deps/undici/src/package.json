@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "7.21.0",
+  "version": "7.22.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -119,7 +119,7 @@
     "c8": "^10.0.0",
     "cross-env": "^10.0.0",
     "dns-packet": "^5.4.0",
-    "esbuild": "^0.25.2",
+    "esbuild": "^0.27.3",
     "eslint": "^9.9.0",
     "fast-check": "^4.1.1",
     "husky": "^9.0.7",

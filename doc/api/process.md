@@ -2002,6 +2002,9 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61803
+    description: Removed `transform` value.
   - version:
       - v25.2.0
       - v24.12.0
@@ -2013,8 +2016,7 @@ changes:
 
 * Type: {boolean|string}
 
-A value that is `"strip"` by default,
-`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
+A value that is `"strip"` by default, and `false` if
 Node.js is run with `--no-strip-types`.
 
 ## `process.features.uv`

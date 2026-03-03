@@ -33,6 +33,18 @@ function githubIdToken ({ visibility = 'public' } = { visibility: 'public' }) {
   return makeJwt(payload)
 }
 
+function circleciIdToken () {
+  const now = Math.floor(Date.now() / 1000)
+  const payload = {
+    'oidc.circleci.com/org-id': 'c9035eb6-6eb2-4c85-8a81-d9ee6a1fa8c2',
+    'oidc.circleci.com/project-id': 'ecc458d2-fbdc-4d9a-93c4-ac065ed3c3ca',
+    'oidc.circleci.com/vcs-origin': 'github.com/npm/trust-publish-test',
+    iat: now,
+    exp: now + 3600, // 1 hour expiration
+  }
+  return makeJwt(payload)
+}
+
 const mockOidc = async (t, {
   oidcOptions = {},
   packageName = '@npmcli/test-package',
@@ -47,6 +59,7 @@ const mockOidc = async (t, {
 }) => {
   const github = oidcOptions.github ?? false
   const gitlab = oidcOptions.gitlab ?? false
+  const circleci = oidcOptions.circleci ?? false
 
   const ACTIONS_ID_TOKEN_REQUEST_URL = oidcOptions.ACTIONS_ID_TOKEN_REQUEST_URL ?? 'https://github.com/actions/id-token'
   const ACTIONS_ID_TOKEN_REQUEST_TOKEN = oidcOptions.ACTIONS_ID_TOKEN_REQUEST_TOKEN ?? 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
@@ -56,9 +69,10 @@ const mockOidc = async (t, {
       env: {
         ACTIONS_ID_TOKEN_REQUEST_TOKEN: ACTIONS_ID_TOKEN_REQUEST_TOKEN,
         ACTIONS_ID_TOKEN_REQUEST_URL: ACTIONS_ID_TOKEN_REQUEST_URL,
-        CI: github || gitlab ? 'true' : undefined,
+        CI: github || gitlab || circleci ? 'true' : undefined,
         ...(github ? { GITHUB_ACTIONS: 'true' } : {}),
         ...(gitlab ? { GITLAB_CI: 'true' } : {}),
+        ...(circleci ? { CIRCLECI: 'true' } : {}),
         ...(oidcOptions.NPM_ID_TOKEN ? { NPM_ID_TOKEN: oidcOptions.NPM_ID_TOKEN } : {}),
         /* eslint-disable-next-line max-len */
         ...(oidcOptions.SIGSTORE_ID_TOKEN ? { SIGSTORE_ID_TOKEN: oidcOptions.SIGSTORE_ID_TOKEN } : {}),
@@ -68,17 +82,23 @@ const mockOidc = async (t, {
 
   const GITHUB_ACTIONS = ciInfo.GITHUB_ACTIONS
   const GITLAB = ciInfo.GITLAB
+  const CIRCLE = ciInfo.CIRCLE
   delete ciInfo.GITHUB_ACTIONS
   delete ciInfo.GITLAB
+  delete ciInfo.CIRCLE
   if (github) {
     ciInfo.GITHUB_ACTIONS = 'true'
   }
   if (gitlab) {
     ciInfo.GITLAB = 'true'
   }
+  if (circleci) {
+    ciInfo.CIRCLE = 'true'
+  }
   t.teardown(() => {
     ciInfo.GITHUB_ACTIONS = GITHUB_ACTIONS
     ciInfo.GITLAB = GITLAB
+    ciInfo.CIRCLE = CIRCLE
   })
 
   const { npm, registry, joinedOutput, logs } = await loadNpmWithRegistry(t, {
@@ -156,6 +176,7 @@ const oidcPublishTest = (opts) => {
 }
 
 module.exports = {
+  circleciIdToken,
   gitlabIdToken,
   githubIdToken,
   mockOidc,

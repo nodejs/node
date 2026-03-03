@@ -1,6 +1,7 @@
 const { otplease } = require('../../utils/auth.js')
 const npmFetch = require('npm-registry-fetch')
 const npa = require('npm-package-arg')
+const TrustCircleCI = require('./circleci.js')
 const TrustGithub = require('./github.js')
 const TrustGitlab = require('./gitlab.js')
 const TrustCommand = require('../../trust-cmd.js')
@@ -21,7 +22,9 @@ class TrustList extends TrustCommand {
   ]
 
   static bodyToOptions (body) {
-    if (body.type === 'github') {
+    if (body.type === 'circleci') {
+      return TrustCircleCI.bodyToOptions(body)
+    } else if (body.type === 'github') {
       return TrustGithub.bodyToOptions(body)
     } else if (body.type === 'gitlab') {
       return TrustGitlab.bodyToOptions(body)

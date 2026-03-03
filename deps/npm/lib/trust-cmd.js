@@ -55,6 +55,7 @@ class TrustCommand extends BaseCommand {
 
     const json = this.config.get('json')
     if (json) {
+      // Disable redaction: trust config values (e.g. CircleCI UUIDs) are not secrets
       output.standard(JSON.stringify(options.values, null, 2), { [META]: true, redact: false })
       return
     }
@@ -95,7 +96,7 @@ class TrustCommand extends BaseCommand {
         }
         if (urlLines.length > 0) {
           output.standard()
-          output.standard(urlLines.join('\n'))
+          output.standard(urlLines.join('\n'), { [META]: true, redact: false })
         }
       }
       if (pad) {

@@ -105,7 +105,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         node.root.path,
         'node_modules',
         '.store',
-        `${node.name}@${node.version}`
+        `${node.packageName}@${node.version}`
       )
       mkdirSync(dir, { recursive: true })
       // TODO this approach feels wrong
@@ -145,6 +145,21 @@ module.exports = cls => class IsolatedReifier extends cls {
     const optionalDeps = edges.filter(e => e.optional).map(e => e.to.target)
     const nonOptionalDeps = edges.filter(e => !e.optional).map(e => e.to.target)
 
+    // When legacyPeerDeps is enabled, peer dep edges are not created on the
+    // node. Resolve them from the tree so they get symlinked in the store.
+    const peerDeps = node.package.peerDependencies
+    if (peerDeps && node.legacyPeerDeps) {
+      const edgeNames = new Set(edges.map(e => e.name))
+      for (const peerName of Object.keys(peerDeps)) {
+        if (!edgeNames.has(peerName)) {
+          const resolved = node.resolve(peerName)
+          if (resolved && resolved !== node && !resolved.inert) {
+            nonOptionalDeps.push(resolved)
+          }
+        }
+      }
+    }
+
     result.localDependencies = await Promise.all(nonOptionalDeps.filter(n => n.isWorkspace).map(this.workspaceProxyMemo))
     result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace && !n.inert).map(this.externalProxyMemo))
     result.externalOptionalDependencies = await Promise.all(optionalDeps.filter(n => !n.inert).map(this.externalProxyMemo))
@@ -155,7 +170,9 @@ module.exports = cls => class IsolatedReifier extends cls {
     ]
     result.root = this.rootNode
     result.id = this.counter++
-    result.name = node.name
+    /* istanbul ignore next - packageName is always set for real packages */
+    result.name = result.isWorkspace ? (node.packageName || node.name) : node.name
+    result.packageName = node.packageName || node.name
     result.package = { ...node.package }
     result.package.bundleDependencies = undefined
     result.hasInstallScript = node.hasInstallScript
@@ -228,7 +245,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         getChildren: node => node.dependencies,
         filter: node => node,
         visit: node => {
-          branch.push(`${node.name}@${node.version}`)
+          branch.push(`${node.packageName}@${node.version}`)
           deps.push(`${branch.join('->')}::${node.resolved}`)
         },
         leave: () => {
@@ -246,7 +263,7 @@ module.exports = cls => class IsolatedReifier extends cls {
     }
 
     const getKey = (idealTreeNode) => {
-      return `${idealTreeNode.name}@${idealTreeNode.version}-${treeHash(idealTreeNode)}`
+      return `${idealTreeNode.packageName}@${idealTreeNode.version}-${treeHash(idealTreeNode)}`
     }
 
     const root = {
@@ -301,7 +318,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         isProjectRoot: false,
         isTop: false,
         location,
-        name: node.name,
+        name: node.packageName || node.name,
         optional: node.optional,
         top: { path: proxiedIdealTree.root.localPath },
         children: [],
@@ -335,7 +352,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         return
       }
       processed.add(key)
-      const location = join('node_modules', '.store', key, 'node_modules', c.name)
+      const location = join('node_modules', '.store', key, 'node_modules', c.packageName)
       generateChild(c, location, c.package, true)
     })
     bundledTree.nodes.forEach(node => {
@@ -361,12 +378,16 @@ module.exports = cls => class IsolatedReifier extends cls {
 
       let from, nmFolder
       if (externalEdge) {
-        const fromLocation = join('node_modules', '.store', key, 'node_modules', node.name)
+        const fromLocation = join('node_modules', '.store', key, 'node_modules', node.packageName)
         from = root.children.find(c => c.location === fromLocation)
         nmFolder = join('node_modules', '.store', key, 'node_modules')
       } else {
         from = node.isProjectRoot ? root : root.fsChildren.find(c => c.location === node.localLocation)
         nmFolder = join(node.localLocation, 'node_modules')
+      }
+      /* istanbul ignore next - strict-peer-deps can exclude nodes from the tree */
+      if (!from) {
+        return
       }
 
       const processDeps = (dep, optional, external) => {
@@ -379,12 +400,16 @@ module.exports = cls => class IsolatedReifier extends cls {
 
         let target
         if (external) {
-          const toLocation = join('node_modules', '.store', toKey, 'node_modules', dep.name)
+          const toLocation = join('node_modules', '.store', toKey, 'node_modules', dep.packageName)
           target = root.children.find(c => c.location === toLocation)
         } else {
           target = root.fsChildren.find(c => c.location === dep.localLocation)
         }
         // TODO: we should no-op is an edge has already been created with the same fromKey and toKey
+        /* istanbul ignore next - strict-peer-deps can exclude nodes from the tree */
+        if (!target) {
+          return
+        }
 
         binNames.forEach(bn => {
           target.binPaths.push(join(from.realpath, 'node_modules', '.bin', bn))

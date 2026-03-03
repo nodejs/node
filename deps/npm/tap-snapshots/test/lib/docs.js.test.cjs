@@ -5791,6 +5791,9 @@ Subcommands:
   gitlab
     Create a trusted relationship between a package and GitLab CI/CD
 
+  circleci
+    Create a trusted relationship between a package and CircleCI
+
   list
     List trusted relationships for a package
 
@@ -5807,6 +5810,8 @@ npm trust
 
 Note: This command is unaware of workspaces.
 
+#### Synopsis
+#### Flags
 #### Synopsis
 #### Flags
 #### Synopsis

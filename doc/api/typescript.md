@@ -2,6 +2,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61803
+    description: Removed `--experimental-transform-types` flag.
   - version:
       - v25.2.0
       - v24.12.0
@@ -77,8 +80,6 @@ By default Node.js will execute TypeScript files that contains only
 erasable TypeScript syntax.
 Node.js will replace TypeScript syntax with whitespace,
 and no type checking is performed.
-To enable the transformation of non erasable TypeScript syntax, which requires JavaScript code generation,
-such as `enum` declarations, parameter properties use the flag [`--experimental-transform-types`][].
 To disable this feature, use the flag [`--no-strip-types`][].
 
 Node.js ignores `tsconfig.json` files and therefore
@@ -139,8 +140,7 @@ include the `.ts` extension.
 ### TypeScript features
 
 Since Node.js is only removing inline types, any TypeScript features that
-involve _replacing_ TypeScript syntax with new JavaScript syntax will error,
-unless the flag [`--experimental-transform-types`][] is passed.
+involve _replacing_ TypeScript syntax with new JavaScript syntax will error.
 
 The most prominent features that require transformation are:
 
@@ -210,8 +210,6 @@ TypeScript syntax is unsupported in the REPL, `--check`, and
 
 Since inline types are replaced by whitespace, source maps are unnecessary for
 correct line numbers in stack traces; and Node.js does not generate them.
-When [`--experimental-transform-types`][] is enabled, source-maps
-are enabled by default.
 
 ### Type stripping in dependencies
 
@@ -228,7 +226,6 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[`--experimental-transform-types`]: cli.md#--experimental-transform-types
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths

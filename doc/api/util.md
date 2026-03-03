@@ -679,8 +679,7 @@ anotherFunction();
 
 It is possible to reconstruct the original locations by setting the option `sourceMap` to `true`.
 If the source map is not available, the original location will be the same as the current location.
-When the `--enable-source-maps` flag is enabled, for example when using `--experimental-transform-types`,
-`sourceMap` will be true by default.
+When the `--enable-source-maps` flag is enabled,`sourceMap` will be true by default.
 
 ```ts
 import { getCallSites } from 'node:util';

@@ -221,6 +221,44 @@ t.test('list with scoped package', async t => {
   await npm.exec('trust', ['list', scopedPackage])
 })
 
+t.test('list with circleci trust type', async t => {
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: packageName,
+        version: '1.0.0',
+      }),
+    },
+    config: {
+      '//registry.npmjs.org/:_authToken': 'test-auth-token',
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+
+  const trustConfigs = [
+    {
+      id: 'test-id-1',
+      type: 'circleci',
+      claims: {
+        'oidc.circleci.com/org-id': '550e8400-e29b-41d4-a716-446655440000',
+        'oidc.circleci.com/project-id': '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+        'oidc.circleci.com/pipeline-definition-id': '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
+        'oidc.circleci.com/vcs-origin': 'github.com/owner/repo',
+        'oidc.circleci.com/context-ids': ['123e4567-e89b-12d3-a456-426614174000'],
+      },
+    },
+  ]
+
+  registry.trustList({ packageName, body: trustConfigs })
+
+  await npm.exec('trust', ['list', packageName])
+})
+
 t.test('list with unknown trust type', async t => {
   const { npm } = await loadMockNpm(t, {
     prefixDir: {
