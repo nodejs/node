@@ -83,19 +83,37 @@
                 return promise;
             }, mixedCase + " with " + size + " source data");
 
-            promise_test(function(test) {
-                var copiedBuffer = copyBuffer(sourceData[size]);
-                var promise = subtle.digest({name: upCase}, copiedBuffer)
-                .then(function(result) {
-                    assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
-                }, function(err) {
-                    assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
-                });
+            if (sourceData[size].length > 0) {
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    copiedBuffer[0] = 255 - copiedBuffer[0];
+                    var promise = subtle.digest({
+                        get name() {
+                            copiedBuffer[0] = sourceData[size][0];
+                            return upCase;
+                        }
+                    }, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
+                    return promise;
+                }, upCase + " with " + size + " source data and altered buffer during call");
 
-                copiedBuffer[0] = 255 - copiedBuffer;
-                return promise;
-            }, upCase + " with " + size + " source data and altered buffer after call");
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    var promise = subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
 
+                    copiedBuffer[0] = 255 - copiedBuffer[0];
+                    return promise;
+                }, upCase + " with " + size + " source data and altered buffer after call");
+            }
         });
     });
 

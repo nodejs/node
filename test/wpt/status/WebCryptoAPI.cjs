@@ -53,8 +53,10 @@ const cshakeExpectedFailures = ['cSHAKE128', 'cSHAKE256'].flatMap((algorithm) =>
       const base = `${algorithm} with ${length} bit output and ${size} source data`;
       return [
         base,
+      ].concat(size !== 'empty' ? [
         `${base} and altered buffer after call`,
-      ];
+        `${base} and altered buffer during call`,
+      ] : []);
     });
   });
 });
@@ -71,7 +73,9 @@ const kmacVectorNames = [
 const kmacExpectedFailures = kmacVectorNames.flatMap((name) => {
   return [
     `${name} verification`,
+    `${name} verification with altered signature during call`,
     `${name} verification with altered signature after call`,
+    `${name} with altered plaintext during call`,
     `${name} with altered plaintext after call`,
     `${name} no verify usage`,
     `${name} round trip`,
