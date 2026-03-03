@@ -466,12 +466,11 @@ class Database final : public DatabaseCommon {
            bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  // static void IsTransactionGetter(
-  //     const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsInTransaction(const v8::FunctionCallbackInfo<v8::Value>& args);
   // static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>&
   // args); static void Location(const v8::FunctionCallbackInfo<v8::Value>&
   // args); static void EnableLoadExtension(

@@ -521,36 +521,38 @@ suite('Database.prototype.exec()', { timeout: 1000 }, () => {
   });
 });
 
-suite.skip('Database.prototype.isTransaction', { timeout: 1000 }, () => {
+suite('Database.prototype.isInTransaction()', { timeout: 1000 }, () => {
   test('correctly detects a committed transaction', async (t) => {
     const db = new Database(':memory:');
+    t.after(async () => { await db.close(); });
 
-    t.assert.strictEqual(db.isTransaction, false);
+    t.assert.strictEqual(await db.isInTransaction(), false);
     await db.exec('BEGIN');
-    t.assert.strictEqual(db.isTransaction, true);
+    t.assert.strictEqual(await db.isInTransaction(), true);
     await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
-    t.assert.strictEqual(db.isTransaction, true);
+    t.assert.strictEqual(await db.isInTransaction(), true);
     await db.exec('COMMIT');
-    t.assert.strictEqual(db.isTransaction, false);
+    t.assert.strictEqual(await db.isInTransaction(), false);
   });
 
   test('correctly detects a rolled back transaction', async (t) => {
     const db = new Database(':memory:');
+    t.after(async () => { await db.close(); });
 
-    t.assert.strictEqual(db.isTransaction, false);
+    t.assert.strictEqual(await db.isInTransaction(), false);
     await db.exec('BEGIN');
-    t.assert.strictEqual(db.isTransaction, true);
+    t.assert.strictEqual(await db.isInTransaction(), true);
     await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
-    t.assert.strictEqual(db.isTransaction, true);
+    t.assert.strictEqual(await db.isInTransaction(), true);
     await db.exec('ROLLBACK');
-    t.assert.strictEqual(db.isTransaction, false);
+    t.assert.strictEqual(await db.isInTransaction(), false);
   });
 
-  test('throws if database is not open', (t) => {
+  test('rejects if database is not open', async (t) => {
     const db = new Database(nextDb(), { open: false });
 
-    t.assert.throws(() => {
-      return db.isTransaction;
+    await t.assert.rejects(async () => {
+      await db.isInTransaction();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,

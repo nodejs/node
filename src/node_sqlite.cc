@@ -3877,7 +3877,8 @@ struct blob {
 };
 using literal = std::variant<null, boolean, integer, real, text, blob>;
 using value = std::variant<std::pmr::vector<literal>,
-                           std::pmr::unordered_map<std::pmr::string, literal>>;
+                           std::pmr::unordered_map<std::pmr::string, literal>,
+                           literal>;
 
 struct bind_literal {
   sqlite3_stmt* stmt;
@@ -3916,6 +3917,10 @@ struct bind_literal {
 struct bind_value {
   sqlite3_stmt* stmt;
 
+  int operator()(const literal&) const {
+    // bind_value should only be called with vector or map
+    return SQLITE_MISUSE;
+  }
   int operator()(const std::pmr::vector<transfer::literal>& value) const {
     if (!std::in_range<int>(value.size())) [[unlikely]] {
       return SQLITE_RANGE;
@@ -4566,12 +4571,24 @@ class CloseOperation : private OperationBase {
   }
 };
 
+class IsInTransactionOperation : private OperationBase {
+ public:
+  explicit IsInTransactionOperation(Global<Promise::Resolver>&& resolver)
+      : OperationBase(std::move(resolver)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    transfer::boolean in_transaction{sqlite3_get_autocommit(connection) == 0};
+    return OperationResult::ResolveValue(this, transfer::value{in_transaction});
+  }
+};
+
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
                                StatementAllOperation,
                                StatementRunOperation,
                                PrepareStatementOperation,
                                FinalizeStatementOperation,
+                               IsInTransactionOperation,
                                CloseOperation>;
 
 template <typename T, typename V>
@@ -4873,6 +4890,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
   SetProtoAsyncDispose(isolate, tmpl, Database::AsyncDispose);
   SetProtoMethod(isolate, tmpl, "prepare", Database::Prepare);
   SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
+  SetProtoMethod(isolate, tmpl, "isInTransaction", Database::IsInTransaction);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
@@ -5061,6 +5079,17 @@ void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Utf8Value sql(env->isolate(), args[0].As<String>());
   args.GetReturnValue().Set(
       db->Schedule<ExecOperation>(std::pmr::string(*sql, sql.length())));
+}
+
+void Database::IsInTransaction(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
+
+  args.GetReturnValue().Set(db->Schedule<IsInTransactionOperation>());
 }
 
 Statement::Statement(Environment* env,
