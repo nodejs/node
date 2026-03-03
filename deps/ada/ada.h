@@ -1,4 +1,4 @@
-/* auto-generated on 2026-01-30 13:29:04 -0500. Do not edit! */
+/* auto-generated on 2026-02-23 21:29:24 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8091,6 +8091,12 @@ inline void url_aggregator::update_base_pathname(const std::string_view input) {
     // output.
     buffer.insert(components.pathname_start, "/.");
     components.pathname_start += 2;
+    if (components.search_start != url_components::omitted) {
+      components.search_start += 2;
+    }
+    if (components.hash_start != url_components::omitted) {
+      components.hash_start += 2;
+    }
   }
 
   uint32_t difference = replace_and_resize(
@@ -9530,13 +9536,14 @@ url_pattern_component<regex_provider>::create_component_match_result(
   auto result =
       url_pattern_component_result{.input = std::move(input), .groups = {}};
 
-  // Optimization: Let's reserve the size.
-  result.groups.reserve(exec_result.size());
-
   // We explicitly start iterating from 0 even though the spec
   // says we should start from 1. This case is handled by the
-  // std_regex_provider.
-  for (size_t index = 0; index < exec_result.size(); index++) {
+  // std_regex_provider which removes the full match from index 0.
+  // Use min() to guard against potential mismatches between
+  // exec_result size and group_name_list size.
+  const size_t size = std::min(exec_result.size(), group_name_list.size());
+  result.groups.reserve(size);
+  for (size_t index = 0; index < size; index++) {
     result.groups.emplace(group_name_list[index],
                           std::move(exec_result[index]));
   }
@@ -11221,14 +11228,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.4.2"
+#define ADA_VERSION "3.4.3"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 4,
-  ADA_VERSION_REVISION = 2,
+  ADA_VERSION_REVISION = 3,
 };
 
 }  // namespace ada
