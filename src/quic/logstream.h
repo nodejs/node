@@ -17,6 +17,10 @@ class LogStream : public AsyncWrap, public StreamBase {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
 
   static BaseObjectPtr<LogStream> Create(Environment* env);
 

@@ -833,7 +833,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
+        X509Certificate::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "X509Certificate"));
     SetProtoMethodNoSideEffect(isolate, tmpl, "subject", Subject);

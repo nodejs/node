@@ -118,6 +118,10 @@ class ExternalReferenceRegistry;
 
 class AsyncWrap : public BaseObject {
  public:
+  enum InternalFields {
+    kInternalFieldCount = BaseObject::kInternalFieldCount,
+  };
+
   enum ProviderType {
 #define V(PROVIDER)                                                           \
     PROVIDER_ ## PROVIDER,
@@ -230,6 +234,9 @@ class AsyncWrap : public BaseObject {
                                         v8::Local<v8::Object> obj);
 
   bool IsDoneInitializing() const override;
+
+  static inline v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      Environment* env, int internal_field_count = kInternalFieldCount);
 
  private:
   ProviderType provider_type_ = PROVIDER_NONE;
