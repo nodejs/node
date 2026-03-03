@@ -66,11 +66,11 @@ module.exports = {
             ([module]) => foundModules.indexOf(module) === -1,
           );
           missingModules.forEach(([moduleName]) => {
-            context.report(
-              node,
-              'Mandatory module "{{moduleName}}" must be loaded.',
-              { moduleName: moduleName },
-            );
+            context.report({
+              node: node.body[0] ?? node,
+              message: 'Mandatory module "{{moduleName}}" must be loaded.',
+              data: { moduleName: moduleName },
+            });
           });
         }
       },

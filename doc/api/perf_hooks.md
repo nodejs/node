@@ -2191,6 +2191,8 @@ const timedImport = performance.timerify(async (module) => {
 await timedImport('some-module');
 ```
 
+<!-- eslint-disable no-global-assign -->
+
 ```cjs
 'use strict';
 const {
