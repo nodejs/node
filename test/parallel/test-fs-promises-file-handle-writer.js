@@ -95,7 +95,7 @@ async function testEndReturnsTotalBytes() {
 }
 
 // =============================================================================
-// autoClose: true — handle closed after end()
+// autoClose: true - handle closed after end()
 // =============================================================================
 
 async function testAutoCloseOnEnd() {
@@ -111,24 +111,24 @@ async function testAutoCloseOnEnd() {
 }
 
 // =============================================================================
-// autoClose: true — handle closed after abort()
+// autoClose: true - handle closed after fail()
 // =============================================================================
 
-async function testAutoCloseOnAbort() {
-  const filePath = path.join(tmpDir, 'writer-autoclose-abort.txt');
+async function testAutoCloseOnFail() {
+  const filePath = path.join(tmpDir, 'writer-autoclose-fail.txt');
   const fh = await open(filePath, 'w');
   const w = fh.writer({ autoClose: true });
   await w.write(Buffer.from('partial'));
-  await w.abort(new Error('test abort'));
+  await w.fail(new Error('test fail'));
 
   // Handle should be closed
   await assert.rejects(fh.stat(), { code: 'EBADF' });
-  // Partial data should still be on disk (abort doesn't truncate)
+  // Partial data should still be on disk (fail doesn't truncate)
   assert.strictEqual(fs.readFileSync(filePath, 'utf8'), 'partial');
 }
 
 // =============================================================================
-// start option — write at specified offset
+// start option - write at specified offset
 // =============================================================================
 
 async function testStartOption() {
@@ -146,7 +146,7 @@ async function testStartOption() {
 }
 
 // =============================================================================
-// start option — sequential writes advance position
+// start option - sequential writes advance position
 // =============================================================================
 
 async function testStartSequentialPosition() {
@@ -165,7 +165,7 @@ async function testStartSequentialPosition() {
 }
 
 // =============================================================================
-// Locked state — can't create second writer while active
+// Locked state - can't create second writer while active
 // =============================================================================
 
 async function testLockedState() {
@@ -189,7 +189,7 @@ async function testLockedState() {
 }
 
 // =============================================================================
-// Unlock after end — handle reusable
+// Unlock after end - handle reusable
 // =============================================================================
 
 async function testUnlockAfterEnd() {
@@ -200,7 +200,7 @@ async function testUnlockAfterEnd() {
   await w1.write(Buffer.from('first'));
   await w1.end();
 
-  // Should work — handle is unlocked
+  // Should work - handle is unlocked
   const w2 = fh.writer();
   await w2.write(Buffer.from(' second'));
   await w2.end();
@@ -210,31 +210,31 @@ async function testUnlockAfterEnd() {
 }
 
 // =============================================================================
-// Unlock after abort — handle reusable
+// Unlock after fail - handle reusable
 // =============================================================================
 
-async function testUnlockAfterAbort() {
-  const filePath = path.join(tmpDir, 'writer-unlock-abort.txt');
+async function testUnlockAfterFail() {
+  const filePath = path.join(tmpDir, 'writer-unlock-fail.txt');
   const fh = await open(filePath, 'w');
 
   const w1 = fh.writer();
-  await w1.write(Buffer.from('aborted'));
-  await w1.abort(new Error('test'));
+  await w1.write(Buffer.from('failed'));
+  await w1.fail(new Error('test'));
 
-  // Should work — handle is unlocked
+  // Should work - handle is unlocked
   const w2 = fh.writer();
   await w2.write(Buffer.from('recovered'));
   await w2.end();
   await fh.close();
 
-  // 'recovered' is appended after 'aborted' at current file offset
+  // 'recovered' is appended after 'failed' at current file offset
   const content = fs.readFileSync(filePath, 'utf8');
-  assert.ok(content.startsWith('aborted'));
+  assert.ok(content.startsWith('failed'));
   assert.ok(content.includes('recovered'));
 }
 
 // =============================================================================
-// Write after end/abort rejects
+// Write after end/fail rejects
 // =============================================================================
 
 async function testWriteAfterEndRejects() {
@@ -257,7 +257,7 @@ async function testWriteAfterEndRejects() {
 }
 
 // =============================================================================
-// Closed handle — writer() throws
+// Closed handle - writer() throws
 // =============================================================================
 
 async function testClosedHandle() {
@@ -272,7 +272,7 @@ async function testClosedHandle() {
 }
 
 // =============================================================================
-// pipeTo() integration — pipe source through writer
+// pipeTo() integration - pipe source through writer
 // =============================================================================
 
 async function testPipeToIntegration() {
@@ -295,7 +295,7 @@ async function testPipeToIntegration() {
 }
 
 // =============================================================================
-// pipeTo() with transforms — uppercase through writer
+// pipeTo() with transforms - uppercase through writer
 // =============================================================================
 
 async function testPipeToWithTransform() {
@@ -365,7 +365,7 @@ async function testCompressRoundTrip() {
 }
 
 // =============================================================================
-// Large file write — write 1MB in 64KB chunks
+// Large file write - write 1MB in 64KB chunks
 // =============================================================================
 
 async function testLargeFileWrite() {
@@ -399,7 +399,7 @@ async function testLargeFileWrite() {
 }
 
 // =============================================================================
-// Symbol.asyncDispose — await using
+// Symbol.asyncDispose - await using
 // =============================================================================
 
 async function testAsyncDispose() {
@@ -414,13 +414,13 @@ async function testAsyncDispose() {
 
   // Verify the handle is actually closed by trying to open a new one
   // (if the old one were still open with a write lock on some OSes,
-  // this could fail — but it should succeed).
+  // this could fail - but it should succeed).
   const fh2 = await open(filePath, 'r');
   await fh2.close();
 }
 
 // =============================================================================
-// Symbol.asyncDispose — cleanup on error (await using unwinds)
+// Symbol.asyncDispose - cleanup on error (await using unwinds)
 // =============================================================================
 
 async function testAsyncDisposeOnError() {
@@ -447,6 +447,74 @@ async function testAsyncDisposeOnError() {
 }
 
 // =============================================================================
+// Pre-aborted signal rejects write/writev/end
+// =============================================================================
+
+async function testWriteWithAbortedSignalRejects() {
+  const filePath = path.join(tmpDir, 'writer-signal-write.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+
+  const ac = new AbortController();
+  ac.abort();
+
+  await assert.rejects(
+    w.write(Buffer.from('data'), { signal: ac.signal }),
+    { name: 'AbortError' },
+  );
+
+  // Writer should still be usable after a signal rejection
+  await w.write(Buffer.from('ok'));
+  await w.end();
+  await fh.close();
+
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'), 'ok');
+}
+
+async function testWritevWithAbortedSignalRejects() {
+  const filePath = path.join(tmpDir, 'writer-signal-writev.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+
+  const ac = new AbortController();
+  ac.abort();
+
+  await assert.rejects(
+    w.writev([Buffer.from('a'), Buffer.from('b')], { signal: ac.signal }),
+    { name: 'AbortError' },
+  );
+
+  await w.writev([Buffer.from('ok')]);
+  await w.end();
+  await fh.close();
+
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'), 'ok');
+}
+
+async function testEndWithAbortedSignalRejects() {
+  const filePath = path.join(tmpDir, 'writer-signal-end.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+
+  await w.write(Buffer.from('data'));
+
+  const ac = new AbortController();
+  ac.abort();
+
+  await assert.rejects(
+    w.end({ signal: ac.signal }),
+    { name: 'AbortError' },
+  );
+
+  // end() was rejected so writer is still open - end it cleanly
+  const totalBytes = await w.end();
+  await fh.close();
+
+  assert.strictEqual(totalBytes, 4);
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'), 'data');
+}
+
+// =============================================================================
 // Run all tests
 // =============================================================================
 
@@ -456,12 +524,12 @@ Promise.all([
   testMixedWriteAndWritev(),
   testEndReturnsTotalBytes(),
   testAutoCloseOnEnd(),
-  testAutoCloseOnAbort(),
+  testAutoCloseOnFail(),
   testStartOption(),
   testStartSequentialPosition(),
   testLockedState(),
   testUnlockAfterEnd(),
-  testUnlockAfterAbort(),
+  testUnlockAfterFail(),
   testWriteAfterEndRejects(),
   testClosedHandle(),
   testPipeToIntegration(),
@@ -470,4 +538,7 @@ Promise.all([
   testLargeFileWrite(),
   testAsyncDispose(),
   testAsyncDisposeOnError(),
+  testWriteWithAbortedSignalRejects(),
+  testWritevWithAbortedSignalRejects(),
+  testEndWithAbortedSignalRejects(),
 ]).then(common.mustCall());

@@ -111,14 +111,22 @@ async function run() {
 
 Transforms come in two forms:
 
-* **Stateless** -- a function `(chunks) => result` called once per batch.
-  Receives `Uint8Array[]` (or `null` as the flush signal). Returns
-  `Uint8Array[]`, `null`, or an iterable of chunks.
+* **Stateless** -- a function `(chunks, options) => result` called once per
+  batch. Receives `Uint8Array[]` (or `null` as the flush signal) and an
+  `options` object. Returns `Uint8Array[]`, `null`, or an iterable of chunks.
 
-* **Stateful** -- an object `{ transform(source) }` where `transform` is a
-  generator (sync or async) that receives the entire upstream iterable and
-  yields output. This form is used for compression, encryption, and any
-  transform that needs to buffer across batches.
+* **Stateful** -- an object `{ transform(source, options) }` where `transform`
+  is a generator (sync or async) that receives the entire upstream iterable
+  and an `options` object, and yields output. This form is used for
+  compression, encryption, and any transform that needs to buffer across
+  batches.
+
+Both forms receive an `options` parameter with the following property:
+
+* `options.signal` {AbortSignal} An AbortSignal that fires when the pipeline
+  is cancelled, encounters an error, or the consumer stops reading. Transforms
+  can check `signal.aborted` or listen for the `'abort'` event to perform
+  early cleanup.
 
 The flush signal (`null`) is sent after the source ends, giving transforms
 a chance to emit trailing data (e.g., compression footers).
@@ -169,7 +177,7 @@ The API supports two models:
 
 A writer is any object with a `write(chunk)` method. Writers optionally
 support `writev(chunks)` for batch writes (mapped to scatter/gather I/O where
-available), `end()` to signal completion, and `abort(reason)` to signal
+available), `end()` to signal completion, and `fail(reason)` to signal
 failure.
 
 ## `require('node:stream/new')`
@@ -269,7 +277,7 @@ added: REPLACEME
   * `signal` {AbortSignal} Abort the pipeline.
   * `preventClose` {boolean} If `true`, do not call `writer.end()` when
     the source ends. **Default:** `false`.
-  * `preventAbort` {boolean} If `true`, do not call `writer.abort()` on
+  * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
     error. **Default:** `false`.
 * Returns: {Promise\<number>} Total bytes written.
 
@@ -316,7 +324,7 @@ added: REPLACEME
 * `writer` {Object} Destination with `write(chunk)` method.
 * `options` {Object}
   * `preventClose` {boolean} **Default:** `false`.
-  * `preventAbort` {boolean} **Default:** `false`.
+  * `preventFail` {boolean} **Default:** `false`.
 * Returns: {number} Total bytes written.
 
 Synchronous version of [`pipeTo()`][].
@@ -451,12 +459,18 @@ run().catch(console.error);
 
 The writer returned by `push()` has the following methods:
 
-##### `writer.abort(reason)`
+##### `writer.fail(reason)`
 
 * `reason` {Error}
 * Returns: {Promise\<void>}
 
-Abort the stream with an error.
+Fail the stream with an error.
+
+##### `writer.failSync(reason)`
+
+* `reason` {Error}
+
+Synchronously fail the stream with an error. Does not return a promise.
 
 ##### `writer.desiredSize`
 
@@ -465,15 +479,21 @@ Abort the stream with an error.
 The number of buffer slots available before the high water mark is reached.
 Returns `null` if the writer is closed or the consumer has disconnected.
 
-##### `writer.end()`
+##### `writer.end([options])`
 
+* `options` {Object}
+  * `signal` {AbortSignal} Cancel just this operation. The signal cancels only
+    the pending `end()` call; it does not fail the writer itself.
 * Returns: {Promise\<number>} Total bytes written.
 
 Signal that no more data will be written.
 
-##### `writer.write(chunk)`
+##### `writer.write(chunk[, options])`
 
 * `chunk` {Uint8Array|string}
+* `options` {Object}
+  * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
+    only the pending `write()` call; it does not fail the writer itself.
 * Returns: {Promise\<void>}
 
 Write a chunk. The promise resolves when buffer space is available.
@@ -486,9 +506,12 @@ Write a chunk. The promise resolves when buffer space is available.
 
 Synchronous write. Does not block; returns `false` if backpressure is active.
 
-##### `writer.writev(chunks)`
+##### `writer.writev(chunks[, options])`
 
 * `chunks` {Uint8Array\[]|string\[]}
+* `options` {Object}
+  * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
+    only the pending `writev()` call; it does not fail the writer itself.
 * Returns: {Promise\<void>}
 
 Write multiple chunks as a single batch.

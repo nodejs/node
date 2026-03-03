@@ -928,11 +928,26 @@ added: REPLACEME
   * `start` {number} Byte offset to start writing at. **Default:** current
     position (append).
 * Returns: {Object}
-  * `write(chunk)` {Function} Returns {Promise\<void>}.
-  * `writev(chunks)` {Function} Returns {Promise\<void>}. Uses scatter/gather
-    I/O via a single `writev()` syscall.
-  * `end()` {Function} Returns {Promise\<number>} total bytes written.
-  * `abort(reason)` {Function} Returns {Promise\<void>}.
+  * `write(chunk[, options])` {Function} Returns {Promise\<void>}.
+    * `chunk` {Buffer|TypedArray|DataView}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writev(chunks[, options])` {Function} Returns {Promise\<void>}. Uses
+    scatter/gather I/O via a single `writev()` syscall.
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `end([options])` {Function} Returns {Promise\<number>} total bytes written.
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, `end()`
+        rejects with `AbortError` and the writer remains open.
+  * `fail(reason)` {Function} Returns {Promise\<void>}. Puts the writer
+    into a terminal error state.
+  * `failSync(reason)` {Function} Returns {boolean}. Synchronous best-effort
+    cleanup. Marks the writer as closed so subsequent writes fail immediately.
+    Cannot honor `autoClose` (requires async I/O).
 
 Return a [`node:stream/new`][] writer backed by this file handle.
 

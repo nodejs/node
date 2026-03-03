@@ -159,7 +159,7 @@ async function testPipeToSync() {
   const writer = {
     write(chunk) { written.push(chunk); },
     end() { return written.length; },
-    abort() {},
+    fail() {},
   };
 
   const totalBytes = pipeToSync(source, writer);
@@ -176,7 +176,7 @@ async function testPipeTo() {
   const writer = {
     async write(chunk) { written.push(chunk); },
     async end() { return written.length; },
-    async abort() {},
+    async fail() {},
   };
 
   const totalBytes = await pipeTo(source, writer);
@@ -190,7 +190,7 @@ async function testPipeToPreventClose() {
   const writer = {
     async write() {},
     async end() { endCalled = true; },
-    async abort() {},
+    async fail() {},
   };
 
   await pipeTo(source, writer, { preventClose: true });

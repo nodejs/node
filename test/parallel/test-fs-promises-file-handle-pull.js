@@ -69,7 +69,7 @@ async function testPullEmptyFile() {
 
 async function testPullLargeFile() {
   const filePath = path.join(tmpDir, 'pull-large.bin');
-  // Write 64KB — enough for multiple 16KB read chunks
+  // Write 64KB - enough for multiple 16KB read chunks
   const size = 64 * 1024;
   const buf = Buffer.alloc(size, 0x42);
   fs.writeFileSync(filePath, buf);

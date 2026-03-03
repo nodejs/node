@@ -55,7 +55,7 @@ async function testConsumerCount() {
   assert.strictEqual(bc.consumerCount, 2);
 
   // Consume c1 to completion (it returns immediately since no data has been
-  // pushed and we haven't ended yet — but we'll cancel to detach)
+  // pushed and we haven't ended yet - but we'll cancel to detach)
   bc.cancel();
 
   // After cancel, consumers are detached
@@ -108,11 +108,11 @@ async function testWriterEnd() {
   assert.strictEqual(data, 'data');
 }
 
-async function testWriterAbort() {
+async function testWriterFail() {
   const { writer, broadcast: bc } = broadcast();
   const consumer = bc.push();
 
-  await writer.abort(new Error('test error'));
+  await writer.fail(new Error('test error'));
 
   await assert.rejects(
     async () => {
@@ -257,6 +257,77 @@ async function testAlreadyAbortedSignal() {
   assert.strictEqual(batches.length, 0);
 }
 
+// =============================================================================
+// Broadcast.from() hang fix - cancel while write blocked on backpressure
+// =============================================================================
+
+async function testBroadcastFromCancelWhileBlocked() {
+  // Create a slow async source that blocks between yields
+  let sourceFinished = false;
+  async function* slowSource() {
+    yield [new TextEncoder().encode('chunk1')];
+    // Simulate a long delay - the cancel should unblock this
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    yield [new TextEncoder().encode('chunk2')];
+    sourceFinished = true;
+  }
+
+  const { broadcast: bc } = Broadcast.from(slowSource());
+  const consumer = bc.push();
+
+  // Read the first chunk
+  const iter = consumer[Symbol.asyncIterator]();
+  const first = await iter.next();
+  assert.strictEqual(first.done, false);
+
+  // Cancel while the source is blocked waiting to yield the next chunk
+  bc.cancel();
+
+  // The iteration should complete (not hang)
+  const next = await iter.next();
+  assert.strictEqual(next.done, true);
+
+  // Source should NOT have finished (we cancelled before chunk2)
+  assert.strictEqual(sourceFinished, false);
+}
+
+// =============================================================================
+// Writer fail detaches consumers
+// =============================================================================
+
+async function testFailDetachesConsumers() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer1 = bc.push();
+  const consumer2 = bc.push();
+
+  assert.strictEqual(bc.consumerCount, 2);
+
+  // Write some data, then fail the writer
+  await writer.write('data');
+  await writer.fail(new Error('writer failed'));
+
+  // Both consumers should see the error
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of consumer1) {
+        assert.fail('Should not reach here');
+      }
+    },
+    { message: 'writer failed' },
+  );
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of consumer2) {
+        assert.fail('Should not reach here');
+      }
+    },
+    { message: 'writer failed' },
+  );
+}
+
 Promise.all([
   testBasicBroadcast(),
   testMultipleWrites(),
@@ -264,7 +335,7 @@ Promise.all([
   testWriteSync(),
   testWritevSync(),
   testWriterEnd(),
-  testWriterAbort(),
+  testWriterFail(),
   testDropOldest(),
   testDropNewest(),
   testCancelWithoutReason(),
@@ -273,4 +344,6 @@ Promise.all([
   testBroadcastFromMultipleConsumers(),
   testAbortSignal(),
   testAlreadyAbortedSignal(),
+  testBroadcastFromCancelWhileBlocked(),
+  testFailDetachesConsumers(),
 ]).then(common.mustCall());
