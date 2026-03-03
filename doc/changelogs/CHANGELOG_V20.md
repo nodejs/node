@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.20.1">20.20.1</a><br/>
 <a href="#20.20.0">20.20.0</a><br/>
 <a href="#20.19.6">20.19.6</a><br/>
 <a href="#20.19.5">20.19.5</a><br/>
@@ -80,6 +81,91 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.20.1"></a>
+
+## 2026-03-05, Version 20.20.1 'Iron' (LTS), @marco-ippolito
+
+### Notable Changes
+
+* \[[`91a66e671c`](https://github.com/nodejs/node/commit/91a66e671c)] - **build**: test on Python 3.14 (Christian Clauss) [#59983](https://github.com/nodejs/node/pull/59983)
+* \[[`f66056054b`](https://github.com/nodejs/node/commit/f66056054b)] - **crypto**: update root certificates to NSS 3.119 (Node.js GitHub Bot) [#61419](https://github.com/nodejs/node/pull/61419)
+* \[[`80feacaddb`](https://github.com/nodejs/node/commit/80feacaddb)] - **crypto**: update root certificates to NSS 3.117 (Node.js GitHub Bot) [#60741](https://github.com/nodejs/node/pull/60741)
+
+### Commits
+
+* \[[`6f580d5399`](https://github.com/nodejs/node/commit/6f580d5399)] - **assert**: fix deepEqual always return true on URL (Xuguang Mei) [#50853](https://github.com/nodejs/node/pull/50853)
+* \[[`91a66e671c`](https://github.com/nodejs/node/commit/91a66e671c)] - **build**: test on Python 3.14 (Christian Clauss) [#59983](https://github.com/nodejs/node/pull/59983)
+* \[[`cc4f7af6f3`](https://github.com/nodejs/node/commit/cc4f7af6f3)] - **build**: skip sscache action on non-main branches (Joyee Cheung) [#61790](https://github.com/nodejs/node/pull/61790)
+* \[[`f66056054b`](https://github.com/nodejs/node/commit/f66056054b)] - **crypto**: update root certificates to NSS 3.119 (Node.js GitHub Bot) [#61419](https://github.com/nodejs/node/pull/61419)
+* \[[`80feacaddb`](https://github.com/nodejs/node/commit/80feacaddb)] - **crypto**: update root certificates to NSS 3.117 (Node.js GitHub Bot) [#60741](https://github.com/nodejs/node/pull/60741)
+* \[[`fa88cc07e2`](https://github.com/nodejs/node/commit/fa88cc07e2)] - **crypto**: ensure documented RSA-PSS saltLength default is used (Filip Skokan) [#60662](https://github.com/nodejs/node/pull/60662)
+* \[[`88b2eec88a`](https://github.com/nodejs/node/commit/88b2eec88a)] - **deps**: update minimatch to 10.2.2 (Node.js GitHub Bot) [#61830](https://github.com/nodejs/node/pull/61830)
+* \[[`5c053264f1`](https://github.com/nodejs/node/commit/5c053264f1)] - **deps**: V8: backport 6a0a25abaed3 (Vivian Wang) [#61687](https://github.com/nodejs/node/pull/61687)
+* \[[`4a398699d0`](https://github.com/nodejs/node/commit/4a398699d0)] - **deps**: update googletest to 5a9c3f9e8d9b90bbbe8feb32902146cb8f7c1757 (Node.js GitHub Bot) [#61731](https://github.com/nodejs/node/pull/61731)
+* \[[`4fa43adf15`](https://github.com/nodejs/node/commit/4fa43adf15)] - **deps**: update googletest to 56efe3983185e3f37e43415d1afa97e3860f187f (Node.js GitHub Bot) [#61605](https://github.com/nodejs/node/pull/61605)
+* \[[`1a855d490c`](https://github.com/nodejs/node/commit/1a855d490c)] - **deps**: update googletest to 85087857ad10bd407cd6ed2f52f7ea9752db621f (Node.js GitHub Bot) [#61417](https://github.com/nodejs/node/pull/61417)
+* \[[`d8a9359826`](https://github.com/nodejs/node/commit/d8a9359826)] - **deps**: update icu to 78.2 (Node.js GitHub Bot) [#60523](https://github.com/nodejs/node/pull/60523)
+* \[[`e79cd3a0bb`](https://github.com/nodejs/node/commit/e79cd3a0bb)] - **deps**: update acorn-walk to 8.3.5 (Node.js GitHub Bot) [#61928](https://github.com/nodejs/node/pull/61928)
+* \[[`0707ade464`](https://github.com/nodejs/node/commit/0707ade464)] - **deps**: update acorn to 8.16.0 (Node.js GitHub Bot) [#61925](https://github.com/nodejs/node/pull/61925)
+* \[[`dc5a3cddef`](https://github.com/nodejs/node/commit/dc5a3cddef)] - **deps**: update llhttp to 9.3.1 (Node.js GitHub Bot) [#61827](https://github.com/nodejs/node/pull/61827)
+* \[[`46043b94c7`](https://github.com/nodejs/node/commit/46043b94c7)] - **deps**: update zlib to 1.3.1-e00f703 (Node.js GitHub Bot) [#61135](https://github.com/nodejs/node/pull/61135)
+* \[[`6be15a596e`](https://github.com/nodejs/node/commit/6be15a596e)] - **deps**: update cjs-module-lexer to 2.2.0 (Node.js GitHub Bot) [#61271](https://github.com/nodejs/node/pull/61271)
+* \[[`10881404cd`](https://github.com/nodejs/node/commit/10881404cd)] - **deps**: update timezone to 2025c (Node.js GitHub Bot) [#61138](https://github.com/nodejs/node/pull/61138)
+* \[[`1594a78c85`](https://github.com/nodejs/node/commit/1594a78c85)] - **deps**: update googletest to 065127f1e4b46c5f14fc73cf8d323c221f9dc68e (Node.js GitHub Bot) [#61055](https://github.com/nodejs/node/pull/61055)
+* \[[`7fa2ee1933`](https://github.com/nodejs/node/commit/7fa2ee1933)] - **deps**: update zlib to 1.3.1-63d7e16 (Node.js GitHub Bot) [#60898](https://github.com/nodejs/node/pull/60898)
+* \[[`09259532ef`](https://github.com/nodejs/node/commit/09259532ef)] - **deps**: update googletest to 1b96fa13f549387b7549cc89e1a785cf143a1a50 (Node.js GitHub Bot) [#60739](https://github.com/nodejs/node/pull/60739)
+* \[[`aa8bdb6886`](https://github.com/nodejs/node/commit/aa8bdb6886)] - **deps**: update cjs-module-lexer to 2.1.1 (Node.js GitHub Bot) [#60646](https://github.com/nodejs/node/pull/60646)
+* \[[`cc849fde27`](https://github.com/nodejs/node/commit/cc849fde27)] - **deps**: update googletest to 279f847 (Node.js GitHub Bot) [#60219](https://github.com/nodejs/node/pull/60219)
+* \[[`a99ba553a2`](https://github.com/nodejs/node/commit/a99ba553a2)] - **deps**: update googletest to 50b8600 (Node.js GitHub Bot) [#59955](https://github.com/nodejs/node/pull/59955)
+* \[[`6349a79f5f`](https://github.com/nodejs/node/commit/6349a79f5f)] - **deps**: update googletest to 7e17b15 (Node.js GitHub Bot) [#59131](https://github.com/nodejs/node/pull/59131)
+* \[[`8ba759f1a0`](https://github.com/nodejs/node/commit/8ba759f1a0)] - **deps**: update googletest to 35b75a2 (Node.js GitHub Bot) [#58710](https://github.com/nodejs/node/pull/58710)
+* \[[`927d906850`](https://github.com/nodejs/node/commit/927d906850)] - **deps**: update googletest to e9092b1 (Node.js GitHub Bot) [#58565](https://github.com/nodejs/node/pull/58565)
+* \[[`bf8919f5c2`](https://github.com/nodejs/node/commit/bf8919f5c2)] - **deps**: update googletest to 0bdccf4 (Node.js GitHub Bot) [#57380](https://github.com/nodejs/node/pull/57380)
+* \[[`ae6231dac0`](https://github.com/nodejs/node/commit/ae6231dac0)] - **deps**: update googletest to e235eb3 (Node.js GitHub Bot) [#56873](https://github.com/nodejs/node/pull/56873)
+* \[[`0561c62e85`](https://github.com/nodejs/node/commit/0561c62e85)] - **deps**: update minimatch to 10.1.2 (Node.js GitHub Bot) [#61732](https://github.com/nodejs/node/pull/61732)
+* \[[`f0ef221b0d`](https://github.com/nodejs/node/commit/f0ef221b0d)] - **deps**: update minimatch to 10.1.1 (Node.js GitHub Bot) [#60543](https://github.com/nodejs/node/pull/60543)
+* \[[`15bd0da404`](https://github.com/nodejs/node/commit/15bd0da404)] - **deps**: update archs files for openssl (Antoine du Hamel) [#61912](https://github.com/nodejs/node/pull/61912)
+* \[[`04d439323f`](https://github.com/nodejs/node/commit/04d439323f)] - **deps**: upgrade openssl sources to openssl-3.0.19 (Antoine du Hamel) [#61912](https://github.com/nodejs/node/pull/61912)
+* \[[`2ea16d3bd6`](https://github.com/nodejs/node/commit/2ea16d3bd6)] - **deps**: update corepack to 0.34.6 (Node.js GitHub Bot) [#61510](https://github.com/nodejs/node/pull/61510)
+* \[[`622f973d1c`](https://github.com/nodejs/node/commit/622f973d1c)] - **deps**: update corepack to 0.34.5 (Node.js GitHub Bot) [#60842](https://github.com/nodejs/node/pull/60842)
+* \[[`2cd265d8b9`](https://github.com/nodejs/node/commit/2cd265d8b9)] - **deps**: update corepack to 0.34.4 (Node.js GitHub Bot) [#60643](https://github.com/nodejs/node/pull/60643)
+* \[[`65e839687b`](https://github.com/nodejs/node/commit/65e839687b)] - **deps**: update corepack to 0.34.2 (Node.js GitHub Bot) [#60550](https://github.com/nodejs/node/pull/60550)
+* \[[`2dc99d2771`](https://github.com/nodejs/node/commit/2dc99d2771)] - **dns**: fix Windows SRV ECONNREFUSED by adjusting c-ares fallback detection (notvivek12) [#61453](https://github.com/nodejs/node/pull/61453)
+* \[[`2c7b84b1d8`](https://github.com/nodejs/node/commit/2c7b84b1d8)] - **doc**: fix typo in http.md (Michael Solomon) [#59354](https://github.com/nodejs/node/pull/59354)
+* \[[`a84b42667c`](https://github.com/nodejs/node/commit/a84b42667c)] - **doc**: fix grammar in global dispatcher usage (Eng Zer Jun) [#59344](https://github.com/nodejs/node/pull/59344)
+* \[[`ffd0ada45f`](https://github.com/nodejs/node/commit/ffd0ada45f)] - **doc**: fix typo in `test/common/README.md` (Yoo) [#59180](https://github.com/nodejs/node/pull/59180)
+* \[[`b4d9d006e7`](https://github.com/nodejs/node/commit/b4d9d006e7)] - **doc**: fix broken sentence in `URL.parse` (Superchupu) [#59164](https://github.com/nodejs/node/pull/59164)
+* \[[`45e9971d9c`](https://github.com/nodejs/node/commit/45e9971d9c)] - **doc**: fix typo in writing-test.md (SeokHun) [#59123](https://github.com/nodejs/node/pull/59123)
+* \[[`e9fd10b5d6`](https://github.com/nodejs/node/commit/e9fd10b5d6)] - **doc**: fix `fetch` subsections in `globals.md` (Antoine du Hamel) [#58933](https://github.com/nodejs/node/pull/58933)
+* \[[`3715dd1c2b`](https://github.com/nodejs/node/commit/3715dd1c2b)] - **doc**: fix wrong RFC number in http2 (Deokjin Kim) [#58753](https://github.com/nodejs/node/pull/58753)
+* \[[`098c017eac`](https://github.com/nodejs/node/commit/098c017eac)] - **doc**: punctuation fix for Node-API versioning clarification (Jiacai Liu) [#58599](https://github.com/nodejs/node/pull/58599)
+* \[[`545bf434e1`](https://github.com/nodejs/node/commit/545bf434e1)] - **doc**: fix typo of file `http.md`, `outgoingMessage.setTimeout` section (yusheng chen) [#58188](https://github.com/nodejs/node/pull/58188)
+* \[[`b3d6683e7b`](https://github.com/nodejs/node/commit/b3d6683e7b)] - **doc**: support toolchain with Visual Studio 2019 & 2022 only (Mike McCready) [#61450](https://github.com/nodejs/node/pull/61450)
+* \[[`8fdde5d110`](https://github.com/nodejs/node/commit/8fdde5d110)] - **doc**: fix v20 changelog after security release (Marco Ippolito) [#61371](https://github.com/nodejs/node/pull/61371)
+* \[[`31d04599be`](https://github.com/nodejs/node/commit/31d04599be)] - **http**: fix keep-alive not timing out after post-request empty line (Shima Ryuhei) [#58178](https://github.com/nodejs/node/pull/58178)
+* \[[`5ec7d1eba0`](https://github.com/nodejs/node/commit/5ec7d1eba0)] - **http2**: validate initialWindowSize per HTTP/2 spec (Matteo Collina) [#61402](https://github.com/nodejs/node/pull/61402)
+* \[[`5c091d5a96`](https://github.com/nodejs/node/commit/5c091d5a96)] - **meta**: persist sccache daemon until end of build workflows (René) [#61639](https://github.com/nodejs/node/pull/61639)
+* \[[`183353aba0`](https://github.com/nodejs/node/commit/183353aba0)] - **path,win**: fix bug in resolve and normalize (Hüseyin Açacak) [#55623](https://github.com/nodejs/node/pull/55623)
+* \[[`dbe9e5091b`](https://github.com/nodejs/node/commit/dbe9e5091b)] - **src**: fix flags argument offset in JSUdpWrap (Weixie Cui) [#61948](https://github.com/nodejs/node/pull/61948)
+* \[[`4106bfc775`](https://github.com/nodejs/node/commit/4106bfc775)] - **test**: mark stringbytes-external-max flaky on AIX (Stewart X Addison) [#60995](https://github.com/nodejs/node/pull/60995)
+* \[[`de51937306`](https://github.com/nodejs/node/commit/de51937306)] - **test**: mark stringbytes-external-exceed-max tests as flaky on AIX (Joyee Cheung) [#60565](https://github.com/nodejs/node/pull/60565)
+* \[[`368b221be3`](https://github.com/nodejs/node/commit/368b221be3)] - **test**: fix flaky test-performance-eventloopdelay (Matteo Collina) [#61629](https://github.com/nodejs/node/pull/61629)
+* \[[`e134912a33`](https://github.com/nodejs/node/commit/e134912a33)] - **test**: fix flaky test-worker-message-port-transfer-filehandle test (Alex Yang) [#59158](https://github.com/nodejs/node/pull/59158)
+* \[[`5630170d3e`](https://github.com/nodejs/node/commit/5630170d3e)] - **test**: account for truthy signal in flaky async\_hooks tests (Darshan Sen) [#58478](https://github.com/nodejs/node/pull/58478)
+* \[[`1e5363bb63`](https://github.com/nodejs/node/commit/1e5363bb63)] - **test**: mark `test-http2-debug` as flaky on LinuxONE (Richard Lau) [#58494](https://github.com/nodejs/node/pull/58494)
+* \[[`662998787a`](https://github.com/nodejs/node/commit/662998787a)] - **test**: set `test-fs-cp` as flaky (Stefan Stojanovic) [#56799](https://github.com/nodejs/node/pull/56799)
+* \[[`0807127339`](https://github.com/nodejs/node/commit/0807127339)] - **test**: mark `test-esm-loader-hooks-inspect-wait` flaky (Richard Lau) [#56803](https://github.com/nodejs/node/pull/56803)
+* \[[`6320cd0721`](https://github.com/nodejs/node/commit/6320cd0721)] - **test**: skip strace test with shared openssl (Richard Lau) [#61987](https://github.com/nodejs/node/pull/61987)
+* \[[`83b9f8ee02`](https://github.com/nodejs/node/commit/83b9f8ee02)] - **tools**: make nodedownload module compatible with Python 3.14 (Lumír 'Frenzy' Balhar) [#58752](https://github.com/nodejs/node/pull/58752)
+* \[[`6cf9b5786e`](https://github.com/nodejs/node/commit/6cf9b5786e)] - **tools**: enforce removal of `lts-watch-*` labels on release proposals (Antoine du Hamel) [#61672](https://github.com/nodejs/node/pull/61672)
+* \[[`cd4161499c`](https://github.com/nodejs/node/commit/cd4161499c)] - **tools**: use ubuntu-slim runner in meta GitHub Actions (Tierney Cyren) [#61663](https://github.com/nodejs/node/pull/61663)
+* \[[`6dc2a99a0d`](https://github.com/nodejs/node/commit/6dc2a99a0d)] - **tools**: validate release commit diff as part of `lint-release-proposal` (Antoine du Hamel) [#61440](https://github.com/nodejs/node/pull/61440)
+* \[[`5014f22332`](https://github.com/nodejs/node/commit/5014f22332)] - **tools**: add read permission to workflows that read contents (Antoine du Hamel) [#58255](https://github.com/nodejs/node/pull/58255)
+* \[[`6c3ad2a5a3`](https://github.com/nodejs/node/commit/6c3ad2a5a3)] - **tools**: switch to ARM runners on GHA jobs (Antoine du Hamel) [#61903](https://github.com/nodejs/node/pull/61903)
+* \[[`1abada9c34`](https://github.com/nodejs/node/commit/1abada9c34)] - **tools**: avoid building twice in coverage jobs (Antoine du Hamel) [#61899](https://github.com/nodejs/node/pull/61899)
+* \[[`f260e40127`](https://github.com/nodejs/node/commit/f260e40127)] - **tools**: use ubuntu-slim runner in GHA (Antoine du Hamel) [#61759](https://github.com/nodejs/node/pull/61759)
+* \[[`64beca5e01`](https://github.com/nodejs/node/commit/64beca5e01)] - **tools**: use ubuntu-slim runner in GHA (Antoine du Hamel) [#61734](https://github.com/nodejs/node/pull/61734)
 
 <a id="20.20.0"></a>
 
