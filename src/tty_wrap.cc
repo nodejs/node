@@ -60,7 +60,7 @@ void TTYWrap::Initialize(Local<Object> target,
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->SetClassName(ttyString);
-  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(TTYWrap::kInternalFieldCount);
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
   SetProtoMethodNoSideEffect(

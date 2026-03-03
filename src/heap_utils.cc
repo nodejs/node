@@ -269,6 +269,11 @@ class HeapSnapshotStream : public AsyncWrap,
                            public StreamBase,
                            public v8::OutputStream {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
+
   HeapSnapshotStream(
       Environment* env,
       HeapSnapshotPointer&& snapshot,
@@ -403,7 +408,7 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Local<FunctionTemplate> os = FunctionTemplate::New(env->isolate());
     os->Inherit(AsyncWrap::GetConstructorTemplate(env));
     Local<ObjectTemplate> ost = os->InstanceTemplate();
-    ost->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+    ost->SetInternalFieldCount(HeapSnapshotStream::kInternalFieldCount);
     os->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "HeapSnapshotStream"));
     StreamBase::AddMethods(env, os);
