@@ -1,15 +1,14 @@
 'use strict';
 
-const common = require('../common');
-const assert = require('assert');
+require('../common');
+const { test } = require('node:test');
+const assert = require('node:assert');
 const { TransformStream } = require('stream/web');
 const { setTimeout } = require('timers/promises');
 
-// Test for https://github.com/nodejs/node/issues/62036
-// A late write racing with reader.cancel() should not throw an
-// internal "transformAlgorithm is not a function" TypeError.
+// https://github.com/nodejs/node/issues/62036
 
-async function test() {
+test('Late write racing with reader.cancel() should not throw an internal TypeError', async () => {
   const stream = new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk);
@@ -49,6 +48,4 @@ async function test() {
     assert.ok(!isNotAFunction,
               `Internal implementation error leaked: ${err.message}`);
   }
-}
-
-test().then(common.mustCall());
+});
