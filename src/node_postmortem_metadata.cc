@@ -38,6 +38,8 @@
 extern "C" {
 int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
 int nodedbg_const_BaseObject__kInternalFieldCount__int;
+int nodedbg_const_HandleWrap__kInternalFieldCount__int;
+int nodedbg_const_ReqWrap__kInternalFieldCount__int;
 uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
 uintptr_t nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
 
@@ -54,6 +56,10 @@ int GenDebugSymbols() {
       ContextEmbedderIndex::kEnvironment;
   nodedbg_const_BaseObject__kInternalFieldCount__int =
       BaseObject::kInternalFieldCount;
+  nodedbg_const_HandleWrap__kInternalFieldCount__int =
+      HandleWrap::kInternalFieldCount;
+  nodedbg_const_ReqWrap__kInternalFieldCount__int =
+      ReqWrap<uv_req_t>::kInternalFieldCount;
 
   nodedbg_offset_ExternalString__data__uintptr_t = NODE_OFF_EXTSTR_DATA;
   nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue =

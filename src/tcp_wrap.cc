@@ -88,7 +88,7 @@ void TCPWrap::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(TCPWrap::kInternalFieldCount);
 
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
@@ -126,9 +126,7 @@ void TCPWrap::Initialize(Local<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  Local<FunctionTemplate> cwt =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> cwt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "TCPConnectWrap", cwt);
 
   // Define constants

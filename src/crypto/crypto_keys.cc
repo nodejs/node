@@ -1217,7 +1217,7 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
   Local<FunctionTemplate> t =
       NewFunctionTemplate(isolate, NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
-      KeyObjectHandle::kInternalFieldCount);
+      NativeKeyObject::kInternalFieldCount);
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor))
