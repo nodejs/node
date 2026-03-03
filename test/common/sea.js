@@ -94,7 +94,7 @@ function generateSEA(fixtureDir, options = {}) {
   } catch (e) {
     const message = `Cannot copy ${process.execPath} to ${outputFile}: ${inspect(e)}`;
     if (verifyWorkflow) {
-      throw new Error(message);
+      throw new Error(message, { cause: e });
     }
     common.skip(message);
   }
@@ -132,7 +132,7 @@ function generateSEA(fixtureDir, options = {}) {
   } catch (e) {
     const message = `Cannot inject ${seaPrepBlob} into ${outputFile}: ${inspect(e)}`;
     if (verifyWorkflow) {
-      throw new Error(message);
+      throw new Error(message, { cause: e });
     }
     common.skip(message);
   }
@@ -150,7 +150,7 @@ function signSEA(targetExecutable, verifyWorkflow = false) {
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}`;
       if (verifyWorkflow) {
-        throw new Error(message);
+        throw new Error(message, { cause: e });
       }
       common.skip(message);
     }
@@ -161,7 +161,7 @@ function signSEA(targetExecutable, verifyWorkflow = false) {
     } catch (e) {
       const message = `Cannot find signtool: ${inspect(e)}`;
       if (verifyWorkflow) {
-        throw new Error(message);
+        throw new Error(message, { cause: e });
       }
       common.skip(message);
     }
@@ -172,7 +172,7 @@ function signSEA(targetExecutable, verifyWorkflow = false) {
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}\n${stderr}`;
       if (verifyWorkflow) {
-        throw new Error(message);
+        throw new Error(message, { cause: e });
       }
       common.skip(message);
     }
