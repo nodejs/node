@@ -89,6 +89,15 @@ inline v8::Local<v8::FunctionTemplate> AsyncWrap::GetConstructorTemplate(
   return GetConstructorTemplate(env->isolate_data());
 }
 
+// static
+v8::Local<v8::FunctionTemplate> AsyncWrap::MakeLazilyInitializedJSTemplate(
+    Environment* env, int internal_field_count) {
+  v8::Local<v8::FunctionTemplate> t =
+      BaseObject::MakeLazilyInitializedJSTemplate(env, internal_field_count);
+  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  return t;
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

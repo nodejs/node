@@ -146,8 +146,7 @@ Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Blob::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "Blob"));
     SetProtoMethod(isolate, tmpl, "getReader", GetReader);
@@ -309,7 +308,7 @@ Local<FunctionTemplate> Blob::Reader::GetConstructorTemplate(Environment* env) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
+        Blob::Reader::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlobReader"));
     SetProtoMethod(env->isolate(), tmpl, "pull", Pull);
     env->set_blob_reader_constructor_template(tmpl);
