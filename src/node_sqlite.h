@@ -298,6 +298,7 @@ class StatementSync : public BaseObject {
   inline int ResetStatement();
   std::vector<v8::Global<v8::Name>> cached_column_names_;
   int cached_column_names_reprepare_count_ = -1;
+  void InvalidateColumnNameCache();
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 

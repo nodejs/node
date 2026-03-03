@@ -66,7 +66,7 @@ using v8::Value;
 
 inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
                                                  std::string_view input) {
-  int len = static_cast<int>(input.size());
+  const int len = static_cast<int>(input.size());
   if (simdutf::validate_ascii(input.data(), input.size())) {
     return String::NewFromOneByte(
         isolate,
@@ -120,7 +120,7 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
-        int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                       \
+        const int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                 \
         (result) =                                                             \
             Utf8StringMaybeOneByte((isolate), std::string_view(v, v_len))      \
                 .As<Value>();                                                  \
@@ -2433,6 +2433,10 @@ StatementSync::~StatementSync() {
 void StatementSync::Finalize() {
   sqlite3_finalize(statement_);
   statement_ = nullptr;
+  InvalidateColumnNameCache();
+}
+
+void StatementSync::InvalidateColumnNameCache() {
   cached_column_names_.clear();
 }
 
@@ -2622,17 +2626,16 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
       .As<Name>();
 }
 
-// Returns cached internalized column name strings for this statement,
-// invalidating the cache when SQLite re-prepares the statement (e.g. after
-// schema changes like ALTER TABLE) detected via SQLITE_STMTSTATUS_REPREPARE.
+// Populates `keys` with cached column names, rebuilding the cache if the
+// statement was re-prepared.
 bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
   Isolate* isolate = env()->isolate();
 
-  int reprepare_count =
-      sqlite3_stmt_status(statement_, SQLITE_STMTSTATUS_REPREPARE, 0);
+  const int reprepare_count =
+      sqlite3_stmt_status(statement_, SQLITE_STMTSTATUS_REPREPARE, false);
   if (reprepare_count != cached_column_names_reprepare_count_) {
     cached_column_names_.clear();
-    int num_cols = sqlite3_column_count(statement_);
+    const int num_cols = sqlite3_column_count(statement_);
     if (num_cols == 0) {
       cached_column_names_reprepare_count_ = reprepare_count;
       return true;
@@ -2641,7 +2644,7 @@ bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
     for (int i = 0; i < num_cols; ++i) {
       Local<Name> key;
       if (!ColumnNameToName(i).ToLocal(&key)) {
-        cached_column_names_.clear();
+        InvalidateColumnNameCache();
         return false;
       }
       cached_column_names_.emplace_back(Global<Name>(isolate, key));
