@@ -40,6 +40,41 @@ function run_test() {
         all_promises.push(promise);
     });
 
+    // Test verification with an altered buffer during call
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var signature = copyBuffer(vector.signature);
+                signature[0] = 255 - signature[0];
+                var algorithmParams = {
+                    length: vector.length,
+                    get name() {
+                        signature[0] = vector.signature[0];
+                        return vector.algorithm;
+                    }
+                };
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, signature, vector.plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature is not verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " verification with altered signature during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " verification with altered signature during call");
+        });
+
+        all_promises.push(promise);
+    });
+
     // Test verification with an altered buffer after call
     testVectors.forEach(function(vector) {
         var promise = importVectorKeys(vector, ["verify", "sign"])
@@ -69,6 +104,41 @@ function run_test() {
         all_promises.push(promise);
     });
 
+    // Check for successful verification even if plaintext is altered during call.
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var plaintext = copyBuffer(vector.plaintext);
+                plaintext[0] = 255 - plaintext[0];
+                var algorithmParams = {
+                    length: vector.length,
+                    get name() {
+                        plaintext[0] = vector.plaintext[0];
+                        return vector.algorithm;
+                    }
+                };
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, vector.signature, plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " with altered plaintext during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " with altered plaintext during call");
+        });
+
+        all_promises.push(promise);
+    });
+
     // Check for successful verification even if plaintext is altered after call.
     testVectors.forEach(function(vector) {
         var promise = importVectorKeys(vector, ["verify", "sign"])
@@ -92,7 +162,7 @@ function run_test() {
         }, function(err) {
             promise_test(function(test) {
                 assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
-            }, "importVectorKeys step: " + vector.name + " with altered plaintext");
+            }, "importVectorKeys step: " + vector.name + " with altered plaintext after call");
         });
 
         all_promises.push(promise);
