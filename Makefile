@@ -1403,14 +1403,10 @@ LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
-run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
-
-# Check for a specific file, as (empty) directories are persisted in git.
-tools/lint-md/node_modules/remark-parse/package.json:
-	-cd tools/lint-md && $(call available-node,$(run-npm-ci))
+run-lint-md = tools/doc/lint-md.mjs $(LINT_MD_FILES)
 
 # Lint all changed markdown files maintained by us
-tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_MD_FILES)
+tools/.mdlintstamp: tools/doc/node_modules $(LINT_MD_FILES)
 	$(info Running Markdown linter...)
 	@$(call available-node,$(run-lint-md))
 	@touch $@
@@ -1418,9 +1414,9 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 .PHONY: lint-md
 lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
 
-run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
+run-format-md = tools/doc/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
-format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the markdown documents maintained by us in the codebase.
+format-md: tools/doc/node_modules ## Format the markdown documents maintained by us in the codebase.
 	$(info Formatting Markdown...)
 	@$(call available-node,$(run-format-md))
 
@@ -1659,7 +1655,6 @@ lint-clean: ## Remove linting artifacts.
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
 	$(RM) -r tools/eslint/node_modules
-	$(RM) -r tools/lint-md/node_modules
 	$(RM) tools/pip/site_packages
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)

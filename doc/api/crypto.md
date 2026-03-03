@@ -568,7 +568,7 @@ added: v0.1.94
 -->
 
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string} Any remaining enciphered contents.
+* Returns: {Buffer|string} Any remaining enciphered contents.
   If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
@@ -651,7 +651,7 @@ changes:
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the data.
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Updates the cipher with `data`. If the `inputEncoding` argument is given,
 the `data`
@@ -878,7 +878,7 @@ added: v0.1.94
 -->
 
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string} Any remaining deciphered contents.
+* Returns: {Buffer|string} Any remaining deciphered contents.
   If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
@@ -1002,7 +1002,7 @@ changes:
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `data` string.
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
 the `data`
@@ -1091,7 +1091,7 @@ added: v0.5.0
 * `otherPublicKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of an `otherPublicKey` string.
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -1111,7 +1111,7 @@ added: v0.5.0
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Generates private and public Diffie-Hellman key values unless they have been
 generated or computed already, and returns
@@ -1131,7 +1131,7 @@ added: v0.5.0
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Returns the Diffie-Hellman generator in the specified `encoding`.
 If `encoding` is provided a string is
@@ -1144,7 +1144,7 @@ added: v0.5.0
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Returns the Diffie-Hellman prime in the specified `encoding`.
 If `encoding` is provided a string is
@@ -1157,7 +1157,7 @@ added: v0.5.0
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Returns the Diffie-Hellman private key in the specified `encoding`.
 If `encoding` is provided a
@@ -1170,7 +1170,7 @@ added: v0.5.0
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Returns the Diffie-Hellman public key in the specified `encoding`.
 If `encoding` is provided a
@@ -1330,7 +1330,7 @@ added: v10.0.0
 * `inputEncoding` {string} The [encoding][] of the `key` string.
 * `outputEncoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Converts the EC Diffie-Hellman public key specified by `key` and `curve` to the
 format specified by `format`. The `format` argument specifies point encoding
@@ -1409,7 +1409,7 @@ changes:
 * `otherPublicKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `otherPublicKey` string.
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -1436,7 +1436,7 @@ added: v0.11.14
 
 * `encoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
@@ -1456,7 +1456,7 @@ added: v0.11.14
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string} The EC Diffie-Hellman in the specified `encoding`.
+* Returns: {Buffer|string} The EC Diffie-Hellman in the specified `encoding`.
 
 If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
@@ -1469,7 +1469,7 @@ added: v0.11.14
 
 * `encoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
-* Returns: {Buffer | string} The EC Diffie-Hellman public key in the specified
+* Returns: {Buffer|string} The EC Diffie-Hellman public key in the specified
   `encoding` and `format`.
 
 The `format` argument specifies point encoding and can be `'compressed'` or
@@ -1759,7 +1759,7 @@ added: v0.1.92
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Calculates the digest of all of the data passed to be hashed (using the
 [`hash.update()`][] method).
@@ -1920,7 +1920,7 @@ added: v0.1.94
 -->
 
 * `encoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
 If `encoding` is
@@ -2127,7 +2127,7 @@ changes:
 -->
 
 * `options` {Object}
-* Returns: {string | Buffer | Object}
+* Returns: {string|Buffer|Object}
 
 For symmetric keys, the following encoding options can be used:
 
@@ -2146,7 +2146,7 @@ For private keys, the following encoding options can be used:
 * `cipher` {string} If specified, the private key will be encrypted with
   the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
   encryption.
-* `passphrase` {string | Buffer} The passphrase to use for encryption, see
+* `passphrase` {string|Buffer} The passphrase to use for encryption, see
   `cipher`.
 
 The result type depends on the selected encoding format, when PEM the
@@ -2356,7 +2356,7 @@ changes:
   * `padding` {integer}
   * `saltLength` {integer}
 * `outputEncoding` {string} The [encoding][] of the return value.
-* Returns: {Buffer | string}
+* Returns: {Buffer|string}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -3650,7 +3650,7 @@ changes:
     **Default:** `'pem'`.
   * `type` {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
-  * `passphrase` {string | Buffer} The passphrase to use for decryption.
+  * `passphrase` {string|Buffer} The passphrase to use for decryption.
   * `encoding` {string} The string encoding to use when `key` is a string.
 * Returns: {KeyObject}
 
@@ -4011,8 +4011,8 @@ changes:
   * `privateKeyEncoding` {Object} See [`keyObject.export()`][].
 * `callback` {Function}
   * `err` {Error}
-  * `publicKey` {string | Buffer | KeyObject}
-  * `privateKey` {string | Buffer | KeyObject}
+  * `publicKey` {string|Buffer|KeyObject}
+  * `privateKey` {string|Buffer|KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
@@ -4133,8 +4133,8 @@ changes:
   * `publicKeyEncoding` {Object} See [`keyObject.export()`][].
   * `privateKeyEncoding` {Object} See [`keyObject.export()`][].
 * Returns: {Object}
-  * `publicKey` {string | Buffer | KeyObject}
-  * `privateKey` {string | Buffer | KeyObject}
+  * `publicKey` {string|Buffer|KeyObject}
+  * `privateKey` {string|Buffer|KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
@@ -5766,7 +5766,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string | null | undefined}
+* `algorithm` {string|null|undefined}
 * `data` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `callback` {Function}
@@ -5895,7 +5895,7 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|null|undefined}
-* `data` {ArrayBuffer| Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `signature` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `callback` {Function}

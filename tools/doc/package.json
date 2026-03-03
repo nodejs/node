@@ -2,6 +2,10 @@
   "name": "doc",
   "private": true,
   "dependencies": {
-    "@nodejs/doc-kit": "https://github.com/nodejs/doc-kit/archive/64655f3d4492d60be359cae352ddca750bb1278d.tar.gz"
+    "@node-core/remark-lint": "^1.2.1",
+    "@nodejs/doc-kit": "https://github.com/nodejs/doc-kit/archive/64655f3d4492d60be359cae352ddca750bb1278d.tar.gz",
+    "remark": "^15.0.1",
+    "to-vfile": "^8.0.0",
+    "vfile-reporter": "^8.1.1"
   }
 }

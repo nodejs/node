@@ -475,7 +475,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer|ArrayBufferView|Blob}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
@@ -489,7 +489,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer|ArrayBufferView|Blob}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
@@ -962,7 +962,7 @@ The endpoint configuration options passed when constructing a new `QuicEndpoint`
 added: v23.8.0
 -->
 
-* Type: {net.SocketAddress | string} The local UDP address and port the endpoint should bind to.
+* Type: {net.SocketAddress|string} The local UDP address and port the endpoint should bind to.
 
 If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 
