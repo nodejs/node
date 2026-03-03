@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const { TransformStream } = require('stream/web');
 const { setTimeout } = require('timers/promises');
 
@@ -29,26 +30,24 @@ async function test() {
   // Late write racing with cancel.
   const pendingLateWrite = writer.write('late-write');
 
-  const results = await Promise.allSettled([
+  const [
+    readResult,
+    cancelResult,
+    lateWriteResult,
+  ] = await Promise.allSettled([
     pendingRead,
     pendingCancel,
     pendingLateWrite,
   ]);
 
-  // pendingRead should fulfill (with done:true or a value).
-  // pendingCancel should fulfill.
-  // pendingLateWrite may reject, but must NOT reject with an internal
-  // TypeError about transformAlgorithm not being a function.
-  for (const result of results) {
-    if (result.status === 'rejected') {
-      const err = result.reason;
-      if (err instanceof TypeError &&
-          /transformAlgorithm is not a function/.test(err.message)) {
-        throw new Error(
-          'Internal implementation error leaked: ' + err.message
-        );
-      }
-    }
+  assert.strictEqual(readResult.status, 'fulfilled');
+  assert.strictEqual(cancelResult.status, 'fulfilled');
+  if (lateWriteResult.status === 'rejected') {
+    const err = lateWriteResult.reason;
+    const isNotAFunction = err instanceof TypeError &&
+        /transformAlgorithm is not a function/.test(err.message);
+    assert.ok(!isNotAFunction,
+              `Internal implementation error leaked: ${err.message}`);
   }
 }
 
