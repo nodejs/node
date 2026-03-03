@@ -806,7 +806,7 @@ for /D %%D IN (doc\*) do (
     )
   )
 )
-%node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
+%node_exe% tools\doc\lint-md.mjs %lint_md_files%
 ENDLOCAL
 goto format-md
 
