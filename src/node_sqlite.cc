@@ -15,6 +15,7 @@
 #include "v8-isolate.h"
 #include "v8-local-handle.h"
 #include "v8-maybe.h"
+#include "v8-primitive.h"
 #include "v8-template.h"
 
 #include <array>
@@ -3854,6 +3855,7 @@ struct boolean {
 };
 struct integer {
   sqlite3_int64 value;
+  bool use_big_int = false;
 };
 struct real {
   double value;
@@ -3954,14 +3956,18 @@ struct bind_value {
   }
 };
 
-literal FromColumn(sqlite3* db, sqlite3_stmt* stmt, int col_index) {
+literal FromColumn(sqlite3* db,
+                   sqlite3_stmt* stmt,
+                   const int col_index,
+                   const bool use_big_ints) {
   int type = sqlite3_column_type(stmt, col_index);
   switch (type) {
     case SQLITE_NULL:
       return literal{in_place_type<null>};
     case SQLITE_INTEGER:
       return literal{in_place_type<integer>,
-                     sqlite3_column_int64(stmt, col_index)};
+                     sqlite3_column_int64(stmt, col_index),
+                     use_big_ints};
     case SQLITE_FLOAT:
       return literal{in_place_type<real>,
                      sqlite3_column_double(stmt, col_index)};
@@ -3989,6 +3995,34 @@ literal FromColumn(sqlite3* db, sqlite3_stmt* stmt, int col_index) {
   }
 };
 
+value FromRow(sqlite3* connection,
+              sqlite3_stmt* stmt,
+              const int num_cols,
+              const statement_options options) {
+  if (options.return_arrays) {
+    std::pmr::vector<transfer::literal> row;
+    row.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      row.push_back(
+          transfer::FromColumn(connection, stmt, i, options.read_big_ints));
+    }
+    return row;
+  } else {
+    // TODO(BurningEnlightenment): share column names between rows
+    // => return type should always be a vector of literals, and the caller
+    //    should add an additional vector of column names if needed
+    std::pmr::unordered_map<std::pmr::string, transfer::literal> row;
+    for (int i = 0; i < num_cols; ++i) {
+      const char* col_name = sqlite3_column_name(stmt, i);
+      CHECK_NOT_NULL(col_name);  // Catch OOM condition.
+      row.emplace(
+          col_name,
+          transfer::FromColumn(connection, stmt, i, options.read_big_ints));
+    }
+    return row;
+  }
+}
+
 struct to_v8_value {
   Isolate* isolate;
 
@@ -4000,7 +4034,8 @@ struct to_v8_value {
     constexpr auto kMaxSafeInteger = (sqlite3_int64{1} << 53) - 1;  // 2^53 - 1
     constexpr auto kMinSafeInteger = -kMaxSafeInteger;  // -(2^53 - 1)
 
-    if (kMinSafeInteger <= i.value && i.value <= kMaxSafeInteger) {
+    if (!i.use_big_int && kMinSafeInteger <= i.value &&
+        i.value <= kMaxSafeInteger) {
       return Number::New(isolate, static_cast<double>(i.value));
     } else {
       return BigInt::New(isolate, i.value);
@@ -4038,19 +4073,18 @@ struct to_v8_value {
   Local<Value> operator()(
       const std::pmr::unordered_map<std::pmr::string, transfer::literal>& map)
       const {
-    Local<Context> context = isolate->GetCurrentContext();
-    Local<Object> obj = Object::New(isolate);
+    LocalVector<Name> obj_keys(isolate);
+    LocalVector<Value> obj_values(isolate);
     for (const auto& [key, value] : map) {
-      Local<Value> v8_value = (*this)(value);
       // TODO(BurningEnlightenment): Crash on OOM ok?
-      obj->Set(context,
-               String::NewFromUtf8(
-                   isolate, key.data(), NewStringType::kNormal, key.size())
-                   .ToLocalChecked(),
-               v8_value)
-          .Check();
+      obj_keys.emplace_back(
+          String::NewFromUtf8(
+              isolate, key.data(), NewStringType::kNormal, key.size())
+              .ToLocalChecked());
+      obj_values.emplace_back((*this)(value));
     }
-    return obj;
+    return Object::New(
+        isolate, Null(isolate), obj_keys.data(), obj_values.data(), map.size());
   }
   Local<Value> operator()(const transfer::value& value) const {
     return std::visit(*this, value);
@@ -4243,8 +4277,10 @@ class alignas(64) OperationResult {
   };
   class PreparedStatement {
    public:
-    explicit PreparedStatement(BaseObjectPtr<Database> db, sqlite3_stmt* stmt)
-        : db_(std::move(db)), stmt_(stmt) {}
+    explicit PreparedStatement(BaseObjectPtr<Database> db,
+                               sqlite3_stmt* stmt,
+                               statement_options options)
+        : db_(std::move(db)), stmt_(stmt), options_(options) {}
 
     void Connect(Environment* env,
                  Local<Context> context,
@@ -4256,8 +4292,8 @@ class alignas(64) OperationResult {
         (void)sqlite3_finalize(stmt);
         stmt = nullptr;
       }
-      auto stmt_obj =
-          Statement::Create(Environment::GetCurrent(context), db_, stmt);
+      auto stmt_obj = Statement::Create(
+          Environment::GetCurrent(context), db_, stmt, options_);
       if (stmt_obj) {
         resolver->Resolve(context, stmt_obj->object()).Check();
       } else {
@@ -4275,6 +4311,7 @@ class alignas(64) OperationResult {
    private:
     BaseObjectPtr<Database> db_;
     sqlite3_stmt* stmt_;
+    statement_options options_;
   };
   class Value {
    public:
@@ -4315,21 +4352,26 @@ class alignas(64) OperationResult {
   };
   class RunResult {
    public:
-    RunResult(sqlite3_int64 changes, sqlite3_int64 last_insert_rowid)
-        : changes_(changes), last_insert_rowid_(last_insert_rowid) {}
+    RunResult(sqlite3_int64 changes,
+              sqlite3_int64 last_insert_rowid,
+              bool use_big_ints)
+        : changes_(changes),
+          last_insert_rowid_(last_insert_rowid),
+          use_big_ints_(use_big_ints) {}
 
     void Connect(Environment* env,
                  Local<Context> context,
                  Promise::Resolver* resolver) const {
-      auto result =
-          CreateRunResultObject(env, changes_, last_insert_rowid_, false)
-              .ToLocalChecked();
+      auto result = CreateRunResultObject(
+                        env, changes_, last_insert_rowid_, use_big_ints_)
+                        .ToLocalChecked();
       resolver->Resolve(context, result).Check();
     }
 
    private:
     sqlite3_int64 changes_;
     sqlite3_int64 last_insert_rowid_;
+    bool use_big_ints_;
   };
 
   using variant_type =
@@ -4357,13 +4399,17 @@ class alignas(64) OperationResult {
   }
   static OperationResult ResolveRunResult(OperationBase* origin,
                                           sqlite3_int64 changes,
-                                          sqlite3_int64 last_insert_rowid) {
-    return OperationResult{origin, RunResult{changes, last_insert_rowid}};
+                                          sqlite3_int64 last_insert_rowid,
+                                          bool use_big_ints) {
+    return OperationResult{origin,
+                           RunResult{changes, last_insert_rowid, use_big_ints}};
   }
   static OperationResult ResolvePreparedStatement(OperationBase* origin,
                                                   BaseObjectPtr<Database> db,
-                                                  sqlite3_stmt* stmt) {
-    return OperationResult{origin, PreparedStatement{std::move(db), stmt}};
+                                                  sqlite3_stmt* stmt,
+                                                  statement_options options) {
+    return OperationResult{origin,
+                           PreparedStatement{std::move(db), stmt, options}};
   }
 
   template <typename T>
@@ -4388,10 +4434,12 @@ class PrepareStatementOperation : private OperationBase {
  public:
   PrepareStatementOperation(Global<Promise::Resolver>&& resolver,
                             BaseObjectPtr<Database>&& db,
-                            std::pmr::string&& sql)
+                            std::pmr::string&& sql,
+                            statement_options options = {})
       : OperationBase(std::move(resolver)),
         db_(std::move(db)),
-        sql_(std::move(sql)) {}
+        sql_(std::move(sql)),
+        options_(options) {}
 
   OperationResult operator()(sqlite3* connection) {
     sqlite3_stmt* stmt = nullptr;
@@ -4399,13 +4447,14 @@ class PrepareStatementOperation : private OperationBase {
         sqlite3_prepare_v2(connection, sql_.c_str(), -1, &stmt, nullptr);
     return error_code == SQLITE_OK
                ? OperationResult::ResolvePreparedStatement(
-                     this, std::move(db_), stmt)
+                     this, std::move(db_), stmt, options_)
                : OperationResult::RejectLastError(this, connection);
   }
 
  private:
   BaseObjectPtr<Database> db_;
   std::pmr::string sql_;
+  statement_options options_;
 };
 
 class FinalizeStatementOperation : private OperationBase {
@@ -4429,10 +4478,12 @@ class StatementGetOperation : private OperationBase {
  public:
   StatementGetOperation(Global<Promise::Resolver>&& resolver,
                         sqlite3_stmt* stmt,
-                        transfer::value&& bind_arguments)
+                        transfer::value&& bind_arguments,
+                        statement_options options)
       : OperationBase(std::move(resolver)),
         stmt_(stmt),
-        bind_arguments_(std::move(bind_arguments)) {}
+        bind_arguments_(std::move(bind_arguments)),
+        options_(options) {}
 
   OperationResult operator()(sqlite3* connection) {
     auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
@@ -4453,27 +4504,26 @@ class StatementGetOperation : private OperationBase {
       return OperationResult::ResolveVoid(this);
     }
 
-    std::pmr::vector<transfer::literal> row;
-    row.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      row.push_back(transfer::FromColumn(connection, stmt_, i));
-    }
-    return OperationResult::ResolveValue(this, std::move(row));
+    return OperationResult::ResolveValue(
+        this, transfer::FromRow(connection, stmt_, num_cols, options_));
   }
 
  private:
   sqlite3_stmt* stmt_;
   transfer::value bind_arguments_;
+  statement_options options_;
 };
 
 class StatementAllOperation : private OperationBase {
  public:
   StatementAllOperation(Global<Promise::Resolver>&& resolver,
                         sqlite3_stmt* stmt,
-                        transfer::value&& bind_arguments)
+                        transfer::value&& bind_arguments,
+                        statement_options options)
       : OperationBase(std::move(resolver)),
         stmt_(stmt),
-        bind_arguments_(std::move(bind_arguments)) {}
+        bind_arguments_(std::move(bind_arguments)),
+        options_(options) {}
 
   OperationResult operator()(sqlite3* connection) {
     auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
@@ -4486,18 +4536,8 @@ class StatementAllOperation : private OperationBase {
     int r;
     int num_cols = sqlite3_column_count(stmt_);
     for (r = sqlite3_step(stmt_); r == SQLITE_ROW; r = sqlite3_step(stmt_)) {
-      if (num_cols == 0) {
-        rows.emplace_back(in_place_type<std::pmr::vector<transfer::literal>>);
-        continue;
-      }
-
-      std::pmr::vector<transfer::literal> row;
-      row.reserve(num_cols);
-      for (int i = 0; i < num_cols; ++i) {
-        row.push_back(transfer::FromColumn(connection, stmt_, i));
-      }
-      rows.emplace_back(in_place_type<std::pmr::vector<transfer::literal>>,
-                        std::move(row));
+      rows.emplace_back(
+          transfer::FromRow(connection, stmt_, num_cols, options_));
     }
     return OperationResult::ResolveValues(this, std::move(rows));
   }
@@ -4505,16 +4545,19 @@ class StatementAllOperation : private OperationBase {
  private:
   sqlite3_stmt* stmt_;
   transfer::value bind_arguments_;
+  statement_options options_;
 };
 
 class StatementRunOperation : private OperationBase {
  public:
   StatementRunOperation(Global<Promise::Resolver>&& resolver,
                         sqlite3_stmt* stmt,
-                        transfer::value&& bind_arguments)
+                        transfer::value&& bind_arguments,
+                        bool use_big_ints)
       : OperationBase(std::move(resolver)),
         stmt_(stmt),
-        bind_arguments_(std::move(bind_arguments)) {}
+        bind_arguments_(std::move(bind_arguments)),
+        use_big_ints_(use_big_ints) {}
 
   OperationResult operator()(sqlite3* connection) {
     auto clear_bindings = OnScopeLeave([&] { sqlite3_clear_bindings(stmt_); });
@@ -4528,12 +4571,14 @@ class StatementRunOperation : private OperationBase {
 
     sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(connection);
     sqlite3_int64 changes = sqlite3_changes(connection);
-    return OperationResult::ResolveRunResult(this, changes, last_insert_rowid);
+    return OperationResult::ResolveRunResult(
+        this, changes, last_insert_rowid, use_big_ints_);
   }
 
  private:
   sqlite3_stmt* stmt_;
   transfer::value bind_arguments_;
+  bool use_big_ints_;
 };
 
 class ExecOperation : private OperationBase {
@@ -5069,14 +5114,57 @@ void Database::Prepare(const v8::FunctionCallbackInfo<v8::Value>& args) {
   REJECT_AND_RETURN_ON_INVALID_STATE(
       env, args, !db->IsOpen(), "database is not open");
 
-  if (!args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"sql\" argument must be a string.");
-    return;
-  }
+  REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+      env,
+      args,
+      !args[0]->IsString(),
+      "The \"sql\" argument must be a string.");
   Utf8Value sql(env->isolate(), args[0].As<String>());
+
+  statement_options options{
+      .return_arrays = db->open_config_.get_return_arrays(),
+      .read_big_ints = db->open_config_.get_use_big_ints(),
+  };
+  if (args.Length() > 1) {
+    REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+        env,
+        args,
+        !args[1]->IsObject(),
+        "The \"options\" argument must be an object.");
+    Local<Object> options_object = args[1].As<Object>();
+    Local<Value> value;
+
+    if (options_object
+            ->Get(env->context(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "returnArrays"))
+            .ToLocal(&value) &&
+        !value->IsUndefined()) {
+      REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+          env,
+          args,
+          !value->IsBoolean(),
+          "The \"returnArrays\" option must be a boolean.");
+      options.return_arrays = value.As<Boolean>()->Value();
+    }
+
+    if (options_object
+            ->Get(env->context(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts"))
+            .ToLocal(&value) &&
+        !value->IsUndefined()) {
+      REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+          env,
+          args,
+          !value->IsBoolean(),
+          "The \"readBigInts\" option must be a boolean.");
+      options.read_big_ints = value.As<Boolean>()->Value();
+    }
+  }
+
   args.GetReturnValue().Set(db->Schedule<PrepareStatementOperation>(
-      BaseObjectPtr<Database>(db), std::pmr::string(*sql, sql.length())));
+      BaseObjectPtr<Database>(db),
+      std::pmr::string(*sql, sql.length()),
+      options));
 }
 
 void Database::TrackStatement(Statement* statement) {
@@ -5117,8 +5205,12 @@ void Database::IsInTransaction(
 Statement::Statement(Environment* env,
                      v8::Local<v8::Object> object,
                      BaseObjectPtr<Database> db,
-                     sqlite3_stmt* stmt)
-    : BaseObject(env, object), db_(std::move(db)), statement_(stmt) {
+                     sqlite3_stmt* stmt,
+                     statement_options options)
+    : BaseObject(env, object),
+      db_(std::move(db)),
+      statement_(stmt),
+      options_(options) {
   MakeWeak();
   if (stmt == nullptr) {
     db_ = nullptr;
@@ -5188,7 +5280,8 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
 }
 BaseObjectPtr<Statement> Statement::Create(Environment* env,
                                            BaseObjectPtr<Database> db,
-                                           sqlite3_stmt* stmt) {
+                                           sqlite3_stmt* stmt,
+                                           statement_options options) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -5197,7 +5290,7 @@ BaseObjectPtr<Statement> Statement::Create(Environment* env,
     return nullptr;
   }
 
-  return MakeBaseObject<Statement>(env, obj, std::move(db), stmt);
+  return MakeBaseObject<Statement>(env, obj, std::move(db), stmt, options);
 }
 
 void Statement::Dispose(const FunctionCallbackInfo<Value>& args) {
@@ -5249,7 +5342,7 @@ void Statement::Get(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(stmt->db_->Schedule<StatementGetOperation>(
-      stmt->statement_, std::move(bind_arguments)));
+      stmt->statement_, std::move(bind_arguments), stmt->options_));
 }
 
 void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -5272,7 +5365,7 @@ void Statement::All(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(stmt->db_->Schedule<StatementAllOperation>(
-      stmt->statement_, std::move(bind_arguments)));
+      stmt->statement_, std::move(bind_arguments), stmt->options_));
 }
 
 void Statement::Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -5294,8 +5387,10 @@ void Statement::Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  args.GetReturnValue().Set(stmt->db_->Schedule<StatementRunOperation>(
-      stmt->statement_, std::move(bind_arguments)));
+  args.GetReturnValue().Set(
+      stmt->db_->Schedule<StatementRunOperation>(stmt->statement_,
+                                                 std::move(bind_arguments),
+                                                 stmt->options_.read_big_ints));
 }
 
 void DefineConstants(Local<Object> target) {

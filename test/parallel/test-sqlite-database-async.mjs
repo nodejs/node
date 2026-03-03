@@ -194,7 +194,7 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     });
   });
 
-  test.skip('allows reading big integers', async (t) => {
+  test('allows reading big integers', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { readBigInts: true });
     t.after(async () => { await db.close(); });
@@ -205,12 +205,12 @@ suite('Database() constructor', { timeout: 1000 }, () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT val FROM data');
+    using query = await db.prepare('SELECT val FROM data');
     t.assert.deepStrictEqual(await query.get(), { __proto__: null, val: 42n });
 
-    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    using insert = await db.prepare('INSERT INTO data (key) VALUES (?)');
     t.assert.deepStrictEqual(
-      await insert.run(20),
+      await insert.run([20]),
       { changes: 1n, lastInsertRowid: 20n },
     );
   });
@@ -452,12 +452,12 @@ suite('Database.prototype.prepare()', { timeout: 1000 }, () => {
     });
   });
 
-  test('throws if sql is not a string', (t) => {
+  test('rejects if sql is not a string', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
 
-    t.assert.throws(() => {
-      db.prepare();
+    await t.assert.rejects(async () => {
+      await db.prepare();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
@@ -466,7 +466,7 @@ suite('Database.prototype.prepare()', { timeout: 1000 }, () => {
 });
 
 suite('Database.prototype.exec()', { timeout: 1000 }, () => {
-  test.skip('executes SQL', async (t) => {
+  test('executes SQL', async (t) => {
     const db = new Database(nextDb());
     t.after(async () => { await db.close(); });
     const result = await db.exec(`
@@ -614,7 +614,7 @@ suite('Database.prototype.location()', { timeout: 1000 }, () => {
 });
 
 suite('Async operation ordering', { timeout: 1000 }, () => {
-  test.skip('executes operations sequentially per database', async (t) => {
+  test('executes operations sequentially per database', async (t) => {
     const db = new Database(':memory:');
     t.after(async () => { await db.close(); });
     await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, seq INTEGER)');

@@ -512,18 +512,25 @@ class Database final : public DatabaseCommon {
   static constexpr int kDefaultBatchSize = 31;
 };
 
+struct statement_options {
+  bool return_arrays = false;
+  bool read_big_ints = false;
+};
+
 class Statement final : public BaseObject {
  public:
   Statement(Environment* env,
             v8::Local<v8::Object> object,
             BaseObjectPtr<Database> db,
-            sqlite3_stmt* stmt);
+            sqlite3_stmt* stmt,
+            statement_options options);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Statement> Create(Environment* env,
                                          BaseObjectPtr<Database> db,
-                                         sqlite3_stmt* stmt);
+                                         sqlite3_stmt* stmt,
+                                         statement_options options);
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   void Dispose();
   static void IsDisposedGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -541,6 +548,7 @@ class Statement final : public BaseObject {
 
   BaseObjectPtr<Database> db_;
   sqlite3_stmt* statement_;
+  statement_options options_;
 };
 
 }  // namespace sqlite
