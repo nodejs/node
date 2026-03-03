@@ -131,6 +131,7 @@ if (isMainThread) {
     'NativeModule internal/modules/esm/assert',
     'NativeModule internal/modules/esm/loader',
     'NativeModule internal/modules/esm/load',
+    'NativeModule internal/modules/esm/resolve',
     'NativeModule internal/modules/esm/translators',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
