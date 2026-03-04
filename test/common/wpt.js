@@ -223,6 +223,7 @@ class ResourceLoader {
     return {
       ok: true,
       arrayBuffer() { return data.buffer; },
+      bytes() { return new Uint8Array(data); },
       json() { return JSON.parse(data.toString()); },
       text() { return data.toString(); },
     };
@@ -721,6 +722,7 @@ class WPTRunner {
           // Mark the whole test as failed in wpt.fyi report.
           reportResult?.finish('ERROR');
           this.inProgress.delete(spec);
+          this.report?.write();
         });
 
         await events.once(worker, 'exit').catch(() => {});
@@ -787,6 +789,9 @@ class WPTRunner {
         }
       }
 
+      // Write the report on clean exit. The report is also written
+      // incrementally after each spec completes (see completionCallback)
+      // so that results survive if the process is killed.
       this.report?.write();
 
       const ran = queue.length;
@@ -873,6 +878,9 @@ class WPTRunner {
       reportResult?.finish();
     }
     this.inProgress.delete(spec);
+    // Write report incrementally so results survive even if the process
+    // is killed before the exit handler runs.
+    this.report?.write();
     // Always force termination of the worker. Some tests allocate resources
     // that would otherwise keep it alive.
     this.workers.get(spec).terminate();
