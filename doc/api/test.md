@@ -288,11 +288,7 @@ it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
 ```
 
 If the value of `expectFailure` is a
-[`RegExp`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
-[`Function`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
-[`Object`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object),
-or
-[`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
+{RegExp|Function|Object|Error}
 the tests will pass only if they throw a matching value. See [`assert.throws`][] for how each value
 type is handled.
 
