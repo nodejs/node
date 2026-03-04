@@ -730,6 +730,28 @@ shared_optgroup.add_argument('--shared-zstd-libpath',
     dest='shared_zstd_libpath',
     help='a directory to search for the shared zstd DLL')
 
+shared_optgroup.add_argument('--shared-v8',
+    action='store_true',
+    dest='shared_v8',
+    default=None,
+    help='link to a shared v8 DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-v8-includes',
+    action='store',
+    dest='shared_v8_includes',
+    help='directory containing v8 header files')
+
+shared_optgroup.add_argument('--shared-v8-libname',
+    action='store',
+    dest='shared_v8_libname',
+    default='v8,v8_libplatform',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-v8-libpath',
+    action='store',
+    dest='shared_v8_libpath',
+    help='a directory to search for the shared v8 DLL')
+
 parser.add_argument_group(shared_optgroup)
 
 for builtin in shareable_builtins:
@@ -1087,8 +1109,7 @@ parser.add_argument('--without-bundled-v8',
     action='store_true',
     dest='without_bundled_v8',
     default=False,
-    help='do not use V8 includes from the bundled deps folder. ' +
-         '(This mode is not officially supported for regular applications)')
+    help='DEPRECATED: Use --shared-v8 instead.')
 
 parser.add_argument('--verbose',
     action='store_true',
@@ -2015,6 +2036,110 @@ def configure_library(lib, output, pkgname=None):
       output['libraries'] += pkg_libs.split()
 
 
+def read_v8_version_from_header(header_path):
+  """Read V8 version components from v8-version.h."""
+  version = {}
+  with open(header_path, 'r') as f:
+    for line in f:
+      for component in ('V8_MAJOR_VERSION', 'V8_MINOR_VERSION',
+                        'V8_BUILD_NUMBER', 'V8_PATCH_LEVEL'):
+        if '#define ' + component in line:
+          version[component] = int(line.strip().split()[-1])
+  return version
+
+def parse_promise_field_count(header_path):
+  """Read V8_PROMISE_INTERNAL_FIELD_COUNT from v8-promise.h."""
+  with open(header_path, 'r') as f:
+    for line in f:
+      if '#define V8_PROMISE_INTERNAL_FIELD_COUNT' in line:
+        # Line format: #define V8_PROMISE_INTERNAL_FIELD_COUNT <n>
+        return int(line.strip().split()[-1])
+  return 0  # V8 default if not defined
+
+def has_define_in_header(header_path, define_name):
+  """Check if a header file contains a #define for the given name."""
+  with open(header_path, 'r') as f:
+    for line in f:
+      if f'#define {define_name}' in line:
+        return True
+  return False
+
+def find_shared_v8_includes():
+  """Resolve shared V8 include path from --shared-v8-includes or pkg-config."""
+  if options.shared_v8_includes:
+    return options.shared_v8_includes
+  (_, pkg_cflags, _, _) = pkg_config('v8')
+  if pkg_cflags:
+    for flag in pkg_cflags.split():
+      if flag.startswith('-I'):
+        return flag[2:]
+  return None
+
+def validate_shared_v8(shared_includes):
+  """Validate that the shared V8 meets Node.js build configuration requirements.
+  Errors are fatal. Configure will not proceed with an incompatible V8."""
+
+  # --- Version check (hard error on major.minor mismatch) ---
+  bundled_header = os.path.join('deps', 'v8', 'include', 'v8-version.h')
+  shared_header = os.path.join(shared_includes, 'v8-version.h')
+  if not os.path.exists(shared_header):
+    alt = os.path.join(shared_includes, 'v8', 'v8-version.h')
+    if os.path.exists(alt):
+      shared_header = alt
+    else:
+      error('Could not find v8-version.h in shared V8 includes at '
+            f'{shared_includes}. Cannot validate V8 compatibility. '
+            'Use --shared-v8-includes to specify the correct path.')
+
+  bundled = read_v8_version_from_header(bundled_header)
+  shared = read_v8_version_from_header(shared_header)
+  b_ver = f"{bundled['V8_MAJOR_VERSION']}.{bundled['V8_MINOR_VERSION']}.{bundled['V8_BUILD_NUMBER']}"
+  s_ver = f"{shared['V8_MAJOR_VERSION']}.{shared['V8_MINOR_VERSION']}.{shared['V8_BUILD_NUMBER']}"
+
+  if bundled['V8_MAJOR_VERSION'] != shared['V8_MAJOR_VERSION'] or \
+     bundled['V8_MINOR_VERSION'] != shared['V8_MINOR_VERSION']:
+    error(f'Shared V8 version ({s_ver}) does not match required '
+          f'({b_ver}). Major and minor version must match.')
+
+  if bundled['V8_BUILD_NUMBER'] != shared['V8_BUILD_NUMBER']:
+    warn(f'Shared V8 build number ({s_ver}) differs from bundled ({b_ver}). '
+         f'Build may succeed but runtime behavior may differ.')
+
+  # --- Promise internal field count (warning, not error; fallback exists) ---
+  promise_header = os.path.join(shared_includes, 'v8-promise.h')
+  if os.path.exists(promise_header):
+    field_count = parse_promise_field_count(promise_header)
+    if field_count < 1:
+      warn(f'Shared V8 has V8_PROMISE_INTERNAL_FIELD_COUNT={field_count}. '
+           f'async_hooks will use slower symbol-property fallback. '
+           f'For best performance, rebuild V8 with '
+           f'v8_promise_internal_field_count=1.')
+
+  # --- Pointer compression: auto-detect from shared V8, set Node.js to match ---
+  v8config = os.path.join(shared_includes, 'v8config.h')
+  if os.path.exists(v8config):
+    shared_has_pc = has_define_in_header(v8config, 'V8_COMPRESS_POINTERS')
+    if shared_has_pc != bool(options.enable_pointer_compression):
+      # Auto-match instead of erroring. Node.js adapts to the shared V8
+      options.enable_pointer_compression = shared_has_pc
+      warn(f'Auto-{"enabling" if shared_has_pc else "disabling"} pointer '
+           f'compression to match shared V8.')
+
+    shared_has_sandbox = has_define_in_header(v8config, 'V8_ENABLE_SANDBOX')
+    if shared_has_sandbox:
+      error('Shared V8 was built with V8_ENABLE_SANDBOX. Node.js does not '
+            'support the V8 sandbox (backing store pointers are in C++ '
+            'memory, not sandbox memory). Rebuild V8 with: '
+            'v8_enable_sandbox=false')
+
+    # --- Extensible RO snapshot: must be disabled for snapshot compatibility ---
+    shared_has_ext_ro = has_define_in_header(v8config, 'V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT')
+    if shared_has_ext_ro:
+      error('Shared V8 was built with V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT. '
+            'Node.js requires this to be disabled for snapshot compatibility. '
+            'Rebuild V8 with: v8_enable_extensible_ro_snapshot=false')
+
+
 def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
@@ -2064,16 +2189,40 @@ def configure_v8(o, configs):
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
+
   if options.without_bundled_v8:
+    if not options.shared_v8:
+      warn('--without-bundled-v8 is deprecated. Use --shared-v8 instead.')
+      options.shared_v8 = True
+
+  if options.shared_v8:
+    o['variables']['node_use_bundled_v8'] = b(False)
+
     if options.enable_d8:
-      raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+      error('--enable-d8 is incompatible with --shared-v8')
     if options.enable_v8windbg:
-      raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
-    (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
-    if pkg_libs and pkg_libpath:
-      output['libraries'] += [pkg_libpath] + pkg_libs.split()
-    if pkg_cflags:
-      output['include_dirs'] += [flag for flag in [flag.strip() for flag in pkg_cflags.split('-I')] if flag]
+      error('--enable-v8windbg is incompatible with --shared-v8')
+
+    # Standard configure_library call - handles pkg-config, includes,
+    # libpath, libname exactly like every other shared dependency.
+    configure_library('v8', o)
+
+    # Ensure the build can find the shared V8 at mksnapshot execution time
+    if options.shared_v8_libpath:
+      o['variables']['node_shared_v8_libpath'] = options.shared_v8_libpath
+
+    # validate shared v8 meets Node.js requirements (hard errors on failure)
+    shared_includes = find_shared_v8_includes()
+    if shared_includes:
+      validate_shared_v8(shared_includes)
+    else:
+      warn('Could not determine shared v8 include path. '
+      'Skipping build configuration validation. '
+      'use --shared-v8-includes to enable validation.')
+
+  else:
+    o['variables']['node_use_bundled_v8'] = b(True)
+
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
   if flavor != 'linux' and options.v8_enable_hugepage:

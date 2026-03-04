@@ -4261,6 +4261,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
+[Building to use shared dependencies at runtime]: ../../BUILDING.md#building-to-use-shared-dependencies-at-runtime
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables_1

@@ -107,7 +107,7 @@ pkgs.mkShell {
   BUILD_WITH = if (ninja != null) then "ninja" else "make";
   NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
   CONFIG_FLAGS = builtins.toString (
-    configureFlags ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
+    configureFlags ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--shared-v8"
   );
   NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";
 }

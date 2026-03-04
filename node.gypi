@@ -96,6 +96,12 @@
         'tools/v8_gypfiles/v8.gyp:v8_libplatform',
       ],
     }],
+    [ 'node_shared_v8=="false"', {
+      'dependencies': [
+        'tools/v8_gypfiles/v8.gyp:v8_snapshot',
+        'tools/v8_gypfiles/v8.gyp:v8_libplatform',
+      ],
+    }],
     [ 'node_use_v8_platform=="true"', {
       'defines': [
         'NODE_USE_V8_PLATFORM=1',

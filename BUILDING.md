@@ -1109,6 +1109,68 @@ shipping with these options to:
   external dependencies. There may be little or no test coverage
   within the Node.js project CI for these non-default options.
 
+### Shared V8
+
+Node.js can be built against a shared V8 library using the `--shared-v8`
+configure flag. This completely excludes the bundled `deps/v8/` from
+compilation and links against an external V8 instead.
+
+```console
+./configure --shared-v8 \
+  --shared-v8-includes=/usr/include \
+  --shared-v8-libpath=/usr/lib \
+  --shared-v8-libname=v8,v8_libplatform
+```
+
+The following flags are available:
+
+* `--shared-v8`: Link to a shared V8 library instead of building the
+  bundled copy.
+* `--shared-v8-includes=<path>`: Directory containing V8 header files
+  (`v8.h`, `v8-platform.h`, `v8config.h`, `v8-version.h`, etc.).
+* `--shared-v8-libpath=<path>`: Directory containing the shared V8
+  library.
+* `--shared-v8-libname=<name>`: Library name(s) to link against,
+  comma-separated for multiple. Default: `v8,v8_libplatform`.
+
+The shared V8 must meet the build configuration requirements listed
+below. Configure-time validation checks these automatically; hard
+requirements produce errors, performance requirements produce warnings.
+
+#### V8 build configuration spec
+
+**Hard requirements** (configure errors if violated):
+
+| Flag | Required value | Reason |
+|------|---------------|--------|
+| V8 major.minor version | Must match bundled `deps/v8/` | ABI compatibility (e.g., 14.3.x) |
+| `v8_enable_sandbox` | `false` | Node.js C++ backing stores are not sandbox-allocated |
+| `v8_enable_extensible_ro_snapshot` | `false` | Snapshot compatibility |
+| `v8_enable_pointer_compression` | Auto-detected | ABI: struct layout must match. Node.js reads the shared V8's `v8config.h` and auto-matches. |
+
+**Performance requirements** (configure warns if not met):
+
+| Flag | Recommended value | Reason |
+|------|------------------|--------|
+| `v8_promise_internal_field_count` | `1` | Fast async\_hooks Promise tracking. Fallback to symbol-property tracking exists when 0, but is ~2x slower for promise-heavy workloads. |
+
+**Recommended** (not validated):
+
+| Flag | Recommended value | Reason |
+|------|------------------|--------|
+| `v8_use_siphash` | `true` | Hash table randomization |
+| `v8_enable_webassembly` | `true` | Unless building with `--v8-lite-mode` |
+
+**Standard V8 embedder API** (must be present in any compliant V8):
+
+* `v8::Context::SetPromiseHooks()`
+* `v8::Isolate::SetPromiseHook()`
+* `v8::Context::SetAlignedPointerInEmbedderData()`
+* `v8::SnapshotCreator` / `v8::StartupData`
+* `v8::ScriptCompiler::CreateCodeCache()`
+
+The deprecated `--without-bundled-v8` flag is aliased to `--shared-v8`.
+
 ## Note for downstream distributors of Node.js
 
 The Node.js ecosystem is reliant on ABI compatibility within a major release.
