@@ -4714,6 +4714,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TNode<Int32T> num_args,
                                    TNode<FixedArray> args);
 
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  // Mirror C++ StringHasher::SeedArrayIndexValue and UnseedArrayIndexValue.
+  TNode<Uint32T> SeedArrayIndexValue(TNode<Uint32T> value);
+  TNode<Uint32T> UnseedArrayIndexValue(TNode<Uint32T> value);
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
  private:
   friend class CodeStubArguments;
 

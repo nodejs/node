@@ -211,6 +211,11 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_enable_seeded_array_index_hash",
+    default = False,
+)
+
 v8_int(
     name = "v8_typed_array_max_size_in_heap",
     default = 64,
@@ -421,6 +426,7 @@ v8_config(
         "v8_enable_verify_heap": "VERIFY_HEAP",
         "v8_enable_verify_predictable": "VERIFY_PREDICTABLE",
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
+        "v8_enable_seeded_array_index_hash": "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH",
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
     },

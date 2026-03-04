@@ -786,7 +786,8 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
                  (len == 1 || data[0] != '0')) {
         // String hash is not calculated yet but all the data are present.
         // Update the hash field to speed up sequential convertions.
-        uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(d, len);
+        uint32_t raw_hash_field =
+            StringHasher::MakeArrayIndexHash(d, len, HashSeed(isolate));
 #ifdef DEBUG
         subject->EnsureHash();  // Force hash calculation.
         DCHECK_EQ(subject->raw_hash_field(), raw_hash_field);
@@ -1746,7 +1747,8 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
@@ -1760,7 +1762,8 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;

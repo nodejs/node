@@ -26,6 +26,13 @@ inline HashSeed HashSeed::Default() { return HashSeed(kDefaultData); }
 inline uint64_t HashSeed::seed() const { return data_->seed; }
 inline const uint64_t* HashSeed::secret() const { return data_->secrets; }
 
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+inline uint32_t HashSeed::m1() const { return data_->m1; }
+inline uint32_t HashSeed::m1_inv() const { return data_->m1_inv; }
+inline uint32_t HashSeed::m2() const { return data_->m2; }
+inline uint32_t HashSeed::m2_inv() const { return data_->m2_inv; }
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
 }  // namespace internal
 }  // namespace v8
 

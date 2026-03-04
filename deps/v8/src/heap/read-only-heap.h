@@ -77,6 +77,11 @@ class ReadOnlyHeap {
   // must be initialized
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
       Tagged<HeapObject> object);
+
+#ifdef V8_SHARED_RO_HEAP
+  V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots();
+#endif  // V8_SHARED_RO_HEAP
+
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(

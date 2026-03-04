@@ -4183,23 +4183,6 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
   return dest.ptr();
 }
 
-uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
-  // For array indexes mix the length into the hash as an array index could
-  // be zero.
-  DCHECK_GT(length, 0);
-  DCHECK_LE(length, String::kMaxArrayIndexSize);
-  DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << String::kArrayIndexValueBits));
-
-  value <<= String::ArrayIndexValueBits::kShift;
-  value |= length << String::ArrayIndexLengthBits::kShift;
-
-  DCHECK(String::IsIntegerIndex(value));
-  DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
-            Name::ContainsCachedArrayIndex(value));
-  return value;
-}
-
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, uint8_t kind) {

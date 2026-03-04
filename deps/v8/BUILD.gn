@@ -431,6 +431,9 @@ declare_args() {
 
   # Use a hard-coded secret value when hashing.
   v8_use_default_hasher_secret = true
+
+  # Enable seeded array index hash.
+  v8_enable_seeded_array_index_hash = false
 }
 
 # Derived defaults.
@@ -1049,6 +1052,9 @@ config("features") {
   }
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
+  }
+  if (v8_enable_seeded_array_index_hash) {
+    defines += [ "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
