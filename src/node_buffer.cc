@@ -761,9 +761,33 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
-  args.GetReturnValue().Set(static_cast<uint64_t>(result));
+  Isolate* isolate = args.GetIsolate();
+  Local<String> source = args[0].As<String>();
+
+  int length = source->Length();
+
+  if (source->IsOneByte()) {
+    args.GetReturnValue().Set(
+        static_cast<uint64_t>(source->Utf8LengthV2(isolate)));
+    return;
+  }
+
+  static constexpr int kSmallStringThreshold = 128;
+  if (length <= kSmallStringThreshold) {
+    args.GetReturnValue().Set(
+        static_cast<uint64_t>(source->Utf8LengthV2(isolate)));
+    return;
+  }
+
+  String::ValueView view(isolate, source);
+  auto data = reinterpret_cast<const char16_t*>(view.data16());
+  if (simdutf::validate_utf16(data, length)) {
+    args.GetReturnValue().Set(
+        static_cast<uint64_t>(simdutf::utf8_length_from_utf16(data, length)));
+    return;
+  }
+  args.GetReturnValue().Set(
+      static_cast<uint64_t>(source->Utf8LengthV2(isolate)));
 }
 
 uint32_t FastByteLengthUtf8(
@@ -776,49 +800,23 @@ uint32_t FastByteLengthUtf8(
   CHECK(sourceValue->IsString());
   Local<String> sourceStr = sourceValue.As<String>();
 
-  if (!sourceStr->IsExternalOneByte()) {
+  int length = sourceStr->Length();
+
+  if (sourceStr->IsOneByte()) {
     return sourceStr->Utf8LengthV2(isolate);
   }
-  auto source = sourceStr->GetExternalOneByteStringResource();
-  // For short inputs, the function call overhead to simdutf is maybe
-  // not worth it, reserve simdutf for long strings.
-  if (source->length() > 128) {
-    return simdutf::utf8_length_from_latin1(source->data(), source->length());
+
+  static constexpr int kSmallStringThreshold = 128;
+  if (length <= kSmallStringThreshold) {
+    return sourceStr->Utf8LengthV2(isolate);
   }
 
-  uint32_t length = source->length();
-  const auto input = reinterpret_cast<const uint8_t*>(source->data());
-
-  uint32_t answer = length;
-  uint32_t i = 0;
-
-  auto pop = [](uint64_t v) {
-    return static_cast<size_t>(((v >> 7) & UINT64_C(0x0101010101010101)) *
-                                   UINT64_C(0x0101010101010101) >>
-                               56);
-  };
-
-  for (; i + 32 <= length; i += 32) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 8, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 16, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 24, 8);
-    answer += pop(v);
+  String::ValueView view(isolate, sourceStr);
+  auto data = reinterpret_cast<const char16_t*>(view.data16());
+  if (simdutf::validate_utf16(data, length)) {
+    return simdutf::utf8_length_from_utf16(data, length);
   }
-  for (; i + 8 <= length; i += 8) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-  }
-  for (; i + 1 <= length; i += 1) {
-    answer += input[i] >> 7;
-  }
-
-  return answer;
+  return sourceStr->Utf8LengthV2(isolate);
 }
 
 static CFunction fast_byte_length_utf8(CFunction::Make(FastByteLengthUtf8));
@@ -1252,8 +1250,7 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(
-      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
+  args.GetReturnValue().Set(simdutf::validate_ascii(abv.data(), abv.length()));
 }
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
