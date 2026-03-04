@@ -64,7 +64,7 @@ let
   ++ pkgs.lib.optional (!withSSL) "--without-ssl"
   ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
   ++ pkgs.lib.optional (ninja != null) "--ninja"
-  ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ../..}"
+  ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
   ++ pkgs.lib.concatMap (name: [
     "--shared-${name}"
     "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
