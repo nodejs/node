@@ -329,8 +329,8 @@ inline void RejectErr(Environment* env,
 
 template <typename ErrFactory>
   requires requires(ErrFactory err_factory, Isolate* isolate) {
-    { err_factory(isolate) } -> std::convertible_to<Local<Value>>;
-  }
+             { err_factory(isolate) } -> std::convertible_to<Local<Value>>;
+           }
 inline void RejectErr(Environment* env,
                       const FunctionCallbackInfo<Value>& args,
                       ErrFactory&& err_factory) {
@@ -446,7 +446,7 @@ class CustomAggregate {
   static inline void xStepBase(sqlite3_context* ctx,
                                int argc,
                                sqlite3_value** argv,
-                               Global<Function> CustomAggregate::* mptr) {
+                               Global<Function> CustomAggregate::*mptr) {
     CustomAggregate* self =
         static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
     Environment* env = self->env_;
@@ -3993,7 +3993,7 @@ literal FromColumn(sqlite3* db,
     default:
       UNREACHABLE("Bad SQLite value");
   }
-};
+}
 
 value FromRow(sqlite3* connection,
               sqlite3_stmt* stmt,
@@ -4742,13 +4742,12 @@ class DatabaseOperationQueue {
   }
   template <typename Op, typename... Args>
     requires is_operation_type<Op> &&
-             std::constructible_from<Operation,
-                                     std::in_place_type_t<Op>,
+             std::constructible_from<Operation, std::in_place_type_t<Op>,
                                      Global<Promise::Resolver>&&,
-                                     Args&&...>
-  [[nodiscard]] QueuePushResult PushEmplace(Isolate* isolate,
-                                            Local<Promise::Resolver> resolver,
-                                            Args&&... args) {
+                                     Args&&...> [[nodiscard]] QueuePushResult
+    PushEmplace(Isolate* isolate,
+                Local<Promise::Resolver> resolver,
+                Args&&... args) {
     return Push(Operation{std::in_place_type<Op>,
                           Global<Promise::Resolver>{isolate, resolver},
                           std::forward<Args>(args)...});
