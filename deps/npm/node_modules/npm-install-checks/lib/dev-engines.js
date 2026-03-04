@@ -90,14 +90,14 @@ function checkDependency (wanted, current, opts) {
 /** checks devEngines package property and returns array of warnings / errors */
 function checkDevEngines (wanted, current = {}, opts = {}) {
   if ((typeof wanted !== 'object' || wanted === null) || Array.isArray(wanted)) {
-    throw new Error(`Invalid non-object value for devEngines`)
+    throw new Error(`Invalid non-object value for "devEngines"`)
   }
 
   const errors = []
 
   for (const engine of Object.keys(wanted)) {
     if (!recognizedEngines.includes(engine)) {
-      throw new Error(`Invalid property "${engine}"`)
+      throw new Error(`Invalid property "devEngines.${engine}"`)
     }
     const dependencyAsAuthored = wanted[engine]
     const dependencies = [dependencyAsAuthored].flat()
@@ -125,7 +125,7 @@ function checkDevEngines (wanted, current = {}, opts = {}) {
         onFail = 'error'
       }
 
-      const err = Object.assign(new Error(`Invalid engine "${engine}"`), {
+      const err = Object.assign(new Error(`Invalid devEngines.${engine}`), {
         errors: depErrors,
         engine,
         isWarn: onFail === 'warn',

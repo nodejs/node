@@ -1,6 +1,6 @@
 {
 	"name": "strip-ansi",
-	"version": "7.1.0",
+	"version": "7.2.0",
 	"description": "Strip ANSI escape codes from a string",
 	"license": "MIT",
 	"repository": "chalk/strip-ansi",
@@ -12,6 +12,8 @@
 	},
 	"type": "module",
 	"exports": "./index.js",
+	"types": "./index.d.ts",
+	"sideEffects": false,
 	"engines": {
 		"node": ">=12"
 	},
@@ -47,11 +49,11 @@
 		"text"
 	],
 	"dependencies": {
-		"ansi-regex": "^6.0.1"
+		"ansi-regex": "^6.2.2"
 	},
 	"devDependencies": {
-		"ava": "^3.15.0",
-		"tsd": "^0.17.0",
-		"xo": "^0.44.0"
+		"ava": "^6.4.1",
+		"tsd": "^0.33.0",
+		"xo": "^1.2.3"
 	}
 }

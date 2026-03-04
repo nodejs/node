@@ -67,7 +67,7 @@ Object {
     ],
     Array [
       "404",
-      " 1. node_modules is a blacklisted name",
+      " 1. node_modules is not a valid package name",
     ],
     Array [
       "404",

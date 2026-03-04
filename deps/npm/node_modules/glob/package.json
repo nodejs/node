@@ -5,7 +5,7 @@
   },
   "name": "glob",
   "description": "the most correct and second fastest glob implementation in JavaScript",
-  "version": "10.4.5",
+  "version": "10.5.0",
   "type": "module",
   "tshy": {
     "main": true,

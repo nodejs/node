@@ -11,11 +11,13 @@ const { log, time } = require('proc-log')
 const hgi = require('hosted-git-info')
 const rpj = require('read-package-json-fast')
 
-const { dirname, resolve, relative, join } = require('node:path')
+const { dirname, resolve, relative, join, sep } = require('node:path')
 const { depth: dfwalk } = require('treeverse')
+const { existsSync } = require('node:fs')
 const {
   lstat,
   mkdir,
+  readdir,
   rm,
   symlink,
 } = require('node:fs/promises')
@@ -77,8 +79,6 @@ const _usePackageLock = Symbol.for('usePackageLock')
 // used by build-ideal-tree mixin
 const _addNodeToTrashList = Symbol.for('addNodeToTrashList')
 
-const _createIsolatedTree = Symbol.for('createIsolatedTree')
-
 module.exports = cls => class Reifier extends cls {
   #bundleMissing = new Set() // child nodes we'd EXPECT to be included in a bundle, but aren't
   #bundleUnpacked = new Set() // the nodes we unpack to read their bundles
@@ -93,6 +93,7 @@ module.exports = cls => class Reifier extends cls {
   #shrinkwrapInflated = new Set()
   #sparseTreeDirs = new Set()
   #sparseTreeRoots = new Set()
+  #linkedActualForDiff = null
 
   constructor (options) {
     super(options)
@@ -136,16 +137,21 @@ module.exports = cls => class Reifier extends cls {
       // this is currently technical debt which will be resolved in a refactor
       // of Node/Link trees
       log.warn('reify', 'The "linked" install strategy is EXPERIMENTAL and may contain bugs.')
-      this.idealTree = await this[_createIsolatedTree]()
+      this.idealTree = await this.createIsolatedTree()
+      this.#linkedActualForDiff = this.#buildLinkedActualForDiff(
+        this.idealTree, this.actualTree
+      )
     }
     await this[_diffTrees]()
     await this[_reifyPackages]()
     if (linked) {
+      await this.#cleanOrphanedStoreEntries()
       // swap back in the idealTree
       // so that the lockfile is preserved
       this.idealTree = oldTree
     }
     await this[_saveIdealTree](options)
+    this.#linkedActualForDiff = null
     // clean up any trash that is still in the tree
     for (const path of this[_trashList]) {
       const loc = relpath(this.idealTree.realpath, path)
@@ -161,7 +167,7 @@ module.exports = cls => class Reifier extends cls {
     // was not changed, delete anything in the ideal and not actual.
     // Then we move the entire idealTree over to this.actualTree, and
     // save the hidden lockfile.
-    if (this.diff && this.diff.filterSet.size) {
+    if (this.diff && this.diff.filterSet.size && !linked) {
       const reroot = new Set()
 
       const { filterSet } = this.diff
@@ -442,9 +448,14 @@ module.exports = cls => class Reifier extends cls {
           if (ideal) {
             filterNodes.push(ideal)
           }
-          const actual = this.actualTree.children.get(ws)
-          if (actual) {
-            filterNodes.push(actual)
+          // Skip actual-side filterNodes when using the linked diff wrapper.
+          // Those nodes have root===actualTree, not root===linkedActualForDiff, and Diff.calculate requires filterNode.root to match actual.
+          // The ideal filterNode alone is sufficient to scope the workspace diff.
+          if (!this.#linkedActualForDiff) {
+            const actual = this.actualTree.children.get(ws)
+            if (actual) {
+              filterNodes.push(actual)
+            }
           }
         }
       }
@@ -465,7 +476,7 @@ module.exports = cls => class Reifier extends cls {
     this.diff = Diff.calculate({
       shrinkwrapInflated: this.#shrinkwrapInflated,
       filterNodes,
-      actual: this.actualTree,
+      actual: this.#linkedActualForDiff || this.actualTree,
       ideal: this.idealTree,
     })
 
@@ -625,6 +636,7 @@ module.exports = cls => class Reifier extends cls {
       // if the directory already exists, made will be undefined. if that's the case
       // we don't want to remove it because we aren't the ones who created it so we
       // omit it from the #sparseTreeRoots
+      /* istanbul ignore next -- pre-existing: mkdir returns undefined when dir exists, covered in reify tests but lost in aggregate coverage merge */
       if (made) {
         this.#sparseTreeRoots.add(made)
       }
@@ -822,6 +834,125 @@ module.exports = cls => class Reifier extends cls {
         this[_addNodeToTrashList](node)
       }
     }) : p).then(() => node)
+  }
+
+  // Build a flat actual tree wrapper for linked installs so the diff can
+  // correctly match store entries that already exist on disk.
+  #buildLinkedActualForDiff (idealTree, actualTree) {
+    const combined = new Map()
+
+    for (const child of actualTree.children.values()) {
+      combined.set(child.path, child)
+    }
+
+    for (const child of idealTree.children.values()) {
+      if (!combined.has(child.path) && (child.isInStore || child.isStoreLink) &&
+          existsSync(child.path)) {
+        const entry = {
+          global: false,
+          globalTop: false,
+          isProjectRoot: false,
+          isTop: false,
+          location: child.location,
+          name: child.name,
+          optional: child.optional,
+          top: child.top,
+          children: [],
+          edgesIn: new Set(),
+          edgesOut: new Map(),
+          binPaths: [],
+          fsChildren: [],
+          /* istanbul ignore next -- emulate Node */
+          getBundler () {
+            return null
+          },
+          hasShrinkwrap: false,
+          inDepBundle: false,
+          integrity: null,
+          isLink: Boolean(child.isLink),
+          isRoot: false,
+          isInStore: Boolean(child.isInStore),
+          path: child.path,
+          realpath: child.realpath,
+          resolved: child.resolved,
+          version: child.version,
+          package: child.package,
+        }
+        entry.target = entry
+        if (child.isLink && combined.has(child.realpath)) {
+          entry.target = combined.get(child.realpath)
+        }
+        combined.set(child.path, entry)
+      }
+    }
+
+    const origGet = actualTree.children.get.bind(actualTree.children)
+    const combinedGet = combined.get.bind(combined)
+    /* istanbul ignore next -- only reached during scoped workspace installs */
+    combined.get = (key) => combinedGet(key) || origGet(key)
+
+    const wrapper = {
+      isRoot: true,
+      isLink: actualTree.isLink,
+      target: actualTree.target,
+      fsChildren: actualTree.fsChildren,
+      path: actualTree.path,
+      realpath: actualTree.realpath,
+      edgesOut: actualTree.edgesOut,
+      inventory: actualTree.inventory,
+      package: actualTree.package,
+      resolved: actualTree.resolved,
+      version: actualTree.version,
+      integrity: actualTree.integrity,
+      binPaths: actualTree.binPaths,
+      hasShrinkwrap: false,
+      inDepBundle: false,
+      parent: null,
+      children: combined,
+    }
+
+    for (const child of combined.values()) {
+      if (!child.parent) {
+        child.parent = wrapper
+        child.root = wrapper
+      }
+    }
+
+    return wrapper
+  }
+
+  // After a linked install, scan node_modules/.store/ and remove any
+  // directories that are not referenced by the current ideal tree.
+  async #cleanOrphanedStoreEntries () {
+    const storeDir = resolve(this.path, 'node_modules', '.store')
+    let entries
+    try {
+      entries = await readdir(storeDir)
+    } catch {
+      return
+    }
+
+    const validKeys = new Set()
+    for (const child of this.idealTree.children.values()) {
+      if (child.isInStore) {
+        const key = child.location.split(sep)[2]
+        validKeys.add(key)
+      }
+    }
+
+    const orphaned = entries.filter(e => !validKeys.has(e))
+    if (!orphaned.length) {
+      return
+    }
+
+    log.silly('reify', 'cleaning orphaned store entries', orphaned)
+    await promiseAllRejectLate(
+      orphaned.map(e =>
+        rm(resolve(storeDir, e), { recursive: true, force: true })
+          .catch(/* istanbul ignore next -- rm with force rarely fails */
+            er => log.warn('cleanup', `Failed to remove orphaned store entry ${e}`, er))
+      )
+    )
   }
 
   #registryResolved (resolved) {
