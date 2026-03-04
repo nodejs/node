@@ -1412,7 +1412,7 @@ added:
   - v14.18.0
 changes:
   - version:
-    - REPLACEME
+    - v22.22.1
     pr-url: https://github.com/nodejs/node/pull/60956
     description: The flag is no longer experimental.
 -->
