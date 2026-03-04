@@ -4647,6 +4647,27 @@ class LocationOperation : private OperationBase {
   std::pmr::string db_name_;
 };
 
+class UpdateDbConfigOperation : private OperationBase {
+ public:
+  UpdateDbConfigOperation(Global<Promise::Resolver>&& resolver,
+                          int db_config,
+                          int value)
+      : OperationBase(std::move(resolver)),
+        db_config_(db_config),
+        value_(value) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    int error_code = sqlite3_db_config(connection, db_config_, value_, nullptr);
+    return error_code == SQLITE_OK
+               ? OperationResult::ResolveVoid(this)
+               : OperationResult::RejectLastError(this, connection);
+  }
+
+ private:
+  int db_config_;
+  int value_;
+};
+
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
                                StatementAllOperation,
@@ -4655,6 +4676,7 @@ using Operation = std::variant<ExecOperation,
                                FinalizeStatementOperation,
                                IsInTransactionOperation,
                                LocationOperation,
+                               UpdateDbConfigOperation,
                                CloseOperation>;
 
 template <typename T, typename V>
@@ -4958,6 +4980,7 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
   SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
   SetProtoMethod(isolate, tmpl, "isInTransaction", Database::IsInTransaction);
   SetProtoMethod(isolate, tmpl, "location", Database::Location);
+  SetProtoMethod(isolate, tmpl, "enableDefensive", Database::EnableDefensive);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
@@ -5241,6 +5264,25 @@ void Database::Location(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   args.GetReturnValue().Set(
       db->Schedule<LocationOperation>(std::move(db_name)));
+}
+
+void Database::EnableDefensive(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
+
+  REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+      env,
+      args,
+      !args[0]->IsBoolean() || args.Length() != 1,
+      "\"enableDefensive\" requires exactly one boolean argument.");
+
+  auto enable_defensive = args[0].As<Boolean>()->Value();
+  args.GetReturnValue().Set(db->Schedule<UpdateDbConfigOperation>(
+      SQLITE_DBCONFIG_DEFENSIVE, enable_defensive ? 1 : 0));
 }
 
 Statement::~Statement() {

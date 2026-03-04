@@ -472,14 +472,7 @@ class Database final : public DatabaseCommon {
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsInTransaction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
-  // static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>&
-  // args); static void Location(const v8::FunctionCallbackInfo<v8::Value>&
-  // args); static void EnableLoadExtension(
-  //     const v8::FunctionCallbackInfo<v8::Value>& args);
-  // static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>&
-  // args); static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>&
-  // args); void FinalizeStatements(); void UntrackStatement(StatementSync*
-  // statement);
+  static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <typename Op, typename... Args>
   [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
