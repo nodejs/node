@@ -1596,7 +1596,8 @@ bool String::AsArrayIndex(uint32_t* index) {
   DisallowGarbageCollection no_gc;
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
@@ -1608,7 +1609,8 @@ bool String::AsArrayIndex(uint32_t* index) {
 bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {

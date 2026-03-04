@@ -46,9 +46,31 @@ class V8_EXPORT_PRIVATE HashSeed {
     // RAPIDHASH_DEFAULT_SECRET. Otherwise they are derived from the seed
     // using rapidhash_make_secret().
     uint64_t secrets[kSecretsCount];
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+    // Additional precomputed secrets for seeding the array index value hashes.
+    uint32_t m1;  // lower kArrayIndexValueBits bits of secret[0], must be odd
+    uint32_t m1_inv;  // modular inverse of m1 mod 2^kArrayIndexValueBits
+    uint32_t m2;  // lower kArrayIndexValueBits bits of secret[1], must be odd
+    uint32_t m2_inv;  // modular inverse of m2 mod 2^kArrayIndexValueBits
+#endif                // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
   };
 
   static constexpr int kTotalSize = sizeof(Data);
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  // Byte offsets from the data start, for CSA that loads fields at raw
+  // offsets from the ByteArray data start.
+  static constexpr int kDerivedM1Offset = offsetof(Data, m1);
+  static constexpr int kDerivedM1InvOffset = offsetof(Data, m1_inv);
+  static constexpr int kDerivedM2Offset = offsetof(Data, m2);
+  static constexpr int kDerivedM2InvOffset = offsetof(Data, m2_inv);
+
+  inline uint32_t m1() const;
+  inline uint32_t m1_inv() const;
+  inline uint32_t m2() const;
+  inline uint32_t m2_inv() const;
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
   // Generates a hash seed (from --hash-seed or the RNG) and writes it
   // together with derived secrets into the isolate's hash_seed in
@@ -59,7 +81,7 @@ class V8_EXPORT_PRIVATE HashSeed {
   // Pointer into the Data overlaying the ByteArray data (either
   // points to read-only roots or to kDefaultData).
   const Data* data_;
-  HashSeed(const Data* data) : data_(data) {}
+  explicit HashSeed(const Data* data) : data_(data) {}
 
   // Points to the static constexpr default seed.
   static const Data* const kDefaultData;

@@ -1094,7 +1094,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
     if (raw->raw_hash_field() == String::kEmptyHashField &&
         number.value() >= 0) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(number.value()), raw->length());
+          static_cast<uint32_t>(number.value()), raw->length(),
+          HashSeed(read_only_roots()));
       raw->set_raw_hash_field(raw_hash_field);
     }
   }

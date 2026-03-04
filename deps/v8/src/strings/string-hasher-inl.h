@@ -10,6 +10,7 @@
 // Comment inserted to prevent header reordering.
 #include <type_traits>
 
+#include "src/common/globals.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
@@ -67,6 +68,64 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
   return value;
 }
 
+uint32_t StringHasher::DecodeArrayIndexFromHashField(uint32_t raw_hash_field) {
+  DCHECK(String::ContainsCachedArrayIndex(raw_hash_field) ||
+         String::IsIntegerIndex(raw_hash_field));
+  return String::ArrayIndexValueBits::decode(raw_hash_field);
+}
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+uint32_t StringHasher::SeedArrayIndexValue(uint32_t value,
+                                           const HashSeed seed) {
+  uint32_t m1 = seed.m1();
+  uint32_t m2 = seed.m2();
+  constexpr uint32_t kShift = Name::kArrayIndexHashShift;
+  constexpr uint32_t kMask = Name::kArrayIndexValueMask;
+  // 2-round xorshift-multiply.
+  uint32_t x = value;
+  x ^= x >> kShift;
+  x = (x * m1) & kMask;
+  x ^= x >> kShift;
+  x = (x * m2) & kMask;
+  x ^= x >> kShift;
+  return x;
+}
+
+uint32_t StringHasher::UnseedArrayIndexValue(uint32_t value,
+                                             const HashSeed seed) {
+  uint32_t m1_inv = seed.m1_inv();
+  uint32_t m2_inv = seed.m2_inv();
+  uint32_t x = value;
+  constexpr uint32_t kShift = Name::kArrayIndexHashShift;
+  constexpr uint32_t kMask = Name::kArrayIndexValueMask;
+  // 2-round xorshift-multiply.
+  // Xorshift is an involution when kShift is at least half of the value width.
+  x ^= x >> kShift;
+  x = (x * m2_inv) & kMask;
+  x ^= x >> kShift;
+  x = (x * m1_inv) & kMask;
+  x ^= x >> kShift;
+  return x;
+}
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
+uint32_t StringHasher::MakeArrayIndexHash(
+    uint32_t value, uint32_t length, [[maybe_unused]] const HashSeed seed) {
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  value = SeedArrayIndexValue(value, seed);
+#endif
+  return MakeArrayIndexHash(value, length);
+}
+
+uint32_t StringHasher::DecodeArrayIndexFromHashField(
+    uint32_t raw_hash_field, [[maybe_unused]] const HashSeed seed) {
+  uint32_t value = DecodeArrayIndexFromHashField(raw_hash_field);
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  value = UnseedArrayIndexValue(value, seed);
+#endif
+  return value;
+}
+
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
                                             uint32_t length,
@@ -106,7 +165,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
         // done.
         if (!needs_overflow_check) {
           DCHECK_EQ(i, length);
-          return MakeArrayIndexHash(index, length);
+          return MakeArrayIndexHash(index, length, seed);
         }
         // Otherwise, the last character needs to be checked for both being
         // digit, and the result being in bounds of the maximum array index.
@@ -118,7 +177,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
           goto non_index_hash;
         }
         if (TryAddArrayIndexChar(&index, c)) {
-          return MakeArrayIndexHash(index, length);
+          return MakeArrayIndexHash(index, length, seed);
         }
         // If the range check fails, this falls through into the integer index
         // check.
