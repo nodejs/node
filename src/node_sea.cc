@@ -776,6 +776,12 @@ ExitCode GenerateSingleExecutableBlob(
   if (!config.assets.empty() && BuildAssets(config.assets, &assets) != 0) {
     return ExitCode::kGenericUserError;
   }
+  // When VFS is enabled, include the main script as an asset so it can be
+  // loaded via wrapModuleLoad from the VFS mount point.
+  if (static_cast<bool>(config.flags & SeaFlags::kEnableVfs) &&
+      !builds_snapshot_from_main) {
+    assets.emplace(config.main_path, main_script);
+  }
   std::unordered_map<std::string_view, std::string_view> assets_view;
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
@@ -933,6 +939,21 @@ void Initialize(Local<Object> target,
     SeaResource sea_resource = FindSingleExecutableResource();
     is_vfs_enabled =
         static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
+    // Expose the main code path so VFS can construct the correct entry point.
+    if (is_vfs_enabled) {
+      Local<String> code_path_str;
+      if (String::NewFromUtf8(isolate,
+                              sea_resource.code_path.data(),
+                              NewStringType::kNormal,
+                              sea_resource.code_path.length())
+              .ToLocal(&code_path_str)) {
+        target
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "mainCodePath"),
+                  code_path_str)
+            .Check();
+      }
+    }
   }
   target
       ->Set(context,
