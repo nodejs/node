@@ -1,4 +1,5 @@
 // META: global=window,worker,shadowrealm
+// META: script=resources/formats.js
 
 'use strict';
 
@@ -70,16 +71,10 @@ async function decompress(chunk, format, t)
     await promise_rejects_js(t, TypeError, reader.closed, 'read.closed should reject');
 }
 
-for (const chunk of badChunks) {
-  promise_test(async t => {
-    await decompress(chunk, 'gzip', t);
-  }, `chunk of type ${chunk.name} should error the stream for gzip`);
-
-  promise_test(async t => {
-    await decompress(chunk, 'deflate', t);
-  }, `chunk of type ${chunk.name} should error the stream for deflate`);
-
-  promise_test(async t => {
-    await decompress(chunk, 'deflate-raw', t);
-  }, `chunk of type ${chunk.name} should error the stream for deflate-raw`);
+for (const format of formats) {
+  for (const chunk of badChunks) {
+    promise_test(async t => {
+      await decompress(chunk, format, t);
+    }, `chunk of type ${chunk.name} should error the stream for ${format}`);
+  }
 }
