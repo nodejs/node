@@ -286,11 +286,7 @@ it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
 });
 ```
 
-If the value of `expectFailure` is a
-[<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) |
-[<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) |
-[<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
-[<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
+If the value of `expectFailure` is a {RegExp|Function|Object|Error}
 the tests will pass only if they throw a matching value.
 See [`assert.throws`][] for how each value type is handled.
 
@@ -1731,11 +1727,7 @@ changes:
     **Default:** `false`.
   * `expectFailure` {boolean|string|RegExp|Function|Object|Error} If truthy, the
     test is expected to fail. If a non-empty string is provided, that string is displayed
-    in the test results as the reason why the test is expected to fail. If a
-    [<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
-    [<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
-    [<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object), or
-    [<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+    in the test results as the reason why the test is expected to fail. If a {RegExp|Function|Object|Error}
     is provided directly (without wrapping in `{ match: … }`), the test passes
     only if the thrown error matches, following the behavior of
     [`assert.throws`][]. To provide both a reason and validation, pass an object
