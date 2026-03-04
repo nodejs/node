@@ -1,12 +1,4 @@
 {
-  "decompression-bad-chunks.any.js": {
-    "fail": {
-      "expected": [
-        "chunk of type invalid deflate bytes should error the stream for brotli",
-        "chunk of type invalid gzip bytes should error the stream for brotli"
-      ]
-    }
-  },
   "compression-with-detach.window.js": {
     "requires": ["crypto"]
   },

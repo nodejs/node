@@ -55,3 +55,21 @@ for (const format of ['deflate', 'deflate-raw', 'gzip', 'brotli']) {
     });
   }
 }
+
+// Verify that decompression errors (e.g. corrupt data) are surfaced as
+// TypeError, not plain Error, per the Compression Streams spec.
+for (const format of ['deflate', 'deflate-raw', 'gzip', 'brotli']) {
+  test(`DecompressionStream surfaces corrupt data as TypeError for ${format}`, async () => {
+    const ds = new DecompressionStream(format);
+    const writer = ds.writable.getWriter();
+    const reader = ds.readable.getReader();
+
+    const corruptData = new Uint8Array([0, 1, 2, 3, 4, 5]);
+
+    writer.write(corruptData).catch(() => {});
+    reader.read().catch(() => {});
+
+    await assert.rejects(writer.close(), { name: 'TypeError' });
+    await assert.rejects(reader.closed, { name: 'TypeError' });
+  });
+}
