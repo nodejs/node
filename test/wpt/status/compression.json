@@ -1,9 +1,11 @@
 {
-  "compression-bad-chunks.any.js": {
-    "skip": "Execution \"hangs\", ArrayBuffer and TypedArray is not accepted and throws, instead of rejects during writer.write"
-  },
   "decompression-bad-chunks.any.js": {
-    "skip": "Execution \"hangs\", ArrayBuffer and TypedArray is not accepted and throws, instead of rejects during writer.write"
+    "fail": {
+      "expected": [
+        "chunk of type invalid deflate bytes should error the stream for brotli",
+        "chunk of type invalid gzip bytes should error the stream for brotli"
+      ]
+    }
   },
   "compression-with-detach.window.js": {
     "requires": ["crypto"]
