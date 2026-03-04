@@ -287,13 +287,12 @@ it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
 });
 ```
 
-If the value of `expectFailure` is a
-{RegExp|Function|Object|Error}
-the tests will pass only if they throw a matching value. See [`assert.throws`][] for how each value
-type is handled.
+If the value of `expectFailure` is a {RegExp|Function|Object|Error}
+the tests will pass only if they throw a matching value.
+See [`assert.throws`][] for how each value type is handled.
 
-Each of the following tests fails _despite_ being flagged `expectFailure` because the failure does
-not match the specific **expected** failure.
+Each of the following tests fails _despite_ being flagged `expectFailure`
+because the failure does not match the specific **expected** failure.
 
 ```js
 it('fails because regex does not match', {
