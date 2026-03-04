@@ -4379,8 +4379,10 @@ class alignas(64) OperationResult {
 
  public:
   static OperationResult RejectErrorCode(OperationBase* origin,
-                                         int error_code) {
-    return OperationResult{origin, Rejected::ErrorCode(error_code)};
+                                         int error_code,
+                                         const char* error_message = nullptr) {
+    return OperationResult{origin,
+                           Rejected::ErrorCode(error_code, error_message)};
   }
   static OperationResult RejectLastError(OperationBase* origin,
                                          sqlite3* connection) {
@@ -4668,6 +4670,28 @@ class UpdateDbConfigOperation : private OperationBase {
   int value_;
 };
 
+class LoadExtensionOperation : private OperationBase {
+ public:
+  LoadExtensionOperation(Global<Promise::Resolver>&& resolver,
+                         std::pmr::string&& extension_path)
+      : OperationBase(std::move(resolver)),
+        extension_path_(std::move(extension_path)) {}
+
+  OperationResult operator()(sqlite3* connection) {
+    char* error_message = nullptr;
+    auto free_error_message =
+        OnScopeLeave([&] { sqlite3_free(error_message); });
+    int error_code = sqlite3_load_extension(
+        connection, extension_path_.c_str(), nullptr, &error_message);
+    return error_code == SQLITE_OK ? OperationResult::ResolveVoid(this)
+                                   : OperationResult::RejectErrorCode(
+                                         this, error_code, error_message);
+  }
+
+ private:
+  std::pmr::string extension_path_;
+};
+
 using Operation = std::variant<ExecOperation,
                                StatementGetOperation,
                                StatementAllOperation,
@@ -4677,6 +4701,7 @@ using Operation = std::variant<ExecOperation,
                                IsInTransactionOperation,
                                LocationOperation,
                                UpdateDbConfigOperation,
+                               LoadExtensionOperation,
                                CloseOperation>;
 
 template <typename T, typename V>
@@ -4981,6 +5006,9 @@ v8::Local<v8::FunctionTemplate> CreateDatabaseConstructorTemplate(
   SetProtoMethod(isolate, tmpl, "isInTransaction", Database::IsInTransaction);
   SetProtoMethod(isolate, tmpl, "location", Database::Location);
   SetProtoMethod(isolate, tmpl, "enableDefensive", Database::EnableDefensive);
+  SetProtoMethod(
+      isolate, tmpl, "enableLoadExtension", Database::EnableLoadExtension);
+  SetProtoMethod(isolate, tmpl, "loadExtension", Database::LoadExtension);
 
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
@@ -5283,6 +5311,57 @@ void Database::EnableDefensive(
   auto enable_defensive = args[0].As<Boolean>()->Value();
   args.GetReturnValue().Set(db->Schedule<UpdateDbConfigOperation>(
       SQLITE_DBCONFIG_DEFENSIVE, enable_defensive ? 1 : 0));
+}
+
+void Database::EnableLoadExtension(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
+
+  REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+      env,
+      args,
+      !args[0]->IsBoolean() || args.Length() != 1,
+      "\"enableLoadExtension\" requires exactly one boolean argument.");
+
+  auto enable_load_extension = args[0].As<Boolean>()->Value();
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env,
+      args,
+      !db->allow_load_extension_ && enable_load_extension,
+      "Cannot enable extension loading because it was disabled at database "
+      "creation.");
+
+  db->enable_load_extension_ = enable_load_extension;
+  args.GetReturnValue().Set(db->Schedule<UpdateDbConfigOperation>(
+      SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, enable_load_extension ? 1 : 0));
+}
+
+void Database::LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  REJECT_AND_RETURN_ON_INVALID_STATE(
+      env, args, !db->IsOpen(), "database is not open");
+  REJECT_AND_RETURN_ON_INVALID_STATE(env,
+                                     args,
+                                     !db->enable_load_extension_,
+                                     "extension loading is not allowed");
+
+  REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
+      env,
+      args,
+      !args[0]->IsString() || args.Length() != 1,
+      "\"loadExtension\" requires exactly one string argument.");
+
+  BufferValue path(env->isolate(), args[0]);
+  ToNamespacedPath(env, &path);
+
+  args.GetReturnValue().Set(db->Schedule<LoadExtensionOperation>(
+      std::pmr::string(path.ToStringView())));
 }
 
 Statement::~Statement() {
