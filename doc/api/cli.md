@@ -1507,6 +1507,7 @@ changes:
   - version:
     - v25.4.0
     - v24.13.1
+    - v22.22.1
     pr-url: https://github.com/nodejs/node/pull/60956
     description: The flag is no longer experimental.
 -->
