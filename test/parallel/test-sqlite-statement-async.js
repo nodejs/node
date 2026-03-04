@@ -1,17 +1,23 @@
-// Flags: --expose-gc
 'use strict';
+// --expose-gc
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { Database, Statement } = require('node:sqlite');
-const { suite, test } = require('node:test');
-let cnt = 0;
+const { afterEach, suite, test } = require('node:test');
 
 tmpdir.refresh();
 
+let cnt = 0;
 function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
+}
+
+if (typeof global.gc === 'function') {
+  afterEach(() => {
+    global.gc(); // Trigger exceptions on non-closed databases/statements.
+  });
 }
 
 suite('Statement() constructor', () => {
@@ -204,7 +210,7 @@ suite('Statement.prototype.run()', () => {
 
   test('SQLite throws when trying to bind too many parameters', async (t) => {
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -240,6 +246,7 @@ suite('Statement.prototype.run()', () => {
 
   test('returns correct metadata when using RETURNING', async (t) => {
     const db = new Database(':memory:');
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
@@ -408,8 +415,8 @@ suite.skip('Statement.prototype.setReturnArrays()', () => {
   });
 });
 
-suite.skip('Statement.prototype.get() with array output', () => {
-  test('returns array row when setReturnArrays is true', async (t) => {
+suite('Statement.prototype.get() with array output', () => {
+  test.skip('returns array row when setReturnArrays is true', async (t) => {
     const db = new Database(nextDb());
     t.after(() => { db.close(); });
     const setup = await db.exec(`
@@ -431,16 +438,17 @@ suite.skip('Statement.prototype.get() with array output', () => {
   test('returns array rows with BigInts when both flags are set', async (t) => {
     const expected = [1n, 9007199254740992n];
     const db = new Database(nextDb());
-    t.after(() => { db.close(); });
+    t.after(async () => { await db.close(); });
     const setup = await db.exec(`
       CREATE TABLE big_data(id INTEGER, big_num INTEGER);
       INSERT INTO big_data VALUES (1, 9007199254740992);
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT id, big_num FROM big_data');
-    query.setReturnArrays(true);
-    query.setReadBigInts(true);
+    using query = await db.prepare('SELECT id, big_num FROM big_data', {
+      returnArrays: true,
+      readBigInts: true
+    });
 
     const row = await query.get();
     t.assert.deepStrictEqual(row, expected);

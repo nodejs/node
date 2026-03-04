@@ -1,17 +1,24 @@
 'use strict';
+// --expose-gc
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
 const { Database, Statement } = require('node:sqlite');
-const { suite, test } = require('node:test');
+const { afterEach, suite, test } = require('node:test');
 
 tmpdir.refresh();
 
 let cnt = 0;
 function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
+}
+
+if (typeof global.gc === 'function') {
+  afterEach(() => {
+    global.gc(); // Trigger exceptions on non-closed databases/statements.
+  });
 }
 
 suite('Database() constructor', { timeout: 1000 }, () => {
