@@ -288,15 +288,16 @@ it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
 ```
 
 If the value of `expectFailure` is a
-[<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) |
-[<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) |
-[<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
-[<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
-the tests will pass only if they throw a matching value.
-See [`assert.throws`][] for how each value type is handled.
+[`RegExp`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
+[`Function`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
+[`Object`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object),
+or
+[`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
+the tests will pass only if they throw a matching value. See [`assert.throws`][] for how each value
+type is handled.
 
-Each of the following tests fails _despite_ being flagged `expectFailure`
-because the failure does not match the specific **expected** failure.
+Each of the following tests fails _despite_ being flagged `expectFailure` because the failure does
+not match the specific **expected** failure.
 
 ```js
 it('fails because regex does not match', {
