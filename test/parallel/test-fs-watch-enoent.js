@@ -46,10 +46,10 @@ tmpdir.refresh();
 {
   assert.throws(
     () => fs.watch(nonexistentFile, { throwIfNoEntry: true }, common.mustNotCall()),
-    (err) => {
-      assert.strictEqual(err.path, nonexistentFile);
-      assert.strictEqual(err.filename, nonexistentFile);
-      return err.code === 'ENOENT' || err.code === 'ENODEV';
+    {
+      path: nonexistentFile,
+      filename: nonexistentFile,
+      code: /^(ENOENT|ENODEV)$/,
     },
   );
 }
@@ -58,7 +58,7 @@ tmpdir.refresh();
   if (common.isAIX) {
     assert.throws(
       () => fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall()),
-      (err) => err.code === 'ENODEV',
+      { code: 'ENODEV' },
     );
   } else {
     const watcher = fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall());
