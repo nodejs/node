@@ -1,10 +1,11 @@
-import { skipIfSQLiteMissing } from '../common/index.mjs';
-import tmpdir from '../common/tmpdir.js';
-import { existsSync } from 'node:fs';
-import { suite, test } from 'node:test';
-import { join } from 'node:path';
-import { Database, Statement } from 'node:sqlite';
+'use strict';
+const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
+const tmpdir = require('../common/tmpdir');
+const { existsSync } = require('node:fs');
+const { join } = require('node:path');
+const { Database, Statement } = require('node:sqlite');
+const { suite, test } = require('node:test');
 
 tmpdir.refresh();
 
