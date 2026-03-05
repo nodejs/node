@@ -764,16 +764,10 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<String> source = args[0].As<String>();
 
+  static constexpr int kSmallStringThreshold = 128;
   int length = source->Length();
 
-  if (source->IsOneByte()) {
-    args.GetReturnValue().Set(
-        static_cast<uint64_t>(source->Utf8LengthV2(isolate)));
-    return;
-  }
-
-  static constexpr int kSmallStringThreshold = 128;
-  if (length <= kSmallStringThreshold) {
+  if (length <= kSmallStringThreshold || source->IsOneByte()) {
     args.GetReturnValue().Set(
         static_cast<uint64_t>(source->Utf8LengthV2(isolate)));
     return;
@@ -800,14 +794,10 @@ uint32_t FastByteLengthUtf8(
   CHECK(sourceValue->IsString());
   Local<String> sourceStr = sourceValue.As<String>();
 
+  static constexpr int kSmallStringThreshold = 128;
   int length = sourceStr->Length();
 
-  if (sourceStr->IsOneByte()) {
-    return sourceStr->Utf8LengthV2(isolate);
-  }
-
-  static constexpr int kSmallStringThreshold = 128;
-  if (length <= kSmallStringThreshold) {
+  if (length <= kSmallStringThreshold || sourceStr->IsOneByte()) {
     return sourceStr->Utf8LengthV2(isolate);
   }
 
