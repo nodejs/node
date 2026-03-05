@@ -836,8 +836,8 @@ out/doc/api: doc/api
 
 # Generate all doc files (individual and all.html/all.json) in a single doc-kit call
 # Using grouped targets (&:) so Make knows one command produces all outputs
-ifeq ($(OSTYPE),aix)
-# TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
+ifneq (,$(filter aix os390,$(OSTYPE)))
+# TODO(@nodejs/web-infra): AIX and OS390 are not handling WASM very well
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else
