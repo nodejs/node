@@ -1,4 +1,5 @@
 #include "node_diagnostics_channel.h"
+#include "node_usdt.h"
 
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -8,9 +9,23 @@
 
 #include <cstdint>
 
+#if defined(NODE_HAVE_DTRACE) && defined(STAP_HAS_SEMAPHORES)
+// Definition of the USDT probe semaphore declared in the dtrace-generated
+// node_provider.h.  STAP_HAS_SEMAPHORES is only defined by the SystemTap
+// dtrace wrapper (Linux), where the .probes ELF section attribute is valid.
+// On macOS/FreeBSD/illumos (native DTrace) there is no semaphore variable;
+// the kernel handles probe enabling directly.  The generated header declares
+// The generated header declares this symbol with C++ linkage (no extern "C"
+// wrapper), so this definition must also use C++ linkage to ensure the
+// linker resolves the same mangled symbol.
+unsigned short node_dc__publish_semaphore
+    __attribute__((section(".probes")));
+#endif
+
 namespace node {
 namespace diagnostics_channel {
 
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -22,6 +37,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::SnapshotCreator;
 using v8::String;
+using v8::Uint16Array;
 using v8::Value;
 
 BindingData::BindingData(Realm* realm,
@@ -125,7 +141,31 @@ void BindingData::Deserialize(Local<Context> context,
   BindingData* binding = realm->AddBindingData<BindingData>(
       holder, static_cast<InternalFieldInfo*>(info));
   CHECK_NOT_NULL(binding);
+#if NODE_HAVE_USDT
+  SetupProbeSemaphore(Isolate::GetCurrent(), holder);
+#endif
 }
+
+#if NODE_HAVE_USDT
+void BindingData::SetupProbeSemaphore(Isolate* isolate,
+                                      Local<Object> target) {
+  // Expose the USDT probe semaphore as a Uint16Array so JS can check whether
+  // a tracer is attached without crossing the JS/C++ boundary.
+  auto backing = ArrayBuffer::NewBackingStore(
+      NodeDCPublishSemaphore(),
+      sizeof(unsigned short),
+      [](void*, size_t, void*) {},  // no-op deleter — memory is static
+      nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(backing));
+  Local<Uint16Array> semaphore = Uint16Array::New(ab, 0, 1);
+  target
+      ->Set(
+          isolate->GetCurrentContext(),
+          FIXED_ONE_BYTE_STRING(isolate, "probeSemaphore"),
+          semaphore)
+      .Check();
+}
+#endif
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
@@ -133,6 +173,9 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(
       isolate, target, "getOrCreateChannelIndex", GetOrCreateChannelIndex);
   SetMethod(isolate, target, "linkNativeChannel", LinkNativeChannel);
+#if NODE_HAVE_USDT
+  SetMethod(isolate, target, "emitPublishProbe", EmitPublishProbe);
+#endif
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -142,13 +185,33 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
   Realm* realm = Realm::GetCurrent(context);
   BindingData* const binding = realm->AddBindingData<BindingData>(target);
   if (binding == nullptr) return;
+#if NODE_HAVE_USDT
+  SetupProbeSemaphore(realm->isolate(), target);
+#endif
 }
 
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(GetOrCreateChannelIndex);
   registry->Register(LinkNativeChannel);
+#if NODE_HAVE_USDT
+  registry->Register(EmitPublishProbe);
+#endif
 }
+
+#if NODE_HAVE_USDT
+void BindingData::EmitPublishProbe(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  if (!NODE_DC_PUBLISH_ENABLED()) return;
+  Isolate* isolate = args.GetIsolate();
+  Utf8Value name(isolate, args[0]);
+  const void* msg = args[1]->IsObject()
+                        ? static_cast<const void*>(*args[1].As<Object>())
+                        : nullptr;
+  NODE_DC_PUBLISH_PROBE(*name, msg);
+}
+#endif
 
 Channel::Channel(Environment* env,
                  Local<Object> wrap,
@@ -250,15 +313,40 @@ void Channel::CachePublishFn(Isolate* isolate, Local<Object> js_channel) {
 }
 
 void Channel::Publish(Environment* env, Local<Value> message) {
-  if (!HasSubscribers()) return;
+  // Fire the USDT probe on code paths that return before reaching JS.
+  // When JS IS reached, ActiveChannel.publish() fires the probe itself.
+  // This ensures external tracers observe every native publish attempt.
+  auto fire_usdt_probe = [&]() {
+    if (NODE_DC_PUBLISH_ENABLED()) {
+      NODE_DC_PUBLISH_PROBE(
+          name_.c_str(),
+          message->IsObject()
+              ? static_cast<const void*>(*message.As<Object>())
+              : nullptr);
+    }
+  };
 
-  if (binding_data_ == nullptr) return;
+  if (!HasSubscribers()) {
+    fire_usdt_probe();
+    return;
+  }
 
-  if (js_channel_.IsEmpty()) return;
+  if (binding_data_ == nullptr) {
+    fire_usdt_probe();
+    return;
+  }
+
+  if (js_channel_.IsEmpty()) {
+    fire_usdt_probe();
+    return;
+  }
 
   // Publishing is not possible during shutdown or GC.
   DCHECK(env->can_call_into_js());
-  if (!env->can_call_into_js()) return;
+  if (!env->can_call_into_js()) {
+    fire_usdt_probe();
+    return;
+  }
 
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
@@ -269,12 +357,16 @@ void Channel::Publish(Environment* env, Local<Value> message) {
 
   // publish_fn_ is eagerly cached by Link() when the channel already has
   // subscribers at link time. For channels linked before any JS subscriber
-  // existed, cache it here on the first publish — happens exactly once.
+  // existed, cache it here on the first publish after linking.
   if (publish_fn_.IsEmpty()) {
     CachePublishFn(isolate, js_channel);
-    if (publish_fn_.IsEmpty()) return;
+    if (publish_fn_.IsEmpty()) {
+      fire_usdt_probe();
+      return;
+    }
   }
 
+  // When JS is reached, ActiveChannel.publish() fires the probe.
   Local<Value> argv[] = {message};
   USE(publish_fn_.Get(isolate)->Call(context, js_channel, 1, argv));
 }
