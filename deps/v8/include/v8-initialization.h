@@ -253,6 +253,35 @@ class V8_EXPORT V8 {
   static size_t GetSandboxReservationSizeInBytes();
 #endif  // V8_ENABLE_SANDBOX
 
+  enum class WasmMemoryType {
+    kMemory32,
+    kMemory64,
+  };
+
+  /**
+   * Returns the virtual address space reservation size (in bytes) needed
+   * for one WebAssembly memory instance of the given capacity.
+   *
+   * \param type Whether this is a memory32 or memory64 instance.
+   * \param byte_capacity The maximum size, in bytes, of the WebAssembly
+   *   memory. Values exceeding the engine's maximum allocatable memory
+   *   size for the given type (determined by max_mem32_pages or
+   *   max_mem64_pages) are clamped.
+   *
+   * When trap-based bounds checking is enabled by
+   * EnableWebAssemblyTrapHandler(), the amount of virtual address space
+   * that V8 needs to reserve for each WebAssembly memory instance can
+   * be much bigger than the requested size. If the process does
+   * not have enough virtual memory available, WebAssembly memory allocation
+   * would fail. During the initialization of V8, embedders can use this method
+   * to estimate whether the process has enough virtual memory for their
+   * usage of WebAssembly, and decide whether to enable the trap handler
+   * via EnableWebAssemblyTrapHandler(), or to skip it and reduce the amount of
+   * virtual memory required to keep the application running.
+   */
+  static size_t GetWasmMemoryReservationSizeInBytes(WasmMemoryType type,
+                                                    size_t byte_capacity);
+
   /**
    * Activate trap-based bounds checking for WebAssembly.
    *
