@@ -6,10 +6,16 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 
 TARGET_DIR="$BASE_DIR/test/fixtures/test426"
 README="$BASE_DIR/test/test426/README.md"
-TARBALL_URL=$(curl -fsIo /dev/null -w '%header{Location}' https://github.com/tc39/source-map-tests/archive/HEAD.tar.gz)
-SHA=$(basename "$TARBALL_URL")
 
 CURRENT_SHA=$(sed -n 's#^.*https://github.com/tc39/source-map-tests/commit/\([0-9a-f]*\).*$#\1#p' "$README")
+
+if [ -z "$CURRENT_SHA" ]; then
+  echo "Could not find source-map-tests commit marker in $README" >&2
+  exit 1
+fi
+
+TARBALL_URL=$(curl -fsIo /dev/null -w '%header{Location}' https://github.com/tc39/source-map-tests/archive/HEAD.tar.gz)
+SHA=$(basename "$TARBALL_URL")
 
 if [ "$CURRENT_SHA" = "$SHA" ]; then
   echo "Already up-to-date"
