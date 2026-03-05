@@ -623,16 +623,12 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->EmitDestroy();
   }
 
-  static void MarkFreed(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-    parser->is_being_freed_ = true;
-  }
-
   // TODO(@anonrig): Add V8 Fast API
   static void Remove(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+
+    parser->is_being_freed_ = true;
 
     if (parser->connectionsList_ != nullptr) {
       parser->connectionsList_->Pop(parser);
@@ -1343,7 +1339,6 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "close", Parser::Close);
   SetProtoMethod(isolate, t, "free", Parser::Free);
-  SetProtoMethod(isolate, t, "markFreed", Parser::MarkFreed);
   SetProtoMethod(isolate, t, "remove", Parser::Remove);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
@@ -1413,7 +1408,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::New);
   registry->Register(Parser::Close);
   registry->Register(Parser::Free);
-  registry->Register(Parser::MarkFreed);
   registry->Register(Parser::Remove);
   registry->Register(Parser::Execute);
   registry->Register(Parser::Finish);
