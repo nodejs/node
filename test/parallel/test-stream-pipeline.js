@@ -1753,31 +1753,24 @@ tmpdir.refresh();
 {
   // Errors thrown in Readable.map inside pipeline should not be
   // swallowed by AbortError when the source is an infinite stream.
-  function createInfiniteReadable() {
-    return new Readable({
-      read() {
-        this.push('data');
-      },
-    });
+  async function run() {
+    await assert.rejects(
+      pipelinep(
+        new Readable({ read() { this.push('data'); } }),
+        new Transform({
+          readableObjectMode: true,
+          transform(chunk, encoding, callback) {
+            this.push({});
+            callback();
+          },
+        }),
+        (readable) => readable.map(async () => {
+          throw new Error('Boom!');
+        }),
+      ),
+      { message: 'Boom!' },
+    );
   }
 
-  function createObjectTransform() {
-    return new Transform({
-      readableObjectMode: true,
-      transform(chunk, encoding, callback) {
-        this.push({});
-        callback();
-      },
-    });
-  }
-
-  pipelinep(
-    createInfiniteReadable(),
-    createObjectTransform(),
-    (readable) => readable.map(async () => {
-      throw new Error('Boom!');
-    }),
-  ).then(common.mustNotCall(), common.mustCall((err) => {
-    assert.strictEqual(err.message, 'Boom!');
-  }));
+  run().then(common.mustCall());
 }
