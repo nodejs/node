@@ -21,7 +21,10 @@ When using AI as a coding assistant:
 
 * **Understand the codebase first.** Do not skip familiarizing yourself with
   the relevant subsystem. LLMs frequently produce inaccurate descriptions of
-  Node.js internals — always verify against the actual source.
+  Node.js internals — always verify against the actual source. When using an AI
+  tool, ask it to cite the exact source files/PRs/docs it’s relying on, and then 
+  match the claim against that resource to verify if it holds up in the current 
+  code.
 
 * **Own every line you submit.** You are responsible for all code in your
   pull request, regardless of how it was generated. Be prepared to explain
@@ -32,7 +35,8 @@ When using AI as a coding assistant:
   [commit message guidelines][].
 
 * **Test thoroughly.** AI-generated code must pass the full test suite and
-  any manually written tests relevant to the change. Do not rely on the LLM
+  any manually written tests relevant to the change. Existing Tests should not
+  be removed or modified without human verification. Do not rely on the LLM
   to assess correctness.
 
 * **Edit generated comments critically.** LLM-produced comments are often
