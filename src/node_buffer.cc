@@ -1200,6 +1200,7 @@ int32_t FastIndexOfNumber(Local<Value>,
 static CFunction fast_index_of_number(CFunction::Make(FastIndexOfNumber));
 
 void Swap16(const FunctionCallbackInfo<Value>& args) {
+  DCHECK(args[0]->IsArrayBufferView());
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   CHECK(nbytes::SwapBytes16(ts_obj_data, ts_obj_length));
 }
@@ -1217,6 +1218,7 @@ void FastSwap16(Local<Value> receiver,
 static CFunction fast_swap16(CFunction::Make(FastSwap16));
 
 void Swap32(const FunctionCallbackInfo<Value>& args) {
+  DCHECK(args[0]->IsArrayBufferView());
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   CHECK(nbytes::SwapBytes32(ts_obj_data, ts_obj_length));
 }
@@ -1234,6 +1236,7 @@ void FastSwap32(Local<Value> receiver,
 static CFunction fast_swap32(CFunction::Make(FastSwap32));
 
 void Swap64(const FunctionCallbackInfo<Value>& args) {
+  DCHECK(args[0]->IsArrayBufferView());
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   CHECK(nbytes::SwapBytes64(ts_obj_data, ts_obj_length));
 }
