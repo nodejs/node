@@ -79,3 +79,19 @@ t.test('update --global', async t => {
   t.match(ctor.path, globalPrefix)
   t.ok(ctor.path.startsWith(globalPrefix))
 })
+
+t.test('completion', async t => {
+  const { update } = await _mockNpm(t, {
+    command: 'update',
+    prefixDir: {
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
+        },
+      },
+      'package.json': JSON.stringify({ name: 'project', version: '1.0.0' }),
+    },
+  })
+  const res = await update.completion({ conf: { argv: { remain: ['npm', 'update'] } } })
+  t.type(res, Array)
+})

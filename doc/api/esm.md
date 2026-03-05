@@ -1274,7 +1274,7 @@ _isImports_, _conditions_)
 >    2. If _source_ contains a top-level lexical declaration (`const`, `let`,
 >       or `class`) of any of the CommonJS wrapper variables (`require`,
 >       `exports`, `module`, `__filename`, or `__dirname`) then return **true**.
-> 3. Else return **false**.
+> 3. Return **false**.
 
 ### Customizing ESM specifier resolution algorithm
 

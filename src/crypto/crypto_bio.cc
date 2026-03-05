@@ -226,6 +226,7 @@ const BIO_METHOD* NodeBIO::GetMethod() {
   // Static initialization ensures that this is safe to use concurrently.
   static const BIO_METHOD* method = [&]() {
     BIO_METHOD* method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
+    CHECK_NOT_NULL(method);
     BIO_meth_set_write(method, Write);
     BIO_meth_set_read(method, Read);
     BIO_meth_set_puts(method, Puts);

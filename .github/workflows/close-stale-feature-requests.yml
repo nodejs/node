@@ -41,7 +41,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d  # v10.1.1
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 180

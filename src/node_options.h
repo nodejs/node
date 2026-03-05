@@ -138,6 +138,7 @@ class EnvironmentOptions : public Options {
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
   bool permission = false;
+  bool permission_audit = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
@@ -261,7 +262,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool strip_types = HAVE_AMARO;
-  bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 

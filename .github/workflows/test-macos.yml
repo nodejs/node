@@ -78,9 +78,9 @@ jobs:
       fail-fast: false
     runs-on: macos-15
     env:
-      CC: sccache gcc
-      CXX: sccache g++
-      SCCACHE_GHA_ENABLED: 'true'
+      CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} gcc
+      CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} g++
+      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -99,6 +99,7 @@ jobs:
           rustup override set "$RUSTC_VERSION"
           rustup --version
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0

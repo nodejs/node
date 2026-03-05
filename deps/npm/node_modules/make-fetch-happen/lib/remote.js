@@ -1,6 +1,6 @@
 const { Minipass } = require('minipass')
 const fetch = require('minipass-fetch')
-const promiseRetry = require('promise-retry')
+const { promiseRetry } = require('@gar/promise-retry')
 const ssri = require('ssri')
 const { log } = require('proc-log')
 

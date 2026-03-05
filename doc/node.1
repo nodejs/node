@@ -460,7 +460,7 @@ vm.measureMemory();
 .It Fl -disable-wasm-trap-handler
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
@@ -740,10 +740,6 @@ collecting code coverage from tests for more details.
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
-.
-.It Fl -experimental-transform-types
-Enables the transformation of TypeScript-only syntax into JavaScript code.
-Implies \fB--enable-source-maps\fR.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES Module support in the \fBnode:vm\fR module.
@@ -1114,6 +1110,11 @@ WASI - manageable through \fB--allow-wasi\fR flag
 .It
 Addons - manageable through \fB--allow-addons\fR flag
 .El
+.
+.It Fl -permission-audit
+Enable audit only for the permission model. When enabled, permission checks
+are performed but access is not denied. Instead, a warning is emitted for
+each permission violation via diagnostics channel.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and
@@ -1878,8 +1879,6 @@ one is included in the list below.
 .It
 \fB--experimental-top-level-await\fR
 .It
-\fB--experimental-transform-types\fR
-.It
 \fB--experimental-vm-modules\fR
 .It
 \fB--experimental-wasi-unstable-preview1\fR
@@ -1977,6 +1976,8 @@ one is included in the list below.
 \fB--pending-deprecation\fR
 .It
 \fB--permission\fR
+.It
+\fB--permission-audit\fR
 .It
 \fB--preserve-symlinks-main\fR
 .It

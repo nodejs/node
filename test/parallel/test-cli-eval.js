@@ -35,7 +35,7 @@ const fixtures = require('../common/fixtures');
 
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
-  process.exit(0);
+  return;
 }
 
 // Assert that nothing is written to stdout.

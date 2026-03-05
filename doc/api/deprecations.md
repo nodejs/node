@@ -792,7 +792,9 @@ The [`domain`][] module is deprecated and should not be used.
 
 <!-- YAML
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.14.0
     pr-url: https://github.com/nodejs/node/pull/60214
     description: Deprecation revoked.
   - version:
@@ -930,6 +932,11 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
+  - version:
+    - v23.7.0
+    - v22.14.0
+    pr-url: https://github.com/nodejs/node/pull/56632
+    description: Application deprecation.
   - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47202
     description: Runtime deprecation.
@@ -941,7 +948,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Application (non-`node_modules` code only)
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
@@ -2659,10 +2666,14 @@ future release.
 <!-- YAML
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: DEP0169 covers also `url.format()` and `url.resolve()`.
+  - version:
       - v19.0.0
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
-    description: \`url.parse()` is deprecated again in DEP0169.
+    description: DEP0169 deprecates `url.parse()` again.
   - version:
       - v15.13.0
       - v14.17.0
@@ -3776,7 +3787,7 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
-Passing a string argument to [`url.format()`][] invokes `url.parse()`
+Calling [`url.format(urlString)`][] or [`url.resolve()`][] invokes `url.parse()`
 internally, and is therefore also covered by this deprecation.
 
 ### DEP0170: Invalid port when using `url.parse()`
@@ -4419,7 +4430,7 @@ import { opendir } from 'node:fs/promises';
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Documentation-only deprecation.
 -->
@@ -4434,7 +4445,7 @@ type of the readable half of the constructed readable-writable pair, use the
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Documentation-only deprecation.
 -->
@@ -4590,6 +4601,7 @@ const server = http2.createSecureServer({
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [`url.format()`]: url.md#urlformaturlobject
+[`url.format(urlString)`]: url.md#urlformaturlstring
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
 [`util._extend()`]: util.md#util_extendtarget-source

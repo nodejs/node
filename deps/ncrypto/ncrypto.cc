@@ -1470,6 +1470,7 @@ BIOPointer BIOPointer::NewSecMem() {
 }
 
 BIOPointer BIOPointer::New(const BIO_METHOD* method) {
+  if (method == nullptr) return {};
   return BIOPointer(BIO_new(method));
 }
 

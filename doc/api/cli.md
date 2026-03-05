@@ -758,7 +758,7 @@ added:
 
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
@@ -1314,17 +1314,6 @@ changes:
 Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
-
-### `--experimental-transform-types`
-
-<!-- YAML
-added: v22.7.0
--->
-
-> Stability: 1.2 - Release candidate
-
-Enables the transformation of TypeScript-only syntax into JavaScript code.
-Implies `--enable-source-maps`.
 
 ### `--experimental-vm-modules`
 
@@ -2173,6 +2162,16 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
+
+### `--permission-audit`
+
+<!-- YAML
+added: v25.8.0
+-->
+
+Enable audit only for the permission model. When enabled, permission checks
+are performed but access is not denied. Instead, a warning is emitted for
+each permission violation via diagnostics channel.
 
 ### `--preserve-symlinks`
 
@@ -3611,7 +3610,6 @@ one is included in the list below.
 * `--experimental-specifier-resolution`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
-* `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--force-context-aware`
@@ -3660,6 +3658,7 @@ one is included in the list below.
 * `--openssl-legacy-provider`
 * `--openssl-shared-config`
 * `--pending-deprecation`
+* `--permission-audit`
 * `--permission`
 * `--preserve-symlinks-main`
 * `--preserve-symlinks`
@@ -3743,6 +3742,7 @@ V8 options that are allowed are:
 * `--expose-gc`
 * `--interpreted-frames-native-stack`
 * `--jitless`
+* `--max-heap-size`
 * `--max-old-space-size`
 * `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
@@ -4102,6 +4102,12 @@ documented here:
 ### `--interpreted-frames-native-stack`
 
 ### `--jitless`
+
+### `--max-heap-size`
+
+Specifies the maximum heap size (in megabytes) for the process.
+
+This option is typically used to limit the amount of memory the process can use for its JavaScript heap.
 
 <!-- Anchor to make sure old links find a target -->
 

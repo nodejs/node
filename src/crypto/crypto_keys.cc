@@ -86,8 +86,15 @@ MaybeLocal<Value> ToV8Value(
     Environment* env,
     const BIOPointer& bio,
     const EVPKeyPointer::AsymmetricKeyEncodingConfig& config) {
-  if (!bio) return {};
+  if (!bio) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Invalid BIO pointer");
+    return {};
+  }
   BUF_MEM* bptr = bio;
+  if (!bptr) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create BUF_MEM pointer");
+    return {};
+  }
   if (config.format == EVPKeyPointer::PKFormatType::PEM) {
     // PEM is an ASCII format, so we will return it as a string.
     return String::NewFromUtf8(

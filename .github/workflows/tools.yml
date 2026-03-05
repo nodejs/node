@@ -38,6 +38,7 @@ on:
           - root-certificates
           - simdjson
           - sqlite
+          - test426-fixtures
           - undici
           - uvwasi
           - zlib
@@ -52,7 +53,8 @@ permissions:
 jobs:
   tools-deps-update:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-slim
+    # cannot use ubuntu-slim here because some update scripts require Docker
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
@@ -119,6 +121,14 @@ jobs:
             run: |
               make corepack-update
               echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
+          - id: doc-kit
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-doc.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: googletest
             subsystem: deps
             label: dependencies, test
@@ -255,6 +265,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: test426-fixtures
+            subsystem: test
+            label: test
+            run: |
+              bash tools/dep_updaters/update-test426-fixtures.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: undici
             subsystem: deps
             label: dependencies
@@ -306,7 +324,7 @@ jobs:
           allow-prereleases: true
       - name: Set up Nix
         if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15  # v31.9.0
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
       - run: ${{ matrix.run }}
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:

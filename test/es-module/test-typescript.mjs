@@ -15,19 +15,6 @@ test('expect process.features.typescript to be false when --no-experimental-stri
   assert.strictEqual(result.code, 0);
 });
 
-test('expect process.features.typescript to be \'transform\' when --experimental-transform-types', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--no-warnings',
-    '--experimental-transform-types',
-    fixtures.path('typescript/echo-process-features-typescript.cjs'),
-  ]);
-
-  assert.strictEqual(result.stderr, '');
-  assert.strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'transform\n' : 'false\n');
-  assert.strictEqual(result.code, 0);
-});
-
-
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('execute a TypeScript file', async () => {
@@ -330,17 +317,6 @@ test('execute invalid TypeScript syntax', async () => {
   assert.match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 1);
-});
-
-test('check transform types warning', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-transform-types',
-    fixtures.path('typescript/ts/test-typescript.ts'),
-  ]);
-
-  assert.match(result.stderr, /Transform Types is an experimental feature and might change at any time/);
-  assert.match(result.stdout, /Hello, TypeScript!/);
-  assert.strictEqual(result.code, 0);
 });
 
 test('expect error when executing a TypeScript file with --jitless', async () => {

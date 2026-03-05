@@ -193,57 +193,92 @@ class CacheHandler {
     // Not modified, re-use the cached value
     // https://www.rfc-editor.org/rfc/rfc9111.html#name-handling-304-not-modified
     if (statusCode === 304) {
-      /**
-       * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
-       */
-      const cachedValue = this.#store.get(this.#cacheKey)
-      if (!cachedValue) {
-        // Do not create a new cache entry, as a 304 won't have a body - so cannot be cached.
-        return downstreamOnHeaders()
-      }
+      const handle304 = (cachedValue) => {
+        if (!cachedValue) {
+          // Do not create a new cache entry, as a 304 won't have a body - so cannot be cached.
+          return downstreamOnHeaders()
+        }
 
-      // Re-use the cached value: statuscode, statusmessage, headers and body
-      value.statusCode = cachedValue.statusCode
-      value.statusMessage = cachedValue.statusMessage
-      value.etag = cachedValue.etag
-      value.headers = { ...cachedValue.headers, ...strippedHeaders }
+        // Re-use the cached value: statuscode, statusmessage, headers and body
+        value.statusCode = cachedValue.statusCode
+        value.statusMessage = cachedValue.statusMessage
+        value.etag = cachedValue.etag
+        value.headers = { ...cachedValue.headers, ...strippedHeaders }
 
-      downstreamOnHeaders()
+        downstreamOnHeaders()
 
-      this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+        this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
 
-      if (!this.#writeStream || !cachedValue?.body) {
-        return
-      }
+        if (!this.#writeStream || !cachedValue?.body) {
+          return
+        }
 
-      const bodyIterator = cachedValue.body.values()
+        if (typeof cachedValue.body.values === 'function') {
+          const bodyIterator = cachedValue.body.values()
 
-      const streamCachedBody = () => {
-        for (const chunk of bodyIterator) {
-          const full = this.#writeStream.write(chunk) === false
-          this.#handler.onResponseData?.(controller, chunk)
-          // when stream is full stop writing until we get a 'drain' event
-          if (full) {
-            break
+          const streamCachedBody = () => {
+            for (const chunk of bodyIterator) {
+              const full = this.#writeStream.write(chunk) === false
+              this.#handler.onResponseData?.(controller, chunk)
+              // when stream is full stop writing until we get a 'drain' event
+              if (full) {
+                break
+              }
+            }
           }
+
+          this.#writeStream
+            .on('error', function () {
+              handler.#writeStream = undefined
+              handler.#store.delete(handler.#cacheKey)
+            })
+            .on('drain', () => {
+              streamCachedBody()
+            })
+            .on('close', function () {
+              if (handler.#writeStream === this) {
+                handler.#writeStream = undefined
+              }
+            })
+
+          streamCachedBody()
+        } else if (typeof cachedValue.body.on === 'function') {
+          // Readable stream body (e.g. from async/remote cache stores)
+          cachedValue.body
+            .on('data', (chunk) => {
+              this.#writeStream.write(chunk)
+              this.#handler.onResponseData?.(controller, chunk)
+            })
+            .on('end', () => {
+              this.#writeStream.end()
+            })
+            .on('error', () => {
+              this.#writeStream = undefined
+              this.#store.delete(this.#cacheKey)
+            })
+
+          this.#writeStream
+            .on('error', function () {
+              handler.#writeStream = undefined
+              handler.#store.delete(handler.#cacheKey)
+            })
+            .on('close', function () {
+              if (handler.#writeStream === this) {
+                handler.#writeStream = undefined
+              }
+            })
         }
       }
 
-      this.#writeStream
-        .on('error', function () {
-          handler.#writeStream = undefined
-          handler.#store.delete(handler.#cacheKey)
-        })
-        .on('drain', () => {
-          streamCachedBody()
-        })
-        .on('close', function () {
-          if (handler.#writeStream === this) {
-            handler.#writeStream = undefined
-          }
-        })
-
-      streamCachedBody()
+      /**
+       * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
+       */
+      const result = this.#store.get(this.#cacheKey)
+      if (result && typeof result.then === 'function') {
+        result.then(handle304)
+      } else {
+        handle304(result)
+      }
     } else {
       if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
         value.etag = resHeaders.etag

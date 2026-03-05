@@ -72,6 +72,7 @@ set doc=
 set extra_msbuild_args=
 set compile_commands=
 set cfg=
+set v8temporal=
 set v8windbg=
 set exit_code=0
 
@@ -97,6 +98,7 @@ if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
+if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
 if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
@@ -183,7 +185,8 @@ if defined package set stage_package=1
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
-set "npm_exe="%node_exe%" deps\npm\bin\npm-cli.js"
+set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
+set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@nodejs\doc-kit\bin\cli.mjs"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
@@ -214,6 +217,7 @@ if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
 if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
 if defined compile_commands set configure_flags=%configure_flags% -C
 if defined cfg              set configure_flags=%configure_flags% --control-flow-guard
+if defined v8temporal       set configure_flags=%configure_flags% --v8-enable-temporal-support
 if defined v8windbg         set configure_flags=%configure_flags% --enable-v8windbg
 
 if "%target_arch%"=="x86" (
@@ -641,11 +645,16 @@ if not exist %node_exe% (
 )
 mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
-robocopy /e doc\api_assets %config%\doc\api\assets
 
-for %%F in (%config%\doc\api\*.md) do (
-  %node_exe% tools\doc\generate.mjs --node-version=v%FULLVERSION% %%F --output-directory=%%~dF%%~pF
-)
+%doc_kit_exe% ^
+  generate ^
+  -t legacy-html-all legacy-json-all api-links ^
+  -i doc/api/*.md ^
+  -i lib/*.js ^
+  -o %config%/doc/api/ ^
+  -c file://%~dp0\CHANGELOG.md ^
+  -v %NODE_VERSION% ^
+  --type-map "file://%~dp0doc\type-map.json"
 
 :run
 @rem Run tests if requested.
@@ -661,7 +670,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%node_exe%" tools\doc\addon-verify.mjs
+%doc_kit_exe% generate -t addon-verify -i "file://%~dp0doc\api\addons.md" -o "file://%~dp0test\addons" --type-map "file://%~dp0doc\type-map.json"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal

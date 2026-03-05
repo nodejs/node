@@ -92,7 +92,9 @@ callbackFunction((err, ret) => {
 ## `util.convertProcessSignalToExitCode(signalCode)`
 
 <!-- YAML
-added: v25.4.0
+added:
+ - v25.4.0
+ - v24.14.0
 -->
 
 * `signalCode` {string} A signal name (e.g., `'SIGTERM'`, `'SIGKILL'`).
@@ -677,8 +679,7 @@ anotherFunction();
 
 It is possible to reconstruct the original locations by setting the option `sourceMap` to `true`.
 If the source map is not available, the original location will be the same as the current location.
-When the `--enable-source-maps` flag is enabled, for example when using `--experimental-transform-types`,
-`sourceMap` will be true by default.
+When the `--enable-source-maps` flag is enabled,`sourceMap` will be true by default.
 
 ```ts
 import { getCallSites } from 'node:util';

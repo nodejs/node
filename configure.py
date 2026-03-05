@@ -2064,10 +2064,16 @@ def configure_v8(o, configs):
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
-  if options.without_bundled_v8 and options.enable_d8:
-    raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
-  if options.without_bundled_v8 and options.enable_v8windbg:
-    raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+  if options.without_bundled_v8:
+    if options.enable_d8:
+      raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+    if options.enable_v8windbg:
+      raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+    (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
+    if pkg_libs and pkg_libpath:
+      output['libraries'] += [pkg_libpath] + pkg_libs.split()
+    if pkg_cflags:
+      output['include_dirs'] += [flag for flag in [flag.strip() for flag in pkg_cflags.split('-I')] if flag]
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
   if flavor != 'linux' and options.v8_enable_hugepage:

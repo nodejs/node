@@ -84,6 +84,11 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
         static_cast<uint8_t>(sea.exec_argv_extension));
   written_total +=
       WriteArithmetic<uint8_t>(static_cast<uint8_t>(sea.exec_argv_extension));
+
+  Debug("Write SEA main code format %u\n",
+        static_cast<uint8_t>(sea.main_code_format));
+  written_total +=
+      WriteArithmetic<uint8_t>(static_cast<uint8_t>(sea.main_code_format));
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
   Debug("Write SEA code path %p, size=%zu\n",
@@ -161,6 +166,11 @@ SeaResource SeaDeserializer::Read() {
   SeaExecArgvExtension exec_argv_extension =
       static_cast<SeaExecArgvExtension>(extension_value);
   Debug("Read SEA resource exec argv extension %u\n", extension_value);
+
+  uint8_t format_value = ReadArithmetic<uint8_t>();
+  CHECK_LE(format_value, static_cast<uint8_t>(ModuleFormat::kModule));
+  ModuleFormat main_code_format = static_cast<ModuleFormat>(format_value);
+  Debug("Read SEA main code format %u\n", format_value);
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
   std::string_view code_path =
@@ -219,6 +229,7 @@ SeaResource SeaDeserializer::Read() {
           exec_argv_extension,
           code_path,
           code,
+          main_code_format,
           code_cache,
           assets,
           exec_argv};
@@ -501,6 +512,25 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
                 config_path);
         return std::nullopt;
       }
+    } else if (key == "mainFormat") {
+      std::string_view format_str;
+      if (field.value().get_string().get(format_str)) {
+        FPrintF(stderr,
+                "\"mainFormat\" field of %s is not a string\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (format_str == "commonjs") {
+        result.main_format = ModuleFormat::kCommonJS;
+      } else if (format_str == "module") {
+        result.main_format = ModuleFormat::kModule;
+      } else {
+        FPrintF(stderr,
+                "\"mainFormat\" field of %s must be one of "
+                "\"commonjs\" or \"module\"\n",
+                config_path);
+        return std::nullopt;
+      }
     }
   }
 
@@ -510,6 +540,23 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     // separate snapshot configurations.
     FPrintF(stderr,
             "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
+  }
+
+  // TODO(joyeecheung): support ESM with useSnapshot and useCodeCache.
+  if (result.main_format == ModuleFormat::kModule &&
+      static_cast<bool>(result.flags & SeaFlags::kUseSnapshot)) {
+    FPrintF(stderr,
+            "\"mainFormat\": \"module\" is not supported when "
+            "\"useSnapshot\" is true\n");
+    return std::nullopt;
+  }
+
+  if (result.main_format == ModuleFormat::kModule &&
+      static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
+    FPrintF(stderr,
+            "\"mainFormat\": \"module\" is not supported when "
+            "\"useCodeCache\" is true\n");
+    return std::nullopt;
   }
 
   if (result.main_path.empty()) {
@@ -709,6 +756,7 @@ ExitCode GenerateSingleExecutableBlob(
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
+      config.main_format,
       optional_sv_code_cache,
       assets_view,
       exec_argv_view};
@@ -792,20 +840,25 @@ void GetAssetKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 MaybeLocal<Value> LoadSingleExecutableApplication(
-    const StartExecutionCallbackInfo& info) {
+    const StartExecutionCallbackInfoWithModule& info) {
   // Here we are currently relying on the fact that in NodeMainInstance::Run(),
   // env->context() is entered.
-  Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
+  Environment* env = info.env();
+  Local<Context> context = env->context();
   SeaResource sea = FindSingleExecutableResource();
 
   CHECK(!sea.use_snapshot());
   // TODO(joyeecheung): this should be an external string. Refactor UnionBytes
   // and make it easy to create one based on static content on the fly.
   Local<Value> main_script =
-      ToV8Value(env->context(), sea.main_code_or_snapshot).ToLocalChecked();
-  return info.run_cjs->Call(
-      env->context(), Null(env->isolate()), 1, &main_script);
+      ToV8Value(context, sea.main_code_or_snapshot).ToLocalChecked();
+  Local<Value> kind =
+      v8::Integer::New(env->isolate(), static_cast<int>(sea.main_code_format));
+  Local<Value> resource_name =
+      ToV8Value(context, env->exec_path()).ToLocalChecked();
+  Local<Value> args[] = {main_script, kind, resource_name};
+  return info.run_module()->Call(
+      env->context(), Null(env->isolate()), arraysize(args), args);
 }
 
 bool MaybeLoadSingleExecutableApplication(Environment* env) {
@@ -821,7 +874,7 @@ bool MaybeLoadSingleExecutableApplication(Environment* env) {
     // this check is just here to guard against the unlikely case where
     // the SEA preparation blob has been manually modified by someone.
     CHECK(!env->snapshot_deserialize_main().IsEmpty());
-    LoadEnvironment(env, StartExecutionCallback{});
+    LoadEnvironment(env, StartExecutionCallbackWithModule{});
     return true;
   }
 
