@@ -286,8 +286,16 @@ class DatabaseSync : public BaseObject {
   // enable that use case.
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
+  // Immediate hook management for real-subscriber notifications. Installs
+  // or removes the SQLITE_TRACE_PROFILE hook and records its presence.
   void EnableTracing();
   void DisableTracing();
+  // Lazily reconciles the SQLITE_TRACE_PROFILE hook with tracer interest
+  // in the sqlite.db.query channel
+  // (diagnostics_channel::Channel::HasInterest()). Deferred while a statement
+  // is stepping on this connection or SQLite has re-entered JavaScript
+  // through a callback. The next outer execution entry reconciles then.
+  void RefreshTracing();
 
   void IncrementCallbackDepth() { ++callback_depth_; }
   void DecrementCallbackDepth() { --callback_depth_; }
@@ -351,6 +359,10 @@ class DatabaseSync : public BaseObject {
   std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
   BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
+  // Mirrors whether the SQLITE_TRACE_PROFILE hook is currently installed on
+  // the open connection, so refreshes only touch sqlite3_trace_v2() when the
+  // wanted state differs. Reset whenever the connection is closed.
+  bool tracing_installed_ = false;
 
   friend class UserDefinedFunction;
   friend class CustomAggregate;

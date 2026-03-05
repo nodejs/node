@@ -226,6 +226,9 @@ struct FipsIndicatorEvent {
   bool blocked;
   uint32_t count = 1;
   uint32_t dropped = 0;
+  // Subscription epoch at queue time, used by Drain() to keep queued events
+  // from reaching a subscriber that arrived later.
+  uint64_t subscription_generation = 0;
 };
 
 Local<DictionaryTemplate> GetFipsIndicatorEventTemplate(Environment* env) {
@@ -294,6 +297,9 @@ class FipsIndicatorState final {
 
     {
       Mutex::ScopedLock lock(mutex_);
+      // An attached tracer may still be waiting for the queued events, so
+      // keep them and their per-event generations.
+      if (diagnostics_channel::IsProbeEnabled()) return;
       events_.clear();
       dropped_events_ = 0;
     }
@@ -319,25 +325,41 @@ class FipsIndicatorState final {
     const int result = reject_unapproved_.load(std::memory_order_acquire)
                            ? 0
                            : previous_result;
-    if (!active_.load(std::memory_order_acquire)) return result;
+    if (!active_.load(std::memory_order_acquire) &&
+        !diagnostics_channel::IsProbeEnabled()) {
+      return result;
+    }
 
     const bool blocked = result == 0;
     {
       Mutex::ScopedLock lock(mutex_);
-      if (env_ != nullptr && active_.load(std::memory_order_relaxed)) {
+      // Recheck interest under the lock: it may have changed since the fast
+      // path above. env_ keeps the queue gated on the
+      // --enable-fips-indicator-events opt-in.
+      if (env_ != nullptr && (active_.load(std::memory_order_relaxed) ||
+                             diagnostics_channel::IsProbeEnabled())) {
         const std::string operation_string =
             operation == nullptr ? "" : operation;
         const std::string reason_string = reason == nullptr ? "" : reason;
+        const uint64_t subscription_generation =
+            subscription_generation_.load(std::memory_order_relaxed);
         const auto existing = std::find_if(
             events_.begin(),
             events_.end(),
             [&](const FipsIndicatorEvent& event) {
               return event.operation == operation_string &&
-                     event.reason == reason_string && event.blocked == blocked;
+                     event.reason == reason_string &&
+                     event.blocked == blocked &&
+                     event.subscription_generation == subscription_generation;
             });
         if (existing == events_.end()) {
           if (events_.size() < kMaxPendingFipsIndicatorEvents) {
-            events_.push_back({operation_string, reason_string, blocked});
+            events_.push_back({operation_string,
+                               reason_string,
+                               blocked,
+                               1,
+                               0,
+                               subscription_generation});
           } else if (dropped_events_ != UINT32_MAX) {
             dropped_events_++;
           }
@@ -368,14 +390,21 @@ class FipsIndicatorState final {
       dropped_events_ = 0;
       dispatch_scheduled_ = false;
     }
-    if (events.empty() || !channel_ || !channel_->HasSubscribers()) return;
+    if (events.empty() || !channel_) return;
+    const bool has_subscribers = channel_->HasSubscribers();
+    // Without a subscriber or a tracer, nobody is waiting for the batch.
+    if (!has_subscribers && !diagnostics_channel::IsProbeEnabled()) return;
 
     Isolate* isolate = env->isolate();
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
-    const uint64_t subscription_generation = subscription_generation_;
+    const uint64_t subscription_generation =
+        subscription_generation_.load(std::memory_order_relaxed);
     for (const auto& event : events) {
-      if (subscription_generation_ != subscription_generation) return;
+      if (subscription_generation_.load(std::memory_order_relaxed) !=
+          subscription_generation) {
+        return;
+      }
       MaybeLocal<Value> values[] = {
           OneByteString(isolate, event.operation),
           OneByteString(isolate, event.reason),
@@ -389,8 +418,22 @@ class FipsIndicatorState final {
                .ToLocal(&value)) {
         return;
       }
-      channel_->Publish(env, value);
-      if (subscription_generation_ != subscription_generation) return;
+      if (!has_subscribers ||
+          event.subscription_generation == subscription_generation) {
+        // Without subscribers, Publish() only emits the probe.
+        channel_->Publish(env, value);
+      } else if (diagnostics_channel::IsProbeEnabled()) {
+        // Queued before the current subscription epoch: an attached tracer
+        // still observes the publish, a subscriber that arrived later
+        // must not.
+        NODE_DC_PUBLISH_PROBE(
+            kFipsIndicatorChannel.data(),
+            static_cast<const void*>(*value));
+      }
+      if (subscription_generation_.load(std::memory_order_relaxed) !=
+          subscription_generation) {
+        return;
+      }
     }
   }
 
@@ -417,7 +460,9 @@ class FipsIndicatorState final {
   std::deque<FipsIndicatorEvent> events_;
   uint32_t dropped_events_ = 0;
   bool dispatch_scheduled_ = false;
-  uint64_t subscription_generation_ = 0;
+  // Read from OpenSSL indicator callbacks on foreign threads, so the epoch
+  // counter is atomic.
+  std::atomic<uint64_t> subscription_generation_{0};
 };
 
 }  // namespace

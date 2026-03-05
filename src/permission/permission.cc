@@ -324,7 +324,7 @@ bool Permission::is_scope_granted(Environment* env,
 
   if (!result && !publishing_) {
     auto ch = GetOrCreateChannel(env, permission);
-    if (ch && ch->HasSubscribers()) {
+    if (ch && ch->HasInterest()) {
       publishing_ = true;
       v8::Isolate* isolate = env->isolate();
       v8::HandleScope handle_scope(isolate);
@@ -382,7 +382,7 @@ void Permission::Drop(Environment* env,
   // Publish to diagnostics channel so observers can track drops
   if (!publishing_) {
     auto ch = GetOrCreateChannel(env, scope);
-    if (ch && ch->HasSubscribers()) {
+    if (ch && ch->HasInterest()) {
       publishing_ = true;
       v8::Isolate* isolate = env->isolate();
       v8::HandleScope handle_scope(isolate);

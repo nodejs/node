@@ -11,6 +11,7 @@
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "node_snapshotable.h"
+#include "node_usdt.h"
 
 namespace node {
 class ExternalReferenceRegistry;
@@ -18,6 +19,24 @@ class ExternalReferenceRegistry;
 namespace diagnostics_channel {
 
 class Channel;
+
+// True when an external USDT tracer is attached to the shared publish
+// probe, so the interest is process-wide. Never cached.
+inline bool IsProbeEnabled() {
+  return NODE_DC_PUBLISH_ENABLED();
+}
+
+// The JS-visible semaphore view is a constant-one placeholder whenever the
+// real static semaphore cannot back a JS ArrayBuffer (sandboxed builds) or
+// the platform has no semaphore variable (native DTrace, such as macOS).
+// Those tiers expose the native probeEnabled truth query on the binding so
+// JS never reads the placeholder value as proof that a tracer is attached.
+// Ordinary Linux keeps the cheap real semaphore path with no extra query.
+#if NODE_HAVE_USDT && (defined(V8_ENABLE_SANDBOX) || !NODE_USDT_HAVE_SEMAPHORE)
+#define NODE_DC_SEMAPHORE_PLACEHOLDER 1
+#else
+#define NODE_DC_SEMAPHORE_PLACEHOLDER 0
+#endif
 
 class BindingData : public SnapshotableObject {
  public:
@@ -52,6 +71,12 @@ class BindingData : public SnapshotableObject {
 
   static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+#if NODE_HAVE_USDT
+  static void EmitPublishProbe(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
+#if NODE_DC_SEMAPHORE_PLACEHOLDER
+  static void ProbeEnabled(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
 
   using ChannelStatusCallback = std::function<void(bool is_active)>;
   void SetChannelStatusCallback(uint32_t index, ChannelStatusCallback cb);
@@ -70,6 +95,10 @@ class BindingData : public SnapshotableObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  private:
+#if NODE_HAVE_USDT
+  static void SetupProbeSemaphore(v8::Isolate* isolate,
+                                  v8::Local<v8::Object> target);
+#endif
   InternalFieldInfo* internal_field_info_ = nullptr;
   std::unordered_map<uint32_t, ChannelStatusCallback> channel_status_callbacks_;
 };
@@ -87,6 +116,12 @@ class Channel : public BaseObject {
 
   inline bool HasSubscribers() const {
     return binding_data_ != nullptr && binding_data_->subscribers_[index_] > 0;
+  }
+
+  // Producer interest: a real JS subscriber or an attached tracer. Never
+  // use this to gate dispatch into JS, only production of the event.
+  inline bool HasInterest() const {
+    return HasSubscribers() || IsProbeEnabled();
   }
 
   void Publish(Environment* env, v8::Local<v8::Value> message);

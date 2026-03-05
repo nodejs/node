@@ -1,5 +1,7 @@
 'use strict';
 
+// Flags: --expose-internals
+
 const common = require('../common');
 
 if (!common.hasCrypto) {
@@ -30,10 +32,16 @@ if (!hasOpenSSL(3, 4)) {
 } else if (!process.execArgv.includes('--enable-fips-indicator-events')) {
   spawnSyncAndExitWithoutError(
     process.execPath,
-    ['--enable-fips-indicator-events', __filename],
+    ['--enable-fips-indicator-events', '--expose-internals', __filename],
   );
 } else {
   run().then(common.mustCall());
+}
+
+async function drainTicks() {
+  for (let i = 0; i < 3; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
 }
 
 function nextIndicator() {
@@ -181,4 +189,50 @@ async function run() {
   });
   const [exitCode] = await exitPromise;
   assert.strictEqual(exitCode, 0);
+
+  // A simulated attached tracer (forced probe semaphore) must not replay
+  // queued indicator events into a subscriber that arrived later, and
+  // pending events must survive removing the last subscriber while the
+  // tracer stays attached.
+  {
+    const { internalBinding } = require('internal/test/binding');
+    const { probeSemaphore } = internalBinding('diagnostics_channel');
+    if (probeSemaphore !== undefined) {
+      const initial = probeSemaphore[0];
+      probeSemaphore[0] = 1;
+      try {
+        // Tracer-only event: queued while no subscriber exists.
+        createHmac('sha256', key).digest();
+        const lateSubscriber = common.mustNotCall();
+        diagnosticsChannel.subscribe(channelName, lateSubscriber);
+        await drainTicks();
+        assert.strictEqual(
+          diagnosticsChannel.unsubscribe(channelName, lateSubscriber), true);
+
+        // Queued for a subscriber, then the last subscriber is removed
+        // while the tracer stays attached.
+        const seen = [];
+        const first = (event) => seen.push(`first:${event.count}`);
+        diagnosticsChannel.subscribe(channelName, first);
+        createHmac('sha256', key).digest();
+        assert.strictEqual(
+          diagnosticsChannel.unsubscribe(channelName, first), true);
+
+        const second = (event) => seen.push(`second:${event.count}`);
+        diagnosticsChannel.subscribe(channelName, second);
+        await drainTicks();
+        assert.deepStrictEqual(seen, []);
+
+        // Only a new event reaches the new subscriber, not coalesced with
+        // the retained pre-unsubscribe event.
+        createHmac('sha256', key).digest();
+        await drainTicks();
+        assert.deepStrictEqual(seen, ['second:1']);
+        assert.strictEqual(
+          diagnosticsChannel.unsubscribe(channelName, second), true);
+      } finally {
+        probeSemaphore[0] = initial;
+      }
+    }
+  }
 }

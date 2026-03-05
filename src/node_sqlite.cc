@@ -1171,10 +1171,7 @@ bool DatabaseSync::Open() {
   }
 
   trace_channel_ = diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
-  if (trace_channel_ && trace_channel_->HasSubscribers()) {
-    sqlite3_trace_v2(
-        connection_.get(), SQLITE_TRACE_PROFILE, TraceCallback, this);
-  }
+  RefreshTracing();
 
   opened = true;
   return true;
@@ -1188,11 +1185,36 @@ void DatabaseSync::EnableTracing() {
   }
   sqlite3_trace_v2(
       connection_.get(), SQLITE_TRACE_PROFILE, TraceCallback, this);
+  tracing_installed_ = true;
 }
 
 void DatabaseSync::DisableTracing() {
   if (!IsOpen()) return;
   sqlite3_trace_v2(connection_.get(), 0, nullptr, nullptr);
+  tracing_installed_ = false;
+}
+
+void DatabaseSync::RefreshTracing() {
+  // Tracer-driven refresh can wait for the next outer execution entry, so
+  // it does not churn the hook while a statement is stepping or SQLite has
+  // re-entered JavaScript through a callback. Real-subscriber notifications
+  // stay immediate through EnableTracing()/DisableTracing(). TraceCallback
+  // re-checks interest on every event, so a hook that outlives its interest
+  // publishes nothing.
+  if (!IsOpen() || IsInCallback() || !stepping_statements_.empty()) {
+    return;
+  }
+  if (!trace_channel_) {
+    trace_channel_ =
+        diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
+  }
+  const bool wanted = trace_channel_ && trace_channel_->HasInterest();
+  if (wanted == tracing_installed_) return;
+  if (wanted) {
+    EnableTracing();
+  } else {
+    DisableTracing();
+  }
 }
 
 void DatabaseSync::FinalizeBackups() {
@@ -1627,6 +1649,9 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
+  // The hook died with the connection. A reopen must be able to install it
+  // again on the fresh connection.
+  db->tracing_installed_ = false;
   // Backups can defer SQLite destruction until after the connection is closed.
   db->user_defined_functions_.clear();
 }
@@ -1760,6 +1785,10 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   // getter, which may have closed the database since it was checked.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
+  // Preparing can itself run SQL, for example when a virtual table module
+  // reads its configuration, so the hook is reconciled first.
+  db->RefreshTracing();
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
 
@@ -1824,6 +1853,10 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   // the DatabaseSync could otherwise be garbage-collected while the
   // SQLite callback is still executing, causing a use-after-free.
   BaseObjectPtr<DatabaseSync> guard(db);
+
+  // sqlite3_exec() steps statements internally, outside any
+  // SteppingStatementGuard, so the hook is reconciled first.
+  db->RefreshTracing();
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_.get(), *sql, nullptr, nullptr, nullptr);
@@ -2034,6 +2067,9 @@ void DatabaseSync::Serialize(const FunctionCallbackInfo<Value>& args) {
     db_name = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
   }
 
+  // Serializing runs a PRAGMA for the page count.
+  db->RefreshTracing();
+
   sqlite3_int64 size = 0;
   unsigned char* data =
       sqlite3_serialize(db->connection_.get(), db_name.c_str(), &size, 0);
@@ -2118,6 +2154,9 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
   // Reading the options bag above can run user JavaScript through a property
   // getter, which may have closed the database since it was checked.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  // Deserializing runs SQL, such as the ATTACH it uses to adopt the buffer.
+  db->RefreshTracing();
 
   // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
   // transfers ownership to SQLite, which calls sqlite3_free() on close.
@@ -2679,6 +2718,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   // which could otherwise let it be garbage-collected mid-callback.
   BaseObjectPtr<DatabaseSync> guard(db);
 
+  // Applying a changeset runs SQL on this connection, including through the
+  // conflict and filter callbacks below.
+  db->RefreshTracing();
+
   ArrayBufferViewContents<uint8_t> buf(args[0]);
   if (buf.length() > std::numeric_limits<int>::max()) {
     THROW_ERR_OUT_OF_RANGE(env, "The changeset is too large.");
@@ -2808,6 +2851,8 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+  // Loading an extension runs its initialization SQL.
+  db->RefreshTracing();
   char* errmsg = nullptr;
   const int r = sqlite3_load_extension(
       db->connection_.get(), *path, *entryPoint, &errmsg);
@@ -2938,8 +2983,10 @@ int DatabaseSync::TraceCallback(unsigned int type,
   Environment* env = db->env();
 
   diagnostics_channel::Channel* ch = db->trace_channel_.get();
-  if (ch == nullptr || !ch->HasSubscribers() ||
-      db->AreTraceEventsSuppressed()) {
+  // Producer interest: a real subscriber or an attached tracer. Either one
+  // can receive the event. Publish dispatches into JavaScript only when a
+  // real subscriber exists.
+  if (ch == nullptr || !ch->HasInterest() || db->AreTraceEventsSuppressed()) {
     return 0;
   }
 
@@ -3510,6 +3557,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  // The statement below may have finished in a previous run, so its reset
+  // and step can fire a trace event. Reconcile the hook before the guard.
+  stmt->db_->RefreshTracing();
   Isolate* isolate = env->isolate();
   SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
@@ -3539,6 +3589,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  stmt->db_->RefreshTracing();
   SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
@@ -3565,6 +3616,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  stmt->db_->RefreshTracing();
   SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
@@ -3587,6 +3639,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  stmt->db_->RefreshTracing();
   SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
@@ -3924,6 +3977,9 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
+  // Preparing the tagged SQL can itself run SQL, so reconcile before it.
+  session->database_->RefreshTracing();
+
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
@@ -3950,6 +4006,8 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
+
+  session->database_->RefreshTracing();
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
@@ -3982,6 +4040,8 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
+  session->database_->RefreshTracing();
+
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
@@ -4008,6 +4068,8 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
+
+  session->database_->RefreshTracing();
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
@@ -4277,6 +4339,8 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
       iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
       "iterator was invalidated");
 
+  iter->stmt_->db_->RefreshTracing();
+
   // sqlite3_reset() can run JavaScript through an aggregate's xFinal, so it
   // stays inside the guard.
   SteppingStatementGuard stepping(iter->stmt_->db_.get(),
@@ -4429,6 +4493,10 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(env, !session->session_, "session is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
+  // Generating a changeset runs SQL: SAVEPOINT, table metadata PRAGMAs and
+  // the row query itself.
+  session->database_->RefreshTracing();
+
   session->is_generating_changeset_ = true;
   auto changeset_guard =
       OnScopeLeave([&] { session->is_generating_changeset_ = false; });
@@ -4562,14 +4630,20 @@ static void Initialize(Local<Object> target,
   if (diag_binding != nullptr && sqlite_bd != nullptr) {
     uint32_t idx = diag_binding->GetOrCreateChannelIndex("sqlite.db.query");
     BaseObjectPtr<BindingData> bd_ptr(sqlite_bd);
+    // Real-subscriber notifications stay immediate: the notification bool
+    // is authoritative, since it can arrive before the subscriber count is
+    // updated. A subscriber or an attached tracer means tracing stays on,
+    // and only neither of them turns it off.
     diag_binding->SetChannelStatusCallback(idx, [bd_ptr](bool is_active) {
       BindingData* bd = bd_ptr.get();
       if (bd == nullptr) return;
+      const bool wanted = is_active || diagnostics_channel::IsProbeEnabled();
       for (DatabaseSync* db : bd->open_databases) {
-        if (is_active)
+        if (wanted) {
           db->EnableTracing();
-        else
+        } else {
           db->DisableTracing();
+        }
       }
     });
   }
