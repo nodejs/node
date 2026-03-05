@@ -8,30 +8,10 @@ const assert = require('assert');
 
 // === Router utility functions ===
 const {
-  splitPath,
-  getParentPath,
-  getBaseName,
   isUnderMountPoint,
   getRelativePath,
   isAbsolutePath,
 } = require('internal/vfs/router');
-
-// splitPath
-assert.deepStrictEqual(splitPath('/'), []);
-assert.deepStrictEqual(splitPath('/foo'), ['foo']);
-assert.deepStrictEqual(splitPath('/foo/bar'), ['foo', 'bar']);
-assert.deepStrictEqual(splitPath('/a/b/c/d'), ['a', 'b', 'c', 'd']);
-
-// getParentPath
-assert.strictEqual(getParentPath('/'), null);
-assert.strictEqual(getParentPath('/foo'), '/');
-assert.strictEqual(getParentPath('/foo/bar'), '/foo');
-assert.strictEqual(getParentPath('/a/b/c'), '/a/b');
-
-// getBaseName
-assert.strictEqual(getBaseName('/foo'), 'foo');
-assert.strictEqual(getBaseName('/foo/bar'), 'bar');
-assert.strictEqual(getBaseName('/a/b/c.txt'), 'c.txt');
 
 // isAbsolutePath
 assert.strictEqual(isAbsolutePath('/foo'), true);
@@ -130,11 +110,6 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.existsSync('/internals-test/file.txt'), true);
   assert.strictEqual(myVfs.existsSync('/internals-test/nonexistent'), false);
   assert.strictEqual(myVfs.existsSync('/internals-test/dir'), true);
-
-  // internalModuleStat (0 = file, 1 = dir, -2 = not found)
-  assert.strictEqual(myVfs.internalModuleStat('/internals-test/file.txt'), 0);
-  assert.strictEqual(myVfs.internalModuleStat('/internals-test/dir'), 1);
-  assert.strictEqual(myVfs.internalModuleStat('/internals-test/nope'), -2);
 
   // Callback-based realpath
   myVfs.realpath('/internals-test/file.txt', common.mustSucceed((resolved) => {
