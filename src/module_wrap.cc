@@ -420,6 +420,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  if (that->Set(context,
+                realm->isolate_data()->synthetic_string(),
+                v8::Boolean::New(isolate, synthetic))
+          .IsNothing()) {
+    return;
+  }
+
   if (!that->Set(context, realm->isolate_data()->url_string(), url)
            .FromMaybe(false)) {
     return;
