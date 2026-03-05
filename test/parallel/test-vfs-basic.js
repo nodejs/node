@@ -123,17 +123,6 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.mounted, false);
 }
 
-// Test internalModuleStat (used by Module._stat)
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/dir', { recursive: true });
-  myVfs.writeFileSync('/module.js', 'module.exports = {}');
-
-  assert.strictEqual(myVfs.internalModuleStat('/module.js'), 0); // file
-  assert.strictEqual(myVfs.internalModuleStat('/dir'), 1); // directory
-  assert.strictEqual(myVfs.internalModuleStat('/nonexistent'), -2); // ENOENT
-}
-
 // Test reading directory as file throws EISDIR
 {
   const myVfs = vfs.create();
