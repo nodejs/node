@@ -17,7 +17,7 @@ jobs:
 
     if: github.repository == 'nodejs/node'
     # cannot use ubuntu-slim here because it does not have icupkg
-    runs-on: ubuntu
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout nodejs/node
