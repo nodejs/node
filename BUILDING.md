@@ -402,6 +402,7 @@ If you are running tests before submitting a pull request, use:
 ```bash
 make -j4 test
 ```
+
 `make -j4 test` does a full check on the codebase, including documentation tests.
 
 To run the linter, use `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
