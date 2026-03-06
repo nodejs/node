@@ -32,4 +32,5 @@ default-features = false
 # features = ["float64_representable_durations"]
 
 [patch.crates-io]
+# Float https://github.com/unicode-org/icu4x/pull/7658 until crate is updated.
 resb = { path="patches/resb" }
