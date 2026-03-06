@@ -13,6 +13,11 @@ const samples = [
   ['file[0-9]?.txt', 'file[[]0-9[]][?].txt'],
   ['C:\\Users\\*.txt', 'C:\\Users\\[*].txt'],
   ['?[]', '[?][[][]]'],
+  ['[', '[[]'],
+  ['[]', '[[][]]'],
+  ['[', '[[]'],
+  ['[*', '[[][*]'],
+  ['[]a', '[[][]]a'],
 ];
 
 for (const [pattern, expected] of samples) {
