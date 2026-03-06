@@ -174,7 +174,7 @@ added: REPLACEME
 * `pattern` {string}
 * Returns: {string}
 
-The `path.escapeGlob()` method escapes glob characters in a `pattern`.
+The `path.escapeGlob()` method escapes glob metacharacters in a `pattern`.
 
 ```js
 path.escapeGlob('foo*bar');
