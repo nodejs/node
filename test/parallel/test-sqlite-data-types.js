@@ -83,15 +83,31 @@ suite('data binding and mapping', () => {
 
     const nulls = { int: null, double: null, text: null, buf: null };
     const undefArray = [ undefined, undefined, undefined, undefined ];
-    const undefObj = { int: undefined, double: undefined, text: undefined, buf: undefined };
+    const undefObj = {
+        int: undefined,
+        double: undefined,
+        text: undefined,
+        buf: undefined,
+    };
     const insertAnon = db.prepare('INSERT INTO types VALUES (?, ?, ?, ?, ?)');
-    const insertNamed = db.prepare('INSERT INTO types VALUES ($key, $int, $double, $text, $buf)');
-    t.assert.deepStrictEqual(insertAnon.run(5, ...undefArray), { changes: 1, lastInsertRowid: 5 });
-    t.assert.deepStrictEqual(insertNamed.run({ key: 6, ...undefObj }), { changes: 1, lastInsertRowid: 6 });
-    t.assert.deepStrictEqual(insertNamed.run({ key: 7 }), { changes: 1, lastInsertRowid: 7 });
-    t.assert.deepStrictEqual(query.get(5), { __proto__: null, key: 5, ...nulls });
+    const insertNamed = db.prepare(
+        'INSERT INTO types VALUES ($key, $int, $double, $text, $buf)'
+    );
+    t.assert.deepStrictEqual(
+        insertAnon.run(6, ...undefArray),
+        { lastInsertRowid: 6, changes: 1 },
+    );
+    t.assert.deepStrictEqual(
+        insertNamed.run({ key: 7, ...undefObj }),
+        { lastInsertRowid: 7, changes: 1 },
+    );
+    t.assert.deepStrictEqual(
+        insertNamed.run({ key: 8 }),
+        { lastInsertRowid: 8, changes: 1 },
+    );
     t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, ...nulls });
     t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, ...nulls });
+    t.assert.deepStrictEqual(query.get(8), { __proto__: null, key: 8, ...nulls });
   });
 
   test('large strings are bound correctly', (t) => {
