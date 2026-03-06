@@ -82,7 +82,6 @@ suite('data binding and mapping', () => {
     });
 
     const nulls = { int: null, double: null, text: null, buf: null };
-    const undefArray = [ undefined, undefined, undefined, undefined ];
     const undefObj = {
         int: undefined,
         double: undefined,
@@ -94,7 +93,7 @@ suite('data binding and mapping', () => {
         'INSERT INTO types VALUES ($key, $int, $double, $text, $buf)'
     );
     t.assert.deepStrictEqual(
-        insertAnon.run(6, ...undefArray),
+        insertAnon.run(6, undefined, undefined, undefined, undefined),
         { lastInsertRowid: 6, changes: 1 },
     );
     t.assert.deepStrictEqual(
