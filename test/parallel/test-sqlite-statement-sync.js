@@ -909,3 +909,36 @@ suite('options.allowBareNamedParameters', () => {
     );
   });
 });
+
+suite('read-only statements report zero changes', () => {
+  test('SELECT after INSERT reports zero changes', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+    const insert = db.prepare('INSERT INTO test (name) VALUES (?)');
+    t.assert.deepStrictEqual(
+      insert.run('foo'),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+    const select = db.prepare('SELECT * FROM test');
+    t.assert.deepStrictEqual(
+      select.run(),
+      { changes: 0, lastInsertRowid: 0 },
+    );
+  });
+
+  test('SELECT after multiple INSERTs reports zero changes', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+    const insert = db.prepare('INSERT INTO test (name) VALUES (?)');
+    insert.run('a');
+    insert.run('b');
+    insert.run('c');
+    const select = db.prepare('SELECT * FROM test');
+    t.assert.deepStrictEqual(
+      select.run(),
+      { changes: 0, lastInsertRowid: 0 },
+    );
+  });
+});
