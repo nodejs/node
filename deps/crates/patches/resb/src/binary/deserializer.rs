@@ -23,6 +23,11 @@ const SYSTEM_CHARSET_FAMILY: CharsetFamily = CharsetFamily::Ascii;
 
 /// Deserializes an instance of type `T` from bytes representing a binary ICU
 /// resource bundle.
+///
+/// The input data must be in the platform's native endianness. ICU4C resource
+/// bundles such as `zoneinfo64.res` are generated in both little endian and
+/// big endian formats; callers must ensure the appropriate format is provided
+/// for the target platform.
 pub fn from_words<'a, T>(input: &'a [u32]) -> Result<T, BinaryDeserializerError>
 where
     T: Deserialize<'a>,
@@ -142,7 +147,7 @@ impl<'de> ResourceTreeDeserializer<'de> {
                 ))
             }
         };
-        let descriptor = u32::from_le_bytes(descriptor);
+        let descriptor = u32::from_ne_bytes(descriptor);
 
         ResDescriptor::try_from(descriptor)
     }
@@ -887,7 +892,7 @@ impl<'de> Resource16BitDeserializer<'de> {
             // exactly 2 bytes.
             #[expect(clippy::unwrap_used)]
             let bytes = <[u8; 2]>::try_from(bytes).unwrap();
-            u16::from_le_bytes(bytes)
+            u16::from_ne_bytes(bytes)
         });
 
         char::decode_utf16(units)
@@ -1255,7 +1260,7 @@ fn read_u32(input: &[u8]) -> Result<(u32, &[u8]), BinaryDeserializerError> {
         ))?
         .try_into()
         .unwrap();
-    let value = u32::from_le_bytes(bytes);
+    let value = u32::from_ne_bytes(bytes);
 
     let rest =
         input

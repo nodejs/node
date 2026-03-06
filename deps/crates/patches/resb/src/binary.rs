@@ -473,7 +473,7 @@ fn read_u16(input: &[u8]) -> Result<(u16, &[u8]), BinaryDeserializerError> {
     let bytes = get_subslice(input, ..core::mem::size_of::<u16>())?
         .try_into()
         .unwrap();
-    let value = u16::from_le_bytes(bytes);
+    let value = u16::from_ne_bytes(bytes);
 
     let rest = get_subslice(input, core::mem::size_of::<u16>()..)?;
     Ok((value, rest))

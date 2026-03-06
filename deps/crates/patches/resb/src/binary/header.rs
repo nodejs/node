@@ -113,11 +113,8 @@ impl TryFrom<&[u8]> for BinReprInfo {
         let (size, value) = read_u16(value)?;
         let (reserved_word, value) = read_u16(value)?;
 
-        // While the consumer is responsible for verifying acceptability of most
-        // contents of the repr info, we explicitly depend on little endian data
-        // in order to ensure compatibility with `zerovec`.
         let (endianness, value) = (Endianness::try_from(value[0])?, &value[1..]);
-        if endianness != Endianness::Little {
+        if (endianness == Endianness::Little) != cfg!(target_endian = "little") {
             return Err(BinaryDeserializerError::unsupported_format(
                 "big-endian bundles are not supported",
             ));

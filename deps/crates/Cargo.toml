@@ -30,3 +30,6 @@ version = "=0.1.0"
 default-features = false
 # This is necessary to enable a spec-compliance quirk when upgrading to v0.1.2
 # features = ["float64_representable_durations"]
+
+[patch.crates-io]
+resb = { path="patches/resb" }
