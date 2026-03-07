@@ -922,4 +922,37 @@ process.on('message', (message) => {
       await done();
     }
   });
+
+  it('should strip all watch flags from NODE_OPTIONS in child process', async () => {
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    const nodeOptions = [
+      '--watch',                       // bare boolean
+      '--watch=true',                  // boolean with =value
+      '--watch-path=./src',            // string with =value
+      '--watch-path', './test',        // String with space-separated value
+      '--watch-preserve-output',       // bare boolean
+      '--watch-preserve-output=true',  // boolean with =value
+      '--watch-kill-signal=SIGKILL',   // string with =value
+      '--watch-kill-signal', 'SIGINT', // String with space-separated value
+      '--max-old-space-size=4096',
+      '--no-warnings',
+    ].join(' ');
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      const nodeOptionsLine = stdout.find((line) => line.includes('--max-old-space-size'));
+      assert.ok(nodeOptionsLine);
+      assert.strictEqual(nodeOptionsLine, '--max-old-space-size=4096 --no-warnings');
+    } finally {
+      await done();
+    }
+  });
 });
