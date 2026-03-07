@@ -39,15 +39,23 @@ GYP_NEXT_TARBALL="$NEW_VERSION.tar.gz"
 
 cd "$WORKSPACE"
 
-curl -sL -o "$GYP_NEXT_TARBALL"  "https://github.com/nodejs/gyp-next/archive/refs/tags/v$NEW_VERSION.tar.gz"
+URL="https://github.com/nodejs/gyp-next/archive/refs/tags/v$NEW_VERSION.tar.gz"
+curl -sL -o "$GYP_NEXT_TARBALL" "$URL"
 
-log_and_verify_sha256sum "gyp-next" "$GYP_NEXT_TARBALL"
+HASH=$(log_and_verify_sha256sum "gyp-next" "$GYP_NEXT_TARBALL")
 
 gzip -dc "$GYP_NEXT_TARBALL" | tar xf -
 
 rm "$GYP_NEXT_TARBALL"
 
 mv "gyp-next-$NEW_VERSION" gyp
+
+cat -> "$WORKSPACE/gyp/src.nix" <<EOF
+builtins.fetchurl {
+  url = "$URL";
+  sha256 = "${HASH##*= }";
+}
+EOF
 
 rm -rf "$WORKSPACE/gyp/.github"
 

@@ -1,15 +1,24 @@
 # Derivation for Node.js CI (not officially supported for regular applications)
 {
-  pkgs ? import ./pkgs.nix { },
+  stdenv,
+  lib,
+  patchutils,
+  validatePkgConfig,
+  nodejs-slim_latest,
+
   buildInputs ? [ ],
   configureFlags ? [ ],
-  needsRustCompiler ? false,
+
+  configureScript ? nodejs-slim_latest.configureScript,
+  nativeBuildInputs ? nodejs-slim_latest.nativeBuildInputs,
+  patches ? nodejs-slim_latest.patches,
 }:
 
 let
-  nodejs = pkgs.nodejs-slim_latest;
   v8Dir = ../../deps/v8;
-
+in
+stdenv.mkDerivation (finalAttrs: {
+  pname = "v8";
   version =
     let
       v8Version = builtins.match (
@@ -26,71 +35,69 @@ let
       throw "V8 version not found"
     else
       "${builtins.elemAt v8Version 0}.${builtins.elemAt v8Version 1}.${builtins.elemAt v8Version 2}.${builtins.elemAt v8Version 3}-${builtins.elemAt v8_embedder_string 0}";
-in
-pkgs.stdenv.mkDerivation (finalAttrs: {
-  pname = "v8";
-  inherit version;
   src =
     let
-      inherit (pkgs.lib) fileset;
+      inherit (lib) fileset;
     in
     fileset.toSource {
       root = ../../.;
       fileset = fileset.unions [
-        ../../common.gypi
-        ../../configure
-        ../../configure.py
-        ../../deps/inspector_protocol/inspector_protocol.gyp
-        ../../deps/ncrypto/ncrypto.gyp
         v8Dir
+        ../../common.gypi
+        ../../configure.py
         ../../node.gyp
         ../../node.gypi
-        ../../src/inspector/node_inspector.gypi
         ../../src/node_version.h
-        ../../tools/configure.d
+        ../../tools/configure.d/nodedownload.py
         ../../tools/getmoduleversion.py
         ../../tools/getnapibuildversion.py
-        ../../tools/gyp
         ../../tools/gyp_node.py
         ../../tools/icu/icu_versions.json
         ../../tools/icu/icu-system.gyp
         ../../tools/utils.py
-        ../../tools/v8_gypfiles
+        ../../tools/v8_gypfiles/abseil.gyp
+        ../../tools/v8_gypfiles/features.gypi
+        ../../tools/v8_gypfiles/ForEachFormat.py
+        ../../tools/v8_gypfiles/ForEachReplace.py
+        ../../tools/v8_gypfiles/GN-scraper.py
+        ../../tools/v8_gypfiles/inspector.gypi
+        ../../tools/v8_gypfiles/toolchain.gypi
+        ../../tools/v8_gypfiles/v8.gyp
       ];
     };
 
-  # We need to patch tools/gyp/ to work from within Nix sandbox
+  # We need to download and patch GYP to work from within Nix sandbox
+  # and so the local pycache does not pollute the hash.
   prePatch = ''
     patches=()
-    for patch in ${pkgs.lib.concatStringsSep " " nodejs.patches}; do
+    for patch in ${lib.concatStringsSep " " patches}; do
       filtered=$(mktemp)
-      filterdiff -p1 -i 'tools/gyp/*' "$patch" > "$filtered"
+      filterdiff -p1 -i 'tools/gyp/pylib/*' "$patch" > "$filtered"
       if [ -s "$filtered" ]; then
         patches+=("$filtered")
       fi
     done
+    tar -C tools -xzf ${import ../../tools/gyp/src.nix} --wildcards 'gyp-*/pylib'
+    mv tools/gyp-* tools/gyp
+  '';
+  # We need to remove the node_inspector.gypi ref so GYP does not search for it.
+  postPatch = ''
+    substituteInPlace node.gyp --replace-fail "'includes' : [ 'src/inspector/node_inspector.gypi' ]" "'includes' : []"
   '';
 
-  inherit (nodejs) configureScript;
-  inherit configureFlags buildInputs;
+  inherit configureScript configureFlags buildInputs;
 
-  nativeBuildInputs =
-    nodejs.nativeBuildInputs
-    ++ [
-      pkgs.patchutils
-      pkgs.validatePkgConfig
-    ]
-    ++ pkgs.lib.optionals needsRustCompiler [
-      pkgs.cargo
-      pkgs.rustc
-    ];
+  nativeBuildInputs = nativeBuildInputs ++ [
+    patchutils
+    validatePkgConfig
+  ];
 
   buildPhase = ''
     ninja -v -C out/Release v8_snapshot v8_libplatform
   '';
   installPhase = ''
     ${
-      if pkgs.stdenv.hostPlatform.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         # Darwin is excluded from creating thin archive in tools/gyp/pylib/gyp/generator/ninja.py:2488
         "install -Dm644 out/Release/lib* -t $out/lib"
       else
@@ -115,7 +122,7 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
     cat -> $out/lib/pkgconfig/v8.pc << EOF
     Name: v8
     Description: V8 JavaScript Engine build for Node.js CI
-    Version: ${version}
+    Version: ${finalAttrs.version}
     Libs: -L$out/lib $(for f in $out/lib/lib*.a; do
       b=$(basename "$f" .a)
       printf " -l%s" "''${b#lib}"
