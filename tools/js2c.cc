@@ -13,6 +13,7 @@
 #include "embedded_data.h"
 #include "executable_wrapper.h"
 #include "simdutf.h"
+#include "swc_transform.h"
 #include "uv.h"
 
 #if defined(_WIN32)
@@ -29,6 +30,7 @@ namespace js2c {
 int Main(int argc, char* argv[]);
 
 static bool is_verbose = false;
+static const char* output_transpiled_dir = nullptr;
 
 void Debug(const char* format, ...) {
   va_list arguments;
@@ -131,13 +133,14 @@ bool SearchFiles(const std::string& dir,
 
 constexpr std::string_view kMjsSuffix = ".mjs";
 constexpr std::string_view kJsSuffix = ".js";
+constexpr std::string_view kTsSuffix = ".ts";
 constexpr std::string_view kGypiSuffix = ".gypi";
 constexpr std::string_view depsPrefix = "deps/";
 constexpr std::string_view libPrefix = "lib/";
 
 constexpr std::string_view HasAllowedExtensions(
     const std::string_view filename) {
-  for (const auto& ext : {kGypiSuffix, kJsSuffix, kMjsSuffix}) {
+  for (const auto& ext : {kGypiSuffix, kJsSuffix, kMjsSuffix, kTsSuffix}) {
     if (filename.ends_with(ext)) {
       return ext;
     }
@@ -325,15 +328,36 @@ int WriteIfChanged(const Fragment& out, const std::string& dest) {
   return WriteFileSync(out, dest.c_str());
 }
 
+int MkdirpSync(const std::string& path) {
+  uv_fs_t req;
+  int r = uv_fs_mkdir(nullptr, &req, path.c_str(), 0755, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (r == 0 || r == UV_EEXIST) return 0;
+  if (r == UV_ENOENT) {
+    // Parent doesn't exist, create it first.
+    size_t pos = path.find_last_of('/');
+    if (pos == std::string::npos || pos == 0) return r;
+    int pr = MkdirpSync(path.substr(0, pos));
+    if (pr != 0) return pr;
+    r = uv_fs_mkdir(nullptr, &req, path.c_str(), 0755, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (r == UV_EEXIST) return 0;
+    return r;
+  }
+  return r;
+}
+
 std::string GetFileId(const std::string& filename) {
   size_t end = filename.size();
   size_t start = 0;
   std::string prefix;
-  // Strip .mjs and .js suffix
+  // Strip .mjs, .js, and .ts suffix
   if (filename.ends_with(kMjsSuffix)) {
     end -= kMjsSuffix.size();
   } else if (filename.ends_with(kJsSuffix)) {
     end -= kJsSuffix.size();
+  } else if (filename.ends_with(kTsSuffix)) {
+    end -= kTsSuffix.size();
   }
 
   // deps/acorn/acorn/dist/acorn.js -> internal/deps/acorn/acorn/dist/acorn
@@ -684,6 +708,49 @@ int AddModule(const std::string& filename,
   if (error != 0) {
     return error;
   }
+
+  // Transpile TypeScript sources to JavaScript using SWC type stripping.
+  if (filename.ends_with(kTsSuffix)) {
+    Debug("Transpiling TypeScript: %s\n", filename.c_str());
+    SwcTransformResult result = swc_transform(code.data(),
+                                              code.size(),
+                                              filename.c_str(),
+                                              filename.size(),
+                                              SWC_MODE_STRIP_ONLY);
+    if (result.error != nullptr) {
+      fprintf(stderr,
+              "SWC error transpiling %s: %.*s\n",
+              filename.c_str(),
+              static_cast<int>(result.error_len),
+              result.error);
+      swc_transform_free_result(&result);
+      return 1;
+    }
+    code.assign(result.code, result.code + result.code_len);
+    swc_transform_free_result(&result);
+
+    if (output_transpiled_dir != nullptr) {
+      // Write transpiled output as .js for debuggability.
+      std::string out_path =
+          std::string(output_transpiled_dir) + "/" +
+          filename.substr(0, filename.size() - kTsSuffix.size()) + ".js";
+      size_t last_slash = out_path.find_last_of('/');
+      if (last_slash != std::string::npos) {
+        int mr = MkdirpSync(out_path.substr(0, last_slash));
+        if (mr != 0) {
+          PrintUvError("mkdir", out_path.c_str(), mr);
+          return mr;
+        }
+      }
+      int wr = WriteFileSync(code, out_path.c_str());
+      if (wr != 0) {
+        PrintUvError("write", out_path.c_str(), wr);
+        return wr;
+      }
+      Debug("Wrote transpiled output to %s\n", out_path.c_str());
+    }
+  }
+
   std::string file_id = GetFileId(filename);
   std::string var = GetVariableName(file_id);
 
@@ -826,14 +893,16 @@ int AddGypi(const std::string& var,
 
 int JS2C(const FileList& js_files,
          const FileList& mjs_files,
+         const FileList& ts_files,
          const std::string& config,
          const std::string& dest) {
   Fragments definitions;
-  definitions.reserve(js_files.size() + mjs_files.size() + 1);
+  definitions.reserve(js_files.size() + mjs_files.size() + ts_files.size() + 1);
   Fragments initializers;
-  initializers.reserve(js_files.size() + mjs_files.size());
+  initializers.reserve(js_files.size() + mjs_files.size() + ts_files.size());
   Fragments registrations;
-  registrations.reserve(js_files.size() + mjs_files.size() + 1);
+  registrations.reserve(js_files.size() + mjs_files.size() + ts_files.size() +
+                        1);
 
   for (const auto& filename : js_files) {
     int r = AddModule(filename, &definitions, &initializers, &registrations);
@@ -842,6 +911,12 @@ int JS2C(const FileList& js_files,
     }
   }
   for (const auto& filename : mjs_files) {
+    int r = AddModule(filename, &definitions, &initializers, &registrations);
+    if (r != 0) {
+      return r;
+    }
+  }
+  for (const auto& filename : ts_files) {
     int r = AddModule(filename, &definitions, &initializers, &registrations);
     if (r != 0) {
       return r;
@@ -861,6 +936,7 @@ int JS2C(const FileList& js_files,
 int PrintUsage(const char* argv0) {
   fprintf(stderr,
           "Usage: %s [--verbose] [--root /path/to/project/root] "
+          "[--output-transpiled-ts path/to/dir] "
           "path/to/output.cc path/to/directory "
           "[extra-files ...]\n",
           argv0);
@@ -885,6 +961,12 @@ int Main(int argc, char* argv[]) {
         return 1;
       }
       root_dir = argv[++i];
+    } else if (arg == "--output-transpiled-ts") {
+      if (i == argc - 1) {
+        fprintf(stderr, "--output-transpiled-ts must be followed by a path\n");
+        return 1;
+      }
+      output_transpiled_dir = argv[++i];
     } else {
       args.emplace_back(argv[i]);
     }
@@ -910,9 +992,15 @@ int Main(int argc, char* argv[]) {
     const std::string& file = args[i];
     if (IsDirectory(file, &error)) {
       if (!SearchFiles(file, &file_map, kJsSuffix) ||
-          !SearchFiles(file, &file_map, kMjsSuffix)) {
+          !SearchFiles(file, &file_map, kMjsSuffix) ||
+          !SearchFiles(file, &file_map, kTsSuffix)) {
         return 1;
       }
+    } else if (error == UV_ENOENT) {
+      // Path doesn't exist – skip it silently (e.g. the ts2js
+      // intermediate directory when there are no .ts sources).
+      Debug("Skipping non-existent path: %s\n", file.c_str());
+      continue;
     } else if (error != 0) {
       return 1;
     } else {  // It's a file.
@@ -927,8 +1015,6 @@ int Main(int argc, char* argv[]) {
     }
   }
 
-  // Should have exactly 3 types: `.js`, `.mjs` and `.gypi`.
-  assert(file_map.size() == 3);
   auto gypi_it = file_map.find(".gypi");
   // Currently config.gypi is the only `.gypi` file allowed
   if (gypi_it == file_map.end() || gypi_it->second.size() != 1 ||
@@ -940,7 +1026,16 @@ int Main(int argc, char* argv[]) {
   }
   auto js_it = file_map.find(".js");
   auto mjs_it = file_map.find(".mjs");
-  assert(js_it != file_map.end() && mjs_it != file_map.end());
+  auto ts_it = file_map.find(".ts");
+  if (js_it == file_map.end()) {
+    js_it = file_map.insert({".js", FileList()}).first;
+  }
+  if (mjs_it == file_map.end()) {
+    mjs_it = file_map.insert({".mjs", FileList()}).first;
+  }
+  if (ts_it == file_map.end()) {
+    ts_it = file_map.insert({".ts", FileList()}).first;
+  }
 
   auto it = std::find(mjs_it->second.begin(),
                       mjs_it->second.end(),
@@ -951,8 +1046,10 @@ int Main(int argc, char* argv[]) {
 
   std::sort(js_it->second.begin(), js_it->second.end());
   std::sort(mjs_it->second.begin(), mjs_it->second.end());
+  std::sort(ts_it->second.begin(), ts_it->second.end());
 
-  return JS2C(js_it->second, mjs_it->second, gypi_it->second[0], output);
+  return JS2C(
+      js_it->second, mjs_it->second, ts_it->second, gypi_it->second[0], output);
 }
 }  // namespace js2c
 }  // namespace node

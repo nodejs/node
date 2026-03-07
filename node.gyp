@@ -6,6 +6,7 @@
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
     'force_dynamic_crt%': 0,
     'node_builtin_modules_path%': '',
+    'output_transpiled_ts%': '',
     'node_core_target_name%': 'node',
     'node_enable_v8_vtunejit%': 'false',
     'node_intermediate_lib_type%': 'static_library',
@@ -457,11 +458,15 @@
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
+    'node_js2c_flags%': [],
     'conditions': [
       ['GENERATOR == "ninja"', {
         'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
       }, {
         'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o'
+      }],
+      [ 'output_transpiled_ts!=""', {
+        'node_js2c_flags': [ '--output-transpiled-ts', '<(output_transpiled_ts)' ],
       }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
@@ -1108,6 +1113,7 @@
           ],
           'action': [
             '<(node_js2c_exec)',
+            '<@(node_js2c_flags)',
             '<@(_outputs)',
             'lib',
             'config.gypi',
@@ -1536,6 +1542,9 @@
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
+      'dependencies': [
+        'deps/crates/crates.gyp:swc_ts_strip_capi',
+      ],
       'include_dirs': [
         'tools',
         'src',

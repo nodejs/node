@@ -1217,7 +1217,6 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/ada
 	$(RM) -r $(TARNAME)/deps/brotli
 	$(RM) -r $(TARNAME)/deps/cares
-	$(RM) -r $(TARNAME)/deps/crates
 	$(RM) -r $(TARNAME)/deps/googletest
 	$(RM) -r $(TARNAME)/deps/histogram
 	$(RM) -r $(TARNAME)/deps/icu-small

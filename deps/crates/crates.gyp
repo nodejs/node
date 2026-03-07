@@ -71,5 +71,18 @@
         ],
       },
     },
+    {
+      'target_name': 'swc_ts_strip_capi',
+      'type': 'none',
+      'sources': [],
+      'dependencies': [
+        'node_crates',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          'src',
+        ],
+      },
+    },
   ]
 }

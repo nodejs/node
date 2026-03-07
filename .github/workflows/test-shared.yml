@@ -104,6 +104,7 @@ concurrency:
 
 env:
   FLAKY_TESTS: keep_retrying
+  RUSTC_VERSION: '1.85'
 
 permissions:
   contents: read
@@ -118,6 +119,12 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           persist-credentials: false
+
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
 
       - name: Make tarball
         if: ${{ github.event_name != 'workflow_dispatch' }}

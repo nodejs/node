@@ -45,7 +45,9 @@ let
   useSharedAda = builtins.hasAttr "ada" sharedLibDeps;
   useSharedOpenSSL = builtins.hasAttr "openssl" sharedLibDeps;
 
-  needsRustCompiler = withTemporal && !builtins.hasAttr "temporal_capi" sharedLibDeps;
+  # SWC (used by js2c to transpile TypeScript builtins) always requires Rust.
+  # Temporal also requires Rust when not using a shared temporal_capi.
+  needsRustCompiler = true;
 
   buildInputs = builtins.attrValues sharedLibDeps ++ pkgs.lib.optional useSharedICU icu;
   configureFlags = [
