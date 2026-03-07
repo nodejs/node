@@ -3,6 +3,7 @@
 
 require('../common');
 const assert = require('assert');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test that VirtualFileSystem can be created via vfs.create()
@@ -113,7 +114,7 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.mounted, false);
   myVfs.mount('/app/virtual');
   assert.strictEqual(myVfs.mounted, true);
-  assert.strictEqual(myVfs.mountPoint, '/app/virtual');
+  assert.strictEqual(myVfs.mountPoint, path.resolve('/app/virtual'));
 
   // With mount, shouldHandle should work
   assert.strictEqual(myVfs.shouldHandle('/app/virtual/data/file.txt'), true);
@@ -186,7 +187,7 @@ const vfs = require('node:vfs');
 
   // Mount at root
   myVfs.mount('/');
-  assert.strictEqual(myVfs.mountPoint, '/');
+  assert.strictEqual(myVfs.mountPoint, path.resolve('/'));
 
   // Access the mount point root itself (relativePath = '/')
   assert.strictEqual(myVfs.shouldHandle('/'), true);

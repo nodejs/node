@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test vfs-mount event
@@ -18,7 +19,7 @@ const vfs = require('node:vfs');
   myVfs.mount('/virtual');
 
   assert.strictEqual(mountEvents.length, 1);
-  assert.strictEqual(mountEvents[0].mountPoint, '/virtual');
+  assert.strictEqual(mountEvents[0].mountPoint, path.resolve('/virtual'));
   assert.strictEqual(mountEvents[0].overlay, false);
   assert.strictEqual(mountEvents[0].readonly, false);
 
@@ -41,7 +42,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 
   assert.strictEqual(unmountEvents.length, 1);
-  assert.strictEqual(unmountEvents[0].mountPoint, '/virtual');
+  assert.strictEqual(unmountEvents[0].mountPoint, path.resolve('/virtual'));
   assert.strictEqual(unmountEvents[0].overlay, false);
   assert.strictEqual(unmountEvents[0].readonly, false);
 
@@ -68,7 +69,7 @@ const vfs = require('node:vfs');
   myVfs.mount('/');
 
   assert.strictEqual(mountEvents.length, 1);
-  assert.strictEqual(mountEvents[0].mountPoint, '/');
+  assert.strictEqual(mountEvents[0].mountPoint, path.resolve('/'));
   assert.strictEqual(mountEvents[0].overlay, true);
 
   myVfs.unmount();
@@ -135,7 +136,7 @@ const vfs = require('node:vfs');
   } // VFS is automatically unmounted here via Symbol.dispose
 
   assert.strictEqual(unmountEvents.length, 1);
-  assert.strictEqual(unmountEvents[0].mountPoint, '/virtual');
+  assert.strictEqual(unmountEvents[0].mountPoint, path.resolve('/virtual'));
 
   process.removeListener('vfs-unmount', unmountListener);
 }

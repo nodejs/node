@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const path = require('path');
 
 // Test internal VFS utility functions for coverage.
 
@@ -19,17 +20,17 @@ assert.strictEqual(isAbsolutePath('foo'), false);
 assert.strictEqual(isAbsolutePath('./foo'), false);
 
 // isUnderMountPoint (already tested indirectly but exercised here directly)
-assert.strictEqual(isUnderMountPoint('/mount', '/mount'), true);
-assert.strictEqual(isUnderMountPoint('/mount/file', '/mount'), true);
-assert.strictEqual(isUnderMountPoint('/mountx', '/mount'), false);
-assert.strictEqual(isUnderMountPoint('/other', '/mount'), false);
+assert.strictEqual(isUnderMountPoint(path.resolve('/mount'), path.resolve('/mount')), true);
+assert.strictEqual(isUnderMountPoint(path.resolve('/mount/file'), path.resolve('/mount')), true);
+assert.strictEqual(isUnderMountPoint(path.resolve('/mountx'), path.resolve('/mount')), false);
+assert.strictEqual(isUnderMountPoint(path.resolve('/other'), path.resolve('/mount')), false);
 // Root mount point
 assert.strictEqual(isUnderMountPoint('/anything', '/'), true);
 
 // getRelativePath
-assert.strictEqual(getRelativePath('/mount', '/mount'), '/');
-assert.strictEqual(getRelativePath('/mount/file.js', '/mount'), '/file.js');
-assert.strictEqual(getRelativePath('/mount/a/b', '/mount'), '/a/b');
+assert.strictEqual(getRelativePath(path.resolve('/mount'), path.resolve('/mount')), '/');
+assert.strictEqual(getRelativePath(path.resolve('/mount/file.js'), path.resolve('/mount')), '/file.js');
+assert.strictEqual(getRelativePath(path.resolve('/mount/a/b'), path.resolve('/mount')), '/a/b');
 // Root mount point
 assert.strictEqual(getRelativePath('/foo/bar', '/'), '/foo/bar');
 
@@ -96,8 +97,8 @@ const vfs = require('node:vfs');
   myVfs.mount('/internals-test');
 
   // Realpath (default provider impl returns path as-is after stat check)
-  assert.strictEqual(myVfs.realpathSync('/internals-test/file.txt'), '/internals-test/file.txt');
-  assert.strictEqual(myVfs.realpathSync('/internals-test/dir'), '/internals-test/dir');
+  assert.strictEqual(myVfs.realpathSync('/internals-test/file.txt'), path.resolve('/internals-test/file.txt'));
+  assert.strictEqual(myVfs.realpathSync('/internals-test/dir'), path.resolve('/internals-test/dir'));
 
   // Realpath for non-existent path should throw
   assert.throws(() => myVfs.realpathSync('/internals-test/nonexistent'), { code: 'ENOENT' });

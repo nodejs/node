@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const path = require('path');
 const vfs = require('node:vfs');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
@@ -14,7 +15,7 @@ if (isMainThread) {
 
     // Set virtual cwd in main thread
     process.chdir('/virtual/project');
-    assert.strictEqual(process.cwd(), '/virtual/project');
+    assert.strictEqual(process.cwd(), path.resolve('/virtual/project'));
 
     // Worker should not have the hooked process.chdir/cwd
     const worker = new Worker(__filename, {
@@ -24,7 +25,7 @@ if (isMainThread) {
     worker.on('message', common.mustCall((msg) => {
       // Worker's process.cwd() should return the real cwd (not /virtual/project)
       // because VFS hooks are not automatically shared with workers
-      assert.notStrictEqual(msg.cwd, '/virtual/project');
+      assert.notStrictEqual(msg.cwd, path.resolve('/virtual/project'));
     }));
 
     worker.on('exit', common.mustCall((code) => {
@@ -41,7 +42,7 @@ if (isMainThread) {
 
     worker.on('message', common.mustCall((msg) => {
       assert.strictEqual(msg.success, true);
-      assert.strictEqual(msg.cwd, '/worker-virtual/data');
+      assert.strictEqual(msg.cwd, path.resolve('/worker-virtual/data'));
     }));
 
     worker.on('exit', common.mustCall((code) => {
@@ -58,7 +59,7 @@ if (isMainThread) {
     worker.on('message', common.mustCall((msg) => {
       assert.strictEqual(msg.success, true);
       assert.strictEqual(msg.virtualCwdEnabled, true);
-      assert.strictEqual(msg.vfsCwd, '/project/src');
+      assert.strictEqual(msg.vfsCwd, path.resolve('/project/src'));
     }));
 
     worker.on('exit', common.mustCall((code) => {

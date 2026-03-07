@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test globSync with VFS mounted directory
@@ -19,16 +20,16 @@ const vfs = require('node:vfs');
   // Test simple glob pattern
   const jsFiles = fs.globSync('/virtual/src/*.js');
   assert.strictEqual(jsFiles.length, 2);
-  assert.ok(jsFiles.includes('/virtual/src/index.js'));
-  assert.ok(jsFiles.includes('/virtual/src/utils.js'));
+  assert.ok(jsFiles.includes(path.normalize('/virtual/src/index.js')));
+  assert.ok(jsFiles.includes(path.normalize('/virtual/src/utils.js')));
 
   // Test recursive glob pattern
   const allJsFiles = fs.globSync('/virtual/src/**/*.js');
   assert.strictEqual(allJsFiles.length, 4);
-  assert.ok(allJsFiles.includes('/virtual/src/index.js'));
-  assert.ok(allJsFiles.includes('/virtual/src/utils.js'));
-  assert.ok(allJsFiles.includes('/virtual/src/lib/helper.js'));
-  assert.ok(allJsFiles.includes('/virtual/src/lib/deep/nested.js'));
+  assert.ok(allJsFiles.includes(path.normalize('/virtual/src/index.js')));
+  assert.ok(allJsFiles.includes(path.normalize('/virtual/src/utils.js')));
+  assert.ok(allJsFiles.includes(path.normalize('/virtual/src/lib/helper.js')));
+  assert.ok(allJsFiles.includes(path.normalize('/virtual/src/lib/deep/nested.js')));
 
   // Test glob with directory matching
   const dirs = fs.globSync('/virtual/src/*/', { withFileTypes: false });
@@ -51,16 +52,16 @@ const vfs = require('node:vfs');
   fs.glob('/async-virtual/async-src/*.js', common.mustCall((err, files) => {
     assert.strictEqual(err, null);
     assert.strictEqual(files.length, 2);
-    assert.ok(files.includes('/async-virtual/async-src/index.js'));
-    assert.ok(files.includes('/async-virtual/async-src/utils.js'));
+    assert.ok(files.includes(path.normalize('/async-virtual/async-src/index.js')));
+    assert.ok(files.includes(path.normalize('/async-virtual/async-src/utils.js')));
 
     // Test recursive pattern with callback
     fs.glob('/async-virtual/async-src/**/*.js', common.mustCall((err, allFiles) => {
       assert.strictEqual(err, null);
       assert.strictEqual(allFiles.length, 3);
-      assert.ok(allFiles.includes('/async-virtual/async-src/index.js'));
-      assert.ok(allFiles.includes('/async-virtual/async-src/utils.js'));
-      assert.ok(allFiles.includes('/async-virtual/async-src/lib/helper.js'));
+      assert.ok(allFiles.includes(path.normalize('/async-virtual/async-src/index.js')));
+      assert.ok(allFiles.includes(path.normalize('/async-virtual/async-src/utils.js')));
+      assert.ok(allFiles.includes(path.normalize('/async-virtual/async-src/lib/helper.js')));
 
       myVfs.unmount();
     }));
@@ -84,8 +85,8 @@ const vfs = require('node:vfs');
     tsFiles.push(file);
   }
   assert.strictEqual(tsFiles.length, 2);
-  assert.ok(tsFiles.includes('/promise-virtual/promise-src/a.ts'));
-  assert.ok(tsFiles.includes('/promise-virtual/promise-src/b.ts'));
+  assert.ok(tsFiles.includes(path.normalize('/promise-virtual/promise-src/a.ts')));
+  assert.ok(tsFiles.includes(path.normalize('/promise-virtual/promise-src/b.ts')));
 
   // Test multiple patterns
   const allFiles = [];
@@ -132,8 +133,8 @@ const vfs = require('node:vfs');
 
   const files = fs.globSync(['/multipat/multi/*.js', '/multipat/multi/*.ts']);
   assert.strictEqual(files.length, 2);
-  assert.ok(files.includes('/multipat/multi/a.js'));
-  assert.ok(files.includes('/multipat/multi/b.ts'));
+  assert.ok(files.includes(path.normalize('/multipat/multi/a.js')));
+  assert.ok(files.includes(path.normalize('/multipat/multi/b.ts')));
 
   myVfs.unmount();
 }
