@@ -1,0 +1,127 @@
+name: Continuous Integration
+on:
+    push:
+    pull_request:
+    schedule:
+        - cron: "0 0 1,15 * *"
+
+jobs:
+    check:
+        name: Check
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                rust:
+                    - stable
+                    - nightly
+                    - 1.57.0 # lowest supported version
+                flags:
+                    - --all-features
+                    - --no-default-features
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: ${{ matrix.rust }}
+                  override: true
+            - uses: actions-rs/cargo@v1
+              with:
+                  command: check
+                  args: ${{ matrix.flags }}
+
+    test:
+        name: Tests
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                rust:
+                    - stable
+                    - nightly
+                    - 1.57.0 # lowest supported version
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: ${{ matrix.rust }}
+                  override: true
+            - uses: actions-rs/cargo@v1
+              with:
+                  command: test
+                  args: --all-features
+
+    nostd:
+        name: no_std build
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                rust:
+                    - stable
+                    - nightly
+                    - 1.57.0 # lowest supported version
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: ${{ matrix.rust }}
+                  override: true
+            - uses: actions-rs/cargo@v1
+              with:
+                  command: build
+                  args: --no-default-features
+
+    fmt:
+        name: Rustfmt
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: stable
+                  override: true
+                  components: rustfmt
+            - uses: actions-rs/cargo@v1
+              with:
+                  command: fmt
+                  args: --all -- --check
+
+    clippy:
+        name: Clippy
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                rust:
+                    - stable
+                    - nightly
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: ${{ matrix.rust }}
+                  override: true
+                  components: clippy
+            - uses: actions-rs/clippy-check@v1
+              with:
+                  name: Clippy-${{ matrix.rust }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  args: --all-features
+
+    miri:
+        name: Miri
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: nightly
+                  override: true
+                  components: miri
+            - name: Run Miri
+              run: |
+                  cargo miri setup
+                  env MIRIFLAGS=-Zmiri-disable-isolation cargo miri test -- --skip proptest

@@ -34,7 +34,7 @@ Usage is under the MIT license, available at
 ### Contribution
 
 Contributions are licensed under both the MIT license and the Apache License,
-Version 2.0, available at <htps://www.apache.org/licenses/LICENSE-2.0>. Unless
+Version 2.0, available at <https://www.apache.org/licenses/LICENSE-2.0>. Unless
 you explicitly state otherwise, any contribution intentionally submitted for
 inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as mentioned, without any additional terms or conditions.

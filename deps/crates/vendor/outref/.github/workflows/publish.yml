@@ -1,0 +1,16 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+      - run: cargo publish --dry-run
+      - run: cargo publish

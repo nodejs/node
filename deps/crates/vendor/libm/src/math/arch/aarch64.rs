@@ -30,6 +30,12 @@ pub fn fmaf(mut x: f32, y: f32, z: f32) -> f32 {
     x
 }
 
+// NB: `frintx` is technically the correct instruction for C's `rint`. However, in Rust (and LLVM
+// by default), `rint` is identical to `roundeven` (no fpenv interaction) so we use the
+// side-effect-free `frintn`.
+//
+// In general, C code that calls Rust's libm should assume that fpenv is ignored.
+
 pub fn rint(mut x: f64) -> f64 {
     // SAFETY: `frintn` is available with neon and has no side effects.
     //

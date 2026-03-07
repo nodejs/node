@@ -1,0 +1,19 @@
+error[E0277]: the trait bound `NotZerocopy<u32>: FromBytes` is not satisfied
+  --> $DIR/include_value.rs:17:5
+   |
+17 |     zerocopy::include_value!("../../testdata/include_value/data");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `FromBytes` is not implemented for `NotZerocopy<u32>`
+   |
+note: required by a bound in `NOT_FROM_BYTES::transmute`
+  --> $DIR/include_value.rs:17:5
+   |
+17 |     zerocopy::include_value!("../../testdata/include_value/data");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |     |
+   |     required by a bound in this
+   |     required by this bound in `NOT_FROM_BYTES::transmute`
+   = note: this error originates in the macro `$crate::transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0277`.

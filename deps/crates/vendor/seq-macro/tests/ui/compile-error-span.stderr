@@ -1,0 +1,23 @@
+error: error number 0
+ --> tests/ui/compile-error-span.rs:4:5
+  |
+4 |     compile_error!(concat!("error number ", stringify!(N)));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: error number 1
+ --> tests/ui/compile-error-span.rs:4:5
+  |
+4 |     compile_error!(concat!("error number ", stringify!(N)));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: error number 2
+ --> tests/ui/compile-error-span.rs:4:5
+  |
+4 |     compile_error!(concat!("error number ", stringify!(N)));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: error number 3
+ --> tests/ui/compile-error-span.rs:4:5
+  |
+4 |     compile_error!(concat!("error number ", stringify!(N)));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,20 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Macros to prevent mistakes"
+documentation = "https://rustdoc.swc.rs/swc_config_macro/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_config_macro"
+repository    = { workspace = true }
+version       = "1.0.1"
+
+[lib]
+bench      = false
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote       = { workspace = true }
+syn         = { workspace = true }
+
+swc_macros_common = { version = "1.0.1", path = "../swc_macros_common" }

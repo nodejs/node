@@ -1,0 +1,18 @@
+[package]
+authors       = ["강동윤 <kdy1@dudy.kr>"]
+description   = "Macros for EqIgnoreSpan and TypeEq."
+documentation = "https://rustdoc.swc.rs/swc_eq_ignore_macros/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_eq_ignore_macros"
+repository    = { workspace = true }
+version       = "1.0.1"
+
+[lib]
+bench      = false
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote       = { workspace = true }
+syn         = { workspace = true, features = ["full"] }

@@ -15,7 +15,7 @@ use super::{get_high_word, k_cos, k_sin, rem_pio2};
 /// Both the sine and cosine of `x` (f64).
 ///
 /// `x` is specified in radians and the return value is (sin(x), cos(x)).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn sincos(x: f64) -> (f64, f64) {
     let s: f64;
     let c: f64;

@@ -20,7 +20,7 @@ const S2: f64 = 0.0083333293858894631756; /*  0x111110896efbb2.0p-59 */
 const S3: f64 = -0.000198393348360966317347; /* -0x1a00f9e2cae774.0p-65 */
 const S4: f64 = 0.0000027183114939898219064; /*  0x16cd878c3b46a7.0p-71 */
 
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub(crate) fn k_sinf(x: f64) -> f32 {
     let z = x * x;
     let w = z * z;

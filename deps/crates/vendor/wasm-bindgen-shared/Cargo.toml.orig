@@ -1,0 +1,26 @@
+[package]
+authors = ["The wasm-bindgen Developers"]
+description = """
+Shared support between wasm-bindgen and wasm-bindgen cli, an internal
+dependency.
+"""
+documentation = "https://docs.rs/wasm-bindgen-shared"
+edition = "2021"
+homepage = "https://wasm-bindgen.github.io/wasm-bindgen/"
+include = ["/build.rs", "/LICENSE-*", "/src"]
+license = "MIT OR Apache-2.0"
+name = "wasm-bindgen-shared"
+repository = "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared"
+rust-version = "1.71"
+version = "0.2.114"
+
+# Because only a single `wasm_bindgen` version can be used in a dependency
+# graph, pretend we link a native library so that `cargo` will provide better
+# error messages than the esoteric linker errors we would otherwise trigger.
+links = "wasm_bindgen"
+
+[lints]
+workspace = true
+
+[dependencies]
+unicode-ident = "1.0.5"

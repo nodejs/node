@@ -12,8 +12,9 @@ use crate::parse::Peek;
 use crate::sealed::lookahead;
 #[cfg(feature = "parsing")]
 use crate::token::CustomToken;
+use alloc::string::ToString;
+use core::iter;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
-use std::iter;
 
 /// Additional methods for `Ident` not provided by proc-macro2 or libproc_macro.
 ///

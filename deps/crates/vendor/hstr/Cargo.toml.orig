@@ -1,0 +1,46 @@
+[package]
+authors     = ["강동윤 <kdy1997.dev@gmail.com>"]
+description = "A string type which is optimized for hash operations."
+edition     = { workspace = true }
+license     = { workspace = true }
+name        = "hstr"
+repository  = { workspace = true }
+version     = "3.0.4"
+
+[lib]
+bench = false
+
+
+[features]
+atom_size_128 = []
+atom_size_64  = []
+rkyv          = ["dep:rkyv"]
+serde         = ["dep:serde"]
+
+[dependencies]
+hashbrown             = { workspace = true }
+new_debug_unreachable = { workspace = true }
+once_cell             = { workspace = true }
+rkyv                  = { workspace = true, optional = true }
+rustc-hash            = { workspace = true }
+serde                 = { workspace = true, optional = true }
+triomphe              = { workspace = true }
+
+
+[dev-dependencies]
+compact_str  = { workspace = true }
+criterion    = { workspace = true }
+kstring      = { workspace = true }
+num_cpus     = { workspace = true }
+par-iter     = { workspace = true }
+rand         = { workspace = true }
+serde_json   = { workspace = true }
+smartstring  = { workspace = true }
+smol_str     = { workspace = true }
+string_cache = { workspace = true }
+
+swc_malloc = { version = "1.2.4", path = "../swc_malloc" }
+
+[[bench]]
+harness = false
+name    = "libs"

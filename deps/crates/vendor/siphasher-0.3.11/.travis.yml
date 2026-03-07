@@ -1,0 +1,10 @@
+language: rust
+
+os:
+  - linux
+  - osx
+
+rust:
+  - nightly
+  - beta
+  - stable

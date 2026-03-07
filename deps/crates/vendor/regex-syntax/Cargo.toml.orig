@@ -1,0 +1,63 @@
+[package]
+name = "regex-syntax"
+version = "0.8.10"  #:version
+authors = ["The Rust Project Developers", "Andrew Gallant <jamslam@gmail.com>"]
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/rust-lang/regex/tree/master/regex-syntax"
+repository = "https://github.com/rust-lang/regex"
+documentation = "https://docs.rs/regex-syntax"
+description = "A regular expression parser."
+workspace = ".."
+edition = "2021"
+rust-version = "1.65"
+include.workspace = true
+
+# Features are documented in the "Crate features" section of the crate docs:
+# https://docs.rs/regex-syntax/*/#crate-features
+[features]
+default = ["std", "unicode"]
+std = []
+arbitrary = ["dep:arbitrary"]
+
+unicode = [
+  "unicode-age",
+  "unicode-bool",
+  "unicode-case",
+  "unicode-gencat",
+  "unicode-perl",
+  "unicode-script",
+  "unicode-segment",
+]
+unicode-age = []
+unicode-bool = []
+unicode-case = []
+unicode-gencat = []
+unicode-perl = []
+unicode-script = []
+unicode-segment = []
+
+[dependencies]
+arbitrary = { version = "1.3.0", features = ["derive"], optional = true }
+
+[package.metadata.docs.rs]
+# We want to document all features.
+all-features = true
+# Since this crate's feature setup is pretty complicated, it is worth opting
+# into a nightly unstable option to show the features that need to be enabled
+# for public API items. To do that, we set 'docsrs_regex', and when that's
+# enabled, we enable the 'doc_cfg' feature.
+#
+# To test this locally, run:
+#
+#     RUSTDOCFLAGS="--cfg docsrs_regex" cargo +nightly doc --all-features
+#
+# Note that we use `docsrs_regex` instead of the more standard `docsrs` because
+# other crates use that same `cfg` knob. And since we are enabling a nightly
+# feature, they sometimes break. By using our "own" `cfg` knob, we are closer
+# to being masters of our own destiny.
+rustdoc-args = ["--cfg", "docsrs_regex"]
+
+# This squashes the (AFAIK) erroneous warning that `docsrs_regex` is not a
+# valid `cfg` knob.
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(docsrs_regex)'] }

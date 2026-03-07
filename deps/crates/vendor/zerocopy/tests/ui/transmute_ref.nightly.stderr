@@ -1,0 +1,359 @@
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:20:22
+   |
+20 |     let _: &mut u8 = transmute_ref!(&0u8);
+   |                      ^^^^^^^^^^^^^^^^^^^^ types differ in mutability
+   |
+   = note: expected mutable reference `&mut u8`
+                      found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:20:22
+   |
+20 |     let _: &mut u8 = transmute_ref!(&0u8);
+   |                      ^^^^^^^^^^^^^^^^^^^^ types differ in mutability
+   |
+   = note: expected mutable reference `&mut u8`
+                      found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:20:22
+   |
+20 |     let _: &mut u8 = transmute_ref!(&0u8);
+   |                      ^^^^^^^^^^^^^^^^^^^^ types differ in mutability
+   |
+   = note: expected mutable reference `&mut u8`
+                      found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:20:22
+   |
+20 |     let _: &mut u8 = transmute_ref!(&0u8);
+   |                      ^^^^^^^^^^^^^^^^^^^^ types differ in mutability
+   |
+   = note: expected mutable reference `&mut u8`
+                      found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:29:36
+   |
+29 | const DST_NOT_A_REFERENCE: usize = transmute_ref!(&0u8);
+   |                                    ^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:29:36
+   |
+29 | const DST_NOT_A_REFERENCE: usize = transmute_ref!(&0u8);
+   |                                    ^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:29:36
+   |
+29 | const DST_NOT_A_REFERENCE: usize = transmute_ref!(&0u8);
+   |                                    ^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:29:36
+   |
+29 | const DST_NOT_A_REFERENCE: usize = transmute_ref!(&0u8);
+   |                                    ^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstA: FromBytes` is not satisfied
+  --> $DIR/transmute_ref.rs:40:35
+   |
+40 | const DST_NOT_FROM_BYTES: &DstA = transmute_ref!(&AU16(0));
+   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                   |
+   |                                   unsatisfied trait bound
+   |                                   required by a bound introduced by this call
+   |
+help: the trait `FromBytes` is not implemented for `DstA`
+  --> $DIR/transmute_ref.rs:37:1
+   |
+37 | struct DstA(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromBytes)]` to `DstA`
+   = help: the following other types implement trait `FromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 80 others
+note: required by a bound in `DST_NOT_FROM_BYTES::AssertDstIsFromBytes`
+  --> $DIR/transmute_ref.rs:40:35
+   |
+40 | const DST_NOT_FROM_BYTES: &DstA = transmute_ref!(&AU16(0));
+   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertDstIsFromBytes`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstB: Immutable` is not satisfied
+  --> $DIR/transmute_ref.rs:48:34
+   |
+48 | const DST_NOT_IMMUTABLE: &DstB = transmute_ref!(&AU16(0));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                  |
+   |                                  unsatisfied trait bound
+   |                                  required by a bound introduced by this call
+   |
+help: the trait `Immutable` is not implemented for `DstB`
+  --> $DIR/transmute_ref.rs:45:1
+   |
+45 | struct DstB(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(Immutable)]` to `DstB`
+   = help: the following other types implement trait `Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 130 others
+note: required by a bound in `DST_NOT_IMMUTABLE::AssertDstIsImmutable`
+  --> $DIR/transmute_ref.rs:48:34
+   |
+48 | const DST_NOT_IMMUTABLE: &DstB = transmute_ref!(&AU16(0));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertDstIsImmutable`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:53:54
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(0usize);
+   |                                       ---------------^^^^^^-
+   |                                       |              |
+   |                                       |              expected `&_`, found `usize`
+   |                                       expected due to this
+   |
+   = note: expected reference `&_`
+                   found type `usize`
+help: consider borrowing here
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(&0usize);
+   |                                                      +
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:53:39
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(0usize);
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:53:39
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(0usize);
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:53:39
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(0usize);
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:53:39
+   |
+53 | const SRC_DST_NOT_REFERENCES: usize = transmute_ref!(0usize);
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^ expected `usize`, found `&_`
+   |
+   = note:   expected type `usize`
+           found reference `&_`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/transmute_ref.rs:62:49
+   |
+62 | const SRC_NOT_A_REFERENCE: &u8 = transmute_ref!(0usize);
+   |                                  ---------------^^^^^^-
+   |                                  |              |
+   |                                  |              expected `&_`, found `usize`
+   |                                  expected due to this
+   |
+   = note: expected reference `&_`
+                   found type `usize`
+help: consider borrowing here
+   |
+62 | const SRC_NOT_A_REFERENCE: &u8 = transmute_ref!(&0usize);
+   |                                                 +
+
+error[E0277]: the trait bound `SrcA: IntoBytes` is not satisfied
+  --> $DIR/transmute_ref.rs:70:33
+   |
+70 | const SRC_NOT_AS_BYTES: &AU16 = transmute_ref!(&SrcA(AU16(0)));
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                 |
+   |                                 unsatisfied trait bound
+   |                                 required by a bound introduced by this call
+   |
+help: the trait `IntoBytes` is not implemented for `SrcA`
+  --> $DIR/transmute_ref.rs:67:1
+   |
+67 | struct SrcA(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(IntoBytes)]` to `SrcA`
+   = help: the following other types implement trait `IntoBytes`:
+             ()
+             AU16
+             AtomicBool
+             AtomicI16
+             AtomicI32
+             AtomicI64
+             AtomicI8
+             AtomicIsize
+           and 69 others
+note: required by a bound in `SRC_NOT_AS_BYTES::AssertSrcIsIntoBytes`
+  --> $DIR/transmute_ref.rs:70:33
+   |
+70 | const SRC_NOT_AS_BYTES: &AU16 = transmute_ref!(&SrcA(AU16(0)));
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertSrcIsIntoBytes`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcA: IntoBytes` is not satisfied
+  --> $DIR/transmute_ref.rs:70:33
+   |
+70 | const SRC_NOT_AS_BYTES: &AU16 = transmute_ref!(&SrcA(AU16(0)));
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `IntoBytes` is not implemented for `SrcA`
+  --> $DIR/transmute_ref.rs:67:1
+   |
+67 | struct SrcA(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(IntoBytes)]` to `SrcA`
+   = help: the following other types implement trait `IntoBytes`:
+             ()
+             AU16
+             AtomicBool
+             AtomicI16
+             AtomicI32
+             AtomicI64
+             AtomicI8
+             AtomicIsize
+           and 69 others
+note: required by a bound in `SRC_NOT_AS_BYTES::AssertSrcIsIntoBytes`
+  --> $DIR/transmute_ref.rs:70:33
+   |
+70 | const SRC_NOT_AS_BYTES: &AU16 = transmute_ref!(&SrcA(AU16(0)));
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertSrcIsIntoBytes`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcB: Immutable` is not satisfied
+  --> $DIR/transmute_ref.rs:79:34
+   |
+79 | const SRC_NOT_IMMUTABLE: &AU16 = transmute_ref!(&SrcB(AU16(0)));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                  |
+   |                                  unsatisfied trait bound
+   |                                  required by a bound introduced by this call
+   |
+help: the trait `Immutable` is not implemented for `SrcB`
+  --> $DIR/transmute_ref.rs:76:1
+   |
+76 | struct SrcB(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(Immutable)]` to `SrcB`
+   = help: the following other types implement trait `Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 130 others
+note: required by a bound in `SRC_NOT_IMMUTABLE::AssertSrcIsImmutable`
+  --> $DIR/transmute_ref.rs:79:34
+   |
+79 | const SRC_NOT_IMMUTABLE: &AU16 = transmute_ref!(&SrcB(AU16(0)));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertSrcIsImmutable`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcB: Immutable` is not satisfied
+  --> $DIR/transmute_ref.rs:79:34
+   |
+79 | const SRC_NOT_IMMUTABLE: &AU16 = transmute_ref!(&SrcB(AU16(0)));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `Immutable` is not implemented for `SrcB`
+  --> $DIR/transmute_ref.rs:76:1
+   |
+76 | struct SrcB(AU16);
+   | ^^^^^^^^^^^
+   = note: Consider adding `#[derive(Immutable)]` to `SrcB`
+   = help: the following other types implement trait `Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 130 others
+note: required by a bound in `SRC_NOT_IMMUTABLE::AssertSrcIsImmutable`
+  --> $DIR/transmute_ref.rs:79:34
+   |
+79 | const SRC_NOT_IMMUTABLE: &AU16 = transmute_ref!(&SrcB(AU16(0)));
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `AssertSrcIsImmutable`
+   = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the method `transmute_ref` exists for struct `zerocopy::util::macro_util::Wrap<&[u8], &[u8; 1]>`, but its trait bounds were not satisfied
+   --> $DIR/transmute_ref.rs:84:31
+    |
+ 84 | const SRC_UNSIZED: &[u8; 1] = transmute_ref!(&[0u8][..]);
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: src/util/macro_util.rs:692:1
+    |
+692 | pub struct Wrap<Src, Dst>(pub Src, pub PhantomData<Dst>);
+    | ------------------------- doesn't satisfy `_: TransmuteRefDst<'_>`
+    |
+    = note: the following trait bounds were not satisfied:
+            `[u8]: Sized`
+            `<[u8; 1] as KnownLayout>::PointerMetadata = usize`
+            which is required by `zerocopy::util::macro_util::Wrap<&[u8], &[u8; 1]>: zerocopy::util::macro_util::TransmuteRefDst<'_>`
+    = note: this error originates in the macro `transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 21 previous errors
+
+Some errors have detailed explanations: E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.

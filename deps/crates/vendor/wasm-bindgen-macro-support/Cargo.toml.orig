@@ -1,0 +1,26 @@
+[package]
+authors = ["The wasm-bindgen Developers"]
+description = "Implementation APIs for the `#[wasm_bindgen]` attribute"
+documentation = "https://docs.rs/wasm-bindgen"
+edition = "2021"
+homepage = "https://wasm-bindgen.github.io/wasm-bindgen/"
+include = ["/LICENSE-*", "/src"]
+license = "MIT OR Apache-2.0"
+name = "wasm-bindgen-macro-support"
+repository = "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro-support"
+rust-version = "1.71"
+version = "0.2.114"
+
+[features]
+extra-traits = ["syn/extra-traits"]
+strict-macro = []
+
+[dependencies]
+bumpalo = "3.0.0"
+proc-macro2 = "1.0"
+quote = '1.0'
+syn = { version = '2.0', features = ['visit', 'visit-mut', 'full', 'extra-traits'] }
+wasm-bindgen-shared = { path = "../shared", version = "=0.2.114" }
+
+[lints]
+workspace = true

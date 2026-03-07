@@ -1,0 +1,58 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "zerotrie"
+description = "A data structure that efficiently maps strings to integers"
+version = "0.2.3"
+
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version = "1.82"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+databake = { workspace = true, features = ["derive"], optional = true }
+displaydoc = { workspace = true }
+litemap = { workspace = true, features = ["alloc"], optional = true }
+serde_core = { workspace = true, optional = true }
+yoke = { workspace = true, features = ["derive"], optional = true }
+zerofrom = { workspace = true, optional = true }
+zerovec = { workspace = true, optional = true }
+
+[lib]
+bench = false  # This option is required for Benchmark CI
+
+[features]
+default = []
+alloc = []
+databake = ["dep:databake", "zerovec?/databake"]
+litemap = ["dep:litemap", "alloc"]
+serde = ["dep:serde_core", "dep:litemap", "alloc", "litemap/serde", "zerovec?/serde"]
+yoke = ["dep:yoke"]
+zerofrom = ["dep:zerofrom"]
+
+[[bench]]
+name = "overview"
+harness = false
+required-features = ["alloc", "litemap"]
+
+[[test]]
+name = "asciitrie_test"
+required-features = ["alloc", "litemap"]
+
+[[test]]
+name = "builder_test"
+required-features = ["alloc", "litemap"]
+
+[[test]]
+name = "locale_aux_test"
+required-features = ["alloc", "litemap"]

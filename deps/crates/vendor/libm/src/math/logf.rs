@@ -22,7 +22,7 @@ const LG3: f32 = 0.28498786688; /*  0x91e9ee.0p-25 */
 const LG4: f32 = 0.24279078841; /*  0xf89e26.0p-26 */
 
 /// The natural logarithm of `x` (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn logf(mut x: f32) -> f32 {
     let x1p25 = f32::from_bits(0x4c000000); // 0x1p25f === 2 ^ 25
 

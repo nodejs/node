@@ -1,0 +1,101 @@
+warning: unused import: `zerocopy_renamed::KnownLayout`
+  --> $DIR/late_compile_pass.rs:15:5
+   |
+15 | use zerocopy_renamed::KnownLayout;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:29:10
+   |
+29 | #[derive(TryFromBytes)]
+   |          ^^^^^^^^^^^^ the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `TryFromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:41:10
+   |
+41 | #[derive(FromZeros)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/late_compile_pass.rs:41:10
+   |
+41 | #[derive(FromZeros)]
+   |          ^^^^^^^^^ the trait `FromZeros` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ the trait `FromZeros` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::FromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::FromBytes` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::IntoBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:70:10
+   |
+70 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::IntoBytes` is not implemented for `NotZerocopy`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/late_compile_pass.rs:83:10
+   |
+83 | #[derive(Unaligned)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/late_compile_pass.rs:93:10
+   |
+93 | #[derive(Unaligned)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+   --> $DIR/late_compile_pass.rs:102:10
+    |
+102 | #[derive(Unaligned)]
+    |          ^^^^^^^^^ the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 10 previous errors; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0277`.

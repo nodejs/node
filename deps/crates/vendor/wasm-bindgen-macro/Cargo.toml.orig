@@ -1,0 +1,34 @@
+[package]
+authors = ["The wasm-bindgen Developers"]
+description = """
+Definition of the `#[wasm_bindgen]` attribute, an internal dependency
+"""
+documentation = "https://docs.rs/wasm-bindgen"
+edition = "2021"
+homepage = "https://wasm-bindgen.github.io/wasm-bindgen/"
+include = ["/LICENSE-*", "/src"]
+license = "MIT OR Apache-2.0"
+name = "wasm-bindgen-macro"
+repository = "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro"
+rust-version = "1.71"
+version = "0.2.114"
+
+[lib]
+proc-macro = true
+
+[features]
+strict-macro = ["wasm-bindgen-macro-support/strict-macro"]
+
+[dependencies]
+quote = "1.0"
+wasm-bindgen-macro-support = { path = "../macro-support", version = "=0.2.114" }
+
+[dev-dependencies]
+js-sys = { path = "../js-sys" }
+trybuild = "1.0"
+wasm-bindgen = { path = "../.." }
+wasm-bindgen-futures = { path = "../futures" }
+web-sys = { path = "../web-sys", features = ["Worker"] }
+
+[lints]
+workspace = true

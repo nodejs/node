@@ -10,8 +10,6 @@
  * ====================================================
  */
 
-use core::f32;
-
 const LN2_HI: f32 = 6.9313812256e-01; /* 0x3f317180 */
 const LN2_LO: f32 = 9.0580006145e-06; /* 0x3717f7d1 */
 /* |(log(1+s)-log(1-s))/s - Lg(s)| < 2**-34.24 (~[-4.95e-11, 4.97e-11]). */
@@ -21,7 +19,7 @@ const LG3: f32 = 0.28498786688; /* 0x91e9ee.0p-25 */
 const LG4: f32 = 0.24279078841; /* 0xf89e26.0p-26 */
 
 /// The natural logarithm of 1+`x` (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn log1pf(x: f32) -> f32 {
     let mut ui: u32 = x.to_bits();
     let hfsq: f32;

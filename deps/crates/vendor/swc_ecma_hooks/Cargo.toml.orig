@@ -1,0 +1,22 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Composable hooks for swc ecmascript visitors"
+documentation = "https://rustdoc.swc.rs/swc_ecma_hooks/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_ecma_hooks"
+repository    = { workspace = true }
+version       = "0.4.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[dependencies]
+swc_atoms      = { version = "9.0.0", path = "../swc_atoms" }
+swc_common     = { version = "18.0.1", path = "../swc_common" }
+swc_ecma_ast   = { version = "20.0.0", path = "../swc_ecma_ast" }
+swc_ecma_visit = { version = "20.0.0", path = "../swc_ecma_visit" }

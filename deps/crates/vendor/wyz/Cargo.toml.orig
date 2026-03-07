@@ -1,0 +1,54 @@
+################################################################################
+#                               Project Manifest                               #
+#                                                                              #
+# This file describes the Rust project to the Cargo build tool for operations. #
+################################################################################
+
+[package]
+name = "wyz"
+version = "0.5.1"
+authors = [
+	"myrrlyn <self@myrrlyn.dev>",
+]
+edition = "2018"
+categories = [
+	"no-std",
+]
+description = "myrrlyn’s utility collection"
+documentation = "https://docs.rs/wyz"
+homepage = "https://myrrlyn.net/crates/wyz"
+include = [
+	"Cargo.toml",
+	"LICENSE.txt",
+	"README.md",
+	"src/**/*.rs",
+]
+keywords = [
+]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/myrrlyn/wyz"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dependencies.once_cell]
+version = "1"
+optional = true
+
+[dependencies.tap]
+version = "1"
+
+[dependencies.typemap]
+version = "0.3"
+optional = true
+
+[features]
+alloc = []
+garbage = [
+	"once_cell",
+	"typemap",
+]
+default = ["std"]
+std = ["alloc"]

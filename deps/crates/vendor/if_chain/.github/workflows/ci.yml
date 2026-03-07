@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+  schedule:
+  - cron: '0 1 27 * *'
+
+jobs:
+  main:
+    name: Main
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+        - nightly
+        - stable
+        - 1.12.0
+        include:
+        - rust: nightly
+          components: clippy
+
+    steps:
+
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        profile: minimal
+        override: true
+        components: ${{ matrix.components }}
+
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+
+    - if: ${{ matrix.rust == 'nightly' }}
+      name: Check Clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: -- -D warnings

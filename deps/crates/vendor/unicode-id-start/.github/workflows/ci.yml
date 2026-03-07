@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule: [cron: "40 1 * * *"]
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  pre_ci:
+    uses: dtolnay/.github/.github/workflows/pre_ci.yml@master
+
+  unicode:
+    name: latest Unicode
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - uses: oxc-project/setup-rust@@v1.0.0
+      - id: ucd-generate
+        run: echo "version=$(grep 'ucd-generate [0-9]\+\.[0-9]\+\.[0-9]\+' tests/tables/tables.rs --only-matching)" >> $GITHUB_OUTPUT
+      - run: cargo install ucd-generate
+      - run: curl https://www.unicode.org/Public/zipped/latest/UCD.zip --location --remote-name --silent --show-error --fail --retry 2
+      - run: unzip UCD.zip -d UCD
+      - run: ucd-generate property-bool UCD --include ID_Start,ID_Continue > tests/tables/tables.rs
+      - run: ucd-generate property-bool UCD --include ID_Start,ID_Continue --fst-dir tests/fst
+      - run: ucd-generate property-bool UCD --include ID_Start,ID_Continue --trie-set > tests/trie/trie.rs
+      - run: cargo run --manifest-path generate/Cargo.toml
+      - run: sed --in-place 's/ucd-generate [0-9]\+\.[0-9]\+\.[0-9]\+/${{steps.ucd-generate.outputs.version}}/' tests/tables/tables.rs tests/trie/trie.rs
+      - run: git diff --exit-code
+
+  test:
+    name: Rust ${{matrix.rust}}
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly, beta, stable]
+    timeout-minutes: 15
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - run: rm rust-toolchain.toml
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.rust}}
+      - name: Enable type layout randomization
+        run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
+        if: matrix.rust == 'nightly'
+      - run: cargo test
+      - run: cargo check --benches
+
+  msrv:
+    name: Rust 1.31.0
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - uses: oxc-project/setup-rust@@v1.0.0
+      - run: cargo check --manifest-path tests/crate/Cargo.toml
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - uses: oxc-project/setup-rust@@v1.0.0
+        with:
+          components: clippy
+      - run: cargo clippy --tests --benches --workspace -- -Dclippy::all -Dclippy::pedantic

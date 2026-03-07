@@ -1,0 +1,29 @@
+warning: unused `#[macro_use]` import
+  --> $DIR/msrv_specific.rs:12:1
+   |
+12 | #[macro_use]
+   | ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/msrv_specific.rs:37:9
+   |
+37 |         is_into_bytes_1::<IntoBytes1<AU16>>();
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   |
+note: required because of the requirements on the impl of `zerocopy_renamed::IntoBytes` for `IntoBytes1<AU16>`
+  --> $DIR/msrv_specific.rs:25:10
+   |
+25 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+note: required by a bound in `is_into_bytes_1`
+  --> $DIR/msrv_specific.rs:35:23
+   |
+35 | fn is_into_bytes_1<T: IntoBytes>() {
+   |                       ^^^^^^^^^ required by this bound in `is_into_bytes_1`
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to previous error; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0277`.

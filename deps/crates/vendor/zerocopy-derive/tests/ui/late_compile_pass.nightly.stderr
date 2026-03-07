@@ -1,0 +1,335 @@
+warning: unused import: `zerocopy_renamed::KnownLayout`
+  --> $DIR/late_compile_pass.rs:15:5
+   |
+15 | use zerocopy_renamed::KnownLayout;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:29:10
+   |
+29 | #[derive(TryFromBytes)]
+   |          ^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::TryFromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 156 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `TryFromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:41:10
+   |
+41 | #[derive(FromZeros)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::TryFromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 156 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/late_compile_pass.rs:41:10
+   |
+41 | #[derive(FromZeros)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `FromZeros` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromZeros)]` to `NotZerocopy`
+   = help: the following other types implement trait `FromZeros`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 143 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::TryFromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 156 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `FromZeros` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromZeros)]` to `NotZerocopy`
+   = help: the following other types implement trait `FromZeros`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 143 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::FromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::FromBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::FromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 80 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::IntoBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:70:10
+   |
+70 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::IntoBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(IntoBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::IntoBytes`:
+             ()
+             AU16
+             AtomicBool
+             AtomicI16
+             AtomicI32
+             AtomicI64
+             AtomicI8
+             AtomicIsize
+           and 69 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/late_compile_pass.rs:83:10
+   |
+83 | #[derive(Unaligned)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+  --> $DIR/../include.rs:64:5
+   |
+64 |     pub struct AU16(pub u16);
+   |     ^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(Unaligned)]` to `AU16`
+   = help: the following other types implement trait `zerocopy_renamed::Unaligned`:
+             ()
+             AtomicBool
+             AtomicI8
+             AtomicU8
+             Cell<T>
+             F32<O>
+             F64<O>
+             I128<O>
+           and 29 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/late_compile_pass.rs:93:10
+   |
+93 | #[derive(Unaligned)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+  --> $DIR/../include.rs:64:5
+   |
+64 |     pub struct AU16(pub u16);
+   |     ^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(Unaligned)]` to `AU16`
+   = help: the following other types implement trait `zerocopy_renamed::Unaligned`:
+             ()
+             AtomicBool
+             AtomicI8
+             AtomicU8
+             Cell<T>
+             F32<O>
+             F64<O>
+             I128<O>
+           and 29 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+   --> $DIR/late_compile_pass.rs:102:10
+    |
+102 | #[derive(Unaligned)]
+    |          ^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(Unaligned)]` to `AU16`
+    = help: the following other types implement trait `zerocopy_renamed::Unaligned`:
+              ()
+              AtomicBool
+              AtomicI8
+              AtomicU8
+              Cell<T>
+              F32<O>
+              F64<O>
+              I128<O>
+            and 29 others
+    = help: see issue #48214
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::FromBytes` is not satisfied
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::FromBytes` is not implemented for `NotZerocopy`
+  --> $DIR/../include.rs:48:5
+   |
+48 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromBytes)]` to `NotZerocopy`
+   = help: the following other types implement trait `zerocopy_renamed::FromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 80 others
+note: required for `FromBytes1` to implement `zerocopy_renamed::FromBytes`
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+note: required by a bound in `_::_::<impl zerocopy_renamed::TryFromBytes for FromBytes1>::is_bit_valid::assert_is_from_bytes`
+  --> $DIR/late_compile_pass.rs:54:10
+   |
+54 | #[derive(FromBytes)]
+   |          ^^^^^^^^^ required by this bound in `assert_is_from_bytes`
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 11 previous errors; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0277`.

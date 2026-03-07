@@ -1,0 +1,84 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Common utilities for the swc project."
+documentation = "https://rustdoc.swc.rs/swc_common/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_common"
+repository    = { workspace = true }
+version       = "18.0.1"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+__plugin         = ["encoding-impl"]
+__plugin_mode    = []
+__plugin_rt      = []
+concurrent       = ["parking_lot"]
+debug            = []
+default          = []
+diagnostic-serde = []
+plugin-base      = ["__plugin", "rkyv-impl", "diagnostic-serde"]
+plugin-mode      = ["__plugin_mode", "plugin-base"]
+plugin-rt        = ["__plugin_rt", "plugin-base"]
+sourcemap        = ["dep:swc_sourcemap"]
+
+plugin_transform_schema_v1    = []
+plugin_transform_schema_vtest = []
+
+tty-emitter = ["termcolor"]
+
+__rkyv = []
+encoding-impl = ["cbor4ii", "swc_atoms/encoding-impl"]
+rkyv-impl = [
+  "__rkyv",
+  "rkyv",
+  "swc_atoms/rkyv-impl",
+  "bytes-str/rkyv",
+  "bytecheck",
+  "rancor",
+]
+
+shrink-to-fit = ["dep:shrink-to-fit", "swc_atoms/shrink-to-fit"]
+
+
+[dependencies]
+anyhow        = { workspace = true }
+arbitrary     = { workspace = true, features = ["derive"], optional = true }
+bytecheck     = { workspace = true, optional = true }
+bytes-str     = { workspace = true, features = ["serde"] }
+cbor4ii       = { workspace = true, features = ["use_std"], optional = true }
+either        = { workspace = true }
+num-bigint    = { workspace = true }
+once_cell     = { workspace = true }
+parking_lot   = { workspace = true, optional = true }
+rancor        = { workspace = true, optional = true }
+rkyv          = { workspace = true, optional = true }
+rustc-hash    = { workspace = true }
+serde         = { workspace = true, features = ["derive"] }
+shrink-to-fit = { workspace = true, optional = true }
+siphasher     = { workspace = true }
+swc_sourcemap = { workspace = true, optional = true }
+termcolor     = { workspace = true, optional = true }
+tracing       = { workspace = true }
+unicode-width = { workspace = true }
+url           = { workspace = true }
+
+ast_node             = { version = "5.0.0", path = "../ast_node" }
+better_scoped_tls    = { version = "1.0.1", path = "../better_scoped_tls" }
+from_variant         = { version = "3.0.0", path = "../from_variant" }
+swc_atoms            = { version = "9.0.0", path = "../swc_atoms" }
+swc_eq_ignore_macros = { version = "1.0.1", path = "../swc_eq_ignore_macros" }
+swc_visit            = { version = "2.0.1", path = "../swc_visit" }
+
+[dev-dependencies]
+par-iter   = { workspace = true }
+serde_json = { workspace = true }

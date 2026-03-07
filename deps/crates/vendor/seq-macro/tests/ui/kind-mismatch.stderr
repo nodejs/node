@@ -1,0 +1,5 @@
+error: expected character literal
+ --> tests/ui/kind-mismatch.rs:3:16
+  |
+3 | seq!(N in 'a'..b'z' {});
+  |                ^^^^

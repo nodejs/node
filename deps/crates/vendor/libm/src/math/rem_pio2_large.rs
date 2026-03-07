@@ -11,7 +11,7 @@
  * ====================================================
  */
 
-use super::{floor, scalbn};
+use super::scalbn;
 
 // initial value for jk
 const INIT_JK: [usize; 4] = [3, 4, 4, 6];
@@ -146,7 +146,7 @@ const PIO2: [f64; 8] = [
 //                      x[i] = floor(z)
 //                      z    = (z-x[i])*2**24
 //
-//      y[]     ouput result in an array of double precision numbers.
+//      y[]     output result in an array of double precision numbers.
 //              The dimension of y[] is:
 //                      24-bit  precision       1
 //                      53-bit  precision       2
@@ -221,8 +221,16 @@ const PIO2: [f64; 8] = [
 /// skip the part of the product that are known to be a huge integer (
 /// more accurately, = 0 mod 8 ). Thus the number of operations are
 /// independent of the exponent of the input.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub(crate) fn rem_pio2_large(x: &[f64], y: &mut [f64], e0: i32, prec: usize) -> i32 {
+    // FIXME(rust-lang/rust#144518): Inline assembly would cause `no_panic` to fail
+    // on the callers of this function. As a workaround, avoid inlining `floor` here
+    // when implemented with assembly.
+    #[cfg_attr(x86_no_sse, inline(never))]
+    extern "C" fn floor(x: f64) -> f64 {
+        super::floor(x)
+    }
+
     let x1p24 = f64::from_bits(0x4170000000000000); // 0x1p24 === 2 ^ 24
     let x1p_24 = f64::from_bits(0x3e70000000000000); // 0x1p_24 === 2 ^ (-24)
 

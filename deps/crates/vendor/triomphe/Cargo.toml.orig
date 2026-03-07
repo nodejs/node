@@ -1,0 +1,28 @@
+[package]
+name = "triomphe"
+version = "0.1.15"
+authors = ["Manish Goregaokar <manishsmail@gmail.com>", "The Servo Project Developers"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Manishearth/triomphe"
+description = "A fork of std::sync::Arc with some extra functionality and without weak references (originally servo_arc)"
+keywords = ["arc", "ffi", "sync", "data-structure"]
+categories = ["concurrency", "data-structures"]
+
+# MSRV policy: May be updated in minor versions
+rust-version = "1.76"
+edition = "2021"
+
+[features]
+std = []
+default = ["serde", "stable_deref_trait", "std"]
+
+unstable_dropck_eyepatch = []
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+serde = { version = "1.0", default-features = false, optional = true }
+stable_deref_trait = { version = "1.1.1", default-features = false, optional = true }
+unsize = { version = "1.1", optional = true }
+arc-swap = { version = "1.3.0", optional = true }

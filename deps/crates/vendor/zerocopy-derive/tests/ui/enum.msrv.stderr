@@ -1,0 +1,419 @@
+error: unrecognized representation hint
+  --> $DIR/enum.rs:20:8
+   |
+20 | #[repr("foo")]
+   |        ^^^^^
+
+error: unrecognized representation hint
+  --> $DIR/enum.rs:29:8
+   |
+29 | #[repr(foo)]
+   |        ^^^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+  --> $DIR/enum.rs:36:10
+   |
+36 | #[derive(FromBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: this conflicts with another representation hint
+  --> $DIR/enum.rs:46:12
+   |
+46 | #[repr(u8, u16)]
+   |            ^^^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+  --> $DIR/enum.rs:53:10
+   |
+53 | #[derive(FromBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+  --> $DIR/enum.rs:88:1
+   |
+88 | #[zerocopy(crate = "zerocopy_renamed")]
+   | ^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+  --> $DIR/enum.rs:95:1
+   |
+95 | #[zerocopy(crate = "zerocopy_renamed")]
+   | ^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:117:1
+    |
+117 | #[zerocopy(crate = "zerocopy_renamed")]
+    | ^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:124:1
+    |
+124 | #[zerocopy(crate = "zerocopy_renamed")]
+    | ^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:132:1
+    |
+132 | #[zerocopy(crate = "zerocopy_renamed")]
+    | ^
+
+error: FromZeros only supported on enums with a variant that has a discriminant of `0`
+   --> $DIR/enum.rs:140:1
+    |
+140 | / #[zerocopy(crate = "zerocopy_renamed")]
+141 | |
+142 | | #[repr(u8)]
+143 | | enum FromZeros4 {
+144 | |     A = 1,
+145 | |     B = 2,
+146 | | }
+    | |_^
+
+error: FromZeros only supported on enums with a variant that has a discriminant of `0`
+help: This enum has discriminants which are not literal integers. One of those may define or imply which variant has a discriminant of zero. Use a literal integer to define or imply the variant with a discriminant of zero.
+   --> $DIR/enum.rs:151:1
+    |
+151 | / #[zerocopy(crate = "zerocopy_renamed")]
+152 | |
+153 | | #[repr(i8)]
+154 | | enum FromZeros5 {
+155 | |     A = NEGATIVE_ONE,
+156 | |     B,
+157 | | }
+    | |_^
+
+error: FromZeros only supported on enums with a variant that has a discriminant of `0`
+   --> $DIR/enum.rs:171:1
+    |
+171 | / #[zerocopy(crate = "zerocopy_renamed")]
+172 | |
+173 | | #[repr(u8)]
+174 | | enum FromZeros7 {
+...   |
+177 | |     B(NotFromZeros),
+178 | | }
+    | |_^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:184:10
+    |
+184 | #[derive(FromBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:193:8
+    |
+193 | #[repr(C)]
+    |        ^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:201:8
+    |
+201 | #[repr(usize)]
+    |        ^^^^^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:209:8
+    |
+209 | #[repr(isize)]
+    |        ^^^^^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:217:8
+    |
+217 | #[repr(u32)]
+    |        ^^^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:225:8
+    |
+225 | #[repr(i32)]
+    |        ^^^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:233:8
+    |
+233 | #[repr(u64)]
+    |        ^^^
+
+error: `FromBytes` only supported on enums with `#[repr(...)]` attributes `u8`, `i8`, `u16`, or `i16`
+   --> $DIR/enum.rs:241:8
+    |
+241 | #[repr(i64)]
+    |        ^^^
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:515:10
+    |
+515 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:523:10
+    |
+523 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:531:10
+    |
+531 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:539:10
+    |
+539 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:547:10
+    |
+547 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:555:10
+    |
+555 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:563:10
+    |
+563 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:571:10
+    |
+571 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(u8)] or #[repr(i8)] attribute in order to guarantee this type's alignment
+   --> $DIR/enum.rs:579:10
+    |
+579 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot derive `Unaligned` on type with alignment greater than 1
+   --> $DIR/enum.rs:589:12
+    |
+589 | #[repr(u8, align(2))]
+    |            ^^^^^
+
+error: cannot derive `Unaligned` on type with alignment greater than 1
+   --> $DIR/enum.rs:597:12
+    |
+597 | #[repr(i8, align(2))]
+    |            ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/enum.rs:605:18
+    |
+605 | #[repr(align(1), align(2))]
+    |                  ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/enum.rs:613:18
+    |
+613 | #[repr(align(2), align(4))]
+    |                  ^^^^^
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:657:10
+    |
+657 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(C)] or #[repr(Int)] attribute in order to guarantee this type's memory layout
+   --> $DIR/enum.rs:665:10
+    |
+665 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: generic parameters may not be used in const operations
+   --> $DIR/enum.rs:677:7
+    |
+677 |     A(T),
+    |       ^ cannot perform const operation using `T`
+    |
+    = note: type parameters may not be used in const expressions
+
+error[E0658]: custom discriminant values are not allowed in enums with tuple or struct variants
+   --> $DIR/enum.rs:175:9
+    |
+175 |     A = 1,
+    |         ^ disallowed custom discriminant
+176 |
+177 |     B(NotFromZeros),
+    |     --------------- tuple variant defined here
+    |
+    = note: see issue #60553 <https://github.com/rust-lang/rust/issues/60553> for more information
+
+error[E0565]: meta item in `repr` must be an identifier
+  --> $DIR/enum.rs:20:8
+   |
+20 | #[repr("foo")]
+   |        ^^^^^
+
+error[E0552]: unrecognized representation hint
+  --> $DIR/enum.rs:29:8
+   |
+29 | #[repr(foo)]
+   |        ^^^
+
+error[E0566]: conflicting representation hints
+  --> $DIR/enum.rs:46:8
+   |
+46 | #[repr(u8, u16)]
+   |        ^^  ^^^
+   |
+   = note: `#[deny(conflicting_repr_hints)]` on by default
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #68585 <https://github.com/rust-lang/rust/issues/68585>
+
+error[E0277]: the trait bound `UnsafeCell<()>: Immutable` is not satisfied
+  --> $DIR/enum.rs:64:10
+   |
+64 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `Immutable` is not implemented for `UnsafeCell<()>`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `UnsafeCell<u8>: Immutable` is not satisfied
+  --> $DIR/enum.rs:75:10
+   |
+75 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `Immutable` is not implemented for `UnsafeCell<u8>`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotTryFromBytes: TryFromBytes` is not satisfied
+   --> $DIR/enum.rs:104:10
+    |
+104 | #[derive(TryFromBytes)]
+    |          ^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotTryFromBytes`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `TryFromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotFromZeros: TryFromBytes` is not satisfied
+   --> $DIR/enum.rs:161:10
+    |
+161 | #[derive(FromZeros)]
+    |          ^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotFromZeros`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotFromZeros: FromZeros` is not satisfied
+   --> $DIR/enum.rs:161:10
+    |
+161 | #[derive(FromZeros)]
+    |          ^^^^^^^^^ the trait `FromZeros` is not implemented for `NotFromZeros`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `FromZeros` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bool: FromBytes` is not satisfied
+   --> $DIR/enum.rs:247:10
+    |
+247 | #[derive(FromBytes)]
+    |          ^^^^^^^^^ the trait `FromBytes` is not implemented for `bool`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): PaddingFree<IntoBytes1, 1_usize>` is not satisfied
+   --> $DIR/enum.rs:623:10
+    |
+623 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `PaddingFree<IntoBytes1, 1_usize>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as PaddingFree<T, 0_usize>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): PaddingFree<IntoBytes2, 3_usize>` is not satisfied
+   --> $DIR/enum.rs:638:10
+    |
+638 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `PaddingFree<IntoBytes2, 3_usize>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as PaddingFree<T, 0_usize>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): PaddingFree<IntoBytes3, 2_usize>` is not satisfied
+   --> $DIR/enum.rs:647:10
+    |
+647 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `PaddingFree<IntoBytes3, 2_usize>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as PaddingFree<T, 0_usize>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: generic `Self` types are currently not permitted in anonymous constants
+   --> $DIR/enum.rs:672:10
+    |
+672 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+note: not a concrete type
+   --> $DIR/enum.rs:672:10
+    |
+672 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): PaddingFree<IntoBytes7, 1_usize>` is not satisfied
+   --> $DIR/enum.rs:681:10
+    |
+681 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `PaddingFree<IntoBytes7, 1_usize>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as PaddingFree<T, 0_usize>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 52 previous errors
+
+Some errors have detailed explanations: E0277, E0552, E0565, E0566, E0658.
+For more information about an error, try `rustc --explain E0277`.

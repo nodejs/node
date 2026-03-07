@@ -1,0 +1,5 @@
+error[E0425]: cannot find value `Missing0` in this scope
+ --> tests/ui/ident-span.rs:5:17
+  |
+5 |         let _ = Missing~N;
+  |                 ^^^^^^^ not found in this scope

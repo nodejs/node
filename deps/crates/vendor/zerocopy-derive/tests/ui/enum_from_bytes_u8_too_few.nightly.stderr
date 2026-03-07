@@ -1,0 +1,14 @@
+error: FromBytes only supported on repr(u8) enum with 256 variants
+   --> $DIR/enum_from_bytes_u8_too_few.rs:15:1
+    |
+ 15 | / #[zerocopy(crate = "zerocopy_renamed")]
+ 16 | |
+ 17 | | #[repr(u8)]
+ 18 | | enum Foo {
+...   |
+273 | |     Variant254,
+274 | | }
+    | |_^
+
+error: aborting due to 1 previous error
+

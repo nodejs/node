@@ -1,0 +1,21 @@
+error[E0623]: lifetime mismatch
+  --> $DIR/ptr-is-invariant-over-v.rs:21:14
+   |
+18 |     big: Ptr<'small, &'big u32, (Exclusive, Aligned, Valid)>,
+   |          --------------------------------------------------- these two types are declared with different lifetimes...
+...
+21 |     _small = big;
+   |              ^^^ ...but data from `big` flows into `big` here
+
+error[E0623]: lifetime mismatch
+  --> $DIR/ptr-is-invariant-over-v.rs:30:14
+   |
+27 |     big: Ptr<'small, &'big u32, (Shared, Aligned, Valid)>,
+   |          ------------------------------------------------ these two types are declared with different lifetimes...
+...
+30 |     _small = big;
+   |              ^^^ ...but data from `big` flows into `big` here
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0623`.

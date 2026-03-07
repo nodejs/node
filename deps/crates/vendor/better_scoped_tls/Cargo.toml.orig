@@ -1,0 +1,15 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "scoped-tls, but with good error message"
+documentation = "https://rustdoc.swc.rs/better_scoped_tls/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "better_scoped_tls"
+repository    = { workspace = true }
+version       = "1.0.1"
+
+[lib]
+bench = false
+
+[dependencies]
+scoped-tls = { workspace = true }

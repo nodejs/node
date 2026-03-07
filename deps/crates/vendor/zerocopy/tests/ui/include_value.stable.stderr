@@ -1,0 +1,35 @@
+error[E0277]: the trait bound `NotZerocopy<u32>: FromBytes` is not satisfied
+  --> $DIR/include_value.rs:17:5
+   |
+17 |     zerocopy::include_value!("../../testdata/include_value/data");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `FromBytes` is not implemented for `NotZerocopy<u32>`
+  --> $DIR/../include.rs:15:5
+   |
+15 |     pub struct NotZerocopy<T = ()>(pub T);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(FromBytes)]` to `NotZerocopy<u32>`
+   = help: the following other types implement trait `FromBytes`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and 79 others
+note: required by a bound in `NOT_FROM_BYTES::transmute`
+  --> $DIR/include_value.rs:17:5
+   |
+17 |     zerocopy::include_value!("../../testdata/include_value/data");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |     |
+   |     required by a bound in this function
+   |     required by this bound in `transmute`
+   = note: this error originates in the macro `$crate::transmute` which comes from the expansion of the macro `zerocopy::include_value` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

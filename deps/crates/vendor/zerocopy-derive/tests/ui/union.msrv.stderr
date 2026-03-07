@@ -1,0 +1,88 @@
+error: unsupported on types with type parameters
+  --> $DIR/union.rs:36:10
+   |
+36 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must be #[repr(C)], #[repr(packed)], or #[repr(transparent)]
+  --> $DIR/union.rs:55:10
+   |
+55 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must be #[repr(C)], #[repr(packed)], or #[repr(transparent)]
+  --> $DIR/union.rs:63:10
+   |
+63 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot derive `Unaligned` on type with alignment greater than 1
+  --> $DIR/union.rs:77:11
+   |
+77 | #[repr(C, align(2))]
+   |           ^^^^^
+
+error: this conflicts with another representation hint
+  --> $DIR/union.rs:95:16
+   |
+95 | #[repr(packed, align(2))]
+   |                ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/union.rs:104:18
+    |
+104 | #[repr(align(1), align(2))]
+    |                  ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/union.rs:112:18
+    |
+112 | #[repr(align(2), align(4))]
+    |                  ^^^^^
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/union.rs:118:10
+    |
+118 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/union.rs:126:10
+    |
+126 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `UnsafeCell<()>: zerocopy_renamed::Immutable` is not satisfied
+  --> $DIR/union.rs:25:10
+   |
+25 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Immutable` is not implemented for `UnsafeCell<()>`
+   |
+   = note: required because of the requirements on the impl of `zerocopy_renamed::Immutable` for `ManuallyDrop<UnsafeCell<()>>`
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): PaddingFree<IntoBytes2, 1_usize>` is not satisfied
+  --> $DIR/union.rs:44:10
+   |
+44 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^ the trait `PaddingFree<IntoBytes2, 1_usize>` is not implemented for `()`
+   |
+   = help: the following implementations were found:
+             <() as PaddingFree<T, 0_usize>>
+   = help: see issue #48214
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 11 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

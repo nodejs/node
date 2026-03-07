@@ -1,0 +1,26 @@
+on: [push, pull_request]
+
+name: CI
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+
+  miri:
+    name: Verify tests pass under miri
+    runs-on: ubuntu-latest
+    env:
+      MIRIFLAGS: "-Zmiri-strict-provenance"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: rustup component add miri
+      - run: cargo +nightly miri test

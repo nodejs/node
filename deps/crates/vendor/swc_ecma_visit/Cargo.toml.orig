@@ -1,0 +1,36 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Visitors for swc ecmascript nodes which works on stable rustc"
+documentation = "https://rustdoc.swc.rs/swc_ecma_visit/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_ecma_visit"
+repository    = { workspace = true }
+version       = "20.0.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+debug      = []
+default    = []
+path       = []
+serde-impl = ["serde"]
+
+[dependencies]
+new_debug_unreachable = { workspace = true }
+num-bigint            = { workspace = true, features = ["serde"] }
+serde                 = { workspace = true, optional = true, features = ["derive"] }
+tracing               = { workspace = true }
+
+swc_atoms    = { version = "9.0.0", path = "../swc_atoms" }
+swc_common   = { version = "18.0.1", path = "../swc_common" }
+swc_ecma_ast = { version = "20.0.0", path = "../swc_ecma_ast" }
+swc_visit    = { version = "2.0.1", path = "../swc_visit" }

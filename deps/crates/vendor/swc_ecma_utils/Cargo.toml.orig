@@ -1,0 +1,44 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Utilities for swc ecmascript ast nodes"
+documentation = "https://rustdoc.swc.rs/swc_ecma_utils/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_ecma_utils"
+repository    = { workspace = true }
+version       = "26.0.1"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+# Process in parallel.
+concurrent = ["swc_common/concurrent", "par-core/parallel"]
+
+[dependencies]
+dragonbox_ecma = { workspace = true }
+indexmap       = { workspace = true }
+num_cpus       = { workspace = true }
+once_cell      = { workspace = true }
+par-core       = { workspace = true }
+rustc-hash     = { workspace = true }
+tracing        = { workspace = true }
+
+swc_atoms      = { version = "9.0.0", path = "../swc_atoms" }
+swc_common     = { version = "18.0.1", path = "../swc_common" }
+swc_ecma_ast   = { version = "20.0.0", path = "../swc_ecma_ast" }
+swc_ecma_visit = { version = "20.0.0", path = "../swc_ecma_visit" }
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "arm")))'.dependencies]
+stacker = { version = "0.1.15", optional = true }
+
+[dev-dependencies]
+par-core        = { workspace = true, features = ["chili"] }
+swc_ecma_parser = { version = "33.0.0", path = "../swc_ecma_parser" }

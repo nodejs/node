@@ -1,0 +1,28 @@
+error: use of deprecated struct `OldHeader`: Do not use
+  --> $DIR/absence_of_deprecated_warning.rs:32:12
+   |
+32 | impl T for OldHeader {}
+   |            ^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> $DIR/absence_of_deprecated_warning.rs:14:9
+   |
+14 | #![deny(deprecated)]
+   |         ^^^^^^^^^^
+
+warning: struct `OldHeader` is never constructed
+  --> $DIR/absence_of_deprecated_warning.rs:24:8
+   |
+24 | struct OldHeader {
+   |        ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `T` is never used
+  --> $DIR/absence_of_deprecated_warning.rs:29:7
+   |
+29 | trait T {}
+   |       ^
+
+error: aborting due to 1 previous error; 2 warnings emitted
+

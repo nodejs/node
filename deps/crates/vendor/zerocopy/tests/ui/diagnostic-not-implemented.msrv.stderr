@@ -1,0 +1,99 @@
+error[E0277]: the trait bound `NotZerocopy: FromBytes` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:16:24
+   |
+16 |     takes_from_bytes::<NotZerocopy>();
+   |                        ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_from_bytes`
+  --> $DIR/diagnostic-not-implemented.rs:77:24
+   |
+77 | fn takes_from_bytes<T: FromBytes>() {}
+   |                        ^^^^^^^^^ required by this bound in `takes_from_bytes`
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:18:24
+   |
+18 |     takes_from_zeros::<NotZerocopy>();
+   |                        ^^^^^^^^^^^ the trait `FromZeros` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_from_zeros`
+  --> $DIR/diagnostic-not-implemented.rs:78:24
+   |
+78 | fn takes_from_zeros<T: FromZeros>() {}
+   |                        ^^^^^^^^^ required by this bound in `takes_from_zeros`
+
+error[E0277]: the trait bound `NotZerocopy: Immutable` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:20:23
+   |
+20 |     takes_immutable::<NotZerocopy>();
+   |                       ^^^^^^^^^^^ the trait `Immutable` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_immutable`
+  --> $DIR/diagnostic-not-implemented.rs:79:23
+   |
+79 | fn takes_immutable<T: Immutable>() {}
+   |                       ^^^^^^^^^ required by this bound in `takes_immutable`
+
+error[E0277]: the trait bound `NotZerocopy: IntoBytes` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:22:24
+   |
+22 |     takes_into_bytes::<NotZerocopy>();
+   |                        ^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_into_bytes`
+  --> $DIR/diagnostic-not-implemented.rs:80:24
+   |
+80 | fn takes_into_bytes<T: IntoBytes>() {}
+   |                        ^^^^^^^^^ required by this bound in `takes_into_bytes`
+
+error[E0277]: the trait bound `NotZerocopy: KnownLayout` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:24:26
+   |
+24 |     takes_known_layout::<NotZerocopy>();
+   |                          ^^^^^^^^^^^ the trait `KnownLayout` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_known_layout`
+  --> $DIR/diagnostic-not-implemented.rs:81:26
+   |
+81 | fn takes_known_layout<T: KnownLayout>() {}
+   |                          ^^^^^^^^^^^ required by this bound in `takes_known_layout`
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:26:28
+   |
+26 |     takes_try_from_bytes::<NotZerocopy>();
+   |                            ^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_try_from_bytes`
+  --> $DIR/diagnostic-not-implemented.rs:82:28
+   |
+82 | fn takes_try_from_bytes<T: TryFromBytes>() {}
+   |                            ^^^^^^^^^^^^ required by this bound in `takes_try_from_bytes`
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy::Unaligned` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:28:23
+   |
+28 |     takes_unaligned::<NotZerocopy>();
+   |                       ^^^^^^^^^^^ the trait `zerocopy::Unaligned` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `takes_unaligned`
+  --> $DIR/diagnostic-not-implemented.rs:83:23
+   |
+83 | fn takes_unaligned<T: Unaligned>() {}
+   |                       ^^^^^^^^^ required by this bound in `takes_unaligned`
+
+error[E0277]: the trait bound `NotZerocopy: Immutable` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:66:19
+   |
+66 |     Foo.write_obj(NotZerocopy(()));
+   |                   ^^^^^^^^^^^^^^^ the trait `Immutable` is not implemented for `NotZerocopy`
+
+error[E0277]: the trait bound `NotZerocopy: IntoBytes` is not satisfied
+  --> $DIR/diagnostic-not-implemented.rs:66:19
+   |
+66 |     Foo.write_obj(NotZerocopy(()));
+   |                   ^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy`
+
+error: aborting due to 9 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

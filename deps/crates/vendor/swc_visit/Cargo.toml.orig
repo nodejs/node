@@ -1,0 +1,18 @@
+[package]
+authors     = ["강동윤 <kdy1997.dev@gmail.com>"]
+description = "Visitor generator for stable rustc"
+edition     = { workspace = true }
+license     = { workspace = true }
+name        = "swc_visit"
+repository  = { workspace = true }
+version     = "2.0.1"
+
+[lib]
+bench = false
+
+[features]
+path = []
+
+[dependencies]
+either                = { workspace = true }
+new_debug_unreachable = { workspace = true }

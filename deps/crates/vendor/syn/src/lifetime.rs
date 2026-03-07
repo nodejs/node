@@ -1,9 +1,9 @@
 #[cfg(feature = "parsing")]
 use crate::lookahead;
+use core::cmp::Ordering;
+use core::fmt::{self, Display};
+use core::hash::{Hash, Hasher};
 use proc_macro2::{Ident, Span};
-use std::cmp::Ordering;
-use std::fmt::{self, Display};
-use std::hash::{Hash, Hasher};
 
 /// A Rust lifetime: `'a`.
 ///

@@ -1,0 +1,31 @@
+[package]
+authors     = ["강동윤 <kdy1997.dev@gmail.com>"]
+description = "Switchable parallel execution core"
+edition     = { workspace = true }
+include     = ["Cargo.toml", "src/**/*.rs"]
+license     = { workspace = true }
+name        = "par-core"
+repository  = { workspace = true }
+version     = "2.0.0"
+
+[package.metadata.docs.rs]
+features     = ["chili"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+
+[features]
+default = ["parallel"]
+# Make it really parallel
+parallel = []
+# Use rayon for parallel execution
+rayon = ["dep:rayon", "parallel"]
+# Use chili for parallel execution
+chili = ["dep:chili", "parallel"]
+
+[dependencies]
+chili     = { workspace = true, optional = true }
+once_cell = { workspace = true }
+rayon     = { workspace = true, optional = true }
+
+[dev-dependencies]
+scoped-tls = { workspace = true }

@@ -11,7 +11,7 @@ impl<R> Progress<R> {
     pub fn new(stream: R) -> Self {
         Progress {
             bytes: 0,
-            tick: Instant::now() + Duration::from_millis(2000),
+            tick: Instant::now() + Duration::from_secs(2),
             stream,
         }
     }

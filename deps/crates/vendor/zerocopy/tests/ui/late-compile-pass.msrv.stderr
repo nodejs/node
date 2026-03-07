@@ -1,0 +1,135 @@
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:20:37
+   |
+20 | const TRANSMUTE_DECREASE_SIZE: u8 = transmute!(AU16(0));
+   |                                     ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `AU16` (16 bits)
+   = note: target type: `u8` (8 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:26:39
+   |
+26 | const TRANSMUTE_INCREASE_SIZE: AU16 = transmute!(0u8);
+   |                                       ^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `AU16` (16 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:32:52
+   |
+32 | const TRANSMUTE_INCREASE_SIZE_ALLOW_SHRINK: AU16 = transmute!(#![allow(shrink)] 0u8);
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `Transmute<u8, AU16>` (16 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:50:39
+   |
+50 | const INCLUDE_VALUE_WRONG_SIZE: u64 = zerocopy::include_value!("../../testdata/include_value/data");
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `[u8; 4]` (32 bits)
+   = note: target type: `u64` (64 bits)
+   = note: this error originates in the macro `$crate::transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:58:41
+   |
+58 |     let _decrease_size: Result<u8, _> = try_transmute!(AU16(0));
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `AU16` (16 bits)
+   = note: target type: `u8` (8 bits)
+   = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:63:43
+   |
+63 |     let _increase_size: Result<AU16, _> = try_transmute!(0u8);
+   |                                           ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `AU16` (16 bits)
+   = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: taking a mutable reference to a `const` item
+  --> $DIR/late-compile-pass.rs:39:66
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                                  ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(const_item_mutation)]` on by default
+   = note: each usage of a `const` item creates a new temporary
+   = note: the mutable reference will refer to this temporary, not the original `const` item
+note: `const` item defined here
+  --> $DIR/late-compile-pass.rs:36:1
+   |
+36 | const ARRAY_OF_U8S: [u8; 2] = [0u8; 2];
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0658]: mutable references are not allowed in constants
+  --> $DIR/late-compile-pass.rs:39:66
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                                  ^^^^^^^^^^^^^^^^^
+   |
+   = note: see issue #57349 <https://github.com/rust-lang/rust/issues/57349> for more information
+
+error[E0015]: calls in constants are limited to constant functions, tuple structs and tuple variants
+  --> $DIR/late-compile-pass.rs:39:51
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0015]: calls in constants are limited to constant functions, tuple structs and tuple variants
+  --> $DIR/late-compile-pass.rs:39:51
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+  --> $DIR/late-compile-pass.rs:39:71
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                   --------------------^^^^^^^^^^^^-
+   |                                                   |                   |
+   |                                                   |                   creates a temporary which is freed while still in use
+   |                                                   temporary value is freed at the end of this statement
+   |                                                   using this value as a constant requires that borrow lasts for `'static`
+
+error[E0597]: `x` does not live long enough
+  --> $DIR/late-compile-pass.rs:69:60
+   |
+69 |         let _: &'static mut u64 = zerocopy::transmute_mut!(&mut x);
+   |                ----------------                            ^^^^^^ borrowed value does not live long enough
+   |                |
+   |                type annotation requires that `x` is borrowed for `'static`
+70 |
+71 |     }
+   |     - `x` dropped here while still borrowed
+
+error[E0597]: `x` does not live long enough
+  --> $DIR/late-compile-pass.rs:76:56
+   |
+76 |         let _: &'static u64 = zerocopy::transmute_ref!(&x);
+   |                ------------                            ^^ borrowed value does not live long enough
+   |                |
+   |                type annotation requires that `x` is borrowed for `'static`
+77 |
+78 |     }
+   |     - `x` dropped here while still borrowed
+
+error: aborting due to 12 previous errors; 1 warning emitted
+
+Some errors have detailed explanations: E0015, E0512, E0597, E0658, E0716.
+For more information about an error, try `rustc --explain E0015`.

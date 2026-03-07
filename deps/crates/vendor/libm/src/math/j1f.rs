@@ -64,7 +64,7 @@ const S04: f32 = 5.0463624390e-09; /* 0x31ad6446 */
 const S05: f32 = 1.2354227016e-11; /* 0x2d59567e */
 
 /// First order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the first kind (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn j1f(x: f32) -> f32 {
     let mut z: f32;
     let r: f32;
@@ -110,7 +110,7 @@ const V0: [f32; 5] = [
 ];
 
 /// First order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the second kind (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn y1f(x: f32) -> f32 {
     let z: f32;
     let u: f32;
@@ -361,8 +361,6 @@ fn qonef(x: f32) -> f32 {
     return (0.375 + r / s) / x;
 }
 
-// PowerPC tests are failing on LLVM 13: https://github.com/rust-lang/rust/issues/88520
-#[cfg(not(target_arch = "powerpc64"))]
 #[cfg(test)]
 mod tests {
     use super::{j1f, y1f};
@@ -371,6 +369,7 @@ mod tests {
         // 0x401F3E49
         assert_eq!(j1f(2.4881766_f32), 0.49999475_f32);
     }
+
     #[test]
     fn test_y1f_2002() {
         //allow slightly different result on x87

@@ -1,0 +1,40 @@
+# This file is part of ICU4X.
+#
+# The contents of this file implement algorithms from Calendrical Calculations
+# by Reingold & Dershowitz, Cambridge University Press, 4th edition (2018),
+# which have been released as Lisp code at <https://github.com/EdReingold/calendar-code2/>
+# under the Apache-2.0 license. Accordingly, this file is released under
+# the Apache License, Version 2.0 which can be found at the calendrical_calculations
+# package root or at http://www.apache.org/licenses/LICENSE-2.0. 
+
+[package]
+name = "calendrical_calculations"
+description = "Calendrical calculations in Rust"
+version = "0.2.3"
+categories = ["rust-patterns", "memory-management", "caching", "no-std", "data-structures"]
+keywords = ["zerocopy", "serialization", "zero-copy", "serde"]
+
+authors.workspace = true
+edition.workspace = true
+include.workspace = true
+repository.workspace = true
+rust-version = "1.82"
+
+
+# This is a special exception: The algorithms in this crate are based on "Calendrical Calculations" by Reingold and Dershowitz
+# which has its lisp code published at https://github.com/EdReingold/calendar-code2/
+license = "Apache-2.0"
+
+[package.metadata.workspaces]
+independent = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+core_maths = { workspace = true }
+displaydoc = { workspace = true }
+log = { workspace = true, optional = true }
+
+[features]
+logging = ["dep:log"]

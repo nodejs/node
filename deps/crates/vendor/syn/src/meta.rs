@@ -6,8 +6,8 @@ use crate::lit::Lit;
 use crate::parse::{ParseStream, Parser};
 use crate::path::{Path, PathSegment};
 use crate::punctuated::Punctuated;
+use core::fmt::Display;
 use proc_macro2::Ident;
-use std::fmt::Display;
 
 /// Make a parser that is usable with `parse_macro_input!` in a
 /// `#[proc_macro_attribute]` macro.

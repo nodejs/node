@@ -1,0 +1,35 @@
+[package]
+name = "base64-simd"
+version = "0.8.0"
+edition = "2021"
+description = "SIMD-accelerated base64 encoding and decoding"
+license = "MIT"
+repository = "https://github.com/Nugine/simd"
+keywords = ["base64", "simd"]
+categories = ["no-std", "parser-implementations", "encoding"]
+readme = "README.md"
+rust-version = "1.63"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["std", "detect"]
+alloc = ["vsimd/alloc"]
+std = ["alloc", "vsimd/std"]
+detect = ["vsimd/detect"]
+unstable = ["vsimd/unstable"]
+
+[dependencies]
+outref = "0.5.0"
+vsimd = { path = "../vsimd", version = "0.8.0" }
+
+[dev-dependencies]
+base64 = "0.20.0"
+rand = "0.8.5"
+const-str = "0.5.3"
+
+[target.'cfg(target_arch="wasm32")'.dev-dependencies]
+getrandom = { version = "0.2.8", features = ["js"] }
+wasm-bindgen-test = "0.3.33"

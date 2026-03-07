@@ -1,0 +1,9 @@
+error[E0589]: invalid `repr(align)` attribute: larger than 2^29
+  --> $DIR/max-align.rs:98:11
+   |
+98 | #[repr(C, align(1073741824))]
+   |           ^^^^^^^^^^^^^^^^^
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0589`.

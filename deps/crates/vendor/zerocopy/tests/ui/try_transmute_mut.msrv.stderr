@@ -1,0 +1,76 @@
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:18:63
+   |
+18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+   |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: IntoBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:18:63
+   |
+18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+   |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:33
+    |
+18  |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:63
+    |
+18  |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcA: FromBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:33:41
+   |
+33 |     let src_not_from_bytes: &mut DstA = try_transmute_mut!(&mut SrcA).unwrap();
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `FromBytes` is not implemented for `SrcA`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstA: IntoBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:33:41
+   |
+33 |     let src_not_from_bytes: &mut DstA = try_transmute_mut!(&mut SrcA).unwrap();
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `DstA`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcB: IntoBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:46:41
+   |
+46 |     let src_not_from_bytes: &mut DstB = try_transmute_mut!(&mut SrcB).unwrap();
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `SrcB`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstB: IntoBytes` is not satisfied
+  --> $DIR/try_transmute_mut.rs:46:41
+   |
+46 |     let src_not_from_bytes: &mut DstB = try_transmute_mut!(&mut SrcB).unwrap();
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `DstB`
+   |
+   = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 8 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

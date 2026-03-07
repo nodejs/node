@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule: [cron: "40 1 * * *"]
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  pre_ci:
+    uses: dtolnay/.github/.github/workflows/pre_ci.yml@master
+
+  test:
+    name: ${{matrix.os == 'macos' && 'macOS' || format('Rust {0} ({1})', matrix.rust, matrix.arch)}}
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ${{matrix.os == 'macos' && 'macos-latest' || matrix.arch == 'x86_64' && 'ubuntu-latest' || 'ubuntu-24.04-arm'}}
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly, beta, stable, 1.86.0, 1.71.0]
+        arch: [x86_64, aarch64]
+        os: [ubuntu]
+        include:
+          - rust: nightly
+            os: macos
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.rust}}
+      - name: Enable type layout randomization
+        run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
+        if: matrix.rust == 'nightly'
+      - run: cargo check
+      - run: cargo build --tests --features no-panic --release
+        if: matrix.rust == 'nightly'
+      - run: cargo test
+        if: matrix.rust != '1.71.0'
+      - run: cargo test --release
+        if: matrix.rust != '1.71.0'
+      - run: cargo check
+        env:
+          RUSTFLAGS: ${{env.RUSTFLAGS}} -Ctarget-cpu=native
+      - run: cargo build --tests --features no-panic --release
+        if: matrix.rust == 'nightly'
+        env:
+          RUSTFLAGS: ${{env.RUSTFLAGS}} -Ctarget-cpu=native
+      - run: cargo test
+        if: matrix.rust != '1.71.0'
+        env:
+          RUSTFLAGS: ${{env.RUSTFLAGS}} -Ctarget-cpu=native
+      - run: cargo test --release
+        if: matrix.rust != '1.71.0'
+        env:
+          RUSTFLAGS: ${{env.RUSTFLAGS}} -Ctarget-cpu=native
+      - uses: actions/upload-artifact@v6
+        if: matrix.rust == 'nightly' && matrix.arch == 'x86_64' && matrix.os == 'ubuntu' && always()
+        with:
+          name: Cargo.lock
+          path: Cargo.lock
+        continue-on-error: true
+
+  doc:
+    name: Documentation
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -Dwarnings
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/install@cargo-docs-rs
+      - run: cargo docs-rs
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@clippy
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - run: cargo clippy --tests --benches -- -Dclippy::all -Dclippy::pedantic
+      - run: cargo clippy --target=aarch64-unknown-linux-gnu -- -Dclippy::all -Dclippy::pedantic
+      - run: cargo clippy -- -Dclippy::all -Dclippy::pedantic
+        env:
+          RUSTFLAGS: ${{env.RUSTFLAGS}} -Ctarget-cpu=native
+
+  miri:
+    name: Miri (${{matrix.name}})
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 64-bit little endian
+            target: x86_64-unknown-linux-gnu
+          - name: 64-bit big endian
+            target: powerpc64-unknown-linux-gnu
+          - name: 32-bit little endian
+            target: i686-unknown-linux-gnu
+          - name: 32-bit big endian
+            target: mips-unknown-linux-gnu
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-02-11 # https://github.com/rust-lang/miri/issues/4855
+          components: miri, rust-src
+      - run: cargo miri setup
+      - run: cargo miri test --target ${{matrix.target}}
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+
+  outdated:
+    name: Outdated
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/install@cargo-outdated
+      - run: cargo outdated --exit-code 1
+      - run: cargo outdated --manifest-path fuzz/Cargo.toml --exit-code 1
+
+  fuzz:
+    name: Fuzz
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/install@cargo-fuzz
+      - run: cargo fuzz check

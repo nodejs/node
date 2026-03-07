@@ -1,0 +1,34 @@
+error: lifetime may not live long enough
+  --> $DIR/ptr-is-invariant-over-v.rs:21:5
+   |
+17 | fn _when_exclusive<'big: 'small, 'small>(
+   |                    ----          ------ lifetime `'small` defined here
+   |                    |
+   |                    lifetime `'big` defined here
+...
+21 |     _small = big;
+   |     ^^^^^^^^^^^^ assignment requires that `'small` must outlive `'big`
+   |
+   = help: consider adding the following bound: `'small: 'big`
+   = note: requirement occurs because of the type `Ptr<'_, &u32, (zerocopy::invariant::Exclusive, zerocopy::invariant::Aligned, zerocopy::invariant::Valid)>`, which makes the generic argument `&u32` invariant
+   = note: the struct `Ptr<'a, T, I>` is invariant over the parameter `T`
+   = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+
+error: lifetime may not live long enough
+  --> $DIR/ptr-is-invariant-over-v.rs:30:5
+   |
+26 | fn _when_shared<'big: 'small, 'small>(
+   |                 ----          ------ lifetime `'small` defined here
+   |                 |
+   |                 lifetime `'big` defined here
+...
+30 |     _small = big;
+   |     ^^^^^^^^^^^^ assignment requires that `'small` must outlive `'big`
+   |
+   = help: consider adding the following bound: `'small: 'big`
+   = note: requirement occurs because of the type `Ptr<'_, &u32, (zerocopy::invariant::Shared, zerocopy::invariant::Aligned, zerocopy::invariant::Valid)>`, which makes the generic argument `&u32` invariant
+   = note: the struct `Ptr<'a, T, I>` is invariant over the parameter `T`
+   = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+
+error: aborting due to 2 previous errors
+

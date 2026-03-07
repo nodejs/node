@@ -1,0 +1,39 @@
+[package]
+name = "zmij"
+version = "1.0.21"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+categories = ["value-formatting", "no-std", "no-std::no-alloc"]
+description = "A double-to-string conversion algorithm based on Schubfach and yy"
+documentation = "https://docs.rs/zmij"
+edition = "2021"
+exclude = ["*.png"]
+keywords = ["float"]
+license = "MIT"
+repository = "https://github.com/dtolnay/zmij"
+rust-version = "1.71"
+
+[dependencies]
+no-panic = { version = "0.1.36", optional = true }
+
+[dev-dependencies]
+num-bigint = "0.4"
+num_cpus = "1.8"
+num-integer = "0.1"
+opt-level = "1"
+rand = "0.10"
+ryu = "1"
+
+[target.'cfg(not(miri))'.dev-dependencies]
+criterion = { version = "0.8", default-features = false }
+
+[[bench]]
+name = "bench"
+harness = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = [
+    "--generate-link-to-definition",
+    "--generate-macro-expansion",
+    "--extern-html-root-url=core=https://doc.rust-lang.org",
+]

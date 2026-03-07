@@ -1,5 +1,5 @@
 use alloc::rc::Rc;
-use alloc::vec;
+use alloc::vec::{self, Vec};
 use core::mem;
 use core::panic::RefUnwindSafe;
 use core::slice;

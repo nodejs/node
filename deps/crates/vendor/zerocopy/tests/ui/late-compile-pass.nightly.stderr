@@ -1,0 +1,157 @@
+error[E0080]: transmuting from 2-byte type to 1-byte type: `AU16` -> `u8`
+  --> $DIR/late-compile-pass.rs:20:37
+   |
+20 | const TRANSMUTE_DECREASE_SIZE: u8 = transmute!(AU16(0));
+   |                                     ^^^^^^^^^^^^^^^^^^^ evaluation of `TRANSMUTE_DECREASE_SIZE` failed here
+   |
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: transmuting from 1-byte type to 2-byte type: `u8` -> `AU16`
+  --> $DIR/late-compile-pass.rs:26:39
+   |
+26 | const TRANSMUTE_INCREASE_SIZE: AU16 = transmute!(0u8);
+   |                                       ^^^^^^^^^^^^^^^ evaluation of `TRANSMUTE_INCREASE_SIZE` failed here
+   |
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: transmuting from 1-byte type to 2-byte type: `u8` -> `Transmute<u8, AU16>`
+  --> $DIR/late-compile-pass.rs:32:52
+   |
+32 | const TRANSMUTE_INCREASE_SIZE_ALLOW_SHRINK: AU16 = transmute!(#![allow(shrink)] 0u8);
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `TRANSMUTE_INCREASE_SIZE_ALLOW_SHRINK` failed here
+   |
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: taking a mutable reference to a `const` item
+  --> $DIR/late-compile-pass.rs:39:66
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                                  ^^^^^^^^^^^^^^^^^
+   |
+   = note: each usage of a `const` item creates a new temporary
+   = note: the mutable reference will refer to this temporary, not the original `const` item
+note: `const` item defined here
+  --> $DIR/late-compile-pass.rs:36:1
+   |
+36 | const ARRAY_OF_U8S: [u8; 2] = [0u8; 2];
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: `#[warn(const_item_mutation)]` on by default
+
+error[E0015]: cannot call non-const method `zerocopy::util::macro_util::Wrap::<&mut [u8; 2], &mut [u8; 2]>::transmute_mut_inference_helper` in constants
+  --> $DIR/late-compile-pass.rs:39:51
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: calls in constants are limited to constant functions, tuple structs and tuple variants
+   = note: this error originates in the macro `transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0015]: cannot call non-const method `zerocopy::util::macro_util::Wrap::<&mut [u8; 2], &mut [u8; 2]>::transmute_mut` in constants
+  --> $DIR/late-compile-pass.rs:39:51
+   |
+39 | const TRANSMUTE_MUT_CONST_CONTEXT: &mut [u8; 2] = transmute_mut!(&mut ARRAY_OF_U8S);
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: calls in constants are limited to constant functions, tuple structs and tuple variants
+   = note: this error originates in the macro `transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: transmuting from 4-byte type to 8-byte type: `[u8; 4]` -> `u64`
+  --> $DIR/late-compile-pass.rs:50:39
+   |
+50 | const INCLUDE_VALUE_WRONG_SIZE: u64 = zerocopy::include_value!("../../testdata/include_value/data");
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `INCLUDE_VALUE_WRONG_SIZE` failed here
+   |
+   = note: this error originates in the macro `$crate::transmute` which comes from the expansion of the macro `zerocopy::include_value` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:20:37
+   |
+20 | const TRANSMUTE_DECREASE_SIZE: u8 = transmute!(AU16(0));
+   |                                     ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `AU16` (16 bits)
+   = note: target type: `u8` (8 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:26:39
+   |
+26 | const TRANSMUTE_INCREASE_SIZE: AU16 = transmute!(0u8);
+   |                                       ^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `AU16` (16 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:32:52
+   |
+32 | const TRANSMUTE_INCREASE_SIZE_ALLOW_SHRINK: AU16 = transmute!(#![allow(shrink)] 0u8);
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `Transmute<u8, AU16>` (16 bits)
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:50:39
+   |
+50 | const INCLUDE_VALUE_WRONG_SIZE: u64 = zerocopy::include_value!("../../testdata/include_value/data");
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `[u8; 4]` (32 bits)
+   = note: target type: `u64` (64 bits)
+   = note: this error originates in the macro `$crate::transmute` which comes from the expansion of the macro `zerocopy::include_value` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:58:41
+   |
+58 |     let _decrease_size: Result<u8, _> = try_transmute!(AU16(0));
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `AU16` (16 bits)
+   = note: target type: `u8` (8 bits)
+   = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0512]: cannot transmute between types of different sizes, or dependently-sized types
+  --> $DIR/late-compile-pass.rs:63:43
+   |
+63 |     let _increase_size: Result<AU16, _> = try_transmute!(0u8);
+   |                                           ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: source type: `u8` (8 bits)
+   = note: target type: `AU16` (16 bits)
+   = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0597]: `x` does not live long enough
+  --> $DIR/late-compile-pass.rs:69:60
+   |
+67 |         let mut x = 0u64;
+   |             ----- binding `x` declared here
+68 |         // It is illegal to increase the lifetime scope.
+69 |         let _: &'static mut u64 = zerocopy::transmute_mut!(&mut x);
+   |                ----------------                            ^^^^^^ borrowed value does not live long enough
+   |                |
+   |                type annotation requires that `x` is borrowed for `'static`
+70 |
+71 |     }
+   |     - `x` dropped here while still borrowed
+
+error[E0597]: `x` does not live long enough
+  --> $DIR/late-compile-pass.rs:76:56
+   |
+74 |         let x = 0u64;
+   |             - binding `x` declared here
+75 |         // It is illegal to increase the lifetime scope.
+76 |         let _: &'static u64 = zerocopy::transmute_ref!(&x);
+   |                ------------                            ^^ borrowed value does not live long enough
+   |                |
+   |                type annotation requires that `x` is borrowed for `'static`
+77 |
+78 |     }
+   |     - `x` dropped here while still borrowed
+
+error: aborting due to 14 previous errors; 1 warning emitted
+
+Some errors have detailed explanations: E0015, E0080, E0512, E0597.
+For more information about an error, try `rustc --explain E0015`.

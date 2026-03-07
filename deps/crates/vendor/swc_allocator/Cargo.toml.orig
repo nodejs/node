@@ -1,0 +1,49 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "A thin wrapper for bumpalo"
+documentation = "https://rustdoc.swc.rs/swc_allocator/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_allocator"
+repository    = { workspace = true }
+version       = "4.0.1"
+
+  [package.metadata.docs.rs]
+  all-features = true
+  rustdoc-args = ["--cfg", "docsrs"]
+
+
+[features]
+hashbrown = ["dep:hashbrown", "hashbrown/allocator-api2"]
+nightly = [
+  "skip-warning",
+  "allocator-api2/nightly",
+  "bumpalo/allocator_api",
+  "hashbrown/nightly",
+]
+# This two features are actually useless
+rkyv  = []
+serde = []
+# This feature is used to suppress warnings about slowness caused by stable rustc.
+# It's recommended to use nightly rustc until the allocator APIs are stabilized.
+skip-warning = []
+
+
+[dependencies]
+allocator-api2 = { workspace = true }
+bumpalo        = { workspace = true, features = ["allocator-api2"] }
+hashbrown      = { workspace = true, optional = true }
+rustc-hash     = { workspace = true }
+
+
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true }
+criterion                 = { workspace = true }
+
+swc_malloc = { version = "1.2.3", path = "../swc_malloc" }
+
+
+[[bench]]
+harness           = false
+name              = "bench"
+required-features = ["nightly"]
