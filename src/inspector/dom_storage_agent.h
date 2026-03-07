@@ -1,9 +1,11 @@
 #ifndef SRC_INSPECTOR_DOM_STORAGE_AGENT_H_
 #define SRC_INSPECTOR_DOM_STORAGE_AGENT_H_
 
+#include <optional>
 #include <string>
 #include "env.h"
 #include "node/inspector/protocol/DOMStorage.h"
+#include "node_webstorage.h"
 #include "notification_emitter.h"
 #include "v8.h"
 
@@ -50,6 +52,8 @@ class DOMStorageAgent : public protocol::DOMStorage::Backend,
   DOMStorageAgent& operator=(const DOMStorageAgent&) = delete;
 
  private:
+  std::optional<node::webstorage::Storage*> getWebStorage(
+      bool is_local_storage);
   std::unique_ptr<protocol::DOMStorage::Frontend> frontend_;
   std::unordered_map<std::string, std::string> local_storage_map_ = {};
   std::unordered_map<std::string, std::string> session_storage_map_ = {};

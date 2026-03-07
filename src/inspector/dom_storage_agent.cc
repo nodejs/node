@@ -85,11 +85,26 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         "DOMStorage domain is not enabled");
   }
   bool is_local_storage = storageId->getIsLocalStorage();
-  const std::unordered_map<std::string, std::string>& storage_map =
-      is_local_storage ? local_storage_map_ : session_storage_map_;
+  std::unique_ptr<std::unordered_map<std::string, std::string>> storage_map =
+      is_local_storage
+          ? std::make_unique<std::unordered_map<std::string, std::string>>(
+                local_storage_map_)
+          : std::make_unique<std::unordered_map<std::string, std::string>>(
+                session_storage_map_);
+  if (storage_map->empty()) {
+    auto web_storage_obj = getWebStorage(is_local_storage);
+    if (web_storage_obj) {
+      std::unordered_map<std::string, std::string> all_items =
+          web_storage_obj.value()->GetAll();
+      storage_map =
+          std::make_unique<std::unordered_map<std::string, std::string>>(
+              std::move(all_items));
+    }
+  }
+
   auto result =
       std::make_unique<protocol::Array<protocol::Array<protocol::String>>>();
-  for (const auto& pair : storage_map) {
+  for (const auto& pair : *storage_map) {
     auto item = std::make_unique<protocol::Array<protocol::String>>();
     item->push_back(pair.first);
     item->push_back(pair.second);
@@ -238,6 +253,28 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
     node::Utf8Value key_utf8(isolate, key_value);
     node::Utf8Value value_utf8(isolate, value_value);
     storage_map[*key_utf8] = *value_utf8;
+  }
+}
+
+std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
+    bool is_local_storage) {
+  std::string var_name = is_local_storage ? "localStorage" : "sessionStorage";
+  v8::Isolate* isolate = env_->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> global = env_->context()->Global();
+  v8::Local<v8::Value> web_storage_val;
+  if (!global
+           ->Get(env_->context(),
+                 v8::String::NewFromUtf8(env_->isolate(), var_name.c_str())
+                     .ToLocalChecked())
+           .ToLocal(&web_storage_val) ||
+      !web_storage_val->IsObject()) {
+    return std::nullopt;
+  } else {
+    node::webstorage::Storage* storage;
+    ASSIGN_OR_RETURN_UNWRAP(
+        &storage, web_storage_val.As<v8::Object>(), std::nullopt);
+    return storage;
   }
 }
 

@@ -1,4 +1,6 @@
 #include "node_webstorage.h"
+#include <string>
+#include <unordered_map>
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -276,6 +278,40 @@ MaybeLocal<Array> Storage::Enumerate() {
   }
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_DONE, Local<Array>());
   return Array::New(env()->isolate(), values.data(), values.size());
+}
+
+std::unordered_map<std::string, std::string> Storage::GetAll() {
+  if (!Open().IsJust()) {
+    return {};
+  }
+
+  static constexpr std::string_view sql =
+      "SELECT key, value FROM nodejs_webstorage";
+  sqlite3_stmt* s = nullptr;
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
+  auto stmt = stmt_unique_ptr(s);
+  std::unordered_map<std::string, std::string> result;
+  while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
+    CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
+    CHECK(sqlite3_column_type(stmt.get(), 1) == SQLITE_BLOB);
+    auto key_size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
+    auto value_size = sqlite3_column_bytes(stmt.get(), 1) / sizeof(uint16_t);
+    auto key_uint16(
+        reinterpret_cast<const uint16_t*>(sqlite3_column_blob(stmt.get(), 0)));
+    auto value_uint16(
+        reinterpret_cast<const uint16_t*>(sqlite3_column_blob(stmt.get(), 1)));
+    std::string key;
+    for (size_t i = 0; i < key_size; ++i) {
+      key.push_back(static_cast<char>(key_uint16[i]));
+    }
+    std::string value;
+    for (size_t i = 0; i < value_size; ++i) {
+      value.push_back(static_cast<char>(value_uint16[i]));
+    }
+
+    result.emplace(std::move(key), std::move(value));
+  }
+  return result;
 }
 
 MaybeLocal<Value> Storage::Length() {
