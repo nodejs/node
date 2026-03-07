@@ -15,7 +15,8 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-  cli.waitForInitialBreak()
+  cli.waitForPrompt()
+    .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => cli.stepCommand('n'))
     .then(() => {

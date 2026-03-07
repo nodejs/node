@@ -18,7 +18,8 @@ const assert = require('assert');
     throw error;
   }
 
-  return cli.waitForInitialBreak()
+  return cli.waitForPrompt()
+    .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
       const brk = cli.breakInfo;

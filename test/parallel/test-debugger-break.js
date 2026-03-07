@@ -14,6 +14,7 @@ const script = path.relative(process.cwd(), scriptFullPath);
 const cli = startCLI([script]);
 
 (async () => {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   assert.deepStrictEqual(

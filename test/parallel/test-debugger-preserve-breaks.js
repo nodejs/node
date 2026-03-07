@@ -16,6 +16,7 @@ const script = path.relative(process.cwd(), scriptFullPath);
 (async () => {
   const cli = startCLI([script]);
   try {
+    await cli.waitForPrompt();
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();
     await cli.command('breakpoints');
@@ -29,7 +30,9 @@ const script = path.relative(process.cwd(), scriptFullPath);
     await cli.stepCommand('c'); // hit line 3
     assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 3 });
     await cli.command('restart');
+    await cli.waitForPrompt();
     await cli.waitForInitialBreak();
+    await cli.waitForPrompt();
     assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
     await cli.stepCommand('c');
     assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 2 });

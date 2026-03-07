@@ -30,6 +30,7 @@ function delay(ms) {
 
   try {
     (async () => {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.command('exec console.profile()');

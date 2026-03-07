@@ -17,6 +17,7 @@ const path = require('path');
 
   async function runTest() {
     try {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.stepCommand('c');

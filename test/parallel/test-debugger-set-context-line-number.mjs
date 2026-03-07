@@ -21,6 +21,7 @@ function getLastLine(output) {
 
 // Stepping through breakpoints.
 try {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
 

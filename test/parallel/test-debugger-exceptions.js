@@ -17,8 +17,8 @@ const path = require('path');
 
   (async () => {
     try {
-      await cli.waitForInitialBreak();
       await cli.waitForPrompt();
+      await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
 

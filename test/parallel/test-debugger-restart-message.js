@@ -20,6 +20,7 @@ const startCLI = require('../common/debugger');
 
   async function onWaitForInitialBreak() {
     try {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       assert.strictEqual(cli.output.match(listeningRegExp).length, 1);

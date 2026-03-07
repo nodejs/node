@@ -16,6 +16,7 @@ function onFatal(error) {
 
 // Stepping through breakpoints.
 try {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('watch("x")');

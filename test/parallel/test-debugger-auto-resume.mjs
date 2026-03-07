@@ -23,7 +23,9 @@ addLibraryPath(process.env);
 
   const cli = startCLI([script], [], { env });
 
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
+  await cli.waitForPrompt();
   assert.deepStrictEqual(cli.breakInfo, {
     filename: script,
     line: 10,

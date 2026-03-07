@@ -13,6 +13,7 @@ const cli = startCLI([script]);
 
 (async () => {
   try {
+    await cli.waitForPrompt();
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();
     await cli.command('setBreakpoint(1)');
