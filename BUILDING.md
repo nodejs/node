@@ -232,6 +232,8 @@ Consult previous versions of this document for older versions of Node.js:
 ### Prerequisites
 
 * [A supported version of Python][Python versions] for building and testing.
+* A Rust toolchain (`rustc` >= 1.85, `cargo` >= 1.85) for compiling native
+  dependencies. See <https://rustup.rs/> for installation instructions.
 * Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`)
 
 ### Unix and macOS
