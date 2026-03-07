@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test basic symlink creation
@@ -159,7 +160,7 @@ const vfs = require('node:vfs');
   myVfs.mount('/virtual');
 
   const realpath = myVfs.realpathSync('/virtual/link/file.txt');
-  assert.strictEqual(realpath, '/virtual/actual/file.txt');
+  assert.strictEqual(realpath, path.resolve('/virtual/actual/file.txt'));
 
   myVfs.unmount();
 }
@@ -231,7 +232,7 @@ const vfs = require('node:vfs');
   myVfs.mount('/virtual');
 
   myVfs.realpath('/virtual/link/file.txt', common.mustSucceed((resolvedPath) => {
-    assert.strictEqual(resolvedPath, '/virtual/real/file.txt');
+    assert.strictEqual(resolvedPath, path.resolve('/virtual/real/file.txt'));
     myVfs.unmount();
   }));
 }
@@ -289,7 +290,7 @@ const vfs = require('node:vfs');
 
   (async () => {
     const resolved = await myVfs.promises.realpath('/virtual/link/file.txt');
-    assert.strictEqual(resolved, '/virtual/real/file.txt');
+    assert.strictEqual(resolved, path.resolve('/virtual/real/file.txt'));
     myVfs.unmount();
   })().then(common.mustCall());
 }

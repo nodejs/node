@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test requiring a simple virtual module
@@ -181,8 +182,8 @@ const vfs = require('node:vfs');
 
   // After unmounting, the file should not be found
   assert.throws(() => {
-    // Clear require cache first
-    delete require.cache['/virtual10/unmount-test.js'];
+    // Clear require cache first — the cache key is the platform-resolved path
+    delete require.cache[path.resolve('/virtual10/unmount-test.js')];
     require('/virtual10/unmount-test.js');
   }, { code: 'MODULE_NOT_FOUND' });
 }

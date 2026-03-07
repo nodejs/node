@@ -1,8 +1,10 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const vfs = require('node:vfs');
 
 // Test that virtualCwd option is disabled by default
@@ -39,11 +41,11 @@ const vfs = require('node:vfs');
 
   // Change to a directory that exists
   myVfs.chdir('/virtual/project');
-  assert.strictEqual(myVfs.cwd(), '/virtual/project');
+  assert.strictEqual(myVfs.cwd(), path.resolve('/virtual/project'));
 
   // Change to a subdirectory
   myVfs.chdir('/virtual/project/src');
-  assert.strictEqual(myVfs.cwd(), '/virtual/project/src');
+  assert.strictEqual(myVfs.cwd(), path.resolve('/virtual/project/src'));
 
   myVfs.unmount();
 }
@@ -88,16 +90,16 @@ const vfs = require('node:vfs');
   // Set virtual cwd
   myVfs.chdir('/virtual/project');
 
-  // Absolute paths are returned as-is
-  assert.strictEqual(myVfs.resolvePath('/absolute/path'), '/absolute/path');
+  // Absolute paths are normalized to platform paths
+  assert.strictEqual(myVfs.resolvePath('/absolute/path'), path.resolve('/absolute/path'));
 
   // Relative paths are resolved relative to virtual cwd
-  assert.strictEqual(myVfs.resolvePath('src/index.js'), '/virtual/project/src/index.js');
-  assert.strictEqual(myVfs.resolvePath('./src/index.js'), '/virtual/project/src/index.js');
+  assert.strictEqual(myVfs.resolvePath('src/index.js'), path.resolve('/virtual/project/src/index.js'));
+  assert.strictEqual(myVfs.resolvePath('./src/index.js'), path.resolve('/virtual/project/src/index.js'));
 
   // Change to subdirectory and resolve again
   myVfs.chdir('/virtual/project/src');
-  assert.strictEqual(myVfs.resolvePath('index.js'), '/virtual/project/src/index.js');
+  assert.strictEqual(myVfs.resolvePath('index.js'), path.resolve('/virtual/project/src/index.js'));
 
   myVfs.unmount();
 }
@@ -109,7 +111,7 @@ const vfs = require('node:vfs');
 
   // Should still work, but uses real cwd for relative paths
   const resolved = myVfs.resolvePath('/absolute/path');
-  assert.strictEqual(resolved, '/absolute/path');
+  assert.strictEqual(resolved, path.resolve('/absolute/path'));
 
   myVfs.unmount();
 }
@@ -124,13 +126,13 @@ const vfs = require('node:vfs');
 
   // process.chdir to VFS path
   process.chdir('/virtual/project');
-  assert.strictEqual(process.cwd(), '/virtual/project');
-  assert.strictEqual(myVfs.cwd(), '/virtual/project');
+  assert.strictEqual(process.cwd(), path.resolve('/virtual/project'));
+  assert.strictEqual(myVfs.cwd(), path.resolve('/virtual/project'));
 
   // process.chdir to another VFS path
   process.chdir('/virtual/project/src');
-  assert.strictEqual(process.cwd(), '/virtual/project/src');
-  assert.strictEqual(myVfs.cwd(), '/virtual/project/src');
+  assert.strictEqual(process.cwd(), path.resolve('/virtual/project/src'));
+  assert.strictEqual(myVfs.cwd(), path.resolve('/virtual/project/src'));
 
   myVfs.unmount();
 
@@ -147,9 +149,10 @@ const vfs = require('node:vfs');
   const originalCwd = process.cwd();
 
   // Change to a real directory (not under /virtual)
-  // Use realpathSync because /tmp may be a symlink (e.g., /tmp -> /private/tmp on macOS)
-  const tmpDir = fs.realpathSync('/tmp');
-  process.chdir('/tmp');
+  // Use os.tmpdir() for cross-platform support; realpathSync handles symlinks
+  // (e.g., /tmp -> /private/tmp on macOS)
+  const tmpDir = fs.realpathSync(os.tmpdir());
+  process.chdir(tmpDir);
   assert.strictEqual(process.cwd(), tmpDir);
   // myVfs.cwd() should still be null (not set)
   assert.strictEqual(myVfs.cwd(), null);
@@ -170,7 +173,7 @@ const vfs = require('node:vfs');
 
   // Set virtual cwd
   myVfs.chdir('/virtual/project');
-  assert.strictEqual(process.cwd(), '/virtual/project');
+  assert.strictEqual(process.cwd(), path.resolve('/virtual/project'));
 
   myVfs.unmount();
 
@@ -201,7 +204,7 @@ const vfs = require('node:vfs');
   myVfs.mount('/virtual');
 
   myVfs.chdir('/virtual/project');
-  assert.strictEqual(myVfs.cwd(), '/virtual/project');
+  assert.strictEqual(myVfs.cwd(), path.resolve('/virtual/project'));
 
   myVfs.unmount();
 
