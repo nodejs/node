@@ -1,6 +1,7 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
+import os from 'node:os';
 import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -957,10 +958,10 @@ process.on('message', (message) => {
   });
 
   it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', async () => {
-    const projectDir = tmpdir.resolve('project-watch-quoted');
-    mkdirSync(projectDir);
-    const watchDir = path.join(projectDir, 'test for --watch parsing');
-    mkdirSync(watchDir);
+    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // that would break NODE_OPTIONS parsing.
+    const watchDir = path.join(os.tmpdir(), 'test for --watch parsing');
+    mkdirSync(watchDir, { recursive: true });
     const reqFile = path.join(watchDir, 'req.cjs');
     writeFileSync(reqFile, 'globalThis.requiredOk = true;');
 
@@ -1004,8 +1005,10 @@ process.on('message', (message) => {
 
   it('should strip multiple --watch-path entries from NODE_OPTIONS', async () => {
     const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
-    const dirA = tmpdir.resolve('watch-path-a');
-    const dirB = tmpdir.resolve('watch-path-b');
+    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // that would break NODE_OPTIONS parsing.
+    const dirA = path.join(os.tmpdir(), 'node-watch-path-a');
+    const dirB = path.join(os.tmpdir(), 'node-watch-path-b');
     mkdirSync(dirA, { recursive: true });
     mkdirSync(dirB, { recursive: true });
     const nodeOptions = `--watch --watch-path=${dirA} --watch-path ${dirB} --no-warnings`;
