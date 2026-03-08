@@ -395,8 +395,7 @@ The accepted values are:
 
 If the `mainFormat` field is not specified, it defaults to `"commonjs"`.
 
-Currently, `"mainFormat": "module"` cannot be used together with `"useSnapshot"`
-or `"useCodeCache"`.
+Currently, `"mainFormat": "module"` cannot be used together with `"useSnapshot"`.
 
 ### Module loading in the injected main script
 
