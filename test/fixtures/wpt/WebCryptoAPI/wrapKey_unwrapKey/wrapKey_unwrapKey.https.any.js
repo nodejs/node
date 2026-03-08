@@ -40,6 +40,11 @@
             name: "AES-KW",
             importParameters: {name: "AES-KW", length: 128},
             wrapParameters: {name: "AES-KW"}
+        },
+        {
+            name: 'ChaCha20-Poly1305',
+            importParameters: {name: "ChaCha20-Poly1305"},
+            wrapParameters: {name: "ChaCha20-Poly1305", iv: new Uint8Array(12), additionalData: new Uint8Array(16)}
         }
     ];
 
@@ -57,7 +62,8 @@
         {algorithm: {name: "AES-CBC", length: 128}, usages: ["encrypt", "decrypt"]},
         {algorithm: {name: "AES-GCM", length: 128}, usages: ["encrypt", "decrypt"]},
         {algorithm: {name: "AES-KW", length: 128}, usages: ["wrapKey", "unwrapKey"]},
-        {algorithm: {name: "HMAC", length: 128, hash: "SHA-256"}, usages: ["sign", "verify"]}
+        {algorithm: {name: "HMAC", length: 128, hash: "SHA-256"}, usages: ["sign", "verify"]},
+        {algorithm: {name: "ChaCha20-Poly1305"}, usages: ['encrypt', 'decrypt']}
     ];
 
     // Import all the keys needed, then iterate over all combinations
@@ -106,9 +112,15 @@
                               .then(function(key) {
                                   wrappers["RSA-OAEP"].unwrappingKey = key;
                               }));
+            } else if (params.name === "ChaCha20-Poly1305") {
+                var algorithm = {name: params.name};
+                promises.push(subtle.importKey("raw", wrappingKeyData["SYMMETRIC256"].raw, algorithm, true, ["wrapKey", "unwrapKey"])
+                              .then(function(key) {
+                                  wrappers[params.name] = {wrappingKey: key, unwrappingKey: key, parameters: params};
+                              }));
             } else {
                 var algorithm = {name: params.name};
-                promises.push(subtle.importKey("raw", wrappingKeyData["SYMMETRIC"].raw, algorithm, true, ["wrapKey", "unwrapKey"])
+                promises.push(subtle.importKey("raw", wrappingKeyData["SYMMETRIC128"].raw, algorithm, true, ["wrapKey", "unwrapKey"])
                               .then(function(key) {
                                   wrappers[params.name] = {wrappingKey: key, unwrappingKey: key, parameters: params};
                               }));
@@ -151,9 +163,12 @@
                 var keyData = toWrapKeyDataFromAlg(params.algorithm.name);
                 promises.push(importAndExport("spki", keyData.spki, params.algorithm, params.publicUsages, "public key "));
                 promises.push(importAndExport("pkcs8", keyData.pkcs8, params.algorithm, params.privateUsages, "private key "));
+            } else if (params.algorithm.name === "ChaCha20-Poly1305") {
+                keys[params.algorithm.name] = {};
+                promises.push(importAndExport("raw", toWrapKeyData["SYMMETRIC256"].raw, params.algorithm, params.usages, ""));
             } else {
                 keys[params.algorithm.name] = {};
-                promises.push(importAndExport("raw", toWrapKeyData["SYMMETRIC"].raw, params.algorithm, params.usages, ""));
+                promises.push(importAndExport("raw", toWrapKeyData["SYMMETRIC128"].raw, params.algorithm, params.usages, ""));
             }
         });
         // Using allSettled to skip unsupported test cases.
@@ -431,6 +446,9 @@
                 break;
             case "ECDH" :
                 deriveParams = {name: "ECDH"};
+                break;
+            case "ChaCha20-Poly1305":
+                cryptParams = {name: "ChaCha20-Poly1305", iv: new Uint8Array(12)};
                 break;
             default:
                 throw new Error("Unsupported algorithm for key comparison");
