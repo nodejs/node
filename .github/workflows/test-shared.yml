@@ -113,7 +113,7 @@ jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
     name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -165,6 +165,12 @@ jobs:
         with:
           name: tarballs
           path: tarballs
+
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
 
       - name: Extract tarball
         if: ${{ github.event_name != 'workflow_dispatch' }}
