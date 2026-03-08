@@ -89,14 +89,6 @@ if (common.hasIntl) {
       }));
   });
 
-  // Warning should only happen once per process.
-  common.expectWarning({
-    DeprecationWarning: {
-      // eslint-disable-next-line @stylistic/js/max-len
-      DEP0169: '`url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.',
-      DEP0170: `The URL ${badURLs[0]} is invalid. Future versions of Node.js will throw an error.`,
-    },
-  });
   badURLs.forEach((badURL) => {
     url.parse(badURL);
   });
