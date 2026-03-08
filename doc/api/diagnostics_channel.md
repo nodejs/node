@@ -978,6 +978,136 @@ channels.asyncStart.bindStore(myStore, (data) => {
 });
 ```
 
+#### `tracingChannel.traceIterator(fn[, context[, thisArg[, ...args]]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} Iterator or async iterator returning function to wrap a trace
+  around
+* `context` {Object} Shared object to correlate trace events through
+* `thisArg` {any} The receiver to be used for the function call
+* `...args` {any} Optional arguments to pass to the function
+* Returns: {Iterator|AsyncIterator|Promise} The iterator returned by the given
+  function, or a {Promise} resolving to it if the function is async
+
+Trace an iterator-returning function call. This will always produce a
+[`start` event][] and [`end` event][] around the synchronous portion of the
+function execution. If the given function returns a promise (i.e. is an async
+function), it will additionally produce an [`asyncStart` event][] and
+[`asyncEnd` event][] when the promise resolves to the iterator.
+
+Each call to `next()`, `return()`, or `throw()` on the returned iterator is
+also traced via a sub-channel derived from the tracing channel name by appending
+`:next`. For example, if the tracing channel is named `my-channel`, the
+sub-channel will be `my-channel:next`. These calls follow the same event
+pattern as the outer function call: [`start` event][] and [`end` event][] for
+synchronous results, plus [`asyncStart` event][] and [`asyncEnd` event][] if
+the method returns a promise (e.g. when iterating an async iterator). An
+[`error` event][] is produced if `next()` throws or the iterator method rejects.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+// Sync function returning a sync iterator.
+// Fires start/end on 'my-channel'; fires start/end on 'my-channel:next'
+// for each next() call.
+for (const value of channels.traceIterator(function*() {
+  yield 1;
+  yield 2;
+}, { some: 'thing' })) {
+  // consume values
+}
+
+// Sync call to an async generator function, returning an AsyncIterator.
+// Fires start/end on 'my-channel'; fires start/end/asyncStart/asyncEnd on
+// 'my-channel:next' for each next() call because next() returns a Promise.
+for await (const value of channels.traceIterator(async function*() {
+  yield 1;
+  yield 2;
+}, { some: 'thing' })) {
+  // consume values
+}
+
+// Async function returning a sync iterator.
+// Fires start/end/asyncStart/asyncEnd on 'my-channel' when the Promise
+// resolves; fires start/end on 'my-channel:next' for each next() call.
+const iter = await channels.traceIterator(async function() {
+  return [1, 2].values();
+}, { some: 'thing' });
+for (const value of iter) {
+  // consume values
+}
+
+// Async function returning an async iterator.
+// Fires start/end/asyncStart/asyncEnd on 'my-channel' when the Promise
+// resolves; fires start/end/asyncStart/asyncEnd on 'my-channel:next' for each
+// next() call.
+const asyncIter = await channels.traceIterator(async function() {
+  return (async function*() { yield 1; yield 2; })();
+}, { some: 'thing' });
+for await (const value of asyncIter) {
+  // consume values
+}
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+// Sync function returning a sync iterator.
+// Fires start/end on 'my-channel'; fires start/end on 'my-channel:next'
+// for each next() call.
+for (const value of channels.traceIterator(function*() {
+  yield 1;
+  yield 2;
+}, { some: 'thing' })) {
+  // consume values
+}
+
+(async () => {
+  // Sync call to an async generator function, returning an AsyncIterator.
+  // Fires start/end on 'my-channel'; fires start/end/asyncStart/asyncEnd on
+  // 'my-channel:next' for each next() call because next() returns a Promise.
+  for await (const value of channels.traceIterator(async function*() {
+    yield 1;
+    yield 2;
+  }, { some: 'thing' })) {
+    // consume values
+  }
+
+  // Async function returning a sync iterator.
+  // Fires start/end/asyncStart/asyncEnd on 'my-channel' when the Promise
+  // resolves; fires start/end on 'my-channel:next' for each next() call.
+  const iter = await channels.traceIterator(async function() {
+    return [1, 2].values();
+  }, { some: 'thing' });
+  for (const value of iter) {
+    // consume values
+  }
+
+  // Async function returning an async iterator.
+  // Fires start/end/asyncStart/asyncEnd on 'my-channel' when the Promise
+  // resolves; fires start/end/asyncStart/asyncEnd on 'my-channel:next' for
+  // each next() call.
+  const asyncIter = await channels.traceIterator(async function() {
+    return (async function*() { yield 1; yield 2; })();
+  }, { some: 'thing' });
+  for await (const value of asyncIter) {
+    // consume values
+  }
+})();
+```
+
 #### `tracingChannel.hasSubscribers`
 
 <!-- YAML
