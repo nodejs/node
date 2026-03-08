@@ -9,6 +9,7 @@
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "path.h"
+#include "simdutf.h"
 #include "sqlite3.h"
 #include "util-inl.h"
 
@@ -297,17 +298,23 @@ std::unordered_map<std::string, std::string> Storage::GetAll() {
     auto key_size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
     auto value_size = sqlite3_column_bytes(stmt.get(), 1) / sizeof(uint16_t);
     auto key_uint16(
-        reinterpret_cast<const uint16_t*>(sqlite3_column_blob(stmt.get(), 0)));
+        reinterpret_cast<const char16_t*>(sqlite3_column_blob(stmt.get(), 0)));
     auto value_uint16(
-        reinterpret_cast<const uint16_t*>(sqlite3_column_blob(stmt.get(), 1)));
+        reinterpret_cast<const char16_t*>(sqlite3_column_blob(stmt.get(), 1)));
+    size_t key_utf8_size =
+        simdutf::utf8_length_from_utf16(key_uint16, key_size);
     std::string key;
-    for (size_t i = 0; i < key_size; ++i) {
-      key.push_back(static_cast<char>(key_uint16[i]));
-    }
+    key.resize(key_utf8_size);
+    size_t written =
+        simdutf::convert_utf16_to_utf8(key_uint16, key_size, key.data());
+    key.resize(written);
+    size_t value_utf8_size =
+        simdutf::utf8_length_from_utf16(value_uint16, value_size);
     std::string value;
-    for (size_t i = 0; i < value_size; ++i) {
-      value.push_back(static_cast<char>(value_uint16[i]));
-    }
+    value.resize(value_utf8_size);
+    written =
+        simdutf::convert_utf16_to_utf8(value_uint16, value_size, value.data());
+    value.resize(written);
 
     result.emplace(std::move(key), std::move(value));
   }

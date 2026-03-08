@@ -1,6 +1,9 @@
 #include "dom_storage_agent.h"
+#include <optional>
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
+#include "util.h"
+#include "v8-exception.h"
 #include "v8-isolate.h"
 
 namespace node {
@@ -85,11 +88,11 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         "DOMStorage domain is not enabled");
   }
   bool is_local_storage = storageId->getIsLocalStorage();
-  std::unique_ptr<std::unordered_map<std::string, std::string>> storage_map =
+  std::optional<std::unordered_map<std::string, std::string>> storage_map =
       is_local_storage
-          ? std::make_unique<std::unordered_map<std::string, std::string>>(
+          ? std::make_optional<std::unordered_map<std::string, std::string>>(
                 local_storage_map_)
-          : std::make_unique<std::unordered_map<std::string, std::string>>(
+          : std::make_optional<std::unordered_map<std::string, std::string>>(
                 session_storage_map_);
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
@@ -97,7 +100,7 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
       std::unordered_map<std::string, std::string> all_items =
           web_storage_obj.value()->GetAll();
       storage_map =
-          std::make_unique<std::unordered_map<std::string, std::string>>(
+          std::make_optional<std::unordered_map<std::string, std::string>>(
               std::move(all_items));
     }
   }
@@ -258,17 +261,18 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
 
 std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
     bool is_local_storage) {
-  std::string var_name = is_local_storage ? "localStorage" : "sessionStorage";
   v8::Isolate* isolate = env_->isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> global = env_->context()->Global();
   v8::Local<v8::Value> web_storage_val;
+  v8::TryCatch try_catch(isolate);
   if (!global
            ->Get(env_->context(),
-                 v8::String::NewFromUtf8(env_->isolate(), var_name.c_str())
-                     .ToLocalChecked())
+                 is_local_storage
+                     ? FIXED_ONE_BYTE_STRING(isolate, "localStorage")
+                     : FIXED_ONE_BYTE_STRING(isolate, "sessionStorage"))
            .ToLocal(&web_storage_val) ||
-      !web_storage_val->IsObject()) {
+      !web_storage_val->IsObject() || try_catch.HasCaught()) {
     return std::nullopt;
   } else {
     node::webstorage::Storage* storage;
