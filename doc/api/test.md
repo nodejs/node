@@ -925,6 +925,69 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
+### Mocking functions that throw
+
+The mock function API allows mocking functions that throw errors and validating
+them using `assert.throws()`. This is useful for testing error handling code paths.
+
+```mjs
+import assert from 'node:assert';
+import { mock, test } from 'node:test';
+
+test('mocks a function that throws', () => {
+  const fn = mock.fn(() => {
+    throw new Error('mock error');
+  });
+
+  // The function throws when called
+  assert.throws(() => fn(), { message: 'mock error' });
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { mock, test } = require('node:test');
+
+test('mocks a function that throws', () => {
+  const fn = mock.fn(() => {
+    throw new Error('mock error');
+  });
+
+  // The function throws when called
+  assert.throws(() => fn(), { message: 'mock error' });
+});
+```
+
+When using the spy functionality, the mock tracks both successful calls and
+thrown errors:
+
+```mjs
+import assert from 'node:assert';
+import { mock, test } from 'node:test';
+
+test('mocks track both results and errors', () => {
+  let callCount = 0;
+  const fn = mock.fn(() => {
+    callCount++;
+    if (callCount === 2) {
+      throw new Error('error on second call');
+    }
+    return 'success';
+  });
+
+  // First call succeeds
+  assert.strictEqual(fn(), 'success');
+
+  // Second call throws
+  assert.throws(() => fn(), { message: 'error on second call' });
+
+  // Check mock metadata
+  assert.strictEqual(fn.mock.callCount(), 2);
+  assert.strictEqual(fn.mock.calls[0].result, 'success');
+  assert.strictEqual(fn.mock.calls[1].error.message, 'error on second call');
+});
+```
+
 ### Dates
 
 The mock timers API also allows the mocking of the `Date` object. This is a
