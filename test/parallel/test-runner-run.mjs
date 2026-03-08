@@ -1,6 +1,7 @@
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import consumers from 'node:stream/consumers';
@@ -645,6 +646,19 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     ) {
       assert.strictEqual(diagnostics.includes(entry), true);
     }
+  });
+
+  // Regression test for https://github.com/nodejs/node/issues/60020
+  it('should not hang in cluster workers when isolation is none', () => {
+    const fixture = fixtures.path('test-runner', 'run-isolation-none-in-cluster.js');
+    const { status, signal, stdout, stderr } = spawnSync(process.execPath, [fixture], {
+      encoding: 'utf8',
+      timeout: common.platformTimeout(5000),
+    });
+
+    assert.strictEqual(signal, null);
+    assert.strictEqual(status, 0, stderr);
+    assert.match(stdout, /on end/);
   });
 });
 
