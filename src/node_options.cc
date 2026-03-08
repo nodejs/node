@@ -2096,8 +2096,7 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void ParseNodeOptionsEnvVarBinding(
-    const FunctionCallbackInfo<Value>& args) {
+void ParseNodeOptionsEnvVarBinding(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -2139,10 +2138,8 @@ void Initialize(Local<Object> target,
                         target,
                         "getNamespaceOptionsInputType",
                         GetNamespaceOptionsInputType);
-  SetMethodNoSideEffect(context,
-                        target,
-                        "parseNodeOptionsEnvVar",
-                        ParseNodeOptionsEnvVarBinding);
+  SetMethodNoSideEffect(
+      context, target, "parseNodeOptionsEnvVar", ParseNodeOptionsEnvVarBinding);
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvvar);
   NODE_DEFINE_CONSTANT(env_settings, kDisallowedInEnvvar);

@@ -926,14 +926,14 @@ process.on('message', (message) => {
   it('should strip all watch flags from NODE_OPTIONS in child process', async () => {
     const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
     const nodeOptions = [
-      '--watch',                       // bare boolean
-      '--watch=true',                  // boolean with =value
-      '--watch-path=./src',            // string with =value
-      '--watch-path', './test',        // String with space-separated value
-      '--watch-preserve-output',       // bare boolean
-      '--watch-preserve-output=true',  // boolean with =value
-      '--watch-kill-signal=SIGKILL',   // string with =value
-      '--watch-kill-signal', 'SIGINT', // String with space-separated value
+      '--watch',
+      '--watch=true',
+      '--watch-path=./src',
+      '--watch-path', './test',
+      '--watch-preserve-output',
+      '--watch-preserve-output=true',
+      '--watch-kill-signal=SIGKILL',
+      '--watch-kill-signal', 'SIGINT',
       '--max-old-space-size=4096',
       '--no-warnings',
     ].join(' ');
@@ -951,6 +951,76 @@ process.on('message', (message) => {
       const nodeOptionsLine = stdout.find((line) => line.includes('--max-old-space-size'));
       assert.ok(nodeOptionsLine);
       assert.strictEqual(nodeOptionsLine, '--max-old-space-size=4096 --no-warnings');
+    } finally {
+      await done();
+    }
+  });
+
+  it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', async () => {
+    const projectDir = tmpdir.resolve('project-watch-quoted');
+    mkdirSync(projectDir);
+    const watchDir = path.join(projectDir, 'test for --watch parsing');
+    mkdirSync(watchDir);
+    const reqFile = path.join(watchDir, 'req.cjs');
+    writeFileSync(reqFile, 'globalThis.requiredOk = true;');
+
+    const file = createTmpFile('console.log("required:" + !!globalThis.requiredOk);');
+    const nodeOptions = `--watch --require "${reqFile}"`;
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line.includes('required:true')));
+    } finally {
+      await done();
+    }
+  });
+
+  it('should handle NODE_OPTIONS containing only watch flags', async () => {
+    const file = createTmpFile('console.log(JSON.stringify(process.env.NODE_OPTIONS));');
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: '--watch' },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line.includes('""')));
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip multiple --watch-path entries from NODE_OPTIONS', async () => {
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    const dirA = tmpdir.resolve('watch-path-a');
+    const dirB = tmpdir.resolve('watch-path-b');
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+    const nodeOptions = `--watch --watch-path=${dirA} --watch-path ${dirB} --no-warnings`;
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line === '--no-warnings'));
     } finally {
       await done();
     }
