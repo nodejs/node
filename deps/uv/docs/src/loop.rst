@@ -86,12 +86,12 @@ API
 
       This option is necessary to use :c:func:`uv_metrics_idle_time`.
 
-    - UV_LOOP_ENABLE_IO_URING_SQPOLL: Enable SQPOLL io_uring instance to handle
+    - UV_LOOP_USE_IO_URING_SQPOLL: Enable SQPOLL io_uring instance to handle
       asynchronous file system operations.
 
     .. versionchanged:: 1.39.0 added the UV_METRICS_IDLE_TIME option.
 
-    .. versionchanged:: 1.49.0 added the UV_LOOP_ENABLE_IO_URING_SQPOLL option.
+    .. versionchanged:: 1.49.0 added the UV_LOOP_USE_IO_URING_SQPOLL option.
 
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 
