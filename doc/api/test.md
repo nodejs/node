@@ -2460,6 +2460,29 @@ test('spies on an object method', (t) => {
 });
 ```
 
+The same approach can be used to mock a method that throws and verify the
+error with [`assert.throws()`][]:
+
+```js
+test('mocks a method that throws', (t) => {
+  const number = {
+    value: 5,
+    subtract(a) {
+      return this.value - a;
+    },
+  };
+
+  t.mock.method(number, 'subtract', () => {
+    throw new Error('boom');
+  });
+
+  assert.throws(() => number.subtract(3), {
+    message: 'boom',
+  });
+});
+```
+
+
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
