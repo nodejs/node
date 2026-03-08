@@ -1,13 +1,13 @@
-/* auto-generated on 2026-01-21 14:02:13 -0500. Do not edit! */
-/* begin file include/lexer.h */
+/* auto-generated on 2026-03-06 11:46:19 -0500. Do not edit! */
+/* begin file include/merve.h */
 #ifndef MERVE_H
 #define MERVE_H
 
-/* begin file include/lexer/parser.h */
+/* begin file include/merve/parser.h */
 #ifndef MERVE_PARSER_H
 #define MERVE_PARSER_H
 
-/* begin file include/lexer/version.h */
+/* begin file include/merve/version.h */
 /**
  * @file version.h
  * @brief Definitions for merve's version number.
@@ -15,21 +15,23 @@
 #ifndef MERVE_VERSION_H
 #define MERVE_VERSION_H
 
-#define MERVE_VERSION "1.0.0"
+#define MERVE_VERSION "1.2.0" // x-release-please-version
 
 namespace lexer {
 
 enum {
-  MERVE_VERSION_MAJOR = 1,
-  MERVE_VERSION_MINOR = 0,
-  MERVE_VERSION_REVISION = 0,
+  MERVE_VERSION_MAJOR = 1,     // x-release-please-major
+  MERVE_VERSION_MINOR = 2,     // x-release-please-minor
+  MERVE_VERSION_REVISION = 0,  // x-release-please-patch
 };
 
 }  // namespace lexer
 
 #endif  // MERVE_VERSION_H
-/* end file include/lexer/version.h */
+/* end file include/merve/version.h */
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -64,6 +66,17 @@ enum lexer_error {
 };
 
 /**
+ * @brief Source location information for a parse error.
+ *
+ * - line and column are 1-based.
+ * - column is byte-oriented.
+ */
+struct error_location {
+  uint32_t line;
+  uint32_t column;
+};
+
+/**
  * @brief Type alias for export names.
  *
  * Uses std::variant to optimize memory:
@@ -73,6 +86,14 @@ enum lexer_error {
  * Use get_string_view() to access the value uniformly.
  */
 using export_string = std::variant<std::string, std::string_view>;
+
+/**
+ * @brief An export name together with its 1-based source line number.
+ */
+struct export_entry {
+  export_string name;
+  uint32_t line;  // 1-based line number
+};
 
 /**
  * @brief Result of parsing a CommonJS module.
@@ -88,7 +109,7 @@ struct lexer_analysis {
    * - module.exports = { a, b, c }
    * - Object.defineProperty(exports, 'name', {...})
    */
-  std::vector<export_string> exports{};
+  std::vector<export_entry> exports{};
 
   /**
    * @brief Module specifiers from re-export patterns.
@@ -99,7 +120,7 @@ struct lexer_analysis {
    * - __export(require('other'))
    * - Object.keys(require('other')).forEach(...)
    */
-  std::vector<export_string> re_exports{};
+  std::vector<export_entry> re_exports{};
 };
 
 /**
@@ -114,6 +135,13 @@ struct lexer_analysis {
  */
 inline std::string_view get_string_view(const export_string& s) {
   return std::visit([](const auto& v) -> std::string_view { return v; }, s);
+}
+
+/**
+ * @brief Get a string_view from an export_entry (delegates to the name field).
+ */
+inline std::string_view get_string_view(const export_entry& e) {
+  return get_string_view(e.name);
 }
 
 /**
@@ -157,10 +185,22 @@ std::optional<lexer_analysis> parse_commonjs(std::string_view file_contents);
  */
 const std::optional<lexer_error>& get_last_error();
 
+/**
+ * @brief Get the location of the last failed parse operation.
+ *
+ * @return const std::optional<error_location>& The last error location, or
+ *         std::nullopt if unavailable.
+ *
+ * @note This is global state and may be overwritten by subsequent calls
+ *       to parse_commonjs().
+ * @note Location tracking is best-effort and may be unavailable.
+ */
+const std::optional<error_location>& get_last_error_location();
+
 }  // namespace lexer
 
 #endif  // MERVE_PARSER_H
-/* end file include/lexer/parser.h */
+/* end file include/merve/parser.h */
 
 #endif  // MERVE_H
-/* end file include/lexer.h */
+/* end file include/merve.h */
