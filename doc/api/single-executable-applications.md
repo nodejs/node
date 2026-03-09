@@ -234,6 +234,12 @@ When `useVfs` is enabled, `__filename` and `__dirname` in the injected main
 script reflect VFS paths (e.g., `/sea/main.js`) instead of
 [`process.execPath`][].
 
+#### ESM limitations
+
+The `useVfs` option does not currently support ESM entry points. Using
+`"useVfs": true` together with `"mainFormat": "module"` is not supported.
+The main script must use CommonJS (`require()`) when VFS is enabled.
+
 #### Code caching limitations
 
 The `useCodeCache` option in the SEA configuration does not currently apply to
