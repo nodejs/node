@@ -89,15 +89,13 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   }
   bool is_local_storage = storageId->getIsLocalStorage();
   std::optional<StorageMap> storage_map =
-      is_local_storage
-          ? std::make_optional<StorageMap>(local_storage_map_)
-          : std::make_optional<StorageMap>(session_storage_map_);
+      is_local_storage ? std::make_optional<StorageMap>(local_storage_map_)
+                       : std::make_optional<StorageMap>(session_storage_map_);
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
     if (web_storage_obj) {
       StorageMap all_items = web_storage_obj.value()->GetAll();
-      storage_map =
-          std::make_optional<StorageMap>(std::move(all_items));
+      storage_map = std::make_optional<StorageMap>(std::move(all_items));
     }
   }
 
@@ -105,12 +103,12 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
       std::make_unique<protocol::Array<protocol::Array<protocol::String>>>();
   for (const auto& pair : *storage_map) {
     auto item = std::make_unique<protocol::Array<protocol::String>>();
-    item->push_back(
-      protocol::StringUtil::fromUTF16(reinterpret_cast<const uint16_t*>(pair.first.data()),
-                                        pair.first.size())); 
-    item->push_back(
-      protocol::StringUtil::fromUTF16(reinterpret_cast<const uint16_t*>(pair.second.data()),
-                                        pair.second.size()));
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.first.data()),
+        pair.first.size()));
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.second.data()),
+        pair.second.size()));
     result->push_back(std::move(item));
   }
   *items = std::move(result);
@@ -255,11 +253,11 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
     }
     node::TwoByteValue key_utf16(isolate, key_value);
     node::TwoByteValue value_utf16(isolate, value_value);
-    storage_map[std::u16string(
-        reinterpret_cast<const char16_t*>(*key_utf16), key_utf16.length())] =
+    storage_map[std::u16string(reinterpret_cast<const char16_t*>(*key_utf16),
+                               key_utf16.length())] =
         std::u16string(reinterpret_cast<const char16_t*>(*value_utf16),
                        value_utf16.length());
-      }
+  }
 }
 
 std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
