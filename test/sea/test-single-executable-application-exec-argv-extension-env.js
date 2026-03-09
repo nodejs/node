@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the execArgvExtension "env" mode (default) in single executable applications.
 
@@ -19,7 +19,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'exec-argv-extension-env'));
+const outputFile = buildSEA(fixtures.path('sea', 'exec-argv-extension-env'));
 
 // Test that NODE_OPTIONS works with execArgvExtension: "env" (default behavior)
 spawnSyncAndAssert(

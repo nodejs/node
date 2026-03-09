@@ -3,11 +3,11 @@
 const common = require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the creation of a single executable application with an empty
 // script.
@@ -20,7 +20,7 @@ tmpdir.refresh();
 
 let outputFile;
 try {
-  outputFile = generateSEA(fixtures.path('sea', 'empty'), {
+  outputFile = buildSEA(fixtures.path('sea', 'empty'), {
     verifyWorkflow: true,
   });
 } catch (e) {

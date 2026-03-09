@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the creation of a single executable application which uses the
 // V8 code cache.
@@ -19,7 +19,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'use-code-cache'));
+const outputFile = buildSEA(fixtures.path('sea', 'use-code-cache'));
 
 spawnSyncAndAssert(
   outputFile,
