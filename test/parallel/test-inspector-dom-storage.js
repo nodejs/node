@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+common.skipIfSQLiteMissing();
 common.skipIfInspectorDisabled();
 const { DOMStorage, Session } = require('node:inspector/promises');
 const { pathToFileURL } = require('node:url');
@@ -35,6 +36,7 @@ async function testRegisterStorage() {
         key2: 'value2',
         [1]: 2,
         [true]: 'booleanKey',
+        ['ключ']: 'значение',
       },
     });
     const result = await session.post('DOMStorage.getDOMStorageItems', {
@@ -51,6 +53,7 @@ async function testRegisterStorage() {
       ['key1', 'value1'],
       ['key2', 'value2'],
       ['true', 'booleanKey'],
+      ['ключ', 'значение'],
     ]);
   }
 }
@@ -71,6 +74,7 @@ async function testGetData() {
     webStorage.setItem('key1', 'value');
     webStorage.setItem('key2', 1);
     webStorage.setItem('key3', JSON.stringify({ a: 1 }));
+    webStorage.setItem('ключ', 'значение');
 
     const result = await session.post('DOMStorage.getDOMStorageItems', {
       storageId: {
@@ -79,11 +83,12 @@ async function testGetData() {
         storageKey: storageKey.storageKey,
       },
     });
-    assert.strictEqual(result.entries.length, 3);
+    assert.strictEqual(result.entries.length, 4);
     const entries = Object.fromEntries(result.entries);
     assert.strictEqual(entries.key1, 'value');
     assert.strictEqual(entries.key2, '1');
     assert.strictEqual(entries.key3, JSON.stringify({ a: 1 }));
+    assert.strictEqual(entries['ключ'], 'значение');
     session.disconnect();
   }
 }
