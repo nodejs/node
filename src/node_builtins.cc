@@ -144,6 +144,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "wasi",    // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
+        "internal/inspector/webstorage",
 #endif
         "internal/test/binding", "internal/v8_prof_polyfill",
   };
