@@ -6,6 +6,12 @@
 
 #include "merve.h"
 
+#ifdef MERVE_ERROR_TODO
+#define DOT_NAME(exp) (exp.name)
+#else
+#define DOT_NAME(exp) (exp)
+#endif
+
 namespace node {
 namespace cjs_lexer {
 
@@ -71,14 +77,14 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   // Convert exports to JS Set
   Local<Set> exports_set = Set::New(isolate);
   for (const auto& exp : analysis.exports) {
-    exports_set->Add(context, CreateString(isolate, exp.name)).ToLocalChecked();
+    exports_set->Add(context, CreateString(isolate, DOT_NAME(exp))).ToLocalChecked();
   }
 
   // Convert reexports to JS array using batch creation
   LocalVector<Value> reexports_vec(isolate);
   reexports_vec.reserve(analysis.re_exports.size());
   for (const auto& reexp : analysis.re_exports) {
-    reexports_vec.push_back(CreateString(isolate, reexp.name));
+    reexports_vec.push_back(CreateString(isolate, DOT_NAME(reexp)));
   }
 
   // Create result array [exports (Set), reexports (Array)]
