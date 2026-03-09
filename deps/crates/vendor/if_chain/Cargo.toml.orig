@@ -1,0 +1,12 @@
+[package]
+
+name = "if_chain"
+version = "1.0.3"
+authors = ["Chris Wong <lambda.fairy@gmail.com>"]
+
+license = "MIT/Apache-2.0"
+documentation = "https://docs.rs/if_chain"
+repository = "https://github.com/lambda-fairy/if_chain"
+description = "Macro for writing nested `if let` expressions."
+categories = ["rust-patterns", "no-std"]
+readme = "README.md"

@@ -1,0 +1,18 @@
+[package]
+name = "hermit-abi"
+version = "0.5.2"
+authors = ["Stefan Lankes"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+description = "Hermit system calls definitions."
+repository = "https://github.com/hermit-os/hermit-rs"
+keywords = ["unikernel", "libos"]
+categories = ["os"]
+
+[dependencies]
+core = { version = "1.0.0", optional = true, package = "rustc-std-workspace-core" }
+alloc = { version = "1.0.0", optional = true, package = "rustc-std-workspace-alloc" }
+
+[features]
+default = []
+rustc-dep-of-std = ["core", "alloc"]

@@ -7,8 +7,14 @@ const P10: &[f64] = &[
 ];
 
 /// Calculates 10 raised to the power of `x` (f64).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn exp10(x: f64) -> f64 {
+    select_implementation! {
+        name: x87_exp10,
+        use_arch_required: x86_no_sse,
+        args: x,
+    }
+
     let (mut y, n) = modf(x);
     let u: u64 = n.to_bits();
     /* fabs(n) < 16 without raising invalid on nan */

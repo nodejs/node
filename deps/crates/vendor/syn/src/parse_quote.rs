@@ -103,7 +103,7 @@ macro_rules! parse_quote {
 ///         ReturnType::Type(_, ret) => quote!(#ret),
 ///     };
 ///     sig.output = parse_quote_spanned! {ret.span()=>
-///         -> ::std::pin::Pin<::std::boxed::Box<dyn ::std::future::Future<Output = #ret>>>
+///         -> ::core::pin::Pin<::alloc::boxed::Box<dyn ::core::future::Future<Output = #ret>>>
 ///     };
 /// }
 /// ```
@@ -120,6 +120,10 @@ macro_rules! parse_quote_spanned {
 
 use crate::error::Result;
 use crate::parse::{Parse, ParseStream, Parser};
+#[cfg(feature = "full")]
+use alloc::boxed::Box;
+#[cfg(any(feature = "full", feature = "derive"))]
+use alloc::vec::Vec;
 use proc_macro2::TokenStream;
 
 // Not public API.

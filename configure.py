@@ -1169,6 +1169,12 @@ parser.add_argument('--node-builtin-modules-path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
 
+parser.add_argument('--output-transpiled-ts',
+    action='store',
+    dest='output_transpiled_ts',
+    default='',
+    help='write transpiled TypeScript output to the given directory for debugging')
+
 parser.add_argument('--node-snapshot-main',
     action='store',
     dest='node_snapshot_main',
@@ -1535,23 +1541,24 @@ def check_compiler(o):
 
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
 
-  # cargo and rustc are needed for Temporal.
-  if options.v8_enable_temporal_support and not options.shared_temporal_capi:
-    # Minimum cargo and rustc versions should match values in BUILDING.md.
-    min_cargo_ver_tuple = (1, 82)
-    min_rustc_ver_tuple = (1, 82)
-    cargo_ver = get_cargo_version('cargo')
-    print_verbose(f'Detected cargo: {cargo_ver}')
-    cargo_ver_tuple = tuple(map(int, cargo_ver.split('.')))
-    if cargo_ver_tuple < min_cargo_ver_tuple:
-      warn(f'cargo {cargo_ver} too old, need cargo {".".join(map(str, min_cargo_ver_tuple))}')
-    # cargo supports RUSTC environment variable to override "rustc".
-    rustc = os.environ.get('RUSTC', 'rustc')
-    rustc_ver = get_rustc_version(rustc)
-    print_verbose(f'Detected rustc (RUSTC={rustc}): {rustc_ver}')
-    rust_ver_tuple = tuple(map(int, rustc_ver.split('.')))
-    if rust_ver_tuple < min_rustc_ver_tuple:
-      warn(f'rustc {rustc_ver} too old, need rustc {".".join(map(str, min_rustc_ver_tuple))}')
+  # cargo and rustc are always required:
+  #   - SWC (deps/crates) is used by js2c to transpile TypeScript builtins.
+  #   - Temporal (when enabled) also builds from deps/crates.
+  # Minimum cargo and rustc versions should match values in BUILDING.md.
+  min_cargo_ver_tuple = (1, 85)
+  min_rustc_ver_tuple = (1, 85)
+  cargo_ver = get_cargo_version('cargo')
+  print_verbose(f'Detected cargo: {cargo_ver}')
+  cargo_ver_tuple = tuple(map(int, cargo_ver.split('.')))
+  if cargo_ver_tuple < min_cargo_ver_tuple:
+    warn(f'cargo {cargo_ver} too old, need cargo {".".join(map(str, min_cargo_ver_tuple))}')
+  # cargo supports RUSTC environment variable to override "rustc".
+  rustc = os.environ.get('RUSTC', 'rustc')
+  rustc_ver = get_rustc_version(rustc)
+  print_verbose(f'Detected rustc (RUSTC={rustc}): {rustc_ver}')
+  rust_ver_tuple = tuple(map(int, rustc_ver.split('.')))
+  if rust_ver_tuple < min_rustc_ver_tuple:
+    warn(f'rustc {rustc_ver} too old, need rustc {".".join(map(str, min_rustc_ver_tuple))}')
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
@@ -1737,7 +1744,7 @@ def gcc_version_ge(version_checked):
   return True
 
 def configure_node_lib_files(o):
-  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
+  o['variables']['node_library_files'] = SearchFiles('lib', 'js') + SearchFiles('lib', 'ts')
 
 def configure_node_cctest_sources(o):
   o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
@@ -1975,6 +1982,11 @@ def configure_node(o):
   if options.node_builtin_modules_path:
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
+
+  if options.output_transpiled_ts:
+    o['variables']['output_transpiled_ts'] = os.path.abspath(options.output_transpiled_ts)
+  else:
+    o['variables']['output_transpiled_ts'] = ''
 
 def configure_napi(output):
   version = getnapibuildversion.get_napi_version()

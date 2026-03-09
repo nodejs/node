@@ -1,0 +1,28 @@
+[package]
+name = "seq-macro"
+version = "0.3.6"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+categories = ["development-tools", "no-std", "no-std::no-alloc"]
+description = "Macro to repeat sequentially indexed copies of a fragment of code."
+documentation = "https://docs.rs/seq-macro"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dtolnay/seq-macro"
+rust-version = "1.45"
+
+[lib]
+proc-macro = true
+
+[dev-dependencies]
+rustversion = "1.0"
+trybuild = { version = "1.0.49", features = ["diff"] }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = [
+    "--generate-link-to-definition",
+    "--extern-html-root-url=core=https://doc.rust-lang.org",
+    "--extern-html-root-url=alloc=https://doc.rust-lang.org",
+    "--extern-html-root-url=std=https://doc.rust-lang.org",
+    "--extern-html-root-url=proc_macro=https://doc.rust-lang.org",
+]

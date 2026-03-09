@@ -1,0 +1,101 @@
+error[E0277]: the trait bound `T: KnownLayout` is not satisfied
+  --> $DIR/mid_compile_pass.rs:67:26
+   |
+67 | fn test_kl13<T>(t: T) -> impl KnownLayout {
+   |                          ^^^^^^^^^^^^^^^^ the trait `KnownLayout` is not implemented for `T`
+   |
+note: required because of the requirements on the impl of `KnownLayout` for `KL13<T>`
+  --> $DIR/mid_compile_pass.rs:62:10
+   |
+62 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider restricting type parameter `T`
+   |
+67 | fn test_kl13<T: zerocopy_renamed::KnownLayout>(t: T) -> impl KnownLayout {
+   |               +++++++++++++++++++++++++++++++
+
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+  --> $DIR/mid_compile_pass.rs:32:15
+   |
+31 | fn test_kl04<T: ?Sized>(kl: &KL04<T>) {
+   |              - this type parameter needs to be `std::marker::Sized`
+32 |     assert_kl(kl);
+   |               ^^ doesn't have a size known at compile-time
+   |
+note: required because it appears within the type `KL04<T>`
+  --> $DIR/mid_compile_pass.rs:29:8
+   |
+29 | struct KL04<T: ?Sized>(u8, T);
+   |        ^^^^
+note: required because of the requirements on the impl of `KnownLayout` for `KL04<T>`
+  --> $DIR/mid_compile_pass.rs:27:10
+   |
+27 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^
+note: required by a bound in `assert_kl`
+  --> $DIR/mid_compile_pass.rs:23:26
+   |
+23 | fn assert_kl<T: ?Sized + KnownLayout>(_: &T) {}
+   |                          ^^^^^^^^^^^ required by this bound in `assert_kl`
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+   |
+31 - fn test_kl04<T: ?Sized>(kl: &KL04<T>) {
+31 + fn test_kl04<T>(kl: &KL04<T>) {
+   | 
+
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+  --> $DIR/mid_compile_pass.rs:43:15
+   |
+42 | fn test_kl06<T: ?Sized + KnownLayout>(kl: &KL06<T>) {
+   |              - this type parameter needs to be `std::marker::Sized`
+43 |     assert_kl(kl);
+   |               ^^ doesn't have a size known at compile-time
+   |
+note: required because it appears within the type `KL06<T>`
+  --> $DIR/mid_compile_pass.rs:40:8
+   |
+40 | struct KL06<T: ?Sized + KnownLayout>(u8, T);
+   |        ^^^^
+note: required because of the requirements on the impl of `KnownLayout` for `KL06<T>`
+  --> $DIR/mid_compile_pass.rs:38:10
+   |
+38 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^
+note: required by a bound in `assert_kl`
+  --> $DIR/mid_compile_pass.rs:23:26
+   |
+23 | fn assert_kl<T: ?Sized + KnownLayout>(_: &T) {}
+   |                          ^^^^^^^^^^^ required by this bound in `assert_kl`
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+   |
+42 - fn test_kl06<T: ?Sized + KnownLayout>(kl: &KL06<T>) {
+42 + fn test_kl06<T: KnownLayout>(kl: &KL06<T>) {
+   | 
+
+error[E0277]: the trait bound `T: KnownLayout` is not satisfied
+  --> $DIR/mid_compile_pass.rs:55:15
+   |
+55 |     assert_kl(kl)
+   |               ^^
+   |               |
+   |               expected an implementor of trait `KnownLayout`
+   |               help: consider borrowing here: `&kl`
+   |
+note: required because of the requirements on the impl of `KnownLayout` for `KL12<T>`
+  --> $DIR/mid_compile_pass.rs:49:10
+   |
+49 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^
+note: required by a bound in `assert_kl`
+  --> $DIR/mid_compile_pass.rs:23:26
+   |
+23 | fn assert_kl<T: ?Sized + KnownLayout>(_: &T) {}
+   |                          ^^^^^^^^^^^ required by this bound in `assert_kl`
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

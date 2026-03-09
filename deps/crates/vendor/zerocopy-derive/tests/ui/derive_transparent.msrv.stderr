@@ -1,0 +1,93 @@
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::TryFromBytes` is not satisfied
+  --> $DIR/derive_transparent.rs:35:1
+   |
+35 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: TryFromBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zerocopy_renamed::TryFromBytes` is not implemented for `NotZerocopy`
+   |
+note: required because of the requirements on the impl of `zerocopy_renamed::TryFromBytes` for `TransparentStruct<NotZerocopy>`
+  --> $DIR/derive_transparent.rs:24:21
+   |
+24 | #[derive(IntoBytes, FromBytes, Unaligned)]
+   |                     ^^^^^^^^^
+note: required by a bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+  --> $DIR/derive_transparent.rs:35:1
+   |
+35 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: TryFromBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+   = note: this error originates in the macro `::static_assertions::assert_impl_all` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: FromZeros` is not satisfied
+  --> $DIR/derive_transparent.rs:38:1
+   |
+38 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: FromZeros);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `FromZeros` is not implemented for `NotZerocopy`
+   |
+note: required because of the requirements on the impl of `FromZeros` for `TransparentStruct<NotZerocopy>`
+  --> $DIR/derive_transparent.rs:24:21
+   |
+24 | #[derive(IntoBytes, FromBytes, Unaligned)]
+   |                     ^^^^^^^^^
+note: required by a bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+  --> $DIR/derive_transparent.rs:38:1
+   |
+38 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: FromZeros);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+   = note: this error originates in the macro `::static_assertions::assert_impl_all` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::FromBytes` is not satisfied
+  --> $DIR/derive_transparent.rs:41:1
+   |
+41 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: FromBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zerocopy_renamed::FromBytes` is not implemented for `NotZerocopy`
+   |
+note: required because of the requirements on the impl of `zerocopy_renamed::FromBytes` for `TransparentStruct<NotZerocopy>`
+  --> $DIR/derive_transparent.rs:24:21
+   |
+24 | #[derive(IntoBytes, FromBytes, Unaligned)]
+   |                     ^^^^^^^^^
+note: required by a bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+  --> $DIR/derive_transparent.rs:41:1
+   |
+41 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: FromBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+   = note: this error originates in the macro `::static_assertions::assert_impl_all` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::IntoBytes` is not satisfied
+  --> $DIR/derive_transparent.rs:44:1
+   |
+44 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: IntoBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zerocopy_renamed::IntoBytes` is not implemented for `NotZerocopy`
+   |
+note: required because of the requirements on the impl of `zerocopy_renamed::IntoBytes` for `TransparentStruct<NotZerocopy>`
+  --> $DIR/derive_transparent.rs:24:10
+   |
+24 | #[derive(IntoBytes, FromBytes, Unaligned)]
+   |          ^^^^^^^^^
+note: required by a bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+  --> $DIR/derive_transparent.rs:44:1
+   |
+44 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: IntoBytes);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+   = note: this error originates in the macro `::static_assertions::assert_impl_all` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: zerocopy_renamed::Unaligned` is not satisfied
+  --> $DIR/derive_transparent.rs:47:1
+   |
+47 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: Unaligned);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zerocopy_renamed::Unaligned` is not implemented for `NotZerocopy`
+   |
+note: required because of the requirements on the impl of `zerocopy_renamed::Unaligned` for `TransparentStruct<NotZerocopy>`
+  --> $DIR/derive_transparent.rs:24:32
+   |
+24 | #[derive(IntoBytes, FromBytes, Unaligned)]
+   |                                ^^^^^^^^^
+note: required by a bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+  --> $DIR/derive_transparent.rs:47:1
+   |
+47 | util_assert_impl_all!(TransparentStruct<NotZerocopy>: Unaligned);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `_::{closure#0}::_::{closure#0}::assert_impl_all`
+   = note: this error originates in the macro `::static_assertions::assert_impl_all` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 5 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.31"
+edition = "2021"
+rust-version = "1.71"
 name = "unicode-ident"
-version = "1.0.22"
+version = "1.0.24"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 build = false
 autolib = false
@@ -63,15 +63,11 @@ name = "xid"
 path = "benches/xid.rs"
 harness = false
 
-[dev-dependencies.criterion]
-version = "0.7"
-default-features = false
-
 [dev-dependencies.fst]
 version = "0.4"
 
 [dev-dependencies.rand]
-version = "0.9"
+version = "0.10"
 
 [dev-dependencies.roaring]
 version = "0.11"
@@ -82,3 +78,7 @@ default-features = false
 
 [dev-dependencies.unicode-xid]
 version = "0.2.6"
+
+[target."cfg(not(miri))".dev-dependencies.criterion]
+version = "0.8"
+default-features = false

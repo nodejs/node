@@ -1,0 +1,30 @@
+[package]
+name = "strck"
+version = "1.0.0"
+authors = ["Quinn Okabayashi <quinnokabayashi@gmail.com>"]
+edition = "2021"
+description = "Checked owned and borrowed strings"
+keywords = ["text", "ident", "identifier", "validate"]
+categories = ["rust-patterns", "memory-management"]
+license = "MIT"
+repository = "https://github.com/QnnOkabayashi/strck"
+
+[features]
+ident = ["dep:unicode-ident"]
+
+[dependencies.serde]
+version = "1.0"
+optional = true
+
+[dependencies.unicode-ident]
+version = "1"
+optional = true
+
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+strck = { path = ".", features = ["ident", "serde"] }
+serde_json = "1.0"
+smol_str = "0.3"
+
+[package.metadata.docs.rs]
+all-features = true

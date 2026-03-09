@@ -3,7 +3,7 @@
 /// Constructs a number with the magnitude (absolute value) of its
 /// first argument, `x`, and the sign of its second argument, `y`.
 #[cfg(f16_enabled)]
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn copysignf16(x: f16, y: f16) -> f16 {
     super::generic::copysign(x, y)
 }
@@ -12,7 +12,7 @@ pub fn copysignf16(x: f16, y: f16) -> f16 {
 ///
 /// Constructs a number with the magnitude (absolute value) of its
 /// first argument, `x`, and the sign of its second argument, `y`.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn copysignf(x: f32, y: f32) -> f32 {
     super::generic::copysign(x, y)
 }
@@ -21,7 +21,7 @@ pub fn copysignf(x: f32, y: f32) -> f32 {
 ///
 /// Constructs a number with the magnitude (absolute value) of its
 /// first argument, `x`, and the sign of its second argument, `y`.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn copysign(x: f64, y: f64) -> f64 {
     super::generic::copysign(x, y)
 }
@@ -31,7 +31,7 @@ pub fn copysign(x: f64, y: f64) -> f64 {
 /// Constructs a number with the magnitude (absolute value) of its
 /// first argument, `x`, and the sign of its second argument, `y`.
 #[cfg(f128_enabled)]
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn copysignf128(x: f128, y: f128) -> f128 {
     super::generic::copysign(x, y)
 }
@@ -59,9 +59,17 @@ mod tests {
 
         // Not required but we expect it
         assert_biteq!(f(F::NAN, F::NAN), F::NAN);
-        assert_biteq!(f(F::NEG_NAN, F::NAN), F::NAN);
+        assert_biteq!(f(F::NAN, F::ONE), F::NAN);
+        assert_biteq!(f(F::NAN, F::NEG_ONE), F::NEG_NAN);
         assert_biteq!(f(F::NAN, F::NEG_NAN), F::NEG_NAN);
+        assert_biteq!(f(F::NEG_NAN, F::NAN), F::NAN);
+        assert_biteq!(f(F::NEG_NAN, F::ONE), F::NAN);
+        assert_biteq!(f(F::NEG_NAN, F::NEG_ONE), F::NEG_NAN);
         assert_biteq!(f(F::NEG_NAN, F::NEG_NAN), F::NEG_NAN);
+        assert_biteq!(f(F::ONE, F::NAN), F::ONE);
+        assert_biteq!(f(F::ONE, F::NEG_NAN), F::NEG_ONE);
+        assert_biteq!(f(F::NEG_ONE, F::NAN), F::ONE);
+        assert_biteq!(f(F::NEG_ONE, F::NEG_NAN), F::NEG_ONE);
     }
 
     #[test]

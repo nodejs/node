@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.68"
 name = "proc-macro2"
-version = "1.0.103"
+version = "1.0.106"
 authors = [
     "David Tolnay <dtolnay@gmail.com>",
     "Alex Crichton <alex@alexcrichton.com>",

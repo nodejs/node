@@ -1,0 +1,68 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Ecmascript ast."
+documentation = "https://rustdoc.swc.rs/swc_ecma_ast/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_ecma_ast"
+repository    = { workspace = true }
+version       = "20.0.1"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+__rkyv = []
+default = []
+encoding-impl = [
+  "cbor4ii",
+  "swc_atoms/encoding-impl",
+  "swc_common/encoding-impl",
+]
+fuzzing = ["arbitrary", "swc_atoms/arbitrary", "swc_common/arbitrary"]
+rkyv-impl = [
+  "__rkyv",
+  "rkyv",
+  "bytecheck",
+  "rancor",
+  "swc_atoms/rkyv-impl",
+  "swc_common/rkyv-impl",
+]
+serde-impl = ["serde"]
+shrink-to-fit = [
+  "dep:shrink-to-fit",
+  "swc_atoms/shrink-to-fit",
+  "swc_common/shrink-to-fit",
+]
+
+[dependencies]
+arbitrary        = { workspace = true, features = ["derive"], optional = true }
+bitflags         = { workspace = true }
+bytecheck        = { workspace = true, optional = true }
+is-macro         = { workspace = true }
+num-bigint       = { workspace = true, features = ["serde"] }
+once_cell        = { workspace = true }
+phf              = { workspace = true, features = ["macros"] }
+rancor           = { workspace = true, optional = true }
+rkyv             = { workspace = true, optional = true }
+rustc-hash       = { workspace = true }
+serde            = { workspace = true, features = ["derive"], optional = true }
+shrink-to-fit    = { workspace = true, optional = true }
+unicode-id-start = { workspace = true }
+
+string_enum = { version = "1.0.2", path = "../string_enum" }
+swc_atoms   = { version = "9.0.0", path = "../swc_atoms" }
+swc_common  = { version = "18.0.1", path = "../swc_common" }
+swc_visit   = { version = "2.0.1", path = "../swc_visit" }
+
+cbor4ii = { workspace = true, features = ["use_std"], optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

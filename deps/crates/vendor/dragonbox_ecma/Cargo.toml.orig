@@ -1,0 +1,51 @@
+[package]
+name = "dragonbox_ecma"
+version = "0.1.12"
+authors = [
+    "David Tolnay <dtolnay@gmail.com>",
+    "magic-akari <akari.ccino@gmail.com>",
+]
+categories = ["value-formatting", "no-std", "no-std::no-alloc"]
+description = "Fast floating point to string conversion conforming to ECMAScript specification"
+documentation = "https://docs.rs/dragonbox_ecma"
+edition = "2021"
+exclude = ["performance.png", "chart/**"]
+keywords = ["float"]
+license = "Apache-2.0 WITH LLVM-exception OR BSL-1.0"
+repository = "https://github.com/magic-akari/dragonbox"
+rust-version = "1.79"
+
+[dev-dependencies]
+rand = "0.10"
+
+[features]
+default = ["ecma"]
+ecma = []
+original_dragonbox = []
+
+[target.'cfg(not(miri))'.dev-dependencies]
+criterion = { version = "0.8", default-features = false }
+
+[[bench]]
+name = "bench"
+harness = false
+
+[[test]]
+name = "binary64_test"
+path = "tests/binary64_test.rs"
+default-features = false
+required-features = ["original_dragonbox"]
+
+[[test]]
+name = "binary64_test_ecma"
+path = "tests/binary64_test_ecma.rs"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = [
+    "--generate-link-to-definition",
+    "--generate-macro-expansion",
+    "--extern-html-root-url=core=https://doc.rust-lang.org",
+    "--extern-html-root-url=alloc=https://doc.rust-lang.org",
+    "--extern-html-root-url=std=https://doc.rust-lang.org",
+]

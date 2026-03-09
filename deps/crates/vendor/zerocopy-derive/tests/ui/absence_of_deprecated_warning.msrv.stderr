@@ -1,0 +1,14 @@
+error: use of deprecated struct `OldHeader`: Do not use
+  --> $DIR/absence_of_deprecated_warning.rs:32:12
+   |
+32 | impl T for OldHeader {}
+   |            ^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> $DIR/absence_of_deprecated_warning.rs:14:9
+   |
+14 | #![deny(deprecated)]
+   |         ^^^^^^^^^^
+
+error: aborting due to previous error
+

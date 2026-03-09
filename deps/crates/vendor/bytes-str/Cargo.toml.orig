@@ -1,0 +1,18 @@
+[package]
+authors     = { workspace = true }
+description = "A string type that is backed by bytes crate"
+edition     = { workspace = true }
+include     = ["Cargo.toml", "src/**/*.rs"]
+license     = { workspace = true }
+name        = "bytes-str"
+repository  = { workspace = true }
+version     = "0.2.7"
+
+[features]
+rkyv  = ["dep:rkyv", "rkyv/bytes-1"]
+serde = ["dep:serde"]
+
+[dependencies]
+bytes = { workspace = true }
+rkyv  = { version = "0.8", optional = true }
+serde = { version = "1", optional = true }

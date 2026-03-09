@@ -1,0 +1,141 @@
+[package]
+authors = ["The wasm-bindgen Developers"]
+categories = ["wasm"]
+description = """
+Easy support for interacting between JS and Rust.
+"""
+documentation = "https://docs.rs/wasm-bindgen"
+edition = "2021"
+homepage = "https://wasm-bindgen.github.io/wasm-bindgen"
+include = ["/build.rs", "/LICENSE-*", "/src"]
+license = "MIT OR Apache-2.0"
+name = "wasm-bindgen"
+readme = "README.md"
+repository = "https://github.com/wasm-bindgen/wasm-bindgen"
+rust-version = "1.71"
+version = "0.2.114"
+
+[package.metadata.docs.rs]
+features = ["serde-serialize"]
+
+[lib]
+test = false
+
+[features]
+default = ["std"]
+enable-interning = ["std"]
+serde-serialize = ["serde", "serde_json", "std"]
+spans = []
+std = []
+
+# Whether or not the `#[wasm_bindgen]` macro is strict and generates an error on
+# all unused attributes
+strict-macro = ["wasm-bindgen-macro/strict-macro"]
+
+# INTERNAL ONLY: Enables gg-alloc as system allocator when using wasm-bindgen-test to check that large pointers
+# are handled correctly
+gg-alloc = ["wasm-bindgen-test/gg-alloc"]
+
+# Deprecated crate features
+msrv = []
+rustversion = []
+xxx_debug_only_print_generated_code = []
+
+[dependencies]
+cfg-if = "1.0.0"
+once_cell = { version = "1.12", default-features = false }
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+wasm-bindgen-macro = { path = "crates/macro", version = "=0.2.114" }
+wasm-bindgen-shared = { path = "crates/shared", version = "=0.2.114" }
+
+[build-dependencies]
+# In older MSRVs, dependencies and crate features can't have the same name.
+rustversion-compat = { package = "rustversion", version = "1.0.6" }
+
+[dev-dependencies]
+once_cell = "1"
+wasm-bindgen-test = { path = 'crates/test' }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+js-sys = { path = 'crates/js-sys', features = ["unsafe-eval"] }
+paste = "1"
+serde_derive = "1.0"
+wasm-bindgen-futures = { path = 'crates/futures' }
+wasm-bindgen-test-crate-a = { path = 'tests/crates/a' }
+wasm-bindgen-test-crate-b = { path = 'tests/crates/b' }
+
+[lints]
+workspace = true
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(wasm_bindgen_unstable_test_coverage)',
+  'cfg(xxx_debug_only_print_generated_code)',
+] }
+unused_lifetimes = "warn"
+
+[workspace.lints.clippy]
+large_enum_variant = "allow"
+new_without_default = "allow"
+overly_complex_bool_expr = "allow"
+too_many_arguments = "allow"
+type_complexity = "allow"
+uninlined_format_args = "warn"
+
+[workspace]
+exclude = ["crates/msrv/resolver", "crates/msrv/lib", "crates/msrv/cli"]
+members = [
+  "benchmarks",
+  "benchmarks/wcodspeed",
+  "crates/cli",
+  "crates/js-sys",
+  "crates/test",
+  "crates/test/sample",
+  "crates/typescript-tests",
+  "crates/web-sys",
+  "crates/webidl",
+  "crates/webidl-tests",
+  "examples/add",
+  "examples/canvas",
+  "examples/char",
+  "examples/closures",
+  "examples/console_log",
+  "examples/nodejs_and_deno",
+  "examples/nodejs-threads",
+  "examples/dom",
+  "examples/duck-typed-interfaces",
+  "examples/explicit-resource-management",
+  "examples/fetch",
+  "examples/guide-supported-types-examples",
+  "examples/hello_world",
+  "examples/import_js/crate",
+  "examples/julia_set",
+  "examples/paint",
+  "examples/performance",
+  "examples/raytrace-parallel",
+  "examples/request-animation-frame",
+  "examples/todomvc",
+  "examples/wasm-audio-worklet",
+  "examples/wasm-in-wasm",
+  "examples/wasm-in-wasm-imports",
+  "examples/wasm-in-web-worker",
+  "examples/weather_report",
+  "examples/webaudio",
+  "examples/webgl",
+  "examples/webrtc_datachannel",
+  "examples/websockets",
+  "examples/webxr",
+  "examples/without-a-bundler",
+  "examples/without-a-bundler-no-modules",
+  "examples/synchronous-instantiation",
+  "tests/no-std",
+]
+resolver = "2"
+
+[patch.crates-io]
+js-sys = { path = 'crates/js-sys' }
+wasm-bindgen = { path = '.' }
+wasm-bindgen-futures = { path = 'crates/futures' }
+wasm-bindgen-test = { path = 'crates/test' }
+web-sys = { path = 'crates/web-sys' }

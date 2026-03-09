@@ -1,0 +1,54 @@
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute.rs:15:58
+    |
+15  |     let dst_not_try_from_bytes: Result<NotZerocopy, _> = try_transmute!(AU16(0));
+    |                                                          ^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `try_transmute`
+   --> $WORKSPACE/src/util/macro_util.rs:526:10
+    |
+526 |     Dst: TryFromBytes,
+    |          ^^^^^^^^^^^^ required by this bound in `try_transmute`
+    = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute.rs:15:33
+    |
+15  |     let dst_not_try_from_bytes: Result<NotZerocopy, _> = try_transmute!(AU16(0));
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute.rs:15:58
+    |
+15  |     let dst_not_try_from_bytes: Result<NotZerocopy, _> = try_transmute!(AU16(0));
+    |                                                          ^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+    = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy<AU16>: IntoBytes` is not satisfied
+   --> $DIR/try_transmute.rs:21:47
+    |
+21  |     let src_not_into_bytes: Result<AU16, _> = try_transmute!(NotZerocopy(AU16(0)));
+    |                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy<AU16>`
+    |
+note: required by a bound in `try_transmute`
+   --> $WORKSPACE/src/util/macro_util.rs:525:10
+    |
+525 |     Src: IntoBytes,
+    |          ^^^^^^^^^ required by this bound in `try_transmute`
+    = note: this error originates in the macro `try_transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

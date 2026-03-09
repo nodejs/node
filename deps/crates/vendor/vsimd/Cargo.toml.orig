@@ -1,0 +1,29 @@
+[package]
+name = "vsimd"
+version = "0.8.0"
+edition = "2021"
+description = "SIMD utilities"
+license = "MIT"
+repository = "https://github.com/Nugine/simd"
+keywords = ["simd"]
+categories = ["no-std"]
+readme = "README.md"
+rust-version = "1.63"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+alloc = []
+std = ["alloc"]
+detect = ["std"]
+unstable = []
+
+[dev-dependencies]
+const-str = "0.5.3"
+rand = "0.8.5"
+
+[target.'cfg(target_arch="wasm32")'.dev-dependencies]
+getrandom = { version = "0.2.8", features = ["js"] }
+wasm-bindgen-test = "0.3.33"

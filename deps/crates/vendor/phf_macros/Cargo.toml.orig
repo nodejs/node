@@ -1,0 +1,26 @@
+[package]
+name = "phf_macros"
+version = "0.11.3"
+authors = ["Steven Fackler <sfackler@gmail.com>"]
+edition = "2021"
+license = "MIT"
+description = "Macros to generate types in the phf crate"
+repository = "https://github.com/rust-phf/rust-phf"
+readme = "../README.md"
+rust-version = "1.61"
+categories = ["data-structures"]
+
+[lib]
+proc-macro = true
+
+[features]
+unicase = ["unicase_", "phf_shared/unicase"]
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+unicase_ = { package = "unicase", version = "2.4.0", optional = true }
+
+phf_generator = "0.11.1"
+phf_shared = { version = "^0.11.2", default-features = false }

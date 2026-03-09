@@ -1,0 +1,109 @@
+########################################################################
+#                           Project Manifest                           #
+#                                                                      #
+# This file describes the `bitvec` project to Cargo.                   #
+########################################################################
+
+[package]
+name = "bitvec"
+version = "1.0.1"
+edition = "2021"
+
+categories = [
+	"data-structures",
+	"embedded",
+	"no-std",
+	"rust-patterns",
+]
+description = "Addresses memory by bits, for packed collections and bitfields"
+documentation = "https://docs.rs/bitvec/latest/bitvec"
+homepage = "https://bitvecto-rs.github.io/bitvec"
+include = [
+	"Cargo.toml",
+	"LICENSE.txt",
+	"README.md",
+	"doc/**/*.md",
+	"src/**/*.rs",
+	"benches/*.rs",
+]
+keywords = [
+	"bitfields",
+	"bitmap",
+	"bitstream",
+	"bitvec",
+	"bitvector",
+]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/bitvecto-rs/bitvec"
+rust-version = "1.56"
+
+[features]
+alloc = [
+]
+atomic = [
+]
+# Enable use of atomics and the standard library by default. no-std
+# users will need to opt out with `default-features = false`.
+default = [
+	"atomic",
+	"std",
+]
+# The standard library includes the allocator.
+std = [
+	"alloc",
+]
+testing = [
+]
+
+[dependencies]
+radium = "0.7"
+tap = "1"
+
+[dependencies.funty]
+version = "^2.0"
+default-features = false
+
+[dependencies.serde]
+default-features = false
+optional = true
+version = "1"
+
+[dependencies.wyz]
+version = "0.5"
+default-features = false
+
+# Crates required when running the test suite.
+[dev-dependencies]
+bincode = "1.3"
+criterion = "0.3"
+rand = "0.8"
+serde = "1"
+serde_json = "1"
+serde_test = "1"
+static_assertions = "1"
+
+# [[bench]]
+# name = "memcpy"
+# harness = false
+# Indicates the features that docs.rs should enable when building documentation.
+[package.metadata.docs.rs]
+features = [
+	"atomic",
+	"serde",
+	"std",
+]
+
+[badges.codecov]
+repository = "bitvecto-rs/bitvec"
+branch = "main"
+service = "github"
+
+[badges.is-it-maintained-issue-resolution]
+repository = "bitvecto-rs/bitvec"
+
+[badges.is-it-maintained-open-issues]
+repository = "bitvecto-rs/bitvec"
+
+[badges.maintenance]
+status = "passively-maintained"

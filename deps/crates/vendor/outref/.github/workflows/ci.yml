@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  pull_request:
+    branches:
+      - main
+      - 'feat/**'
+  schedule:
+    - cron: '0 0 * * 0' # at midnight of each sunday
+  workflow_dispatch:
+
+jobs:
+  develop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy, miri
+      - uses: Swatinem/rust-cache@v2
+      - run: just ci
+
+  msrv:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: 
+          - 1.63.0 # MSRV
+          - stable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+      - run: just test
+  
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@cargo-audit
+      - run: cargo audit -D warnings

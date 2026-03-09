@@ -1,0 +1,40 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "zoneinfo64"
+description = "Working with ICU zoneinfo64.res timezone data bundles"
+version = "0.2.0"
+
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+categories.workspace = true
+include.workspace = true
+
+[package.metadata.workspaces]
+independent = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+icu_locale_core = { workspace = true }
+potential_utf = { workspace = true }
+resb = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+calendrical_calculations = { workspace = true }
+
+chrono = { version = "0.4", optional = true }
+
+[dev-dependencies]
+chrono-tz = "0.10.4"
+itertools.workspace = true
+jiff = { version = "0.2.15", default-features = false, features = ["tzdb-bundle-always", "std"] }
+
+[features]
+chrono = ["dep:chrono"]

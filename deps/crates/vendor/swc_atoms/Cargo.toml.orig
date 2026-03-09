@@ -1,0 +1,31 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Atoms for the swc project."
+documentation = "https://rustdoc.swc.rs/swc_atoms/"
+edition       = { workspace = true }
+license       = { workspace = true }
+name          = "swc_atoms"
+repository    = { workspace = true }
+version       = "9.0.0"
+
+[lib]
+bench = false
+
+[features]
+__rkyv        = []
+encoding-impl = ["cbor4ii"]
+rkyv-impl     = ["__rkyv", "rkyv", "bytecheck", "rancor"]
+shrink-to-fit = ["dep:shrink-to-fit"]
+
+[dependencies]
+# bytecheck version should be in sync with rkyv version. Do not bump individually.
+arbitrary     = { workspace = true, optional = true }
+bytecheck     = { workspace = true, optional = true }
+cbor4ii       = { workspace = true, features = ["use_std"], optional = true }
+once_cell     = { workspace = true }
+rancor        = { workspace = true, optional = true }
+rkyv          = { workspace = true, optional = true }
+serde         = { workspace = true }
+shrink-to-fit = { workspace = true, optional = true }
+
+hstr = { version = "3.0.2", path = "../hstr", features = ["serde"] }

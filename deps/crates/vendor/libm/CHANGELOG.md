@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.16](https://github.com/rust-lang/compiler-builtins/compare/libm-v0.2.15...libm-v0.2.16) - 2025-12-07
+
+### Fixed
+
+- Fix an incorrect result for `fminimum` and `fmaximum` with the input (-0, NaN)
+- Fix a typo in `libm::Libm::roundeven`
+- Fix the `expm1f` overflow threshold
+- Change `CmpResult` to use a pointer-sized return type
+- Compare against `CARGO_CFG_TARGET_FAMILY` in a multi-valued fashion
+- Implement `exp` and its variants for i586 with inline assembly
+- Implement `floor` and `ceil` in assembly on `i586`
+
+### Other
+
+- Significantly optimize `fmod` worst case performance ([#1002](https://github.com/rust-lang/compiler-builtins/pull/1002))
+
 ## [0.2.15](https://github.com/rust-lang/compiler-builtins/compare/libm-v0.2.14...libm-v0.2.15) - 2025-05-06
 
 ### Other

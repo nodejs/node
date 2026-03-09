@@ -1,4 +1,4 @@
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn frexpf(x: f32) -> (f32, i32) {
     let mut y = x.to_bits();
     let ee: i32 = ((y >> 23) & 0xff) as i32;

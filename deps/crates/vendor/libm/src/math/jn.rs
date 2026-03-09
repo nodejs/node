@@ -39,7 +39,7 @@ use super::{cos, fabs, get_high_word, get_low_word, j0, j1, log, sin, sqrt, y0, 
 const INVSQRTPI: f64 = 5.64189583547756279280e-01; /* 0x3FE20DD7, 0x50429B6D */
 
 /// Integer order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the first kind (f64).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn jn(n: i32, mut x: f64) -> f64 {
     let mut ix: u32;
     let lx: u32;
@@ -249,7 +249,7 @@ pub fn jn(n: i32, mut x: f64) -> f64 {
 }
 
 /// Integer order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the second kind (f64).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn yn(n: i32, x: f64) -> f64 {
     let mut ix: u32;
     let lx: u32;

@@ -1,0 +1,37 @@
+[package]
+name = "funty"
+version = "2.0.0"
+authors = [
+	"myrrlyn <self@myrrlyn.dev>",
+]
+categories = [
+	"no-std",
+	"rust-patterns",
+]
+description = "Trait generalization over the primitive types"
+documentation = "https://docs.rs/funty"
+edition = "2018"
+include = [
+	"Cargo.toml",
+	"LICENSE.txt",
+	"src/lib.rs",
+]
+keywords = [
+	"numerics",
+	"primitives",
+	"traits",
+]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/myrrlyn/funty"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = [
+	"std",
+]
+std = []
+
+[dev-dependencies]
+static_assertions = "1"

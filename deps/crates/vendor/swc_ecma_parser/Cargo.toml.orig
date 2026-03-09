@@ -1,0 +1,80 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Feature-complete es2019 parser."
+documentation = "https://rustdoc.swc.rs/swc_ecma_parser/"
+edition       = { workspace = true }
+include       = ["Cargo.toml", "src/**/*.rs", "examples/**/*.rs"]
+license       = { workspace = true }
+name          = "swc_ecma_parser"
+repository    = { workspace = true }
+version       = "33.0.1"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+# Used for debugging
+debug         = ["tracing-spans"]
+default       = ["typescript", "stacker"]
+tracing-spans = []
+typescript    = []
+unstable      = []
+verify        = ["swc_ecma_visit"]
+
+[dependencies]
+bitflags       = { workspace = true }
+either         = { workspace = true }
+num-bigint     = { workspace = true }
+phf            = { workspace = true, features = ["macros"] }
+rustc-hash     = { workspace = true }
+seq-macro      = { workspace = true }
+serde          = { workspace = true, features = ["derive"] }
+smartstring    = { workspace = true }
+swc_atoms      = { version = "9.0.0", path = "../swc_atoms" }
+swc_common     = { version = "18.0.1", path = "../swc_common" }
+swc_ecma_ast   = { version = "20.0.1", path = "../swc_ecma_ast" }
+swc_ecma_visit = { version = "20.0.0", path = "../swc_ecma_visit", optional = true }
+tracing        = { workspace = true }
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "arm")))'.dependencies]
+stacker = { version = "0.1.15", optional = true }
+
+[dev-dependencies]
+pathdiff          = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json        = { workspace = true }
+walkdir           = { workspace = true }
+
+cbor4ii = { workspace = true, features = ["use_std"] }
+codspeed-criterion-compat = { workspace = true }
+swc_ecma_ast = { version = "20.0.1", path = "../swc_ecma_ast", features = [
+  "serde-impl",
+  "encoding-impl",
+] }
+swc_ecma_visit = { version = "20.0.0", path = "../swc_ecma_visit" }
+swc_malloc = { version = "1.2.4", path = "../swc_malloc" }
+testing = { version = "19.0.0", path = "../testing" }
+
+[[example]]
+name = "typescript"
+
+[[bench]]
+harness = false
+name    = "lexer"
+
+
+[[bench]]
+harness = false
+name    = "compare"
+
+
+[[bench]]
+harness = false
+name    = "parser"

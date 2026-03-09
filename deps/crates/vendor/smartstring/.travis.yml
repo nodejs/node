@@ -1,0 +1,24 @@
+language: rust
+rust:
+  - 1.46.0
+  - stable
+  - beta
+  - nightly
+arch:
+  - amd64
+  - arm64
+  - ppc64le
+  - s390x
+
+cache:
+  directories:
+    - /home/travis/.rustup
+    - /home/travis/.cargo
+    - /home/travis/target
+
+install:
+  - rustup update
+  - mkdir -p .cargo && echo '[build]' > .cargo/config && echo 'target-dir = "/home/travis/target"'
+    >> .cargo/config
+
+script: cargo test

@@ -1,0 +1,30 @@
+[package]
+authors = [
+	"Elliott Linder <elliott.darfink@gmail.com>",
+	"myrrlyn <self@myrrlyn.dev>",
+]
+categories = [
+	"no-std",
+	"rust-patterns",
+]
+description = "Generic extensions for tapping values in Rust"
+documentation = "https://docs.rs/tap"
+homepage = "https://github.com/myrrlyn/tap"
+include = [
+	"Cargo.toml",
+	"README.md",
+	"LICENSE.txt",
+	"src/**/*.rs",
+]
+keywords = [
+	"tap",
+	"pipe",
+	"functional",
+	"tap_ok",
+	"tap_some",
+]
+license = "MIT"
+name = "tap"
+readme = "README.md"
+repository = "https://github.com/myrrlyn/tap"
+version = "1.0.1"

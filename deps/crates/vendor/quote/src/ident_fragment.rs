@@ -1,4 +1,5 @@
-use alloc::borrow::Cow;
+use alloc::borrow::{Cow, ToOwned};
+use alloc::string::{String, ToString};
 use core::fmt;
 use proc_macro2::{Ident, Span};
 

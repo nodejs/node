@@ -1,0 +1,35 @@
+error[E0277]: the trait bound `NotZerocopy: FromBytes` is not satisfied
+  --> $DIR/transmute.rs:17:41
+   |
+17 | const DST_NOT_FROM_BYTES: NotZerocopy = transmute!(AU16(0));
+   |                                         ^^^^^^^^^^^^^^^^^^^ the trait `FromBytes` is not implemented for `NotZerocopy`
+   |
+note: required by a bound in `DST_NOT_FROM_BYTES::transmute`
+  --> $DIR/transmute.rs:17:41
+   |
+17 | const DST_NOT_FROM_BYTES: NotZerocopy = transmute!(AU16(0));
+   |                                         ^^^^^^^^^^^^^^^^^^^
+   |                                         |
+   |                                         required by a bound in this
+   |                                         required by this bound in `DST_NOT_FROM_BYTES::transmute`
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy<AU16>: IntoBytes` is not satisfied
+  --> $DIR/transmute.rs:21:32
+   |
+21 | const SRC_NOT_AS_BYTES: AU16 = transmute!(NotZerocopy(AU16(0)));
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy<AU16>`
+   |
+note: required by a bound in `SRC_NOT_AS_BYTES::transmute`
+  --> $DIR/transmute.rs:21:32
+   |
+21 | const SRC_NOT_AS_BYTES: AU16 = transmute!(NotZerocopy(AU16(0)));
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                |
+   |                                required by a bound in this
+   |                                required by this bound in `SRC_NOT_AS_BYTES::transmute`
+   = note: this error originates in the macro `transmute` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

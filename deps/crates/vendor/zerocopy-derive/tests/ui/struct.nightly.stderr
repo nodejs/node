@@ -1,0 +1,554 @@
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:210:8
+    |
+210 | #[repr(C, C)] // zerocopy-derive conservatively treats these as conflicting reprs
+    |        ^^^^
+
+error: must have a non-align #[repr(...)] attribute in order to guarantee this type's memory layout
+   --> $DIR/struct.rs:216:10
+    |
+216 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have a non-align #[repr(...)] attribute in order to guarantee this type's memory layout
+   --> $DIR/struct.rs:223:10
+    |
+223 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have a non-align #[repr(...)] attribute in order to guarantee this type's memory layout
+   --> $DIR/struct.rs:250:10
+    |
+250 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot derive `Unaligned` on type with alignment greater than 1
+   --> $DIR/struct.rs:273:11
+    |
+273 | #[repr(C, align(2))]
+    |           ^^^^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:279:8
+    |
+279 | #[repr(transparent, align(2))]
+    |        ^^^^^^^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:288:8
+    |
+288 | #[repr(packed, align(2))]
+    |        ^^^^^^^^^^^^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:295:8
+    |
+295 | #[repr(align(1), align(2))]
+    |        ^^^^^^^^^^^^^^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:301:8
+    |
+301 | #[repr(align(2), align(4))]
+    |        ^^^^^^^^^^^^^^^^^^
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/struct.rs:305:10
+    |
+305 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/struct.rs:310:10
+    |
+310 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:320:19
+    |
+320 |   #[repr(packed(2), C)]
+    |  ___________________^
+321 | |
+322 | | #[derive(Unaligned)]
+323 | | #[zerocopy(crate = "zerocopy_renamed")]
+324 | | #[repr(C, packed(2))]
+    | |________^
+
+error[E0692]: transparent struct cannot have other repr hints
+   --> $DIR/struct.rs:279:8
+    |
+279 | #[repr(transparent, align(2))]
+    |        ^^^^^^^^^^^  ^^^^^^^^
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+  --> $DIR/struct.rs:31:10
+   |
+31 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: within `KL00`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `KL00`
+  --> $DIR/struct.rs:34:8
+   |
+34 | struct KL00(u8, NotKnownLayoutDst);
+   |        ^^^^
+   = help: see issue #48214
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+  --> $DIR/struct.rs:38:10
+   |
+38 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: within `KL02`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `KL02`
+  --> $DIR/struct.rs:41:8
+   |
+41 | struct KL02(u8, [u8]);
+   |        ^^^^
+   = help: see issue #48214
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotKnownLayoutDst: zerocopy_renamed::KnownLayout` is not satisfied
+  --> $DIR/struct.rs:45:10
+   |
+45 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::KnownLayout` is not implemented for `NotKnownLayoutDst`
+  --> $DIR/struct.rs:27:1
+   |
+27 | struct NotKnownLayoutDst([u8]);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(KnownLayout)]` to `NotKnownLayoutDst`
+   = help: the following other types implement trait `zerocopy_renamed::KnownLayout`:
+             &T
+             &mut T
+             ()
+             *const T
+             *mut T
+             AU16
+             AtomicBool
+             AtomicI16
+           and 73 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `NotKnownLayout: zerocopy_renamed::KnownLayout` is not satisfied
+  --> $DIR/struct.rs:53:10
+   |
+53 | #[derive(KnownLayout)]
+   |          ^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `zerocopy_renamed::KnownLayout` is not implemented for `NotKnownLayout`
+  --> $DIR/struct.rs:25:1
+   |
+25 | struct NotKnownLayout;
+   | ^^^^^^^^^^^^^^^^^^^^^
+   = note: Consider adding `#[derive(KnownLayout)]` to `NotKnownLayout`
+   = help: the following other types implement trait `zerocopy_renamed::KnownLayout`:
+             &T
+             &mut T
+             ()
+             *const T
+             *mut T
+             AU16
+             AtomicBool
+             AtomicI16
+           and 73 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `KnownLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `UnsafeCell<()>: zerocopy_renamed::Immutable` is not satisfied
+  --> $DIR/struct.rs:63:10
+   |
+63 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Immutable` is not implemented for `UnsafeCell<()>`
+   |
+   = note: Consider adding `#[derive(Immutable)]` to `UnsafeCell<()>`
+   = help: the following other types implement trait `zerocopy_renamed::Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 130 others
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0277]: the trait bound `UnsafeCell<u8>: zerocopy_renamed::Immutable` is not satisfied
+  --> $DIR/struct.rs:70:10
+   |
+70 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Immutable` is not implemented for `UnsafeCell<u8>`
+   |
+   = note: Consider adding `#[derive(Immutable)]` to `UnsafeCell<u8>`
+   = help: the following other types implement trait `zerocopy_renamed::Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 130 others
+   = note: required for `[UnsafeCell<u8>; 0]` to implement `zerocopy_renamed::Immutable`
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+   |
+ 9 + #![feature(trivial_bounds)]
+   |
+
+error[E0588]: packed type cannot transitively contain a `#[repr(align)]` type
+  --> $DIR/struct.rs:84:1
+   |
+84 | struct TryFromBytesPacked {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: `AU16` has a `#[repr(align)]` attribute
+  --> $DIR/../include.rs:64:5
+   |
+64 |     pub struct AU16(pub u16);
+   |     ^^^^^^^^^^^^^^^
+
+error[E0588]: packed type cannot transitively contain a `#[repr(align)]` type
+  --> $DIR/struct.rs:92:1
+   |
+92 | struct TryFromBytesPackedN {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: `AU16` has a `#[repr(align)]` attribute
+  --> $DIR/../include.rs:64:5
+   |
+64 |     pub struct AU16(pub u16);
+   |     ^^^^^^^^^^^^^^^
+
+error[E0588]: packed type cannot transitively contain a `#[repr(align)]` type
+   --> $DIR/struct.rs:100:1
+    |
+100 | struct TryFromBytesCPacked {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: `AU16` has a `#[repr(align)]` attribute
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+
+error[E0588]: packed type cannot transitively contain a `#[repr(align)]` type
+   --> $DIR/struct.rs:108:1
+    |
+108 | struct TryFromBytesCPackedN {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: `AU16` has a `#[repr(align)]` attribute
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+   --> $DIR/struct.rs:120:10
+    |
+120 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(Unaligned)]` to `AU16`
+    = help: the following other types implement trait `zerocopy_renamed::Unaligned`:
+              ()
+              AtomicBool
+              AtomicI8
+              AtomicU8
+              Cell<T>
+              F32<O>
+              F64<O>
+              I128<O>
+            and 26 others
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: `IntoBytes2` has 1 total byte(s) of padding
+   --> $DIR/struct.rs:129:10
+    |
+129 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `PaddingFree<IntoBytes2, 1>` is not implemented for `()`
+      but trait `PaddingFree<IntoBytes2, 0>` is implemented for it
+   --> src/util/macro_util.rs:62:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: `IntoBytes3` has 1 total byte(s) of padding
+   --> $DIR/struct.rs:139:10
+    |
+139 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `PaddingFree<IntoBytes3, 1>` is not implemented for `()`
+      but trait `PaddingFree<IntoBytes3, 0>` is implemented for it
+   --> src/util/macro_util.rs:62:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+   --> $DIR/struct.rs:158:10
+    |
+158 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: within `IntoBytes4`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `IntoBytes4`
+   --> $DIR/struct.rs:163:8
+    |
+163 | struct IntoBytes4 {
+    |        ^^^^^^^^^^
+    = note: required for `IntoBytes4` to implement `zerocopy_renamed::util::macro_util::__size_of::Sized`
+note: required by a bound in `zerocopy_renamed::util::macro_util::__size_of::size_of`
+   --> src/util/macro_util.rs:306:4
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `[u8]` is unsized
+   --> $DIR/struct.rs:165:8
+    |
+165 |     b: SliceU8,
+    |        ^^^^^^^ `IntoBytes` needs all field types to be `Sized` in order to determine whether there is padding
+    |
+    = help: the trait `Sized` is not implemented for `[u8]`
+    = note: consider using `#[repr(packed)]` to remove padding
+    = note: `IntoBytes` does not require the fields of `#[repr(packed)]` types to be `Sized`
+    = note: required for `[u8]` to implement `zerocopy_renamed::util::macro_util::__size_of::Sized`
+note: required by a bound in `zerocopy_renamed::util::macro_util::__size_of::size_of`
+   --> src/util/macro_util.rs:306:4
+
+error[E0277]: `IntoBytes5` has one or more padding bytes
+   --> $DIR/struct.rs:172:10
+    |
+172 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `DynamicPaddingFree<IntoBytes5, true>` is not implemented for `()`
+      but trait `DynamicPaddingFree<IntoBytes5, false>` is implemented for it
+   --> src/util/macro_util.rs:80:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: `IntoBytes6` has one or more padding bytes
+   --> $DIR/struct.rs:184:10
+    |
+184 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `DynamicPaddingFree<IntoBytes6, true>` is not implemented for `()`
+      but trait `DynamicPaddingFree<IntoBytes6, false>` is implemented for it
+   --> src/util/macro_util.rs:80:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: `IntoBytes7` has one or more padding bytes
+   --> $DIR/struct.rs:197:10
+    |
+197 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `DynamicPaddingFree<IntoBytes7, true>` is not implemented for `()`
+      but trait `DynamicPaddingFree<IntoBytes7, false>` is implemented for it
+   --> src/util/macro_util.rs:80:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: `IntoBytes13` has one or more padding bytes
+   --> $DIR/struct.rs:260:10
+    |
+260 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+    |
+    = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+    = note: consider adding explicit fields where padding would be
+    = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `DynamicPaddingFree<IntoBytes13, true>` is not implemented for `()`
+      but trait `DynamicPaddingFree<IntoBytes13, false>` is implemented for it
+   --> src/util/macro_util.rs:80:0
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0587]: type has conflicting packed and align representation hints
+   --> $DIR/struct.rs:290:1
+    |
+290 | struct Unaligned3;
+    | ^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `SplitAtNotKnownLayout: zerocopy_renamed::KnownLayout` is not satisfied
+   --> $DIR/struct.rs:328:10
+    |
+328 | #[derive(SplitAt)]
+    |          ^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `zerocopy_renamed::KnownLayout` is not implemented for `SplitAtNotKnownLayout`
+   --> $DIR/struct.rs:332:1
+    |
+332 | struct SplitAtNotKnownLayout([u8]);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(KnownLayout)]` to `SplitAtNotKnownLayout`
+    = help: the following other types implement trait `zerocopy_renamed::KnownLayout`:
+              &T
+              &mut T
+              ()
+              *const T
+              *mut T
+              AU16
+              AtomicBool
+              AtomicI16
+            and 73 others
+note: required by a bound in `SplitAt`
+   --> src/split_at.rs:61:0
+    = note: this error originates in the derive macro `SplitAt` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `u8: SplitAt` is not satisfied
+   --> $DIR/struct.rs:334:10
+    |
+334 | #[derive(SplitAt, KnownLayout)]
+    |          ^^^^^^^ the trait `SplitAt` is not implemented for `u8`
+    |
+    = note: Consider adding `#[derive(SplitAt)]` to `u8`
+help: the following other types implement trait `SplitAt`
+   --> $DIR/struct.rs:328:10
+    |
+328 | #[derive(SplitAt)]
+    |          ^^^^^^^ `SplitAtNotKnownLayout`
+...
+334 | #[derive(SplitAt, KnownLayout)]
+    |          ^^^^^^^ `SplitAtSized`
+   --> src/split_at.rs:207:0
+    |
+    = note: `[T]`
+    = help: see issue #48214
+    = note: this error originates in the derive macro `SplitAt` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `#![feature(trivial_bounds)]` to the crate attributes to enable
+    |
+  9 + #![feature(trivial_bounds)]
+    |
+
+error[E0277]: the trait bound `AU16: zerocopy_renamed::Unaligned` is not satisfied
+   --> $DIR/struct.rs:244:28
+    |
+244 |         is_into_bytes_11::<IntoBytes11<AU16>>();
+    |                            ^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `zerocopy_renamed::Unaligned` is not implemented for `AU16`
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(Unaligned)]` to `AU16`
+    = help: the following other types implement trait `zerocopy_renamed::Unaligned`:
+              ()
+              AtomicBool
+              AtomicI8
+              AtomicU8
+              Cell<T>
+              F32<O>
+              F64<O>
+              I128<O>
+            and 26 others
+note: required for `IntoBytes11<AU16>` to implement `zerocopy_renamed::IntoBytes`
+   --> $DIR/struct.rs:232:10
+    |
+232 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+note: required by a bound in `is_into_bytes_11`
+   --> $DIR/struct.rs:242:24
+    |
+242 | fn is_into_bytes_11<T: IntoBytes>() {
+    |                        ^^^^^^^^^ required by this bound in `is_into_bytes_11`
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 36 previous errors
+
+Some errors have detailed explanations: E0277, E0587, E0588, E0692.
+For more information about an error, try `rustc --explain E0277`.

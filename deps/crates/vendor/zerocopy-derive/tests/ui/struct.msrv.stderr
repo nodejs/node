@@ -1,0 +1,87 @@
+error: this conflicts with another representation hint
+   --> $DIR/struct.rs:210:11
+    |
+210 | #[repr(C, C)] /$RUSTUP_TOOLCHAIN/lib/rustlib/src/rust/library/core/src/mem/mod.rs:303:22
+    |
+303 | pub const fn size_of<T>() -> usize {
+    |                      ^ required by this bound in `std::mem::size_of`
+
+error[E0277]: the trait bound `(): DynamicPaddingFree<IntoBytes5, true>` is not satisfied
+   --> $DIR/struct.rs:172:10
+    |
+172 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `DynamicPaddingFree<IntoBytes5, true>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as DynamicPaddingFree<T, false>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): DynamicPaddingFree<IntoBytes6, true>` is not satisfied
+   --> $DIR/struct.rs:184:10
+    |
+184 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `DynamicPaddingFree<IntoBytes6, true>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as DynamicPaddingFree<T, false>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): DynamicPaddingFree<IntoBytes7, true>` is not satisfied
+   --> $DIR/struct.rs:197:10
+    |
+197 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `DynamicPaddingFree<IntoBytes7, true>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as DynamicPaddingFree<T, false>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `(): DynamicPaddingFree<IntoBytes13, true>` is not satisfied
+   --> $DIR/struct.rs:260:10
+    |
+260 | #[derive(IntoBytes)]
+    |          ^^^^^^^^^ the trait `DynamicPaddingFree<IntoBytes13, true>` is not implemented for `()`
+    |
+    = help: the following implementations were found:
+              <() as DynamicPaddingFree<T, false>>
+    = help: see issue #48214
+    = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SplitAtNotKnownLayout: zerocopy_renamed::KnownLayout` is not satisfied
+   --> $DIR/struct.rs:328:10
+    |
+328 | #[derive(SplitAt)]
+    |          ^^^^^^^ the trait `zerocopy_renamed::KnownLayout` is not implemented for `SplitAtNotKnownLayout`
+    |
+note: required by a bound in `SplitAt`
+   --> $WORKSPACE/src/split_at.rs:61:27
+    |
+61  | pub unsafe trait SplitAt: KnownLayout<PointerMetadata = usize> {
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SplitAt`
+    = note: this error originates in the derive macro `SplitAt` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `u8: SplitAt` is not satisfied
+   --> $DIR/struct.rs:334:10
+    |
+334 | #[derive(SplitAt, KnownLayout)]
+    |          ^^^^^^^ the trait `SplitAt` is not implemented for `u8`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `SplitAt` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0271]: type mismatch resolving `<u8 as zerocopy_renamed::KnownLayout>::PointerMetadata == usize`
+   --> $DIR/struct.rs:334:10
+    |
+334 | #[derive(SplitAt, KnownLayout)]
+    |          ^^^^^^^ expected `()`, found `usize`
+    |
+    = help: see issue #48214
+    = note: this error originates in the derive macro `SplitAt` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 31 previous errors
+
+Some errors have detailed explanations: E0271, E0277, E0692.
+For more information about an error, try `rustc --explain E0271`.

@@ -5,6 +5,7 @@ use crate::ident::Ident;
 use crate::punctuated::Punctuated;
 use crate::restriction::Visibility;
 use crate::token;
+use alloc::vec::Vec;
 
 ast_struct! {
     /// Data structure sent to a `proc_macro_derive` macro.

@@ -1,0 +1,15 @@
+error: requires --cfg zerocopy_derive_union_into_bytes;
+please let us know you use this feature: https://github.com/google/zerocopy/discussions/1802
+<<<<<<< HEAD:zerocopy-derive/tests/ui-msrv/cfgs/union_into_bytes_cfg.stderr
+  --> tests/ui-msrv/cfgs/union_into_bytes_cfg.rs:20:10
+=======
+  --> $DIR/union_into_bytes_cfg.rs:20:10
+>>>>>>> af201b89 ([tests] Migrate from trybuild to ui-test):zerocopy-derive/tests/ui-msrv/union_into_bytes_cfg/union_into_bytes_cfg.stderr
+   |
+20 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to previous error
+

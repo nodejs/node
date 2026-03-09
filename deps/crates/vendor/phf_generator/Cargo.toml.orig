@@ -1,0 +1,28 @@
+[package]
+name = "phf_generator"
+authors = ["Steven Fackler <sfackler@gmail.com>"]
+version = "0.11.3"
+license = "MIT"
+description = "PHF generation logic"
+repository = "https://github.com/rust-phf/rust-phf"
+edition = "2021"
+rust-version = "1.61"
+categories = ["data-structures"]
+readme = "README.md"
+
+[dependencies]
+rand = { version = "0.8", default-features = false, features = ["small_rng"] }
+phf_shared = { version = "^0.11.2", default-features = false }
+# for stable black_box()
+criterion = { version = "0.3.6", optional = true }
+
+[dev-dependencies]
+criterion = "0.3.6"
+
+[[bench]]
+name = "benches"
+harness = false
+
+[[bin]]
+name = "gen_hash_test"
+required-features = ["criterion"]

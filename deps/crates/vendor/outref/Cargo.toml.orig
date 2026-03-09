@@ -1,0 +1,10 @@
+[package]
+name = "outref"
+version = "0.5.2"
+edition = "2021"
+description = "Out reference"
+license = "MIT"
+repository = "https://github.com/Nugine/outref"
+keywords = ["write-only", "reference", "slice"]
+categories = ["no-std", "rust-patterns"]
+rust-version = "1.63.0"

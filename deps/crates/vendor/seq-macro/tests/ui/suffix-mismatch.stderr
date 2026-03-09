@@ -1,0 +1,5 @@
+error: expected suffix `u8`
+ --> tests/ui/suffix-mismatch.rs:3:16
+  |
+3 | seq!(N in 0u8..1u16 {});
+  |                ^^^^

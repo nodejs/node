@@ -7,7 +7,7 @@ use crate::support::Round;
 // Placeholder so we can have `fmaf16` in the `Float` trait.
 #[allow(unused)]
 #[cfg(f16_enabled)]
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub(crate) fn fmaf16(_x: f16, _y: f16, _z: f16) -> f16 {
     unimplemented!()
 }
@@ -15,7 +15,7 @@ pub(crate) fn fmaf16(_x: f16, _y: f16, _z: f16) -> f16 {
 /// Floating multiply add (f32)
 ///
 /// Computes `(x*y)+z`, rounded as one ternary operation (i.e. calculated with infinite precision).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn fmaf(x: f32, y: f32, z: f32) -> f32 {
     select_implementation! {
         name: fmaf,
@@ -32,7 +32,7 @@ pub fn fmaf(x: f32, y: f32, z: f32) -> f32 {
 /// Fused multiply add (f64)
 ///
 /// Computes `(x*y)+z`, rounded as one ternary operation (i.e. calculated with infinite precision).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn fma(x: f64, y: f64, z: f64) -> f64 {
     select_implementation! {
         name: fma,
@@ -50,7 +50,7 @@ pub fn fma(x: f64, y: f64, z: f64) -> f64 {
 ///
 /// Computes `(x*y)+z`, rounded as one ternary operation (i.e. calculated with infinite precision).
 #[cfg(f128_enabled)]
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn fmaf128(x: f128, y: f128, z: f128) -> f128 {
     generic::fma_round(x, y, z, Round::Nearest).val
 }

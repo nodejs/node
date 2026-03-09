@@ -30,3 +30,12 @@ version = "=0.1.0"
 default-features = false
 # This is necessary to enable a spec-compliance quirk when upgrading to v0.1.2
 # features = ["float64_representable_durations"]
+
+# SWC TypeScript-to-JavaScript transform.
+# Pin to the same swc_ts_fast_strip version shipped by deps/amaro.
+# When updating amaro, update these versions to match.
+[dependencies.swc_ts_fast_strip]
+version = "=43.0.0"
+
+[dependencies.swc_common]
+version = "=18.0.1"

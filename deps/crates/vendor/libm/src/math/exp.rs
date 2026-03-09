@@ -81,8 +81,14 @@ const P5: f64 = 4.13813679705723846039e-08; /* 0x3E663769, 0x72BEA4D0 */
 ///
 /// Calculate the exponential of `x`, that is, *e* raised to the power `x`
 /// (where *e* is the base of the natural system of logarithms, approximately 2.71828).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn exp(mut x: f64) -> f64 {
+    select_implementation! {
+        name: x87_exp,
+        use_arch_required: x86_no_sse,
+        args: x,
+    }
+
     let x1p1023 = f64::from_bits(0x7fe0000000000000); // 0x1p1023 === 2 ^ 1023
     let x1p_149 = f64::from_bits(0x36a0000000000000); // 0x1p-149 === 2 ^ -149
 

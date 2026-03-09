@@ -1,0 +1,84 @@
+error[E0308]: mismatched types
+  --> $DIR/try_transmute_ref.rs:19:33
+   |
+19 |     let _: Result<&mut u8, _> = try_transmute_ref!(&0u8);
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^ types differ in mutability
+   |
+   = note: expected mutable reference `&mut u8`
+                      found reference `&_`
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/try_transmute_ref.rs:19:33
+   |
+19 |     let _: Result<&mut u8, _> = try_transmute_ref!(&0u8);
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                 |
+   |                                 types differ in mutability
+   |                                 help: try using a variant of the expected enum: `Err(t.try_transmute_ref())`
+   |
+   = note: expected enum `Result<&mut u8, _>`
+              found enum `Result<&_, ValidityError<&u8, _>>`
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+  --> $DIR/try_transmute_ref.rs:25:59
+   |
+25 |     let dst_not_try_from_bytes: Result<&NotZerocopy, _> = try_transmute_ref!(&AU16(0));
+   |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   |
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: Immutable` is not satisfied
+  --> $DIR/try_transmute_ref.rs:25:59
+   |
+25 |     let dst_not_try_from_bytes: Result<&NotZerocopy, _> = try_transmute_ref!(&AU16(0));
+   |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Immutable` is not implemented for `NotZerocopy`
+   |
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_ref.rs:25:33
+    |
+25  |     let dst_not_try_from_bytes: Result<&NotZerocopy, _> = try_transmute_ref!(&AU16(0));
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_ref.rs:25:59
+    |
+25  |     let dst_not_try_from_bytes: Result<&NotZerocopy, _> = try_transmute_ref!(&AU16(0));
+    |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TryFromBytes` is not implemented for `NotZerocopy`
+    |
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+    = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy<AU16>: IntoBytes` is not satisfied
+  --> $DIR/try_transmute_ref.rs:33:48
+   |
+33 |     let src_not_into_bytes: Result<&AU16, _> = try_transmute_ref!(&NotZerocopy(AU16(0)));
+   |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoBytes` is not implemented for `NotZerocopy<AU16>`
+   |
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy<AU16>: Immutable` is not satisfied
+  --> $DIR/try_transmute_ref.rs:33:48
+   |
+33 |     let src_not_into_bytes: Result<&AU16, _> = try_transmute_ref!(&NotZerocopy(AU16(0)));
+   |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Immutable` is not implemented for `NotZerocopy<AU16>`
+   |
+   = note: this error originates in the macro `try_transmute_ref` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 8 previous errors
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.

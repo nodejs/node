@@ -2,7 +2,7 @@
 // It is not intended for manual editing.
 
 #![allow(unknown_lints, non_local_definitions)]
-use std::fmt::{self, Debug};
+use core::fmt::{self, Debug};
 #[cfg(any(feature = "derive", feature = "full"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "extra-traits")))]
 impl Debug for crate::Abi {

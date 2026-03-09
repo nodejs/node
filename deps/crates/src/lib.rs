@@ -5,3 +5,5 @@
 
 #[allow(unused_imports)]
 use temporal_capi;
+
+mod swc_transform;

@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug};
+use core::fmt::{self, Debug};
 use std::thread::{self, ThreadId};
 
 /// ThreadBound is a Sync-maker and Send-maker that allows accessing a value
@@ -49,7 +49,7 @@ impl<T: Debug> Debug for ThreadBound<T> {
 //
 // Currently `T: Copy` is sufficient to guarantee that T contains no interior
 // mutability, because _all_ interior mutability in Rust is built on
-// std::cell::UnsafeCell, which has no Copy impl. This impl needs to be
+// core::cell::UnsafeCell, which has no Copy impl. This impl needs to be
 // revisited if that restriction is relaxed in the future.
 impl<T: Copy> Copy for ThreadBound<T> {}
 

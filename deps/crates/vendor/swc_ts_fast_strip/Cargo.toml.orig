@@ -1,0 +1,45 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Super-fast TypeScript stripper based on SWC"
+documentation = "https://rustdoc.swc.rs/swc_fast_type_strip/"
+edition       = { workspace = true }
+include       = ["Cargo.toml", "src/**/*.rs"]
+license       = { workspace = true }
+name          = "swc_ts_fast_strip"
+repository    = { workspace = true }
+version       = "43.0.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[features]
+default = []
+nightly = []
+
+[dependencies]
+anyhow = { workspace = true }
+bytes-str = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+swc_atoms = { version = "9.0.0", path = "../swc_atoms" }
+swc_common = { version = "18.0.1", path = "../swc_common", features = [
+  "sourcemap",
+] }
+swc_ecma_ast = { version = "20.0.1", path = "../swc_ecma_ast" }
+swc_ecma_codegen = { version = "23.0.0", path = "../swc_ecma_codegen" }
+swc_ecma_parser = { version = "33.0.1", path = "../swc_ecma_parser", default-features = false, features = [
+  "typescript",
+  "unstable",
+] }
+swc_ecma_transforms_base = { version = "36.0.1", path = "../swc_ecma_transforms_base" }
+swc_ecma_transforms_react = { version = "40.0.0", path = "../swc_ecma_transforms_react" }
+swc_ecma_transforms_typescript = { version = "40.0.0", path = "../swc_ecma_transforms_typescript" }
+swc_ecma_visit = { version = "20.0.0", path = "../swc_ecma_visit" }
+wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true }
+testing                   = { version = "19.0.0", path = "../testing" }
+
+[[bench]]
+harness = false
+name    = "assets"

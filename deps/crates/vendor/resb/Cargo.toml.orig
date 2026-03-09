@@ -1,0 +1,43 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "resb"
+description = "Utilities for reading and writing ICU resource bundle files"
+version = "0.1.1"
+
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+include.workspace = true
+license = { workspace = true }
+repository.workspace = true
+rust-version = "1.82"
+
+[package.metadata.workspaces]
+independent = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+indexmap = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+nom = { version = "7.0.0", optional = true }
+serde_core = { workspace = true, features = ["alloc"] }
+potential_utf = { workspace = true }
+
+[features]
+default = []
+logging = ["dep:log"]
+serialize = ["std"]
+std = []
+text = ["dep:indexmap", "dep:nom", "std"]
+
+[lib]
+name = "resb"
+
+[[example]]
+name = "genrb"
+required-features = ["serialize", "text"]

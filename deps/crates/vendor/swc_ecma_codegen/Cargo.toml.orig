@@ -1,0 +1,63 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Ecmascript code generator for the swc project."
+documentation = "https://rustdoc.swc.rs/swc_ecma_codegen/"
+edition       = { workspace = true }
+include       = ["Cargo.toml", "src/**/*.rs"]
+license       = { workspace = true }
+name          = "swc_ecma_codegen"
+repository    = { workspace = true }
+version       = "23.0.0"
+
+[features]
+# This does not enable serde for ast nodes.
+serde-impl = ["swc_ecma_ast/serde"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(swc_ast_unknown)'] }
+
+[lib]
+bench = false
+
+[dependencies]
+ascii           = { workspace = true }
+compact_str     = { workspace = true }
+dragonbox_ecma  = { workspace = true }
+memchr          = { workspace = true }
+num-bigint      = { workspace = true, features = ["serde"] }
+once_cell       = { workspace = true }
+regex           = { workspace = true }
+rustc-hash      = { workspace = true }
+serde           = { workspace = true }
+tracing         = { workspace = true }
+
+swc_allocator = { version = "4.0.1", path = "../swc_allocator", default-features = false, features = [
+  "hashbrown",
+] }
+swc_atoms = { version = "9.0.0", path = "../swc_atoms" }
+swc_common = { version = "18.0.1", path = "../swc_common" }
+swc_ecma_ast = { version = "20.0.1", path = "../swc_ecma_ast" }
+swc_ecma_codegen_macros = { version = "2.0.2", path = "../swc_ecma_codegen_macros" }
+
+[dev-dependencies]
+base64                    = { workspace = true }
+codspeed-criterion-compat = { workspace = true }
+serde_json                = { workspace = true }
+
+swc_allocator = { version = "4.0.1", path = "../swc_allocator" }
+swc_common = { version = "18.0.1", path = "../swc_common", features = [
+  "sourcemap",
+] }
+swc_ecma_parser = { version = "33.0.1", path = "../swc_ecma_parser" }
+swc_ecma_testing = { version = "19.0.0", path = "../swc_ecma_testing" }
+swc_malloc = { version = "1.2.4", path = "../swc_malloc" }
+testing = { version = "19.0.0", path = "../testing" }
+swc_sourcemap = { workspace = true }
+
+[[bench]]
+harness = false
+name    = "bench"
+
+[[bench]]
+harness = false
+name    = "with_parse"

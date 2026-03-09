@@ -784,9 +784,8 @@ fn joint_last_token() {
 
     let joint_punct = Punct::new(':', Spacing::Joint);
     let stream = TokenStream::from(TokenTree::Punct(joint_punct));
-    let punct = match stream.into_iter().next().unwrap() {
-        TokenTree::Punct(punct) => punct,
-        _ => unreachable!(),
+    let TokenTree::Punct(punct) = stream.into_iter().next().unwrap() else {
+        unreachable!();
     };
     assert_eq!(punct.spacing(), Spacing::Joint);
 }

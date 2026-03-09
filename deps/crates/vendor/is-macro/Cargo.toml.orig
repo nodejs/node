@@ -1,0 +1,24 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>"]
+description   = "Derive methods for using custom enums like Option / Result"
+documentation = "https://docs.rs/is-macro"
+edition       = "2018"
+license       = { workspace = true }
+name          = "is-macro"
+repository    = { workspace = true }
+version       = "0.3.7"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = [
+    "fold",
+    "full",
+    "derive",
+    "extra-traits",
+    "fold",
+] }

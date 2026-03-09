@@ -1,0 +1,6 @@
+{
+  "git": {
+    "sha1": "832d537695a07e539660096883fab52bb7f10ecf"
+  },
+  "path_in_vcs": "crates/better_scoped_tls"
+}

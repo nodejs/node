@@ -1,0 +1,48 @@
+[package]
+name = "swc_sourcemap"
+version = "9.3.4"
+authors = ["Sentry <hello@sentry.io>", "swc-project <https://swc.rs>"]
+keywords = ["javascript", "sourcemap", "sourcemaps"]
+description = "Forked from https://github.com/getsentry/rust-sourcemap"
+homepage = "https://github.com/swc-project/swc-sourcemap"
+repository = "https://github.com/swc-project/swc-sourcemap"
+license = "BSD-3-Clause"
+readme = "README.md"
+edition = "2018"
+autoexamples = true
+
+include = [
+    "/src/**/*.rs",
+    "/examples/*.rs",
+    "/*.toml",
+    "/LICENSE",
+    "/README.md",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+url = "2.1.1"
+serde = { version = "1.0.104", features = ["derive", "rc"] }
+serde_json = { version = "1.0.48", features = ["raw_value"] }
+unicode-id-start = "1"
+if_chain = "1.0.0"
+scroll = { version = "0.12.0", features = ["derive"], optional = true }
+data-encoding = "2.3.3"
+debugid = {version = "0.8.0", features = ["serde"] }
+base64-simd = { version = "0.8" }
+bitvec = "1.0.1"
+rustc-hash = "2.1.1"
+bytes-str = { version = "0.2.4", features = ["serde"] }
+
+[features]
+ram_bundle = ["scroll"]
+
+[[example]]
+name = "split_ram_bundle"
+required-features = ["ram_bundle"]
+
+[dev-dependencies]
+magic_string = "0.3.4"
+proptest = "1.2.0"

@@ -1,0 +1,34 @@
+[package]
+name = "unicode-id-start"
+version = "1.4.0"
+authors = ["David Tolnay <dtolnay@gmail.com>", "Boshen <boshenc@gmail.com>"]
+categories = ["development-tools::procedural-macro-helpers", "no-std", "no-std::no-alloc"]
+description = "Determine whether characters have the ID_Start or ID_Continue properties according to Unicode Standard Annex #31"
+documentation = "https://docs.rs/unicode-id-start"
+edition = "2018"
+keywords = ["unicode", "id"]
+license = "(MIT OR Apache-2.0) AND Unicode-3.0"
+repository = "https://github.com/Boshen/unicode-id-start"
+rust-version = "1.31"
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false }
+fst = "0.4"
+rand = { version = "0.8", features = ["small_rng"] }
+roaring = "0.10"
+ucd-trie = { version = "0.1", default-features = false }
+unicode-id = "0.3.6"
+
+[[bench]]
+name = "id"
+harness = false
+
+[workspace]
+members = ["diagram", "generate"]
+
+[lib]
+doc-scrape-examples = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--generate-link-to-definition"]

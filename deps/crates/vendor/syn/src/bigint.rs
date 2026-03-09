@@ -1,4 +1,6 @@
-use std::ops::{AddAssign, MulAssign};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::ops::{AddAssign, MulAssign};
 
 // For implementing base10_digits() accessor on LitInt.
 pub(crate) struct BigInt {

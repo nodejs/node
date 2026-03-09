@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 #![allow(
     clippy::elidable_lifetime_names,
     clippy::needless_lifetimes,
@@ -313,4 +314,57 @@ fn test_impl_trait_trailing_plus() {
         },
     }
     "#);
+}
+
+// Regression test for issue https://github.com/dtolnay/syn/issues/1967
+#[test]
+fn test_nested_receiver_classification() {
+    let tokens = quote! {
+        fn foo(
+            self: foo<{ fn foo(
+                self: foo<{ fn foo(
+                    self: foo<{ fn foo(
+                        self: foo<{ fn foo(
+                            self: foo<{ fn foo(
+                                self: foo<{ fn foo(
+                                    self: foo<{ fn foo(
+                                        self: foo<{ fn foo(
+                                            self: foo<{ fn foo(
+                                                self: foo<{ fn foo(
+                                                    self: foo<{ fn foo(
+                                                        self: foo<{ fn foo(
+                                                            self: foo<{ fn foo(
+                                                                self: foo<{ fn foo(
+                                                                    self: foo<{ fn foo(
+                                                                        self: foo<{ fn foo(
+                                                                            self: foo<{ fn foo(
+                                                                                self: foo<{ fn foo(
+                                                                                    self: foo<{ fn foo(
+                                                                                        self: foo<{ fn foo(
+                                                                                            self: foo<{ fn foo(
+                                                                                            )}>
+                                                                                        )}>
+                                                                                    )}>
+                                                                                )}>
+                                                                            )}>
+                                                                        )}>
+                                                                    )}>
+                                                                )}>
+                                                            )}>
+                                                        )}>
+                                                    )}>
+                                                )}>
+                                            )}>
+                                        )}>
+                                    )}>
+                                )}>
+                            )}>
+                        )}>
+                    )}>
+                )}>
+            )}>
+        ) {}
+    };
+
+    let _ = syn::parse2::<syn::File>(tokens);
 }

@@ -1,0 +1,6 @@
+{
+  "git": {
+    "sha1": "0ce4fd737e260c0cbfffcfdb19f269a9cc221ef4"
+  },
+  "path_in_vcs": "crates/string_enum"
+}

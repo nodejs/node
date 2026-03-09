@@ -14,8 +14,6 @@
  * ====================================================
  */
 
-use core::f64;
-
 use super::rem_pio2_large;
 
 const TOINT: f64 = 1.5 / f64::EPSILON;
@@ -31,7 +29,7 @@ const PIO2_1T: f64 = 1.58932547735281966916e-08; /* 0x3E5110b4, 0x611A6263 */
 ///
 /// use double precision for everything except passing x
 /// use __rem_pio2_large() for large x
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub(crate) fn rem_pio2f(x: f32) -> (i32, f64) {
     let x64 = x as f64;
 

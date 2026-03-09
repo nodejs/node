@@ -1,0 +1,252 @@
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:63
+    |
+ 18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   --> $DIR/../include.rs:15:5
+    |
+ 15 |     pub struct NotZerocopy<T = ()>(pub T);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+    = help: the following other types implement trait `TryFromBytes`:
+              ()
+              (A, B)
+              (A, B, C)
+              (A, B, C, D)
+              (A, B, C, D, E)
+              (A, B, C, D, E, F)
+              (A, B, C, D, E, F, G)
+              (A, B, C, D, E, F, G, H)
+            and 156 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:829:14
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+...
+829 |         Dst: TryFromBytes + IntoBytes,
+    |              ^^^^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: IntoBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:63
+    |
+ 18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `IntoBytes` is not implemented for `NotZerocopy`
+   --> $DIR/../include.rs:15:5
+    |
+ 15 |     pub struct NotZerocopy<T = ()>(pub T);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(IntoBytes)]` to `NotZerocopy`
+    = help: the following other types implement trait `IntoBytes`:
+              ()
+              AU16
+              AtomicBool
+              AtomicI16
+              AtomicI32
+              AtomicI64
+              AtomicI8
+              AtomicIsize
+            and 69 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:829:29
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+...
+829 |         Dst: TryFromBytes + IntoBytes,
+    |                             ^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:33
+    |
+ 18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   --> $DIR/../include.rs:15:5
+    |
+ 15 |     pub struct NotZerocopy<T = ()>(pub T);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+    = help: the following other types implement trait `TryFromBytes`:
+              ()
+              (A, B)
+              (A, B, C)
+              (A, B, C, D)
+              (A, B, C, D, E)
+              (A, B, C, D, E, F)
+              (A, B, C, D, E, F, G)
+              (A, B, C, D, E, F, G, H)
+            and 156 others
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+
+error[E0277]: the trait bound `NotZerocopy: TryFromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:18:63
+    |
+ 18 |     let dst_not_try_from_bytes: Result<&mut NotZerocopy, _> = try_transmute_mut!(src);
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `TryFromBytes` is not implemented for `NotZerocopy`
+   --> $DIR/../include.rs:15:5
+    |
+ 15 |     pub struct NotZerocopy<T = ()>(pub T);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: Consider adding `#[derive(TryFromBytes)]` to `NotZerocopy`
+    = help: the following other types implement trait `TryFromBytes`:
+              ()
+              (A, B)
+              (A, B, C)
+              (A, B, C, D)
+              (A, B, C, D, E)
+              (A, B, C, D, E, F)
+              (A, B, C, D, E, F, G)
+              (A, B, C, D, E, F, G, H)
+            and 156 others
+note: required by a bound in `ValidityError`
+   --> $WORKSPACE/src/error.rs:588:45
+    |
+588 | pub struct ValidityError<Src, Dst: ?Sized + TryFromBytes> {
+    |                                             ^^^^^^^^^^^^ required by this bound in `ValidityError`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcA: FromBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:33:41
+    |
+ 33 |     let src_not_from_bytes: &mut DstA = try_transmute_mut!(&mut SrcA).unwrap();
+    |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `FromBytes` is not implemented for `SrcA`
+   --> $DIR/try_transmute_mut.rs:26:5
+    |
+ 26 |     struct SrcA;
+    |     ^^^^^^^^^^^
+    = note: Consider adding `#[derive(FromBytes)]` to `SrcA`
+    = help: the following other types implement trait `FromBytes`:
+              ()
+              (A, B)
+              (A, B, C)
+              (A, B, C, D)
+              (A, B, C, D, E)
+              (A, B, C, D, E, F)
+              (A, B, C, D, E, F, G)
+              (A, B, C, D, E, F, G, H)
+            and 80 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:828:14
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+827 |     where
+828 |         Src: FromBytes + IntoBytes,
+    |              ^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstA: IntoBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:33:41
+    |
+ 33 |     let src_not_from_bytes: &mut DstA = try_transmute_mut!(&mut SrcA).unwrap();
+    |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `IntoBytes` is not implemented for `DstA`
+   --> $DIR/try_transmute_mut.rs:30:5
+    |
+ 30 |     struct DstA;
+    |     ^^^^^^^^^^^
+    = note: Consider adding `#[derive(IntoBytes)]` to `DstA`
+    = help: the following other types implement trait `IntoBytes`:
+              ()
+              AU16
+              AtomicBool
+              AtomicI16
+              AtomicI32
+              AtomicI64
+              AtomicI8
+              AtomicIsize
+            and 69 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:829:29
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+...
+829 |         Dst: TryFromBytes + IntoBytes,
+    |                             ^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `SrcB: IntoBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:46:41
+    |
+ 46 |     let src_not_from_bytes: &mut DstB = try_transmute_mut!(&mut SrcB).unwrap();
+    |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `IntoBytes` is not implemented for `SrcB`
+   --> $DIR/try_transmute_mut.rs:39:5
+    |
+ 39 |     struct SrcB;
+    |     ^^^^^^^^^^^
+    = note: Consider adding `#[derive(IntoBytes)]` to `SrcB`
+    = help: the following other types implement trait `IntoBytes`:
+              ()
+              AU16
+              AtomicBool
+              AtomicI16
+              AtomicI32
+              AtomicI64
+              AtomicI8
+              AtomicIsize
+            and 69 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:828:26
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+827 |     where
+828 |         Src: FromBytes + IntoBytes,
+    |                          ^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DstB: IntoBytes` is not satisfied
+   --> $DIR/try_transmute_mut.rs:46:41
+    |
+ 46 |     let src_not_from_bytes: &mut DstB = try_transmute_mut!(&mut SrcB).unwrap();
+    |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `IntoBytes` is not implemented for `DstB`
+   --> $DIR/try_transmute_mut.rs:43:5
+    |
+ 43 |     struct DstB;
+    |     ^^^^^^^^^^^
+    = note: Consider adding `#[derive(IntoBytes)]` to `DstB`
+    = help: the following other types implement trait `IntoBytes`:
+              ()
+              AU16
+              AtomicBool
+              AtomicI16
+              AtomicI32
+              AtomicI64
+              AtomicI8
+              AtomicIsize
+            and 69 others
+note: required by a bound in `Wrap::<&'a mut Src, &'a mut Dst>::try_transmute_mut`
+   --> $WORKSPACE/src/util/macro_util.rs:829:29
+    |
+826 |     pub fn try_transmute_mut(self) -> Result<&'a mut Dst, ValidityError<&'a mut Src, Dst>>
+    |            ----------------- required by a bound in this associated function
+...
+829 |         Dst: TryFromBytes + IntoBytes,
+    |                             ^^^^^^^^^ required by this bound in `Wrap::<&mut Src, &mut Dst>::try_transmute_mut`
+    = note: this error originates in the macro `try_transmute_mut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 8 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

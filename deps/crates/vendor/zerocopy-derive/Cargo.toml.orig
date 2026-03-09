@@ -1,0 +1,51 @@
+# Copyright 2019 The Fuchsia Authors
+#
+# Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
+# <LICENSE-APACHE or https://www.apache.org/licenses/LICENSE-2.0>, or the MIT
+# license <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your option.
+# This file may not be copied, modified, or distributed except according to
+# those terms.
+
+[package]
+edition = "2021"
+name = "zerocopy-derive"
+version = "0.8.40"
+authors = ["Joshua Liebow-Feeser <joshlf@google.com>", "Jack Wrenn <jswrenn@amazon.com>"]
+description = "Custom derive for traits from the zerocopy crate"
+license = "BSD-2-Clause OR Apache-2.0 OR MIT"
+repository = "https://github.com/google/zerocopy"
+
+# We prefer to include tests when publishing to crates.io so that Crater [1] can
+# detect regressions in our test suite. These two tests are excessively large,
+# so we exclude them to keep the published crate file small.
+#
+# [1] https://github.com/rust-lang/crater
+exclude = [".*", "tests/enum_from_bytes.rs", "tests/ui-nightly/enum_from_bytes_u16_too_few.rs.disabled"]
+
+[lints.rust]
+# See #1792 for more context.
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(zerocopy_derive_union_into_bytes)',
+  'cfg(zerocopy_unstable_derive_on_error)',
+] }
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.1"
+quote = "1.0.40"
+syn = { version = "2.0.46", features = ["full"] }
+
+[dev-dependencies]
+dissimilar = "1.0.9"
+prettyplease = "=0.2.17"
+rustversion = "1.0"
+static_assertions = "1.1"
+syn = { version = "2.0.46", features = ["visit"] }
+testutil = { path = "../testutil" }
+# We import as `zerocopy-renamed` so that we can refer to the crate as
+# `zerocopy-renamed` in the generated code, which allows us to test that the
+# `crate` attribute works correctly, and ensures that we never accidentally
+# hard-code the name `zerocopy` in the generated code.
+zerocopy-renamed = { package = "zerocopy", path = "../", features = ["derive"] }

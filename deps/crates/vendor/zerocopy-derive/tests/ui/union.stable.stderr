@@ -1,0 +1,125 @@
+error: unsupported on types with type parameters
+  --> $DIR/union.rs:36:10
+   |
+36 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must be #[repr(C)], #[repr(packed)], or #[repr(transparent)]
+  --> $DIR/union.rs:55:10
+   |
+55 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must be #[repr(C)], #[repr(packed)], or #[repr(transparent)]
+  --> $DIR/union.rs:63:10
+   |
+63 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot derive `Unaligned` on type with alignment greater than 1
+  --> $DIR/union.rs:77:11
+   |
+77 | #[repr(C, align(2))]
+   |           ^^^^^
+
+error: this conflicts with another representation hint
+  --> $DIR/union.rs:95:16
+   |
+95 | #[repr(packed, align(2))]
+   |                ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/union.rs:104:18
+    |
+104 | #[repr(align(1), align(2))]
+    |                  ^^^^^
+
+error: this conflicts with another representation hint
+   --> $DIR/union.rs:112:18
+    |
+112 | #[repr(align(2), align(4))]
+    |                  ^^^^^
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/union.rs:118:10
+    |
+118 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must have #[repr(C)], #[repr(transparent)], or #[repr(packed)] attribute in order to guarantee this type's alignment
+   --> $DIR/union.rs:126:10
+    |
+126 | #[derive(Unaligned)]
+    |          ^^^^^^^^^
+    |
+    = note: this error originates in the derive macro `Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `UnsafeCell<()>: zerocopy_renamed::Immutable` is not satisfied
+  --> $DIR/union.rs:25:10
+   |
+25 | #[derive(Immutable)]
+   |          ^^^^^^^^^ the trait `zerocopy_renamed::Immutable` is not implemented for `UnsafeCell<()>`
+   |
+   = note: Consider adding `#[derive(Immutable)]` to `UnsafeCell<()>`
+   = help: the following other types implement trait `zerocopy_renamed::Immutable`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and 129 others
+   = note: required for `ManuallyDrop<UnsafeCell<()>>` to implement `zerocopy_renamed::Immutable`
+   = help: see issue #48214
+   = note: this error originates in the derive macro `Immutable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `IntoBytes2` has 1 total byte(s) of padding
+  --> $DIR/union.rs:44:10
+   |
+44 | #[derive(IntoBytes)]
+   |          ^^^^^^^^^ types with padding cannot implement `IntoBytes`
+   |
+   = note: consider using `zerocopy::Unalign` to lower the alignment of individual fields
+   = note: consider adding explicit fields where padding would be
+   = note: consider using `#[repr(packed)]` to remove padding
+help: the trait `PaddingFree<IntoBytes2, 1>` is not implemented for `()`
+      but trait `PaddingFree<IntoBytes2, 0>` is implemented for it
+  --> $WORKSPACE/src/util/macro_util.rs:62:1
+   |
+62 | impl<T: ?Sized> PaddingFree<T, 0> for () {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: see issue #48214
+   = note: this error originates in the derive macro `IntoBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0587]: type has conflicting packed and align representation hints
+  --> $DIR/union.rs:97:1
+   |
+97 | union Unaligned3 {
+   | ^^^^^^^^^^^^^^^^
+
+error[E0588]: packed type cannot transitively contain a `#[repr(align)]` type
+   --> $DIR/union.rs:130:1
+    |
+130 | union Unaligned7 {
+    | ^^^^^^^^^^^^^^^^
+    |
+note: `AU16` has a `#[repr(align)]` attribute
+   --> $DIR/../include.rs:64:5
+    |
+ 64 |     pub struct AU16(pub u16);
+    |     ^^^^^^^^^^^^^^^
+
+error: aborting due to 13 previous errors
+
+Some errors have detailed explanations: E0277, E0587, E0588.
+For more information about an error, try `rustc --explain E0277`.
