@@ -395,8 +395,10 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
   uv_fs_t req;
   int r = uv_fs_stat(nullptr, &req, config.executable_path.c_str(), nullptr);
   if (r != 0) {
-    FPrintF(
-        stderr, "Error: Couldn't stat executable %s\n", config.executable_path);
+    FPrintF(stderr,
+            "Error: Couldn't stat executable %s: %s\n",
+            config.executable_path,
+            uv_strerror(r));
     uv_fs_req_cleanup(&req);
     return ExitCode::kGenericUserError;
   }
@@ -406,8 +408,10 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
   std::string exe;
   r = ReadFileSync(&exe, config.executable_path.c_str());
   if (r != 0) {
-    FPrintF(
-        stderr, "Error: Couldn't read executable %s\n", config.executable_path);
+    FPrintF(stderr,
+            "Error: Couldn't read executable %s: %s\n",
+            config.executable_path,
+            uv_strerror(r));
     return ExitCode::kGenericUserError;
   }
 
