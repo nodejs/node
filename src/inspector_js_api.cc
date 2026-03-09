@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
+#include "v8-local-handle.h"
 #include "v8.h"
 
 #include <memory>
@@ -15,6 +16,7 @@ namespace node {
 namespace inspector {
 namespace {
 
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -274,10 +276,12 @@ void EmitProtocolEvent(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsObject());
   Local<Object> params = args[1].As<Object>();
 
-  env->inspector_agent()->EmitProtocolEvent(
+  v8::HandleScope handle_scope(env->isolate());
+  Local<Array> results = env->inspector_agent()->EmitProtocolEvent(
       args.GetIsolate()->GetCurrentContext(),
       ToInspectorString(env->isolate(), eventName)->string(),
       params);
+  args.GetReturnValue().Set(results);
 }
 
 void SetupNetworkTracking(const FunctionCallbackInfo<Value>& args) {

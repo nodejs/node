@@ -70,9 +70,9 @@ class Agent {
   void ReportUncaughtException(v8::Local<v8::Value> error,
                                v8::Local<v8::Message> message);
 
-  void EmitProtocolEvent(v8::Local<v8::Context> context,
-                         const v8_inspector::StringView& event,
-                         v8::Local<v8::Object> params);
+  v8::Local<v8::Array> EmitProtocolEvent(v8::Local<v8::Context> context,
+                                         const v8_inspector::StringView& event,
+                                         v8::Local<v8::Object> params);
 
   void SetupNetworkTracking(v8::Local<v8::Function> enable_function,
                             v8::Local<v8::Function> disable_function);
