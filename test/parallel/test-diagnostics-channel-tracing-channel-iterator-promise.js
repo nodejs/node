@@ -24,7 +24,7 @@ function checkAsync(found) {
   assert.strictEqual(found.result, syncIter);
 }
 
-// async fn returns a Promise, so main channel fires asyncStart/asyncEnd
+// Async fn returns a Promise, so main channel fires asyncStart/asyncEnd
 const handlers = {
   start: common.mustCall(check),
   end: common.mustCall(check),
@@ -45,7 +45,7 @@ const nextHandlers = {
 channel.subscribe(handlers);
 nextChannel.subscribe(nextHandlers);
 
-// fn is async: returns a Promise resolving to a sync iterator
+// Fn is async: returns a Promise resolving to a sync iterator
 // traceIterator returns a Promise resolving to the wrapped iterator
 channel.traceIterator(common.mustCall(async function() {
   assert.deepStrictEqual(this, thisArg);

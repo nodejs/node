@@ -29,10 +29,11 @@ const handlers = {
   error: common.mustNotCall(),
 };
 
-// next() and throw() each produce one error
+// iter1: next() success + next() throws = start×2, end×2, error×1
+// iter2: throw() throws = start×1, end×1, error×1
 const nextHandlers = {
-  start: common.mustCall(check, 2),
-  end: common.mustCall(check, 2),
+  start: common.mustCall(check, 3),
+  end: common.mustCall(check, 3),
   asyncStart: common.mustNotCall(),
   asyncEnd: common.mustNotCall(),
   error: common.mustCall(checkError, 2),
@@ -41,12 +42,14 @@ const nextHandlers = {
 channel.subscribe(handlers);
 nextChannel.subscribe(nextHandlers);
 
-// Test next(): generator throws on first next() call
+// Test next(): generator throws after the first yield
 const iter1 = channel.traceIterator(common.mustCall(function*() {
   assert.deepStrictEqual(this, thisArg);
+  yield 1;
   throw expectedError;
 }), input, thisArg);
 
+assert.deepStrictEqual(iter1.next(), { value: 1, done: false });
 assert.throws(() => iter1.next(), expectedError);
 
 // Test throw(): propagates error through the iterator

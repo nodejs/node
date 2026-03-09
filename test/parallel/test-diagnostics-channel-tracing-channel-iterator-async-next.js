@@ -21,7 +21,7 @@ function checkNextAsync(found) {
   assert.deepStrictEqual(found.result, { value: expectedResult, done: false });
 }
 
-// async function* returns an AsyncGenerator synchronously, so no asyncStart/asyncEnd
+// Async function* returns an AsyncGenerator synchronously, so no asyncStart/asyncEnd
 // for the fn call itself
 const handlers = {
   start: common.mustCall(check),
