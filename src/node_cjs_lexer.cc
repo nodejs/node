@@ -77,7 +77,8 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   // Convert exports to JS Set
   Local<Set> exports_set = Set::New(isolate);
   for (const auto& exp : analysis.exports) {
-    exports_set->Add(context, CreateString(isolate, DOT_NAME(exp))).ToLocalChecked();
+    exports_set->Add(context, CreateString(isolate, DOT_NAME(exp)))
+        .ToLocalChecked();
   }
 
   // Convert reexports to JS array using batch creation
