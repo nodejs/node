@@ -16,7 +16,8 @@ jobs:
       pull-requests: write  # to create a PR (gr2m/create-or-update-pull-request-action)
 
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-slim
+    # cannot use ubuntu-slim here because it does not have icupkg
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout nodejs/node
