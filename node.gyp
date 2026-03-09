@@ -30,6 +30,7 @@
     'node_snapshot_main%': '',
     'node_use_amaro%': 'true',
     'node_use_bundled_v8%': 'true',
+    'node_use_lief%': 'false',
     'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
     'node_use_sqlite%': 'true',
@@ -994,6 +995,10 @@
           'sources': [
             '<@(node_quic_sources)',
           ],
+        }],
+        [ 'node_use_lief=="true"', {
+          'defines': [ 'HAVE_LIEF=1' ],
+          'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
         }],
         [ 'node_use_sqlite=="true"', {
           'sources': [

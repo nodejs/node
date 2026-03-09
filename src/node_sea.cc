@@ -247,7 +247,6 @@ SeaResource FindSingleExecutableResource() {
   return sea_resource;
 }
 
-
 void IsSea(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(IsSingleExecutable());
 }
@@ -334,17 +333,6 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   return {argc, argv};
 }
 
-namespace {
-
-struct SeaConfig {
-  std::string main_path;
-  std::string output_path;
-  SeaFlags flags = SeaFlags::kDefault;
-  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
-  std::unordered_map<std::string, std::string> assets;
-  std::vector<std::string> exec_argv;
-};
-
 std::optional<SeaConfig> ParseSingleExecutableConfig(
     const std::string& config_path) {
   std::string config;
@@ -399,6 +387,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
           result.output_path.empty()) {
         FPrintF(stderr,
                 "\"output\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+    } else if (key == "executable") {
+      if (field.value().get_string().get(result.executable_path) ||
+          result.executable_path.empty()) {
+        FPrintF(stderr,
+                "\"executable\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
@@ -533,6 +529,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   return result;
 }
 
+namespace {
 ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
                                 const std::vector<std::string>& args,
                                 const std::vector<std::string>& exec_args,
@@ -650,7 +647,10 @@ int BuildAssets(const std::unordered_map<std::string, std::string>& config,
   return 0;
 }
 
+}  // anonymous namespace
+
 ExitCode GenerateSingleExecutableBlob(
+    std::vector<char>* out,
     const SeaConfig& config,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args) {
@@ -715,9 +715,28 @@ ExitCode GenerateSingleExecutableBlob(
 
   SeaSerializer serializer;
   serializer.Write(sea);
+  std::swap(*out, serializer.sink);
+  return ExitCode::kNoFailure;
+}
 
-  uv_buf_t buf = uv_buf_init(serializer.sink.data(), serializer.sink.size());
-  r = WriteFileSync(config.output_path.c_str(), buf);
+ExitCode WriteSingleExecutableBlob(const std::string& config_path,
+                                   const std::vector<std::string>& args,
+                                   const std::vector<std::string>& exec_args) {
+  std::optional<SeaConfig> config_opt =
+      ParseSingleExecutableConfig(config_path);
+  if (!config_opt.has_value()) {
+    return ExitCode::kGenericUserError;
+  }
+
+  SeaConfig config = config_opt.value();
+  std::vector<char> blob;
+  ExitCode exit_code =
+      GenerateSingleExecutableBlob(&blob, config, args, exec_args);
+  if (exit_code != ExitCode::kNoFailure) {
+    return exit_code;
+  }
+  uv_buf_t buf = uv_buf_init(blob.data(), blob.size());
+  int r = WriteFileSync(config.output_path.c_str(), buf);
   if (r != 0) {
     const char* err = uv_strerror(r);
     FPrintF(stderr, "Cannot write output to %s:%s\n", config.output_path, err);
@@ -728,22 +747,6 @@ ExitCode GenerateSingleExecutableBlob(
           "Wrote single executable preparation blob to %s\n",
           config.output_path);
   return ExitCode::kNoFailure;
-}
-
-}  // anonymous namespace
-
-ExitCode BuildSingleExecutableBlob(const std::string& config_path,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args) {
-  std::optional<SeaConfig> config_opt =
-      ParseSingleExecutableConfig(config_path);
-  if (config_opt.has_value()) {
-    ExitCode code =
-        GenerateSingleExecutableBlob(config_opt.value(), args, exec_args);
-    return code;
-  }
-
-  return ExitCode::kGenericUserError;
 }
 
 void GetAsset(const FunctionCallbackInfo<Value>& args) {

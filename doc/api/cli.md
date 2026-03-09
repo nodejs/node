@@ -363,6 +363,23 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--build-sea=config`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Generates a [single executable application][] from a JSON
+configuration file. The argument must be a path to the configuration file. If
+the path is not absolute, it is resolved relative to the current working
+directory.
+
+For configuration fields, cross-platform notes, and asset APIs, see
+the [single executable application][] documentation.
+
 ### `--build-snapshot`
 
 <!-- YAML
