@@ -52,11 +52,12 @@ class DOMStorageAgent : public protocol::DOMStorage::Backend,
   DOMStorageAgent& operator=(const DOMStorageAgent&) = delete;
 
  private:
+  typedef std::unordered_map<std::u16string, std::u16string> StorageMap;
   std::optional<node::webstorage::Storage*> getWebStorage(
       bool is_local_storage);
   std::unique_ptr<protocol::DOMStorage::Frontend> frontend_;
-  std::unordered_map<std::string, std::string> local_storage_map_ = {};
-  std::unordered_map<std::string, std::string> session_storage_map_ = {};
+  StorageMap local_storage_map_ = {};
+  StorageMap session_storage_map_ = {};
   bool enabled_ = false;
   Environment* env_;
 };

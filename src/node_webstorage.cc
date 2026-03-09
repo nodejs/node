@@ -281,7 +281,7 @@ MaybeLocal<Array> Storage::Enumerate() {
   return Array::New(env()->isolate(), values.data(), values.size());
 }
 
-std::unordered_map<std::string, std::string> Storage::GetAll() {
+std::unordered_map<std::u16string, std::u16string> Storage::GetAll() {
   if (!Open().IsJust()) {
     return {};
   }
@@ -291,7 +291,7 @@ std::unordered_map<std::string, std::string> Storage::GetAll() {
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   auto stmt = stmt_unique_ptr(s);
-  std::unordered_map<std::string, std::string> result;
+  std::unordered_map<std::u16string, std::u16string> result;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     CHECK(sqlite3_column_type(stmt.get(), 1) == SQLITE_BLOB);
@@ -301,20 +301,9 @@ std::unordered_map<std::string, std::string> Storage::GetAll() {
         reinterpret_cast<const char16_t*>(sqlite3_column_blob(stmt.get(), 0)));
     auto value_uint16(
         reinterpret_cast<const char16_t*>(sqlite3_column_blob(stmt.get(), 1)));
-    size_t key_utf8_size =
-        simdutf::utf8_length_from_utf16(key_uint16, key_size);
-    std::string key;
-    key.resize(key_utf8_size);
-    size_t written =
-        simdutf::convert_utf16_to_utf8(key_uint16, key_size, key.data());
-    key.resize(written);
-    size_t value_utf8_size =
-        simdutf::utf8_length_from_utf16(value_uint16, value_size);
-    std::string value;
-    value.resize(value_utf8_size);
-    written =
-        simdutf::convert_utf16_to_utf8(value_uint16, value_size, value.data());
-    value.resize(written);
+
+    std::u16string key(key_uint16, key_size);
+    std::u16string value(value_uint16, value_size);
 
     result.emplace(std::move(key), std::move(value));
   }
