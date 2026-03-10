@@ -24,6 +24,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
+using v8::Data;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -31,11 +32,13 @@ using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
+using v8::Module;
 using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
+using v8::UnboundModuleScript;
 using v8::Value;
 
 namespace node {
@@ -542,20 +545,12 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
             "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
   }
 
-  // TODO(joyeecheung): support ESM with useSnapshot and useCodeCache.
+  // TODO(joyeecheung): support ESM with useSnapshot.
   if (result.main_format == ModuleFormat::kModule &&
       static_cast<bool>(result.flags & SeaFlags::kUseSnapshot)) {
     FPrintF(stderr,
             "\"mainFormat\": \"module\" is not supported when "
             "\"useSnapshot\" is true\n");
-    return std::nullopt;
-  }
-
-  if (result.main_format == ModuleFormat::kModule &&
-      static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
-    FPrintF(stderr,
-            "\"mainFormat\": \"module\" is not supported when "
-            "\"useCodeCache\" is true\n");
     return std::nullopt;
   }
 
@@ -616,7 +611,8 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
 }
 
 std::optional<std::string> GenerateCodeCache(std::string_view main_path,
-                                             std::string_view main_script) {
+                                             std::string_view main_script,
+                                             ModuleFormat format) {
   RAIIIsolate raii_isolate(SnapshotBuilder::GetEmbeddedSnapshotData());
   Isolate* isolate = raii_isolate.get();
 
@@ -647,34 +643,62 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
     return std::nullopt;
   }
 
-  LocalVector<String> parameters(
-      isolate,
-      {
-          FIXED_ONE_BYTE_STRING(isolate, "exports"),
-          FIXED_ONE_BYTE_STRING(isolate, "require"),
-          FIXED_ONE_BYTE_STRING(isolate, "module"),
-          FIXED_ONE_BYTE_STRING(isolate, "__filename"),
-          FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
-      });
-  ScriptOrigin script_origin(filename, 0, 0, true);
-  ScriptCompiler::Source script_source(content, script_origin);
-  MaybeLocal<Function> maybe_fn =
-      ScriptCompiler::CompileFunction(context,
-                                      &script_source,
-                                      parameters.size(),
-                                      parameters.data(),
-                                      0,
-                                      nullptr);
-  Local<Function> fn;
-  if (!maybe_fn.ToLocal(&fn)) {
-    return std::nullopt;
+  std::unique_ptr<ScriptCompiler::CachedData> cache;
+
+  if (format == ModuleFormat::kModule) {
+    // Using empty host defined options is fine as it is not part of the cache
+    // key and will be reset after deserialization.
+    ScriptOrigin origin(filename,
+                        0,               // line offset
+                        0,               // column offset
+                        true,            // is cross origin
+                        -1,              // script id
+                        Local<Value>(),  // source map URL
+                        false,           // is opaque
+                        false,           // is WASM
+                        true,            // is ES Module
+                        Local<Data>());  // host defined options
+    ScriptCompiler::Source source(content, origin);
+    Local<Module> module;
+    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+      return std::nullopt;
+    }
+    Local<UnboundModuleScript> unbound = module->GetUnboundModuleScript();
+    cache.reset(ScriptCompiler::CreateCodeCache(unbound));
+  } else {
+    // TODO(RaisinTen): Using the V8 code cache prevents us from using
+    // `import()` in the SEA code. Support it. Refs:
+    // https://github.com/nodejs/node/pull/48191#discussion_r1213271430
+    // TODO(joyeecheung): this likely has been fixed by
+    // https://chromium-review.googlesource.com/c/v8/v8/+/5401780 - add a test
+    // and update docs.
+    LocalVector<String> parameters(
+        isolate,
+        {
+            FIXED_ONE_BYTE_STRING(isolate, "exports"),
+            FIXED_ONE_BYTE_STRING(isolate, "require"),
+            FIXED_ONE_BYTE_STRING(isolate, "module"),
+            FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+            FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+        });
+    ScriptOrigin script_origin(filename, 0, 0, true);
+    ScriptCompiler::Source script_source(content, script_origin);
+    Local<Function> fn;
+    if (!ScriptCompiler::CompileFunction(context,
+                                         &script_source,
+                                         parameters.size(),
+                                         parameters.data(),
+                                         0,
+                                         nullptr)
+             .ToLocal(&fn)) {
+      return std::nullopt;
+    }
+    cache.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
   }
 
-  // TODO(RaisinTen): Using the V8 code cache prevents us from using `import()`
-  // in the SEA code. Support it.
-  // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
-  std::unique_ptr<ScriptCompiler::CachedData> cache{
-      ScriptCompiler::CreateCodeCacheForFunction(fn)};
+  if (!cache) {
+    return std::nullopt;
+  }
   std::string code_cache(cache->data, cache->data + cache->length);
   return code_cache;
 }
@@ -728,7 +752,7 @@ ExitCode GenerateSingleExecutableBlob(
   std::string code_cache;
   if (static_cast<bool>(config.flags & SeaFlags::kUseCodeCache)) {
     std::optional<std::string> optional_code_cache =
-        GenerateCodeCache(config.main_path, main_script);
+        GenerateCodeCache(config.main_path, main_script, config.main_format);
     if (!optional_code_cache.has_value()) {
       FPrintF(stderr, "Cannot generate V8 code cache\n");
       return ExitCode::kGenericUserError;
