@@ -1066,10 +1066,10 @@ pipes between the parent and child. The value is one of the following:
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
-   **NOTE:** While it is technically possible to pass `stdin` as a writable or
-   `stdout`/`stderr` as readable, it is not recommended.
-   Readable and writable streams are designed with distinct behaviors, and using
-   them incorrectly (e.g., passing a readable stream where a writable stream is
+   **NOTE:** While it is technically possible to pass `stdin` as a readable or
+  `stdout`/`stderr` as writable, it is not recommended.
+  Readable and writable streams are designed with distinct behaviors, and using
+  them incorrectly (e.g., passing a writable stream where a readable stream is
    expected) can lead to unexpected results or errors. This practice is discouraged
    as it may result in undefined behavior or dropped callbacks if the stream
    encounters errors. Always ensure that `stdin` is used as readable and
