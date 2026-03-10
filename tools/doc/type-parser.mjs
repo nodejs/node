@@ -124,10 +124,12 @@ const customTypesMap = {
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
   'ContextParams': 'webcrypto.html#class-contextparams',
   'CShakeParams': 'webcrypto.html#class-cshakeparams',
+  'KangarooTwelveParams': 'webcrypto.html#class-kangarootwelveparams',
   'KmacImportParams': 'webcrypto.html#class-kmacimportparams',
   'KmacKeyAlgorithm': 'webcrypto.html#class-kmackeyalgorithm',
   'KmacKeyGenParams': 'webcrypto.html#class-kmackeygenparams',
   'KmacParams': 'webcrypto.html#class-kmacparams',
+  'TurboShakeParams': 'webcrypto.html#class-turboshakeparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
