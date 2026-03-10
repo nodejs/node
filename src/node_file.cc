@@ -3423,15 +3423,18 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
+  auto src_path = src.ToPath();
+  auto dest_path = dest.ToPath();
+
   std::error_code error;
 
-  if (!std::filesystem::remove(*dest, error)) {
+  if (!std::filesystem::remove(dest_path, error)) {
     return env->ThrowStdErrException(error, "unlink", *dest);
   }
 
   if (mode == 0) {
     // if no mode is specified use the faster std::filesystem API
-    if (!std::filesystem::copy_file(*src, *dest, error)) {
+    if (!std::filesystem::copy_file(src_path, dest_path, error)) {
       return env->ThrowStdErrException(error, "cp", *dest);
     }
   } else {
@@ -3444,7 +3447,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (preserve_timestamps) {
-    CopyUtimes(*src, *dest, env);
+    CopyUtimes(src_path, dest_path, env);
   }
 }
 
@@ -3487,8 +3490,11 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   bool verbatim_symlinks = args[5]->IsTrue();
   bool preserve_timestamps = args[6]->IsTrue();
 
+  auto src_path = src.ToPath();
+  auto dest_path = dest.ToPath();
+
   std::error_code error;
-  std::filesystem::create_directories(*dest, error);
+  std::filesystem::create_directories(dest_path, error);
   if (error) {
     return env->ThrowStdErrException(error, "cp", *dest);
   }
@@ -3630,7 +3636,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     return true;
   };
 
-  copy_dir_contents(std::filesystem::path(*src), std::filesystem::path(*dest));
+  copy_dir_contents(src_path, dest_path);
 }
 
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
