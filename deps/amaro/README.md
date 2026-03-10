@@ -41,11 +41,31 @@ node --import="amaro/strip" file.ts
 Enabling TypeScript feature transformation:
 
 ```bash
-node --experimental-transform-types --import="amaro/transform" file.ts
+node --enable-source-maps --import="amaro/transform" file.ts
 ```
 
-> Note that the "amaro/transform" loader should be used with `--experimental-transform-types` flag, or
-> at least with `--enable-source-maps` flag, to preserve the original source maps.
+> Note that the `amaro/transform` loader should be used with `--enable-source-maps`
+> to preserve accurate source-mapped stack traces.
+
+#### Programmatic registration with `module.register()`
+
+If you want TypeScript to "just work" in an existing codebase without passing `--import` every time, create a small bootstrap file and register Amaro once before loading your TS entrypoint.
+
+```mjs
+// bootstrap.mjs
+import { register } from "node:module";
+
+register("amaro/strip", import.meta.url);
+await import("./src/index.ts");
+```
+
+Then start your app through the bootstrap file:
+
+```bash
+node --watch ./bootstrap.mjs
+```
+
+For transform mode, swap `amaro/strip` with `amaro/transform` and run Node with `--enable-source-maps`.
 
 #### Type stripping in dependencies
 
