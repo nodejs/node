@@ -169,13 +169,13 @@ async function testDigest(size, alg) {
       { name: 'TurboSHAKE128', outputLength: 256, domainSeparation: 0x00 },
       Buffer.alloc(0)),
     {
-      name: 'NotSupportedError',
+      name: 'OperationError',
     });
   await assert.rejects(
     subtle.digest(
       { name: 'TurboSHAKE128', outputLength: 256, domainSeparation: 0x80 },
       Buffer.alloc(0)),
     {
-      name: 'NotSupportedError',
+      name: 'OperationError',
     });
 })().then(common.mustCall());
