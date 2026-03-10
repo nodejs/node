@@ -55,12 +55,6 @@ module.exports = {
   'historical.any.js': {
     'skip': 'Not relevant in Node.js context',
   },
-  'digest/turboshake.tentative.https.any.js': {
-    'skip': 'not implemented',
-  },
-  'digest/kangarootwelve.tentative.https.any.js': {
-    'skip': 'not implemented',
-  },
   'sign_verify/eddsa_small_order_points.https.any.js': {
     'fail': {
       'note': 'see https://github.com/nodejs/node/issues/54572',

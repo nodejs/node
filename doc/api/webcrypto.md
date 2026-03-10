@@ -2,6 +2,10 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62183
+    description: TurboSHAKE and KangarooTwelve algorithms
+      are now supported.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
@@ -122,6 +126,8 @@ Algorithms:
 * `'cSHAKE256'`
 * `'KMAC128'`[^openssl30]
 * `'KMAC256'`[^openssl30]
+* `'KT128'`
+* `'KT256'`
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
@@ -131,6 +137,8 @@ Algorithms:
 * `'SHA3-256'`
 * `'SHA3-384'`
 * `'SHA3-512'`
+* `'TurboSHAKE128'`
+* `'TurboSHAKE256'`
 
 Key Formats:
 
@@ -575,6 +583,8 @@ implementation and the APIs supported for each:
 | `'HMAC'`                             |            | ✔                  |                        |              |                   |        |
 | `'KMAC128'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
 | `'KMAC256'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
+| `'KT128'`[^modern-algos]             |            |                    |                        |              |                   | ✔      |
+| `'KT256'`[^modern-algos]             |            |                    |                        |              |                   | ✔      |
 | `'ML-DSA-44'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-65'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-87'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
@@ -592,6 +602,8 @@ implementation and the APIs supported for each:
 | `'SHA3-256'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
 | `'SHA3-384'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
 | `'SHA3-512'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
+| `'TurboSHAKE128'`[^modern-algos]     |            |                    |                        |              |                   | ✔      |
+| `'TurboSHAKE256'`[^modern-algos]     |            |                    |                        |              |                   | ✔      |
 | `'X25519'`                           |            |                    | ✔                      |              |                   |        |
 | `'X448'`[^secure-curves]             |            |                    | ✔                      |              |                   |        |
 
@@ -999,6 +1011,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62183
+    description: TurboSHAKE and KangarooTwelve algorithms
+      are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
@@ -1007,7 +1023,7 @@ changes:
     description: SHAKE algorithms are now supported.
 -->
 
-* `algorithm` {string|Algorithm|CShakeParams}
+* `algorithm` {string|Algorithm|CShakeParams|TurboShakeParams|KangarooTwelveParams}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
@@ -1019,6 +1035,8 @@ If `algorithm` is provided as a {string}, it must be one of:
 
 * `'cSHAKE128'`[^modern-algos]
 * `'cSHAKE256'`[^modern-algos]
+* `'KT128'`[^modern-algos]
+* `'KT256'`[^modern-algos]
 * `'SHA-1'`
 * `'SHA-256'`
 * `'SHA-384'`
@@ -1026,6 +1044,8 @@ If `algorithm` is provided as a {string}, it must be one of:
 * `'SHA3-256'`[^modern-algos]
 * `'SHA3-384'`[^modern-algos]
 * `'SHA3-512'`[^modern-algos]
+* `'TurboSHAKE128'`[^modern-algos]
+* `'TurboSHAKE256'`[^modern-algos]
 
 If `algorithm` is provided as an {Object}, it must have a `name` property
 whose value is one of the above.
@@ -2316,6 +2336,38 @@ added: v15.0.0
 
 * Type: {string}
 
+### Class: `KangarooTwelveParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `kangarooTwelveParams.customization`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The optional customization string for KangarooTwelve.
+
+#### `kangarooTwelveParams.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos]
+
+#### `kangarooTwelveParams.outputLength`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} represents the requested output length in bits.
+
 ### Class: `KmacImportParams`
 
 <!-- YAML
@@ -2685,6 +2737,38 @@ added: v15.0.0
 * Type: {number}
 
 The length (in bytes) of the random salt to use.
+
+### Class: `TurboShakeParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `turboShakeParams.domainSeparation`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|undefined}
+
+The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
+
+#### `turboShakeParams.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos]
+
+#### `turboShakeParams.outputLength`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} represents the requested output length in bits.
 
 [^secure-curves]: See [Secure Curves in the Web Cryptography API][]
 
