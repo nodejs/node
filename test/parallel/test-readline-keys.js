@@ -127,6 +127,15 @@ addTest('\x01\x0b\x10', [
   { name: 'p', sequence: '\x10', ctrl: true },
 ]);
 
+// kitty keyboard protocol (`CSI ... u`)
+addTest('\x1b[127u\x1b[107;5u\x1b[97;3u\x1b[97;2;65u\x1b[97;5:3u', [
+  { name: 'backspace', sequence: '\x1b[127u', code: '[127u', modifiers: 0, eventType: 'press' },
+  { name: 'k', sequence: '\x1b[107;5u', code: '[107;5u', ctrl: true, modifiers: 4, eventType: 'press' },
+  { name: 'a', sequence: '\x1b[97;3u', code: '[97;3u', meta: true, modifiers: 2, eventType: 'press' },
+  { name: 'a', sequence: '\x1b[97;2;65u', code: '[97;2;65u', shift: true, modifiers: 1, eventType: 'press', text: 'A' },
+  { name: 'a', sequence: '\x1b[97;5:3u', code: '[97;5:3u', ctrl: true, modifiers: 4, eventType: 'release' },
+]);
+
 // Alt keys
 addTest('a\x1baA\x1bA', [
   { name: 'a', sequence: 'a' },

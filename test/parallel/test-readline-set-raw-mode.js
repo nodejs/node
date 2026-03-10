@@ -30,11 +30,17 @@ let expectedRawMode = true;
 let rawModeCalled = false;
 let resumeCalled = false;
 let pauseCalled = false;
+const keyboardProtocols = [];
+
+stream.isTTY = true;
 
 stream.setRawMode = common.mustCallAtLeast(function(mode) {
   rawModeCalled = true;
   assert.strictEqual(mode, expectedRawMode);
 });
+stream.setKeyboardProtocol = common.mustCall(function(protocol) {
+  keyboardProtocols.push(protocol);
+}, 2);
 stream.resume = function() {
   resumeCalled = true;
 };
@@ -53,6 +59,7 @@ assert(rli.terminal);
 assert(rawModeCalled);
 assert(resumeCalled);
 assert(!pauseCalled);
+assert.deepStrictEqual(keyboardProtocols, ['kitty']);
 
 
 // pause() should call *not* call setRawMode()
@@ -84,6 +91,7 @@ rli.close();
 assert(rawModeCalled);
 assert(!resumeCalled);
 assert(pauseCalled);
+assert.deepStrictEqual(keyboardProtocols, ['kitty', 'legacy']);
 
 assert.deepStrictEqual(stream.listeners('keypress'), []);
 // One data listener for the keypress events.

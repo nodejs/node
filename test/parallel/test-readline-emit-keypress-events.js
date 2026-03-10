@@ -14,6 +14,28 @@ const expectedKeys = [
   { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
   { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
 ];
+const kittyExpectedKeys = [
+  {
+    sequence: '\x1b[127u',
+    name: 'backspace',
+    ctrl: false,
+    meta: false,
+    shift: false,
+    modifiers: 0,
+    eventType: 'press',
+    code: '[127u',
+  },
+  {
+    sequence: '\x1b[99;5u',
+    name: 'c',
+    ctrl: true,
+    meta: false,
+    shift: false,
+    modifiers: 4,
+    eventType: 'press',
+    code: '[99;5u',
+  },
+];
 
 {
   const stream = new PassThrough();
@@ -29,6 +51,22 @@ const expectedKeys = [
 
   assert.deepStrictEqual(sequence, expectedSequence);
   assert.deepStrictEqual(keys, expectedKeys);
+}
+
+{
+  const stream = new PassThrough();
+  const sequence = [];
+  const keys = [];
+
+  readline.emitKeypressEvents(stream);
+  stream.on('keypress', (s, k) => {
+    sequence.push(s);
+    keys.push(k);
+  });
+  stream.write('\x1b[127u\x1b[99;5u');
+
+  assert.deepStrictEqual(sequence, ['\x1b[127u', '\x1b[99;5u']);
+  assert.deepStrictEqual(keys, kittyExpectedKeys);
 }
 
 {
