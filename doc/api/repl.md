@@ -798,9 +798,9 @@ changes:
     * `'unhandled'` to treat the exception as fully unhandled. In this case,
       the error will be passed to process-wide exception handlers, such as
       the [`'uncaughtException'`][] event.
-    The `'unhandled'` value may or may not be desirable in situations
-    where the `REPLServer` instance has been closed, depending on the particular
-    use case.
+      The `'unhandled'` value may or may not be desirable in situations
+      where the `REPLServer` instance has been closed, depending on the particular
+      use case.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
