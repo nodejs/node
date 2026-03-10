@@ -30,6 +30,30 @@ inline uint64_t ROL64(uint64_t val, int offset) {
   return (val << offset) | (val >> (64 - offset));
 }
 
+// Load/store 64-bit lanes in little-endian byte order.
+// The Keccak state uses LE lane encoding (FIPS 202 Section 1, B.1).
+// These helpers ensure correctness on both LE and BE platforms.
+inline uint64_t LoadLE64(const uint8_t* src) {
+  return static_cast<uint64_t>(src[0]) | (static_cast<uint64_t>(src[1]) << 8) |
+         (static_cast<uint64_t>(src[2]) << 16) |
+         (static_cast<uint64_t>(src[3]) << 24) |
+         (static_cast<uint64_t>(src[4]) << 32) |
+         (static_cast<uint64_t>(src[5]) << 40) |
+         (static_cast<uint64_t>(src[6]) << 48) |
+         (static_cast<uint64_t>(src[7]) << 56);
+}
+
+inline void StoreLE64(uint8_t* dst, uint64_t val) {
+  dst[0] = static_cast<uint8_t>(val);
+  dst[1] = static_cast<uint8_t>(val >> 8);
+  dst[2] = static_cast<uint8_t>(val >> 16);
+  dst[3] = static_cast<uint8_t>(val >> 24);
+  dst[4] = static_cast<uint8_t>(val >> 32);
+  dst[5] = static_cast<uint8_t>(val >> 40);
+  dst[6] = static_cast<uint8_t>(val >> 48);
+  dst[7] = static_cast<uint8_t>(val >> 56);
+}
+
 static const unsigned char rhotates[5][5] = {
     {0, 1, 62, 28, 27},
     {36, 44, 6, 55, 20},
@@ -116,14 +140,15 @@ void TurboSHAKE(const uint8_t* input,
                 uint8_t* output,
                 size_t output_len) {
   uint64_t A[5][5] = {};
-  uint8_t* state = reinterpret_cast<uint8_t*>(A);
+  // Both rates (168, 136) are multiples of 8
+  size_t lane_count = rate / 8;
 
   size_t offset = 0;
 
   // Absorb complete blocks from input
   while (offset + rate <= input_len) {
-    for (size_t i = 0; i < rate; i++) {
-      state[i] ^= input[offset + i];
+    for (size_t i = 0; i < lane_count; i++) {
+      A[i / 5][i % 5] ^= LoadLE64(input + offset + i * 8);
     }
     KeccakP1600_12(A);
     offset += rate;
@@ -131,18 +156,16 @@ void TurboSHAKE(const uint8_t* input,
 
   // Absorb last (partial) block: remaining input bytes + domain_sep + padding
   size_t remaining = input_len - offset;
-
-  // XOR remaining input bytes
-  for (size_t i = 0; i < remaining; i++) {
-    state[i] ^= input[offset + i];
+  uint8_t pad[168] = {};  // sized for max rate (TurboSHAKE128)
+  if (remaining > 0) {
+    memcpy(pad, input + offset, remaining);
   }
+  pad[remaining] ^= domain_sep;
+  pad[rate - 1] ^= 0x80;
 
-  // XOR domain separation byte
-  state[remaining] ^= domain_sep;
-
-  // XOR pad10*1 final bit at end of rate block
-  state[rate - 1] ^= 0x80;
-
+  for (size_t i = 0; i < lane_count; i++) {
+    A[i / 5][i % 5] ^= LoadLE64(pad + i * 8);
+  }
   KeccakP1600_12(A);
 
   // Squeeze output
@@ -150,7 +173,16 @@ void TurboSHAKE(const uint8_t* input,
   while (out_offset < output_len) {
     size_t block = output_len - out_offset;
     if (block > rate) block = rate;
-    memcpy(output + out_offset, state, block);
+    size_t full_lanes = block / 8;
+    for (size_t i = 0; i < full_lanes; i++) {
+      StoreLE64(output + out_offset + i * 8, A[i / 5][i % 5]);
+    }
+    size_t rem = block % 8;
+    if (rem > 0) {
+      uint8_t tmp[8];
+      StoreLE64(tmp, A[full_lanes / 5][full_lanes % 5]);
+      memcpy(output + out_offset + full_lanes * 8, tmp, rem);
+    }
     out_offset += block;
     if (out_offset < output_len) {
       KeccakP1600_12(A);
