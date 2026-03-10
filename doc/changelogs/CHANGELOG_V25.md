@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#25.8.1">25.8.1</a><br/>
 <a href="#25.8.0">25.8.0</a><br/>
 <a href="#25.7.0">25.7.0</a><br/>
 <a href="#25.6.1">25.6.1</a><br/>
@@ -49,6 +50,66 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="25.8.1"></a>
+
+## 2026-03-11, Version 25.8.1 (Current), @aduh95
+
+### Notable Changes
+
+* \[[`ea87eea71a`](https://github.com/nodejs/node/commit/ea87eea71a)] - **module**: fix extensionless CJS files in `"type": "module"` packages (Matteo Collina) [#62083](https://github.com/nodejs/node/pull/62083)
+
+### Commits
+
+* \[[`bab750d1b3`](https://github.com/nodejs/node/commit/bab750d1b3)] - **build**: do not depend on V8 deps on `--without-bundled-v8` builds (Antoine du Hamel) [#62033](https://github.com/nodejs/node/pull/62033)
+* \[[`b26d1c7fcb`](https://github.com/nodejs/node/commit/b26d1c7fcb)] - **crypto**: make --use-system-ca per-env rather than per-process (Aditi) [#60678](https://github.com/nodejs/node/pull/60678)
+* \[[`e362635abf`](https://github.com/nodejs/node/commit/e362635abf)] - **crypto**: add missing AES dictionaries (Filip Skokan) [#62099](https://github.com/nodejs/node/pull/62099)
+* \[[`6f975db8af`](https://github.com/nodejs/node/commit/6f975db8af)] - **crypto**: fix importKey required argument count check (Filip Skokan) [#62099](https://github.com/nodejs/node/pull/62099)
+* \[[`3beaf9c5fc`](https://github.com/nodejs/node/commit/3beaf9c5fc)] - **deps**: update amaro to 1.1.8 (Node.js GitHub Bot) [#62151](https://github.com/nodejs/node/pull/62151)
+* \[[`53afb0edd8`](https://github.com/nodejs/node/commit/53afb0edd8)] - **deps**: update sqlite to 3.52.0 (Node.js GitHub Bot) [#62150](https://github.com/nodejs/node/pull/62150)
+* \[[`a13ed052a1`](https://github.com/nodejs/node/commit/a13ed052a1)] - **deps**: update merve to 1.2.0 (Node.js GitHub Bot) [#62149](https://github.com/nodejs/node/pull/62149)
+* \[[`2c850577b7`](https://github.com/nodejs/node/commit/2c850577b7)] - **deps**: patch resb crate (Richard Lau) [#62138](https://github.com/nodejs/node/pull/62138)
+* \[[`37862a6728`](https://github.com/nodejs/node/commit/37862a6728)] - **deps**: V8: cherry-pick aa0b288f87cc (Richard Lau) [#62136](https://github.com/nodejs/node/pull/62136)
+* \[[`09191ad8b4`](https://github.com/nodejs/node/commit/09191ad8b4)] - **deps**: update ada to 3.4.3 (Node.js GitHub Bot) [#62049](https://github.com/nodejs/node/pull/62049)
+* \[[`8d63a178fd`](https://github.com/nodejs/node/commit/8d63a178fd)] - **doc**: copyedit `addons.md` (Antoine du Hamel) [#62071](https://github.com/nodejs/node/pull/62071)
+* \[[`83719ffb64`](https://github.com/nodejs/node/commit/83719ffb64)] - **doc**: correct `util.convertProcessSignalToExitCode` validation behavior (René) [#62134](https://github.com/nodejs/node/pull/62134)
+* \[[`eeee7c7fb1`](https://github.com/nodejs/node/commit/eeee7c7fb1)] - **doc**: add efekrskl as triager (Efe) [#61876](https://github.com/nodejs/node/pull/61876)
+* \[[`db150b2e69`](https://github.com/nodejs/node/commit/db150b2e69)] - **doc**: fix markdown for `expectFailure` values (Jacob Smith) [#62100](https://github.com/nodejs/node/pull/62100)
+* \[[`d55a441e60`](https://github.com/nodejs/node/commit/d55a441e60)] - **doc**: add title to index (Aviv Keller) [#62046](https://github.com/nodejs/node/pull/62046)
+* \[[`cc46204b48`](https://github.com/nodejs/node/commit/cc46204b48)] - **doc**: include url.resolve() in DEP0169 application deprecation (Mike McCready) [#62002](https://github.com/nodejs/node/pull/62002)
+* \[[`1d91a7261e`](https://github.com/nodejs/node/commit/1d91a7261e)] - **doc,module**: add missing doc for syncHooks.deregister() (Joyee Cheung) [#61959](https://github.com/nodejs/node/pull/61959)
+* \[[`5198573bee`](https://github.com/nodejs/node/commit/5198573bee)] - **http**: fix use-after-free when freeParser is called during llhttp\_execute (Gerhard Stöbich) [#62095](https://github.com/nodejs/node/pull/62095)
+* \[[`f8793f80df`](https://github.com/nodejs/node/commit/f8793f80df)] - **lib**: fix source map url parse in dynamic imports (Chengzhong Wu) [#61990](https://github.com/nodejs/node/pull/61990)
+* \[[`5439d0e0cf`](https://github.com/nodejs/node/commit/5439d0e0cf)] - **meta**: bump actions/download-artifact from 7.0.0 to 8.0.0 (dependabot\[bot]) [#62063](https://github.com/nodejs/node/pull/62063)
+* \[[`27fd21943a`](https://github.com/nodejs/node/commit/27fd21943a)] - **meta**: bump actions/upload-artifact from 6.0.0 to 7.0.0 (dependabot\[bot]) [#62062](https://github.com/nodejs/node/pull/62062)
+* \[[`5b266f3295`](https://github.com/nodejs/node/commit/5b266f3295)] - **meta**: bump step-security/harden-runner from 2.14.2 to 2.15.0 (dependabot\[bot]) [#62064](https://github.com/nodejs/node/pull/62064)
+* \[[`ea87eea71a`](https://github.com/nodejs/node/commit/ea87eea71a)] - **module**: fix extensionless CJS files in `"type": "module"` packages (Matteo Collina) [#62083](https://github.com/nodejs/node/pull/62083)
+* \[[`851228cd60`](https://github.com/nodejs/node/commit/851228cd60)] - **sqlite**: handle stmt invalidation (Guilherme Araújo) [#61877](https://github.com/nodejs/node/pull/61877)
+* \[[`19efe60548`](https://github.com/nodejs/node/commit/19efe60548)] - **src**: expose async context frame debugging helper to JS (Anna Henningsen) [#62103](https://github.com/nodejs/node/pull/62103)
+* \[[`0257e8072f`](https://github.com/nodejs/node/commit/0257e8072f)] - **src**: make AsyncWrap subclass internal field counts explicit (Anna Henningsen) [#62103](https://github.com/nodejs/node/pull/62103)
+* \[[`975dafbe3b`](https://github.com/nodejs/node/commit/975dafbe3b)] - **src**: release context frame in AsyncWrap::EmitDestroy (Gerhard Stöbich) [#61995](https://github.com/nodejs/node/pull/61995)
+* \[[`f2c08c7888`](https://github.com/nodejs/node/commit/f2c08c7888)] - **src**: use validate\_ascii\_with\_errors instead of validate\_ascii (Сковорода Никита Андреевич) [#61122](https://github.com/nodejs/node/pull/61122)
+* \[[`0278461d83`](https://github.com/nodejs/node/commit/0278461d83)] - **stream**: optimize webstreams pipeTo (Mattias Buelens) [#62079](https://github.com/nodejs/node/pull/62079)
+* \[[`4d62e95bfa`](https://github.com/nodejs/node/commit/4d62e95bfa)] - **stream**: fix brotli error handling in web compression streams (Filip Skokan) [#62107](https://github.com/nodejs/node/pull/62107)
+* \[[`4bdcaf2865`](https://github.com/nodejs/node/commit/4bdcaf2865)] - **stream**: improve Web Compression spec compliance (Filip Skokan) [#62107](https://github.com/nodejs/node/pull/62107)
+* \[[`a5b1be2045`](https://github.com/nodejs/node/commit/a5b1be2045)] - **stream**: fix UTF-8 character corruption in fast-utf8-stream (Matteo Collina) [#61745](https://github.com/nodejs/node/pull/61745)
+* \[[`5632446c4e`](https://github.com/nodejs/node/commit/5632446c4e)] - **stream**: fix TransformStream race on cancel with pending write (Marco) [#62040](https://github.com/nodejs/node/pull/62040)
+* \[[`f90fa9cd1a`](https://github.com/nodejs/node/commit/f90fa9cd1a)] - **stream**: accept ArrayBuffer in CompressionStream and DecompressionStream (조수민) [#61913](https://github.com/nodejs/node/pull/61913)
+* \[[`00319eaa3a`](https://github.com/nodejs/node/commit/00319eaa3a)] - **test**: update WPT for url to c928b19ab0 (Node.js GitHub Bot) [#62148](https://github.com/nodejs/node/pull/62148)
+* \[[`456abc7d20`](https://github.com/nodejs/node/commit/456abc7d20)] - **test**: update WPT for WebCryptoAPI to c9e955840a (Node.js GitHub Bot) [#62147](https://github.com/nodejs/node/pull/62147)
+* \[[`82770cb7d3`](https://github.com/nodejs/node/commit/82770cb7d3)] - **test**: improve WPT report runner (Filip Skokan) [#62107](https://github.com/nodejs/node/pull/62107)
+* \[[`cfc847d233`](https://github.com/nodejs/node/commit/cfc847d233)] - **test**: update WPT compression to ae05f5cb53 (Filip Skokan) [#62107](https://github.com/nodejs/node/pull/62107)
+* \[[`80f78f2737`](https://github.com/nodejs/node/commit/80f78f2737)] - **test**: update WPT for WebCryptoAPI to 42e47329fd (Node.js GitHub Bot) [#62048](https://github.com/nodejs/node/pull/62048)
+* \[[`8048e0508c`](https://github.com/nodejs/node/commit/8048e0508c)] - **test**: fix skipping behavior for `test-runner-run-files-undefined` (Antoine du Hamel) [#62026](https://github.com/nodejs/node/pull/62026)
+* \[[`699a6214c6`](https://github.com/nodejs/node/commit/699a6214c6)] - **tools**: revert timezone update GHA workflow to ubuntu-latest (Richard Lau) [#62140](https://github.com/nodejs/node/pull/62140)
+* \[[`1a453b550c`](https://github.com/nodejs/node/commit/1a453b550c)] - **tools**: improve error handling in test426 update script (Rich Trott) [#62121](https://github.com/nodejs/node/pull/62121)
+* \[[`710dde5ee2`](https://github.com/nodejs/node/commit/710dde5ee2)] - **tools**: fix `--node-builtin-modules-path` value in `shell.nix` (Antoine du Hamel) [#62102](https://github.com/nodejs/node/pull/62102)
+* \[[`dcb1cbb21f`](https://github.com/nodejs/node/commit/dcb1cbb21f)] - **tools**: bump the eslint group across 1 directory with 2 updates (dependabot\[bot]) [#62092](https://github.com/nodejs/node/pull/62092)
+* \[[`7d0b758583`](https://github.com/nodejs/node/commit/7d0b758583)] - **tools**: fix daily wpt workflow nighly release version lookup (Filip Skokan) [#62076](https://github.com/nodejs/node/pull/62076)
+* \[[`3e8c816f2e`](https://github.com/nodejs/node/commit/3e8c816f2e)] - **tools**: fix example in release proposal linter (Richard Lau) [#62074](https://github.com/nodejs/node/pull/62074)
+* \[[`772d3d270d`](https://github.com/nodejs/node/commit/772d3d270d)] - **tools**: bump minimatch from 3.1.3 to 3.1.5 in /tools/clang-format (dependabot\[bot]) [#62013](https://github.com/nodejs/node/pull/62013)
+* \[[`92f3b42672`](https://github.com/nodejs/node/commit/92f3b42672)] - **tools**: bump eslint to v10, babel to v8.0.0-rc.2 (Huáng Jùnliàng) [#61905](https://github.com/nodejs/node/pull/61905)
+* \[[`deead95ec5`](https://github.com/nodejs/node/commit/deead95ec5)] - **url**: suppress warnings from url.format/url.resolve inside node\_modules (René) [#62005](https://github.com/nodejs/node/pull/62005)
 
 <a id="25.8.0"></a>
 
