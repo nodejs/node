@@ -98,21 +98,21 @@ async function testDigest(size, alg) {
   await Promise.all(variations);
 })().then(common.mustCall());
 
-// Edge cases: zero-length output
+// Edge cases: zero-length output rejects
 (async () => {
-  assert.deepStrictEqual(
-    new Uint8Array(await subtle.digest(
-      { name: 'TurboSHAKE128', outputLength: 0 },
-      Buffer.alloc(1))),
-    new Uint8Array(0),
-  );
+  await assert.rejects(
+    subtle.digest({ name: 'TurboSHAKE128', outputLength: 0 }, Buffer.alloc(1)),
+    {
+      name: 'OperationError',
+      message: 'Invalid TurboShakeParams outputLength',
+    });
 
-  assert.deepStrictEqual(
-    new Uint8Array(await subtle.digest(
-      { name: 'KT128', outputLength: 0 },
-      Buffer.alloc(1))),
-    new Uint8Array(0),
-  );
+  await assert.rejects(
+    subtle.digest({ name: 'KT128', outputLength: 0 }, Buffer.alloc(1)),
+    {
+      name: 'OperationError',
+      message: 'Invalid KangarooTwelveParams outputLength',
+    });
 })().then(common.mustCall());
 
 // Edge case: non-byte-aligned outputLength rejects
@@ -120,15 +120,15 @@ async function testDigest(size, alg) {
   await assert.rejects(
     subtle.digest({ name: 'TurboSHAKE128', outputLength: 7 }, Buffer.alloc(1)),
     {
-      name: 'NotSupportedError',
-      message: 'Unsupported TurboShakeParams outputLength',
+      name: 'OperationError',
+      message: 'Invalid TurboShakeParams outputLength',
     });
 
   await assert.rejects(
     subtle.digest({ name: 'KT128', outputLength: 7 }, Buffer.alloc(1)),
     {
-      name: 'NotSupportedError',
-      message: 'Unsupported KangarooTwelveParams outputLength',
+      name: 'OperationError',
+      message: 'Invalid KangarooTwelveParams outputLength',
     });
 })().then(common.mustCall());
 

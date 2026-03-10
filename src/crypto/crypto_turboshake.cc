@@ -449,6 +449,8 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
   CHECK(args[offset + 1]->IsUint32());
   params->domain_separation =
       static_cast<uint8_t>(args[offset + 1].As<Uint32>()->Value());
+  CHECK_GE(params->domain_separation, 0x01);
+  CHECK_LE(params->domain_separation, 0x7F);
 
   // args[offset + 2] = output length in bytes (uint32)
   CHECK(args[offset + 2]->IsUint32());
@@ -469,11 +471,7 @@ bool TurboShakeTraits::DeriveBits(Environment* env,
                                   const TurboShakeConfig& params,
                                   ByteSource* out,
                                   CryptoJobMode mode) {
-  if (params.output_length == 0) {
-    *out = ByteSource();
-    return true;
-  }
-
+  CHECK_GT(params.output_length, 0);
   char* buf = MallocOpenSSL<char>(params.output_length);
 
   const uint8_t* input = reinterpret_cast<const uint8_t*>(params.data.data());
@@ -585,11 +583,7 @@ bool KangarooTwelveTraits::DeriveBits(Environment* env,
                                       const KangarooTwelveConfig& params,
                                       ByteSource* out,
                                       CryptoJobMode mode) {
-  if (params.output_length == 0) {
-    *out = ByteSource();
-    return true;
-  }
-
+  CHECK_GT(params.output_length, 0);
   char* buf = MallocOpenSSL<char>(params.output_length);
 
   const uint8_t* input = reinterpret_cast<const uint8_t*>(params.data.data());
