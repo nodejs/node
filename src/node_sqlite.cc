@@ -23,7 +23,6 @@
 #include <cmath>
 #include <concepts>
 #include <limits>
-#include <memory_resource>
 #include <variant>
 
 namespace node {
@@ -3861,25 +3860,25 @@ struct real {
   double value;
 };
 struct text {
-  std::pmr::string value;
+  std::string value;
 
   text() = default;
-  explicit text(std::pmr::string&& str) : value(std::move(str)) {}
+  explicit text(std::string&& str) : value(std::move(str)) {}
   explicit text(std::string_view str) : value(str.data(), str.size()) {}
   text(const char* str, size_t len) : value(str, len) {}
 };
 struct blob {
-  std::pmr::vector<uint8_t> value;
+  std::vector<uint8_t> value;
 
   blob() = default;
-  explicit blob(std::pmr::vector<uint8_t>&& vec) : value(std::move(vec)) {}
+  explicit blob(std::vector<uint8_t>&& vec) : value(std::move(vec)) {}
   explicit blob(std::span<const uint8_t> span)
       : value(span.begin(), span.end()) {}
   blob(const uint8_t* data, size_t len) : value(data, data + len) {}
 };
 using literal = std::variant<null, boolean, integer, real, text, blob>;
-using value = std::variant<std::pmr::vector<literal>,
-                           std::pmr::unordered_map<std::pmr::string, literal>,
+using value = std::variant<std::vector<literal>,
+                           std::unordered_map<std::string, literal>,
                            literal>;
 
 struct bind_literal {
@@ -3923,7 +3922,7 @@ struct bind_value {
     // bind_value should only be called with vector or map
     return SQLITE_MISUSE;
   }
-  int operator()(const std::pmr::vector<transfer::literal>& value) const {
+  int operator()(const std::vector<transfer::literal>& value) const {
     if (!std::in_range<int>(value.size())) [[unlikely]] {
       return SQLITE_RANGE;
     }
@@ -3936,8 +3935,7 @@ struct bind_value {
     return SQLITE_OK;
   }
   int operator()(
-      const std::pmr::unordered_map<std::pmr::string, transfer::literal>& value)
-      const {
+      const std::unordered_map<std::string, transfer::literal>& value) const {
     bind_literal binder{stmt, 0};
     for (const auto& [name, value] : value) {
       binder.index = sqlite3_bind_parameter_index(stmt, name.c_str());
@@ -4000,7 +3998,7 @@ value FromRow(sqlite3* connection,
               const int num_cols,
               const statement_options options) {
   if (options.return_arrays) {
-    std::pmr::vector<transfer::literal> row;
+    std::vector<transfer::literal> row;
     row.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
       row.push_back(
@@ -4011,7 +4009,7 @@ value FromRow(sqlite3* connection,
     // TODO(BurningEnlightenment): share column names between rows
     // => return type should always be a vector of literals, and the caller
     //    should add an additional vector of column names if needed
-    std::pmr::unordered_map<std::pmr::string, transfer::literal> row;
+    std::unordered_map<std::string, transfer::literal> row;
     for (int i = 0; i < num_cols; ++i) {
       const char* col_name = sqlite3_column_name(stmt, i);
       CHECK_NOT_NULL(col_name);  // Catch OOM condition.
@@ -4059,8 +4057,7 @@ struct to_v8_value {
   Local<Value> operator()(const transfer::literal& literal) const {
     return std::visit(*this, literal);
   }
-  Local<Value> operator()(
-      const std::pmr::vector<transfer::literal>& vec) const {
+  Local<Value> operator()(const std::vector<transfer::literal>& vec) const {
     Local<Context> context = isolate->GetCurrentContext();
     Local<Array> array = Array::New(isolate, vec.size());
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -4071,8 +4068,7 @@ struct to_v8_value {
     return array;
   }
   Local<Value> operator()(
-      const std::pmr::unordered_map<std::pmr::string, transfer::literal>& map)
-      const {
+      const std::unordered_map<std::string, transfer::literal>& map) const {
     LocalVector<Name> obj_keys(isolate);
     LocalVector<Value> obj_values(isolate);
     for (const auto& [key, value] : map) {
@@ -4126,7 +4122,7 @@ Maybe<transfer::value> ToValue(Isolate* isolate, Local<Object> object) {
   }
   const uint32_t length = property_names->Length();
   Local<Context> context = isolate->GetCurrentContext();
-  std::pmr::unordered_map<std::pmr::string, literal> map;
+  std::unordered_map<std::string, literal> map;
   map.reserve(length);
   for (uint32_t i = 0; i < length; ++i) {
     Local<Value> key;
@@ -4153,7 +4149,7 @@ Maybe<transfer::value> ToValue(Isolate* isolate, Local<Object> object) {
 Maybe<transfer::value> ToValue(Isolate* isolate, Local<Array> array) {
   const uint32_t length = array->Length();
   Local<Context> context = isolate->GetCurrentContext();
-  std::pmr::vector<literal> vec;
+  std::vector<literal> vec;
   vec.reserve(length);
   for (uint32_t i = 0; i < length; ++i) {
     Local<Value> value;
@@ -4203,8 +4199,8 @@ class alignas(64) OperationResult {
       const char* error_description = sqlite3_errstr(error_code);
       return Rejected{
           error_code,
-          error_message != nullptr ? error_message : std::pmr::string{},
-          error_description != nullptr ? error_description : std::pmr::string{},
+          error_message != nullptr ? error_message : std::string{},
+          error_description != nullptr ? error_description : std::string{},
       };
     }
     static Rejected LastError(sqlite3* connection) {
@@ -4257,14 +4253,14 @@ class alignas(64) OperationResult {
 
    private:
     Rejected(int error_code,
-             std::pmr::string error_message,
-             std::pmr::string error_description)
+             std::string error_message,
+             std::string error_description)
         : error_message_(std::move(error_message)),
           error_description_(std::move(error_description)),
           error_code_(error_code) {}
 
-    std::pmr::string error_message_;
-    std::pmr::string error_description_;
+    std::string error_message_;
+    std::string error_description_;
     int error_code_;
   };
   class Void {
@@ -4329,7 +4325,7 @@ class alignas(64) OperationResult {
   };
   class Values {
    public:
-    explicit Values(std::pmr::vector<transfer::value> values)
+    explicit Values(std::vector<transfer::value> values)
         : values_(std::move(values)) {}
 
     void Connect(Environment* env,
@@ -4348,7 +4344,7 @@ class alignas(64) OperationResult {
     }
 
    private:
-    std::pmr::vector<transfer::value> values_;
+    std::vector<transfer::value> values_;
   };
   class RunResult {
    public:
@@ -4395,8 +4391,8 @@ class alignas(64) OperationResult {
                                       transfer::value&& value) {
     return OperationResult{origin, Value{std::move(value)}};
   }
-  static OperationResult ResolveValues(
-      OperationBase* origin, std::pmr::vector<transfer::value>&& values) {
+  static OperationResult ResolveValues(OperationBase* origin,
+                                       std::vector<transfer::value>&& values) {
     return OperationResult{origin, Values{std::move(values)}};
   }
   static OperationResult ResolveRunResult(OperationBase* origin,
@@ -4436,7 +4432,7 @@ class PrepareStatementOperation : private OperationBase {
  public:
   PrepareStatementOperation(Global<Promise::Resolver>&& resolver,
                             BaseObjectPtr<Database>&& db,
-                            std::pmr::string&& sql,
+                            std::string&& sql,
                             statement_options options = {})
       : OperationBase(std::move(resolver)),
         db_(std::move(db)),
@@ -4455,7 +4451,7 @@ class PrepareStatementOperation : private OperationBase {
 
  private:
   BaseObjectPtr<Database> db_;
-  std::pmr::string sql_;
+  std::string sql_;
   statement_options options_;
 };
 
@@ -4534,7 +4530,7 @@ class StatementAllOperation : private OperationBase {
     }
     auto reset_statement = OnScopeLeave([&] { sqlite3_reset(stmt_); });
 
-    std::pmr::vector<transfer::value> rows;
+    std::vector<transfer::value> rows;
     int r;
     int num_cols = sqlite3_column_count(stmt_);
     for (r = sqlite3_step(stmt_); r == SQLITE_ROW; r = sqlite3_step(stmt_)) {
@@ -4585,7 +4581,7 @@ class StatementRunOperation : private OperationBase {
 
 class ExecOperation : private OperationBase {
  public:
-  ExecOperation(Global<Promise::Resolver>&& resolver, std::pmr::string&& sql)
+  ExecOperation(Global<Promise::Resolver>&& resolver, std::string&& sql)
       : OperationBase(std::move(resolver)), sql_(std::move(sql)) {}
 
   OperationResult operator()(sqlite3* connection) {
@@ -4597,7 +4593,7 @@ class ExecOperation : private OperationBase {
   }
 
  private:
-  std::pmr::string sql_;
+  std::string sql_;
 };
 
 class CloseOperation : private OperationBase {
@@ -4631,8 +4627,7 @@ class IsInTransactionOperation : private OperationBase {
 
 class LocationOperation : private OperationBase {
  public:
-  LocationOperation(Global<Promise::Resolver>&& resolver,
-                    std::pmr::string&& db_name)
+  LocationOperation(Global<Promise::Resolver>&& resolver, std::string&& db_name)
       : OperationBase(std::move(resolver)), db_name_(std::move(db_name)) {}
 
   OperationResult operator()(sqlite3* connection) {
@@ -4646,7 +4641,7 @@ class LocationOperation : private OperationBase {
   }
 
  private:
-  std::pmr::string db_name_;
+  std::string db_name_;
 };
 
 class UpdateDbConfigOperation : private OperationBase {
@@ -4673,7 +4668,7 @@ class UpdateDbConfigOperation : private OperationBase {
 class LoadExtensionOperation : private OperationBase {
  public:
   LoadExtensionOperation(Global<Promise::Resolver>&& resolver,
-                         std::pmr::string&& extension_path)
+                         std::string&& extension_path)
       : OperationBase(std::move(resolver)),
         extension_path_(std::move(extension_path)) {}
 
@@ -4689,7 +4684,7 @@ class LoadExtensionOperation : private OperationBase {
   }
 
  private:
-  std::pmr::string extension_path_;
+  std::string extension_path_;
 };
 
 using Operation = std::variant<ExecOperation,
@@ -4724,9 +4719,7 @@ enum class QueuePushResult {
 
 class DatabaseOperationQueue {
  public:
-  explicit DatabaseOperationQueue(size_t capacity,
-                                  std::pmr::memory_resource* memory_resource)
-      : operations_(memory_resource), results_(memory_resource) {
+  explicit DatabaseOperationQueue(size_t capacity) : operations_(), results_() {
     operations_.reserve(capacity);
     results_.reserve(capacity);
   }
@@ -4774,8 +4767,8 @@ class DatabaseOperationQueue {
   }
 
  private:
-  std::pmr::vector<Operation> operations_;
-  std::pmr::vector<OperationResult> results_;
+  std::vector<Operation> operations_;
+  std::vector<OperationResult> results_;
   size_t pending_index_ = 0;
   size_t completed_index_ = 0;
   Mutex results_mutex_;
@@ -4900,8 +4893,7 @@ class DatabaseOperationExecutor final : private ThreadPoolWork {
 
 void Database::PrepareNextBatch() {
   CHECK_NULL(next_batch_);
-  next_batch_ = std::make_unique<DatabaseOperationQueue>(
-      kDefaultBatchSize, std::pmr::get_default_resource());
+  next_batch_ = std::make_unique<DatabaseOperationQueue>(kDefaultBatchSize);
 
   // TODO(BurningEnlightenment): Do I need to retain a BaseObjectPtr?
   env()->isolate()->EnqueueMicrotask(
@@ -5097,8 +5089,7 @@ Local<Promise> Database::AsyncDisposeImpl() {
   // because e.g. PrepareStatementOperations need to connect their results
   // first.
   ProcessNextBatch();
-  next_batch_ = std::make_unique<DatabaseOperationQueue>(
-      1U, std::pmr::get_default_resource());
+  next_batch_ = std::make_unique<DatabaseOperationQueue>(1U);
   CHECK_NE(next_batch_->PushEmplace<CloseOperation>(isolate, resolver),
            QueuePushResult::kQueueFull);
   ProcessNextBatch();
@@ -5212,9 +5203,7 @@ void Database::Prepare(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(db->Schedule<PrepareStatementOperation>(
-      BaseObjectPtr<Database>(db),
-      std::pmr::string(*sql, sql.length()),
-      options));
+      BaseObjectPtr<Database>(db), std::string(*sql, sql.length()), options));
 }
 
 void Database::TrackStatement(Statement* statement) {
@@ -5238,7 +5227,7 @@ void Database::Exec(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   args.GetReturnValue().Set(
-      db->Schedule<ExecOperation>(std::pmr::string(*sql, sql.length())));
+      db->Schedule<ExecOperation>(std::string(*sql, sql.length())));
 }
 
 void Database::IsInTransaction(
@@ -5277,7 +5266,7 @@ void Database::Location(const v8::FunctionCallbackInfo<v8::Value>& args) {
   REJECT_AND_RETURN_ON_INVALID_STATE(
       env, args, !db->IsOpen(), "database is not open");
 
-  std::pmr::string db_name;
+  std::string db_name;
   if (args.Length() > 0) {
     REJECT_AND_RETURN_ON_INVALID_ARG_TYPE(
         env,
@@ -5285,7 +5274,7 @@ void Database::Location(const v8::FunctionCallbackInfo<v8::Value>& args) {
         !args[0]->IsString(),
         "The \"dbName\" argument must be a string.");
     Utf8Value db_name_utf8(env->isolate(), args[0].As<String>());
-    db_name = std::pmr::string(*db_name_utf8, db_name_utf8.length());
+    db_name = std::string(*db_name_utf8, db_name_utf8.length());
   } else {
     db_name = "main";
   }
@@ -5359,8 +5348,8 @@ void Database::LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   ToNamespacedPath(env, &path);
 
-  args.GetReturnValue().Set(db->Schedule<LoadExtensionOperation>(
-      std::pmr::string(path.ToStringView())));
+  args.GetReturnValue().Set(
+      db->Schedule<LoadExtensionOperation>(std::string(path.ToStringView())));
 }
 
 Statement::~Statement() {
