@@ -4442,6 +4442,82 @@ TEST(SamplingHeapProfilerLargeInterval) {
   heap_profiler->StopSamplingHeapProfiler();
 }
 
+TEST(SamplingHeapProfilerSampleWithoutGCFlags) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(1024);
+
+  // Allocate objects that will be retained
+  CompileRun(
+      "var retained = [];\n"
+      "for (var i = 0; i < 500; i++) retained.push(new Array(10));\n");
+
+  CompileRun("for (var i = 0; i < 500; i++) new Array(10);\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  const auto& samples = profile->GetSamples();
+  CHECK(!samples.empty());
+
+  for (const auto& sample : samples) {
+    CHECK(sample.is_live);
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSampleIsLive) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(
+      64, 16,
+      static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingForceGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC));
+
+  // Allocate objects that will be retained
+  CompileRun(
+      "var retained = [];\n"
+      "for (var i = 0; i < 500; i++) retained.push(new Array(10));\n");
+
+  CompileRun("for (var i = 0; i < 500; i++) new Array(10);\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  const auto& samples = profile->GetSamples();
+  CHECK(!samples.empty());
+
+  int live_samples = 0;
+  int dead_samples = 0;
+  for (const auto& sample : samples) {
+    if (sample.is_live) {
+      ++live_samples;
+    } else {
+      ++dead_samples;
+    }
+  }
+
+  // We expect both retained and collected allocations in this profile.
+  CHECK_GT(live_samples, 0);
+  CHECK_GT(dead_samples, 0);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
 TEST(HeapSnapshotPrototypeNotJSReceiver) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());

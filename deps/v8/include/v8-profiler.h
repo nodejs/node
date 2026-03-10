@@ -830,6 +830,12 @@ class V8_EXPORT AllocationProfile {
      * what samples were added or removed between two snapshots.
      */
     uint64_t sample_id;
+
+    /**
+     * Indicates whether the sampled allocation is still live or has already
+     * been collected by GC.
+     */
+    bool is_live;
   };
 
   /**
