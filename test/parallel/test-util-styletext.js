@@ -42,6 +42,16 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  util.styleText('gray', 'test', { validateStream: false }),
+  '\u001b[90mtest\u001b[39m',
+);
+
+assert.strictEqual(
+  util.styleText('grey', 'test', { validateStream: false }),
+  '\u001b[90mtest\u001b[39m',
+);
+
+assert.strictEqual(
   util.styleText(['bold', 'red'], 'test', { validateStream: false }),
   '\u001b[1m\u001b[31mtest\u001b[39m\u001b[22m',
 );
