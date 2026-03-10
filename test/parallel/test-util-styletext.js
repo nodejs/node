@@ -138,6 +138,29 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
+// Color aliases should be accepted (e.g. 'grey' is an alias for 'gray')
+// See https://github.com/nodejs/node/issues/62177
+assert.strictEqual(
+  util.styleText('grey', 'test', { validateStream: false }),
+  util.styleText('gray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('bgGrey', 'test', { validateStream: false }),
+  util.styleText('bgGray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('blackBright', 'test', { validateStream: false }),
+  util.styleText('gray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('faint', 'test', { validateStream: false }),
+  util.styleText('dim', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText(['grey', 'bold'], 'test', { validateStream: false }),
+  util.styleText(['gray', 'bold'], 'test', { validateStream: false }),
+);
+
 assert.throws(() => {
   util.styleText('red', 'text', { stream: {} });
 }, {
