@@ -1455,8 +1455,8 @@ Emitted when a lock is successfully granted and the callback is about to run.
 * `name` {string} The name of the requested lock resource.
 * `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
 
-Emitted when `ifAvailable` is `true` and the lock is not immediately available.
-The callback is invoked with `null` instead of a `Lock` object.
+Emitted when `ifAvailable` is `true` and the lock is not immediately available,
+and the request callback is invoked with `null` instead of a `Lock` object.
 
 ##### Event: `'locks.request.end'`
 
