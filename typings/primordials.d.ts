@@ -19,7 +19,7 @@ type UncurryGetter<O, K extends keyof O, T = O> =
 type UncurrySetter<O, K extends keyof O, T = O> =
   O[K] extends infer V ? (self: T, value: V) => void : never;
 
-type TypedArrayContentType<T extends TypedArray> = T extends { [k: number]: infer V } ? V : never;
+type TypedArrayContentType<T extends TypedArrayConstructor> = InstanceType<T>[number];
 
 /**
  * Primordials are a way to safely use globals without fear of global mutation
@@ -472,14 +472,12 @@ declare namespace primordials {
   export const SyntaxErrorPrototype: typeof SyntaxError.prototype
   export import TypeError = globalThis.TypeError;
   export const TypeErrorPrototype: typeof TypeError.prototype
-  export function TypedArrayFrom<T extends TypedArray>(
-    constructor: new (length: number) => T,
-    source:
-      | Iterable<TypedArrayContentType<T>>
-      | ArrayLike<TypedArrayContentType<T>>,
-  ): T;
-  export function TypedArrayFrom<T extends TypedArray, U, THIS_ARG = undefined>(
-    constructor: new (length: number) => T,
+  export function TypedArrayFrom<T extends TypedArrayConstructor>(
+    constructor: T,
+    source: Iterable<TypedArrayContentType<T>> | ArrayLike<TypedArrayContentType<T>>,
+  ): InstanceType<T>
+  export function TypedArrayFrom<T extends TypedArrayConstructor, U, THIS_ARG = undefined>(
+    constructor: T,
     source: Iterable<U> | ArrayLike<U>,
     mapfn: (
       this: THIS_ARG,
@@ -487,28 +485,17 @@ declare namespace primordials {
       index: number,
     ) => TypedArrayContentType<T>,
     thisArg?: THIS_ARG,
-  ): T;
-  export function TypedArrayOf<T extends TypedArray>(
-    constructor: new (length: number) => T,
-    ...items: readonly TypedArrayContentType<T>[]
-  ): T;
-  export function TypedArrayOfApply<T extends TypedArray>(
-    constructor: new (length: number) => T,
+  ): InstanceType<T>;
+  export function TypedArrayOf<T extends TypedArrayConstructor>(
+    constructor: T,
+    ...items: TypedArrayContentType<T>[],
+  ): InstanceType<T>;
+  export function TypedArrayOfApply<T extends TypedArrayConstructor>(
+    constructor: T,
     items: readonly TypedArrayContentType<T>[],
-  ): T;
-  export const TypedArray: TypedArray;
-  export const TypedArrayPrototype:
-    | typeof Uint8Array.prototype
-    | typeof Int8Array.prototype
-    | typeof Uint16Array.prototype
-    | typeof Int16Array.prototype
-    | typeof Uint32Array.prototype
-    | typeof Int32Array.prototype
-    | typeof Float32Array.prototype
-    | typeof Float64Array.prototype
-    | typeof BigInt64Array.prototype
-    | typeof BigUint64Array.prototype
-    | typeof Uint8ClampedArray.prototype;
+  ): InstanceType<T>;
+  export const TypedArray: TypedArrayConstructor;
+  export const TypedArrayPrototype: TypedArrayConstructor["prototype"];
   export const TypedArrayPrototypeGetBuffer: UncurryGetter<TypedArray, "buffer">;
   export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, "byteLength">;
   export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, "byteOffset">;
@@ -519,19 +506,7 @@ declare namespace primordials {
   export function TypedArrayPrototypeSet<T extends TypedArray>(self: T, ...args: Parameters<T["set"]>): ReturnType<T["set"]>;
   export function TypedArrayPrototypeSubarray<T extends TypedArray>(self: T, ...args: Parameters<T["subarray"]>): ReturnType<T["subarray"]>;
   export function TypedArrayPrototypeSlice<T extends TypedArray>(self: T, ...args: Parameters<T["slice"]>): ReturnType<T["slice"]>;
-  export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown):
-    | 'Int8Array'
-    | 'Int16Array'
-    | 'Int32Array'
-    | 'Uint8Array'
-    | 'Uint16Array'
-    | 'Uint32Array'
-    | 'Uint8ClampedArray'
-    | 'BigInt64Array'
-    | 'BigUint64Array'
-    | 'Float32Array'
-    | 'Float64Array'
-    | undefined;
+  export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown): TypedArray[typeof Symbol.toStringTag] | undefined;
   export import URIError = globalThis.URIError;
   export const URIErrorPrototype: typeof URIError.prototype
   export import Uint16Array = globalThis.Uint16Array;
