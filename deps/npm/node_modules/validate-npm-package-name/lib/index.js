@@ -2,7 +2,7 @@
 const { builtinModules: builtins } = require('module')
 
 var scopedPackagePattern = new RegExp('^(?:@([^/]+?)[/])?([^/]+?)$')
-var blacklist = [
+var exclusionList = [
   'node_modules',
   'favicon.ico',
 ]
@@ -43,9 +43,9 @@ function validate (name) {
   }
 
   // No funny business
-  blacklist.forEach(function (blacklistedName) {
-    if (name.toLowerCase() === blacklistedName) {
-      errors.push(blacklistedName + ' is a blacklisted name')
+  exclusionList.forEach(function (excludedName) {
+    if (name.toLowerCase() === excludedName) {
+      errors.push(excludedName + ' is not a valid package name')
     }
   })
 

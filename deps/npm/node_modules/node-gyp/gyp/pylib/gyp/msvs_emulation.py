@@ -74,8 +74,7 @@ def EncodeRspFileList(args, quote_cmd):
         program = call + " " + os.path.normpath(program)
     else:
         program = os.path.normpath(args[0])
-    return (program + " "
-            + " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:]))
+    return program + " " + " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:])
 
 
 def _GenericRetrieve(root, default, path):
@@ -247,9 +246,7 @@ class MsvsSettings:
         the target type.
         """
         ext = self.spec.get("product_extension", None)
-        if ext:
-            return ext
-        return gyp.MSVSUtil.TARGET_TYPE_EXT.get(self.spec["type"], "")
+        return ext or gyp.MSVSUtil.TARGET_TYPE_EXT.get(self.spec["type"], "")
 
     def GetVSMacroEnv(self, base_to_build=None, config=None):
         """Get a dict of variables mapping internal VS macro names to their gyp
@@ -625,8 +622,7 @@ class MsvsSettings:
     def _GetDefFileAsLdflags(self, ldflags, gyp_to_build_path):
         """.def files get implicitly converted to a ModuleDefinitionFile for the
         linker in the VS generator. Emulate that behaviour here."""
-        def_file = self.GetDefFile(gyp_to_build_path)
-        if def_file:
+        if def_file := self.GetDefFile(gyp_to_build_path):
             ldflags.append('/DEF:"%s"' % def_file)
 
     def GetPGDName(self, config, expand_special):
@@ -674,14 +670,11 @@ class MsvsSettings:
         )
         ld("DelayLoadDLLs", prefix="/DELAYLOAD:")
         ld("TreatLinkerWarningAsErrors", prefix="/WX", map={"true": "", "false": ":NO"})
-        out = self.GetOutputName(config, expand_special)
-        if out:
+        if out := self.GetOutputName(config, expand_special):
             ldflags.append("/OUT:" + out)
-        pdb = self.GetPDBName(config, expand_special, output_name + ".pdb")
-        if pdb:
+        if pdb := self.GetPDBName(config, expand_special, output_name + ".pdb"):
             ldflags.append("/PDB:" + pdb)
-        pgd = self.GetPGDName(config, expand_special)
-        if pgd:
+        if pgd := self.GetPGDName(config, expand_special):
             ldflags.append("/PGD:" + pgd)
         map_file = self.GetMapFileName(config, expand_special)
         ld("GenerateMapFile", map={"true": "/MAP:" + map_file if map_file else "/MAP"})
@@ -940,14 +933,17 @@ class MsvsSettings:
         includes whether it should run under cygwin (msvs_cygwin_shell), and
         whether the commands should be quoted (msvs_quote_cmd)."""
         # If the variable is unset, or set to 1 we use cygwin
-        cygwin = int(rule.get("msvs_cygwin_shell",
-                              self.spec.get("msvs_cygwin_shell", 1))) != 0
+        cygwin = (
+            int(rule.get("msvs_cygwin_shell", self.spec.get("msvs_cygwin_shell", 1)))
+            != 0
+        )
         # Default to quoting. There's only a few special instances where the
         # target command uses non-standard command line parsing and handle quotes
         # and quote escaping differently.
         quote_cmd = int(rule.get("msvs_quote_cmd", 1))
-        assert quote_cmd != 0 or cygwin != 1, \
-               "msvs_quote_cmd=0 only applicable for msvs_cygwin_shell=0"
+        assert quote_cmd != 0 or cygwin != 1, (
+            "msvs_quote_cmd=0 only applicable for msvs_cygwin_shell=0"
+        )
         return MsvsSettings.RuleShellFlags(cygwin, quote_cmd)
 
     def _HasExplicitRuleForExtension(self, spec, extension):
@@ -1135,8 +1131,7 @@ def _ExtractImportantEnvironment(output_of_set):
     for required in ("SYSTEMROOT", "TEMP", "TMP"):
         if required not in env:
             raise Exception(
-                'Environment variable "%s" '
-                "required to be set to valid path" % required
+                'Environment variable "%s" required to be set to valid path' % required
             )
     return env
 

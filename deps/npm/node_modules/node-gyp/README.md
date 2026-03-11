@@ -235,9 +235,24 @@ Some additional resources for Node.js native addons and writing `gyp` configurat
 
 ## Configuration
 
+### package.json
+
+Use the `config` object in your package.json with each key in the form `node_gyp_OPTION_NAME`. Any of the command
+options listed above can be set (dashes in option names should be replaced by underscores).
+
+For example, to set `devdir` equal to `/tmp/.gyp`, your package.json would contain this:
+
+```json
+{
+  "config": {
+    "node_gyp_devdir": "/tmp/.gyp"
+  }
+}
+```
+
 ### Environment variables
 
-Use the form `npm_config_OPTION_NAME` for any of the command options listed
+Use the form `npm_package_config_node_gyp_OPTION_NAME` for any of the command options listed
 above (dashes in option names should be replaced by underscores).
 
 For example, to set `devdir` equal to `/tmp/.gyp`, you would:
@@ -245,14 +260,18 @@ For example, to set `devdir` equal to `/tmp/.gyp`, you would:
 Run this on Unix:
 
 ```bash
-export npm_config_devdir=/tmp/.gyp
+export npm_package_config_node_gyp_devdir=/tmp/.gyp
 ```
 
 Or this on Windows:
 
 ```console
-set npm_config_devdir=c:\temp\.gyp
+set npm_package_config_node_gyp_devdir=c:\temp\.gyp
 ```
+
+Note that in versions of npm before v11 it was possible to use the prefix `npm_config_` for
+environement variables. This was deprecated in npm@11 and will be removed in npm@12 so it
+is recommened to convert your environment variables to the above format.
 
 ### `npm` configuration for npm versions before v9
 
