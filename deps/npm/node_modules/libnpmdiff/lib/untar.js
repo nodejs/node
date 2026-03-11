@@ -37,7 +37,6 @@ const untar = ({ files, refs }, { filterFiles, item, prefix }) => {
         // should skip reading file when using --name-only option
         let content
         try {
-          entry.setEncoding('utf8')
           content = entry.concat()
         } catch (e) {
           /* istanbul ignore next */
@@ -84,7 +83,7 @@ const readTarballs = async (tarballs, opts = {}) => {
   const contents = await Promise.all(allRefs.map(async ref => ref.content))
 
   contents.forEach((content, index) => {
-    allRefs[index].content = content
+    allRefs[index].content = content.toString('utf8')
   })
 
   return {

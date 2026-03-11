@@ -255,6 +255,7 @@ const isSatisfiable = (comparators, options) => {
 // already replaced the hyphen ranges
 // turn into a set of JUST comparators.
 const parseComparator = (comp, options) => {
+  comp = comp.replace(re[t.BUILD], '')
   debug('comp', comp, options)
   comp = replaceCarets(comp, options)
   debug('caret', comp)
