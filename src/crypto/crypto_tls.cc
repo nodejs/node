@@ -1614,6 +1614,24 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       return ThrowCryptoError(env, err, "CertCbDone");
     }
+    // setSniContext copies the cert via SSL_use_certificate which does not
+    // carry over pre-compressed certificate data (comp_cert). If the new
+    // context has certificate compression configured, set the compression
+    // preferences on this connection and apply the cached compressed cert
+    // data so the server can send CompressedCertificate messages.
+#ifndef OPENSSL_NO_COMP_ALG
+    if (sc->HasCertCompression()) {
+      SSL_set1_cert_comp_preference(
+          w->ssl_.get(), sc->CertCompPrefs(), sc->CertCompPrefsLen());
+      for (const auto& cc : sc->CompressedCerts()) {
+        SSL_set1_compressed_cert(w->ssl_.get(),
+                                 cc.algorithm,
+                                 const_cast<unsigned char*>(cc.data.data()),
+                                 cc.data.size(),
+                                 cc.orig_length);
+      }
+    }
+#endif
   } else if (ctx->IsObject()) {
     // Failure: incorrect SNI context object
     Local<Value> err = Exception::TypeError(env->sni_context_err_string());

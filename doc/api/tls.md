@@ -1895,6 +1895,9 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62217
+    description: The `certificateCompression` option has been added.
   - version:
     - v22.9.0
     - v20.18.0
@@ -1988,6 +1991,12 @@ changes:
     the same order as their private keys in `key`. If the intermediate
     certificates are not provided, the peer will not be able to validate the
     certificate, and the handshake will fail.
+  * `certificateCompression` {string\[]} An array of supported certificate
+    compression algorithm names, in preference order. Supported values are
+    `'zlib'`, `'brotli'`, and `'zstd'`. When set, enables TLS certificate
+    compression ([RFC 8879][]) which compresses certificates during the TLS
+    handshake, reducing handshake size. Only effective with TLSv1.3.
+    **Default:** `[]` (disabled).
   * `sigalgs` {string} Colon-separated list of supported signature algorithms.
     The list can contain digest algorithms (`SHA256`, `MD5` etc.), public key
     algorithms (`RSA-PSS`, `ECDSA` etc.), combination of both (e.g
@@ -2469,6 +2478,7 @@ added: v0.11.3
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
+[RFC 8879]: https://tools.ietf.org/html/rfc8879
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
 [Session Resumption]: #session-resumption
 [Stream]: stream.md#stream
