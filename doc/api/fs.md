@@ -7147,8 +7147,8 @@ added: v0.1.93
 
 * Extends: {stream.Readable}
 
-Instances of {fs.ReadStream} are created and returned using the
-[`fs.createReadStream()`][] function.
+`fs.ReadStream` is not to be constructed directly; use
+[`fs.createReadStream()`][] instead.
 
 #### Event: `'close'`
 
@@ -7918,8 +7918,8 @@ added: v0.1.93
 
 * Extends {stream.Writable}
 
-Instances of {fs.WriteStream} are created and returned using the
-[`fs.createWriteStream()`][] function.
+`fs.WriteStream` is not to be constructed directly; use
+[`fs.createWriteStream()`][] instead.
 
 #### Event: `'close'`
 
