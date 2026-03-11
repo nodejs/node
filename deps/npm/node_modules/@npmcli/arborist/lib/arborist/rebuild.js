@@ -9,6 +9,7 @@ const runScript = require('@npmcli/run-script')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
 const { depth: dfwalk } = require('treeverse')
 const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp')
+const { promiseRetry } = require('@gar/promise-retry')
 const { log, time } = require('proc-log')
 const { resolve } = require('node:path')
 
@@ -381,13 +382,20 @@ module.exports = cls => class Builder extends cls {
 
     const timeEnd = time.start(`build:link:${node.location}`)
 
-    const p = binLinks({
+    // On Windows, antivirus/indexer can transiently lock files, causing EPERM/EACCES/EBUSY on the rename inside write-file-atomic (used by bin-links/fix-bin.js), so, retry with backoff.
+    const p = promiseRetry((retry) => binLinks({
       pkg: node.package,
       path: node.path,
       top: !!(node.isTop || node.globalTop),
       force: this.options.force,
       global: !!node.globalTop,
-    })
+    }).catch(/* istanbul ignore next - Windows-only transient antivirus locks */ err => {
+      if (process.platform === 'win32' &&
+          (err.code === 'EPERM' || err.code === 'EACCES' || err.code === 'EBUSY')) {
+        return retry(err)
+      }
+      throw err
+    }), { retries: 5, minTimeout: 500 })
 
     await (this.#doHandleOptionalFailure
       ? this[_handleOptionalFailure](node, p)

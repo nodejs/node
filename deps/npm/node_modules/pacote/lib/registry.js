@@ -342,6 +342,7 @@ class RegistryFetcher extends Fetcher {
             }
           }
           mani._attestations = dist.attestations
+          mani._attestationBundles = attestations
         } else {
           mani._attestations = dist.attestations
         }

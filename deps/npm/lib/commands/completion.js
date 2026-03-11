@@ -1,32 +1,24 @@
-// Each command has a completion function that takes an options object and a cb
-// The callback gets called with an error and an array of possible completions.
-// The options object is built up based on the environment variables set by
-// zsh or bash when calling a function for completion, based on the cursor
-// position and the command line thus far.  These are:
+// Each command has a completion function that takes an options object and a cb The callback gets called with an error and an array of possible completions.
+// The options object is built up based on the environment variables set by zsh or bash when calling a function for completion, based on the cursor position and the command line thus far.
+// These are:
 // COMP_CWORD: the index of the "word" in the command line being completed
 // COMP_LINE: the full command line thus far as a string
 // COMP_POINT: the cursor index at the point of triggering completion
 //
-// We parse the command line with nopt, like npm does, and then create an
-// options object containing:
+// We parse the command line with nopt, like npm does, and then create an options object containing:
 // words: array of words in the command line
 // w: the index of the word being completed (ie, COMP_CWORD)
 // word: the word being completed
 // line: the COMP_LINE
 // lineLength
-// point: the COMP_POINT, usually equal to line length, but not always, eg if
-// the user has pressed the left-arrow to complete an earlier word
+// point: the COMP_POINT, usually equal to line length, but not always, eg if the user has pressed the left-arrow to complete an earlier word
 // partialLine: the line up to the point
 // partialWord: the word being completed (which might be ''), up to the point
 // conf: a nopt parse of the command line
 //
-// When the implementation completion method returns its list of strings,
-// and arrays of strings, we filter that by any that start with the
-// partialWord, since only those can possibly be valid matches.
+// When the implementation completion method returns its list of strings, and arrays of strings, we filter that by any that start with the partialWord, since only those can possibly be valid matches.
 //
-// Matches are wrapped with ' to escape them, if necessary, and then printed
-// one per line for the shell completion method to consume in IFS=$'\n' mode
-// as an array.
+// Matches are wrapped with ' to escape them, if necessary, and then printed one per line for the shell completion method to consume in IFS=$'\n' mode as an array.
 
 const fs = require('node:fs/promises')
 const nopt = require('nopt')
@@ -43,9 +35,7 @@ const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => fal
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
   static name = 'completion'
-  // Completion command uses args differently - they represent the command line
-  // being completed, not actual arguments to this command, so we use an empty
-  // definitions object to prevent flag validation
+  // Completion command uses args differently - they represent the command line being completed, not actual arguments to this command, so we use an empty definitions object to prevent flag validation
   static definitions = []
 
   // completion for the completion command
@@ -85,9 +75,7 @@ class Completion extends BaseCommand {
       return dumpScript(resolve(this.npm.npmRoot, 'lib', 'utils', 'completion.sh'))
     }
 
-    // ok we're actually looking at the envs and outputting the suggestions
-    // get the partial line and partial word,
-    // if the point isn't at the end.
+    // ok we're actually looking at the envs and outputting the suggestions get the partial line and partial word, if the point isn't at the end.
     // ie, tabbing at: npm foo b|ar
     const w = +COMP_CWORD
     const line = COMP_LINE
@@ -123,8 +111,7 @@ class Completion extends BaseCommand {
       raw: args,
     }
 
-    // try to find the npm command and subcommand early for flag completion
-    // this helps with custom command definitions from subcommands
+    // try to find the npm command and subcommand early for flag completion this helps with custom command definitions from subcommands
     const types = Object.entries(definitions).reduce((acc, [key, def]) => {
       acc[key] = def.type
       return acc
@@ -155,8 +142,7 @@ class Completion extends BaseCommand {
 
     Object.keys(parsed).forEach(k => this.npm.config.set(k, parsed[k]))
 
-    // at this point, if words[1] is some kind of npm command,
-    // then complete on it.
+    // at this point, if words[1] is some kind of npm command, then complete on it.
     // otherwise, do nothing
     try {
       const { completion } = Npm.cmd(cmd)
@@ -169,18 +155,11 @@ class Completion extends BaseCommand {
     }
   }
 
-  // The command should respond with an array.  Loop over that,
-  // wrapping quotes around any that have spaces, and writing
-  // them to stdout.
+  // The command should respond with an array.
+  // Loop over that, wrapping quotes around any that have spaces, and writing them to stdout.
   // If any of the items are arrays, then join them with a space.
-  // Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
-  // to: 'a', 'b c', or 'd' 'e'
+  // e.g. returning ['a', 'b c', ['d', 'e']] would allow it to expand to: 'a', 'b c', or 'd' 'e'
   wrap (opts, compls) {
-    // TODO this was dead code, leaving it in case we find some command we
-    // forgot that requires this. if so *that command should fix its
-    // completions*
-    // compls = compls.map(w => !/\s+/.test(w) ? w : '\'' + w + '\'')
-
     if (opts.partialWord) {
       compls = compls.filter(c => c.startsWith(opts.partialWord))
     }
@@ -204,14 +183,10 @@ const dumpScript = async (p) => {
 
       // Darwin is a pain sometimes.
       //
-      // This is necessary because the "source" or "." program in
-      // bash on OS X closes its file argument before reading
-      // from it, meaning that you get exactly 1 write, which will
-      // work most of the time, and will always raise an EPIPE.
+      // This is necessary because the "source" or "." program in bash on OS X closes its file argument before reading from it, meaning that you get exactly 1 write, which will work most of the time, and will always raise an EPIPE.
       //
-      // Really, one should not be tossing away EPIPE errors, or any
-      // errors, so casually.  But, without this, `. <(npm completion)`
-      // can never ever work on OS X.
+      // Really, one should not be tossing away EPIPE errors, or any errors, so casually.
+      // But, without this, `. <(npm completion)` can never ever work on OS X.
       // TODO Ignoring coverage, see 'non EPIPE errors cause failures' test.
       /* istanbul ignore next */
       if (er.errno === 'EPIPE') {
@@ -274,8 +249,8 @@ const getCustomConfigNames = (customDefs) => {
   return [...names]
 }
 
-// the current word has a dash.  Return the config names,
-// with the same number of dashes as the current word has.
+// the current word has a dash.
+// Return the config names with the same number of dashes as the current word has.
 const configCompl = (opts, cmd, subCmd, npm) => {
   const word = opts.word
   const split = word.match(/^(-+)((?:no-)*)(.*)$/)
@@ -330,8 +305,7 @@ const isFlag = (word, cmd, subCmd, npm) => {
       (Array.isArray(type) && type.includes(Boolean))
   }
 
-  // No custom definitions found, should not reach here in normal flow
-  // since configCompl returns empty array when no custom defs exist
+  // No custom definitions found, should not reach here in normal flow since configCompl returns empty array when no custom defs exist
   return false
 }
 

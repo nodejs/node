@@ -29,8 +29,7 @@ const maskLabel = mask => {
 
 const checks = [
   {
-    // Ping is left in as a legacy command but is listed as "connection" to
-    // make more sense to more people
+    // Ping is left in as a legacy command but is listed as "connection" to make more sense to more people
     groups: ['connection', 'ping', 'registry'],
     title: 'Connecting to the registry',
     cmd: 'checkPing',

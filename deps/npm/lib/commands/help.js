@@ -10,12 +10,10 @@ const BaseCommand = require('../base-cmd.js')
 const globify = pattern => pattern.split('\\').join('/')
 
 // Strips out the number from foo.7 or foo.7. or foo.7.tgz
-// We don't currently compress our man pages but if we ever did this would
-// seamlessly continue supporting it
+// We don't currently compress our man pages but if we ever did this would seamlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
 // hardcoded names for man sections
-// XXX: these are used in the docs workspace and should be exported
-// from npm so section names can changed more easily
+// XXX: these are used in the docs workspace and should be exported from npm so section names can changed more easily
 const manSectionNames = {
   1: 'commands',
   5: 'configuring-npm',
@@ -46,8 +44,7 @@ class Help extends BaseCommand {
   }
 
   async exec (args) {
-    // By default we search all of our man subdirectories, but if the user has
-    // asked for a specific one we limit the search to just there
+    // By default we search all of our man subdirectories, but if the user has asked for a specific one we limit the search to just there
     const manSearch = /^\d+$/.test(args[0]) ? `man${args.shift()}` : 'man*'
 
     if (!args.length) {
@@ -66,8 +63,7 @@ class Help extends BaseCommand {
     const f = globify(path.resolve(this.npm.npmRoot, `man/${manSearch}/?(npm-)${arg}.[0-9]*`))
 
     const [man] = await glob(f).then(r => r.sort((a, b) => {
-      // Because the glob is (subtly) different from manNumberRegex,
-      // we can't rely on it passing.
+      // Because the glob is (subtly) different from manNumberRegex, we can't rely on it passing.
       const aManNumberMatch = a.match(manNumberRegex)?.[1] || 999
       const bManNumberMatch = b.match(manNumberRegex)?.[1] || 999
       if (aManNumberMatch !== bManNumberMatch) {

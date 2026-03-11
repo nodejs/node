@@ -31,11 +31,8 @@ class Shrinkwrap extends BaseCommand {
     const oldFilename = meta.filename
     const notSW = !newFile && basename(oldFilename) !== 'npm-shrinkwrap.json'
 
-    // The computed lockfile version of a hidden lockfile is always 3
-    // even if the actual value of the property is a different.
-    // When shrinkwrap is run with only a hidden lockfile we want to
-    // set the shrinkwrap lockfile version as whatever was explicitly
-    // requested with a fallback to the actual value from the hidden
+    // The computed lockfile version of a hidden lockfile is always 3 even if the actual value of the property is a different.
+    // When shrinkwrap is run with only a hidden lockfile we want to set the shrinkwrap lockfile version as whatever was explicitly requested with a fallback to the actual value from the hidden
     // lockfile.
     if (meta.hiddenLockfile) {
       meta.lockfileVersion = arb.options.lockfileVersion ||
