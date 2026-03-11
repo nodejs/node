@@ -464,18 +464,13 @@ const DATA_RECEIVED_ERROR_CASES = [
 ];
 
 function assertEventErrors(domain, name, params, message) {
-  const result = inspector[domain][name](params);
-  assert.strictEqual(
-    result.length,
-    1,
-    `Expected ${domain}.${name} to return exactly one error`,
+  assert.throws(
+    () => inspector[domain][name](params),
+    {
+      message,
+    },
+    `Expected ${domain}.${name} to throw`,
   );
-  assert.strictEqual(
-    result[0] instanceof Error,
-    true,
-    `Expected ${domain}.${name} to return Error`,
-  );
-  assert.strictEqual(result[0].message, message);
 }
 
 function startRequest(requestId) {

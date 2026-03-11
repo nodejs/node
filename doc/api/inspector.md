@@ -520,7 +520,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -538,7 +537,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -553,7 +551,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -569,7 +566,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -585,7 +581,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -601,7 +596,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -616,7 +610,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -631,7 +624,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -646,7 +638,6 @@ added:
 -->
 
 * `params` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
@@ -705,7 +696,6 @@ added:
     * `isLocalStorage` {boolean}
   * `key` {string}
   * `newValue` {string}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the
 `--experimental-storage-inspection` flag enabled.
@@ -726,7 +716,6 @@ added:
     * `storageKey` {string}
     * `isLocalStorage` {boolean}
   * `key` {string}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the
 `--experimental-storage-inspection` flag enabled.
@@ -749,7 +738,6 @@ added:
   * `key` {string}
   * `oldValue` {string}
   * `newValue` {string}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the
 `--experimental-storage-inspection` flag enabled.
@@ -769,7 +757,6 @@ added:
     * `securityOrigin` {string}
     * `storageKey` {string}
     * `isLocalStorage` {boolean}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the
 `--experimental-storage-inspection` flag enabled.
@@ -788,7 +775,6 @@ added:
 * `params` {Object}
   * `isLocalStorage` {boolean}
   * `storageMap` {Object}
-* Returns: {Array} An array of errors from each session
 
 This feature is only available with the
 `--experimental-storage-inspection` flag enabled.

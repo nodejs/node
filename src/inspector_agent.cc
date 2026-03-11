@@ -29,7 +29,6 @@
 #include "timer_wrap-inl.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
-#include "v8-isolate.h"
 #include "v8-platform.h"
 
 #include "libplatform/libplatform.h"
@@ -744,21 +743,12 @@ class NodeInspectorClient : public V8InspectorClient {
     return retaining_context;
   }
 
-  v8::Local<v8::Array> emitNotification(v8::Local<v8::Context> context,
-                                        const StringView& event,
-                                        Local<Object> params) {
-    Isolate* isolate = env_->isolate();
-    v8::EscapableHandleScope handle_scope(isolate);
-    v8::Local<v8::Array> results = v8::Array::New(isolate);
+  void emitNotification(v8::Local<v8::Context> context,
+                        const StringView& event,
+                        Local<Object> params) {
     for (const auto& id_channel : channels_) {
-      v8::TryCatch try_catch(isolate);
       id_channel.second->emitNotificationFromBackend(context, event, params);
-      if (try_catch.HasCaught()) {
-        Local<Value> exception = try_catch.Exception();
-        results->Set(context, results->Length(), exception).Check();
-      }
     }
-    return handle_scope.Escape(results);
   }
 
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
@@ -974,10 +964,10 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
                                  prevent_shutdown);
 }
 
-v8::Local<v8::Array> Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
-                                              const StringView& event,
-                                              Local<Object> params) {
-  return client_->emitNotification(context, event, params);
+void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
+                              const StringView& event,
+                              Local<Object> params) {
+  client_->emitNotification(context, event, params);
 }
 
 void Agent::SetupNetworkTracking(Local<Function> enable_function,
