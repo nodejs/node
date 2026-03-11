@@ -21,6 +21,7 @@ CC = gcc
 FAKE_GCC = ../config/fake_gcc.pl
 
 CONFIGURE = ./Configure
+# no-tests: test dir is not included or used
 # no-shared: openssl-cli needs static link
 # no-afalgeng: old Linux kernel < 4.0 does not support it
 # enable-ssl-trace: cause the optional SSL_trace API to be built
@@ -28,7 +29,7 @@ CONFIGURE = ./Configure
 #   compression (RFC 8879). Record compression remains disabled at runtime
 #   via SSL_OP_NO_COMPRESSION and sk_SSL_COMP_zero() in crypto_util.cc.
 #   Include paths point to Node's bundled deps (relative to openssl/).
-COPTS =  no-shared no-afalgeng enable-ssl-trace enable-fips \
+COPTS =  no-tests no-shared no-afalgeng enable-ssl-trace enable-fips \
          zlib --with-zlib-include=../../zlib \
          enable-brotli --with-brotli-include=../../brotli/c/include \
          enable-zstd --with-zstd-include=../../zstd/lib
