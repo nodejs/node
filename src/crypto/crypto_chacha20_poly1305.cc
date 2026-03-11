@@ -54,63 +54,6 @@ bool ValidateIV(Environment* env,
   return true;
 }
 
-bool ValidateAuthTag(Environment* env,
-                     CryptoJobMode mode,
-                     WebCryptoCipherMode cipher_mode,
-                     Local<Value> value,
-                     ChaCha20Poly1305CipherConfig* params) {
-  switch (cipher_mode) {
-    case kWebCryptoCipherDecrypt: {
-      if (!IsAnyBufferSource(value)) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(
-            env, "Authentication tag must be a buffer");
-        return false;
-      }
-
-      ArrayBufferOrViewContents<unsigned char> tag(value);
-      if (!tag.CheckSizeInt32()) [[unlikely]] {
-        THROW_ERR_OUT_OF_RANGE(env, "tag is too large");
-        return false;
-      }
-
-      if (tag.size() != kChaCha20Poly1305TagSize) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(
-            env, "Invalid authentication tag length");
-        return false;
-      }
-
-      if (mode == kCryptoJobAsync) {
-        params->tag = tag.ToCopy();
-      } else {
-        params->tag = tag.ToByteSource();
-      }
-      break;
-    }
-    case kWebCryptoCipherEncrypt: {
-      // For encryption, the value should be the tag length (passed from
-      // JavaScript) We expect it to be the tag size constant for
-      // ChaCha20-Poly1305
-      if (!value->IsUint32()) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env, "Tag length must be a number");
-        return false;
-      }
-
-      uint32_t tag_length = value.As<v8::Uint32>()->Value();
-      if (tag_length != kChaCha20Poly1305TagSize) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(
-            env, "Invalid tag length for ChaCha20-Poly1305");
-        return false;
-      }
-      // Tag is generated during encryption, not provided
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-
-  return true;
-}
-
 bool ValidateAdditionalData(Environment* env,
                             CryptoJobMode mode,
                             Local<Value> value,
@@ -138,8 +81,7 @@ ChaCha20Poly1305CipherConfig::ChaCha20Poly1305CipherConfig(
     : mode(other.mode),
       cipher(other.cipher),
       iv(std::move(other.iv)),
-      additional_data(std::move(other.additional_data)),
-      tag(std::move(other.tag)) {}
+      additional_data(std::move(other.additional_data)) {}
 
 ChaCha20Poly1305CipherConfig& ChaCha20Poly1305CipherConfig::operator=(
     ChaCha20Poly1305CipherConfig&& other) noexcept {
@@ -154,7 +96,6 @@ void ChaCha20Poly1305CipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   if (mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("iv", iv.size());
     tracker->TrackFieldWithSize("additional_data", additional_data.size());
-    tracker->TrackFieldWithSize("tag", tag.size());
   }
 }
 
@@ -179,17 +120,9 @@ Maybe<void> ChaCha20Poly1305CipherTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  // Authentication tag parameter (only for decryption) or tag length (for
-  // encryption)
-  if (static_cast<unsigned int>(args.Length()) > offset + 1) {
-    if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 1], params)) {
-      return Nothing<void>();
-    }
-  }
-
   // Additional authenticated data parameter (optional)
-  if (static_cast<unsigned int>(args.Length()) > offset + 2) {
-    if (!ValidateAdditionalData(env, mode, args[offset + 2], params)) {
+  if (static_cast<unsigned int>(args.Length()) > offset + 1) {
+    if (!ValidateAdditionalData(env, mode, args[offset + 1], params)) {
       return Nothing<void>();
     }
   }
@@ -229,23 +162,25 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  size_t tag_len = 0;
+  size_t tag_len = kChaCha20Poly1305TagSize;
+  size_t data_len = in.size();
 
   switch (cipher_mode) {
     case kWebCryptoCipherDecrypt: {
-      if (params.tag.size() != kChaCha20Poly1305TagSize) {
+      if (data_len < tag_len) {
         return WebCryptoCipherStatus::FAILED;
       }
+      data_len -= tag_len;
+
       if (!ctx.setAeadTag(ncrypto::Buffer<const char>{
-              .data = params.tag.data<char>(),
-              .len = params.tag.size(),
+              .data = in.data<char>() + data_len,
+              .len = tag_len,
           })) {
         return WebCryptoCipherStatus::FAILED;
       }
       break;
     }
     case kWebCryptoCipherEncrypt: {
-      tag_len = kChaCha20Poly1305TagSize;
       break;
     }
     default:
@@ -253,7 +188,7 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
   }
 
   size_t total = 0;
-  int buf_len = in.size() + ctx.getBlockSize() + tag_len;
+  int buf_len = data_len + ctx.getBlockSize() + (encrypt ? tag_len : 0);
   int out_len;
 
   // Process additional authenticated data if present
@@ -271,9 +206,9 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
   // Process the input data
   buffer = {
       .data = in.data<unsigned char>(),
-      .len = in.size(),
+      .len = data_len,
   };
-  if (in.empty()) {
+  if (data_len == 0) {
     if (!ctx.update({}, ptr, &out_len)) {
       return WebCryptoCipherStatus::FAILED;
     }
