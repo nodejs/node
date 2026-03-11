@@ -169,6 +169,128 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
+// Test require(esm): .js file detected as ESM via VFS package.json type:module
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/app', { recursive: true });
+  myVfs.writeFileSync('/app/package.json', JSON.stringify({
+    name: 'esm-app',
+    type: 'module',
+  }));
+  myVfs.writeFileSync('/app/lib.js',
+                      'export const value = 42;' +
+                      ' export function hello() { return "hi"; }');
+  myVfs.mount('/virtual13');
+
+  const mod = require('/virtual13/app/lib.js');
+  assert.strictEqual(mod.value, 42);
+  assert.strictEqual(mod.hello(), 'hi');
+
+  myVfs.unmount();
+}
+
+// Test require(esm): nested .js walks up to parent package.json in VFS
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/project/src/utils', { recursive: true });
+  myVfs.writeFileSync('/project/package.json', JSON.stringify({
+    name: 'nested-esm',
+    type: 'module',
+  }));
+  myVfs.writeFileSync('/project/src/utils/math.js',
+                      'export const add = (a, b) => a + b;' +
+                      ' export default 99;');
+  myVfs.mount('/virtual14');
+
+  const mod = require('/virtual14/project/src/utils/math.js');
+  assert.strictEqual(mod.add(3, 4), 7);
+  assert.strictEqual(mod.default, 99);
+
+  myVfs.unmount();
+}
+
+// Test require(esm): .js without type field stays CJS
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/cjs-app', { recursive: true });
+  myVfs.writeFileSync('/cjs-app/package.json', JSON.stringify({
+    name: 'cjs-app',
+  }));
+  myVfs.writeFileSync('/cjs-app/index.js',
+                      'module.exports = { cjs: true };');
+  myVfs.mount('/virtual15');
+
+  const mod = require('/virtual15/cjs-app/index.js');
+  assert.strictEqual(mod.cjs, true);
+
+  myVfs.unmount();
+}
+
+// Test require(esm): ESM .js that imports another ESM .js in VFS
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/multi/src', { recursive: true });
+  myVfs.writeFileSync('/multi/package.json', JSON.stringify({
+    type: 'module',
+  }));
+  myVfs.writeFileSync('/multi/src/dep.js', 'export const X = 100;');
+  myVfs.writeFileSync('/multi/src/main.js',
+                      'import { X } from "./dep.js";' +
+                      ' export const result = X + 1;');
+  myVfs.mount('/virtual16');
+
+  const mod = require('/virtual16/multi/src/main.js');
+  assert.strictEqual(mod.result, 101);
+
+  myVfs.unmount();
+}
+
+// Test require(esm): .mjs without any package.json loads as ESM
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/no-pkg.mjs',
+                      'export const x = 1; export default "hello";');
+  myVfs.mount('/virtual17');
+
+  const mod = require('/virtual17/no-pkg.mjs');
+  assert.strictEqual(mod.x, 1);
+  assert.strictEqual(mod.default, 'hello');
+
+  myVfs.unmount();
+}
+
+// Test require(esm): .mjs with package.json that has no type field
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/app', { recursive: true });
+  myVfs.writeFileSync('/app/package.json',
+                      JSON.stringify({ name: 'no-type' }));
+  myVfs.writeFileSync('/app/lib.mjs', 'export const val = 42;');
+  myVfs.mount('/virtual18');
+
+  const mod = require('/virtual18/app/lib.mjs');
+  assert.strictEqual(mod.val, 42);
+
+  myVfs.unmount();
+}
+
+// Test require(esm): .mjs in type:commonjs package still loads as ESM
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/cjs-pkg', { recursive: true });
+  myVfs.writeFileSync('/cjs-pkg/package.json', JSON.stringify({
+    name: 'cjs-pkg',
+    type: 'commonjs',
+  }));
+  myVfs.writeFileSync('/cjs-pkg/esm.mjs', 'export const z = 99;');
+  myVfs.mount('/virtual19');
+
+  const mod = require('/virtual19/cjs-pkg/esm.mjs');
+  assert.strictEqual(mod.z, 99);
+
+  myVfs.unmount();
+}
+
 // Test that unmounting stops interception
 {
   const myVfs = vfs.create();
