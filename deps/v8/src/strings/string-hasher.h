@@ -63,22 +63,24 @@ class V8_EXPORT_PRIVATE StringHasher final {
 
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
   // When V8_ENABLE_SEEDED_ARRAY_INDEX_HASH is enabled, the numeric value
-  // will be scrambled with 2 rounds of xorshift-multiply.
+  // will be scrambled with 3 rounds of xorshift-multiply.
   //
   //   x ^= x >> kShift;  x = (x * m1) & kMask;   // round 1
   //   x ^= x >> kShift;  x = (x * m2) & kMask;   // round 2
+  //   x ^= x >> kShift;  x = (x * m3) & kMask;   // round 3
   //   x ^= x >> kShift;                          // finalize
   //
-  // To decode, apply the same steps with the modular inverses of m1 and m2 in
-  // reverse order.
+  // To decode, apply the same steps with the modular inverses of m1, m2
+  // and m3 in reverse order.
   //
-  //   x ^= x >> kShift;  x = (x * m2_inv) & kMask;   // round 1
-  //   x ^= x >> kShift;  x = (x * m1_inv) & kMask;   // round 2
+  //   x ^= x >> kShift;  x = (x * m3_inv) & kMask;   // round 1
+  //   x ^= x >> kShift;  x = (x * m2_inv) & kMask;   // round 2
+  //   x ^= x >> kShift;  x = (x * m1_inv) & kMask;   // round 3
   //   x ^= x >> kShift;                              // finalize
   //
   // where kShift = kArrayIndexValueBits / 2, kMask = kArrayIndexValueMask,
-  // m1, m2 (both odd) are derived from the Isolate's rapidhash secrets.
-  // m1_inv, m2_inv (modular inverses) are precomputed so that
+  // m1, m2, m3 (all odd) are derived from the Isolate's rapidhash secrets.
+  // m1_inv, m2_inv, m3_inv (modular inverses) are precomputed so that
   // UnseedArrayIndexValue can quickly recover the original value.
   static V8_INLINE uint32_t SeedArrayIndexValue(uint32_t value,
                                                 const HashSeed seed);

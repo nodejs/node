@@ -53,6 +53,8 @@ class V8_EXPORT_PRIVATE HashSeed {
     uint32_t m1_inv;  // modular inverse of m1 mod 2^kArrayIndexValueBits
     uint32_t m2;  // lower kArrayIndexValueBits bits of secret[1], must be odd
     uint32_t m2_inv;  // modular inverse of m2 mod 2^kArrayIndexValueBits
+    uint32_t m3;  // lower kArrayIndexValueBits bits of secret[2], must be odd
+    uint32_t m3_inv;  // modular inverse of m3 mod 2^kArrayIndexValueBits
 #endif                // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
   };
 
@@ -65,11 +67,15 @@ class V8_EXPORT_PRIVATE HashSeed {
   static constexpr int kDerivedM1InvOffset = offsetof(Data, m1_inv);
   static constexpr int kDerivedM2Offset = offsetof(Data, m2);
   static constexpr int kDerivedM2InvOffset = offsetof(Data, m2_inv);
+  static constexpr int kDerivedM3Offset = offsetof(Data, m3);
+  static constexpr int kDerivedM3InvOffset = offsetof(Data, m3_inv);
 
   inline uint32_t m1() const;
   inline uint32_t m1_inv() const;
   inline uint32_t m2() const;
   inline uint32_t m2_inv() const;
+  inline uint32_t m3() const;
+  inline uint32_t m3_inv() const;
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
   // Generates a hash seed (from --hash-seed or the RNG) and writes it

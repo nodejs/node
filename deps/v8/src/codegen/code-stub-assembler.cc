@@ -2395,7 +2395,7 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 // Mirror C++ StringHasher::SeedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1 and m2 from the hash seed byte array. In the compiled code
+  // Load m1, m2 and m3 from the hash seed byte array. In the compiled code
   // these will always come from the read-only roots.
   TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
   intptr_t base_offset = ByteArray::kHeaderSize - kHeapObjectTag;
@@ -2403,14 +2403,19 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1Offset));
   TNode<Uint32T> m2 = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2Offset));
+  TNode<Uint32T> m3 = Load<Uint32T>(
+      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3Offset));
 
   TNode<Word32T> x = value;
-  // 2-round xorshift-multiply.
+  // 3-round xorshift-multiply.
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m1),
                 Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m2),
+                Uint32Constant(Name::kArrayIndexValueMask));
+  x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
+  x = Word32And(Uint32Mul(Unsigned(x), m3),
                 Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
 
@@ -2419,18 +2424,23 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
 
 // Mirror C++ StringHasher::UnseedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::UnseedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1_inv and m2_inv from the hash seed byte array. In the compiled code
-  // these will always come from the read-only roots.
+  // Load m1_inv, m2_inv and m3_inv from the hash seed byte array. In the
+  // compiled code these will always come from the read-only roots.
   TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
   intptr_t base_offset = ByteArray::kHeaderSize - kHeapObjectTag;
   TNode<Uint32T> m1_inv = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1InvOffset));
   TNode<Uint32T> m2_inv = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2InvOffset));
+  TNode<Uint32T> m3_inv = Load<Uint32T>(
+      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3InvOffset));
 
   TNode<Word32T> x = value;
-  // 2-round xorshift-multiply (inverse).
+  // 3-round xorshift-multiply (inverse).
   // Xorshift is an involution when kShift is at least half of the value width.
+  x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
+  x = Word32And(Uint32Mul(Unsigned(x), m3_inv),
+                Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m2_inv),
                 Uint32Constant(Name::kArrayIndexValueMask));

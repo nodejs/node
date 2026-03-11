@@ -74,14 +74,17 @@ uint32_t StringHasher::SeedArrayIndexValue(uint32_t value,
                                            const HashSeed seed) {
   uint32_t m1 = seed.m1();
   uint32_t m2 = seed.m2();
+  uint32_t m3 = seed.m3();
   constexpr uint32_t kShift = Name::kArrayIndexHashShift;
   constexpr uint32_t kMask = Name::kArrayIndexValueMask;
-  // 2-round xorshift-multiply.
+  // 3-round xorshift-multiply.
   uint32_t x = value;
   x ^= x >> kShift;
   x = (x * m1) & kMask;
   x ^= x >> kShift;
   x = (x * m2) & kMask;
+  x ^= x >> kShift;
+  x = (x * m3) & kMask;
   x ^= x >> kShift;
   return x;
 }
@@ -90,11 +93,14 @@ uint32_t StringHasher::UnseedArrayIndexValue(uint32_t value,
                                              const HashSeed seed) {
   uint32_t m1_inv = seed.m1_inv();
   uint32_t m2_inv = seed.m2_inv();
+  uint32_t m3_inv = seed.m3_inv();
   uint32_t x = value;
   constexpr uint32_t kShift = Name::kArrayIndexHashShift;
   constexpr uint32_t kMask = Name::kArrayIndexValueMask;
-  // 2-round xorshift-multiply.
+  // 3-round xorshift-multiply (inverse).
   // Xorshift is an involution when kShift is at least half of the value width.
+  x ^= x >> kShift;
+  x = (x * m3_inv) & kMask;
   x ^= x >> kShift;
   x = (x * m2_inv) & kMask;
   x ^= x >> kShift;

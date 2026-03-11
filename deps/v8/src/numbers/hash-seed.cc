@@ -51,6 +51,8 @@ constexpr void DeriveSecretsForArrayIndexHash(HashSeed::Data* data) {
   data->m1_inv = derive_multiplier_inverse(data->secrets[0]);
   data->m2 = derive_multiplier(data->secrets[1]);
   data->m2_inv = derive_multiplier_inverse(data->secrets[1]);
+  data->m3 = derive_multiplier(data->secrets[2]);
+  data->m3_inv = derive_multiplier_inverse(data->secrets[2]);
 }
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
@@ -75,6 +77,7 @@ const HashSeed::Data* const HashSeed::kDefaultData = &kDefaultSeed;
 // Compile-time verification that m * m_inv === 1 for the derived secrets.
 static_assert(is_modular_inverse(kDefaultSeed.m1, kDefaultSeed.m1_inv));
 static_assert(is_modular_inverse(kDefaultSeed.m2, kDefaultSeed.m2_inv));
+static_assert(is_modular_inverse(kDefaultSeed.m3, kDefaultSeed.m3_inv));
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
 // static
@@ -102,6 +105,7 @@ void HashSeed::InitializeRoots(Isolate* isolate) {
   DeriveSecretsForArrayIndexHash(data);
   DCHECK(is_modular_inverse(data->m1, data->m1_inv));
   DCHECK(is_modular_inverse(data->m2, data->m2_inv));
+  DCHECK(is_modular_inverse(data->m3, data->m3_inv));
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 #endif  // V8_USE_DEFAULT_HASHER_SECRET
 }

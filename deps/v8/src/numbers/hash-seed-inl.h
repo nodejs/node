@@ -31,6 +31,8 @@ inline uint32_t HashSeed::m1() const { return data_->m1; }
 inline uint32_t HashSeed::m1_inv() const { return data_->m1_inv; }
 inline uint32_t HashSeed::m2() const { return data_->m2; }
 inline uint32_t HashSeed::m2_inv() const { return data_->m2_inv; }
+inline uint32_t HashSeed::m3() const { return data_->m3; }
+inline uint32_t HashSeed::m3_inv() const { return data_->m3_inv; }
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
 }  // namespace internal
