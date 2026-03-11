@@ -1,4 +1,4 @@
-// META: global=window,worker
+// META: global=window,worker,shadowrealm-in-window
 // META: script=/resources/WebIDLParser.js
 // META: script=/resources/idlharness.js
 // META: timeout=long
@@ -11,6 +11,10 @@ idl_test(
   ['hr-time'],
   ['html', 'dom'],
   async idl_array => {
+    if (self.GLOBAL.isShadowRealm()) {
+      return;
+    }
+
     if (self.GLOBAL.isWorker()) {
       idl_array.add_objects({ WorkerGlobalScope: ['self'] });
     } else {

@@ -20,7 +20,7 @@
     "path": "dom/events"
   },
   "encoding": {
-    "commit": "1ac8deee082ecfb5d3b6f9c56cf9d1688a2fc218",
+    "commit": "0dc50adc2e989134defaea66aacff377ab940543",
     "path": "encoding"
   },
   "fetch/data-urls/resources": {
@@ -32,7 +32,7 @@
     "path": "FileAPI"
   },
   "hr-time": {
-    "commit": "34cafd797e58dad280d20040eee012d49ccfa91f",
+    "commit": "6b16e87e48e6f91ac2e3c91f925b125a342f5ae8",
     "path": "hr-time"
   },
   "html/webappapis/atob": {
@@ -68,7 +68,7 @@
     "path": "resources"
   },
   "streams": {
-    "commit": "bc9dcbbf1a4c2c741ef47f47d6ede6458f40c4a4",
+    "commit": "894c8d48583be8721f8f712400929baeb9a8782f",
     "path": "streams"
   },
   "url": {
@@ -92,7 +92,7 @@
     "path": "wasm/webapi"
   },
   "web-locks": {
-    "commit": "10a122a6bc3670a44e0fa8b9a99f6aa9012d30f1",
+    "commit": "0633bb21ad37f95809b4dc04b8c7d56e9df5ad40",
     "path": "web-locks"
   },
   "WebCryptoAPI": {
