@@ -1021,6 +1021,9 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
       MaybeDirectHandle<Object> exception;
       // ii. If result is an abrupt completion, then
       if (!ExecuteModule(isolate, m, &exception).ToHandle(&unused_result)) {
+        DCHECK_IMPLIES(exception.IsEmpty(),
+                       isolate->is_execution_terminating());
+        if (isolate->is_execution_terminating()) return {};
         // 1. Perform AsyncModuleExecutionRejected(m, result.[[Value]]).
         AsyncModuleExecutionRejected(isolate, m, exception.ToHandleChecked());
       } else {  // iii. Else,
