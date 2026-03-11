@@ -2500,6 +2500,11 @@ Node.js builtin modules. Any references to the original module prior to mocking 
 order to enable module mocking, Node.js must be started with the
 [`--experimental-test-module-mocks`][] command-line flag.
 
+**Note**: [module customization hooks][] registered via the **synchronous** API effect resolution of
+the `specifier` provided to `mock.module`. Customization hooks registered via the **asynchronous**
+API are currently ignored (because the test runner's loader is synchronous, and node does not
+support multi-chain / cross-chain loading).
+
 The following example demonstrates how a mock is created for a module.
 
 ```js
@@ -4247,6 +4252,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [configuration files]: cli.md#--experimental-config-fileconfig
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
+[module customization hooks]: module.md#customization-hooks
 [running tests from the command line]: #running-tests-from-the-command-line
 [stream.compose]: stream.md#streamcomposestreams
 [subtests]: #subtests
