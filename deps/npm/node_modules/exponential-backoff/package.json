@@ -1,6 +1,6 @@
 {
   "name": "exponential-backoff",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "A utility that allows retrying a function with an exponential delay between attempts.",
   "files": [
     "dist/",
