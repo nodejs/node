@@ -4,6 +4,9 @@
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'BSAES_ASM',
       'ECP_NISTZ256_ASM',
@@ -25,7 +28,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux-armv4': [
-      '-ldl -pthread -latomic',
+      '-lm -ldl -pthread -latomic',
     ],
     'openssl_cli_srcs_linux-armv4': [
       'openssl/apps/lib/cmp_mock_srv.c',

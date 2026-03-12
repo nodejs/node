@@ -19,6 +19,11 @@
     {
       'target_name': 'openssl',
       'type': '<(library)',
+      'dependencies': [
+        '../zlib/zlib.gyp:zlib',
+        '../brotli/brotli.gyp:brotli',
+        '../zstd/zstd.gyp:zstd',
+      ],
       'includes': ['./openssl_common.gypi'],
       'defines': [
         # Compile out hardware engines.  Most are stubs that dynamically load

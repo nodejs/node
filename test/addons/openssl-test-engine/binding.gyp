@@ -17,11 +17,7 @@
             ['OS=="mac"', {
               'xcode_settings': {
                 'OTHER_CFLAGS': ['-Wno-deprecated-declarations'],
-              },
-              'link_settings': {
-                'libraries': [
-                  '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
-                ]
+                'OTHER_LDFLAGS': ['-undefined', 'dynamic_lookup'],
               },
             }],
             ['OS=="linux"', {
