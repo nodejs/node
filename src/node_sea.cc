@@ -23,6 +23,7 @@ using node::ExitCode;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::Data;
 using v8::Function;
@@ -494,6 +495,16 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         result.flags |= SeaFlags::kIncludeExecArgv;
         result.exec_argv = std::move(exec_argv);
       }
+    } else if (key == "useVfs") {
+      bool use_vfs;
+      if (field.value().get_bool().get(use_vfs)) {
+        FPrintF(
+            stderr, "\"useVfs\" field of %s is not a Boolean\n", config_path);
+        return std::nullopt;
+      }
+      if (use_vfs) {
+        result.flags |= SeaFlags::kEnableVfs;
+      }
     } else if (key == "execArgvExtension") {
       std::string_view extension_str;
       if (field.value().get_string().get(extension_str)) {
@@ -765,6 +776,12 @@ ExitCode GenerateSingleExecutableBlob(
   if (!config.assets.empty() && BuildAssets(config.assets, &assets) != 0) {
     return ExitCode::kGenericUserError;
   }
+  // When VFS is enabled, include the main script as an asset so it can be
+  // loaded via wrapModuleLoad from the VFS mount point.
+  if (static_cast<bool>(config.flags & SeaFlags::kEnableVfs) &&
+      !builds_snapshot_from_main) {
+    assets.emplace(config.main_path, main_script);
+  }
   std::unordered_map<std::string_view, std::string_view> assets_view;
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
@@ -913,6 +930,37 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
+  // isVfsEnabled is a boolean property (only used by embedding.js).
+  bool is_vfs_enabled = false;
+  if (IsSingleExecutable()) {
+    SeaResource sea_resource = FindSingleExecutableResource();
+    is_vfs_enabled =
+        static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
+    // Expose the main code path so VFS can construct the correct entry point.
+    if (is_vfs_enabled) {
+      Local<String> code_path_str;
+      if (String::NewFromUtf8(isolate,
+                              sea_resource.code_path.data(),
+                              NewStringType::kNormal,
+                              sea_resource.code_path.length())
+              .ToLocal(&code_path_str)) {
+        target
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "mainCodePath"),
+                  code_path_str)
+            .Check();
+      }
+    }
+  }
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "isVfsEnabled"),
+            Boolean::New(isolate, is_vfs_enabled))
+      .Check();
+
   SetMethod(context, target, "isSea", IsSea);
   SetMethod(context,
             target,
