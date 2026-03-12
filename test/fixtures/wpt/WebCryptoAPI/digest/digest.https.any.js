@@ -113,6 +113,30 @@
                     copiedBuffer[0] = 255 - copiedBuffer[0];
                     return promise;
                 }, upCase + " with " + size + " source data and altered buffer after call");
+
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    copiedBuffer.buffer.transfer();
+                    return subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg].empty), "digest() on transferred buffer should yield result for empty buffer for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for transferred buffer for " + alg + ":" + size + ": " + err.message);
+                    });
+                }, upCase + " with " + size + " source data and transferred buffer during call");
+
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    var promise = subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
+
+                    copiedBuffer.buffer.transfer();
+                    return promise;
+                }, upCase + " with " + size + " source data and transferred buffer after call");
             }
         });
     });
