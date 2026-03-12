@@ -13,10 +13,8 @@
           'sources': [ 'testengine.cc' ],
           'product_extension': 'engine',
           'include_dirs': ['../../../deps/openssl/openssl/include'],
-          'link_settings': {
-            'libraries': [
-              '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
-            ]
+          'xcode_settings': {
+            'OTHER_LDFLAGS': ['-undefined', 'dynamic_lookup'],
           },
         }],
       ]

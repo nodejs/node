@@ -4,6 +4,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'BSAES_ASM',
       'CMLL_ASM',
@@ -34,7 +37,7 @@
       '-O3 -Wall',
     ],
     'openssl_ex_libs_darwin64-x86_64-cc': [
-      '',
+      '-lm',
     ],
     'openssl_cli_srcs_darwin64-x86_64-cc': [
       'openssl/apps/lib/cmp_mock_srv.c',

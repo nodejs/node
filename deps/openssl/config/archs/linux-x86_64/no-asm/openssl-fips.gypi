@@ -334,6 +334,9 @@
       'OPENSSL_USE_NODELETE',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'FIPS_MODULE',
       'FIPS_MODULE',
     ],
@@ -343,7 +346,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux-x86_64': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux-x86_64/no-asm/providers/fips.ld'
   },
