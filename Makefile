@@ -821,8 +821,13 @@ VERSION=v$(RAWVER)
 .NOTPARALLEL: doc-only
 doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
+.PHONY: doc-add-js
+doc-add-js:
+	cp tools/doc/add_toc_tree_to_leftnav.js out/doc/api/
+	$(NODE_EXE) tools/doc/addjs2html.mjs
+
 .PHONY: doc
-doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
+doc: $(NODE_EXE) doc-only doc-add-js ## Build Node.js, and then build the documentation with the new binary.
 
 out/doc:
 	mkdir -p $@
