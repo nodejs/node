@@ -1,114 +1,91 @@
 // Flags: --permission --experimental-ffi --allow-fs-read=*
 'use strict';
-const { skipIfFFIMissing } = require('../common');
-skipIfFFIMissing();
-
-const test = require('node:test');
+const common = require('../common');
 const {
-  dlopen,
-  UnsafePointer,
-  UnsafeFnPointer,
-  UnsafeCallback,
-  UnsafePointerView,
-} = require('node:ffi');
+  strictEqual,
+  throws,
+} = require('node:assert');
+const ffi = require('node:ffi');
+const { libraryPath } = require('./ffi-test-common');
 
-test('permission.has("ffi") should be false without --allow-ffi', (t) => {
-  t.assert.strictEqual(process.permission.has('ffi'), false);
-});
+common.skipIfFFIMissing();
 
-test('ffi.dlopen() should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    dlopen('/usr/lib/libc.dylib', {});
+{
+  strictEqual(process.permission.has('ffi'), false);
+}
+
+{
+  throws(() => {
+    ffi.dlopen(libraryPath, {});
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafeFnPointer constructor should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    new UnsafeFnPointer(0n, {
-      returnType: 'int',
-      paramTypes: [],
-    });
+  throws(() => {
+    new ffi.DynamicLibrary(libraryPath);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
+}
 
-test('UnsafeCallback constructor should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    new UnsafeCallback({
-      returnType: 'void',
-      paramTypes: [],
-    }, () => {});
+{
+  throws(() => {
+    ffi.toBuffer(1n, 4);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointer constructor should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    new UnsafePointer(0n);
+  throws(() => {
+    ffi.toArrayBuffer(1n, 4);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointer.create() should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    UnsafePointer.create(0n);
+  throws(() => {
+    ffi.getInt32(1n);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointerView constructor should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    new UnsafePointerView(0n);
+  throws(() => {
+    ffi.setInt32(1n, 0, 1);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointerView.getCString() should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    UnsafePointerView.getCString(0n);
+  throws(() => {
+    ffi.exportString('hello', 1n, 8);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointerView.copyInto() should throw ERR_ACCESS_DENIED', (t) => {
-  const buffer = Buffer.alloc(16);
-  t.assert.throws(() => {
-    UnsafePointerView.copyInto(0n, buffer);
+  throws(() => {
+    ffi.exportString('hello', 1n, 0);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
 
-test('UnsafePointerView.getArrayBuffer() should throw ERR_ACCESS_DENIED', (t) => {
-  t.assert.throws(() => {
-    UnsafePointerView.getArrayBuffer(0n, 16);
+  throws(() => {
+    ffi.exportBuffer(Buffer.alloc(0), 1n, 0);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
     message: /Access to this API has been restricted/,
   });
-});
+}

@@ -1,59 +1,104 @@
 // Flags: --experimental-ffi
 'use strict';
-const { spawnPromisified, skipIfFFIMissing } = require('../common');
-skipIfFFIMissing();
+const common = require('../common');
+const {
+  deepStrictEqual,
+  match,
+  notStrictEqual,
+  strictEqual,
+  throws,
+} = require('node:assert');
+const { spawnSync } = require('node:child_process');
+
+common.skipIfFFIMissing();
+
 const ffi = require('node:ffi');
-const { suite, test } = require('node:test');
 
-suite('accessing the node:ffi module', () => {
-  test('cannot be accessed without the node: scheme', (t) => {
-    t.assert.throws(() => {
-      require('ffi');
-    }, {
-      code: 'MODULE_NOT_FOUND',
-      message: /Cannot find module 'ffi'/,
-    });
+{
+  throws(() => {
+    require('ffi');
+  }, {
+    code: 'MODULE_NOT_FOUND',
+    message: /Cannot find module 'ffi'/,
+  });
+}
+
+{
+  const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
+    '--no-experimental-ffi',
+    '-e',
+    'require("node:ffi")',
+  ], {
+    encoding: 'utf8',
   });
 
-  test('can be disabled with --no-experimental-ffi flag', async (t) => {
-    const {
-      stdout,
-      stderr,
-      code,
-      signal,
-    } = await spawnPromisified(process.execPath, [
-      '--no-experimental-ffi',
-      '-e',
-      'require("node:ffi")',
-    ]);
+  strictEqual(stdout, '');
+  match(stderr, /No such built-in module: node:ffi/);
+  notStrictEqual(status, 0);
+  strictEqual(signal, null);
+}
 
-    t.assert.strictEqual(stdout, '');
-    t.assert.match(stderr, /No such built-in module: node:ffi/);
-    t.assert.notStrictEqual(code, 0);
-    t.assert.strictEqual(signal, null);
-  });
+{
+  const expected = [
+    'DynamicLibrary',
+    'dlclose',
+    'dlopen',
+    'dlsym',
+    'exportBuffer',
+    'exportString',
+    'getFloat32',
+    'getFloat64',
+    'getInt16',
+    'getInt32',
+    'getInt64',
+    'getInt8',
+    'getUint16',
+    'getUint32',
+    'getUint64',
+    'getUint8',
+    'setFloat32',
+    'setFloat64',
+    'setInt16',
+    'setInt32',
+    'setInt64',
+    'setInt8',
+    'setUint16',
+    'setUint32',
+    'setUint64',
+    'setUint8',
+    'toArrayBuffer',
+    'toBuffer',
+    'toString',
+  ];
 
-  test('exports dlopen factory', (t) => {
-    t.assert.strictEqual(typeof ffi.dlopen, 'function');
-  });
-
-  test('does not export DynamicLibrary', (t) => {
-    t.assert.strictEqual(ffi.DynamicLibrary, undefined);
-  });
-
-  test('exports UnsafeFnPointer constructor', (t) => {
-    t.assert.strictEqual(typeof ffi.UnsafeFnPointer, 'function');
-  });
-
-  test('exports UnsafeCallback constructor', (t) => {
-    t.assert.strictEqual(typeof ffi.UnsafeCallback, 'function');
-  });
-
-  test('exports UnsafePointer constructor', (t) => {
-    t.assert.strictEqual(typeof ffi.UnsafePointer, 'function');
-  });
-
-  test('does not export Struct class', (t) => {
-    t.assert.strictEqual(ffi.Struct, undefined);
-  });
-});
+  deepStrictEqual(Object.keys(ffi).sort(), expected);
+  strictEqual(typeof ffi.DynamicLibrary, 'function');
+  strictEqual(typeof ffi.dlopen, 'function');
+  strictEqual(typeof ffi.dlclose, 'function');
+  strictEqual(typeof ffi.dlsym, 'function');
+  strictEqual(typeof ffi.exportString, 'function');
+  strictEqual(typeof ffi.exportBuffer, 'function');
+  strictEqual(typeof ffi.getInt8, 'function');
+  strictEqual(typeof ffi.getUint8, 'function');
+  strictEqual(typeof ffi.getInt16, 'function');
+  strictEqual(typeof ffi.getUint16, 'function');
+  strictEqual(typeof ffi.getInt32, 'function');
+  strictEqual(typeof ffi.getUint32, 'function');
+  strictEqual(typeof ffi.getInt64, 'function');
+  strictEqual(typeof ffi.getUint64, 'function');
+  strictEqual(typeof ffi.getFloat32, 'function');
+  strictEqual(typeof ffi.getFloat64, 'function');
+  strictEqual(typeof ffi.setInt8, 'function');
+  strictEqual(typeof ffi.setUint8, 'function');
+  strictEqual(typeof ffi.setInt16, 'function');
+  strictEqual(typeof ffi.setUint16, 'function');
+  strictEqual(typeof ffi.setInt32, 'function');
+  strictEqual(typeof ffi.setUint32, 'function');
+  strictEqual(typeof ffi.setInt64, 'function');
+  strictEqual(typeof ffi.setUint64, 'function');
+  strictEqual(typeof ffi.setFloat32, 'function');
+  strictEqual(typeof ffi.setFloat64, 'function');
+  strictEqual(typeof ffi.toString, 'function');
+  strictEqual(typeof ffi.toBuffer, 'function');
+  strictEqual(typeof ffi.toArrayBuffer, 'function');
+}

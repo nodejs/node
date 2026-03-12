@@ -7,8 +7,7 @@ namespace node {
 
 namespace permission {
 
-// Currently, FFIPermission manages a single state.
-// Once denied, it's always denied.
+// Currently, FFIPermission manages a single global deny state for FFI.
 void FFIPermission::Apply(Environment* env,
                           const std::vector<std::string>& allow,
                           PermissionScope scope) {
@@ -18,7 +17,7 @@ void FFIPermission::Apply(Environment* env,
 bool FFIPermission::is_granted(Environment* env,
                                PermissionScope perm,
                                const std::string_view& param) const {
-  return deny_all_ == false;
+  return perm != PermissionScope::kFFI || !deny_all_;
 }
 
 }  // namespace permission

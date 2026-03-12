@@ -142,9 +142,8 @@ Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR exception unless
 the user explicitly passes the \fB--allow-ffi\fR flag when starting Node.js.
 Example:
 .Bd -literal
-const { UnsafePointer } = require('node:ffi');
-
-UnsafePointer.create(0n);
+const { DynamicLibrary } = require('node:ffi');
+const lib = new DynamicLibrary('mylib.so');
 .Ed
 .Bd -literal
 $ node --permission --experimental-ffi --allow-fs-read=* index.js

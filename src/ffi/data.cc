@@ -1,0 +1,526 @@
+#if HAVE_FFI
+
+#include "base_object-inl.h"
+#include "v8.h"
+
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <type_traits>
+
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::BigInt;
+using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::Integer;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::NewStringType;
+using v8::Number;
+using v8::Object;
+using v8::String;
+using v8::Value;
+
+namespace node {
+
+namespace ffi {
+
+bool GetValidatedSize(Environment* env,
+                      Local<Value> value,
+                      const char* label,
+                      size_t* out) {
+  if (!value->IsNumber()) {
+    env->ThrowTypeError(
+        (std::string("The ") + label + " must be a number").c_str());
+    return false;
+  }
+
+  double length = value.As<Number>()->Value();
+  if (!std::isfinite(length) || length < 0 || std::floor(length) != length) {
+    env->ThrowTypeError(
+        (std::string("The ") + label + " must be a non-negative integer")
+            .c_str());
+    return false;
+  }
+
+  if (length > static_cast<double>(std::numeric_limits<size_t>::max())) {
+    env->ThrowRangeError(
+        (std::string("The ") + label + " is too large").c_str());
+    return false;
+  }
+
+  *out = static_cast<size_t>(length);
+  return true;
+}
+
+bool GetValidatedPointerAddress(Environment* env,
+                                Local<Value> value,
+                                const char* label,
+                                uint64_t* out) {
+  if (!value->IsBigInt()) {
+    env->ThrowTypeError(
+        (std::string("The ") + label + " must be a bigint").c_str());
+    return false;
+  }
+
+  bool lossless;
+  *out = value.As<BigInt>()->Uint64Value(&lossless);
+  if (!lossless) {
+    env->ThrowTypeError(
+        (std::string("The ") + label + " must be a non-negative bigint")
+            .c_str());
+    return false;
+  }
+
+  return true;
+}
+
+bool GetValidatedSignedInt(Environment* env,
+                           Local<Value> value,
+                           int64_t min,
+                           int64_t max,
+                           const char* type_name,
+                           int64_t* out) {
+  if (!value->IsNumber()) {
+    env->ThrowTypeError((std::string("Value must be an ") + type_name).c_str());
+    return false;
+  }
+
+  double number = value.As<Number>()->Value();
+  if (!std::isfinite(number) || std::floor(number) != number || number < min ||
+      number > max) {
+    env->ThrowTypeError((std::string("Value must be an ") + type_name).c_str());
+    return false;
+  }
+
+  *out = static_cast<int64_t>(number);
+  return true;
+}
+
+bool GetValidatedUnsignedInt(Environment* env,
+                             Local<Value> value,
+                             uint64_t max,
+                             const char* type_name,
+                             uint64_t* out) {
+  if (!value->IsNumber()) {
+    env->ThrowTypeError((std::string("Value must be a ") + type_name).c_str());
+    return false;
+  }
+
+  double number = value.As<Number>()->Value();
+  if (!std::isfinite(number) || std::floor(number) != number || number < 0 ||
+      number > static_cast<double>(max)) {
+    env->ThrowTypeError((std::string("Value must be a ") + type_name).c_str());
+    return false;
+  }
+
+  *out = static_cast<uint64_t>(number);
+  return true;
+}
+
+bool GetValidatedPointerAndOffset(Environment* env,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  uint8_t** ptr,
+                                  size_t* offset) {
+  uint64_t raw_ptr;
+  if (args.Length() < 1 ||
+      !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
+    return false;
+  }
+
+  if (raw_ptr == 0) {
+    env->ThrowError("Cannot dereference a null pointer");
+    return false;
+  }
+
+  *offset = 0;
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!GetValidatedSize(env, args[1], "offset", offset)) {
+      return false;
+    }
+  }
+
+  *ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
+  return true;
+}
+
+bool GetValidatedPointerValueAndOffset(Environment* env,
+                                       const FunctionCallbackInfo<Value>& args,
+                                       uint8_t** ptr,
+                                       Local<Value>* value,
+                                       size_t* offset) {
+  uint64_t raw_ptr;
+  if (args.Length() < 1 ||
+      !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
+    return false;
+  }
+
+  if (raw_ptr == 0) {
+    env->ThrowError("Cannot dereference a null pointer");
+    return false;
+  }
+
+  if (args.Length() < 2 || args[1]->IsUndefined()) {
+    env->ThrowTypeError("Expected an offset argument");
+    return false;
+  }
+
+  if (!GetValidatedSize(env, args[1], "offset", offset)) {
+    return false;
+  }
+
+  if (args.Length() < 3 || args[2]->IsUndefined()) {
+    env->ThrowTypeError("Expected a value argument");
+    return false;
+  }
+
+  *value = args[2];
+
+  *ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
+  return true;
+}
+
+template <typename T>
+void GetValue(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+  Isolate* isolate = env->isolate();
+  uint8_t* ptr;
+  size_t offset;
+
+  if (!GetValidatedPointerAndOffset(env, args, &ptr, &offset)) {
+    return;
+  }
+
+  T value;
+  std::memcpy(&value, ptr + offset, sizeof(value));
+  if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> ||
+                std::is_same_v<T, int32_t>) {
+    args.GetReturnValue().Set(Integer::New(isolate, value));
+  } else if constexpr (std::is_same_v<T, uint8_t> ||
+                       std::is_same_v<T, uint16_t> ||
+                       std::is_same_v<T, uint32_t>) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, value));
+  } else if constexpr (std::is_same_v<T, int64_t>) {
+    args.GetReturnValue().Set(BigInt::New(isolate, value));
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, value));
+  } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+    args.GetReturnValue().Set(Number::New(isolate, value));
+  }
+}
+
+template <typename T>
+void SetValue(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+  uint8_t* ptr;
+  Local<Value> value;
+  size_t offset;
+
+  if (!GetValidatedPointerValueAndOffset(env, args, &ptr, &value, &offset)) {
+    return;
+  }
+
+  T converted;
+  Local<Context> context = env->context();
+
+  if constexpr (std::is_same_v<T, int8_t>) {
+    int64_t validated;
+    if (!GetValidatedSignedInt(
+            env, value, INT8_MIN, INT8_MAX, "int8", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, uint8_t>) {
+    uint64_t validated;
+    if (!GetValidatedUnsignedInt(env, value, UINT8_MAX, "uint8", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, int16_t>) {
+    int64_t validated;
+    if (!GetValidatedSignedInt(
+            env, value, INT16_MIN, INT16_MAX, "int16", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, uint16_t>) {
+    uint64_t validated;
+    if (!GetValidatedUnsignedInt(
+            env, value, UINT16_MAX, "uint16", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, int32_t>) {
+    int64_t validated;
+    if (!GetValidatedSignedInt(
+            env, value, INT32_MIN, INT32_MAX, "int32", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
+    uint64_t validated;
+    if (!GetValidatedUnsignedInt(
+            env, value, UINT32_MAX, "uint32", &validated)) {
+      return;
+    }
+    converted = static_cast<T>(validated);
+  } else if constexpr (std::is_same_v<T, int64_t>) {
+    if (value->IsBigInt()) {
+      converted = static_cast<T>(value.As<BigInt>()->Int64Value());
+    } else if (value->IsNumber()) {
+      int64_t validated;
+      if (!GetValidatedSignedInt(env,
+                                 value,
+                                 -9007199254740991LL,
+                                 9007199254740991LL,
+                                 "int64",
+                                 &validated)) {
+        return;
+      }
+      converted = static_cast<T>(validated);
+    } else {
+      env->ThrowTypeError("Value must be a bigint or a number");
+      return;
+    }
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    if (value->IsBigInt()) {
+      converted = static_cast<T>(value.As<BigInt>()->Uint64Value());
+    } else if (value->IsNumber()) {
+      uint64_t validated;
+      if (!GetValidatedUnsignedInt(
+              env, value, 9007199254740991ULL, "uint64", &validated)) {
+        return;
+      }
+      converted = static_cast<T>(validated);
+    } else {
+      env->ThrowTypeError("Value must be a bigint or a number");
+      return;
+    }
+  } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+    MaybeLocal<Number> number = value->ToNumber(context);
+
+    if (number.IsEmpty()) {
+      env->ThrowTypeError("Value must be a number");
+      return;
+    }
+
+    converted = static_cast<T>(number.ToLocalChecked()->Value());
+  }
+
+  std::memcpy(ptr + offset, &converted, sizeof(converted));
+}
+
+// Raw FFI memory helpers are low-level and unsafe. Pointer validity,
+// lifetime, and zero-copy writable views are the caller's responsibility.
+void GetInt8(const FunctionCallbackInfo<Value>& args) {
+  GetValue<int8_t>(args);
+}
+
+void GetUint8(const FunctionCallbackInfo<Value>& args) {
+  GetValue<uint8_t>(args);
+}
+
+void GetInt16(const FunctionCallbackInfo<Value>& args) {
+  GetValue<int16_t>(args);
+}
+
+void GetUint16(const FunctionCallbackInfo<Value>& args) {
+  GetValue<uint16_t>(args);
+}
+
+void GetInt32(const FunctionCallbackInfo<Value>& args) {
+  GetValue<int32_t>(args);
+}
+
+void GetUint32(const FunctionCallbackInfo<Value>& args) {
+  GetValue<uint32_t>(args);
+}
+
+void GetInt64(const FunctionCallbackInfo<Value>& args) {
+  GetValue<int64_t>(args);
+}
+
+void GetUint64(const FunctionCallbackInfo<Value>& args) {
+  GetValue<uint64_t>(args);
+}
+
+void GetFloat32(const FunctionCallbackInfo<Value>& args) {
+  GetValue<float>(args);
+}
+
+void GetFloat64(const FunctionCallbackInfo<Value>& args) {
+  GetValue<double>(args);
+}
+
+void SetInt8(const FunctionCallbackInfo<Value>& args) {
+  SetValue<int8_t>(args);
+}
+
+void SetUint8(const FunctionCallbackInfo<Value>& args) {
+  SetValue<uint8_t>(args);
+}
+
+void SetInt16(const FunctionCallbackInfo<Value>& args) {
+  SetValue<int16_t>(args);
+}
+
+void SetUint16(const FunctionCallbackInfo<Value>& args) {
+  SetValue<uint16_t>(args);
+}
+
+void SetInt32(const FunctionCallbackInfo<Value>& args) {
+  SetValue<int32_t>(args);
+}
+
+void SetUint32(const FunctionCallbackInfo<Value>& args) {
+  SetValue<uint32_t>(args);
+}
+
+void SetInt64(const FunctionCallbackInfo<Value>& args) {
+  SetValue<int64_t>(args);
+}
+
+void SetUint64(const FunctionCallbackInfo<Value>& args) {
+  SetValue<uint64_t>(args);
+}
+
+void SetFloat32(const FunctionCallbackInfo<Value>& args) {
+  SetValue<float>(args);
+}
+
+void SetFloat64(const FunctionCallbackInfo<Value>& args) {
+  SetValue<double>(args);
+}
+
+void ToString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  // Raw FFI memory helpers are low-level and unsafe. Pointer validity,
+  // lifetime, and zero-copy writable views are the caller's responsibility.
+  // `toString()` requires a valid NUL-terminated C string pointer.
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1 || !args[0]->IsBigInt()) {
+    env->ThrowTypeError("The first argument must be a bigint");
+    return;
+  }
+
+  uint64_t ptr;
+  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+    return;
+  }
+
+  if (ptr == 0) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+
+  const char* str = reinterpret_cast<const char*>(ptr);
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(isolate, str, NewStringType::kNormal)
+          .ToLocalChecked());
+}
+
+void ToBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  // `copy === false` exposes a zero-copy writable view over foreign memory.
+  // This is intentionally unsafe and the caller must guarantee pointer
+  // validity, lifetime, and bounds.
+
+  if (args.Length() < 1 || !args[0]->IsBigInt()) {
+    env->ThrowTypeError("The first argument must be a bigint");
+    return;
+  }
+
+  uint64_t ptr;
+  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+    return;
+  }
+
+  size_t len;
+  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length", &len)) {
+    return;
+  }
+
+  if (ptr == 0 && len > 0) {
+    env->ThrowError("Cannot create a buffer from a null pointer");
+    return;
+  }
+
+  Local<Object> buf;
+  if (args.Length() < 3 || args[2]->BooleanValue(isolate)) {
+    buf = Buffer::Copy(env, reinterpret_cast<char*>(ptr), len).ToLocalChecked();
+  } else {
+    buf = Buffer::New(
+              env,
+              reinterpret_cast<char*>(ptr),
+              len,
+              [](char* data, void* hint) {},
+              nullptr)
+              .ToLocalChecked();
+  }
+
+  args.GetReturnValue().Set(buf);
+}
+
+void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1 || !args[0]->IsBigInt()) {
+    env->ThrowTypeError("The first argument must be a bigint");
+    return;
+  }
+
+  uint64_t ptr;
+  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+    return;
+  }
+
+  size_t len;
+  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length", &len)) {
+    return;
+  }
+
+  if (ptr == 0 && len > 0) {
+    env->ThrowError("Cannot create an ArrayBuffer from a null pointer");
+    return;
+  }
+
+  Local<ArrayBuffer> ab;
+
+  if (args.Length() < 3 || args[2]->BooleanValue(isolate)) {
+    std::unique_ptr<BackingStore> store =
+        ArrayBuffer::NewBackingStore(isolate, len);
+    memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
+    ab = ArrayBuffer::New(isolate, std::move(store));
+  } else {
+    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+        reinterpret_cast<void*>(ptr),
+        len,
+        [](void* data, size_t length, void* deleter_data) {},
+        nullptr);
+
+    ab = ArrayBuffer::New(isolate, std::move(store));
+  }
+
+  args.GetReturnValue().Set(ab);
+}
+
+}  // namespace ffi
+
+}  // namespace node
+
+#endif  // HAVE_FFI

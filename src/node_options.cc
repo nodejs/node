@@ -588,7 +588,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
-#ifdef HAVE_FFI
+#if HAVE_FFI
   AddOption("--experimental-ffi",
             "experimental node:ffi module",
             &EnvironmentOptions::experimental_ffi,
@@ -680,12 +680,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+#if HAVE_FFI
   AddOption("--allow-ffi",
             "allow use of FFI when any permissions are set",
             &EnvironmentOptions::allow_ffi,
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+#endif // HAVE_FFI
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,

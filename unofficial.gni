@@ -207,8 +207,10 @@ template("node_gn_build") {
       deps += [ "deps/sqlite" ]
       sources += gypi_values.node_sqlite_sources
     }
-    if (node_use_ffi) {
+    if (node_use_ffi && !node_shared_ffi) {
       deps += [ "deps/libffi" ]
+    }
+    if (node_use_ffi) {
       sources += gypi_values.node_ffi_sources
     }
     if (node_enable_inspector) {

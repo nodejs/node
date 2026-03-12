@@ -10,9 +10,12 @@ added: REPLACEME
 
 <!-- source_link=lib/ffi.js -->
 
-The `node:ffi` module provides an experimental foreign function interface (FFI)
-for calling functions from dynamic libraries. This API is unsafe and can crash
-the process if used incorrectly.
+The `node:ffi` module provides an experimental foreign function interface for
+loading dynamic libraries and calling native symbols from JavaScript.
+
+This API is unsafe. Passing invalid pointers, using an incorrect symbol
+signature, or accessing memory after it has been freed can crash the process
+or corrupt memory.
 
 To access it:
 
@@ -27,832 +30,513 @@ const ffi = require('node:ffi');
 This module is only available under the `node:` scheme and is gated by the
 `--experimental-ffi` flag.
 
-When using the [Permission Model][], access to this module is restricted unless
-the [`--allow-ffi`][] flag is provided.
+When using the [Permission Model][], FFI APIs are restricted unless the
+[`--allow-ffi`][] flag is provided.
 
-## `dlopen(path, symbols)`
+## Overview
+
+The `node:ffi` module exposes two groups of APIs:
+
+* Dynamic library APIs for loading libraries, resolving symbols, and creating
+  callable JavaScript wrappers.
+* Raw memory helpers for reading and writing primitive values through pointers,
+  converting pointers to JavaScript strings, `Buffer` instances, and
+  `ArrayBuffer` instances, and for copying data back into native memory.
+
+## Type names
+
+FFI signatures use string type names.
+
+Supported type names:
+
+* `void`
+* `i8`, `int8`
+* `u8`, `uint8`, `bool`, `char`
+* `i16`, `int16`
+* `u16`, `uint16`
+* `i32`, `int32`
+* `u32`, `uint32`
+* `i64`, `int64`
+* `u64`, `uint64`
+* `f32`, `float`
+* `f64`, `double`
+* `pointer`, `ptr`
+* `string`, `str`
+* `buffer`
+* `arraybuffer`
+* `function`
+
+Pointer-like types (`pointer`, `string`, `buffer`, `arraybuffer`, and
+`function`) are all passed through the native layer as pointers.
+
+## Signature objects
+
+Functions and callbacks are described with signature objects.
+
+Supported fields:
+
+* `result`, `return`, or `returns` for the return type.
+* `parameters` or `arguments` for the parameter type list.
+
+Only one return-type field and one parameter-list field may be present in a
+single signature object.
+
+```cjs
+const signature = {
+  result: 'i32',
+  parameters: ['i32', 'i32'],
+};
+```
+
+## `ffi.dlopen(path[, definitions])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `path` {string} Path to a dynamic library.
-* `symbols` {Object} A map of symbol names to signature objects.
-* Returns: {Object} A library object with `symbols`, `close()`, and `getSymbol()`.
+* `definitions` {Object} Symbol definitions to resolve immediately.
+* Returns: {Object}
 
-Loads a dynamic library and returns an object with resolved symbols. The
-`symbols` object maps symbol names to signature objects with `parameters` and
-`result` fields.
+Loads a dynamic library and resolves the requested function definitions.
+
+When `definitions` is omitted, `functions` is returned as an empty object until
+symbols are resolved explicitly.
+
+The returned object contains:
+
+* `lib` {DynamicLibrary} The loaded library handle.
+* `functions` {Object} Callable wrappers for the requested symbols.
 
 ```mjs
 import { dlopen } from 'node:ffi';
-const lib = dlopen('libc.so.6', {
-  abs: { parameters: ['i32'], result: 'i32' },
-  strlen: { parameters: ['pointer'], result: 'u64' },
+
+const { lib, functions } = dlopen('./mylib.so', {
+  add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
+  string_length: { parameters: ['pointer'], result: 'u64' },
 });
 
-console.log(lib.symbols.abs(-42));
+console.log(functions.add_i32(20, 22));
 ```
 
 ```cjs
 const { dlopen } = require('node:ffi');
-const lib = dlopen('libc.so.6', {
-  abs: { parameters: ['i32'], result: 'i32' },
-  strlen: { parameters: ['pointer'], result: 'u64' },
+
+const { lib, functions } = dlopen('./mylib.so', {
+  add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
+  string_length: { parameters: ['pointer'], result: 'u64' },
 });
 
-console.log(lib.symbols.abs(-42));
+console.log(functions.add_i32(20, 22));
 ```
 
-### Symbol signatures
+## `ffi.dlclose(handle)`
 
-Each symbol signature is an object with the following fields:
+<!-- YAML
+added: REPLACEME
+-->
 
-* `parameters` {(string|Object)\[]} Array of argument types.
-* `result` {string|Object} Return type.
+* `handle` {DynamicLibrary}
 
-Supported type names:
+Closes a dynamic library.
 
-* `void`
-* `i8`, `u8`
-* `i16`, `u16`
-* `i32`, `u32`
-* `i64`, `u64`
-* `f32`, `f64`
-* `pointer`
-* `bool`
-* `buffer`
-* `function`
-* `usize`, `isize`
-* Struct descriptor objects: `{ struct: [/* field types */] }`
+This is equivalent to calling `handle.close()`.
+
+## `ffi.dlsym(handle, symbol)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handle` {DynamicLibrary}
+* `symbol` {string}
+* Returns: {bigint}
+
+Resolves a symbol address from a loaded library.
+
+This is equivalent to calling `handle.getSymbol(symbol)`.
+
+## Class: `DynamicLibrary`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Represents a loaded dynamic library.
+
+### `new DynamicLibrary(path)`
+
+* `path` {string} Path to a dynamic library.
+
+Loads the dynamic library without resolving any functions eagerly.
+
+```cjs
+const { DynamicLibrary } = require('node:ffi');
+
+const lib = new DynamicLibrary('./mylib.so');
+```
+
+### `library.path`
+
+* {string}
+
+The path used to load the library.
+
+### `library.functions`
+
+* {Object}
+
+An object containing previously resolved function wrappers.
 
 ### `library.symbols`
 
-The `symbols` property contains JavaScript functions for each symbol specified
-in the `symbols` argument. These functions are named and expose the appropriate
-`length` based on the symbol signature.
+* {Object}
+
+An object containing previously resolved symbol addresses as `bigint` values.
 
 ### `library.close()`
 
-Closes the dynamic library handle. After closing, previously resolved symbols
-may no longer be valid.
+Closes the library handle.
+
+After a library has been closed:
+
+* Resolved function wrappers become invalid.
+* Further symbol and function resolution throws.
+* Registered callbacks are invalidated.
+
+Closing a library does not make previously exported callback pointers safe to
+reuse. Node.js does not track or revoke callback pointers that have already
+been handed to native code.
+
+If native code still holds a callback pointer after `library.close()` or after
+`library.unregisterCallback(pointer)`, invoking that pointer has undefined
+behavior, is not allowed, and is dangerous: it can crash the process, produce
+incorrect output, or corrupt memory. Native code must stop using callback
+addresses before the library is closed or before the callback is unregistered.
+
+### `library.getFunction(name, signature)`
+
+* `name` {string}
+* `signature` {Object}
+* Returns: {Function}
+
+Resolves a symbol and returns a callable JavaScript wrapper.
+
+The returned function has a `.pointer` property containing the native function
+address as a `bigint`.
+
+If the same symbol has already been resolved, requesting it again with a
+different signature throws.
+
+```cjs
+const { DynamicLibrary } = require('node:ffi');
+
+const lib = new DynamicLibrary('./mylib.so');
+const add = lib.getFunction('add_i32', {
+  parameters: ['i32', 'i32'],
+  result: 'i32',
+});
+
+console.log(add(20, 22));
+console.log(add.pointer);
+```
+
+### `library.getFunctions([definitions])`
+
+* `definitions` {Object}
+* Returns: {Object}
+
+When `definitions` is provided, resolves each named symbol and returns an
+object containing callable wrappers.
+
+When `definitions` is omitted, returns wrappers for all functions that have
+already been resolved on the library.
 
 ### `library.getSymbol(name)`
 
-* `name` {string} Symbol name.
-* Returns: {PointerObject} An opaque pointer object.
+* `name` {string}
+* Returns: {bigint}
 
-Resolves a symbol and returns a PointerObject that can be used with
-`new UnsafeFnPointer()`.
+Resolves a symbol and returns its native address as a `bigint`.
 
-## PointerObject
+### `library.getSymbols()`
 
-A PointerObject is an opaque, immutable object representing a memory pointer.
-It has a null prototype and cannot be modified. The actual pointer address is
-hidden and can only be accessed through `UnsafePointer.value()`.
+* Returns: {Object}
 
-PointerObjects are created by:
+Returns an object containing all previously resolved symbol addresses.
 
-* `UnsafePointer.create(value)` - Create from BigInt
-* `library.getSymbol(name)` - Get function pointer from library
-* `UnsafePointer.offset(pointer, offset)` - Create offset pointer
+### `library.registerCallback([signature,] callback)`
 
-## Struct types
+* `signature` {Object}
+* `callback` {Function}
+* Returns: {bigint}
 
-Struct types are expressed inline as type descriptors instead of a class.
+Creates a native callback pointer backed by a JavaScript function.
 
-* Struct descriptor: `{ struct: [fieldType1, fieldType2, ...] }`
-* Each field type can be any supported native type string or another struct
-  descriptor.
+When `signature` is omitted, the callback uses a default `void ()` signature.
 
-### Using struct descriptors with `dlopen()`
-
-```mjs
-import { dlopen } from 'node:ffi';
-
-const Point = { struct: ['i32', 'i32'] };
-
-const lib = dlopen('./mylib.so', {
-  make_point: {
-    parameters: ['i32', 'i32'],
-    result: Point,
-  },
-  point_distance_squared: {
-    parameters: [Point, Point],
-    result: 'i32',
-  },
-});
-
-const p = lib.symbols.make_point(3, 4);
-// Struct return values are raw bytes.
-console.log(p instanceof Uint8Array); // true
-
-const q = new Uint8Array(8);
-new DataView(q.buffer).setInt32(0, 0, true);
-new DataView(q.buffer).setInt32(4, 0, true);
-
-console.log(lib.symbols.point_distance_squared(p, q)); // 25
-```
+The return value is the callback pointer address as a `bigint`. It can be
+passed to native functions expecting a callback pointer.
 
 ```cjs
-const { dlopen } = require('node:ffi');
+const { DynamicLibrary } = require('node:ffi');
 
-const Point = { struct: ['i32', 'i32'] };
+const lib = new DynamicLibrary('./mylib.so');
 
-const lib = dlopen('./mylib.so', {
-  make_point: {
-    parameters: ['i32', 'i32'],
-    result: Point,
-  },
-  point_distance_squared: {
-    parameters: [Point, Point],
-    result: 'i32',
-  },
-});
-
-const p = lib.symbols.make_point(3, 4);
-console.log(p instanceof Uint8Array); // true
-```
-
-For struct parameters, pass an `ArrayBuffer` or `ArrayBufferView`
-(`Uint8Array`, `DataView`, etc.) containing bytes that match the target native
-struct layout.
-
-## Class: `UnsafeFnPointer`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Create a callable wrapper around a function pointer.
-
-### `new UnsafeFnPointer(pointer, definition)`
-
-* `pointer` {PointerObject|bigint} A PointerObject or BigInt representing the
-  function pointer address.
-* `definition` {Object} Function signature definition.
-  * `parameters` {(string|Object)\[]} Parameter types.
-  * `result` {string|Object} Return type.
-  * `nonblocking` {boolean} When `true`, function calls will run on a dedicated
-    blocking thread and will return a Promise. **Default:** `false`.
-
-Creates a callable function wrapper around a native function pointer.
-
-```mjs
-import { dlopen, UnsafeFnPointer } from 'node:ffi';
-
-const lib = dlopen('libc.so.6', {});
-const mallocSymbol = lib.getSymbol('malloc');
-
-const malloc = new UnsafeFnPointer(mallocSymbol, {
-  parameters: ['u64'],
-  result: 'pointer',
-});
-
-const ptr = malloc(1024n);
-```
-
-```cjs
-const { dlopen, UnsafeFnPointer } = require('node:ffi');
-
-const lib = dlopen('libc.so.6', {});
-const mallocSymbol = lib.getSymbol('malloc');
-
-const malloc = new UnsafeFnPointer(mallocSymbol, {
-  parameters: ['u64'],
-  result: 'pointer',
-});
-
-const ptr = malloc(1024n);
-```
-
-Instances can be called directly as functions.
-
-## Class: `UnsafeCallback`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Create a native callback that can be passed to FFI functions.
-
-### `new UnsafeCallback(definition, callback)`
-
-* `definition` {Object} Callback signature definition.
-  * `parameters` {string\[]} Parameter types.
-  * `result` {string} Return type.
-* `callback` {Function} JavaScript callback function.
-
-Creates an unsafe callback function pointer.
-
-### `unsafeCallback.definition`
-
-* {Object} The callback signature definition used to create the callback.
-
-### `unsafeCallback.callback`
-
-* {Function} The JavaScript callback function.
-
-### `unsafeCallback.pointer`
-
-* {PointerObject} Native function pointer for the callback.
-
-### `unsafeCallback.ref()`
-
-* Returns: {number} The new reference count.
-
-Increments the callback reference count.
-
-### `unsafeCallback.unref()`
-
-* Returns: {number} The new reference count.
-
-Decrements the callback reference count.
-
-### `unsafeCallback.close()`
-
-Closes the callback and releases native callback resources.
-
-### `UnsafeCallback.threadSafe(definition, callback)`
-
-* `definition` {Object} Callback signature definition.
-* `callback` {Function} JavaScript callback function.
-* Returns: {UnsafeCallback}
-
-Creates an `UnsafeCallback` and calls `ref()` once on the instance.
-
-```mjs
-import { UnsafeCallback, UnsafePointer } from 'node:ffi';
-
-const cb = new UnsafeCallback(
-  { parameters: ['i32', 'i32'], result: 'i32' },
-  (a, b) => a + b,
+const callback = lib.registerCallback(
+  { parameters: ['i32'], result: 'i32' },
+  (value) => value * 2,
 );
-
-const ptr = cb.pointer;
-console.log(UnsafePointer.value(ptr));
-
-cb.close();
 ```
+
+Callbacks are subject to the following restrictions:
+
+* They must be invoked on the same system thread where they were created.
+* They must not throw exceptions.
+* They must not return promises.
+* They must return a value compatible with the declared result type.
+
+### `library.unregisterCallback(pointer)`
+
+* `pointer` {bigint}
+
+Releases a callback previously created with `library.registerCallback()`.
+
+After `library.unregisterCallback(pointer)` returns, invoking that callback
+pointer from native code has undefined behavior, is not allowed, and is
+dangerous: it can crash the process, produce incorrect output, or corrupt
+memory.
+
+### `library.refCallback(pointer)`
+
+* `pointer` {bigint}
+
+Keeps the callback strongly referenced by JavaScript.
+
+### `library.unrefCallback(pointer)`
+
+* `pointer` {bigint}
+
+Allows the callback to become weakly referenced by JavaScript.
+
+If the callback function is later garbage collected, subsequent native
+invocations become a no-op. Non-void return values are zero-initialized before
+returning to native code.
+
+## Calling native functions
+
+Argument conversion depends on the declared FFI type.
+
+For 8-, 16-, and 32-bit integer types and for floating-point types, pass
+JavaScript `number` values that match the declared type.
+
+For 64-bit integer types (`i64` and `u64`), pass JavaScript `bigint` values.
+
+For pointer-like parameters:
+
+* `null` and `undefined` are passed as null pointers.
+* `string` values are copied to temporary NUL-terminated UTF-8 strings for the
+  duration of the call.
+* `Buffer`, typed arrays, and `DataView` instances pass a pointer to their
+  backing memory.
+* `ArrayBuffer` passes a pointer to its backing memory.
+* `bigint` values are passed as raw pointer addresses.
+
+Pointer return values are exposed as `bigint` addresses.
+
+## Primitive memory access helpers
+
+The following helpers read and write primitive values at a native pointer,
+optionally with a byte offset:
+
+* `ffi.getInt8(pointer[, offset])`
+* `ffi.getUint8(pointer[, offset])`
+* `ffi.getInt16(pointer[, offset])`
+* `ffi.getUint16(pointer[, offset])`
+* `ffi.getInt32(pointer[, offset])`
+* `ffi.getUint32(pointer[, offset])`
+* `ffi.getInt64(pointer[, offset])`
+* `ffi.getUint64(pointer[, offset])`
+* `ffi.getFloat32(pointer[, offset])`
+* `ffi.getFloat64(pointer[, offset])`
+* `ffi.setInt8(pointer, offset, value)`
+* `ffi.setUint8(pointer, offset, value)`
+* `ffi.setInt16(pointer, offset, value)`
+* `ffi.setUint16(pointer, offset, value)`
+* `ffi.setInt32(pointer, offset, value)`
+* `ffi.setUint32(pointer, offset, value)`
+* `ffi.setInt64(pointer, offset, value)`
+* `ffi.setUint64(pointer, offset, value)`
+* `ffi.setFloat32(pointer, offset, value)`
+* `ffi.setFloat64(pointer, offset, value)`
+
+These helpers perform direct memory reads and writes. `pointer` must be a
+`bigint` referring to valid readable or writable native memory. `offset`, when
+provided, is interpreted as a byte offset from `pointer`.
+
+The getter helpers return JavaScript `number` values for 8-, 16-, and 32-bit
+integer types and for floating-point types. They return `bigint` values for
+64-bit integer types.
+
+The setter helpers require an explicit byte offset and validate the supplied
+JavaScript value against the target native type before writing it into memory.
+For `setInt64()` and `setUint64()`, `bigint` values are accepted directly;
+numeric inputs must be integers within JavaScript's safe integer range.
 
 ```cjs
-const { UnsafeCallback, UnsafePointer } = require('node:ffi');
+const {
+  getInt32,
+  setInt32,
+} = require('node:ffi');
 
-const cb = new UnsafeCallback(
-  { parameters: ['i32', 'i32'], result: 'i32' },
-  (a, b) => a + b,
-);
-
-const ptr = cb.pointer;
-console.log(UnsafePointer.value(ptr));
-
-cb.close();
+setInt32(ptr, 0, 42);
+console.log(getInt32(ptr, 0));
 ```
 
-## PointerObject
+Like the other raw memory helpers in this module, these APIs do not track
+ownership, bounds, or lifetime. Passing an invalid pointer, using the wrong
+offset, or writing through a stale pointer can corrupt memory or crash the
+process.
 
-A PointerObject is an opaque, immutable object representing a memory pointer.
-It has a null prototype and cannot be modified. The actual pointer address is
-hidden and can only be accessed through `UnsafePointer.value()`.
-
-PointerObjects are created by:
-
-* `UnsafePointer.create(value)` - Create from BigInt
-* `library.getSymbol(name)` - Get function pointer from library
-* `UnsafePointer.offset(pointer, offset)` - Create offset pointer
-
-## Class: `UnsafePointer`
+## `ffi.toString(pointer)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-Utility class providing static methods for working with pointers.
+* `pointer` {bigint}
+* Returns: {string|null}
 
-### `UnsafePointer.create(value)`
+Reads a NUL-terminated UTF-8 string from native memory.
 
-<!-- YAML
-added: REPLACEME
--->
+If `pointer` is `0n`, `null` is returned.
 
-* `value` {bigint} The pointer address.
-* Returns: {PointerObject}
-
-Creates a PointerObject from a numeric pointer address. This is dangerous and
-should only be used when you know the address is valid.
-
-```mjs
-import { UnsafePointer } from 'node:ffi';
-const ptr = UnsafePointer.create(0x12345678n);
-```
+This function does not validate that `pointer` refers to readable memory or
+that the pointed-to data is terminated with `\0`. Passing an invalid pointer,
+a pointer to freed memory, or a pointer to bytes without a terminating NUL can
+read unrelated memory, crash the process, or produce truncated or garbled
+output.
 
 ```cjs
-const { UnsafePointer } = require('node:ffi');
-const ptr = UnsafePointer.create(0x12345678n);
+const { toString } = require('node:ffi');
+
+const value = toString(ptr);
 ```
 
-### `UnsafePointer.value(pointer)`
+## `ffi.toBuffer(pointer, length[, copy])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `pointer` {PointerObject} The pointer to extract the address from.
-* Returns: {bigint}
+* `pointer` {bigint}
+* `length` {number}
+* `copy` {boolean} When `false`, creates a zero-copy view. **Default:** `true`.
+* Returns: {Buffer}
 
-Returns the numeric address of a PointerObject.
+Creates a `Buffer` from native memory.
 
-```mjs
-import { UnsafePointer } from 'node:ffi';
-const ptr = UnsafePointer.create(0x12345678n);
-const addr = UnsafePointer.value(ptr);
-console.log(addr); // 0x12345678n
-```
+When `copy` is `true`, the returned `Buffer` owns its own copied memory.
+When `copy` is `false`, the returned `Buffer` references the original native
+memory directly.
 
-```cjs
-const { UnsafePointer } = require('node:ffi');
-const ptr = UnsafePointer.create(0x12345678n);
-const addr = UnsafePointer.value(ptr);
-console.log(addr); // 0x12345678n
-```
+Using `copy: false` is a zero-copy escape hatch. The returned `Buffer` is a
+writable view onto foreign memory, so writes in JavaScript update the original
+native memory directly. The caller must guarantee that:
 
-### `UnsafePointer.offset(pointer, offset)`
+* `pointer` remains valid for the entire lifetime of the returned `Buffer`.
+* `length` stays within the allocated native region.
+* no native code frees or repurposes that memory while JavaScript still uses
+  the `Buffer`.
 
-<!-- YAML
-added: REPLACEME
--->
+If these guarantees are not met, reading or writing the `Buffer` can corrupt
+memory or crash the process.
 
-* `pointer` {PointerObject} The base pointer.
-* `offset` {number|bigint} The byte offset.
-* Returns: {PointerObject}
-
-Returns a new PointerObject offset from the original by the specified number
-of bytes.
-
-```mjs
-import { UnsafePointer } from 'node:ffi';
-const ptr = UnsafePointer.create(0x1000n);
-const offsetPtr = UnsafePointer.offset(ptr, 16);
-const addr = UnsafePointer.value(offsetPtr);
-console.log(addr); // 0x1010n
-```
-
-```cjs
-const { UnsafePointer } = require('node:ffi');
-const ptr = UnsafePointer.create(0x1000n);
-const offsetPtr = UnsafePointer.offset(ptr, 16);
-const addr = UnsafePointer.value(offsetPtr);
-console.log(addr); // 0x1010n
-```
-
-### `UnsafePointer.equals(a, b)`
+## `ffi.toArrayBuffer(pointer, length[, copy])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `a` {PointerObject} The first pointer.
-* `b` {PointerObject} The second pointer.
-* Returns: {boolean}
-
-Returns `true` if the two pointers point to the same address.
-
-```mjs
-import { UnsafePointer } from 'node:ffi';
-const ptr1 = UnsafePointer.create(0x1000n);
-const ptr2 = UnsafePointer.create(0x1000n);
-const ptr3 = UnsafePointer.create(0x2000n);
-
-console.log(UnsafePointer.equals(ptr1, ptr2)); // true
-console.log(UnsafePointer.equals(ptr1, ptr3)); // false
-```
-
-```cjs
-const { UnsafePointer } = require('node:ffi');
-const ptr1 = UnsafePointer.create(0x1000n);
-const ptr2 = UnsafePointer.create(0x1000n);
-const ptr3 = UnsafePointer.create(0x2000n);
-
-console.log(UnsafePointer.equals(ptr1, ptr2)); // true
-console.log(UnsafePointer.equals(ptr1, ptr3)); // false
-```
-
-## Class: `UnsafePointerView`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Provides a DataView-like interface for reading and writing values at memory
-locations specified by PointerObjects. This class implements the JavaScript
-[`DataView`][] interface along with additional methods for FFI operations.
-
-**Warning**: This API is extremely dangerous. Incorrect usage can lead to
-memory corruption, crashes, and security vulnerabilities.
-
-### `new UnsafePointerView(pointer)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `pointer` {PointerObject} A pointer to the memory location.
-
-Creates a new UnsafePointerView for the specified pointer.
-
-```mjs
-import { UnsafePointer, UnsafePointerView } from 'node:ffi';
-const ptr = UnsafePointer.create(0x1000n);
-const view = new UnsafePointerView(ptr);
-```
-
-```cjs
-const { UnsafePointer, UnsafePointerView } = require('node:ffi');
-const ptr = UnsafePointer.create(0x1000n);
-const view = new UnsafePointerView(ptr);
-```
-
-### `view.getInt8([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads a signed 8-bit integer from the specified offset.
-
-### `view.getUint8([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads an unsigned 8-bit integer from the specified offset.
-
-### `view.getInt16([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads a signed 16-bit integer from the specified offset.
-
-### `view.getUint16([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads an unsigned 16-bit integer from the specified offset.
-
-### `view.getInt32([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads a signed 32-bit integer from the specified offset.
-
-### `view.getUint32([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads an unsigned 32-bit integer from the specified offset.
-
-### `view.getBigInt64([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {bigint}
-
-Reads a signed 64-bit integer from the specified offset.
-
-### `view.getBigUint64([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {bigint}
-
-Reads an unsigned 64-bit integer from the specified offset.
-
-### `view.getFloat32([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads a 32-bit floating point number from the specified offset.
-
-### `view.getFloat64([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {number}
-
-Reads a 64-bit floating point number from the specified offset.
-
-### `view.setInt8(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a signed 8-bit integer to the specified offset.
-
-### `view.setUint8(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes an unsigned 8-bit integer to the specified offset.
-
-### `view.setInt16(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a signed 16-bit integer to the specified offset.
-
-### `view.setUint16(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes an unsigned 16-bit integer to the specified offset.
-
-### `view.setInt32(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a signed 32-bit integer to the specified offset.
-
-### `view.setUint32(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes an unsigned 32-bit integer to the specified offset.
-
-### `view.setBigInt64(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {bigint} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a signed 64-bit integer to the specified offset.
-
-### `view.setBigUint64(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {bigint} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes an unsigned 64-bit integer to the specified offset.
-
-### `view.setFloat32(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a 32-bit floating point number to the specified offset.
-
-### `view.setFloat64(value, offset)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The value to write.
-* `offset` {number|bigint} Byte offset from the pointer.
-
-Writes a 64-bit floating point number to the specified offset.
-
-### `view.getBool([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {boolean}
-
-Reads a boolean value from the specified offset.
-
-### `view.getCString([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {string}
-
-Reads a null-terminated UTF-8 string from the specified offset. Reading stops
-at the first null byte.
-
-```mjs
-import { UnsafePointer, UnsafePointerView, dlopen } from 'node:ffi';
-
-const lib = dlopen('libc.so.6', {
-  getenv: { parameters: ['pointer'], result: 'pointer' },
-});
-
-// Assuming getenv returns a pointer to a C string
-const resultPtr = lib.symbols.getenv(stringToPointer('PATH'));
-const view = new UnsafePointerView(resultPtr);
-const path = view.getCString();
-console.log(path);
-```
-
-```cjs
-const { UnsafePointer, UnsafePointerView, dlopen } = require('node:ffi');
-
-const lib = dlopen('libc.so.6', {
-  getenv: { parameters: ['pointer'], result: 'pointer' },
-});
-
-const resultPtr = lib.symbols.getenv(stringToPointer('PATH'));
-const view = new UnsafePointerView(resultPtr);
-const path = view.getCString();
-console.log(path);
-```
-
-### `view.getPointer([offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {PointerObject}
-
-Reads a pointer value from the specified offset and returns it as a
-PointerObject.
-
-### `view.copyInto(destination[, offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `destination` {TypedArray|DataView} The destination to copy into.
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-
-Copies memory from the pointer into the destination TypedArray or DataView.
-The number of bytes copied is determined by the destination's `byteLength`.
-
-```mjs
-import { UnsafePointer, UnsafePointerView } from 'node:ffi';
-
-const ptr = UnsafePointer.create(0x1000n);
-const view = new UnsafePointerView(ptr);
-const buffer = new Uint8Array(16);
-view.copyInto(buffer); // Copies 16 bytes
-```
-
-```cjs
-const { UnsafePointer, UnsafePointerView } = require('node:ffi');
-
-const ptr = UnsafePointer.create(0x1000n);
-const view = new UnsafePointerView(ptr);
-const buffer = new Uint8Array(16);
-view.copyInto(buffer); // Copies 16 bytes
-```
-
-### `view.getArrayBuffer(byteLength[, offset])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `byteLength` {number} Number of bytes to include in the ArrayBuffer.
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
+* `pointer` {bigint}
+* `length` {number}
+* `copy` {boolean} When `false`, creates a zero-copy view. **Default:** `true`.
 * Returns: {ArrayBuffer}
 
-Returns an ArrayBuffer view of the memory at the pointer. The returned
-ArrayBuffer does not own the memory and modifications are reflected in the
-original memory location.
+Creates an `ArrayBuffer` from native memory.
 
-**Warning**: The returned ArrayBuffer does not prevent the underlying memory
-from being freed. Ensure the memory remains valid while using the ArrayBuffer.
+When `copy` is `true`, the returned `ArrayBuffer` contains copied bytes.
+When `copy` is `false`, the returned `ArrayBuffer` references the original
+native memory directly.
 
-### `UnsafePointerView.getCString(pointer[, offset])`
+The same lifetime and bounds requirements described for
+[`ffi.toBuffer(pointer, length[, copy])`][] apply here. With `copy: false`, the
+returned `ArrayBuffer` is a zero-copy view of foreign memory and is only safe
+while that memory remains allocated, unchanged in layout, and valid for the
+entire exposed range.
 
-<!-- YAML
-added: REPLACEME
--->
-
-* `pointer` {PointerObject} The pointer to read from.
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {string}
-
-Static method to read a null-terminated UTF-8 string from the specified
-pointer without creating an UnsafePointerView instance.
-
-```mjs
-import { UnsafePointer, UnsafePointerView } from 'node:ffi';
-const ptr = UnsafePointer.create(0x1000n);
-const str = UnsafePointerView.getCString(ptr);
-```
-
-```cjs
-const { UnsafePointer, UnsafePointerView } = require('node:ffi');
-const ptr = UnsafePointer.create(0x1000n);
-const str = UnsafePointerView.getCString(ptr);
-```
-
-### `UnsafePointerView.copyInto(pointer, destination[, offset])`
+## `ffi.exportString(string, pointer, length[, encoding])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `pointer` {PointerObject} The pointer to read from.
-* `destination` {TypedArray|DataView} The destination to copy into.
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
+* `string` {string}
+* `pointer` {bigint}
+* `length` {number}
+* `encoding` {string} **Default:** `'utf8'`.
 
-Static method to copy memory from the pointer into the destination without
-creating an UnsafePointerView instance.
+Copies a JavaScript string into native memory and appends a trailing NUL byte
+when space is available.
 
-### `UnsafePointerView.getArrayBuffer(pointer, byteLength[, offset])`
+If `length` is too small, the string is truncated to fit.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+`string` must be a JavaScript string. `encoding` must be a string.
+
+## `ffi.exportBuffer(buffer, pointer, length)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `pointer` {PointerObject} The pointer to read from.
-* `byteLength` {number} Number of bytes to include in the ArrayBuffer.
-* `offset` {number|bigint} Byte offset from the pointer. **Default:** `0`.
-* Returns: {ArrayBuffer}
+* `buffer` {Buffer}
+* `pointer` {bigint}
+* `length` {number}
 
-Static method to create an ArrayBuffer view of the memory at the pointer
-without creating an UnsafePointerView instance.
+Copies bytes from a `Buffer` into native memory.
+
+If `length` is smaller than `buffer.length`, only the first `length` bytes are
+copied.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+`buffer` must be a Node.js `Buffer`.
+
+## Safety notes
+
+The `node:ffi` module does not track pointer validity, memory ownership, or
+native object lifetimes.
+
+In particular:
+
+* Do not read from or write to freed memory.
+* Do not use zero-copy views after the native memory has been released.
+* Do not declare incorrect signatures for native symbols.
+* Do not unregister callbacks while native code may still call them.
+* Do not call callback pointers after `library.close()` or
+  `library.unregisterCallback(pointer)`.
+* Assume undefined callback behavior can crash the process, produce incorrect
+  output, or corrupt memory.
+* Do not assume pointer return values imply ownership; whether the caller must
+  free the returned address depends entirely on the native API.
+
+As a general rule, prefer copied values unless zero-copy access is required,
+and keep callback and pointer lifetimes explicit on the native side.
 
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
-[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`ffi.toBuffer(pointer, length[, copy])`]: #ffitobufferpointer-length-copy

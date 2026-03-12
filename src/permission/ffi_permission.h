@@ -20,7 +20,7 @@ class FFIPermission final : public PermissionBase {
                   const std::string_view& param = "") const override;
 
  private:
-  bool deny_all_;
+  bool deny_all_ = false;
 };
 
 }  // namespace permission

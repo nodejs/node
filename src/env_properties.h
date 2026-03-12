@@ -407,10 +407,7 @@
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
-  V(ffi_unsafe_callback_constructor_template, v8::FunctionTemplate)            \
-  V(ffi_unsafe_fn_pointer_constructor_template, v8::FunctionTemplate)          \
-  V(ffi_unsafe_pointer_constructor_template, v8::FunctionTemplate)             \
-  V(ffi_unsafe_pointer_view_constructor_template, v8::FunctionTemplate)        \
+  V(ffi_function_constructor_template, v8::FunctionTemplate)                   \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \

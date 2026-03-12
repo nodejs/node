@@ -199,16 +199,16 @@ added: REPLACEME
 
 > Stability: 1.1 - Active development
 
-When using the [Permission Model][], the process will not be able to use
-`node:ffi` by default. Attempts to use FFI APIs will throw an
-`ERR_ACCESS_DENIED` exception unless the user explicitly passes the
-`--allow-ffi` flag when starting Node.js.
+When using the [Permission Model][], the process will not be able to use FFI
+APIs by default. Attempts to use FFI APIs will throw an `ERR_ACCESS_DENIED`
+exception unless the user explicitly passes the `--allow-ffi` flag when
+starting Node.js.
 
 Example:
 
 ```js
-const { UnsafePointer } = require('node:ffi');
-const pointer = UnsafePointer.create(0n);
+const { DynamicLibrary } = require('node:ffi');
+const lib = new DynamicLibrary('mylib.so');
 ```
 
 ```console
@@ -262,9 +262,9 @@ $ node --permission -r custom-require.js -r custom-require-2.js index.js
   by default in the allowed read list.
 
 ```js
-process.has('fs.read', 'index.js'); // true
-process.has('fs.read', 'custom-require.js'); // true
-process.has('fs.read', 'custom-require-2.js'); // true
+process.permission.has('fs.read', 'index.js'); // true
+process.permission.has('fs.read', 'custom-require.js'); // true
+process.permission.has('fs.read', 'custom-require-2.js'); // true
 ```
 
 ### `--allow-fs-write`
@@ -2219,6 +2219,7 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
+* FFI - manageable through [`--allow-ffi`][] flag
 
 ### `--permission-audit`
 

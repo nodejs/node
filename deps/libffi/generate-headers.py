@@ -1,128 +1,200 @@
 #!/usr/bin/env python3
 
-import os
+import argparse
 import sys
-import shutil
-import re
-import platform
+from pathlib import Path
 
-def generate_headers(output_dir):
-    """Generate minimal libffi headers."""
-    os.makedirs(output_dir, exist_ok=True)
 
-    base_dir = os.path.dirname(__file__)
+LIBFFI_VERSION = '3.5.2'
+LIBFFI_VERSION_NUMBER = '30502'
 
-    # Copy common headers from msvc_build/aarch64
-    msvc_dir = os.path.join(base_dir, 'msvc_build', 'aarch64', 'aarch64_include')
-    common_headers = ['ffi.h', 'fficonfig.h']
+TARGETS = {
+    ('freebsd', 'arm'): ('ARM', 'arm'),
+    ('freebsd', 'arm64'): ('AARCH64', 'aarch64'),
+    ('freebsd', 'ia32'): ('X86_FREEBSD', 'x86'),
+    ('freebsd', 'x64'): ('X86_64', 'x86'),
+    ('freebsd', 'x86'): ('X86_FREEBSD', 'x86'),
+    ('linux', 'arm'): ('ARM', 'arm'),
+    ('linux', 'arm64'): ('AARCH64', 'aarch64'),
+    ('linux', 'ia32'): ('X86', 'x86'),
+    ('linux', 'x64'): ('X86_64', 'x86'),
+    ('linux', 'x86'): ('X86', 'x86'),
+    ('mac', 'arm64'): ('AARCH64', 'aarch64'),
+    ('mac', 'x64'): ('X86_64', 'x86'),
+    ('win', 'arm'): ('ARM_WIN32', 'arm'),
+    ('win', 'arm64'): ('ARM_WIN64', 'aarch64'),
+    ('win', 'ia32'): ('X86', 'x86'),
+    ('win', 'x64'): ('X86_WIN64', 'x86'),
+}
 
-    for header in common_headers:
-        src = os.path.join(msvc_dir, header)
-        dst = os.path.join(output_dir, header)
 
-        if os.path.exists(src):
-            shutil.copy2(src, dst)
-            print(f'Copied {header}')
-        else:
-            print(f'Warning: {src} not found', file=sys.stderr)
+def get_target(os_name, target_arch):
+    try:
+        return TARGETS[(os_name, target_arch)]
+    except KeyError as exc:
+        supported = ', '.join(
+            f'{os_name}/{arch}' for os_name, arch in sorted(TARGETS))
+        raise ValueError(
+            f'Unsupported libffi target {os_name}/{target_arch}. '
+            f'Supported targets: {supported}.') from exc
 
-    # On macOS, we need to enable FFI_EXEC_TRAMPOLINE_TABLE for W^X compliance
-    if platform.system() == 'Darwin':
-        fficonfig_h_path = os.path.join(output_dir, 'fficonfig.h')
-        if os.path.exists(fficonfig_h_path):
-            with open(fficonfig_h_path, 'r') as f:
-                content = f.read()
 
-            # Replace #undef FFI_EXEC_TRAMPOLINE_TABLE with #define
-            content = content.replace(
-                '/* #undef FFI_EXEC_TRAMPOLINE_TABLE */',
-                '#define FFI_EXEC_TRAMPOLINE_TABLE 1'
-            )
+def has_long_double(os_name, target_arch):
+    if os_name == 'win':
+        return '0'
 
-            with open(fficonfig_h_path, 'w') as f:
-                f.write(content)
-            print('Patched fficonfig.h to enable FFI_EXEC_TRAMPOLINE_TABLE for macOS')
+    if os_name == 'mac' and target_arch == 'arm64':
+        return '0'
 
-        # Also fix ffi.h to use FFI_EXEC_TRAMPOLINE_TABLE instead of hardcoded #if 0
-        ffi_h_path = os.path.join(output_dir, 'ffi.h')
-        if os.path.exists(ffi_h_path):
-            with open(ffi_h_path, 'r') as f:
-                content = f.read()
+    if target_arch == 'arm':
+        return '0'
 
-            # Replace the #if 0 with #if FFI_EXEC_TRAMPOLINE_TABLE for trampoline fields
-            content = content.replace(
-                '''typedef struct {
-#if 0
-  void *trampoline_table;
-  void *trampoline_table_entry;
-#else
-  char tramp[FFI_TRAMPOLINE_SIZE];
-#endif''',
-                '''typedef struct {
-#if FFI_EXEC_TRAMPOLINE_TABLE
-  void *trampoline_table;
-  void *trampoline_table_entry;
-#else
-  char tramp[FFI_TRAMPOLINE_SIZE];
-#endif'''
-            )
+    return '1'
 
-            with open(ffi_h_path, 'w') as f:
-                f.write(content)
-            print('Patched ffi.h to conditionally enable trampoline_table fields for macOS')
 
-    # Now patch ffi.h to add missing defines if needed
-    ffi_h_path = os.path.join(output_dir, 'ffi.h')
-    if os.path.exists(ffi_h_path):
-        with open(ffi_h_path, 'r') as f:
-            content = f.read()
+def uses_exec_trampoline_table(os_name, target_arch):
+    return os_name == 'mac' and target_arch in ('arm', 'arm64')
 
-        # Fix ffi_status enum to include FFI_BAD_ARGTYPE (needed for newer libffi sources)
-        old_enum = '''typedef enum {
-  FFI_OK = 0,
-  FFI_BAD_TYPEDEF,
-  FFI_BAD_ABI
-} ffi_status;'''
 
-        new_enum = '''typedef enum {
-  FFI_OK = 0,
-  FFI_BAD_TYPEDEF,
-  FFI_BAD_ABI,
-  FFI_BAD_ARGTYPE
-} ffi_status;'''
+def render_ffi_header(base_dir, os_name, target_arch, target):
+    template = (base_dir / 'include' / 'ffi.h.in').read_text(encoding='utf-8')
+    replacements = {
+        '@FFI_EXEC_TRAMPOLINE_TABLE@':
+            '1' if uses_exec_trampoline_table(os_name, target_arch) else '0',
+        '@FFI_VERSION_NUMBER@': LIBFFI_VERSION_NUMBER,
+        '@FFI_VERSION_STRING@': LIBFFI_VERSION,
+        '@HAVE_LONG_DOUBLE@': has_long_double(os_name, target_arch),
+        '@TARGET@': target,
+        '@VERSION@': LIBFFI_VERSION,
+    }
 
-        if old_enum in content:
-            content = content.replace(old_enum, new_enum)
-            print('Patched ffi.h with FFI_BAD_ARGTYPE enum value')
+    for source, replacement in replacements.items():
+        template = template.replace(source, replacement)
 
-        # Add version macros right before the final #endif if not present
-        if 'FFI_VERSION_STRING' not in content:
-            version_patch = '\n#define FFI_VERSION_STRING "3.5.2"\n#define FFI_VERSION_NUMBER 350002UL\n'
-            # Insert before the final #endif
-            if content.endswith('\n#endif\n'):
-                content = content[:-8] + version_patch + '#endif\n'
-            elif content.endswith('#endif'):
-                content = content[:-6] + version_patch + '#endif'
-            else:
-                content = content.rstrip() + version_patch
-            print('Patched ffi.h with version defines')
+    return template
 
-        with open(ffi_h_path, 'w') as f:
-            f.write(content)
 
-    # Copy platform-specific ffitarget.h from src/aarch64
-    ffitarget_src = os.path.join(base_dir, 'src', 'aarch64', 'ffitarget.h')
-    ffitarget_dst = os.path.join(output_dir, 'ffitarget.h')
+def render_fficonfig(os_name, target_arch):
+    lines = [
+        '/* Auto-generated by generate-headers.py. */',
+        '#ifndef LIBFFI_FFICONFIG_H_',
+        '#define LIBFFI_FFICONFIG_H_',
+        '',
+        '#define HAVE_ALLOCA 1',
+        '#define HAVE_MEMCPY 1',
+        '#define HAVE_MEMORY_H 1',
+        '#define HAVE_STDINT_H 1',
+        '#define HAVE_STRING_H 1',
+        '#define STDC_HEADERS 1',
+    ]
 
-    if os.path.exists(ffitarget_src):
-        shutil.copy2(ffitarget_src, ffitarget_dst)
-        print(f'Copied ffitarget.h from aarch64')
-    else:
-        print(f'Warning: {ffitarget_src} not found', file=sys.stderr)
+    if os_name != 'win':
+        lines.extend([
+            '#define HAVE_AS_CFI_PSEUDO_OP 1',
+            '#define HAVE_HIDDEN_VISIBILITY_ATTRIBUTE 1',
+            '#define HAVE_MKOSTEMP 1',
+            '#define HAVE_RO_EH_FRAME 1',
+            '#define EH_FRAME_FLAGS "a"',
+        ])
+
+    if target_arch in ('x64', 'x86') and os_name != 'win':
+        lines.append('#define HAVE_AS_X86_PCREL 1')
+
+    if uses_exec_trampoline_table(os_name, target_arch):
+        lines.append('#define FFI_EXEC_TRAMPOLINE_TABLE 1')
+    elif os_name in ('freebsd', 'mac'):
+        lines.append('#define FFI_MMAP_EXEC_WRIT 1')
+
+    if os_name == 'linux':
+        lines.extend([
+            '#define HAVE_DLFCN_H 1',
+            '#define HAVE_MMAP 1',
+            '#define HAVE_MMAP_ANON 1',
+            '#define HAVE_MMAP_FILE 1',
+            '#define HAVE_SYS_MMAN_H 1',
+            '#define HAVE_UNISTD_H 1',
+        ])
+    elif os_name in ('freebsd', 'mac'):
+        lines.extend([
+            '#define HAVE_DLFCN_H 1',
+            '#define HAVE_MMAP 1',
+            '#define HAVE_MMAP_ANON 1',
+            '#define HAVE_MMAP_DEV_ZERO 1',
+            '#define HAVE_MMAP_FILE 1',
+            '#define HAVE_SYS_MMAN_H 1',
+            '#define HAVE_UNISTD_H 1',
+        ])
+
+    if os_name == 'mac' and target_arch == 'arm64':
+        lines.extend([
+            '#if defined(__arm64e__)',
+            '#define HAVE_ARM64E_PTRAUTH 1',
+            '#endif',
+        ])
+
+    lines.extend([
+        '',
+        '#ifdef HAVE_HIDDEN_VISIBILITY_ATTRIBUTE',
+        '#ifdef LIBFFI_ASM',
+        '#ifdef __APPLE__',
+        '#define FFI_HIDDEN(name) .private_extern name',
+        '#else',
+        '#define FFI_HIDDEN(name) .hidden name',
+        '#endif',
+        '#else',
+        '#define FFI_HIDDEN __attribute__ ((visibility ("hidden")))',
+        '#endif',
+        '#else',
+        '#ifdef LIBFFI_ASM',
+        '#define FFI_HIDDEN(name)',
+        '#else',
+        '#define FFI_HIDDEN',
+        '#endif',
+        '#endif',
+        '',
+        '#endif  /* LIBFFI_FFICONFIG_H_ */',
+        '',
+    ])
+
+    return '\n'.join(lines)
+
+
+def generate_headers(output_dir, target_arch, os_name):
+    base_dir = Path(__file__).resolve().parent
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    target, target_dir = get_target(os_name, target_arch)
+    ffitarget_src = base_dir / 'src' / target_dir / 'ffitarget.h'
+    if not ffitarget_src.exists():
+        raise FileNotFoundError(f'Missing libffi target header: {ffitarget_src}')
+
+    (output_dir / 'ffi.h').write_text(
+        render_ffi_header(base_dir, os_name, target_arch, target),
+        encoding='utf-8')
+    (output_dir / 'fficonfig.h').write_text(
+        render_fficonfig(os_name, target_arch),
+        encoding='utf-8')
+    (output_dir / 'ffitarget.h').write_text(
+        ffitarget_src.read_text(encoding='utf-8'),
+        encoding='utf-8')
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='Generate libffi headers')
+    parser.add_argument('--output-dir', required=True)
+    parser.add_argument('--target-arch', required=True)
+    parser.add_argument('--os', required=True)
+    args = parser.parse_args(argv)
+
+    try:
+        generate_headers(args.output_dir, args.target_arch, args.os)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(exc, file=sys.stderr)
+        return 1
+
+    return 0
+
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        generate_headers(sys.argv[1])
-    else:
-        print('Usage: generate-headers.py <output_dir>', file=sys.stderr)
-        sys.exit(1)
+    sys.exit(main())

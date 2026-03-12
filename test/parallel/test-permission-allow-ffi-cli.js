@@ -9,4 +9,5 @@ skipIfFFIMissing();
 const ffi = require('node:ffi');
 
 assert.ok(process.permission.has('ffi'));
-ffi.UnsafePointer.create(0n);
+assert.strictEqual(typeof ffi.DynamicLibrary, 'function');
+assert.strictEqual(ffi.toString(0n), null);

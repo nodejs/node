@@ -545,7 +545,8 @@ endif
 FFI_BINDING_GYPS := $(wildcard test/ffi/*/binding.gyp)
 
 FFI_BINDING_SOURCES := \
-	$(wildcard test/ffi/*/*.c)
+	$(wildcard test/ffi/*/*.c) \
+	$(wildcard test/ffi/*/*.def)
 
 # Implicitly depends on $(NODE_EXE), see the build-ffi-tests rule for rationale.
 test/ffi/.buildstamp: $(ADDONS_PREREQS) \

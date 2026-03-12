@@ -18,7 +18,7 @@
           'variables': {
             'libffi_arch_sources': [
               'src/x86/ffiw64.c',
-              'src/x86/win64.S',
+              'src/x86/win64_intel.S',
             ],
             'libffi_defines': [
               'LIBFFI_HIDE_BASIC_TYPES',
@@ -28,9 +28,8 @@
         ['target_arch == "arm"', {
           'variables': {
             'libffi_arch_sources': [
-              'src/arm/sysv.c',
-              'src/arm/armeabi.c',
-              'src/arm/win32.c',
+              'src/arm/ffi.c',
+              'src/arm/sysv_msvc_arm32.S',
             ],
             'libffi_defines': [
               'LIBFFI_HIDE_BASIC_TYPES',
@@ -40,15 +39,15 @@
         ['target_arch == "arm64"', {
           'variables': {
             'libffi_arch_sources': [
-              'src/aarch64/sysv.c',
-              'src/aarch64/win64_armasm.c',
+              'src/aarch64/ffi.c',
+              'src/aarch64/win64_armasm.S',
             ],
             'libffi_defines': [
               'LIBFFI_HIDE_BASIC_TYPES',
             ],
           },
         }],
-        ['target_arch == "x86"', {
+        ['target_arch == "ia32" or target_arch == "x86"', {
           # Windows x86 is not supported by libffi
           'variables': {
             'libffi_arch_sources': [],
@@ -66,7 +65,7 @@
             ],
           },
         }],
-        ['target_arch == "x86"', {
+        ['target_arch == "ia32" or target_arch == "x86"', {
           'variables': {
             'libffi_arch_sources': [
               'src/x86/ffi.c',
@@ -138,6 +137,10 @@
           'action_name': 'generate_libffi_headers',
           'inputs': [
             'generate-headers.py',
+            'include/ffi.h.in',
+            'src/aarch64/ffitarget.h',
+            'src/arm/ffitarget.h',
+            'src/x86/ffitarget.h',
           ],
           'outputs': [
             '<(INTERMEDIATE_DIR)/ffi.h',
@@ -147,7 +150,9 @@
           'action': [
             '<(python)',
             'generate-headers.py',
-            '<(INTERMEDIATE_DIR)',
+            '--output-dir=<(INTERMEDIATE_DIR)',
+            '--target-arch=<(target_arch)',
+            '--os=<(OS)',
           ],
         },
       ],
