@@ -286,6 +286,11 @@
       'openssl/crypto/cms/cms_rsa.c',
       'openssl/crypto/cms/cms_sd.c',
       'openssl/crypto/cms/cms_smime.c',
+      'openssl/crypto/comp/c_brotli.c',
+      'openssl/crypto/comp/c_zlib.c',
+      'openssl/crypto/comp/c_zstd.c',
+      'openssl/crypto/comp/comp_err.c',
+      'openssl/crypto/comp/comp_lib.c',
       'openssl/crypto/conf/conf_api.c',
       'openssl/crypto/conf/conf_def.c',
       'openssl/crypto/conf/conf_err.c',
@@ -1112,6 +1117,20 @@
     'openssl_defines_VC-WIN32': [
       'NDEBUG',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
+      'OPENSSL_SYS_WIN32',
+      'WIN32_LEAN_AND_MEAN',
+      'UNICODE',
+      '_UNICODE',
+      '_CRT_SECURE_NO_DEPRECATE',
+      '_WINSOCK_DEPRECATED_NO_WARNINGS',
+      'OPENSSL_PIC',
+    ],
+    'openssl_defines_exported_VC-WIN32': [
+      'NDEBUG',
+      'OPENSSL_BUILDING_OPENSSL',
       'OPENSSL_SYS_WIN32',
       'WIN32_LEAN_AND_MEAN',
       'UNICODE',
@@ -1126,7 +1145,7 @@
       '/W3 /wd4090 /nologo /O2',
     ],
     'openssl_ex_libs_VC-WIN32': [
-      'ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',
+      'ZLIB1 libzstd brotlicommon.lib brotlidec.lib brotlienc.lib ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',
     ],
   },
   'include_dirs': [
@@ -1141,6 +1160,6 @@
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_VC-WIN32)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],
-    'defines': ['<@(openssl_defines_VC-WIN32)'],
+    'defines': ['<@(openssl_defines_exported_VC-WIN32)'],
   },
 }

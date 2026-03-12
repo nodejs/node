@@ -3,6 +3,9 @@
     'openssl_defines_VC-WIN64-ARM': [
       'NDEBUG',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_SYS_WIN32',
       'WIN32_LEAN_AND_MEAN',
       'UNICODE',
