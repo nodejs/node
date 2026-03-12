@@ -251,8 +251,11 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
   uint64_t value = uv_get_constrained_memory();
-  // UINT64_MAX means a constraining mechanism exists but no limit is set.
-  // Map to 0 per documented behavior: "If there is no constraint, 0 is returned."
+  // When cgroups are enabled but no memory limit is set (e.g. a default
+  // Docker container without --memory), libuv returns UINT64_MAX instead of 0.
+  // UINT64_MAX is not a meaningful memory constraint, so map it to 0 to
+  // indicate "no constraint", consistent with the documented behavior of
+  // process.constrainedMemory(): "If there is no constraint, 0 is returned."
   if (value == UINT64_MAX) value = 0;
   args.GetReturnValue().Set(static_cast<double>(value));
 }
