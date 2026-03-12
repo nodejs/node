@@ -100,6 +100,28 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
+  for (const isolation of ['process', 'none']) {
+    it(`should preserve cancelled queued subtest order without randomization (${isolation})`, async () => {
+      const stream = run({
+        files: [fixtures.path('test-runner', 'cancelled-report-order.mjs')],
+        isolation,
+      });
+      const cancelledNames = [];
+
+      stream.on('test:fail', ({ name, details }) => {
+        if (name === 'second' || name === 'third') {
+          cancelledNames.push(name);
+          assert.strictEqual(details.error.failureType, 'cancelledByParent');
+        }
+      });
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+
+      assert.deepStrictEqual(cancelledNames, ['second', 'third']);
+    });
+  }
+
   it('should be piped with dot', async () => {
     const result = await run({
       files: [join(testFixtures, 'default-behavior/test/random.cjs')]
