@@ -4,6 +4,9 @@
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'OPENSSL_BN_ASM_MONT',
       'POLY1305_ASM',
@@ -20,7 +23,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux64-mips64': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'openssl_cli_srcs_linux64-mips64': [
       'openssl/apps/lib/cmp_mock_srv.c',
