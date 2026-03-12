@@ -660,7 +660,7 @@ deterministically. Supplying `--test-random-seed` also enables randomization,
 so `--test-randomize` is optional when a seed is provided:
 
 ```bash
-node --test --test-randomize --test-random-seed=12345
+node --test --test-random-seed=12345
 ```
 
 In most test files, randomization works automatically. One important exception
@@ -693,7 +693,7 @@ test('math', async (t) => {
 ```
 
 Using suite-style APIs such as `describe()`/`it()` or `suite()`/`test()`
-still allows randomization, because sibling tests are queued together.
+still allows randomization, because sibling tests are enqueued together.
 
 Example: this remains eligible for randomization.
 
@@ -1676,7 +1676,8 @@ changes:
     **Default:** `false`.
   * `randomSeed` {number} Seed used when randomizing execution order. If this
     option is set, runs can replay the same randomized order deterministically,
-    and setting this option also enables randomization.
+    and setting this option also enables randomization. The value must be an
+    integer between `0` and `4294967295`.
     **Default:** `undefined`.
   * `rerunFailuresFilePath` {string} A file path where the test runner will
     store the state of the tests to allow rerunning only the failed tests on a next run.
