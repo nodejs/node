@@ -9,6 +9,9 @@ provider "aws" {
 # VULNERABILITY 2: Publicly Accessible S3 Bucket
 # This bucket has no access control, making sensitive data available to the entire internet.
 resource "aws_s3_bucket" "insecure_bucket" {
+
+
+
   bucket = "my-very-secret-data-12345"
 }
 
