@@ -91,6 +91,21 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+#ifdef _WIN32
+  // On Windows, uv_os_uname may return "unknown" for the machine field on ARM64.
+  // Try to detect the processor architecture via Windows APIs.
+  if (strcmp(info.machine, "unknown") == 0) {
+    SYSTEM_INFO sys_info;
+    GetSystemInfo(&sys_info);
+    
+    // Map Windows processor architecture to machine designations
+    // PROCESSOR_ARCHITECTURE_ARM64 = 12
+    if (sys_info.wProcessorArchitecture == 12) {
+      snprintf(info.machine, sizeof(info.machine), "arm64");
+    }
+  }
+#endif
+
   // [sysname, version, release, machine]
   Local<Value> osInformation[4];
   if (String::NewFromUtf8(env->isolate(), info.sysname)
