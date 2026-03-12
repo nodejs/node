@@ -56,6 +56,8 @@ const cshakeExpectedFailures = ['cSHAKE128', 'cSHAKE256'].flatMap((algorithm) =>
       ].concat(size !== 'empty' ? [
         `${base} and altered buffer after call`,
         `${base} and altered buffer during call`,
+        `${base} and transferred buffer after call`,
+        `${base} and transferred buffer during call`,
       ] : []);
     });
   });
@@ -73,10 +75,14 @@ const kmacVectorNames = [
 const kmacExpectedFailures = kmacVectorNames.flatMap((name) => {
   return [
     `${name} verification`,
+    `${name} verification with transferred signature during call`,
+    `${name} verification with transferred signature after call`,
     `${name} verification with altered signature during call`,
     `${name} verification with altered signature after call`,
     `${name} with altered plaintext during call`,
     `${name} with altered plaintext after call`,
+    `${name} with transferred plaintext during call`,
+    `${name} with transferred plaintext after call`,
     `${name} no verify usage`,
     `${name} round trip`,
     `${name} verification failure due to wrong plaintext`,
