@@ -2,10 +2,11 @@
 #include <node_api.h>
 #include <node_api_types.h>
 
+#include <assert.h>
 #include <cstdio>
 #include <cstdlib>
-#include <functional>
 #include <type_traits>
+#include <utility>
 
 template <typename R, auto func, typename... Args>
 inline auto call(const char* name, Args&&... args) -> R {
@@ -31,37 +32,23 @@ inline auto call(const char* name, Args&&... args) -> R {
 
 class Context {
  public:
-  ~Context() { std::fprintf(stderr, "Context: destructor called\n"); }
-
-  std::function<int*(int)> create = [](int value) {
-    std::fprintf(stderr, "Context: create called\n");
-    return new int(value);
-  };
-
-  std::function<int(void*)> get = [](void* ptr) {
-    std::fprintf(stderr, "Context: get called\n");
-    return *static_cast<int*>(ptr);
-  };
-
-  std::function<void(void*)> deleter = [](void* ptr) {
-    std::fprintf(stderr, "Context: deleter called\n");
-    delete static_cast<int*>(ptr);
-  };
+  enum class State { kCreated, kCalled } state = State::kCreated;
 };
 
-void tsfn_callback(napi_env env, napi_value js_cb, void* ctx_p, void* data) {
+void tsfn_callback(napi_env env,
+                   napi_value js_cb,
+                   void* ctx_p,
+                   void* /* data */) {
   auto ctx = static_cast<Context*>(ctx_p);
-  std::fprintf(stderr, "tsfn_callback: env=%p data=%d\n", env, ctx->get(data));
-  ctx->deleter(data);
+  assert(ctx->state == Context::State::kCreated);
+  ctx->state = Context::State::kCalled;
 }
 
-void tsfn_finalize(napi_env env, void* finalize_data, void* finalize_hint) {
+void tsfn_finalize(napi_env env,
+                   void* /* finalize_data */,
+                   void* finalize_hint) {
   auto ctx = static_cast<Context*>(finalize_hint);
-  std::fprintf(stderr,
-               "tsfn_finalize: env=%p finalize_data=%p finalize_hint=%p\n",
-               env,
-               finalize_data,
-               finalize_hint);
+  assert(ctx->state == Context::State::kCalled);
   delete ctx;
 }
 
@@ -82,11 +69,8 @@ auto run(napi_env env, napi_callback_info info) -> napi_value {
                         ctx,
                         tsfn_callback);
 
-  NAPI_CALL(void,
-            napi_call_threadsafe_function,
-            tsfn,
-            ctx->create(1),
-            napi_tsfn_blocking);
+  NAPI_CALL(
+      void, napi_call_threadsafe_function, tsfn, nullptr, napi_tsfn_blocking);
 
   NAPI_CALL(void, napi_unref_threadsafe_function, env, tsfn);
 
