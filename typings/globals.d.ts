@@ -87,6 +87,20 @@ declare global {
     | BigUint64Array
     | BigInt64Array;
 
+  type TypedArrayConstructor =
+    | typeof Uint8Array
+    | typeof Uint8ClampedArray
+    | typeof Uint16Array
+    | typeof Uint32Array
+    | typeof Int8Array
+    | typeof Int16Array
+    | typeof Int32Array
+    | typeof Float16Array
+    | typeof Float32Array
+    | typeof Float64Array
+    | typeof BigUint64Array
+    | typeof BigInt64Array;
+
   namespace NodeJS {
     interface Global {
       internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
