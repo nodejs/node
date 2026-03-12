@@ -75,7 +75,7 @@
             var wrapper = wrappers[wrapperParam.name];
             keysToWrapParameters.filter((param) => Object.keys(keys).includes(param.algorithm.name)).forEach(function(toWrapParam) {
                 var keyData = keys[toWrapParam.algorithm.name];
-                ["raw", "spki", "pkcs8"].filter((fmt) => Object.keys(keyData).includes(fmt)).forEach(function(keyDataFormat) {
+                ["raw", "raw-secret", "spki", "pkcs8"].filter((fmt) => Object.keys(keyData).includes(fmt)).forEach(function(keyDataFormat) {
                     var toWrap = keyData[keyDataFormat];
                     [keyDataFormat, "jwk"].forEach(function(format) {
                         if (wrappingIsPossible(toWrap.originalExport[format], wrapper.parameters.name)) {
@@ -114,7 +114,7 @@
                               }));
             } else if (params.name === "ChaCha20-Poly1305") {
                 var algorithm = {name: params.name};
-                promises.push(subtle.importKey("raw", wrappingKeyData["SYMMETRIC256"].raw, algorithm, true, ["wrapKey", "unwrapKey"])
+                promises.push(subtle.importKey("raw-secret", wrappingKeyData["SYMMETRIC256"].raw, algorithm, true, ["wrapKey", "unwrapKey"])
                               .then(function(key) {
                                   wrappers[params.name] = {wrappingKey: key, unwrappingKey: key, parameters: params};
                               }));
@@ -165,7 +165,7 @@
                 promises.push(importAndExport("pkcs8", keyData.pkcs8, params.algorithm, params.privateUsages, "private key "));
             } else if (params.algorithm.name === "ChaCha20-Poly1305") {
                 keys[params.algorithm.name] = {};
-                promises.push(importAndExport("raw", toWrapKeyData["SYMMETRIC256"].raw, params.algorithm, params.usages, ""));
+                promises.push(importAndExport("raw-secret", toWrapKeyData["SYMMETRIC256"].raw, params.algorithm, params.usages, ""));
             } else {
                 keys[params.algorithm.name] = {};
                 promises.push(importAndExport("raw", toWrapKeyData["SYMMETRIC128"].raw, params.algorithm, params.usages, ""));
