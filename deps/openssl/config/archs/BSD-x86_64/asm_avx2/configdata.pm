@@ -112,6 +112,7 @@ our %config = (
         "crypto/dso/build.info",
         "crypto/engine/build.info",
         "crypto/err/build.info",
+        "crypto/comp/build.info",
         "crypto/http/build.info",
         "crypto/ocsp/build.info",
         "crypto/cms/build.info",
@@ -189,9 +190,7 @@ our %config = (
         "OPENSSL_THREADS",
         "OPENSSL_NO_AFALGENG",
         "OPENSSL_NO_ASAN",
-        "OPENSSL_NO_BROTLI",
         "OPENSSL_NO_BROTLI_DYNAMIC",
-        "OPENSSL_NO_COMP",
         "OPENSSL_NO_CRYPTO_MDEBUG",
         "OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE",
         "OPENSSL_NO_DEMOS",
@@ -221,9 +220,7 @@ our %config = (
         "OPENSSL_NO_UPLINK",
         "OPENSSL_NO_WEAK_SSL_CIPHERS",
         "OPENSSL_NO_WINSTORE",
-        "OPENSSL_NO_ZLIB",
         "OPENSSL_NO_ZLIB_DYNAMIC",
-        "OPENSSL_NO_ZSTD",
         "OPENSSL_NO_ZSTD_DYNAMIC",
         "OPENSSL_NO_DYNAMIC_ENGINE"
     ],
@@ -232,17 +229,22 @@ our %config = (
     ],
     "openssl_sys_defines" => [],
     "openssldir" => "",
-    "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
+    "options" => "enable-ssl-trace enable-fips enable-zlib --with-zlib-include=../../zlib enable-brotli --with-brotli-include=../../brotli/c/include enable-zstd --with-zstd-include=../../zstd/lib no-afalgeng no-asan no-brotli-dynamic no-buildtest-c++ no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib-dynamic no-zstd-dynamic",
     "patch" => "5",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
     "perlargv" => [
-        "no-comp",
         "no-shared",
         "no-afalgeng",
         "enable-ssl-trace",
         "enable-fips",
+        "zlib",
+        "--with-zlib-include=../../zlib",
+        "enable-brotli",
+        "--with-brotli-include=../../brotli/c/include",
+        "enable-zstd",
+        "--with-zstd-include=../../zstd/lib",
         "BSD-x86_64"
     ],
     "perlenv" => {
@@ -321,7 +323,10 @@ our %target = (
     "cflags" => "-pthread",
     "cppflags" => "-D_THREAD_SAFE -D_REENTRANT",
     "defines" => [
-        "OPENSSL_BUILDING_OPENSSL"
+        "OPENSSL_BUILDING_OPENSSL",
+        "BROTLI",
+        "ZLIB",
+        "ZSTD"
     ],
     "disable" => [],
     "dso_ldflags" => "-Wl,-z,defs",
@@ -329,8 +334,12 @@ our %target = (
     "enable" => [
         "devcryptoeng"
     ],
-    "ex_libs" => "-pthread",
-    "includes" => [],
+    "ex_libs" => "-lz -lbrotlienc -lbrotlidec -lbrotlicommon -lm -lzstd -pthread",
+    "includes" => [
+        "../../brotli/c/include",
+        "../../zlib",
+        "../../zstd/lib"
+    ],
     "lflags" => "",
     "lib_cflags" => "",
     "lib_cppflags" => "-DL_ENDIAN",
@@ -508,10 +517,8 @@ our @disablables_int = (
 our %disabled = (
     "afalgeng" => "option",
     "asan" => "default",
-    "brotli" => "default",
     "brotli-dynamic" => "default",
     "buildtest-c++" => "default",
-    "comp" => "option",
     "crypto-mdebug" => "default",
     "crypto-mdebug-backtrace" => "default",
     "demos" => "default",
@@ -543,12 +550,14 @@ our %disabled = (
     "uplink" => "no uplink_arch",
     "weak-ssl-ciphers" => "default",
     "winstore" => "not-windows",
-    "zlib" => "default",
     "zlib-dynamic" => "default",
-    "zstd" => "default",
     "zstd-dynamic" => "default"
 );
-our %withargs = ();
+our %withargs = (
+    "brotli_include" => "../../brotli/c/include",
+    "zlib_include" => "../../zlib",
+    "zstd_include" => "../../zstd/lib"
+);
 our %unified_info = (
     "attributes" => {
         "depends" => {
@@ -1036,6 +1045,9 @@ our %unified_info = (
             "test/bio_callback_test" => {
                 "noinst" => "1"
             },
+            "test/bio_comp_test" => {
+                "noinst" => "1"
+            },
             "test/bio_core_test" => {
                 "noinst" => "1"
             },
@@ -1301,6 +1313,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/casttest" => {
+                "noinst" => "1"
+            },
+            "test/cert_comp_test" => {
                 "noinst" => "1"
             },
             "test/chacha_internal_test" => {
@@ -8369,6 +8384,10 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
+        "test/bio_comp_test" => [
+            "libcrypto.a",
+            "test/libtestutil.a"
+        ],
         "test/bio_core_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -10165,6 +10184,20 @@ our %unified_info = (
                 "crypto/cms/libcrypto-lib-cms_rsa.o",
                 "crypto/cms/libcrypto-lib-cms_sd.o",
                 "crypto/cms/libcrypto-lib-cms_smime.o"
+            ],
+            "products" => {
+                "lib" => [
+                    "libcrypto"
+                ]
+            }
+        },
+        "crypto/comp" => {
+            "deps" => [
+                "crypto/comp/libcrypto-lib-c_brotli.o",
+                "crypto/comp/libcrypto-lib-c_zlib.o",
+                "crypto/comp/libcrypto-lib-c_zstd.o",
+                "crypto/comp/libcrypto-lib-comp_err.o",
+                "crypto/comp/libcrypto-lib-comp_lib.o"
             ],
             "products" => {
                 "lib" => [
@@ -12143,6 +12176,7 @@ our %unified_info = (
         "test/helpers" => {
             "deps" => [
                 "test/helpers/asynciotest-bin-ssltestlib.o",
+                "test/helpers/cert_comp_test-bin-ssltestlib.o",
                 "test/helpers/cmp_asn_test-bin-cmp_testlib.o",
                 "test/helpers/cmp_client_test-bin-cmp_testlib.o",
                 "test/helpers/cmp_ctx_test-bin-cmp_testlib.o",
@@ -12204,6 +12238,7 @@ our %unified_info = (
             "products" => {
                 "bin" => [
                     "test/asynciotest",
+                    "test/cert_comp_test",
                     "test/cmp_asn_test",
                     "test/cmp_client_test",
                     "test/cmp_ctx_test",
@@ -21351,6 +21386,10 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/bio_comp_test" => [
+            "include",
+            "apps/include"
+        ],
         "test/bio_core_test" => [
             "include",
             "apps/include"
@@ -21933,6 +21972,10 @@ our %unified_info = (
             "apps/include"
         ],
         "test/helpers/asynciotest-bin-ssltestlib.o" => [
+            ".",
+            "include"
+        ],
+        "test/helpers/cert_comp_test-bin-ssltestlib.o" => [
             ".",
             "include"
         ],
@@ -23664,6 +23707,7 @@ our %unified_info = (
         "test/bio_addr_test",
         "test/bio_base64_test",
         "test/bio_callback_test",
+        "test/bio_comp_test",
         "test/bio_core_test",
         "test/bio_dgram_test",
         "test/bio_enc_test",
@@ -23753,6 +23797,7 @@ our %unified_info = (
         "test/byteorder_test",
         "test/ca_internals_test",
         "test/casttest",
+        "test/cert_comp_test",
         "test/chacha_internal_test",
         "test/cipher_overhead_test",
         "test/cipherbytes_test",
@@ -25107,6 +25152,21 @@ our %unified_info = (
         ],
         "crypto/cms/libcrypto-lib-cms_smime.o" => [
             "crypto/cms/cms_smime.c"
+        ],
+        "crypto/comp/libcrypto-lib-c_brotli.o" => [
+            "crypto/comp/c_brotli.c"
+        ],
+        "crypto/comp/libcrypto-lib-c_zlib.o" => [
+            "crypto/comp/c_zlib.c"
+        ],
+        "crypto/comp/libcrypto-lib-c_zstd.o" => [
+            "crypto/comp/c_zstd.c"
+        ],
+        "crypto/comp/libcrypto-lib-comp_err.o" => [
+            "crypto/comp/comp_err.c"
+        ],
+        "crypto/comp/libcrypto-lib-comp_lib.o" => [
+            "crypto/comp/comp_lib.c"
         ],
         "crypto/conf/libcrypto-lib-conf_api.o" => [
             "crypto/conf/conf_api.c"
@@ -28128,6 +28188,11 @@ our %unified_info = (
             "crypto/cms/libcrypto-lib-cms_rsa.o",
             "crypto/cms/libcrypto-lib-cms_sd.o",
             "crypto/cms/libcrypto-lib-cms_smime.o",
+            "crypto/comp/libcrypto-lib-c_brotli.o",
+            "crypto/comp/libcrypto-lib-c_zlib.o",
+            "crypto/comp/libcrypto-lib-c_zstd.o",
+            "crypto/comp/libcrypto-lib-comp_err.o",
+            "crypto/comp/libcrypto-lib-comp_lib.o",
             "crypto/conf/libcrypto-lib-conf_api.o",
             "crypto/conf/libcrypto-lib-conf_def.o",
             "crypto/conf/libcrypto-lib-conf_err.o",
@@ -30686,6 +30751,12 @@ our %unified_info = (
         "test/bio_callback_test-bin-bio_callback_test.o" => [
             "test/bio_callback_test.c"
         ],
+        "test/bio_comp_test" => [
+            "test/bio_comp_test-bin-bio_comp_test.o"
+        ],
+        "test/bio_comp_test-bin-bio_comp_test.o" => [
+            "test/bio_comp_test.c"
+        ],
         "test/bio_core_test" => [
             "test/bio_core_test-bin-bio_core_test.o"
         ],
@@ -31231,6 +31302,13 @@ our %unified_info = (
         "test/casttest-bin-casttest.o" => [
             "test/casttest.c"
         ],
+        "test/cert_comp_test" => [
+            "test/cert_comp_test-bin-cert_comp_test.o",
+            "test/helpers/cert_comp_test-bin-ssltestlib.o"
+        ],
+        "test/cert_comp_test-bin-cert_comp_test.o" => [
+            "test/cert_comp_test.c"
+        ],
         "test/chacha_internal_test" => [
             "test/chacha_internal_test-bin-chacha_internal_test.o"
         ],
@@ -31654,6 +31732,9 @@ our %unified_info = (
             "test/gmdifftest.c"
         ],
         "test/helpers/asynciotest-bin-ssltestlib.o" => [
+            "test/helpers/ssltestlib.c"
+        ],
+        "test/helpers/cert_comp_test-bin-ssltestlib.o" => [
             "test/helpers/ssltestlib.c"
         ],
         "test/helpers/cmp_asn_test-bin-cmp_testlib.o" => [
@@ -32879,17 +32960,8 @@ my %disabled_info = (
     "asan" => {
         "macro" => "OPENSSL_NO_ASAN"
     },
-    "brotli" => {
-        "macro" => "OPENSSL_NO_BROTLI"
-    },
     "brotli-dynamic" => {
         "macro" => "OPENSSL_NO_BROTLI_DYNAMIC"
-    },
-    "comp" => {
-        "macro" => "OPENSSL_NO_COMP",
-        "skipped" => [
-            "crypto/comp"
-        ]
     },
     "crypto-mdebug" => {
         "macro" => "OPENSSL_NO_CRYPTO_MDEBUG"
@@ -32984,14 +33056,8 @@ my %disabled_info = (
     "winstore" => {
         "macro" => "OPENSSL_NO_WINSTORE"
     },
-    "zlib" => {
-        "macro" => "OPENSSL_NO_ZLIB"
-    },
     "zlib-dynamic" => {
         "macro" => "OPENSSL_NO_ZLIB_DYNAMIC"
-    },
-    "zstd" => {
-        "macro" => "OPENSSL_NO_ZSTD"
     },
     "zstd-dynamic" => {
         "macro" => "OPENSSL_NO_ZSTD_DYNAMIC"

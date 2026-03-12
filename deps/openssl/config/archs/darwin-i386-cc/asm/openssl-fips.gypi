@@ -350,6 +350,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'DES_ASM',
       'ECP_NISTZ256_ASM',
@@ -373,7 +376,7 @@
       '-O3 -fomit-frame-pointer',
     ],
     'openssl_ex_libs_darwin-i386-cc': [
-      '',
+      '-lm',
     ],
     'linker_script': ''
   },

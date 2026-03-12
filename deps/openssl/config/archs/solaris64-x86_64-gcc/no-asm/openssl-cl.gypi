@@ -5,6 +5,9 @@
       'FILIO_H',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_solaris64-x86_64-gcc': [
@@ -13,7 +16,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_solaris64-x86_64-gcc': [
-      '-lsocket -lnsl -ldl',
+      '-lm -lsocket -lnsl -ldl',
     ],
     'openssl_cli_srcs_solaris64-x86_64-gcc': [
       'openssl/apps/lib/cmp_mock_srv.c',

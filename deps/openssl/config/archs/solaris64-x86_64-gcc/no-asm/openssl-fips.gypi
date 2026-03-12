@@ -334,6 +334,9 @@
       'FILIO_H',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'FIPS_MODULE',
       'FIPS_MODULE',
     ],
@@ -343,7 +346,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_solaris64-x86_64-gcc': [
-      '-lsocket -lnsl -ldl',
+      '-lm -lsocket -lnsl -ldl',
     ],
     'linker_script': ''
   },
