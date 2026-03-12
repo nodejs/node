@@ -5,6 +5,9 @@
       'OPENSSL_USE_NODELETE',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_linux-ppc64le': [
@@ -13,7 +16,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux-ppc64le': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'openssl_cli_srcs_linux-ppc64le': [
       'openssl/apps/lib/cmp_mock_srv.c',

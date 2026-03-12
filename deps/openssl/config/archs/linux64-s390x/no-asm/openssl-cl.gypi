@@ -5,6 +5,9 @@
       'OPENSSL_USE_NODELETE',
       'B_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_linux64-s390x': [
@@ -13,7 +16,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux64-s390x': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'openssl_cli_srcs_linux64-s390x': [
       'openssl/apps/lib/cmp_mock_srv.c',

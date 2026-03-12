@@ -285,6 +285,21 @@ foreach my $src (@generated_srcs) {
 $target{'lib_cppflags'} =~ s/-D//g;
 my @lib_cppflags = split(/ /, $target{'lib_cppflags'});
 
+# Strip library flags for deps provided via GYP dependencies.
+# zlib, brotli, and zstd are bundled in deps/ with proper GYP targets,
+# so we must not link against system shared libraries.
+$target{ex_libs} =~ s/-l(?:z|brotlienc|brotlidec|brotlicommon|zstd)\b//g;
+$target{ex_libs} =~ s/\s+/ /g;
+$target{ex_libs} =~ s/^\s+|\s+$//g;
+
+# Filter out bare ZLIB/BROTLI/ZSTD defines added by Configure for compression
+# support. These are internal to OpenSSL and clash with identifiers in
+# Node.js source (e.g. ZLIB in async_wrap.h) when propagated via
+# direct_dependent_settings. They are kept in the main defines for OpenSSL's
+# own compilation but excluded from the exported defines.
+my @config_defines_exported = grep { $_ !~ /^(?:ZLIB|BROTLI|ZSTD)$/ } @{$config{defines}};
+my @target_defines_exported = grep { $_ !~ /^(?:ZLIB|BROTLI|ZSTD)$/ } @{$target{defines}};
+
 my @cflags = ();
 push(@cflags, @{$config{'cflags'}});
 push(@cflags, @{$config{'CFLAGS'}});
@@ -315,6 +330,8 @@ my $gypi = $template->fill_in(
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
+        config_defines_exported => \@config_defines_exported,
+        target_defines_exported => \@target_defines_exported,
     });
 
 open(GYPI, "> ./archs/$arch/$asm/openssl.gypi");
