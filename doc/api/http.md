@@ -2013,10 +2013,12 @@ socketTimeout = keepAliveTimeout + keepAliveTimeoutBuffer
 If the server receives new data before the keep-alive timeout has fired, it
 will reset the regular inactivity timeout, i.e., [`server.timeout`][].
 
-A value of `0` will disable the keep-alive timeout behavior on incoming
-connections.
-A value of `0` makes the HTTP server behave similarly to Node.js versions prior
-to 8.0.0, which did not have a keep-alive timeout.
+A value of `0` disables the keep-alive timeout. HTTP persistent
+connections remain enabled and will stay open until closed by the
+client or the server.
+
+Disabling the timeout may increase resource usage, as idle connections
+can remain open indefinitely.
 
 The socket timeout logic is set up on connection, so changing this value only
 affects new connections to the server, not any existing connections.
