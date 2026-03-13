@@ -703,6 +703,74 @@ fs.createReadStream('/virtual/hello.txt');            // Stream
 fs.readFileSync('/etc/passwd');  // Real file
 ```
 
+### Intercepted `node:fs` methods
+
+The following `node:fs` methods are intercepted when a VFS is mounted. Each
+method is intercepted in its synchronous, callback, and/or promise form.
+
+**Path-based read operations** (synchronous, callback, and promise):
+
+* `existsSync()`, `exists()`
+* `statSync()`, `stat()`, `fs.promises.stat()`
+* `lstatSync()`, `lstat()`, `fs.promises.lstat()`
+* `readFileSync()`, `readFile()`, `fs.promises.readFile()`
+* `readdirSync()`, `readdir()`, `fs.promises.readdir()`
+* `realpathSync()`, `realpath()`, `fs.promises.realpath()`
+* `accessSync()`, `access()`, `fs.promises.access()`
+* `readlinkSync()`, `readlink()`, `fs.promises.readlink()`
+
+**Path-based write operations** (synchronous, callback, and promise):
+
+* `writeFileSync()`, `writeFile()`, `fs.promises.writeFile()`
+* `appendFileSync()`, `appendFile()`, `fs.promises.appendFile()`
+* `mkdirSync()`, `mkdir()`, `fs.promises.mkdir()`
+* `rmdirSync()`, `rmdir()`, `fs.promises.rmdir()`
+* `rmSync()`, `rm()`, `fs.promises.rm()`
+* `unlinkSync()`, `unlink()`, `fs.promises.unlink()`
+* `renameSync()`, `rename()`, `fs.promises.rename()`
+* `copyFileSync()`, `copyFile()`, `fs.promises.copyFile()`
+* `symlinkSync()`, `symlink()`, `fs.promises.symlink()`
+
+**File descriptor operations** (synchronous and callback):
+
+* `openSync()`, `open()`
+* `closeSync()`, `close()`
+* `readSync()`, `read()`
+* `writeSync()`, `write()`
+* `fstatSync()`, `fstat()`
+
+Virtual file descriptors use values starting at 10000 to avoid conflicts with
+real file descriptors.
+
+**Stream operations**:
+
+* `createReadStream()`
+* `createWriteStream()`
+
+**Watch operations**:
+
+* `watch()`, `fs.promises.watch()`
+* `watchFile()`
+* `unwatchFile()`
+
+### `node:fs` methods with no VFS equivalent
+
+The following `node:fs` methods are **not** intercepted and always operate on
+the real file system:
+
+* `chmod()`, `chmodSync()`, `fchmod()`, `fchmodSync()`
+* `chown()`, `chownSync()`, `fchown()`, `fchownSync()`
+* `truncate()`, `truncateSync()`, `ftruncate()`, `ftruncateSync()`
+* `utimes()`, `utimesSync()`, `futimes()`, `futimesSync()`, `lutimes()`,
+  `lutimesSync()`
+* `link()`, `linkSync()`
+* `fdatasync()`, `fdatasyncSync()`, `fsync()`, `fsyncSync()`
+* `mkdtemp()`, `mkdtempSync()`
+* `cp()`, `cpSync()`
+* `glob()`, `globSync()`
+* `statfs()`, `statfsSync()`
+* `opendir()`, `opendirSync()`
+
 ## Integration with module loading
 
 Virtual files can be loaded as modules using `require()` or `import`:
