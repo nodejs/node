@@ -155,6 +155,7 @@ bazel-out
 bazel-testlogs
 bazel-v8
 launch.json
+MODULE.bazel.lock
 !/third_party/jinja2
 !/third_party/markupsafe
 !/third_party/zlib

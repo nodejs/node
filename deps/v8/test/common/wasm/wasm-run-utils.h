@@ -107,6 +107,8 @@ class TestingModuleBuilder {
                        TestExecutionTier, Isolate* isolate);
   ~TestingModuleBuilder();
 
+  WasmModule* module() const { return module_.get(); }
+
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
                      AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
@@ -126,16 +128,13 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  Zone& SignatureZone() { return test_module_->signature_zone; }
-
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
     const bool is_shared = false;
-    test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
-                                         is_shared);
-    GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
-    size_t size = test_module_->types.size();
+    module_->AddSignatureForTesting(sig, kNoSuperType, is_final, is_shared);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module_.get(), 1);
+    size_t size = module_->types.size();
     // The {ModuleTypeIndex} can handle more, but users of this class
     // often assume that each generated index fits into a byte, so
     // ensure that here.
@@ -144,7 +143,7 @@ class TestingModuleBuilder {
   }
 
   uint32_t mem_size() const {
-    CHECK_EQ(1, test_module_->memories.size());
+    CHECK_EQ(1, module_->memories.size());
     return mem0_size_;
   }
 
@@ -199,8 +198,8 @@ class TestingModuleBuilder {
   }
 
   void SetMemoryShared() {
-    CHECK_EQ(1, test_module_->memories.size());
-    test_module_->memories[0].is_shared = true;
+    CHECK_EQ(1, module_->memories.size());
+    module_->memories[0].is_shared = true;
   }
 
   enum FunctionType { kImport, kWasm };
@@ -226,9 +225,7 @@ class TestingModuleBuilder {
 
   uint32_t AddPassiveDataSegment(base::Vector<const uint8_t> bytes);
 
-  WasmFunction* GetFunctionAt(int index) {
-    return &test_module_->functions[index];
-  }
+  WasmFunction* GetFunctionAt(int index) { return &module_->functions[index]; }
 
   Isolate* isolate() const { return isolate_; }
   DirectHandle<WasmInstanceObject> instance_object() const {
@@ -281,7 +278,7 @@ class TestingModuleBuilder {
   }
 
  private:
-  std::shared_ptr<WasmModule> test_module_;
+  std::shared_ptr<WasmModule> module_;
   Isolate* isolate_;
   WasmEnabledFeatures enabled_features_;
   uint32_t global_offset_ = 0;

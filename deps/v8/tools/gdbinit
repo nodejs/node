@@ -182,6 +182,15 @@ Print the current JavaScript stack trace
 Usage: jst
 end
 
+# Print JavaScript stack trace in concise format
+define jstc
+call (void) _v8_internal_Print_StackTraceConcise()
+end
+document jstc
+Print the current JavaScript stack trace in concise format
+Usage: jstc
+end
+
 # Print TurboFan graph node.
 define pn
 call _v8_internal_Node_Print((void*)($arg0))
@@ -731,5 +740,75 @@ def direct_handle_pretty_printers(val):
   return None
 
 gdb.pretty_printers.append(direct_handle_pretty_printers)
+
+end
+
+python
+
+# V8 JIT-compiled frame unwinder for x86-64.
+# See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Unwinding-Frames-in-Python.html
+
+from gdb.unwinder import Unwinder, FrameId
+
+class V8Unwinder(Unwinder):
+  """Unwinder for V8 JIT-compiled frames by following the RBP chain on x86-64."""
+
+  PTR_SIZE = 8  # x86-64
+
+  @staticmethod
+  def read_u64(addr):
+    """Return little-endian uint64 from inferior memory, or raise gdb.MemoryError."""
+    inferior = gdb.selected_inferior()
+    data = inferior.read_memory(addr, V8Unwinder.PTR_SIZE)
+    return int.from_bytes(data.tobytes(), byteorder="little", signed=False)
+
+  def __init__(self):
+    super(V8Unwinder, self).__init__("V8Unwinder")
+    self.enabled = True
+
+  def __call__(self, pending_frame):
+    try:
+      arch = pending_frame.architecture()
+      if arch.name() != "i386:x86-64":
+        return None  # Don't use this unwinder if not on x86-64.
+      if pending_frame.name() is not None:
+        return None  # gdb can already symbolicate this, likely not a JIT frame.
+
+      fp = int(pending_frame.read_register("rbp"))
+
+      if fp == 0 or (fp & 0x7) != 0:  # Chain ends or misaligned.
+        return None
+
+      # Now we know we are likely in a V8 JIT-compiled frame.
+      # Stack layout:
+      # rbp+16  <-- caller's rsp before `call`
+      # rbp+8   [ return address (saved rip) ]
+      # rbp+0   [ saved rbp                  ] <-- current frame pointer
+      prev_rsp = fp + self.PTR_SIZE * 2
+      ret_addr = self.read_u64(fp + self.PTR_SIZE)
+      prev_rbp = self.read_u64(fp)
+
+      if ret_addr == 0 or prev_rbp == 0:
+        return None  # Invalid frame.
+
+      # GDB needs a Frame ID to identify the frame.
+      # 1. A stack address that is stable across the lifetime of a frame.
+      #    We use the previous frame's rsp.
+      # 2. A code address that is stable across the lifetime of a frame.
+      #    Ideally, the function's start address. We don't have symbols here,
+      #    so it's not easy to find out. Use the return address as an
+      #    approximation.
+      # See https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/frame-id.h
+      frame_id = FrameId(prev_rsp, ret_addr)
+      unwind_info = pending_frame.create_unwind_info(frame_id)
+      unwind_info.add_saved_register("rsp", gdb.Value(prev_rsp))
+      unwind_info.add_saved_register("rip", gdb.Value(ret_addr))
+      unwind_info.add_saved_register("rbp", gdb.Value(prev_rbp))
+      return unwind_info
+
+    except Exception:
+      return None  # Give up unwinding on errors.
+
+gdb.unwinder.register_unwinder(None, V8Unwinder(), replace=True)
 
 end

@@ -46,17 +46,51 @@ class DemandedElementAnalysis {
   static constexpr uint16_t k8x8Low = 0xFF;
   static constexpr uint16_t k8x4Low = 0xF;
   static constexpr uint16_t k8x2Low = 0x3;
+  static constexpr uint16_t k8x1Low = 0x1;
+  static constexpr int kMaxNumOperations = 150;
 
-  using LaneBitSet = std::bitset<16>;
+  // TODO(sparker): Add floating-point conversions:
+  // - PromoteLow
+  // - ConvertLow
+  static constexpr std::array unary_low_half_ops = {
+      Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low,
+      Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low,
+      Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low,
+      Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low,
+  };
+  static constexpr std::array binary_low_half_ops = {
+      Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S,
+      Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U,
+      Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S,
+      Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U,
+      Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4S,
+      Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4U,
+  };
+
+  static bool IsUnaryLowHalfOp(Simd128UnaryOp::Kind kind) {
+    return std::find(unary_low_half_ops.begin(), unary_low_half_ops.end(),
+                     kind) != unary_low_half_ops.end();
+  }
+  static bool IsBinaryLowHalfOp(Simd128BinopOp::Kind kind) {
+    return std::find(binary_low_half_ops.begin(), binary_low_half_ops.end(),
+                     kind) != binary_low_half_ops.end();
+  }
+
+  using LaneBitSet = std::bitset<kSimd128Size>;
   using DemandedElementMap =
       ZoneVector<std::pair<const Operation*, LaneBitSet>>;
 
   DemandedElementAnalysis(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
+  LaneBitSet ReduceLanes(LaneBitSet lanes);
+  void AddOp(const Operation& op, LaneBitSet lanes);
   void AddUnaryOp(const Simd128UnaryOp& unop, LaneBitSet lanes);
   void AddBinaryOp(const Simd128BinopOp& binop, LaneBitSet lanes);
-  void RecordOp(const Operation* op, LaneBitSet lanes);
+  void RecordOp(const Operation& op, LaneBitSet lanes);
+  void Revisit();
 
   const DemandedElementMap& demanded_elements() const {
     return demanded_elements_;
@@ -67,15 +101,45 @@ class DemandedElementAnalysis {
   bool Visited(const Operation* op) const { return visited_.count(op); }
 
  private:
+  struct MultiUserBits {
+    const Operation* op_;
+    LaneBitSet used_lanes_;
+    uint32_t num_users_;
+
+    const Operation* op() const { return op_; }
+    LaneBitSet used_lanes() const { return used_lanes_; }
+    uint32_t num_users() const { return num_users_; }
+
+    void add(LaneBitSet lanes) {
+      used_lanes_ |= lanes;
+      ++num_users_;
+    }
+
+    bool FoundAllUsers() const {
+      return num_users() == op()->saturated_use_count.Get() &&
+             !op()->saturated_use_count.IsSaturated();
+    }
+  };
+
+  // For the given op, return whether we have now visited it from all of its
+  // users and so we know all of the used lanes.
+  bool AddUserAndCheckFoundAll(const Operation& op, LaneBitSet lanes);
+  void RecordPartialOp(const Operation& op, LaneBitSet lanes);
+  void RecordPartialOp(const Simd128UnaryOp& unop, LaneBitSet lanes);
+  void RecordPartialOp(const Simd128BinopOp& binop, LaneBitSet lanes);
+  void RevisitShuffle(const Simd128ShuffleOp& shuffle, LaneBitSet lanes);
+
   Zone* phase_zone_;
   const Graph& input_graph_;
   DemandedElementMap demanded_elements_{phase_zone_};
+  ZoneVector<MultiUserBits> to_revisit_{phase_zone_};
   ZoneUnorderedSet<const Operation*> visited_{phase_zone_};
+  bool demanded_limit_reached_ = false;
+  bool revisit_limit_reached_ = false;
 };
 
 class WasmShuffleAnalyzer {
  public:
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   struct DeinterleaveLoadCandidate {
     const Simd128LoadPairDeinterleaveOp::Kind kind;
     const LoadOp& left;
@@ -83,7 +147,23 @@ class WasmShuffleAnalyzer {
     const Simd128ShuffleOp& even_shfop;
     const Simd128ShuffleOp& odd_shfop;
   };
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  void ProcessShuffleOfLoads(const Simd128ShuffleOp& shfop, const LoadOp& left,
+                             const LoadOp& right);
+  bool CouldLoadPair(const LoadOp& load0, const LoadOp& load1) const;
+  void AddLoadMultipleCandidate(const Simd128ShuffleOp& even_shuffle,
+                                const Simd128ShuffleOp& odd_shuffle,
+                                const LoadOp& left, const LoadOp& right,
+                                Simd128LoadPairDeinterleaveOp::Kind kind);
+
+  std::optional<DeinterleaveLoadCandidate> GetDeinterleaveCandidate(
+      const LoadOp* load) const {
+    for (auto& candidate : deinterleave_load_candidates_) {
+      if (&candidate.left == load || &candidate.right == load) {
+        return candidate;
+      }
+    }
+    return {};
+  }
 
   WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {
@@ -95,26 +175,16 @@ class WasmShuffleAnalyzer {
   void Process(const Operation& op);
   void ProcessUnary(const Simd128UnaryOp& unop);
   void ProcessBinary(const Simd128BinopOp& binop);
+  void ProcessReplaceLane(const Simd128ReplaceLaneOp& replace_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
   void ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
                                uint8_t lower_limit, uint8_t upper_limit);
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-  void ProcessShuffleOfLoads(const Simd128ShuffleOp& shfop, const LoadOp& left,
-                             const LoadOp& right);
-  bool CouldLoadPair(const LoadOp& load0, const LoadOp& load1) const;
-  void AddLoadMultipleCandidate(const Simd128ShuffleOp& even_shuffle,
-                                const Simd128ShuffleOp& odd_shuffle,
-                                const LoadOp& left, const LoadOp& right,
-                                Simd128LoadPairDeinterleaveOp::Kind kind);
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   bool ShouldReduce() const {
-    return !demanded_element_analysis.demanded_elements().empty()
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-           || !deinterleave_load_candidates_.empty()
-#endif
-        ;
+    return !demanded_element_analysis.demanded_elements().empty() ||
+           !deinterleave_load_candidates_.empty() ||
+           !load_lane_candidates_.empty();
   }
 
   const DemandedElementAnalysis::DemandedElementMap& ops_to_reduce() const {
@@ -172,22 +242,32 @@ class WasmShuffleAnalyzer {
     return false;
   }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-  std::optional<const DeinterleaveLoadCandidate*> IsDeinterleaveCandidate(
-      const LoadOp* load) const {
-    for (auto& candidate : deinterleave_load_candidates_) {
-      if (&candidate.left == load || &candidate.right == load) {
-        return &candidate;
-      }
-    }
+  void AddLoadLaneCandidate(const LoadOp* load,
+                            const Simd128ReplaceLaneOp& replace) {
+    load_lane_candidates_[load] = &replace;
+  }
+
+  std::optional<const Simd128ReplaceLaneOp*> IsLoadLaneCandidate(
+      const LoadOp& op) {
+    auto it = load_lane_candidates_.find(&op);
+    if (it != load_lane_candidates_.end()) return it->second;
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
+  std::optional<OpIndex> GetMergedLoadReplaceLane(
+      const Simd128ReplaceLaneOp& op) {
+    auto it = load_lanes_.find(&op);
+    if (it != load_lanes_.end()) return it->second;
+    return {};
+  }
+
+  void RecordLoadLane(const Simd128ReplaceLaneOp* replace, OpIndex load_lane) {
+    load_lanes_[replace] = load_lane;
+  }
 
   const Graph& input_graph() const { return input_graph_; }
 
  private:
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   std::optional<const Simd128ShuffleOp*> GetOtherShuffleUser(
       const LoadOp& left, const LoadOp& right,
       const SmallShuffleVector& shuffles) const {
@@ -202,7 +282,6 @@ class WasmShuffleAnalyzer {
     }
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   Zone* phase_zone_;
   const Graph& input_graph_;
@@ -210,7 +289,10 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector shift_shuffles_{phase_zone_};
   SmallShuffleVector low_half_shuffles_{phase_zone_};
   SmallShuffleVector high_half_shuffles_{phase_zone_};
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  ZoneUnorderedMap<const LoadOp*, const Simd128ReplaceLaneOp*>
+      load_lane_candidates_{phase_zone_};
+  ZoneUnorderedMap<const Simd128ReplaceLaneOp*, OpIndex> load_lanes_{
+      phase_zone_};
   SmallShuffleVector even_64x2_shuffles_{phase_zone_};
   SmallShuffleVector odd_64x2_shuffles_{phase_zone_};
   SmallShuffleVector even_32x4_shuffles_{phase_zone_};
@@ -220,7 +302,6 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector even_8x16_shuffles_{phase_zone_};
   SmallShuffleVector odd_8x16_shuffles_{phase_zone_};
   base::SmallVector<DeinterleaveLoadCandidate, 8> deinterleave_load_candidates_;
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 };
 
 template <class Next>
@@ -228,7 +309,6 @@ class WasmShuffleReducer : public Next {
  private:
   std::optional<WasmShuffleAnalyzer> analyzer_;
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   struct DeinterleaveLoadShuffle {
     const Simd128ShuffleOp* shuffle;
     OpIndex og_index;
@@ -269,7 +349,6 @@ class WasmShuffleReducer : public Next {
     }
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmShuffleReducer)
@@ -280,22 +359,59 @@ class WasmShuffleReducer : public Next {
     Next::Analyze();
   }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  OpIndex REDUCE_INPUT_GRAPH(Simd128ReplaceLane)(
+      OpIndex ig_index, const Simd128ReplaceLaneOp& replace_lane) {
+    if (!ShouldSkipOptimizationStep()) {
+      if (auto load_lane = analyzer_->GetMergedLoadReplaceLane(replace_lane)) {
+        return load_lane.value();
+      }
+    }
+    return Next::ReduceInputGraphSimd128ReplaceLane(ig_index, replace_lane);
+  }
+
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphLoad(ig_index, load);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (auto maybe_replace_lane = analyzer_->IsLoadLaneCandidate(load)) {
+      const Simd128ReplaceLaneOp* replace_lane = maybe_replace_lane.value();
+      OpIndex og_into = __ template MapToNewGraph<true>(replace_lane->into());
+      if (og_into.valid()) {
+        V<WordPtr> base = __ MapToNewGraph(load.base());
+        V<WordPtr> index;
+        if (load.index().has_value()) {
+          index = __ MapToNewGraph(load.index().value());
+          if (load.offset != 0) {
+            index = __ WordPtrAdd(index, load.offset);
+          }
+        } else {
+          index = __ IntPtrConstant(load.offset);
+        }
+
+        Simd128LaneMemoryOp::LaneKind lane_kind =
+            Simd128LaneMemoryOp::LaneKindFromBytes(
+                load.loaded_rep.SizeInBytes());
+        OpIndex load_lane = __ Simd128LaneMemory(
+            base, index, og_into, Simd128LaneMemoryOp::Mode::kLoad, load.kind,
+            lane_kind, replace_lane->lane, 0);
+        analyzer_->RecordLoadLane(replace_lane, load_lane);
+        return load_lane;
+      }
+    }
+
     if (load.loaded_rep != MemoryRepresentation::Simd128()) goto no_change;
 
     if (auto maybe_combined = MaybeAlreadyCombined(&load)) {
       return maybe_combined.value();
     }
 
-    if (auto maybe_candidate = analyzer_->IsDeinterleaveCandidate(&load)) {
-      const auto* candidate = maybe_candidate.value();
-      const LoadOp& left = candidate->left;
-      const LoadOp& right = candidate->right;
+    if (auto maybe_candidate = analyzer_->GetDeinterleaveCandidate(&load)) {
+      WasmShuffleAnalyzer::DeinterleaveLoadCandidate candidate =
+          maybe_candidate.value();
+      const LoadOp& left = candidate.left;
+      const LoadOp& right = candidate.right;
 #ifdef DEBUG
       DCHECK(!MaybeAlreadyCombined(&left));
       DCHECK(!MaybeAlreadyCombined(&right));
@@ -319,17 +435,16 @@ class WasmShuffleReducer : public Next {
       }
 
       OpIndex og_index = __ Simd128LoadPairDeinterleave(base, index, load.kind,
-                                                        candidate->kind);
+                                                        candidate.kind);
       AddCombinedLoad(left, og_index);
       AddCombinedLoad(right, og_index);
 
-      AddDeinterleavedShuffle(candidate->even_shfop, og_index, 0);
-      AddDeinterleavedShuffle(candidate->odd_shfop, og_index, 1);
+      AddDeinterleavedShuffle(candidate.even_shfop, og_index, 0);
+      AddDeinterleavedShuffle(candidate.odd_shfop, og_index, 1);
       return og_index;
     }
     goto no_change;
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   OpIndex REDUCE_INPUT_GRAPH(Simd128Shuffle)(OpIndex ig_index,
                                              const Simd128ShuffleOp& shuffle) {
@@ -345,14 +460,12 @@ class WasmShuffleReducer : public Next {
     std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
     std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
               shuffle_bytes.begin());
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
     if (auto maybe_deinterleaved_load = IsDeinterleaveLoadShuffle(&shuffle)) {
       const auto* deinterleaved_load = maybe_deinterleaved_load.value();
       return __ Projection(deinterleaved_load->og_index,
                            deinterleaved_load->result_index,
                            RegisterRepresentation::Simd128());
     }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
     constexpr size_t half_lanes = kSimd128Size / 2;
 
@@ -453,7 +566,11 @@ class WasmShuffleReducer : public Next {
                   shuffle_bytes.begin());
       }
 
-      if (lanes == DemandedElementAnalysis::k8x2Low) {
+      if (lanes == DemandedElementAnalysis::k8x1Low) {
+        return __ Simd128Shuffle(og_left, og_right,
+                                 Simd128ShuffleOp::Kind::kI8x1,
+                                 shuffle_bytes.data());
+      } else if (lanes == DemandedElementAnalysis::k8x2Low) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x2,
                                  shuffle_bytes.data());

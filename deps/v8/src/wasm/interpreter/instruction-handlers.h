@@ -790,6 +790,7 @@
   V(s2s_PreserveCopySlot32)                     \
   V(s2s_PreserveCopySlot64)                     \
   V(s2s_PreserveCopySlot128)                    \
+  V(s2s_PreserveCopySlotRef)                    \
   V(r2s_CopyR0ToSlot32)                         \
   V(r2s_CopyR0ToSlot64)                         \
   V(r2s_CopyFp0ToSlot32)                        \

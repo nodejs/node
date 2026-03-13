@@ -119,7 +119,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     ValueType i32 = ValueType::Primitive(kI32);
     builder.AddGlobal(i32, true, WasmInitExpr::DefaultValue(i32));
 
-    StructType::Builder type_builder(zone(), 1, false, false);
+    StructType::Builder<Zone> type_builder(zone(), 1, false, false);
     type_builder.AddField(i32, true);
     StructType* struct_type = type_builder.Build();
     ModuleTypeIndex struct_type_index =
@@ -290,7 +290,7 @@ TEST_F(WasmTracingTest, TestTracingGlobalRefValueDiff) {
               HasSubstr("Traces are identical (1 entries)"));
   EXPECT_THAT(
       result.global_trace,
-      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 5)"));
+      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 18)"));
 }
 
 TEST_F(WasmTracingTest, TestTracingManyMismatches) {

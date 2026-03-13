@@ -110,7 +110,7 @@ Builtin Assembler::target_builtin_at(Address pc) {
 }
 
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);

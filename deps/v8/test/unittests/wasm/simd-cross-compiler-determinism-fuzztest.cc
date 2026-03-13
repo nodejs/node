@@ -17,7 +17,7 @@ class SimdCrossCompilerDeterminismTest
   SimdCrossCompilerDeterminismTest() = default;
 
   void TestTernOp(WasmOpcode opcode, std::array<Simd128, 3> inputs,
-                  int preconsumed_liftoff_regs);
+                  int preconsumed_liftoff_regs, bool allow_avx);
 
   static constexpr int kMaxPreconsumedLiftoffRegs =
       kFpCacheRegList.GetNumRegsSet();
@@ -107,9 +107,15 @@ inline bool AllResultsEqual(base::Vector<const Simd128> results) {
   return std::all_of(results.begin() + 1, results.end(), equals_first);
 }
 
-void SimdCrossCompilerDeterminismTest::TestTernOp(
-    WasmOpcode opcode, std::array<Simd128, 3> inputs,
-    int preconsumed_liftoff_regs) {
+void SimdCrossCompilerDeterminismTest::TestTernOp(WasmOpcode opcode,
+                                                  std::array<Simd128, 3> inputs,
+                                                  int preconsumed_liftoff_regs,
+                                                  bool allow_avx) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  bool disable_avx = !allow_avx && CpuFeatures::IsSupported(AVX);
+  if (disable_avx) CpuFeatures::SetUnsupported(AVX);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
   // Remember all values from all configurations.
   Simd128 results[] = {
       // Liftoff does not special-handle SIMD constants, so we only test this
@@ -135,6 +141,10 @@ void SimdCrossCompilerDeterminismTest::TestTernOp(
       // - all inputs dynamic
       GetTernOpResult<InputLocations<kDynamic, kDynamic, kDynamic>>(
           TestExecutionTier::kTurbofan, opcode, inputs)};
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  if (disable_avx) CpuFeatures::SetSupported(AVX);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   ASSERT_TRUE(AllResultsEqual(base::VectorOf(results)))
       << absl::StrFormat("Operation %s on inputs %v, %v, %v\n",
@@ -192,15 +202,18 @@ constexpr Simd128 kSimdQuietNanF64WithPayload1 =
     Simd128::Splat(static_cast<int64_t>(0x7ff8000000000001));
 constexpr Simd128 kSimdQuietNanF64WithPayload2 =
     Simd128::Splat(static_cast<int64_t>(0x7ff8000000000002));
-constexpr std::tuple<WasmOpcode, std::array<Simd128, 3>, int> kTernOpSeeds[]{
-    {kExprF32x4Qfms,
-     {kSimdQuietNanF32WithPayload1, kSimdQuietNanF32WithPayload2,
-      Simd128::Splat(int32_t{1})},
-     7 % SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs},
-    {kExprF64x2Qfma,
-     {kSimdQuietNanF64WithPayload1, kSimdQuietNanF64WithPayload2,
-      Simd128::Splat(int64_t{1})},
-     7 % SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs}};
+constexpr std::tuple<WasmOpcode, std::array<Simd128, 3>, int, bool>
+    kTernOpSeeds[]{
+        {kExprF32x4Qfms,
+         {kSimdQuietNanF32WithPayload1, kSimdQuietNanF32WithPayload2,
+          Simd128::Splat(int32_t{1})},
+         7 % SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs,
+         true},
+        {kExprF64x2Qfma,
+         {kSimdQuietNanF64WithPayload1, kSimdQuietNanF64WithPayload2,
+          Simd128::Splat(int64_t{1})},
+         7 % SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs,
+         true}};
 
 V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
     .WithDomains(
@@ -210,7 +223,9 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
         fuzztest::ArrayOf<3>(ArbitrarySimd()),
         // preconsumed_liftoff_regs
         fuzztest::InRange(
-            0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs))
+            0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs),
+        // allow_avx
+        fuzztest::Arbitrary<bool>())
     .WithSeeds(kTernOpSeeds);
 
 }  // namespace v8::internal::wasm

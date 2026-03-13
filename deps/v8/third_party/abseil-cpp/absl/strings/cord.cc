@@ -44,13 +44,13 @@
 #include "absl/functional/function_ref.h"
 #include "absl/strings/cord_buffer.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/internal/append_and_overwrite.h"
 #include "absl/strings/internal/cord_data_edge.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
 #include "absl/strings/internal/cord_rep_crc.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/match.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
@@ -1065,12 +1065,11 @@ void CopyCordToString(const Cord& src, std::string* absl_nonnull dst) {
 }
 
 void AppendCordToString(const Cord& src, std::string* absl_nonnull dst) {
-  const size_t cur_dst_size = dst->size();
-  const size_t new_dst_size = cur_dst_size + src.size();
-  absl::strings_internal::STLStringResizeUninitializedAmortized(dst,
-                                                                new_dst_size);
-  char* append_ptr = &(*dst)[cur_dst_size];
-  src.CopyToArrayImpl(append_ptr);
+  strings_internal::StringAppendAndOverwrite(
+      *dst, src.size(), [&src](char* buf, size_t buf_size) {
+        src.CopyToArrayImpl(buf);
+        return buf_size;
+      });
 }
 
 void Cord::CopyToArraySlowPath(char* absl_nonnull dst) const {

@@ -6,7 +6,6 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
@@ -285,6 +284,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
       // result.
       uint32_t next_length = 0;
       if (has_next) {
+        overflows |= ToUpperOverflows(next);
         next_length = mapping->get(next, 0, chars);
         if (next_length == 0) next_length = 1;
       }

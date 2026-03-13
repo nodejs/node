@@ -87,6 +87,13 @@
   'WeakContainerTest.ConservativeGCTracesWeakContainer': [SKIP],
 }],  # arch == arm64 and msan
 
+['arch == arm64 and system == macos and not simulator_run', {
+  # printf, being a variadic function, has a different, stack-based ABI on
+  # Apple silicon. See:
+  # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
+  'AssemblerArm64Test.printf_no_preserve': [SKIP],
+}],  # arch == arm64 and system == macos and not simulator_run
+
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
@@ -219,6 +226,10 @@
   'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'InterpreterTest.InterpreterWithNativeStack': [SKIP],
+
+  # Crashes on native arm.
+  'MacroAssemblerTest.ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
+  'MacroAssemblerTest.ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }], # jitless
 
 ##############################################################################
@@ -250,6 +261,8 @@
 ['lite_mode or variant == jitless', {
 
   # Tests that generate code at runtime.
+  'Assembler*': [SKIP],
+  'SyncPrimitivesArmTest*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
@@ -388,5 +401,11 @@
   # Tests too slow in non-optimized debug mode.
   'LogAllTest.LogAll': [SKIP],
 }],  # 'full_debug'
+
+##############################################################################
+['ubsan', {
+  # https://crbug.com/456051623
+  'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
+}],  # 'ubsan'
 
 ]

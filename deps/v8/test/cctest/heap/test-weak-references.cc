@@ -98,7 +98,7 @@ TEST(WeakReferencesOldToOld) {
   CHECK(heap->InOldSpace(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
-  PageMetadata* page_before_gc = PageMetadata::FromHeapObject(*fixed_array);
+  NormalPage* page_before_gc = NormalPage::FromHeapObject(*fixed_array);
   heap::ForceEvacuationCandidate(page_before_gc);
   heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*fixed_array));

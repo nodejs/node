@@ -95,6 +95,7 @@ assertThrows(() => instance.exports.use_i8_array(bad_a8, 0, length),
 let array_i16;
 let array_i8;
 let good_array_i8;
+let good_array_i16;
 
 function MakeInvalidImporterBuilder() {
   let builder = new WasmModuleBuilder();
@@ -105,6 +106,9 @@ function MakeInvalidImporterBuilder() {
   builder.startRecGroup();
   good_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
   builder.endRecGroup();
+  builder.startRecGroup();
+  good_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  builder.endRecGroup();
   return builder;
 }
 
@@ -114,6 +118,7 @@ let b3 = MakeInvalidImporterBuilder();
 let b4 = MakeInvalidImporterBuilder();
 let b5 = MakeInvalidImporterBuilder();
 let b6 = MakeInvalidImporterBuilder();
+let b7 = MakeInvalidImporterBuilder();
 let b99 = MakeInvalidImporterBuilder();
 
 let array16ref = wasmRefNullType(array_i16);
@@ -134,6 +139,10 @@ b5.addImport('wasm:text-encoder', 'encodeStringToUTF8Array',
 // This is invalid because the return type is nullable.
 b6.addImport('wasm:text-encoder', 'encodeStringToUTF8Array',
              makeSig([kWasmExternRef], [wasmRefNullType(good_array_i8)]));
+// This is invalid because the parameter is not nullable.
+b7.addImport(
+    'wasm:js-string', 'fromCharCodeArray',
+    makeSig([wasmRefType(good_array_i16), kWasmI32, kWasmI32], [kRefExtern]));
 // One random example of a non-array-related incorrect type (incorrect result).
 b99.addImport('wasm:js-string', 'charCodeAt',
              makeSig([kWasmExternRef, kWasmI32], [kWasmI64]));
@@ -145,6 +154,7 @@ assertThrows(() => b3.instantiate({}, kBuiltins), WebAssembly.CompileError);
 assertThrows(() => b4.instantiate({}, kBuiltins), WebAssembly.CompileError);
 assertThrows(() => b5.instantiate({}, kBuiltins), WebAssembly.CompileError);
 assertThrows(() => b6.instantiate({}, kBuiltins), WebAssembly.CompileError);
+assertThrows(() => b7.instantiate({}, kBuiltins), WebAssembly.CompileError);
 assertThrows(() => b99.instantiate({}, kBuiltins), WebAssembly.CompileError);
 
 (function () {

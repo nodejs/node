@@ -111,7 +111,12 @@ struct assert_field_size {
 // Liftoff's code comments are intentionally without source location to keep
 // readability up.
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
+#define CODE_COMMENT(str)                      \
+  do {                                         \
+    if (V8_UNLIKELY(v8_flags.code_comments)) { \
+      __ RecordComment(str, SourceLocation{}); \
+    }                                          \
+  } while (false)
 #define SCOPED_CODE_COMMENT(str)                                \
   AssemblerBase::CodeComment CONCAT(scoped_comment_, __LINE__)( \
       &asm_, str, SourceLocation{})
@@ -1214,7 +1219,7 @@ class LiftoffCompiler {
         for (uint32_t local_index = num_params; local_index < __ num_locals();
              ++local_index) {
           ValueType type = decoder->local_types_[local_index];
-          if (type.is_reference()) {
+          if (type.is_ref()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
                      type.use_wasm_null() ? LiftoffRegister(wasm_null_ref_reg)
                                           : LiftoffRegister(null_ref_reg),
@@ -1288,6 +1293,11 @@ class LiftoffCompiler {
     StackCheck(decoder, 0);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
+
+    if (EnableCompilationHintsInfrastructure()) {
+      decoder->module_->feedback_slots_to_wire_byte_offsets.emplace(
+          func_index_, std::vector<uint32_t>());
+    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -2015,7 +2025,7 @@ class LiftoffCompiler {
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const HandlerCase> handlers,
-                     int handler_index, Value* cont) {
+                     size_t handler_index, Value* cont, Value* tag_params) {
     // "Resume" bails out before this can be reached.
     UNREACHABLE();
   }
@@ -2023,10 +2033,19 @@ class LiftoffCompiler {
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,
-                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
-                   const Value returns[]) {
+                   base::Vector<wasm::HandlerCase> handlers, const Value& cont,
+                   const Value args[], const Value returns[]) {
     unsupported(decoder, kWasmfx,
                 "unimplemented Liftoff instruction: resume_throw");
+  }
+
+  void ResumeThrowRef(FullDecoder* decoder,
+                      const wasm::ContIndexImmediate& cont_imm,
+                      base::Vector<wasm::HandlerCase> handlers,
+                      const Value& cont, const Value& exn,
+                      const Value returns[]) {
+    unsupported(decoder, kWasmfx,
+                "unimplemented Liftoff instruction: resume_throw_ref");
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
@@ -3703,7 +3722,8 @@ class LiftoffCompiler {
         bounds_checks == kExplicitBoundsChecks);
 #if V8_TRAP_HANDLER_SUPPORTED
     if (use_trap_handler) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_LOONG64
       if (memory->is_memory64()) {
         FREEZE_STATE(trapping);
         OolTrapLabel trap =
@@ -4299,6 +4319,7 @@ class LiftoffCompiler {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result_val) {
+    FUZZER_HEAVY_INSTRUCTION;
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
@@ -5808,7 +5829,8 @@ class LiftoffCompiler {
     for (ValueType param : sig->parameters()) {
       LoadExceptionValue(param.kind(), values_array, &index, pinned);
     }
-    DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(tag));
+    DCHECK_EQ(index,
+              WasmExceptionPackage::GetEncodedSize(decoder->module_, tag));
   }
 
   void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
@@ -5849,7 +5871,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
-    int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
+    int encoded_size =
+        WasmExceptionPackage::GetEncodedSize(decoder->module_, imm.tag);
     LiftoffRegister encoded_size_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(encoded_size_reg, WasmValue::ForUintPtr(encoded_size));
@@ -5888,9 +5911,16 @@ class LiftoffCompiler {
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
 
     // Finally, call WasmThrow.
-    CallBuiltin(Builtin::kWasmThrow, MakeSig::Params(kIntPtrKind, kIntPtrKind),
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
+    }
+    CallBuiltin(Builtin::kWasmThrow,
+                MakeSig::Params(kIntPtrKind, kIntPtrKind, kRef),
                 {VarState{kIntPtrKind, exception_tag, 0},
-                 VarState{kIntPtrKind, values_array, 0}},
+                 VarState{kIntPtrKind, values_array, 0},
+                 VarState{kRef, LiftoffRegister{instance_data}, 0}},
                 decoder->position());
     int pc_offset = __ pc_offset_for_safepoint();
 
@@ -5927,8 +5957,8 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory) && index != no_reg) {
       outer_pinned.set(index);
     }
-    __ AtomicStore(addr, index, offset, value, type, nullptr, outer_pinned,
-                   i64_offset);
+    __ AtomicStore(addr, index, offset, value, type, nullptr, imm.memory_order,
+                   outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
@@ -5960,8 +5990,8 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ AtomicLoad(value, addr, index, offset, type, nullptr, pinned,
-                  i64_offset);
+    __ AtomicLoad(value, addr, index, offset, type, nullptr, imm.memory_order,
+                  pinned, i64_offset);
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -7986,8 +8016,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -8031,8 +8060,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -8365,8 +8393,8 @@ class LiftoffCompiler {
     return RefCastImpl(decoder, result->type, obj, rtt, false);
   }
 
-  void RefCastDesc(FullDecoder* decoder, const Value& obj, const Value& desc,
-                   Value* result) {
+  void RefCastDescEq(FullDecoder* decoder, const Value& obj, const Value& desc,
+                     Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       __ DropValues(1);  // Drop the descriptor, pretend it was consumed.
       return;
@@ -8483,10 +8511,10 @@ class LiftoffCompiler {
                         false);
   }
 
-  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
-                    const Value& obj, const Value& descriptor,
-                    Value* /* result_on_branch */, uint32_t depth,
-                    bool null_succeeds) {
+  void BrOnCastDescEq(FullDecoder* decoder, HeapType target_type,
+                      const Value& obj, const Value& descriptor,
+                      Value* /* result_on_branch */, uint32_t depth,
+                      bool null_succeeds) {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastImpl(decoder, target_type.AsExact(), obj, rtt, depth,
@@ -8530,10 +8558,10 @@ class LiftoffCompiler {
                             null_succeeds, false);
   }
 
-  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
-                        const Value& obj, const Value& descriptor,
-                        Value* /* result_on_fallthrough */, uint32_t depth,
-                        bool null_succeeds) {
+  void BrOnCastDescEqFail(FullDecoder* decoder, HeapType target_type,
+                          const Value& obj, const Value& descriptor,
+                          Value* /* result_on_fallthrough */, uint32_t depth,
+                          bool null_succeeds) {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastFailImpl(decoder, target_type.AsExact(), obj, rtt, depth,
@@ -9742,7 +9770,8 @@ class LiftoffCompiler {
                             : compiler::kWasmFunction);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-    int vector_slot = NextFeedbackVectorSlot();
+    int vector_slot = NextFeedbackVectorSlot(decoder);
+
     if (v8_flags.wasm_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
@@ -10105,7 +10134,8 @@ class LiftoffCompiler {
                 kRef);
         VarState vector_var{kRef, vector.reg(), 0};
 
-        int vector_slot = NextFeedbackVectorSlot();
+        int vector_slot = NextFeedbackVectorSlot(decoder);
+
         encountered_call_instructions_.push_back(
             FunctionTypeFeedback::kCallIndirect);
         VarState index_var(kI32, vector_slot, 0);
@@ -10243,7 +10273,8 @@ class LiftoffCompiler {
 
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
-      int vector_slot = NextFeedbackVectorSlot();
+
+      int vector_slot = NextFeedbackVectorSlot(decoder);
       encountered_call_instructions_.push_back(FunctionTypeFeedback::kCallRef);
       VarState index_var(kI32, vector_slot, 0);
 
@@ -10420,7 +10451,7 @@ class LiftoffCompiler {
       // TODO(mliedtke): Can we emit something better if the memory order is
       // acqrel?
       __ AtomicLoad(dst, src, offset_reg, offset, load_type, &protected_load_pc,
-                    pinned, false, LiftoffAssembler::kNative);
+                    memory_order, pinned, false, LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
@@ -10457,7 +10488,7 @@ class LiftoffCompiler {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
       __ AtomicStore(obj, offset_reg, offset, value, store_type,
-                     &protected_load_pc, pinned, false,
+                     &protected_load_pc, memory_order, pinned, false,
                      LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
@@ -10574,7 +10605,7 @@ class LiftoffCompiler {
     }
   }
 
-  int NextFeedbackVectorSlot() {
+  int NextFeedbackVectorSlot(FullDecoder* decoder) {
     // A constant `int` is sufficient for the vector slot index.
     // The number of call instructions (and hence feedback vector slots) is
     // capped by the number of instructions, which is capped by the maximum
@@ -10583,6 +10614,12 @@ class LiftoffCompiler {
                           FeedbackConstants::kSlotsPerInstruction +
                       FeedbackConstants::kHeaderSlots <
                   static_cast<size_t>(std::numeric_limits<int>::max()));
+
+    if (EnableCompilationHintsInfrastructure()) {
+      decoder->module_->feedback_slots_to_wire_byte_offsets[func_index_]
+          .push_back(decoder->pc_relative_offset());
+    }
+
     return static_cast<int>(encountered_call_instructions_.size() *
                                 FeedbackConstants::kSlotsPerInstruction +
                             FeedbackConstants::kHeaderSlots);
@@ -10652,6 +10689,11 @@ class LiftoffCompiler {
     if (instance == no_reg) instance = fallback;
     __ LoadInstanceDataFromFrame(instance);
     return instance;
+  }
+
+  bool EnableCompilationHintsInfrastructure() {
+    return v8_flags.wasm_generate_compilation_hints ||
+           v8_flags.trace_wasm_generate_compilation_hints;
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
@@ -10872,7 +10914,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(env->module) << "#"
                    << compiler_options.func_index << " using Liftoff, took "
-                   << time.InMilliseconds() << " ms and "
+                   << time.InMicroseconds() << " μs and "
                    << zone.allocation_size() << " bytes; bodysize "
                    << func_body_size << " codesize " << codesize << std::endl;
   }

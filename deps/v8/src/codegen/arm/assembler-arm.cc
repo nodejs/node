@@ -53,13 +53,13 @@
 namespace v8 {
 namespace internal {
 
-static const unsigned kArmv6 = 0u;
-static const unsigned kArmv7 = kArmv6 | (1u << ARMv7);
-static const unsigned kArmv7WithSudiv = kArmv7 | (1u << ARMv7_SUDIV);
-static const unsigned kArmv8 = kArmv7WithSudiv | (1u << ARMv8);
+static const CpuFeatureSet kArmv6{};
+static const CpuFeatureSet kArmv7 = kArmv6 | ARMv7;
+static const CpuFeatureSet kArmv7WithSudiv = kArmv7 | ARMv7_SUDIV;
+static const CpuFeatureSet kArmv8 = kArmv7WithSudiv | ARMv8;
 
-static unsigned CpuFeaturesFromCommandLine() {
-  unsigned result;
+static CpuFeatureSet CpuFeaturesFromCommandLine() {
+  CpuFeatureSet result;
   const char* arm_arch = v8_flags.arm_arch;
   if (strcmp(arm_arch, "armv8") == 0) {
     result = kArmv8;
@@ -94,12 +94,12 @@ static unsigned CpuFeaturesFromCommandLine() {
       maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {
     // As an approximation of the old behaviour, set the default values from the
     // arm_arch setting, then apply the flags over the top.
-    bool enable_armv7 = (result & (1u << ARMv7)) != 0;
-    bool enable_vfp3 = (result & (1u << ARMv7)) != 0;
-    bool enable_32dregs = (result & (1u << ARMv7)) != 0;
-    bool enable_neon = (result & (1u << ARMv7)) != 0;
-    bool enable_sudiv = (result & (1u << ARMv7_SUDIV)) != 0;
-    bool enable_armv8 = (result & (1u << ARMv8)) != 0;
+    bool enable_armv7 = result.contains(ARMv7);
+    bool enable_vfp3 = result.contains(ARMv7);
+    bool enable_32dregs = result.contains(ARMv7);
+    bool enable_neon = result.contains(ARMv7);
+    bool enable_sudiv = result.contains(ARMv7_SUDIV);
+    bool enable_armv8 = result.contains(ARMv8);
     if (maybe_enable_armv7.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv7 is deprecated. "
@@ -170,7 +170,7 @@ static unsigned CpuFeaturesFromCommandLine() {
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
 //  "armv7+sudiv": ARMv7 + VFPv4-D32 + NEON + SUDIV
 //  "armv8":       ARMv8 (+ all of the above)
-static constexpr unsigned CpuFeaturesFromCompiler() {
+static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 // TODO(jbramley): Once the build flags are simplified, these tests should
 // also be simplified.
 
@@ -211,7 +211,7 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   dcache_line_size_ = 64;
 
-  unsigned command_line = CpuFeaturesFromCommandLine();
+  CpuFeatureSet command_line = CpuFeaturesFromCommandLine();
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
     supported_ |= command_line & CpuFeaturesFromCompiler();
@@ -226,7 +226,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Probe for additional features at runtime.
   base::CPU cpu;
   // Runtime detection is slightly fuzzy, and some inferences are necessary.
-  unsigned runtime = kArmv6;
+  CpuFeatureSet runtime = kArmv6;
   // NEON and VFPv3 imply at least ARMv7-A.
   if (cpu.has_neon() && cpu.has_vfp3_d32()) {
     DCHECK(cpu.has_vfp3());

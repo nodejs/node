@@ -24,28 +24,105 @@ class ValueUnwrapContext {
 
 }  // namespace
 
+TNode<Context> AsyncBuiltinsAssembler::AllocateAwaitContext(
+    TNode<NativeContext> native_context, TNode<JSGeneratorObject> generator) {
+  static const int kAwaitContextSize =
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  TNode<Context> await_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kAwaitContextSize));
+  TNode<Map> map = CAST(LoadContextElementNoCell(
+      native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
+  StoreMapNoWriteBarrier(await_context, map);
+  StoreObjectFieldNoWriteBarrier(
+      await_context, Context::kLengthOffset,
+      SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
+  const TNode<Object> empty_scope_info =
+      LoadContextElementNoCell(native_context, Context::SCOPE_INFO_INDEX);
+  StoreContextElementNoWriteBarrier(await_context, Context::SCOPE_INFO_INDEX,
+                                    empty_scope_info);
+  StoreContextElementNoWriteBarrier(await_context, Context::PREVIOUS_INDEX,
+                                    native_context);
+  StoreContextElementNoWriteBarrier(await_context, Context::EXTENSION_INDEX,
+                                    generator);
+  return await_context;
+}
+
 TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
                                             TNode<JSGeneratorObject> generator,
                                             TNode<JSAny> value,
                                             TNode<JSPromise> outer_promise,
                                             RootIndex on_resolve_sfi,
                                             RootIndex on_reject_sfi) {
-  return Await(
-      context, generator, value, outer_promise,
-      [&](TNode<Context> context, TNode<NativeContext> native_context) {
-        auto on_resolve = AllocateRootFunctionWithContext(
-            on_resolve_sfi, context, native_context);
-        auto on_reject = AllocateRootFunctionWithContext(on_reject_sfi, context,
-                                                         native_context);
-        return std::make_pair(on_resolve, on_reject);
-      });
+  return Await(context, generator, value, outer_promise,
+               [&](TNode<NativeContext> native_context) {
+                 TNode<Context> await_context =
+                     AllocateAwaitContext(native_context, generator);
+                 auto on_resolve = AllocateRootFunctionWithContext(
+                     on_resolve_sfi, await_context, native_context);
+                 auto on_reject = AllocateRootFunctionWithContext(
+                     on_reject_sfi, await_context, native_context);
+                 return std::make_pair(on_resolve, on_reject);
+               });
 }
 
-TNode<Object> AsyncBuiltinsAssembler::Await(
-    TNode<Context> context, TNode<JSGeneratorObject> generator,
-    TNode<JSAny> value, TNode<JSPromise> outer_promise,
-    const CreateClosures& CreateClosures) {
+TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
+                                            TNode<JSGeneratorObject> generator,
+                                            TNode<JSAny> value,
+                                            TNode<JSPromise> outer_promise,
+                                            const GetClosures& get_closures) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
+
+  // Fast path for non-thenable values: when awaiting a non-thenable value
+  // and there's no debugging/hooks enabled, we can skip creating a wrapper
+  // promise and directly enqueue a microtask that will call the resolve
+  // handler with the value.
+  //
+  // Per ECMA-262 CreateResolvingFunctions
+  // (https://tc39.es/ecma262/#sec-createresolvingfunctions), step 2.d:
+  // "If resolution is not an Object, return FulfillPromise(promise,
+  // resolution)." This means primitives are never checked for a "then"
+  // property, so we don't need any protector checks for primitive prototypes.
+  //
+  // TODO(yagiznizipli): This fast path could potentially be extended to
+  // non-primitive non-thenables as well (e.g., plain objects with known maps
+  // where we can verify no "then" property exists).
+  Label if_non_thenable_fast_path(this), if_thenable_slow_path(this),
+      done(this);
+  TVARIABLE(Object, var_result);
+  {
+    TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+    GotoIf(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+               promiseHookFlags),
+           &if_thenable_slow_path);
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+    GotoIf(IsContextPromiseHookEnabled(promiseHookFlags),
+           &if_thenable_slow_path);
+#endif
+
+    // Check if value is a non-thenable (Smi or non-JSReceiver HeapObject).
+    // Non-JSReceiver values are guaranteed to be non-thenable per the spec.
+    GotoIf(TaggedIsSmi(value), &if_non_thenable_fast_path);
+    TNode<HeapObject> value_heap_object = CAST(value);
+    TNode<Map> value_map = LoadMap(value_heap_object);
+    Branch(IsJSReceiverMap(value_map), &if_thenable_slow_path,
+           &if_non_thenable_fast_path);
+  }
+
+  BIND(&if_non_thenable_fast_path);
+  {
+    // Get or allocate resolve and reject handlers.
+    auto [on_resolve, on_reject] = get_closures(native_context);
+    // Directly enqueue a microtask for the non-thenable value.
+    // We pass Undefined as throwaway since no hooks are enabled.
+    CallBuiltin(Builtin::kAsyncAwaitNonThenableFastPath, native_context, value,
+                on_resolve, UndefinedConstant());
+    // Return undefined - the caller will handle the actual return value.
+    // This matches what PerformPromiseThen returns for the throwaway promise.
+    var_result = UndefinedConstant();
+    Goto(&done);
+  }
+
+  BIND(&if_thenable_slow_path);
 
   // We do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
   // create wrapper promises. Now if {value} is already a promise with the
@@ -99,31 +176,8 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
     value = var_value.value();
   }
 
-  static const int kClosureContextSize =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  TNode<Context> closure_context =
-      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
-  {
-    // Initialize the await context, storing the {generator} as extension.
-    TNode<Map> map = CAST(LoadContextElementNoCell(
-        native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
-    StoreMapNoWriteBarrier(closure_context, map);
-    StoreObjectFieldNoWriteBarrier(
-        closure_context, Context::kLengthOffset,
-        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
-    const TNode<Object> empty_scope_info =
-        LoadContextElementNoCell(native_context, Context::SCOPE_INFO_INDEX);
-    StoreContextElementNoWriteBarrier(
-        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
-    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
-                                      native_context);
-    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
-                                      generator);
-  }
-
-  // Allocate and initialize resolve and reject handlers
-  auto [on_resolve, on_reject] =
-      CreateClosures(closure_context, native_context);
+  // Get or allocate resolve and reject handlers
+  auto [on_resolve, on_reject] = get_closures(native_context);
 
   // Deal with PromiseHooks and debug support in the runtime. This
   // also allocates the throwaway promise, which is only needed in
@@ -154,8 +208,64 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
   }
   BIND(&if_instrumentation_done);
 
-  return CallBuiltin(Builtin::kPerformPromiseThen, native_context, value,
-                     on_resolve, on_reject, var_throwaway.value());
+  var_result = CallBuiltin(Builtin::kPerformPromiseThen, native_context, value,
+                           on_resolve, on_reject, var_throwaway.value());
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
+TNode<Object> AsyncBuiltinsAssembler::AwaitWithReusableClosures(
+    TNode<Context> context, TNode<JSAsyncFunctionObject> async_function_object,
+    TNode<JSAny> value, TNode<JSPromise> outer_promise) {
+  return Await(
+      context, async_function_object, value, outer_promise,
+      [&](TNode<NativeContext> native_context) {
+        // Lazily allocate closures on first await, then reuse them for
+        // subsequent awaits.
+        TVARIABLE(JSFunction, var_on_resolve);
+        TVARIABLE(JSFunction, var_on_reject);
+        Label closures_ready(this), allocate_closures(this, Label::kDeferred);
+
+        TNode<HeapObject> maybe_resolve = LoadObjectField<HeapObject>(
+            async_function_object,
+            JSAsyncFunctionObject::kAwaitResolveClosureOffset);
+        GotoIf(IsUndefined(maybe_resolve), &allocate_closures);
+
+        var_on_resolve = CAST(maybe_resolve);
+        var_on_reject = LoadObjectField<JSFunction>(
+            async_function_object,
+            JSAsyncFunctionObject::kAwaitRejectClosureOffset);
+        Goto(&closures_ready);
+
+        BIND(&allocate_closures);
+        {
+          TNode<Context> await_context =
+              AllocateAwaitContext(native_context, async_function_object);
+
+          TNode<JSFunction> resolve_closure = AllocateRootFunctionWithContext(
+              RootIndex::kAsyncFunctionAwaitResolveClosureSharedFun,
+              await_context, native_context);
+          TNode<JSFunction> reject_closure = AllocateRootFunctionWithContext(
+              RootIndex::kAsyncFunctionAwaitRejectClosureSharedFun,
+              await_context, native_context);
+
+          StoreObjectField(async_function_object,
+                           JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+                           resolve_closure);
+          StoreObjectField(async_function_object,
+                           JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+                           reject_closure);
+
+          var_on_resolve = resolve_closure;
+          var_on_reject = reject_closure;
+          Goto(&closures_ready);
+        }
+
+        BIND(&closures_ready);
+        return std::make_pair(var_on_resolve.value(), var_on_reject.value());
+      });
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(

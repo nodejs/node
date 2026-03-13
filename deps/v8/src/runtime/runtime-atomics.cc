@@ -396,9 +396,10 @@ struct Xor {
     auto length = sta->GetLengthOrOutOfBounds(out_of_bounds);                  \
     if (V8_UNLIKELY(sta->WasDetached() || out_of_bounds || index >= length)) { \
       THROW_NEW_ERROR_RETURN_FAILURE(                                          \
-          isolate, NewTypeError(MessageTemplate::kDetachedOperation,           \
-                                isolate->factory()->NewStringFromAsciiChecked( \
-                                    method_name)));                            \
+          isolate,                                                             \
+          NewTypeError(                                                        \
+              MessageTemplate::kTypedArrayValidateWriteErrorOperation,         \
+              isolate->factory()->NewStringFromAsciiChecked(method_name)));    \
     }                                                                          \
   } while (false)
 

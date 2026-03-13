@@ -41,6 +41,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -2148,12 +2149,13 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
   // This tag value has been picked arbitrarily between 0 and
   // V8_EXTERNAL_POINTER_TAG_COUNT.
   constexpr v8::ExternalPointerTypeTag kWorkerThreadTag = 23;
-  class WorkerThread : public v8::base::Thread {
+  class WorkerThread : public v8::internal::SandboxableThread {
    public:
     WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)
-        : Thread(v8::base::Thread::Options("WorkerThread")), m_(m), cv_(cv) {}
+        : SandboxableThread(v8::base::Thread::Options("WorkerThread")),
+          m_(m),
+          cv_(cv) {}
     void Run() override {
-      v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
       v8::Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
       isolate = v8::Isolate::New(create_params);

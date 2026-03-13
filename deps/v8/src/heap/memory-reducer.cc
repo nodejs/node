@@ -14,7 +14,6 @@
 namespace v8 {
 namespace internal {
 
-const int MemoryReducer::kLongDelayMs = 8000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const double MemoryReducer::kCommittedMemoryFactor = 1.1;
@@ -72,7 +71,6 @@ void MemoryReducer::TimerTask::RunInternal() {
       low_allocation_rate || optimize_for_memory,
       heap->incremental_marking()->IsStopped() &&
           heap->incremental_marking()->CanAndShouldBeStarted(),
-      IsFrozen(heap),
   };
   memory_reducer_->NotifyTimer(event);
 }
@@ -89,10 +87,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
                                             state_.started_gcs());
     }
-    GCFlags gc_flags = v8_flags.memory_reducer_favors_memory
-                           ? GCFlag::kReduceMemoryFootprint
-                           : heap()->GCFlagsForIncrementalMarking();
-    heap()->StartIncrementalMarking(gc_flags,
+    heap()->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);
   } else if (state_.id() == kWait) {
@@ -120,8 +115,7 @@ void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
       (committed_memory_before > committed_memory + MB) ||
           heap()->HasHighFragmentation(),
       false,
-      false,
-      IsFrozen(heap())};
+      false};
   const State old_state = state_;
   state_ = Step(state_, event);
   if (old_state.id() != kWait && state_.id() == kWait) {
@@ -142,8 +136,7 @@ void MemoryReducer::NotifyPossibleGarbage() {
                                    0,
                                    false,
                                    false,
-                                   false,
-                                   IsFrozen(heap_)};
+                                   false};
   const Id old_action = state_.id();
   state_ = Step(state_, event);
   if (old_action != kWait && state_.id() == kWait) {
@@ -177,8 +170,9 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                 state.committed_memory_at_last_run() + kCommittedMemoryDelta)) {
           return state;
         } else {
-          return State::CreateWait(0, event.time_ms + kLongDelayMs,
-                                   event.time_ms);
+          return State::CreateWait(
+              0, event.time_ms + v8_flags.memory_reducer_delay_ms,
+              event.time_ms);
         }
       } else {
         DCHECK_EQ(kPossibleGarbage, event.type);
@@ -192,7 +186,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
         case kPossibleGarbage:
           return state;
         case kTimer:
-          if (event.is_frozen || state.started_gcs() >= MaxNumberOfGCs()) {
+          if (state.started_gcs() >= MaxNumberOfGCs()) {
             return State::CreateDone(state.last_gc_time_ms(),
                                      event.committed_memory);
           } else if (event.can_start_incremental_gc &&
@@ -204,18 +198,20 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
               return state;
             }
           } else {
-            return State::CreateWait(state.started_gcs(),
-                                     event.time_ms + kLongDelayMs,
-                                     state.last_gc_time_ms());
+            return State::CreateWait(
+                state.started_gcs(),
+                event.time_ms + v8_flags.memory_reducer_delay_ms,
+                state.last_gc_time_ms());
           }
         case kMarkCompact:
-          return State::CreateWait(state.started_gcs(),
-                                   event.time_ms + kLongDelayMs, event.time_ms);
+          return State::CreateWait(
+              state.started_gcs(),
+              event.time_ms + v8_flags.memory_reducer_delay_ms, event.time_ms);
       }
     case kRun:
       CHECK_LE(state.started_gcs(), MaxNumberOfGCs());
       if (event.type == kMarkCompact) {
-        if (!event.is_frozen && state.started_gcs() < MaxNumberOfGCs() &&
+        if (state.started_gcs() < MaxNumberOfGCs() &&
             (event.next_gc_likely_to_collect_more ||
              state.started_gcs() == 1)) {
           return State::CreateWait(state.started_gcs(),
@@ -246,12 +242,6 @@ void MemoryReducer::TearDown() { state_ = State::CreateUninitialized(); }
 int MemoryReducer::MaxNumberOfGCs() {
   DCHECK_GT(v8_flags.memory_reducer_gc_count, 0);
   return v8_flags.memory_reducer_gc_count;
-}
-
-// static
-bool MemoryReducer::IsFrozen(const Heap* heap) {
-  return v8_flags.memory_reducer_respects_frozen_state &&
-         heap->isolate()->IsFrozen();
 }
 
 }  // namespace internal

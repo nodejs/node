@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -22,18 +23,18 @@ namespace {
 
 TEST(AbslHardeningTest, Optional) {
   absl::optional<int> optional;
-  EXPECT_DEATH_IF_SUPPORTED(*optional, "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = *optional, "");
 }
 
 TEST(AbslHardeningTest, StringView) {
   absl::string_view view("foo");
-  EXPECT_DEATH_IF_SUPPORTED(view[4], "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = view[4], "");
   EXPECT_DEATH_IF_SUPPORTED(view.remove_prefix(10), "");
   EXPECT_DEATH_IF_SUPPORTED(view.remove_suffix(10), "");
 
   absl::string_view empty("");
-  EXPECT_DEATH_IF_SUPPORTED(empty.front(), "");
-  EXPECT_DEATH_IF_SUPPORTED(empty.back(), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = empty.front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = empty.back(), "");
 }
 
 TEST(AbslHardeningTest, FixedArray) {
@@ -73,8 +74,8 @@ TEST(AbslHardeningTest, Span) {
 
 TEST(AbslHardeningTest, Variant) {
   absl::variant<int, std::string> variant = 5;
-  EXPECT_DEATH_IF_SUPPORTED(absl::get<std::string>(variant), "");
-  EXPECT_DEATH_IF_SUPPORTED(absl::get<1>(variant), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = absl::get<std::string>(variant), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = absl::get<1>(variant), "");
 }
 
 }  // namespace

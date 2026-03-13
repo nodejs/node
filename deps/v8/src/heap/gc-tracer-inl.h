@@ -26,17 +26,24 @@ constexpr GCTracer::IncrementalInfos& GCTracer::IncrementalInfos::operator+=(
   return *this;
 }
 
+GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, JobDelegate* delegate)
+    : Scope(tracer, scope,
+            delegate->IsJoiningThread() ? ThreadKind::kMain
+                                        : ThreadKind::kBackground) {}
+
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer),
       scope_(scope),
+#ifdef DEBUG
       thread_kind_(thread_kind),
+#endif  // DEBUG
       start_time_(base::TimeTicks::Now()) {
   DCHECK_IMPLIES(thread_kind_ == ThreadKind::kMain,
-                 tracer_->heap_->IsMainThread());
+                 LocalHeap::Current()->is_main_thread());
 
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  if (thread_kind_ == ThreadKind::kMain) {
+  if (thread_kind == ThreadKind::kMain) {
     runtime_stats_ = tracer_->heap_->isolate_->counters()->runtime_call_stats();
     runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
   } else {
@@ -52,14 +59,12 @@ GCTracer::Scope::~Scope() {
   const base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
   tracer_->AddScopeSample(scope_, duration);
 
-  if (thread_kind_ == ThreadKind::kMain) {
-    if (scope_ == ScopeId::MC_INCREMENTAL ||
-        scope_ == ScopeId::MC_INCREMENTAL_START) {
-      auto* long_task_stats =
-          tracer_->heap_->isolate_->GetCurrentLongTaskStats();
-      long_task_stats->gc_full_incremental_wall_clock_duration_us +=
-          duration.InMicroseconds();
-    }
+  if (scope_ == ScopeId::MC_INCREMENTAL ||
+      scope_ == ScopeId::MC_INCREMENTAL_START) {
+    DCHECK_EQ(thread_kind_, ThreadKind::kMain);
+    auto* long_task_stats = tracer_->heap_->isolate_->GetCurrentLongTaskStats();
+    long_task_stats->gc_full_incremental_wall_clock_duration_us +=
+        duration.InMicroseconds();
   }
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -105,9 +110,7 @@ constexpr bool GCTracer::Event::IsYoungGenerationEvent(Type type) {
          type == Type::INCREMENTAL_MINOR_MARK_SWEEPER;
 }
 
-CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
-  return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
-}
+CollectionEpoch GCTracer::CurrentEpoch() const { return epoch_; }
 
 double GCTracer::current_scope(Scope::ScopeId id) const {
   DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);

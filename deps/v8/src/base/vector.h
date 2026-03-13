@@ -12,6 +12,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/base/algorithm.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -50,13 +51,13 @@ class Vector {
   template <class U>
   void OverwriteWith(Vector<U> other) {
     DCHECK_EQ(size(), other.size());
-    std::copy(other.begin(), other.end(), begin());
+    base::Copy(other.begin(), other.end(), begin());
   }
 
   template <class U, size_t n>
   void OverwriteWith(const std::array<U, n>& other) {
     DCHECK_EQ(size(), other.size());
-    std::copy(other.begin(), other.end(), begin());
+    base::Copy(other.begin(), other.end(), begin());
   }
 
   // Returns the length of the vector. Only use this if you really need an
@@ -300,7 +301,7 @@ class OwnedVector {
   template <typename U>
   static OwnedVector<U> NewByCopying(const U* data, size_t size) {
     auto result = OwnedVector<U>::NewForOverwrite(size);
-    std::copy(data, data + size, result.begin());
+    base::Copy(data, data + size, result.begin());
     return result;
   }
 
