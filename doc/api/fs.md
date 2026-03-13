@@ -7664,7 +7664,28 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users (non-root processes). This value
+may be less than `statfs.bfree` when the file system reserves blocks for the
+superuser.
+
+Multiply by `statfs.bsize` to obtain the available space in bytes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const availableBytes = stats.bavail * stats.bsize;
+console.log(`Available space: ${(availableBytes / 1024 ** 3).toFixed(2)} GB`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+statfs('/').then((stats) => {
+  const availableBytes = stats.bavail * stats.bsize;
+  console.log(`Available space: ${(availableBytes / 1024 ** 3).toFixed(2)} GB`);
+});
+```
 
 #### `statfs.bfree`
 
@@ -7676,7 +7697,11 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in the file system, including blocks reserved for the superuser.
+To get the space available to normal (non-privileged) users, use
+`statfs.bavail` instead.
+
+Multiply by `statfs.bsize` to obtain the free space in bytes.
 
 #### `statfs.blocks`
 
@@ -7688,7 +7713,21 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in the file system. Multiply by `statfs.bsize` to get the
+total capacity of the file system in bytes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalBytes = stats.blocks * stats.bsize;
+const usedBytes = (stats.blocks - stats.bfree) * stats.bsize;
+const availableBytes = stats.bavail * stats.bsize;
+
+console.log(`Total:     ${(totalBytes / 1024 ** 3).toFixed(2)} GB`);
+console.log(`Used:      ${(usedBytes / 1024 ** 3).toFixed(2)} GB`);
+console.log(`Available: ${(availableBytes / 1024 ** 3).toFixed(2)} GB`);
+```
 
 #### `statfs.bsize`
 
@@ -7700,7 +7739,17 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+The optimal transfer block size for the file system, **in bytes**. All
+block-count fields (`blocks`, `bfree`, `bavail`) must be multiplied by this
+value to convert them from blocks to bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const { bsize, bavail } = await statfs('/tmp');
+const availableBytes = bavail * bsize;  // bsize is in bytes
+console.log(`Free space in /tmp: ${availableBytes} bytes`);
+```
 
 #### `statfs.ffree`
 
@@ -7712,7 +7761,9 @@ added:
 
 * Type: {number|bigint}
 
-Free file nodes in file system.
+Free file nodes (inodes) in the file system. Each file, directory, and
+symbolic link on the file system consumes one inode. When this value reaches
+zero, no new files can be created even if disk space is available.
 
 #### `statfs.files`
 
@@ -7724,7 +7775,17 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total number of file nodes (inodes) in the file system. The number of
+currently used inodes can be derived as `statfs.files - statfs.ffree`.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const usedInodes = stats.files - stats.ffree;
+const inodeUsagePct = ((usedInodes / stats.files) * 100).toFixed(1);
+console.log(`Inode usage: ${inodeUsagePct}%`);
+```
 
 #### `statfs.type`
 
@@ -7736,7 +7797,23 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+The numeric identifier of the file system type as reported by the operating
+system. This is the value of the `f_type` field in the POSIX `statvfs`/`statfs`
+structure. Common values on Linux are defined in `<linux/magic.h>` (for example
+`0x4d44` for FAT, `0xef53` for ext2/3/4, `0x5346544e` for NTFS).
+
+On macOS the values come from `<sys/mount.h>`. On Windows this field is always
+`0`.
+
+The value is operating-system-specific and not portable across platforms.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const { type } = await statfs('/');
+// On Linux, 0xef53 (61267) indicates an ext2/3/4 file system.
+console.log(`File system type id: 0x${type.toString(16)}`);
+```
 
 ### Class: `fs.Utf8Stream`
 
