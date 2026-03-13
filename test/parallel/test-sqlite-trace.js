@@ -7,11 +7,11 @@ const assert = require('node:assert');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, it } = require('node:test');
 
-suite('DatabaseSync verbose option', () => {
+suite('DatabaseSync trace option', () => {
   it('callback receives SQL string for exec() statements', (t) => {
     const calls = [];
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
     });
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -26,7 +26,7 @@ suite('DatabaseSync verbose option', () => {
   it('callback receives SQL string for prepared statement execution', (t) => {
     let calls = [];
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
     });
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -43,7 +43,7 @@ suite('DatabaseSync verbose option', () => {
   it('callback receives SQL string for SELECT statements', () => {
     let calls = [];
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
     });
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -61,7 +61,7 @@ suite('DatabaseSync verbose option', () => {
   it('callback receives SQL string for UPDATE statements', () => {
     let calls = [];
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
     });
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -79,7 +79,7 @@ suite('DatabaseSync verbose option', () => {
   it('callback receives SQL string for DELETE statements', () => {
     let calls = [];
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
     });
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -98,7 +98,7 @@ suite('DatabaseSync verbose option', () => {
     let calls = [];
 
     const db = new DatabaseSync(':memory:', {
-      verbose: (sql) => calls.push(sql),
+      trace: (sql) => calls.push(sql),
       limits: { length: 1000 },
     });
 
@@ -116,19 +116,19 @@ suite('DatabaseSync verbose option', () => {
     db.close();
   });
 
-  it('invalid type for verbose throws ERR_INVALID_ARG_TYPE', () => {
+  it('invalid type for trace throws ERR_INVALID_ARG_TYPE', () => {
     assert.throws(() => {
-      new DatabaseSync(':memory:', { verbose: 'not-a-function' });
+      new DatabaseSync(':memory:', { trace: 'not-a-function' });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.verbose" argument must be a function\./,
+      message: /The "options\.trace" argument must be a function\./,
     });
 
     assert.throws(() => {
-      new DatabaseSync(':memory:', { verbose: 42 });
+      new DatabaseSync(':memory:', { trace: 42 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.verbose" argument must be a function\./,
+      message: /The "options\.trace" argument must be a function\./,
     });
   });
 });

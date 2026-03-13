@@ -166,7 +166,7 @@ class DatabaseSync : public BaseObject {
   enum InternalFields {
     kAuthorizerCallback = BaseObject::kInternalFieldCount,
     kLimitsObject,
-    kVerboseCallback,
+    kTraceCallback,
     kInternalFieldCount
   };
 
