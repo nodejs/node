@@ -756,3 +756,304 @@ function createMountedVfs() {
     myVfs.unmount();
   }));
 }
+
+// ==================== truncate ops ====================
+
+// Test fs.truncateSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.truncateSync(path.join(mountPoint, 'src/hello.txt'), 5);
+  const content = fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8');
+  assert.strictEqual(content, 'hello');
+  myVfs.unmount();
+}
+
+// Test fs.truncate callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.truncate(path.join(mountPoint, 'src/hello.txt'), 5, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    const content = fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8');
+    assert.strictEqual(content, 'hello');
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.truncate on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.truncate(path.join(mountPoint, 'src/hello.txt'), 5).then(common.mustCall(() => {
+    const content = fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8');
+    assert.strictEqual(content, 'hello');
+    myVfs.unmount();
+  }));
+}
+
+// ==================== ftruncate ops ====================
+
+// Test fs.ftruncateSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r+');
+  fs.ftruncateSync(fd, 5);
+  fs.closeSync(fd);
+  const content = fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8');
+  assert.strictEqual(content, 'hello');
+  myVfs.unmount();
+}
+
+// Test fs.ftruncate callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r+');
+  fs.ftruncate(fd, 5, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    const content = fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8');
+    assert.strictEqual(content, 'hello');
+    myVfs.unmount();
+  }));
+}
+
+// ==================== link ops ====================
+
+// Test fs.linkSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.linkSync(
+    path.join(mountPoint, 'src/hello.txt'),
+    path.join(mountPoint, 'src/hello-link.txt'),
+  );
+  const content = fs.readFileSync(path.join(mountPoint, 'src/hello-link.txt'), 'utf8');
+  assert.strictEqual(content, 'hello world');
+  myVfs.unmount();
+}
+
+// Test fs.link callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.link(
+    path.join(mountPoint, 'src/hello.txt'),
+    path.join(mountPoint, 'src/hello-link-cb.txt'),
+    common.mustCall((err) => {
+      assert.strictEqual(err, null);
+      const content = fs.readFileSync(path.join(mountPoint, 'src/hello-link-cb.txt'), 'utf8');
+      assert.strictEqual(content, 'hello world');
+      myVfs.unmount();
+    }),
+  );
+}
+
+// Test fs.promises.link on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.link(
+    path.join(mountPoint, 'src/hello.txt'),
+    path.join(mountPoint, 'src/hello-link-promise.txt'),
+  ).then(common.mustCall(() => {
+    const content = fs.readFileSync(path.join(mountPoint, 'src/hello-link-promise.txt'), 'utf8');
+    assert.strictEqual(content, 'hello world');
+    myVfs.unmount();
+  }));
+}
+
+// ==================== mkdtemp ops ====================
+
+// Test fs.mkdtempSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const tmpdir = fs.mkdtempSync(path.join(mountPoint, 'src/tmp-'));
+  assert.ok(tmpdir.startsWith(path.join(mountPoint, 'src/tmp-')));
+  assert.strictEqual(tmpdir.length, path.join(mountPoint, 'src/tmp-').length + 6);
+  assert.strictEqual(fs.statSync(tmpdir).isDirectory(), true);
+  myVfs.unmount();
+}
+
+// Test fs.mkdtemp callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.mkdtemp(path.join(mountPoint, 'src/tmp-'), common.mustCall((err, tmpdir) => {
+    assert.strictEqual(err, null);
+    assert.ok(tmpdir.startsWith(path.join(mountPoint, 'src/tmp-')));
+    assert.strictEqual(fs.statSync(tmpdir).isDirectory(), true);
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.mkdtemp on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.mkdtemp(path.join(mountPoint, 'src/tmp-')).then(common.mustCall((tmpdir) => {
+    assert.ok(tmpdir.startsWith(path.join(mountPoint, 'src/tmp-')));
+    assert.strictEqual(fs.statSync(tmpdir).isDirectory(), true);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== opendir ops ====================
+
+// Test fs.opendirSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const dir = fs.opendirSync(path.join(mountPoint, 'src'));
+  const names = [];
+  let entry;
+  while ((entry = dir.readSync()) !== null) {
+    names.push(entry.name);
+  }
+  dir.closeSync();
+  assert.ok(names.includes('hello.txt'));
+  assert.ok(names.includes('data.json'));
+  assert.ok(names.includes('subdir'));
+  myVfs.unmount();
+}
+
+// Test fs.opendir callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.opendir(path.join(mountPoint, 'src'), common.mustCall((err, dir) => {
+    assert.strictEqual(err, null);
+    const names = [];
+    let entry;
+    while ((entry = dir.readSync()) !== null) {
+      names.push(entry.name);
+    }
+    dir.closeSync();
+    assert.ok(names.includes('hello.txt'));
+    myVfs.unmount();
+  }));
+}
+
+// Test opendir async iteration on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.opendir(path.join(mountPoint, 'src'), common.mustCall(async (err, dir) => {
+    assert.strictEqual(err, null);
+    const names = [];
+    for await (const entry of dir) {
+      names.push(entry.name);
+    }
+    assert.ok(names.includes('hello.txt'));
+    assert.ok(names.includes('data.json'));
+    myVfs.unmount();
+  }));
+}
+
+// ==================== openAsBlob ====================
+
+// Test fs.openAsBlob on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.openAsBlob(path.join(mountPoint, 'src/hello.txt')).then(async (blob) => {
+    assert.ok(blob instanceof Blob);
+    assert.strictEqual(blob.size, 11);
+    const text = await blob.text();
+    assert.strictEqual(text, 'hello world');
+    myVfs.unmount();
+  }).then(common.mustCall());
+}
+
+// Test fs.openAsBlob with type option on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.openAsBlob(path.join(mountPoint, 'src/data.json'), { type: 'application/json' })
+    .then(async (blob) => {
+      assert.strictEqual(blob.type, 'application/json');
+      const text = await blob.text();
+      assert.strictEqual(text, '{"key":"value"}');
+      myVfs.unmount();
+    }).then(common.mustCall());
+}
+
+// ==================== cp ops ====================
+
+// Test fs.cpSync on VFS (directory tree)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  // Add some content to subdir
+  fs.writeFileSync(path.join(mountPoint, 'src/subdir/nested.txt'), 'nested content');
+  fs.cpSync(
+    path.join(mountPoint, 'src'),
+    path.join(mountPoint, 'src-copy'),
+    { recursive: true },
+  );
+  assert.strictEqual(
+    fs.readFileSync(path.join(mountPoint, 'src-copy/hello.txt'), 'utf8'),
+    'hello world',
+  );
+  assert.strictEqual(
+    fs.readFileSync(path.join(mountPoint, 'src-copy/subdir/nested.txt'), 'utf8'),
+    'nested content',
+  );
+  myVfs.unmount();
+}
+
+// Test fs.cp callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.cp(
+    path.join(mountPoint, 'src'),
+    path.join(mountPoint, 'src-copy-cb'),
+    { recursive: true },
+    common.mustCall((err) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(
+        fs.readFileSync(path.join(mountPoint, 'src-copy-cb/hello.txt'), 'utf8'),
+        'hello world',
+      );
+      myVfs.unmount();
+    }),
+  );
+}
+
+// Test fs.promises.cp on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.cp(
+    path.join(mountPoint, 'src'),
+    path.join(mountPoint, 'src-copy-promise'),
+    { recursive: true },
+  ).then(common.mustCall(() => {
+    assert.strictEqual(
+      fs.readFileSync(path.join(mountPoint, 'src-copy-promise/hello.txt'), 'utf8'),
+      'hello world',
+    );
+    myVfs.unmount();
+  }));
+}
+
+// ==================== glob ops ====================
+
+// Test fs.globSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const matches = fs.globSync(path.join(mountPoint, 'src/*.txt'));
+  assert.ok(matches.length >= 1);
+  assert.ok(matches.some((m) => m.endsWith('hello.txt')));
+  myVfs.unmount();
+}
+
+// Test fs.glob callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.glob(path.join(mountPoint, 'src/*.txt'), common.mustCall((err, result) => {
+    assert.strictEqual(err, null);
+    assert.ok(result.length >= 1);
+    assert.ok(result.some((m) => m.endsWith('hello.txt')));
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.glob async iterator on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  (async () => {
+    const matches = [];
+    for await (const match of fs.promises.glob(path.join(mountPoint, 'src/*.txt'))) {
+      matches.push(match);
+    }
+    assert.ok(matches.length >= 1);
+    assert.ok(matches.some((m) => m.endsWith('hello.txt')));
+    myVfs.unmount();
+  })().then(common.mustCall());
+}
