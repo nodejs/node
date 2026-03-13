@@ -612,6 +612,7 @@ are recursively evaluated also by the following rules.
 * [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [`===` operator][].
 * Only [enumerable "own" properties][] are considered.
+* Object constructors are compared.
 * {Error} names, messages, causes, and errors are always compared,
   even if these are not enumerable properties.
   `errors` is also compared.
