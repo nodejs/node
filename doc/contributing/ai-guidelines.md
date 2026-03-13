@@ -22,8 +22,8 @@ When using AI as a coding assistant:
 * **Understand the codebase first.** Do not skip familiarizing yourself with
   the relevant subsystem. LLMs frequently produce inaccurate descriptions of
   Node.js internals — always verify against the actual source. When using an AI
-  tool, ask it to cite the exact source files/PRs/docs it’s relying on, and then 
-  match the claim against that resource to verify if it holds up in the current 
+  tool, ask it to cite the exact source files/PRs/docs it’s relying on, and then
+  match the claim against that resource to verify if it holds up in the current
   code.
 
 * **Own every line you submit.** You are responsible for all code in your
@@ -38,6 +38,10 @@ When using AI as a coding assistant:
   any manually written tests relevant to the change. Existing tests should not
   be removed or modified without human verification. Do not rely on the LLM
   to assess correctness.
+
+* **Do not disappear.** If you open a PR, follow it through. Respond to
+  feedback and iterate until the work lands or is explicitly closed. If you
+  can no longer pursue it, close the PR. Stalled PRs block progress.
 
 * **Edit generated comments critically.** LLM-produced comments are often
   verbose or inaccurate. Remove comments that simply restate what the code
