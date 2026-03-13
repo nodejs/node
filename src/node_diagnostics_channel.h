@@ -10,6 +10,7 @@
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "node_snapshotable.h"
+#include "node_usdt.h"
 
 namespace node {
 class ExternalReferenceRegistry;
@@ -52,6 +53,10 @@ class BindingData : public SnapshotableObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+#if NODE_HAVE_USDT
+  static void EmitPublishProbe(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
 
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                          v8::Local<v8::ObjectTemplate> target);
@@ -62,6 +67,10 @@ class BindingData : public SnapshotableObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  private:
+#if NODE_HAVE_USDT
+  static void SetupProbeSemaphore(v8::Isolate* isolate,
+                                  v8::Local<v8::Object> target);
+#endif
   InternalFieldInfo* internal_field_info_ = nullptr;
 };
 
