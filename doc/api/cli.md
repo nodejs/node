@@ -2455,10 +2455,15 @@ changes:
     description: This option also supports ECMAScript module.
 -->
 
-Preload the specified module at startup.
+Preload the specified module at startup, before the main entry point
+of the application is executed.
 
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
+
+This option is commonly used to initialize global configuration,
+set up instrumentation, or apply polyfills before any application
+code runs.
 
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
