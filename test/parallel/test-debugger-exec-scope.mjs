@@ -10,6 +10,7 @@ import assert from 'assert';
 const cli = startCLI([fixtures.path('debugger/backtrace.js')]);
 
 try {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.stepCommand('c');

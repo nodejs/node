@@ -13,7 +13,7 @@ const script = fixtures.path('debugger', 'three-lines.js');
 const cli = startCLI(['--inspect-port=0', script], [], {}, { randomPort: false });
 
 (async () => {
-  await cli.waitForInitialBreak();
+  await cli.waitFor(/Debugger attached\./);
   await cli.waitForPrompt();
   assert.match(cli.output, /debug>/, 'prints a prompt');
   assert.match(

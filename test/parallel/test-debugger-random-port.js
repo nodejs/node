@@ -14,7 +14,8 @@ const assert = require('assert');
 
   const cli = startCLI([script]);
 
-  cli.waitForInitialBreak()
+  cli.waitForPrompt()
+    .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
       assert.match(cli.output, /debug>/, 'prints a prompt');

@@ -12,6 +12,7 @@ const cli = startCLI([fixtures.path('debugger/alive.js')]);
 
 async function waitInitialBreak() {
   try {
+    await cli.waitForPrompt();
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();
     await cli.command('exec [typeof heartbeat, typeof process.exit]');

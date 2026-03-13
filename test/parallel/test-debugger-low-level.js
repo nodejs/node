@@ -14,6 +14,7 @@ const assert = require('assert');
 
   async function testDebuggerLowLevel() {
     try {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.command('scripts');

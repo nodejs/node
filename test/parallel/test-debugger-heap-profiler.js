@@ -20,6 +20,7 @@ const filename = tmpdir.resolve('node.heapsnapshot');
 
   async function waitInitialBreak() {
     try {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.command('takeHeapSnapshot()');

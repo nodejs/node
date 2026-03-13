@@ -10,6 +10,7 @@ import assert from 'assert';
 const script = fixtures.path('debugger', 'three-lines.js');
 const cli = startCLI([script], [], {}, { randomPort: false });
 try {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   assert.match(cli.output, /debug>/, 'prints a prompt');

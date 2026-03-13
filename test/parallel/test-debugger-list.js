@@ -11,6 +11,7 @@ const assert = require('assert');
 const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
 
 (async () => {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('list(0)');

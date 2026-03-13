@@ -11,6 +11,7 @@ const assert = require('assert');
 const cli = startCLI([fixtures.path('debugger/empty.js')]);
 
 (async () => {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('exec new Date(0)');

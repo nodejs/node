@@ -15,6 +15,7 @@ const cli = startCLI([fixtures.path('debugger/empty.js')]);
 const rootDir = path.resolve(__dirname, '..', '..');
 
 (async () => {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('profile');

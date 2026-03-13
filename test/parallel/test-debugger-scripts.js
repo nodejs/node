@@ -15,6 +15,7 @@ const assert = require('assert');
 
   (async () => {
     try {
+      await cli.waitForPrompt();
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.command('scripts');
