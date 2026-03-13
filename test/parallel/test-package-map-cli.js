@@ -6,9 +6,13 @@ const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { describe, it } = require('node:test');
 
+const onlyIfNodeOptionsSupport = {
+  skip: process.config.variables.node_without_node_options,
+};
+
 describe('--experimental-package-map CLI behavior', () => {
 
-  it('works via NODE_OPTIONS', () => {
+  it('works via NODE_OPTIONS', onlyIfNodeOptionsSupport, () => {
     const { status, stdout, stderr } = spawnSync(process.execPath, [
       '-e',
       `const dep = require('dep-a'); console.log(dep);`,
@@ -17,7 +21,7 @@ describe('--experimental-package-map CLI behavior', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        NODE_OPTIONS: `--experimental-package-map=${fixtures.path('package-map/package-map.json')}`,
+        NODE_OPTIONS: `--experimental-package-map=${JSON.stringify(fixtures.path('package-map/package-map.json'))}`,
       },
     });
 
