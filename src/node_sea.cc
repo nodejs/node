@@ -565,6 +565,25 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     return std::nullopt;
   }
 
+  if (static_cast<bool>(result.flags & SeaFlags::kEnableVfs)) {
+    if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot)) {
+      FPrintF(stderr,
+              "\"useVfs\" is not supported when \"useSnapshot\" is true\n");
+      return std::nullopt;
+    }
+    if (static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
+      FPrintF(stderr,
+              "\"useVfs\" is not supported when \"useCodeCache\" is true\n");
+      return std::nullopt;
+    }
+    if (result.main_format == ModuleFormat::kModule) {
+      FPrintF(stderr,
+              "\"useVfs\" is not supported when "
+              "\"mainFormat\" is \"module\"\n");
+      return std::nullopt;
+    }
+  }
+
   if (result.main_path.empty()) {
     FPrintF(stderr,
             "\"main\" field of %s is not a non-empty string\n",
