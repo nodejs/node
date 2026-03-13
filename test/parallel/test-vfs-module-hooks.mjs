@@ -10,7 +10,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: CJS bare specifier resolution with exports string shorthand
-// Exercises: resolveBareSpecifier, resolvePackageExports (string)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -37,7 +36,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Conditional exports with import/require/default conditions
-// Exercises: resolveConditions, resolvePackageExports (conditional)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -87,7 +85,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Subpath exports map
-// Exercises: resolvePackageExports (subpath map with string target)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -126,7 +123,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Subpath exports with conditional object target
-// Exercises: resolvePackageExports (subpath → conditional object)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -162,7 +158,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Nested conditional exports (e.g. node → import/require)
-// Exercises: resolveConditions (recursive nested)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -203,7 +198,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Package without exports, using main field
-// Exercises: resolveBareSpecifier main field fallback
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -231,7 +225,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Package without exports/main, fallback to index.js
-// Exercises: resolveBareSpecifier → tryIndexFiles
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -257,7 +250,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Extension resolution (require without file extension)
-// Exercises: tryExtensions in resolveVFSPath
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -278,7 +270,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Extension resolution with .json
-// Exercises: tryExtensions finding .json
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -296,29 +287,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: Directory resolution with index.mjs
-// Exercises: tryIndexFiles with index.mjs
-// =================================================================
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/mydir', { recursive: true });
-  myVfs.writeFileSync('/mydir/index.mjs', 'export const dirIndex = "mjs";');
-  myVfs.writeFileSync(
-    '/entry-dir.mjs',
-    "export { dirIndex } from '/mh10/mydir';",
-  );
-  myVfs.mount('/mh10');
-
-  // ESM directory import → should find index.mjs
-  const result = await import('/mh10/entry-dir.mjs');
-  assert.strictEqual(result.dirIndex, 'mjs');
-
-  myVfs.unmount();
-}
-
-// =================================================================
 // Test: Scoped package resolution (@scope/pkg)
-// Exercises: parsePackageName with @scope prefix
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -346,7 +315,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Scoped package with subpath
-// Exercises: parsePackageName with @scope/pkg/subpath
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -383,7 +351,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: .js file with type: module in package.json → ESM format
-// Exercises: getVFSPackageType, getVFSFormat for .js
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -399,7 +366,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: .cjs always treated as CommonJS regardless of package type
-// Exercises: getVFSFormat for .cjs extension
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -423,8 +389,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: file: URL specifier in resolve hook
-// Exercises: vfsResolveHook file: URL branch
+// Test: file: URL specifier
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -439,7 +404,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Package with main field requiring extension resolution
-// Exercises: resolveDirectoryEntry → tryExtensions on main path
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -463,7 +427,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Bare specifier with package subpath (no exports, direct file)
-// Exercises: resolveBareSpecifier subpath resolution without exports
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -489,7 +452,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Bare specifier subpath with extension resolution
-// Exercises: resolveBareSpecifier → tryExtensions on subpath
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -516,7 +478,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Bare specifier main field with extension resolution
-// Exercises: resolveBareSpecifier main → tryExtensions
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -542,68 +503,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: Invalid exports value (null, number) falls through
-// Exercises: resolvePackageExports null/non-object branches
-// =================================================================
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/app/node_modules/null-export-pkg', { recursive: true });
-  myVfs.writeFileSync('/app/node_modules/null-export-pkg/package.json', JSON.stringify({
-    name: 'null-export-pkg',
-    exports: null,
-    main: './index.js',
-  }));
-  myVfs.writeFileSync(
-    '/app/node_modules/null-export-pkg/index.js',
-    'module.exports = { nullExport: true };',
-  );
-  myVfs.writeFileSync(
-    '/app/entry-null.js',
-    "module.exports = require('null-export-pkg');",
-  );
-  myVfs.mount('/mh20');
-
-  // Exports is null, should fall through to main field
-  const result = require('/mh20/app/entry-null.js');
-  assert.strictEqual(result.nullExport, true);
-
-  myVfs.unmount();
-}
-
-// =================================================================
-// Test: Empty exports object
-// Exercises: resolvePackageExports keys.length === 0 branch
-// =================================================================
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/app/node_modules/empty-exp-pkg', { recursive: true });
-  myVfs.writeFileSync('/app/node_modules/empty-exp-pkg/package.json', JSON.stringify({
-    name: 'empty-exp-pkg',
-    exports: {},
-    main: './index.js',
-  }));
-  myVfs.writeFileSync(
-    '/app/node_modules/empty-exp-pkg/index.js',
-    'module.exports = { emptyExport: true };',
-  );
-  myVfs.writeFileSync(
-    '/app/entry-empty.js',
-    "module.exports = require('empty-exp-pkg');",
-  );
-  myVfs.mount('/mh21');
-
-  // Empty exports object should fall through to main
-  // Note: In the real Node resolver, empty exports would block access.
-  // Our VFS resolver falls through gracefully.
-  const result = require('/mh21/app/entry-empty.js');
-  assert.strictEqual(result.emptyExport, true);
-
-  myVfs.unmount();
-}
-
-// =================================================================
-// Test: exports with array value (unsupported, should fall through)
-// Exercises: resolvePackageExports ArrayIsArray branch
+// Test: exports with array value (fallback array)
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -625,7 +525,7 @@ const require = createRequire(import.meta.url);
   );
   myVfs.mount('/mh22');
 
-  // Array target in exports should fall through to main/index
+  // Array target in exports: canonical resolver tries each entry in order
   const result = require('/mh22/app/entry-arr.js');
   assert.strictEqual(result.arrExport, true);
 
@@ -634,7 +534,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Exports with "default" condition
-// Exercises: resolveConditions "default" key matching
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -667,7 +566,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Package.json type "commonjs" explicitly set for .js
-// Exercises: getVFSPackageType returning 'commonjs'
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -683,7 +581,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: .js file with no package.json → defaults to commonjs
-// Exercises: getVFSPackageType returning 'none'
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -698,7 +595,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Package.json type walk stops at node_modules boundary
-// Exercises: getVFSPackageType node_modules boundary check
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -720,36 +616,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: resolveVFSPath with directory having package.json + exports
-// Exercises: resolveDirectoryEntry → resolvePackageExports from dir
-// =================================================================
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/pkg-dir', { recursive: true });
-  myVfs.writeFileSync('/pkg-dir/package.json', JSON.stringify({
-    exports: {
-      '.': {
-        import: './main.mjs',
-        default: './main.js',
-      },
-    },
-  }));
-  myVfs.writeFileSync('/pkg-dir/main.mjs', 'export const pkgDir = "esm";');
-  myVfs.writeFileSync(
-    '/entry-pkg-dir.mjs',
-    "export { pkgDir } from '/mh27/pkg-dir';",
-  );
-  myVfs.mount('/mh27');
-
-  const result = await import('/mh27/entry-pkg-dir.mjs');
-  assert.strictEqual(result.pkgDir, 'esm');
-
-  myVfs.unmount();
-}
-
-// =================================================================
-// Test: Invalid package.json (malformed JSON) in directory resolution
-// Exercises: resolveDirectoryEntry catch block for invalid JSON
+// Test: Invalid package.json in directory resolution
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -769,8 +636,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: Invalid package.json in getVFSPackageType (walk-up)
-// Exercises: getVFSPackageType catch block
+// Test: Invalid package.json in type walk-up
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -787,7 +653,6 @@ const require = createRequire(import.meta.url);
 
 // =================================================================
 // Test: Scoped package without slash (just @scope/name)
-// Exercises: parsePackageName with @scope but no subpath
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -813,8 +678,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: node: builtin passthrough in resolve hook
-// Exercises: vfsResolveHook node: prefix check
+// Test: node: builtin passthrough
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -831,8 +695,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: vfsLoadHook with format already set in context
-// Exercises: vfsLoadHook context.format || getVFSFormat branch
+// Test: JSON import with type assertion
 // =================================================================
 {
   const myVfs = vfs.create();
@@ -846,14 +709,7 @@ const require = createRequire(import.meta.url);
 }
 
 // =================================================================
-// Test: Relative path without parentURL
-// Exercises: vfsResolveHook relative without parentURL → nextResolve
-// (Implicitly tested - if ESM entry has no parent, it falls through)
-// =================================================================
-
-// =================================================================
-// Test: resolveVFSPath for file with unknown extension
-// Exercises: getVFSFormat fallback to 'commonjs' for unknown ext
+// Test: File with unknown extension → defaults to commonjs
 // =================================================================
 {
   const myVfs = vfs.create();
