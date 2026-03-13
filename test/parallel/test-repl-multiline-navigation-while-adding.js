@@ -310,3 +310,43 @@ tmpdir.refresh();
     checkResults
   );
 }
+
+{
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
+  // Make sure the cursor is at the right places when navigating an input which is
+  // bigger than the terminal height
+  const checkResults = common.mustSucceed((r) => {
+    r.write('let fff = `I am a');
+    r.input.run([{ name: 'enter' }]);
+    r.write('1111111111111');
+    r.input.run([{ name: 'enter' }]);
+    r.write('22222222222222');
+    r.input.run([{ name: 'enter' }]);
+    r.write('333333333333333');
+    r.input.run([{ name: 'enter' }]);
+    r.write('4444444444`');
+
+    // Make sure that if we press up while adding a new multiline input,
+    // and the cursor is at the first line, we don't lose what we have written so far.
+    for (let i = 0; i < 5; i++) {
+      r.input.run([{ name: 'up' }]);
+    }
+
+    assert.strictEqual(r.line, 'let fff = `I am a\r1111111111111\r22222222222222\r333333333333333\r4444444444`');
+    assert.strictEqual(r.history.length, 1);
+  });
+
+  repl.createInternalRepl(
+    { NODE_REPL_HISTORY: historyPath },
+    {
+      terminal: true,
+      input: new ActionStream(),
+      output: Object.assign(new stream.Writable({
+        write(chunk, _, next) {
+          next();
+        }
+      }), { rows: 3 }),
+    },
+    checkResults
+  );
+}
