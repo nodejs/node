@@ -1106,7 +1106,7 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+* `pattern` {string|string\[]} One or more glob patterns to match against.
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
@@ -1119,6 +1119,28 @@ changes:
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
+
+Retrieves file paths matching the specified glob `pattern`. The pattern
+syntax is based on [`minimatch`][] and supports the following constructs:
+
+| Pattern   | Description                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `*`       | Matches any number of characters in a single path segment, excluding path separators.                                           |
+| `?`       | Matches exactly one character, excluding path separators.                                                                       |
+| `[abc]`   | Matches any one character inside the brackets. Ranges like `[a-z]` and negation like `[!abc]` or `[^abc]` are supported.        |
+| `**`      | Matches zero or more path segments. When used as a full segment (e.g., `a/**/b`), it traverses directories recursively.         |
+| `{a,b,c}` | Brace expansion. Matches any of the comma-separated alternatives. Nested braces and numeric ranges like `{1..5}` are supported. |
+
+Pattern matching is case-insensitive on macOS and Windows, and
+case-sensitive on Linux. Negation patterns (`!pattern`) and `#` comments
+are not supported. To exclude paths, use the `exclude` option instead.
+
+When an array of patterns is provided, a file is included if it matches
+any of the patterns.
+
+To check whether a single path matches a glob pattern without traversing the
+file system, use [`path.matchesGlob()`][]. The `path.matchesGlob()` method
+does not support the `exclude` option.
 
 ```mjs
 import { glob } from 'node:fs/promises';
@@ -1134,6 +1156,15 @@ const { glob } = require('node:fs/promises');
   for await (const entry of glob('**/*.js'))
     console.log(entry);
 })();
+```
+
+Collecting all results into an array:
+
+```mjs
+import { glob } from 'node:fs/promises';
+
+const files = await Array.fromAsync(glob('**/*.js'));
+console.log(files);
 ```
 
 ### `fsPromises.lchmod(path, mode)`
@@ -3219,7 +3250,8 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+* `pattern` {string|string\[]} One or more glob patterns to match against.
+  See [`fsPromises.glob()`][] for supported pattern syntax.
 
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
@@ -5788,7 +5820,8 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+* `pattern` {string|string\[]} One or more glob patterns to match against.
+  See [`fsPromises.glob()`][] for supported pattern syntax.
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
@@ -8778,6 +8811,7 @@ the file contents.
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
+[`fsPromises.glob()`]: #fspromisesglobpattern-options
 [`fsPromises.mkdtemp()`]: #fspromisesmkdtempprefix-options
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
@@ -8787,6 +8821,7 @@ the file contents.
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
+[`path.matchesGlob()`]: path.md#pathmatchesglobpath-pattern
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
