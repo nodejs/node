@@ -10,7 +10,9 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#ifndef OPENSSL_NO_COMP_ALG
 #include <vector>
+#endif
 
 namespace node {
 namespace crypto {

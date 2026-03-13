@@ -2090,13 +2090,18 @@ void SecureContext::SetCertificateCompression(
   Local<Array> arr = args[0].As<Array>();
   uint32_t len = arr->Length();
 
-  if (len == 0 || len > TLSEXT_comp_cert_limit) {
+  // TLSEXT_comp_cert_limit is the limit for a zero-terminated algs array,
+  // total number of available algs is one fewer.
+  constexpr uint32_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+  if (len == 0 || len > kMaxCompAlgs) {
     return THROW_ERR_INVALID_ARG_VALUE(
-        env, "certificateCompression must contain 1 to 3 algorithm names");
+        env,
+        "certificateCompression must specify fewer than %d algorithms",
+        kMaxCompAlgs);
   }
 
 #ifndef OPENSSL_NO_COMP_ALG
-  int algs[TLSEXT_comp_cert_limit];
+  int algs[kMaxCompAlgs];
   for (uint32_t i = 0; i < len; i++) {
     Local<Value> val;
     if (!arr->Get(env->context(), i).ToLocal(&val) || !val->IsString()) {
@@ -2104,11 +2109,11 @@ void SecureContext::SetCertificateCompression(
           env, "certificateCompression entries must be strings");
     }
     Utf8Value name(env->isolate(), val);
-    if (strcmp(*name, "zlib") == 0) {
+    if (name.ToStringView() == "zlib") {
       algs[i] = TLSEXT_comp_cert_zlib;
-    } else if (strcmp(*name, "brotli") == 0) {
+    } else if (name.ToStringView() == "brotli") {
       algs[i] = TLSEXT_comp_cert_brotli;
-    } else if (strcmp(*name, "zstd") == 0) {
+    } else if (name.ToStringView() == "zstd") {
       algs[i] = TLSEXT_comp_cert_zstd;
     } else {
       return THROW_ERR_INVALID_ARG_VALUE(
