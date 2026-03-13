@@ -1,4 +1,4 @@
-/* auto-generated on 2026-03-06 11:46:19 -0500. Do not edit! */
+/* auto-generated on 2026-03-11 12:53:21 -0400. Do not edit! */
 #include "merve.h"
 
 /* begin file src/parser.cpp */
@@ -1478,11 +1478,13 @@ private:
   }
 
   void tryBacktrackAddStarExportBinding(const char* bPos) {
-    while (*bPos == ' ' && bPos > source)
+    if (bPos < source) return;
+    while (bPos > source && *bPos == ' ')
       bPos--;
     if (*bPos == '=') {
+      if (bPos <= source) return;
       bPos--;
-      while (*bPos == ' ' && bPos > source)
+      while (bPos > source && *bPos == ' ')
         bPos--;
       const char* id_end = bPos;
       bool identifierStart = false;
@@ -1497,7 +1499,7 @@ private:
         if (starExportStack == STAR_EXPORT_STACK_END)
           return;
         starExportStack->id = std::string_view(bPos + 1, static_cast<size_t>(id_end - bPos));
-        while (*bPos == ' ' && bPos > source)
+        while (bPos > source && *bPos == ' ')
           bPos--;
         switch (*bPos) {
           case 'r':
