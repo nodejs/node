@@ -121,6 +121,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/inspector/network", "internal/inspector/network_http",
         "internal/inspector/network_http2", "internal/inspector/network_undici",
         "internal/inspector_async_hook", "internal/inspector_network_tracking",
+        "internal/inspector/webstorage",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
