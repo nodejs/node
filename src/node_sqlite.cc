@@ -2596,8 +2596,8 @@ int DatabaseSync::TraceCallback(unsigned int type,
   } else {
     // Fallback to source SQL if expanded is unavailable
     const char* source = sqlite3_sql(static_cast<sqlite3_stmt*>(p));
-    if (source == nullptr || !String::NewFromUtf8(isolate, source)
-                                  .ToLocal(&sql_string)) {
+    if (source == nullptr ||
+        !String::NewFromUtf8(isolate, source).ToLocal(&sql_string)) {
       return 0;
     }
   }
