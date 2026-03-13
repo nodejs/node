@@ -165,6 +165,7 @@ class DatabaseSync : public BaseObject {
   enum InternalFields {
     kAuthorizerCallback = BaseObject::kInternalFieldCount,
     kLimitsObject,
+    kVerboseCallback,
     kInternalFieldCount
   };
 
@@ -202,6 +203,10 @@ class DatabaseSync : public BaseObject {
                                 const char* param2,
                                 const char* param3,
                                 const char* param4);
+  static int TraceCallback(unsigned int type,
+                           void* user_data,
+                           void* p,
+                           void* x);
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);

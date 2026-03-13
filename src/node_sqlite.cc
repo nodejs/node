@@ -974,6 +974,15 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
+  {
+    Local<Value> cb =
+        object()->GetInternalField(kVerboseCallback).template As<Value>();
+    if (cb->IsFunction()) {
+      sqlite3_trace_v2(
+          connection_, SQLITE_TRACE_STMT, DatabaseSync::TraceCallback, this);
+    }
+  }
+
   return true;
 }
 
@@ -1338,6 +1347,23 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
           open_config.set_initial_limit(sqlite_limit_id, limit_val);
         }
       }
+    }
+
+    // Parse verbose option
+    Local<Value> verbose_v;
+    if (!options->Get(env->context(), env->verbose_string())
+             .ToLocal(&verbose_v)) {
+      return;
+    }
+    if (!verbose_v->IsUndefined() && !verbose_v->IsNull()) {
+      if (!verbose_v->IsFunction()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.verbose\" argument must be a function.");
+        return;
+      }
+      args.This()->SetInternalField(kVerboseCallback,
+                                    verbose_v.As<Function>());
     }
   }
 
@@ -2388,6 +2414,55 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   }
 
   return int_result;
+}
+
+int DatabaseSync::TraceCallback(unsigned int type,
+                                void* user_data,
+                                void* p,
+                                void* x) {
+  if (type != SQLITE_TRACE_STMT) {
+    return 0;
+  }
+
+  DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
+  Environment* env = db->env();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = env->context();
+
+  Local<Value> cb =
+      db->object()->GetInternalField(kVerboseCallback).template As<Value>();
+
+  if (!cb->IsFunction()) {
+    return 0;
+  }
+
+  char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
+  Local<Value> sql_string;
+  if (expanded != nullptr) {
+    bool ok = String::NewFromUtf8(isolate, expanded).ToLocal(&sql_string);
+    sqlite3_free(expanded);
+    if (!ok) {
+      return 0;
+    }
+  } else {
+    // Fallback to source SQL if expanded is unavailable
+    const char* source = sqlite3_sql(static_cast<sqlite3_stmt*>(p));
+    if (source == nullptr || !String::NewFromUtf8(isolate, source)
+                                  .ToLocal(&sql_string)) {
+      return 0;
+    }
+  }
+
+  Local<Function> callback = cb.As<Function>();
+  MaybeLocal<Value> retval =
+      callback->Call(context, Undefined(isolate), 1, &sql_string);
+
+  if (retval.IsEmpty()) {
+    db->SetIgnoreNextSQLiteError(true);
+  }
+
+  return 0;
 }
 
 StatementSync::StatementSync(Environment* env,
