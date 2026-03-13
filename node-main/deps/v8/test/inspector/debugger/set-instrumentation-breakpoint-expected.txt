@@ -1,0 +1,126 @@
+Debugger.setInstrumentationBreakpoint
+
+Running test: testSetTwice
+set breakpoint..
+{
+    breakpointId : <breakpointId>
+}
+set breakpoint again..
+{
+    error : {
+        code : -32000
+        message : Instrumentation breakpoint is already enabled.
+    }
+    id : <messageId>
+}
+remove breakpoint..
+{
+    id : <messageId>
+    result : {
+    }
+}
+
+Running test: testScriptParsed
+set breakpoint and evaluate script..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : foo.js
+}
+set breakpoint and evaluate script with sourceMappingURL..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    sourceMapURL : map.js
+    url : foo.js
+}
+remove breakpoint..
+{
+    id : <messageId>
+    result : {
+    }
+}
+evaluate script again..
+
+Running test: testScriptWithSourceMapParsed
+set breakpoint for scriptWithSourceMapParsed..
+evaluate script without sourceMappingURL..
+evaluate script with sourceMappingURL..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    sourceMapURL : map.js
+    url : foo.js
+}
+remove breakpoint..
+{
+    id : <messageId>
+    result : {
+    }
+}
+evaluate script without sourceMappingURL..
+evaluate script with sourceMappingURL..
+
+Running test: testBlackboxing
+set breakpoint and evaluate blackboxed script..
+evaluate not blackboxed script..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : bar.js
+}
+evaluate blackboxed script that contains not blackboxed one..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : bar.js
+}
+
+Running test: testCompileFirstRunLater
+set breakpoint for scriptWithSourceMapParsed..
+compile script with sourceMappingURL..
+evaluate script without sourceMappingURL..
+run previously compiled script with sourceMappingURL..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    sourceMapURL : boo.js
+    url : foo.js
+}
+
+Running test: testRemoveAfterCompile
+set breakpoint..
+compile script..
+Remove instrumentation breakpoint..
+evaluate script..
+no breakpoint was hit
+
+Running test: testRemoveBeforeEvaluate
+set breakpoint..
+Remove instrumentation breakpoint..
+evaluate script..
+no breakpoint was hit
+
+Running test: testRemoveAfterOnePause
+set breakpoint..
+evaluate script..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : foo.js
+}
+Remove instrumentation breakpoint..
+evaluate another script..
+no breakpoint was hit
+
+Running test: testInstrumentationCoincideWithScheduledPauseOnNextStatement
+set breakpoint..
+set instrumentation
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : 
+}
+paused with reason: instrumentation:scriptFirstStatement
+{
+}

@@ -1,0 +1,37 @@
+Test that all 'other' reasons are explicitly encoded on a pause event if they overlap with another reason
+
+Running test: testBreakpointPauseReason
+Paused with reason instrumentation, data {"scriptId":"3","url":"foo.js"} and scriptId: 3.
+Paused with reason other, data {} and scriptId: 3.
+
+Running test: testTriggeredPausePauseReason
+Paused with reason instrumentation, data {"scriptId":"4","url":"foo.js"} and scriptId: 4.
+Paused with reason other, data {} and scriptId: 4.
+
+Running test: testSteppingPauseReason
+Paused with reason instrumentation, data {"scriptId":"5","url":"foo.js"} and scriptId: 5.
+Paused with reason other, data {} and scriptId: 5.
+Paused with reason step, data {} and scriptId: 5.
+Paused with reason instrumentation, data {"scriptId":"6","url":"bar.js"} and scriptId: 6.
+Paused with reason step, data {} and scriptId: 6.
+
+Running test: testOnlyReportOtherWithEmptyDataOnce
+Paused with reason other, data {} and scriptId: 7.
+
+Running test: testDebuggerStatementReason
+Paused with reason instrumentation, data {"scriptId":"8","url":"foo.js"} and scriptId: 8.
+Paused with reason other, data {} and scriptId: 8.
+
+Running test: testAsyncSteppingPauseReason
+Paused with reason instrumentation, data {"scriptId":"9","url":"foo.js"} and scriptId: 9.
+Paused with reason other, data {} and scriptId: 9.
+Paused with reason step, data {} and scriptId: 9.
+Paused with reason instrumentation, data {"scriptId":"10","url":"bar.js"} and scriptId: 10.
+Paused with reason step, data {} and scriptId: 10.
+Paused with reason step, data {} and scriptId: 10.
+
+Running test: testSteppingOutPauseReason
+Paused with reason instrumentation, data {"scriptId":"11","url":"foo.js"} and scriptId: 11.
+Paused with reason other, data {} and scriptId: 11.
+Paused with reason instrumentation, data {"scriptId":"12","url":"bar.js"} and scriptId: 12.
+Paused with reason step, data {} and scriptId: 11.

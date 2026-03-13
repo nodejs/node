@@ -1,0 +1,71 @@
+.TH "NPM-UNSTAR" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-unstar\fR - Remove an item from your favorite packages
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm unstar \[lB]<package-spec>...\[rB]
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+"Unstarring" a package is the opposite of npm help star, it removes an item from your list of favorite packages.
+.SS "More"
+.P
+There's also these extra commands to help you manage your favorite packages:
+.SS "Star"
+.P
+You can "star" a package using npm help star
+.SS "Listing stars"
+.P
+You can see all your starred packages using npm help stars
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBunicode\fR"
+.RS 0
+.IP \(bu 4
+Default: false on windows, true on mac/unix systems with a unicode locale, as defined by the \fBLC_ALL\fR, \fBLC_CTYPE\fR, or \fBLANG\fR environment variables.
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set to true, npm uses unicode characters in the tree output. When false, it uses ascii characters instead of unicode glyphs.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm
+access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help star
+.IP \(bu 4
+npm help stars
+.IP \(bu 4
+npm help view
+.IP \(bu 4
+npm help whoami
+.IP \(bu 4
+npm help adduser
+.RE 0

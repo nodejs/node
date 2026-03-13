@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Make sure that resources fetched by cross origin CSS are not in the timeline.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<body>
+<script>
+    const host = get_host_info();
+
+    const link = document.createElement("LINK");
+    link.rel = "stylesheet";
+    link.id = "cross_origin_style";
+
+    /*
+        This stylesheet is fetched from one of:
+            //www1.web–platform.test:64941/resource-timing/resources/nested.css
+            //127.0.0.1:64941/resource-timing/resources/nested.css
+     */
+    link.href = "//" + host.REMOTE_HOST + ":{{ports[http][1]}}{{location[path]}}/../resources/nested.css"
+    document.currentScript.parentNode.insertBefore(link, document.currentScript);
+</script>
+<script>
+  const t = async_test("Make sure that resources fetched by cross origin CSS are not in the timeline.");
+  window.addEventListener("load", function() {
+    // A timeout is needed as entries are not guaranteed to be in the timeline before onload triggers.
+    t.step_timeout(function() {
+          const url = (new URL(document.getElementById("cross_origin_style").href));
+          const prefix = url.protocol + "//" + url.host;
+          assert_equals(performance.getEntriesByName(prefix + "/resource-timing/resources/resource_timing_test0.css?id=n1").length, 0, "Import should not be in timeline");
+          assert_equals(performance.getEntriesByName(prefix + "/fonts/Ahem.ttf?id=n1").length, 0, "Font should not be in timeline");
+          assert_equals(performance.getEntriesByName(prefix + "/resource-timing/resources/blue.png?id=n1").length, 0, "Image should not be in timeline");
+          t.done();
+    }, 200);
+  });
+</script>
+<ol>Some content</ol>
+</body>
+

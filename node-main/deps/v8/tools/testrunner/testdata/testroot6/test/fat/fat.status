@@ -1,0 +1,19 @@
+# Copyright 2017 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  'raspberries': [FAIL, HEAVY],
+  'strawberries': [PASS, ['mode == release', SLOW], ['mode == debug', NO_VARIANTS]],
+  'mangoes': [PASS, SLOW, HEAVY],
+
+  # Both cherries and apples are to test how PASS an FAIL from different
+  # sections are merged.
+  'cherries': [PASS, SLOW],
+  'apples': [FAIL],
+
+  # Unused rule.
+  'carrots': [PASS, FAIL],
+}],
+]
