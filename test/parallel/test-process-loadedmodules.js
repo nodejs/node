@@ -13,9 +13,9 @@ assert.strictEqual(
   process.loadedModules.length
 );
 
-assert.ok(!process.loadedModules.includes('cluster'))
+assert.ok(!process.loadedModules.includes('cluster'));
 require('cluster');
-assert.ok(process.loadedModules.includes('cluster'))
+assert.ok(process.loadedModules.includes('cluster'));
 
 assert.ok(Array.isArray(process.loadedModules));
 assert.throws(() => process.loadedModules = 'foo', /^TypeError: Cannot set property loadedModules of #<process> which has only a getter$/);
