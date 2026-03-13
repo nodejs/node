@@ -52,7 +52,7 @@ dependencies, and tools contained in the `nodejs/node` repository.
 
 Node.js expects contributors to understand and take full responsibility for
 every change they propose. Pull requests consisting of AI-generated code the
-contributor has not personally understood, tested, and verified will be closed
+contributor has not personally understood, tested, and verified might be closed
 without review.
 
 See [details on our AI use policy and guidelines](./doc/contributing/ai-guidelines.md).

@@ -12,7 +12,7 @@ never be "I'm not sure. The AI did it."
 
 Pull requests that consist of AI-generated code the contributor has not
 personally understood, tested, and verified waste collaborator time and
-will be closed without review.
+will be subject to closure without additional review.
 
 ## Using AI for code contributions
 
@@ -35,7 +35,7 @@ When using AI as a coding assistant:
   [commit message guidelines][].
 
 * **Test thoroughly.** AI-generated code must pass the full test suite and
-  any manually written tests relevant to the change. Existing Tests should not
+  any manually written tests relevant to the change. Existing tests should not
   be removed or modified without human verification. Do not rely on the LLM
   to assess correctness.
 
@@ -47,7 +47,7 @@ When using AI as a coding assistant:
 
 Node.js values concise, precise communication that respects collaborator time.
 
-* **Do not post AI-generated messages** in pull requests, issues, or the
+* **Do not post messages generated entirely by AI** in pull requests, issues, or the
   project's communication channels.
 * **Verify accuracy** of any LLM-generated content before including it in a
   PR description or comment.
