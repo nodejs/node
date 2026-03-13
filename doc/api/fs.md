@@ -1845,7 +1845,7 @@ added:
     the filename, and functions receive the filename and return `true` to
     ignore. **Default:** `undefined`.
 * Returns: {AsyncIterator} of objects with the properties:
-  * `eventType` {string} The type of change
+  * `eventType` {string} The type of change: `'change'` or `'rename'`
   * `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
