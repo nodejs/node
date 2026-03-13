@@ -993,15 +993,6 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
-  {
-    Local<Value> cb =
-        object()->GetInternalField(kTraceCallback).template As<Value>();
-    if (cb->IsFunction()) {
-      sqlite3_trace_v2(
-          connection_, SQLITE_TRACE_STMT, DatabaseSync::TraceCallback, this);
-    }
-  }
-
   return true;
 }
 
@@ -1366,21 +1357,6 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
           open_config.set_initial_limit(sqlite_limit_id, limit_val);
         }
       }
-    }
-
-    // Parse trace option
-    Local<Value> trace_v;
-    if (!options->Get(env->context(), env->trace_string()).ToLocal(&trace_v)) {
-      return;
-    }
-    if (!trace_v->IsUndefined() && !trace_v->IsNull()) {
-      if (!trace_v->IsFunction()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.trace\" argument must be a function.");
-        return;
-      }
-      args.This()->SetInternalField(kTraceCallback, trace_v.As<Function>());
     }
   }
 
@@ -2457,6 +2433,30 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   if (r != SQLITE_OK) {
     isolate->ThrowException(ERR_LOAD_SQLITE_EXTENSION(isolate, errmsg));
   }
+}
+
+void DatabaseSync::SetSqlTraceHook(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  Isolate* isolate = env->isolate();
+
+  if (args[0]->IsNull() || args[0]->IsUndefined()) {
+    sqlite3_trace_v2(db->connection_, 0, nullptr, nullptr);
+    db->object()->SetInternalField(kTraceCallback, Null(isolate));
+    return;
+  }
+
+  if (!args[0]->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"hook\" argument must be a function.");
+    return;
+  }
+
+  db->object()->SetInternalField(kTraceCallback, args[0].As<Function>());
+  sqlite3_trace_v2(
+      db->connection_, SQLITE_TRACE_STMT, DatabaseSync::TraceCallback, db);
 }
 
 void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
@@ -4029,6 +4029,8 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(isolate, db_tmpl, "serialize", DatabaseSync::Serialize);
   SetProtoMethod(isolate, db_tmpl, "deserialize", DatabaseSync::Deserialize);
+  SetProtoMethod(
+      isolate, db_tmpl, "setSqlTraceHook", DatabaseSync::SetSqlTraceHook);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetSideEffectFreeGetter(isolate,
