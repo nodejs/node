@@ -753,7 +753,11 @@ file system:
 
 When running as a Single Executable Application (SEA) with `"useVfs": true` in
 the SEA configuration, bundled assets are automatically mounted at `/sea`. No
-additional setup is required:
+additional setup is required.
+
+`"useVfs"` cannot be used together with `"useSnapshot"`, `"useCodeCache"`, or
+`"mainFormat": "module"`. The SEA configuration parser will error if any of
+these combinations are detected.
 
 ```cjs
 // In your SEA entry script
