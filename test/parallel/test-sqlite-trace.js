@@ -7,12 +7,12 @@ const assert = require('node:assert');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, it } = require('node:test');
 
-suite('DatabaseSync trace option', () => {
+suite('DatabaseSync.prototype.setSqlTraceHook()', () => {
   it('callback receives SQL string for exec() statements', (t) => {
     const calls = [];
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-    });
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x INTEGER)');
     db.exec('INSERT INTO t VALUES (1)');
@@ -20,14 +20,13 @@ suite('DatabaseSync trace option', () => {
     assert.strictEqual(calls.length, 2);
     assert.strictEqual(calls[0], 'CREATE TABLE t (x INTEGER)');
     assert.strictEqual(calls[1], 'INSERT INTO t VALUES (1)');
-    db.close();
   });
 
-  it('callback receives SQL string for prepared statement execution', (t) => {
+  it('callback receives SQL string for prepared INSERT statements', (t) => {
     let calls = [];
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-    });
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x INTEGER)');
     calls = []; // reset after setup
@@ -37,14 +36,13 @@ suite('DatabaseSync trace option', () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0], 'INSERT INTO t VALUES (42.0)');
-    db.close();
   });
 
-  it('callback receives SQL string for SELECT statements', () => {
+  it('callback receives SQL string for prepared SELECT statements', (t) => {
     let calls = [];
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-    });
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x INTEGER)');
     db.exec('INSERT INTO t VALUES (1)');
@@ -55,14 +53,13 @@ suite('DatabaseSync trace option', () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0], 'SELECT x FROM t WHERE x = 1.0');
-    db.close();
   });
 
-  it('callback receives SQL string for UPDATE statements', () => {
+  it('callback receives SQL string for prepared UPDATE statements', (t) => {
     let calls = [];
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-    });
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x INTEGER)');
     db.exec('INSERT INTO t VALUES (1)');
@@ -73,14 +70,13 @@ suite('DatabaseSync trace option', () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0], 'UPDATE t SET x = 2.0 WHERE x = 1.0');
-    db.close();
   });
 
-  it('callback receives SQL string for DELETE statements', () => {
+  it('callback receives SQL string for prepared DELETE statements', (t) => {
     let calls = [];
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-    });
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x INTEGER)');
     db.exec('INSERT INTO t VALUES (1)');
@@ -91,16 +87,27 @@ suite('DatabaseSync trace option', () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0], 'DELETE FROM t WHERE x = 1.0');
-    db.close();
   });
 
-  it('falls back to source SQL when expansion fails', () => {
-    let calls = [];
+  it('setSqlTraceHook(null) clears the callback', (t) => {
+    const calls = [];
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
-    const db = new DatabaseSync(':memory:', {
-      trace: (sql) => calls.push(sql),
-      limits: { length: 1000 },
-    });
+    db.exec('CREATE TABLE t (x INTEGER)');
+    assert.strictEqual(calls.length, 1);
+
+    db.setSqlTraceHook(null);
+    db.exec('INSERT INTO t VALUES (1)');
+    assert.strictEqual(calls.length, 1); // No new calls after clearing
+  });
+
+  it('falls back to source SQL when expansion fails', (t) => {
+    let calls = [];
+    const db = new DatabaseSync(':memory:', { limits: { length: 1000 } });
+    t.after(() => db.close());
+    db.setSqlTraceHook((sql) => calls.push(sql));
 
     db.exec('CREATE TABLE t (x TEXT)');
     calls = []; // reset after setup
@@ -113,22 +120,35 @@ suite('DatabaseSync trace option', () => {
     assert.strictEqual(calls.length, 1);
     // Falls back to source SQL with unexpanded '?' placeholder
     assert.strictEqual(calls[0], 'INSERT INTO t VALUES (?)');
-    db.close();
   });
 
-  it('invalid type for trace throws ERR_INVALID_ARG_TYPE', () => {
+  it('throws when the database is not open', () => {
+    const db = new DatabaseSync(':memory:', { open: false });
+
     assert.throws(() => {
-      new DatabaseSync(':memory:', { trace: 'not-a-function' });
+      db.setSqlTraceHook(() => {});
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  it('throws ERR_INVALID_ARG_TYPE for non-function argument', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+
+    assert.throws(() => {
+      db.setSqlTraceHook('not-a-function');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.trace" argument must be a function\./,
+      message: /The "hook" argument must be a function\./,
     });
 
     assert.throws(() => {
-      new DatabaseSync(':memory:', { trace: 42 });
+      db.setSqlTraceHook(42);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.trace" argument must be a function\./,
+      message: /The "hook" argument must be a function\./,
     });
   });
 });

@@ -370,7 +370,6 @@
   V(url_string, "url")                                                         \
   V(username_string, "username")                                               \
   V(value_string, "value")                                                     \
-  V(trace_string, "trace")                                                     \
   V(verify_error_string, "verifyError")                                        \
   V(version_string, "version")                                                 \
   V(windows_hide_string, "windowsHide")                                        \

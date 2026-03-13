@@ -107,9 +107,6 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/62241
-    description: Add `trace` option.
   - version:
      - v25.5.0
      - v24.14.0
@@ -183,13 +180,6 @@ changes:
     * `likePatternLength` {number} Maximum length of a LIKE pattern.
     * `variableNumber` {number} Maximum number of SQL variables.
     * `triggerDepth` {number} Maximum trigger recursion depth.
-  * `trace` {Function} An optional callback function that is invoked for
-    every SQL statement executed against the database. The callback receives
-    the expanded SQL string (with bound parameter values substituted) as its
-    only argument. If expansion fails, the source SQL (with unsubstituted
-    placeholders) is passed instead. This is useful for logging and debugging.
-    This option is a wrapper around [`sqlite3_trace_v2()`][].
-    **Default:** `undefined`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -381,6 +371,56 @@ added:
 
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
+
+### `database.setSqlTraceHook(hook)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `hook` {Function|null} The trace function to set, or `null` to clear
+  the current hook.
+
+Sets a hook that SQLite invokes for every SQL statement executed against the
+database. The hook receives the expanded SQL string (with bound parameter
+values substituted) as its only argument. If expansion fails, the source SQL
+with unsubstituted placeholders is passed instead.
+
+This method is a wrapper around [`sqlite3_trace_v2()`][].
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+const db = new DatabaseSync(':memory:');
+
+db.setSqlTraceHook((sql) => console.log(sql));
+
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER)
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0)
+
+// Clear the hook
+db.setSqlTraceHook(null);
+```
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+const db = new DatabaseSync(':memory:');
+
+db.setSqlTraceHook((sql) => console.log(sql));
+
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER)
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0)
+
+// Clear the hook
+db.setSqlTraceHook(null);
+```
 
 ### `database.setAuthorizer(callback)`
 

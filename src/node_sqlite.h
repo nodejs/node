@@ -203,6 +203,7 @@ class DatabaseSync : public BaseObject {
                                 const char* param2,
                                 const char* param3,
                                 const char* param4);
+  static void SetSqlTraceHook(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int TraceCallback(unsigned int type,
                            void* user_data,
                            void* p,
