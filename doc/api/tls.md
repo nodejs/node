@@ -1272,8 +1272,11 @@ certificate.
   `{C: 'UK', ST: 'BC', L: 'Metro', O: 'Node Fans', OU: 'Docs', CN: 'example.com'}`.
 * `issuer` {Object} The certificate issuer, described in the same terms as the
   `subject`.
-* `valid_from` {string} The date-time the certificate is valid from.
-* `valid_to` {string} The date-time the certificate is valid to.
+* `valid_from` {string} The date-time the certificate is valid from. The
+  string uses the format `'MMM DD HH:MM:SS YYYY GMT'` as produced by
+  OpenSSL's [`ASN1_TIME_print`][], e.g. `'Aug 14 00:00:00 2017 GMT'`.
+* `valid_to` {string} The date-time the certificate is valid to. Same format
+  as `valid_from`.
 * `serialNumber` {string} The certificate serial number, as a hex string.
   Example: `'B9B0D332A1AA5635'`.
 * `fingerprint` {string} The SHA-1 digest of the DER encoded certificate. It is
@@ -2520,5 +2523,6 @@ added: v0.11.3
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #certificate-object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
+[`ASN1_TIME_print`]: https://docs.openssl.org/master/man3/ASN1_TIME_set/#notes
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
