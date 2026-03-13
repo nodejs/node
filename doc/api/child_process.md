@@ -342,6 +342,10 @@ controller.abort();
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49031
+    description: The `file` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v23.11.0
       - v22.15.0
@@ -363,7 +367,7 @@ changes:
     description: The `windowsHide` option is supported now.
 -->
 
-* `file` {string} The name or path of the executable file to run.
+* `file` {string|URL} The name or path of the executable file to run.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
@@ -490,6 +494,10 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49031
+    description: The `execPath` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v17.4.0
       - v16.14.0
@@ -538,7 +546,7 @@ changes:
     parent process. Specific behavior depends on the platform (see
     [`options.detached`][]).
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `execPath` {string} Executable used to create the child process.
+  * `execPath` {string|URL} Executable used to create the child process.
   * `execArgv` {string\[]} List of string arguments passed to the executable.
     **Default:** `process.execArgv`.
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -640,6 +648,10 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49031
+    description: The `command` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v23.11.0
       - v22.15.0
@@ -682,7 +694,7 @@ changes:
     description: The `shell` option is supported now.
 -->
 
-* `command` {string} The command to run.
+* `command` {string|URL} The command to run.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
@@ -1138,6 +1150,10 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49031
+    description: The `file` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v16.4.0
       - v14.18.0
@@ -1161,7 +1177,7 @@ changes:
     description: The `encoding` option can now explicitly be set to `buffer`.
 -->
 
-* `file` {string} The name or path of the executable file to run.
+* `file` {string|URL} The name or path of the executable file to run.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
@@ -1339,6 +1355,10 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49031
+    description: The `command` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v16.4.0
       - v14.18.0
@@ -1365,7 +1385,7 @@ changes:
     description: The `shell` option is supported now.
 -->
 
-* `command` {string} The command to run.
+* `command` {string|URL} The command to run.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
