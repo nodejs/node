@@ -27,7 +27,7 @@ const path = require('path');
       await cli.waitFor(/disconnect/);
 
       // Next run: With `breakOnException` it pauses in both places.
-      await cli.stepCommand('r');
+      await cli.command('r');
       await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.command('breakOnException');
@@ -38,7 +38,7 @@ const path = require('path');
 
       // Next run: With `breakOnUncaught` it only pauses on the 2nd exception.
       await cli.command('breakOnUncaught');
-      await cli.stepCommand('r'); // Also, the setting survives the restart.
+      await cli.command('r'); // Also, the setting survives the restart.
       await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.stepCommand('c');
@@ -46,7 +46,7 @@ const path = require('path');
 
       // Next run: Back to the initial state! It should die again.
       await cli.command('breakOnNone');
-      await cli.stepCommand('r');
+      await cli.command('r');
       await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.command('c');
