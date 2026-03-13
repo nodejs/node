@@ -107,6 +107,9 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62241
+    description: Add `verbose` option.
   - version:
      - v25.5.0
      - v24.14.0
@@ -180,6 +183,13 @@ changes:
     * `likePatternLength` {number} Maximum length of a LIKE pattern.
     * `variableNumber` {number} Maximum number of SQL variables.
     * `triggerDepth` {number} Maximum trigger recursion depth.
+  * `verbose` {Function} An optional callback function that is invoked for
+    every SQL statement executed against the database. The callback receives
+    the expanded SQL string (with bound parameter values substituted) as its
+    only argument. If expansion fails, the source SQL (with unsubstituted
+    placeholders) is passed instead. This is useful for logging and debugging.
+    This option is a wrapper around [`sqlite3_trace_v2()`][].
+    **Default:** `undefined`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -1566,6 +1576,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
+[`sqlite3_trace_v2()`]: https://www.sqlite.org/c3ref/trace_v2.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
