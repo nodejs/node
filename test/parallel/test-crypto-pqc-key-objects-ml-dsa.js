@@ -61,6 +61,15 @@ for (const [asymmetricKeyType, pubLen] of [
     const jwk = key.export({ format: 'jwk' });
     assertPublicJwk(jwk);
     assert.strictEqual(key.equals(createPublicKey({ format: 'jwk', key: jwk })), true);
+
+    // Raw format round-trip
+    const rawPub = key.export({ format: 'raw-public' });
+    assert(Buffer.isBuffer(rawPub));
+    assert.strictEqual(rawPub.byteLength, pubLen);
+    const importedPub = createPublicKey({
+      key: rawPub, format: 'raw-public', asymmetricKeyType,
+    });
+    assert.strictEqual(importedPub.equals(key), true);
   }
 
   function assertPrivateKey(key, hasSeed) {
@@ -78,6 +87,15 @@ for (const [asymmetricKeyType, pubLen] of [
       assertPrivateJwk(jwk);
       assert.strictEqual(key.equals(createPrivateKey({ format: 'jwk', key: jwk })), true);
       assert.ok(createPublicKey({ format: 'jwk', key: jwk }));
+
+      // Raw seed round-trip
+      const rawSeed = key.export({ format: 'raw-seed' });
+      assert(Buffer.isBuffer(rawSeed));
+      assert.strictEqual(rawSeed.byteLength, 32);
+      const importedPriv = createPrivateKey({
+        key: rawSeed, format: 'raw-seed', asymmetricKeyType,
+      });
+      assert.strictEqual(importedPriv.equals(key), true);
     } else {
       assert.throws(() => key.export({ format: 'jwk' }),
                     { code: 'ERR_CRYPTO_OPERATION_FAILED', message: 'key does not have an available seed' });
@@ -172,8 +190,8 @@ for (const [asymmetricKeyType, pubLen] of [
     }
   } else {
     assert.throws(() => createPrivateKey({ format, key: jwk }),
-                  { code: 'ERR_INVALID_ARG_VALUE', message: /must be one of: 'RSA', 'EC', 'OKP'\. Received 'AKP'/ });
+                  { code: 'ERR_INVALID_ARG_VALUE', message: /Unsupported key type/ });
     assert.throws(() => createPublicKey({ format, key: jwk }),
-                  { code: 'ERR_INVALID_ARG_VALUE', message: /must be one of: 'RSA', 'EC', 'OKP'\. Received 'AKP'/ });
+                  { code: 'ERR_INVALID_ARG_VALUE', message: /Unsupported key type/ });
   }
 }

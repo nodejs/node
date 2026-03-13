@@ -472,34 +472,6 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   return ctx;
 }
 
-Maybe<void> DHKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    DHKeyExportConfig* params) {
-  return JustVoid();
-}
-
-WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
-    const KeyObjectData& key_data,
-    WebCryptoKeyFormat format,
-    const DHKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data.GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data, out);
-    case kWebCryptoKeyFormatSPKI:
-      if (key_data.GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data, out);
-    default:
-      UNREACHABLE();
-  }
-}
-
 Maybe<void> DHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
@@ -600,7 +572,6 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
        DiffieHellmanGroup);
 
   DHKeyPairGenJob::Initialize(env, target);
-  DHKeyExportJob::Initialize(env, target);
   DHBitsJob::Initialize(env, target);
 }
 
@@ -621,7 +592,6 @@ void DiffieHellman::RegisterExternalReferences(
   registry->Register(Check);
 
   DHKeyPairGenJob::RegisterExternalReferences(registry);
-  DHKeyExportJob::RegisterExternalReferences(registry);
   DHBitsJob::RegisterExternalReferences(registry);
 }
 

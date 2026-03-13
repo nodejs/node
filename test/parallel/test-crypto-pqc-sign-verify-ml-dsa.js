@@ -67,6 +67,28 @@ for (const [asymmetricKeyType, sigLen] of [
       }
     }
   }
+
+  // Raw format sign/verify
+  {
+    const pubKeyObj = createPublicKey(keys.public);
+    const privKeyObj = createPrivateKey(keys.private_seed_only);
+
+    const rawPublic = {
+      key: pubKeyObj.export({ format: 'raw-public' }),
+      format: 'raw-public',
+      asymmetricKeyType,
+    };
+    const rawSeed = {
+      key: privKeyObj.export({ format: 'raw-seed' }),
+      format: 'raw-seed',
+      asymmetricKeyType,
+    };
+
+    const data = randomBytes(32);
+    const signature = sign(undefined, data, rawSeed);
+    assert.strictEqual(signature.byteLength, sigLen);
+    assert.strictEqual(verify(undefined, data, rawPublic, signature), true);
+  }
 }
 
 // Test vectors from ietf-cose-dilithium
