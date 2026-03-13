@@ -88,14 +88,14 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         "DOMStorage domain is not enabled");
   }
   bool is_local_storage = storageId->getIsLocalStorage();
-  std::optional<StorageMap> storage_map =
-      is_local_storage ? std::make_optional<StorageMap>(local_storage_map_)
-                       : std::make_optional<StorageMap>(session_storage_map_);
+  const StorageMap* storage_map =
+      is_local_storage ? &local_storage_map_ : &session_storage_map_;
+  std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
     if (web_storage_obj) {
-      StorageMap all_items = web_storage_obj.value()->GetAll();
-      storage_map = std::make_optional<StorageMap>(std::move(all_items));
+      storage_map_fallback = web_storage_obj.value()->GetAll();
+      storage_map = &storage_map_fallback.value();
     }
   }
 
