@@ -75,37 +75,305 @@ try {
 
 ## Asymmetric key types
 
-The following table lists the asymmetric key types recognized by the [`KeyObject`][] API:
+The following table lists the asymmetric key types recognized by the
+[`KeyObject`][] API and the export/import formats supported for each key type.
 
-| Key Type                           | Description        | OID                     |
-| ---------------------------------- | ------------------ | ----------------------- |
-| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1    |
-| `'dsa'`                            | DSA                | 1.2.840.10040.4.1       |
-| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1       |
-| `'ed25519'`                        | Ed25519            | 1.3.101.112             |
-| `'ed448'`                          | Ed448              | 1.3.101.113             |
-| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 |
-| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 |
-| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 |
-| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  |
-| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  |
-| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  |
-| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   |
-| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    |
-| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 |
-| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 |
-| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 |
-| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 |
-| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 |
-| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 |
-| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 |
-| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 |
-| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 |
-| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 |
-| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 |
-| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 |
-| `'x25519'`                         | X25519             | 1.3.101.110             |
-| `'x448'`                           | X448               | 1.3.101.111             |
+| Key Type                           | Description        | OID                     | `'pem'` | `'der'` | `'jwk'` | `'raw-public'` | `'raw-private'` | `'raw-seed'` |
+| ---------------------------------- | ------------------ | ----------------------- | ------- | ------- | ------- | -------------- | --------------- | ------------ |
+| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1    | ✔       | ✔       |         |                |                 |              |
+| `'dsa'`                            | DSA                | 1.2.840.10040.4.1       | ✔       | ✔       |         |                |                 |              |
+| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1       | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'ed25519'`                        | Ed25519            | 1.3.101.112             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'ed448'`                          | Ed448              | 1.3.101.113             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
+| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
+| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
+| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  | ✔       | ✔       |         | ✔              |                 | ✔            |
+| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  | ✔       | ✔       |         | ✔              |                 | ✔            |
+| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  | ✔       | ✔       |         | ✔              |                 | ✔            |
+| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   | ✔       | ✔       |         |                |                 |              |
+| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    | ✔       | ✔       | ✔       |                |                 |              |
+| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'x25519'`                         | X25519             | 1.3.101.110             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'x448'`                           | X448               | 1.3.101.111             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+
+### Key formats
+
+Asymmetric keys can be represented in several formats. **The recommended
+approach is to import key material into a [`KeyObject`][] once and reuse it**
+for all subsequent operations, as this avoids repeated parsing and delivers
+the best performance.
+
+When a [`KeyObject`][] is not practical - for example, when key material
+arrives in a protocol message and is used only once - most cryptographic
+functions also accept a PEM string or an object specifying the format
+and key material directly. See [`crypto.createPublicKey()`][],
+[`crypto.createPrivateKey()`][], and [`keyObject.export()`][] for the full
+options accepted by each format.
+
+#### KeyObject
+
+A [`KeyObject`][] is the in-memory representation of a parsed key. It is
+created by [`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
+[`crypto.createSecretKey()`][], or key generation functions such as
+[`crypto.generateKeyPair()`][]. The first cryptographic operation with a given
+[`KeyObject`][] may be slower than subsequent ones because OpenSSL lazily
+initializes internal caches on first use.
+
+#### PEM and DER
+
+PEM and DER are the traditional encoding formats for asymmetric keys based on
+ASN.1 structures.
+
+* **PEM** is a text encoding that wraps Base64-encoded DER data between
+  header and footer lines (e.g. `-----BEGIN PUBLIC KEY-----`). PEM strings can
+  be passed directly to most cryptographic operations.
+* **DER** is the binary encoding of the same ASN.1 structures. When providing
+  DER input, the `type` (typically `'spki'` or `'pkcs8'`) must be specified
+  explicitly.
+
+#### JSON Web Key (JWK)
+
+JSON Web Key (JWK) is a JSON-based key representation defined in
+[RFC 7517][]. JWK encodes each key component as an individual Base64url-encoded
+value inside a JSON object. For RSA keys, JWK avoids ASN.1 parsing overhead
+and is the fastest serialized import format.
+
+#### Raw key formats
+
+> Stability: 1.1 - Active development
+
+The `'raw-public'`, `'raw-private'`, and `'raw-seed'` key formats allow
+importing and exporting raw key material without any encoding wrapper.
+See [`keyObject.export()`][], [`crypto.createPublicKey()`][], and
+[`crypto.createPrivateKey()`][] for usage details.
+
+`'raw-public'` is generally the fastest way to import a public key.
+`'raw-private'` and `'raw-seed'` are not always faster than other formats
+because they only contain the private scalar or seed - importing them requires
+deriving the public key component (e.g. elliptic curve point multiplication or
+seed expansion), which can be expensive. Other formats include both private
+and public components, avoiding that computation.
+
+### Choosing a key format
+
+**Always prefer a [`KeyObject`][]** - create one from whatever format you
+have and reuse it. The guidance below applies only when choosing between
+serialization formats, either for importing into a [`KeyObject`][] or for
+passing key material inline when a [`KeyObject`][] is not practical.
+
+#### Importing keys
+
+When creating a [`KeyObject`][] for repeated use, the import cost is paid once,
+so choosing a faster format reduces startup latency.
+
+The import cost breaks down into two parts: **parsing overhead** (decoding the
+serialization wrapper) and **key computation** (any mathematical work needed to
+reconstruct the full key, such as deriving a public key from a private scalar
+or expanding a seed). Which part dominates depends on the key type. For
+example:
+
+* Public keys - `'raw-public'` is the fastest serialized format because the
+  raw format skips all ASN.1 and Base64 decoding.
+* EC private keys - `'raw-private'` is faster than PEM or DER because it
+  avoids ASN.1 parsing. However, for larger curves (e.g. P-384, P-521) the
+  required derivation of the public point from the private scalar becomes
+  expensive, reducing the advantage.
+* RSA keys - `'jwk'` is the fastest serialized format. JWK represents RSA
+  key components as individual Base64url-encoded integers, avoiding the
+  overhead of ASN.1 parsing entirely.
+
+#### Inline key material in operations
+
+When a [`KeyObject`][] cannot be reused (e.g. the key arrives as raw bytes in
+a protocol message and is used only once), most cryptographic functions also
+accept a PEM string or an object specifying the format and key
+material directly. In this case the total cost is the sum of key import and
+the cryptographic computation itself.
+
+For operations where the cryptographic computation dominates - such as
+signing with RSA or ECDH key agreement with P-384 or P-521 - the
+serialization format has negligible impact on overall throughput, so choose
+whichever format is most convenient. For lightweight operations like Ed25519
+signing or verification, the import cost is a larger fraction of the total,
+so a faster format like `'raw-public'` or `'raw-private'` can meaningfully
+improve throughput.
+
+Even if the same key material is used only a few times, it is worth importing it
+into a [`KeyObject`][] rather than passing the raw or PEM representation
+repeatedly.
+
+### Examples
+
+Example: Reusing a [`KeyObject`][] across sign and verify operations:
+
+```mjs
+import { promisify } from 'node:util';
+const { generateKeyPair, sign, verify } = await import('node:crypto');
+
+const { publicKey, privateKey } = await promisify(generateKeyPair)('ed25519');
+
+// A KeyObject holds the parsed key in memory and can be reused
+// across multiple operations without re-parsing.
+const data = new TextEncoder().encode('message to sign');
+const signature = sign(null, data, privateKey);
+verify(null, data, publicKey, signature);
+```
+
+Example: Importing keys of various formats into [`KeyObject`][]s:
+
+```mjs
+import { promisify } from 'node:util';
+const {
+  createPrivateKey, createPublicKey, generateKeyPair,
+} = await import('node:crypto');
+
+const generated = await promisify(generateKeyPair)('ed25519');
+
+// PEM
+const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
+const publicPem = generated.publicKey.export({ format: 'pem', type: 'spki' });
+createPrivateKey(privatePem);
+createPublicKey(publicPem);
+
+// DER - requires explicit type
+const privateDer = generated.privateKey.export({ format: 'der', type: 'pkcs8' });
+const publicDer = generated.publicKey.export({ format: 'der', type: 'spki' });
+createPrivateKey({ key: privateDer, format: 'der', type: 'pkcs8' });
+createPublicKey({ key: publicDer, format: 'der', type: 'spki' });
+
+// JWK
+const privateJwk = generated.privateKey.export({ format: 'jwk' });
+const publicJwk = generated.publicKey.export({ format: 'jwk' });
+createPrivateKey({ key: privateJwk, format: 'jwk' });
+createPublicKey({ key: publicJwk, format: 'jwk' });
+
+// Raw
+const rawPriv = generated.privateKey.export({ format: 'raw-private' });
+const rawPub = generated.publicKey.export({ format: 'raw-public' });
+createPrivateKey({ key: rawPriv, format: 'raw-private', asymmetricKeyType: 'ed25519' });
+createPublicKey({ key: rawPub, format: 'raw-public', asymmetricKeyType: 'ed25519' });
+```
+
+Example: Passing key material directly to [`crypto.sign()`][] and
+[`crypto.verify()`][] without creating a [`KeyObject`][] first:
+
+```mjs
+import { promisify } from 'node:util';
+const { generateKeyPair, sign, verify } = await import('node:crypto');
+
+const generated = await promisify(generateKeyPair)('ed25519');
+
+const data = new TextEncoder().encode('message to sign');
+
+// PEM strings
+const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
+const publicPem = generated.publicKey.export({ format: 'pem', type: 'spki' });
+const sig1 = sign(null, data, privatePem);
+verify(null, data, publicPem, sig1);
+
+// JWK objects
+const privateJwk = generated.privateKey.export({ format: 'jwk' });
+const publicJwk = generated.publicKey.export({ format: 'jwk' });
+const sig2 = sign(null, data, { key: privateJwk, format: 'jwk' });
+verify(null, data, { key: publicJwk, format: 'jwk' }, sig2);
+
+// Raw key bytes
+const rawPriv = generated.privateKey.export({ format: 'raw-private' });
+const rawPub = generated.publicKey.export({ format: 'raw-public' });
+const sig3 = sign(null, data, {
+  key: rawPriv, format: 'raw-private', asymmetricKeyType: 'ed25519',
+});
+verify(null, data, {
+  key: rawPub, format: 'raw-public', asymmetricKeyType: 'ed25519',
+}, sig3);
+```
+
+Example: For EC keys, the `namedCurve` option is required when importing
+raw keys:
+
+```mjs
+import { promisify } from 'node:util';
+const {
+  createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
+} = await import('node:crypto');
+
+const generated = await promisify(generateKeyPair)('ec', {
+  namedCurve: 'P-256',
+});
+
+// Export the raw EC public key (uncompressed by default).
+const rawPublicKey = generated.publicKey.export({ format: 'raw-public' });
+
+// The following is equivalent.
+const rawPublicKeyUncompressed = generated.publicKey.export({
+  format: 'raw-public',
+  type: 'uncompressed',
+});
+
+// Export compressed point format.
+const rawPublicKeyCompressed = generated.publicKey.export({
+  format: 'raw-public',
+  type: 'compressed',
+});
+
+// Export the raw EC private key.
+const rawPrivateKey = generated.privateKey.export({ format: 'raw-private' });
+
+// Import the raw EC keys.
+// Both compressed and uncompressed point formats are accepted.
+const publicKey = createPublicKey({
+  key: rawPublicKey,
+  format: 'raw-public',
+  asymmetricKeyType: 'ec',
+  namedCurve: 'P-256',
+});
+const privateKey = createPrivateKey({
+  key: rawPrivateKey,
+  format: 'raw-private',
+  asymmetricKeyType: 'ec',
+  namedCurve: 'P-256',
+});
+
+const data = new TextEncoder().encode('message to sign');
+const signature = sign('sha256', data, privateKey);
+verify('sha256', data, publicKey, signature);
+```
+
+Example: Exporting raw seeds and importing them:
+
+```mjs
+import { promisify } from 'node:util';
+const {
+  createPrivateKey, decapsulate, encapsulate, generateKeyPair,
+} = await import('node:crypto');
+
+const generated = await promisify(generateKeyPair)('ml-kem-768');
+
+// Export the raw seed (64 bytes for ML-KEM).
+const seed = generated.privateKey.export({ format: 'raw-seed' });
+
+// Import the raw seed.
+const privateKey = createPrivateKey({
+  key: seed,
+  format: 'raw-seed',
+  asymmetricKeyType: 'ml-kem-768',
+});
+
+const { ciphertext } = encapsulate(generated.publicKey);
+decapsulate(privateKey, ciphertext);
+```
 
 ## Class: `Certificate`
 
@@ -2122,6 +2390,10 @@ type, value, and parameters. This method is not
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62240
+    description: Added support for `'raw-public'`, `'raw-private'`,
+                 and `'raw-seed'` formats.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62178
     description: ML-KEM and ML-DSA private key `'pkcs8'` export now
                  uses seed-only format by default when a seed is
@@ -2140,36 +2412,39 @@ For symmetric keys, the following encoding options can be used:
 
 For public keys, the following encoding options can be used:
 
-* `type` {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-* `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+* `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, or `'raw-public'`.
+  See [asymmetric key types][] for format support.
+* `type` {string} When `format` is `'pem'` or `'der'`, must be `'pkcs1'`
+  (RSA only) or `'spki'`. For EC keys with `'raw-public'` format, may be
+  `'uncompressed'` (default) or `'compressed'`. Ignored when `format` is
+  `'jwk'`.
 
 For private keys, the following encoding options can be used:
 
-* `type` {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
-  `'sec1'` (EC only).
-* `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+* `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, `'raw-private'`,
+  or `'raw-seed'`. See [asymmetric key types][] for format support.
+* `type` {string} When `format` is `'pem'` or `'der'`, must be `'pkcs1'`
+  (RSA only), `'pkcs8'`, or `'sec1'` (EC only). Ignored when `format` is
+  `'jwk'`, `'raw-private'`, or `'raw-seed'`.
 * `cipher` {string} If specified, the private key will be encrypted with
   the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
-  encryption.
-* `passphrase` {string | Buffer} The passphrase to use for encryption, see
-  `cipher`.
+  encryption. Ignored when `format` is `'jwk'`, `'raw-private'`, or
+  `'raw-seed'`.
+* `passphrase` {string | Buffer} The passphrase to use for encryption.
+  Required when `cipher` is specified.
 
 The result type depends on the selected encoding format, when PEM the
 result is a string, when DER it will be a buffer containing the data
-encoded as DER, when [JWK][] it will be an object.
+encoded as DER, when [JWK][] it will be an object. Raw formats return a
+{Buffer} containing the raw key material.
 
-When [JWK][] encoding format was selected, all other encoding options are
-ignored.
-
-PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
-the `cipher` and `format` options. The PKCS#8 `type` can be used with any
-`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
-`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
-when the PEM `format` is used. For maximum compatibility, use PKCS#8 for
-encrypted private keys. Since PKCS#8 defines its own
-encryption mechanism, PEM-level encryption is not supported when encrypting
-a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
-PKCS#1 and SEC1 encryption.
+Private keys can be encrypted by specifying a `cipher` and `passphrase`.
+The PKCS#8 `type` supports encryption with both PEM and DER `format` for any
+key algorithm. PKCS#1 and SEC1 can only be encrypted when the PEM `format` is
+used. For maximum compatibility, use PKCS#8 for encrypted private keys. Since
+PKCS#8 defines its own encryption mechanism, PEM-level encryption is not
+supported when encrypting a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption
+and [RFC 1421][] for PKCS#1 and SEC1 encryption.
 
 ### `keyObject.symmetricKeySize`
 
@@ -3634,6 +3909,10 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62240
+    description: Added support for `'raw-private'` and `'raw-seed'`
+                 formats.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
@@ -3650,13 +3929,18 @@ changes:
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
   * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
-    material, either in PEM, DER, or JWK format.
-  * `format` {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
-    **Default:** `'pem'`.
+    material, either in PEM, DER, JWK, or raw format.
+  * `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, `'raw-private'`,
+    or `'raw-seed'`. **Default:** `'pem'`.
   * `type` {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
   * `passphrase` {string | Buffer} The passphrase to use for decryption.
   * `encoding` {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} Required when `format` is `'raw-private'`
+    or `'raw-seed'` and ignored otherwise.
+    Must be a [supported key type][asymmetric key types].
+  * `namedCurve` {string} Name of the curve to use. Required when
+    `asymmetricKeyType` is `'ec'` and ignored otherwise.
 * Returns: {KeyObject}
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -3673,6 +3957,9 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62240
+    description: Added support for `'raw-public'` format.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
@@ -3696,12 +3983,17 @@ changes:
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
   * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
-    material, either in PEM, DER, or JWK format.
-  * `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+    material, either in PEM, DER, JWK, or raw format.
+  * `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, or `'raw-public'`.
     **Default:** `'pem'`.
   * `type` {string} Must be `'pkcs1'` or `'spki'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
   * `encoding` {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} Required when `format` is `'raw-public'`
+    and ignored otherwise.
+    Must be a [supported key type][asymmetric key types].
+  * `namedCurve` {string} Name of the curve to use. Required when
+    `asymmetricKeyType` is `'ec'` and ignored otherwise.
 * Returns: {KeyObject}
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -6539,6 +6831,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
+[RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
@@ -6563,6 +6856,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createSign()`]: #cryptocreatesignalgorithm-options
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
 [`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
+[`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
@@ -6572,6 +6866,8 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.publicEncrypt()`]: #cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: #cryptorandombytessize-callback
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
+[`crypto.sign()`]: #cryptosignalgorithm-data-key-callback
+[`crypto.verify()`]: #cryptoverifyalgorithm-data-key-signature-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
 [`decipher.final()`]: #decipherfinaloutputencoding

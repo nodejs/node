@@ -170,11 +170,15 @@ class KeyObjectHandle : public BaseObject {
 
   static void Export(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-#if OPENSSL_WITH_PQC
-  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RawPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportECPublicRaw(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportECPrivateRaw(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitECPrivateRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif
 
   v8::MaybeLocal<v8::Value> ExportSecretKey() const;
   v8::MaybeLocal<v8::Value> ExportPublicKey(
@@ -240,147 +244,6 @@ enum WebCryptoKeyFormat {
   kWebCryptoKeyFormatSPKI,
   kWebCryptoKeyFormatJWK
 };
-
-enum class WebCryptoKeyExportStatus {
-  OK,
-  INVALID_KEY_TYPE,
-  FAILED
-};
-
-template <typename KeyExportTraits>
-class KeyExportJob final : public CryptoJob<KeyExportTraits> {
- public:
-  using AdditionalParams = typename KeyExportTraits::AdditionalParameters;
-
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    CHECK(args.IsConstructCall());
-
-    CryptoJobMode mode = GetCryptoJobMode(args[0]);
-
-    CHECK(args[1]->IsUint32());  // Export Type
-    CHECK(args[2]->IsObject());  // KeyObject
-
-    WebCryptoKeyFormat format =
-        static_cast<WebCryptoKeyFormat>(args[1].As<v8::Uint32>()->Value());
-
-    KeyObjectHandle* key;
-    ASSIGN_OR_RETURN_UNWRAP(&key, args[2]);
-
-    CHECK_NOT_NULL(key);
-
-    AdditionalParams params;
-    if (KeyExportTraits::AdditionalConfig(args, 3, &params).IsNothing()) {
-      // The KeyExportTraits::AdditionalConfig is responsible for
-      // calling an appropriate THROW_CRYPTO_* variant reporting
-      // whatever error caused initialization to fail.
-      return;
-    }
-
-    new KeyExportJob<KeyExportTraits>(
-        env,
-        args.This(),
-        mode,
-        key->Data(),
-        format,
-        std::move(params));
-  }
-
-  static void Initialize(
-      Environment* env,
-      v8::Local<v8::Object> target) {
-    CryptoJob<KeyExportTraits>::Initialize(New, env, target);
-  }
-
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-    CryptoJob<KeyExportTraits>::RegisterExternalReferences(New, registry);
-  }
-
-  KeyExportJob(Environment* env,
-               v8::Local<v8::Object> object,
-               CryptoJobMode mode,
-               const KeyObjectData& key,
-               WebCryptoKeyFormat format,
-               AdditionalParams&& params)
-      : CryptoJob<KeyExportTraits>(env,
-                                   object,
-                                   AsyncWrap::PROVIDER_KEYEXPORTREQUEST,
-                                   mode,
-                                   std::move(params)),
-        key_(key.addRef()),
-        format_(format) {}
-
-  WebCryptoKeyFormat format() const { return format_; }
-
-  void DoThreadPoolWork() override {
-    const WebCryptoKeyExportStatus status =
-        KeyExportTraits::DoExport(
-            key_,
-            format_,
-            *CryptoJob<KeyExportTraits>::params(),
-            &out_);
-    if (status == WebCryptoKeyExportStatus::OK) {
-      // Success!
-      return;
-    }
-    CryptoErrorStore* errors = CryptoJob<KeyExportTraits>::errors();
-    errors->Capture();
-    if (errors->Empty()) {
-      switch (status) {
-        case WebCryptoKeyExportStatus::OK:
-          UNREACHABLE();
-          break;
-        case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
-          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
-          break;
-        case WebCryptoKeyExportStatus::FAILED:
-          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
-          break;
-      }
-    }
-  }
-
-  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
-                           v8::Local<v8::Value>* result) override {
-    Environment* env = AsyncWrap::env();
-    CryptoErrorStore* errors = CryptoJob<KeyExportTraits>::errors();
-    if (out_.size() > 0) {
-      CHECK(errors->Empty());
-      *err = v8::Undefined(env->isolate());
-      *result = out_.ToArrayBuffer(env);
-      if (result->IsEmpty()) {
-        return v8::Nothing<void>();
-      }
-    } else {
-      if (errors->Empty()) errors->Capture();
-      CHECK(!errors->Empty());
-      *result = v8::Undefined(env->isolate());
-      if (!errors->ToException(env).ToLocal(err)) {
-        return v8::Nothing<void>();
-      }
-    }
-    CHECK(!result->IsEmpty());
-    CHECK(!err->IsEmpty());
-    return v8::JustVoid();
-  }
-
-  SET_SELF_SIZE(KeyExportJob)
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("out", out_.size());
-    CryptoJob<KeyExportTraits>::MemoryInfo(tracker);
-  }
-
- private:
-  KeyObjectData key_;
-  WebCryptoKeyFormat format_;
-  ByteSource out_;
-};
-
-WebCryptoKeyExportStatus PKEY_SPKI_Export(const KeyObjectData& key_data,
-                                          ByteSource* out);
-
-WebCryptoKeyExportStatus PKEY_PKCS8_Export(const KeyObjectData& key_data,
-                                           ByteSource* out);
 
 namespace Keys {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
