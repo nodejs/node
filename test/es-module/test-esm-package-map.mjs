@@ -1,4 +1,3 @@
-import '../common/index.mjs';
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
@@ -6,7 +5,6 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 const packageMapPath = fixtures.path('package-map/package-map.json');
-const fixturesPath = fixtures.path('package-map');
 
 describe('ESM: --experimental-package-map', () => {
 

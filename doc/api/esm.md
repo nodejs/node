@@ -1303,6 +1303,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
+[Package maps]: packages.md#package-maps
 [Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
@@ -1331,7 +1332,6 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
 [merve]: https://github.com/anonrig/merve/tree/v1.0.0
-[Package maps]: packages.md#package-maps
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes

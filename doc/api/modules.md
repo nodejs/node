@@ -1273,6 +1273,7 @@ This section was moved to
 [Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
+[Package maps]: packages.md#package-maps
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
 [`--experimental-package-map`]: cli.md#--experimental-package-mappath
@@ -1300,6 +1301,5 @@ This section was moved to
 [module namespace object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import#module_namespace_object
 [module resolution]: #all-together
 [native addons]: addons.md
-[Package maps]: packages.md#package-maps
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports

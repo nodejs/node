@@ -2507,7 +2507,7 @@ added: REPLACEME
 A package attempted to import another package that exists in the [package map][]
 but is not listed in its `dependencies` array.
 
-```js
+```mjs
 // package-map.json declares "app" with dependencies: ["utils"]
 // but "app" tries to import "secret-lib" which exists in the map
 
@@ -4504,7 +4504,6 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
-[package map]: packages.md#package-maps
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
@@ -4535,6 +4534,7 @@ An error occurred trying to allocate memory. This should never happen.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
