@@ -48,7 +48,7 @@ for (const asymmetricKeyType of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
     assertPublicKey(createPublicKey(key));
     key.export({ format: 'der', type: 'pkcs8' });
     if (hasSeed) {
-      assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private);
+      assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private_seed_only);
     } else {
       assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private_priv_only);
     }
