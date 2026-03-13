@@ -4249,7 +4249,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
-[configuration files]: cli.md#--experimental-config-fileconfig
+[configuration files]: cli.md#--experimental-config-filepath---experimental-config-file
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [module customization hooks]: module.md#customization-hooks

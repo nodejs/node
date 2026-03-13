@@ -371,7 +371,34 @@ test('should use node.config.json as default', onlyIfNodeOptionsSupport, async (
   assert.strictEqual(result.code, 0);
 });
 
-test('should override node.config.json when specificied', onlyIfNodeOptionsSupport, async () => {
+test('should use node.config.json when --experimental-config-file has no argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
+test('should error when --experimental-config-file= has empty argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file=',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.match(result.stderr, /--experimental-config-file= requires an argument/);
+       assert.strictEqual(result.code, 9);
+     });
+
+test('should override node.config.json when specified', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
@@ -385,6 +412,48 @@ test('should override node.config.json when specificied', onlyIfNodeOptionsSuppo
   assert.strictEqual(result.stdout, '20\n');
   assert.strictEqual(result.code, 0);
 });
+
+test('should work with --experimental-config-file=path',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         `--experimental-config-file=${fixtures.path('rc/default/node.config.json')}`,
+         '-p', 'http.maxHeaderSize',
+       ]);
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
+test('should use last config file when multiple are specified',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file',
+         fixtures.path('rc/default/node.config.json'),
+         '--experimental-config-file',
+         fixtures.path('rc/default/override.json'),
+         '-p', 'http.maxHeaderSize',
+       ]);
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '20\n');
+       assert.strictEqual(result.code, 0);
+     });
+
+test('should use default when next argument starts with dash',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
 // Skip on windows because it doesn't support chmod changing read permissions
 // Also skip if user is root because it would have read permissions anyway
 test('should throw an error when the file is non readable', {
