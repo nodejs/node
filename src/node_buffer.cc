@@ -587,9 +587,9 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
 void CopyImpl(Local<Value> source_obj,
               Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
+              const size_t target_start,
+              const size_t source_start,
+              const size_t to_copy) {
   ArrayBufferViewContents<char> source(source_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
@@ -598,24 +598,32 @@ void CopyImpl(Local<Value> source_obj,
 
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  int64_t target_start, source_start, to_copy;
+  if (!args[2]->IntegerValue(env->context()).To(&target_start) ||
+      !args[3]->IntegerValue(env->context()).To(&source_start) ||
+      !args[4]->IntegerValue(env->context()).To(&to_copy)) {
+    return;
+  }
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  CopyImpl(source_obj,
+           target_obj,
+           static_cast<size_t>(target_start),
+           static_cast<size_t>(source_start),
+           static_cast<size_t>(to_copy));
 
-  args.GetReturnValue().Set(to_copy);
+  args.GetReturnValue().Set(static_cast<double>(to_copy));
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
+uint64_t FastCopy(Local<Value> receiver,
                   Local<Value> source_obj,
                   Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
+                  uint64_t target_start,
+                  uint64_t source_start,
+                  uint64_t to_copy,
                   // NOLINTNEXTLINE(runtime/references)
                   FastApiCallbackOptions& options) {
   HandleScope scope(options.isolate);
