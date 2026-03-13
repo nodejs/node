@@ -12,6 +12,7 @@ if (!hasOpenSSL(3, 5))
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
+const { createPrivateKey } = require('crypto');
 
 const fixtures = require('../common/fixtures');
 
@@ -182,42 +183,32 @@ async function testImportPkcs8SeedOnly({ name, privateUsages }, extractable) {
 }
 
 async function testImportPkcs8PrivOnly({ name, privateUsages }, extractable) {
-  const key = await subtle.importKey(
-    'pkcs8',
-    keyData[name].pkcs8_priv_only,
-    { name },
-    extractable,
-    privateUsages);
-  assert.strictEqual(key.type, 'private');
-  assert.strictEqual(key.extractable, extractable);
-  assert.deepStrictEqual(key.usages, privateUsages);
-  assert.deepStrictEqual(key.algorithm.name, name);
-  assert.strictEqual(key.algorithm, key.algorithm);
-  assert.strictEqual(key.usages, key.usages);
-
-  if (extractable) {
-    await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
-      assert.strictEqual(err.name, 'OperationError');
-      assert.strictEqual(err.cause.code, 'ERR_CRYPTO_OPERATION_FAILED');
-      assert.strictEqual(err.cause.message, 'Failed to get raw seed');
-      return true;
-    });
-  } else {
-    await assert.rejects(
-      subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/,
-        name: 'InvalidAccessError',
-      });
-  }
-
   await assert.rejects(
     subtle.importKey(
       'pkcs8',
-      keyData[name].pkcs8_seed_only,
+      keyData[name].pkcs8_priv_only,
       { name },
       extractable,
-      [/* empty usages */]),
-    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+      privateUsages),
+    {
+      name: 'NotSupportedError',
+      message: 'Importing an ML-KEM PKCS#8 key without a seed is not supported',
+    });
+}
+
+async function testImportPkcs8MismatchedSeed({ name, privateUsages }, extractable) {
+  const modified = Buffer.from(keyData[name].pkcs8);
+  modified[30] ^= 0xff;
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      modified,
+      { name },
+      extractable,
+      privateUsages),
+    {
+      name: 'DataError',
+    });
 }
 
 async function testImportRawPublic({ name, publicUsages }, extractable) {
@@ -302,6 +293,7 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
       tests.push(testImportPkcs8(vector, extractable));
       tests.push(testImportPkcs8SeedOnly(vector, extractable));
       tests.push(testImportPkcs8PrivOnly(vector, extractable));
+      tests.push(testImportPkcs8MismatchedSeed(vector, extractable));
       tests.push(testImportRawSeed(vector, extractable));
       tests.push(testImportRawPublic(vector, extractable));
     }
@@ -316,4 +308,18 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
     name: 'NotSupportedError',
     message: 'Unable to import ML-KEM-512 using raw format',
   });
+})().then(common.mustCall());
+
+(async function() {
+  for (const { name, privateUsages } of testVectors) {
+    const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');
+    const keyObject = createPrivateKey(pem);
+    const key = keyObject.toCryptoKey({ name }, true, privateUsages);
+    await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
+      assert.strictEqual(err.name, 'OperationError');
+      assert.strictEqual(err.cause.code, 'ERR_CRYPTO_OPERATION_FAILED');
+      assert.strictEqual(err.cause.message, 'Failed to get raw seed');
+      return true;
+    });
+  }
 })().then(common.mustCall());
