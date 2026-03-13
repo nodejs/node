@@ -976,7 +976,7 @@ bool DatabaseSync::Open() {
 
   {
     Local<Value> cb =
-        object()->GetInternalField(kVerboseCallback).template As<Value>();
+        object()->GetInternalField(kTraceCallback).template As<Value>();
     if (cb->IsFunction()) {
       sqlite3_trace_v2(
           connection_, SQLITE_TRACE_STMT, DatabaseSync::TraceCallback, this);
@@ -1349,21 +1349,19 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    // Parse verbose option
-    Local<Value> verbose_v;
-    if (!options->Get(env->context(), env->verbose_string())
-             .ToLocal(&verbose_v)) {
+    // Parse trace option
+    Local<Value> trace_v;
+    if (!options->Get(env->context(), env->trace_string()).ToLocal(&trace_v)) {
       return;
     }
-    if (!verbose_v->IsUndefined() && !verbose_v->IsNull()) {
-      if (!verbose_v->IsFunction()) {
+    if (!trace_v->IsUndefined() && !trace_v->IsNull()) {
+      if (!trace_v->IsFunction()) {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
-            "The \"options.verbose\" argument must be a function.");
+            "The \"options.trace\" argument must be a function.");
         return;
       }
-      args.This()->SetInternalField(kVerboseCallback,
-                                    verbose_v.As<Function>());
+      args.This()->SetInternalField(kTraceCallback, trace_v.As<Function>());
     }
   }
 
@@ -2431,7 +2429,7 @@ int DatabaseSync::TraceCallback(unsigned int type,
   Local<Context> context = env->context();
 
   Local<Value> cb =
-      db->object()->GetInternalField(kVerboseCallback).template As<Value>();
+      db->object()->GetInternalField(kTraceCallback).template As<Value>();
 
   if (!cb->IsFunction()) {
     return 0;
