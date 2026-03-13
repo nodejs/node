@@ -115,6 +115,26 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "\\-42"`, common.
   assert.strictEqual(stderr, '');
 }));
 
+// Eval expressions that start with '-' can be passed with '='.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" --print --eval=-42`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, '-42\n');
+  assert.strictEqual(stderr, '');
+}));
+
+// Edge case: negative zero should preserve its sign when printed.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" --print --eval=-0`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, '-0\n');
+  assert.strictEqual(stderr, '');
+}));
+
+// Nearby-path safety: option-looking values should still be rejected with -e.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -e -p`, common.mustCall((err, stdout, stderr) => {
+  assert.strictEqual(err.code, 9);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr.trim(),
+                     `${process.execPath}: -e requires an argument`);
+}));
+
 // Long output should not be truncated.
 child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "'1'.repeat(1e5)"`, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout, `${'1'.repeat(1e5)}\n`);
