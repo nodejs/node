@@ -70,7 +70,6 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   ECDHBitsJob::Initialize(env, target);
   ECKeyPairGenJob::Initialize(env, target);
-  ECKeyExportJob::Initialize(env, target);
 
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_EXPLICIT_CURVE);
@@ -89,7 +88,6 @@ void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   ECDHBitsJob::RegisterExternalReferences(registry);
   ECKeyPairGenJob::RegisterExternalReferences(registry);
-  ECKeyExportJob::RegisterExternalReferences(registry);
 }
 
 void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
@@ -557,137 +555,6 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
   *offset += 2;
 
   return JustVoid();
-}
-
-namespace {
-WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
-                                       const ECKeyExportConfig& params,
-                                       ByteSource* out) {
-  const auto& m_pkey = key_data.GetAsymmetricKey();
-  CHECK(m_pkey);
-  Mutex::ScopedLock lock(key_data.mutex());
-
-  const EC_KEY* ec_key = m_pkey;
-
-  if (ec_key == nullptr) {
-    switch (key_data.GetKeyType()) {
-      case kKeyTypePrivate: {
-        auto data = m_pkey.rawPrivateKey();
-        if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-        DCHECK(!data.isSecure());
-        *out = ByteSource::Allocated(data.release());
-        break;
-      }
-      case kKeyTypePublic: {
-        auto data = m_pkey.rawPublicKey();
-        if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-        DCHECK(!data.isSecure());
-        *out = ByteSource::Allocated(data.release());
-        break;
-      }
-      case kKeyTypeSecret:
-        UNREACHABLE();
-    }
-  } else {
-    if (key_data.GetKeyType() != kKeyTypePublic)
-      return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-    const auto group = ECKeyPointer::GetGroup(ec_key);
-    const auto point = ECKeyPointer::GetPublicKey(ec_key);
-    point_conversion_form_t form = POINT_CONVERSION_UNCOMPRESSED;
-
-    // Get the allocated data size...
-    size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
-    if (len == 0)
-      return WebCryptoKeyExportStatus::FAILED;
-    auto data = DataPointer::Alloc(len);
-    size_t check_len =
-        EC_POINT_point2oct(group,
-                           point,
-                           form,
-                           static_cast<unsigned char*>(data.get()),
-                           len,
-                           nullptr);
-    if (check_len == 0)
-      return WebCryptoKeyExportStatus::FAILED;
-
-    CHECK_EQ(len, check_len);
-    *out = ByteSource::Allocated(data.release());
-  }
-
-  return WebCryptoKeyExportStatus::OK;
-}
-}  // namespace
-
-Maybe<void> ECKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    ECKeyExportConfig* params) {
-  return JustVoid();
-}
-
-WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
-    const KeyObjectData& key_data,
-    WebCryptoKeyFormat format,
-    const ECKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatRaw:
-      return EC_Raw_Export(key_data, params, out);
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data.GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data, out);
-    case kWebCryptoKeyFormatSPKI: {
-      if (key_data.GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-
-      const auto& m_pkey = key_data.GetAsymmetricKey();
-      if (m_pkey.id() != EVP_PKEY_EC) {
-        return PKEY_SPKI_Export(key_data, out);
-      } else {
-        // Ensure exported key is in uncompressed point format.
-        // The temporary EC key is so we can have i2d_PUBKEY_bio() write out
-        // the header but it is a somewhat silly hoop to jump through because
-        // the header is for all practical purposes a static 26 byte sequence
-        // where only the second byte changes.
-        Mutex::ScopedLock lock(key_data.mutex());
-        const auto group = ECKeyPointer::GetGroup(m_pkey);
-        const auto point = ECKeyPointer::GetPublicKey(m_pkey);
-        const point_conversion_form_t form = POINT_CONVERSION_UNCOMPRESSED;
-        const size_t need =
-            EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
-        if (need == 0) return WebCryptoKeyExportStatus::FAILED;
-        auto data = DataPointer::Alloc(need);
-        const size_t have =
-            EC_POINT_point2oct(group,
-                               point,
-                               form,
-                               static_cast<unsigned char*>(data.get()),
-                               need,
-                               nullptr);
-        if (have == 0) return WebCryptoKeyExportStatus::FAILED;
-        auto ec = ECKeyPointer::New(group);
-        CHECK(ec);
-        auto uncompressed = ECPointPointer::New(group);
-        ncrypto::Buffer<const unsigned char> buffer{
-            .data = static_cast<unsigned char*>(data.get()),
-            .len = data.size(),
-        };
-        CHECK(uncompressed.setFromBuffer(buffer, group));
-        CHECK(ec.setPublicKey(uncompressed));
-        auto pkey = EVPKeyPointer::New();
-        CHECK(pkey.set(ec));
-        auto bio = pkey.derPublicKey();
-        if (!bio) return WebCryptoKeyExportStatus::FAILED;
-        *out = ByteSource::FromBIO(bio);
-        return WebCryptoKeyExportStatus::OK;
-      }
-    }
-    default:
-      UNREACHABLE();
-  }
 }
 
 bool ExportJWKEcKey(Environment* env,

@@ -26,6 +26,7 @@ const keys = {
     privateKey: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     sharedSecretLength: 256,
     ciphertextLength: 256,
+    raw: false,
   },
   'rsa-pss': {
     supported: false, // Only raw RSA is supported
@@ -38,6 +39,7 @@ const keys = {
     privateKey: fixtures.readKey('ec_p256_private.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 65,
+    raw: true,
   },
   'p-384': {
     supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
@@ -45,6 +47,7 @@ const keys = {
     privateKey: fixtures.readKey('ec_p384_private.pem', 'ascii'),
     sharedSecretLength: 48,
     ciphertextLength: 97,
+    raw: true,
   },
   'p-521': {
     supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
@@ -52,6 +55,7 @@ const keys = {
     privateKey: fixtures.readKey('ec_p521_private.pem', 'ascii'),
     sharedSecretLength: 64,
     ciphertextLength: 133,
+    raw: true,
   },
   'secp256k1': {
     supported: false, // only P-256, P-384, and P-521 are supported
@@ -64,6 +68,7 @@ const keys = {
     privateKey: fixtures.readKey('x25519_private.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 32,
+    raw: true,
   },
   'x448': {
     supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
@@ -71,6 +76,7 @@ const keys = {
     privateKey: fixtures.readKey('x448_private.pem', 'ascii'),
     sharedSecretLength: 64,
     ciphertextLength: 56,
+    raw: true,
   },
   'ml-kem-512': {
     supported: hasOpenSSL(3, 5),
@@ -78,6 +84,7 @@ const keys = {
     privateKey: fixtures.readKey('ml_kem_512_private.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 768,
+    raw: true,
   },
   'ml-kem-768': {
     supported: hasOpenSSL(3, 5),
@@ -85,6 +92,7 @@ const keys = {
     privateKey: fixtures.readKey('ml_kem_768_private.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1088,
+    raw: true,
   },
   'ml-kem-1024': {
     supported: hasOpenSSL(3, 5),
@@ -92,10 +100,13 @@ const keys = {
     privateKey: fixtures.readKey('ml_kem_1024_private.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1568,
+    raw: true,
   },
 };
 
-for (const [name, { supported, publicKey, privateKey, sharedSecretLength, ciphertextLength }] of Object.entries(keys)) {
+for (const [name, {
+  supported, publicKey, privateKey, sharedSecretLength, ciphertextLength, raw,
+}] of Object.entries(keys)) {
   if (!supported) {
     assert.throws(() => crypto.encapsulate(publicKey),
                   { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_CRYPTO_OPERATION_FAILED/ });
@@ -134,6 +145,25 @@ for (const [name, { supported, publicKey, privateKey, sharedSecretLength, cipher
       publicKey: formatKeyAs(keyObjects.publicKey, { format: 'jwk' }),
       privateKey: formatKeyAs(keyObjects.privateKey, { format: 'jwk' })
     });
+  }
+
+  if (raw) {
+    const { asymmetricKeyType } = keyObjects.privateKey;
+    const { namedCurve } = keyObjects.privateKey.asymmetricKeyDetails;
+    const privateFormat = asymmetricKeyType.startsWith('ml-') ? 'raw-seed' : 'raw-private';
+    const rawPublic = {
+      key: keyObjects.publicKey.export({ format: 'raw-public' }),
+      format: 'raw-public',
+      asymmetricKeyType,
+      ...(namedCurve ? { namedCurve } : {}),
+    };
+    const rawPrivate = {
+      key: keyObjects.privateKey.export({ format: privateFormat }),
+      format: privateFormat,
+      asymmetricKeyType,
+      ...(namedCurve ? { namedCurve } : {}),
+    };
+    keyPairs.push({ publicKey: rawPublic, privateKey: rawPrivate });
   }
 
   for (const kp of keyPairs) {

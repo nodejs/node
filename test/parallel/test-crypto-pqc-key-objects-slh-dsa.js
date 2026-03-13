@@ -42,6 +42,14 @@ for (const asymmetricKeyType of [
     key.export({ format: 'der', type: 'spki' });
     assert.throws(() => key.export({ format: 'jwk' }),
                   { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE', message: 'Unsupported JWK Key Type.' });
+
+    // Raw format round-trip
+    const rawPub = key.export({ format: 'raw-public' });
+    assert(Buffer.isBuffer(rawPub));
+    const importedPub = createPublicKey({
+      key: rawPub, format: 'raw-public', asymmetricKeyType,
+    });
+    assert.strictEqual(importedPub.equals(key), true);
   }
 
   function assertPrivateKey(key) {
@@ -52,6 +60,14 @@ for (const asymmetricKeyType of [
     assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private);
     assert.throws(() => key.export({ format: 'jwk' }),
                   { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE', message: 'Unsupported JWK Key Type.' });
+
+    // Raw format round-trip
+    const rawPriv = key.export({ format: 'raw-private' });
+    assert(Buffer.isBuffer(rawPriv));
+    const importedPriv = createPrivateKey({
+      key: rawPriv, format: 'raw-private', asymmetricKeyType,
+    });
+    assert.strictEqual(importedPriv.equals(key), true);
   }
 
   if (!hasOpenSSL(3, 5)) {
