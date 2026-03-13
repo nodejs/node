@@ -40,6 +40,60 @@ suite('DatabaseSync verbose option', () => {
     db.close();
   });
 
+  it('callback receives SQL string for SELECT statements', () => {
+    let calls = [];
+    const db = new DatabaseSync(':memory:', {
+      verbose: (sql) => calls.push(sql),
+    });
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    calls = []; // reset after setup
+
+    const stmt = db.prepare('SELECT x FROM t WHERE x = ?');
+    stmt.get(1);
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0], 'SELECT x FROM t WHERE x = 1.0');
+    db.close();
+  });
+
+  it('callback receives SQL string for UPDATE statements', () => {
+    let calls = [];
+    const db = new DatabaseSync(':memory:', {
+      verbose: (sql) => calls.push(sql),
+    });
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    calls = []; // reset after setup
+
+    const stmt = db.prepare('UPDATE t SET x = ? WHERE x = ?');
+    stmt.run(2, 1);
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0], 'UPDATE t SET x = 2.0 WHERE x = 1.0');
+    db.close();
+  });
+
+  it('callback receives SQL string for DELETE statements', () => {
+    let calls = [];
+    const db = new DatabaseSync(':memory:', {
+      verbose: (sql) => calls.push(sql),
+    });
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    calls = []; // reset after setup
+
+    const stmt = db.prepare('DELETE FROM t WHERE x = ?');
+    stmt.run(1);
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0], 'DELETE FROM t WHERE x = 1.0');
+    db.close();
+  });
+
   it('falls back to source SQL when expansion fails', () => {
     let calls = [];
 
