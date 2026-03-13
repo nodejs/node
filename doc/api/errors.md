@@ -2496,6 +2496,77 @@ A given value is out of the accepted range.
 The `package.json` [`"imports"`][] field does not define the given internal
 package specifier mapping.
 
+<a id="ERR_PACKAGE_MAP_ACCESS_DENIED"></a>
+
+### `ERR_PACKAGE_MAP_ACCESS_DENIED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A package attempted to import another package that exists in the [package map][]
+but is not listed in its `dependencies` array.
+
+```js
+// package-map.json declares "app" with dependencies: ["utils"]
+// but "app" tries to import "secret-lib" which exists in the map
+
+// In app/index.js
+import secret from 'secret-lib'; // Throws ERR_PACKAGE_MAP_ACCESS_DENIED
+```
+
+To fix this error, add the required package to the importing package's
+`dependencies` array in the package map configuration file.
+
+<a id="ERR_PACKAGE_MAP_INVALID"></a>
+
+### `ERR_PACKAGE_MAP_INVALID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The [package map][] configuration file is invalid. This can occur when:
+
+* The file does not exist at the specified path.
+* The file contains invalid JSON.
+* The file is missing the required `packages` object.
+* A package entry is missing the required `path` field.
+
+```console
+$ node --experimental-package-map=./missing.json app.js
+Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file not found
+```
+
+<a id="ERR_PACKAGE_MAP_KEY_NOT_FOUND"></a>
+
+### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A package's `dependencies` array in the [package map][] references a key that
+is not defined in the `packages` object.
+
+```json
+{
+  "packages": {
+    "app": {
+      "name": "app",
+      "path": "./app",
+      "dependencies": ["nonexistent"]
+    }
+  }
+}
+```
+
+In this example, `"nonexistent"` is referenced in `dependencies` but not
+defined in `packages`, which will throw this error.
+
+To fix this error, ensure all keys referenced in `dependencies` arrays are
+defined in the `packages` object.
+
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 
 ### `ERR_PACKAGE_PATH_NOT_EXPORTED`
@@ -4433,6 +4504,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
+[package map]: packages.md#package-maps
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout

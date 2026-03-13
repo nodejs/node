@@ -934,6 +934,12 @@ The default loader has the following properties
 * Fails on unknown extensions for `file:` loading
   (supports only `.cjs`, `.js`, and `.mjs`)
 
+When the [`--experimental-package-map`][] flag is enabled, bare specifier
+resolution first consults the package map configuration. If the importing
+module is within a mapped package and the specifier matches a declared
+dependency, the package map resolution takes precedence. See [Package maps][]
+for details.
+
 ### Resolution algorithm
 
 The algorithm to load an ES module specifier is given through the
@@ -1303,6 +1309,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
+[`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--input-type`]: cli.md#--input-typetype
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
@@ -1324,6 +1331,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
 [merve]: https://github.com/anonrig/merve/tree/v1.0.0
+[Package maps]: packages.md#package-maps
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes

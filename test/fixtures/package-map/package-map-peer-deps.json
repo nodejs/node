@@ -1,0 +1,32 @@
+{
+  "packages": {
+    "app-v1": {
+      "name": "app",
+      "path": "./root",
+      "dependencies": ["component-lib@react-18", "react@18"]
+    },
+    "app-v2": {
+      "name": "app",
+      "path": "./root",
+      "dependencies": ["component-lib@react-19", "react@19"]
+    },
+    "component-lib@react-18": {
+      "name": "component-lib",
+      "path": "./component-lib",
+      "dependencies": ["react@18"]
+    },
+    "component-lib@react-19": {
+      "name": "component-lib",
+      "path": "./component-lib",
+      "dependencies": ["react@19"]
+    },
+    "react@18": {
+      "name": "react",
+      "path": "./react-18"
+    },
+    "react@19": {
+      "name": "react",
+      "path": "./react-19"
+    }
+  }
+}

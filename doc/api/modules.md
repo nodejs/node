@@ -340,6 +340,10 @@ This feature can be detected by checking if
 To get the exact filename that will be loaded when `require()` is called, use
 the `require.resolve()` function.
 
+When the [`--experimental-package-map`][] flag is enabled, bare specifier
+resolution first consults the package map before searching `node_modules`
+directories. See [Package maps][] for details.
+
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
@@ -1271,6 +1275,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--trace-require-module`]: cli.md#--trace-require-modulemode
 [`ERR_REQUIRE_ASYNC_MODULE`]: errors.md#err_require_async_module
 [`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
@@ -1295,5 +1300,6 @@ This section was moved to
 [module namespace object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import#module_namespace_object
 [module resolution]: #all-together
 [native addons]: addons.md
+[Package maps]: packages.md#package-maps
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports

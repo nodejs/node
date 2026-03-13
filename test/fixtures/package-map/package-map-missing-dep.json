@@ -1,0 +1,9 @@
+{
+  "packages": {
+    "root": {
+      "name": "root",
+      "path": "./root",
+      "dependencies": ["nonexistent-key"]
+    }
+  }
+}
