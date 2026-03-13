@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -71,6 +71,6 @@ async function testPromises() {
   assert.strictEqual(stats.isFile(), true);
 }
 
-testPromises().then(() => {
+testPromises().then(common.mustCall(() => {
   myVfs.unmount();
-});
+}));
