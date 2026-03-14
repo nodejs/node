@@ -2161,7 +2161,8 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   int anon_idx = 1;
   int anon_start = 0;
 
-  if (args[0]->IsObject() && !args[0]->IsArrayBufferView()) {
+  if (args[0]->IsObject() && !args[0]->IsArrayBufferView() &&
+      !args[0]->IsArrayBuffer() && !args[0]->IsSharedArrayBuffer()) {
     Local<Object> obj = args[0].As<Object>();
     Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
     Local<Array> keys;

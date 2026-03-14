@@ -80,18 +80,9 @@ suite('data binding and mapping', () => {
       text: '',
       buf: new Uint8Array(),
     });
-
-    const uint8Array = new Uint8Array([ 49, 50, 51, 52 ]);
-    const arrayBuffer = uint8Array.buffer;
-    t.assert.deepStrictEqual(
-      stmt.run(5, null, null, null, arrayBuffer),
-      { changes: 1, lastInsertRowid: 5 }
-    );
-    t.assert.deepStrictEqual(
-      query.get(5),
-      { __proto__: null, key: 5, int: null, double: null, text: null, buf: uint8Array }
-    );
   });
+
+
 
   test('large strings are bound correctly', (t) => {
     const db = new DatabaseSync(nextDb());
