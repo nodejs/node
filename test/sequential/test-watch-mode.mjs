@@ -277,6 +277,27 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     }
   });
 
+  it('should not crash when --env-file-if-exists points to a missing file', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+    const missingEnvFile = path.join(tmpdir.path, `missing-${Date.now()}.env`);
+    const { done, restart } = runInBackground({
+      args: ['--watch-path', tmpdir.path, `--env-file-if-exists=${missingEnvFile}`, jsFile],
+    });
+
+    try {
+      const { stderr, stdout } = await restart();
+
+      assert.doesNotMatch(stderr, /ENOENT: no such file or directory, watch/);
+      assert.deepStrictEqual(stdout, [
+        'ENV: undefined',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
+
   it('should watch changes to a failing file', async () => {
     const file = createTmpFile('throw new Error("fails");');
     const { stderr, stdout } = await runWriteSucceed({
