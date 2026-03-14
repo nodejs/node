@@ -2698,8 +2698,13 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   int r = sqlite3_reset(stmt);
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
 
-  sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
-  sqlite3_int64 changes = sqlite3_changes64(db->Connection());
+  // Read-only statements (e.g. SELECT) never modify rows, so report 0
+  // instead of leaking the count from the most recent write statement.
+  bool is_readonly = sqlite3_stmt_readonly(stmt);
+  sqlite3_int64 last_insert_rowid =
+      is_readonly ? 0 : sqlite3_last_insert_rowid(db->Connection());
+  sqlite3_int64 changes =
+      is_readonly ? 0 : sqlite3_changes64(db->Connection());
   Local<Value> last_insert_rowid_val;
   Local<Value> changes_val;
 
