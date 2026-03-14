@@ -128,7 +128,7 @@ A [`KeyObject`][] is the in-memory representation of a parsed key and is
 **the preferred way to work with keys** in `node:crypto`. It is created by
 [`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
 [`crypto.createSecretKey()`][], or key generation functions such as
-\[`crypto.generateKeyPair()`]\[].
+[`crypto.generateKeyPair()`][].
 
 Because the key material is parsed once at creation time, reusing a
 [`KeyObject`][] across multiple operations avoids repeated parsing and
@@ -6972,6 +6972,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createSign()`]: #cryptocreatesignalgorithm-options
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
 [`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
+[`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
