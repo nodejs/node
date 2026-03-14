@@ -3946,6 +3946,9 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
   result->set_target(*target, SKIP_WRITE_BARRIER);
   result->set_handler(*handler, SKIP_WRITE_BARRIER);
   result->set_flags(JSProxy::IsRevocableBit::encode(revocable));
+#if TAGGED_SIZE_8_BYTES
+  result->set_padding(0);
+#endif
   return handle(result, isolate());
 }
 
