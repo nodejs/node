@@ -1153,6 +1153,20 @@ passed to `console.warn()`.
 Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
+#### Diagnotics Channel
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added: REPLACEME
+-->
+
+##### Event: `'diagnostics_channel.subscribe'`
+
+* `args` {any\[]}
+
+Emitted when `diagnostics_channel.subcribe()` or `channel.subscribe()` is called. Receives an object with the channel that was subscribed to, and the subscription function.
+
 #### HTTP
 
 > Stability: 1 - Experimental
