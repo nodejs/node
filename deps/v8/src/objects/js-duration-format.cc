@@ -807,7 +807,7 @@ void OutputFractional(const char* type, int64_t integer, int32_t powerOfTen,
   // Pass in the value as int64_t and ask ICU to scale down.
   nfOpts = nfOpts.scale(icu::number::Scale::powerOfTen(-powerOfTen));
 
-  int64_t factor = static_cast<int64_t>(std::powl(10, powerOfTen));
+  int64_t factor = static_cast<int64_t>(std::pow(10.0L, powerOfTen));
   int64_t bound = std::numeric_limits<int64_t>::max() / factor - 1;
   UErrorCode status = U_ZERO_ERROR;
   // Use faster ICU API formatInt if the value fit the precision int64_t,
