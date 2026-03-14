@@ -712,9 +712,6 @@ process.on('SIGTERM', handle);
   artificially using kill(2), inherently leave the process in a state from
   which it is not safe to call JS listeners. Doing so might cause the process
   to stop responding.
-* `0` can be sent to test for the existence of a process, it has no effect if
-  the process exists, but will throw an error if the process does not exist.
-
 Windows does not support signals so has no equivalent to termination by signal,
 but Node.js offers some emulation with [`process.kill()`][], and
 [`subprocess.kill()`][]:
@@ -722,8 +719,9 @@ but Node.js offers some emulation with [`process.kill()`][], and
 * Sending `SIGINT`, `SIGTERM`, and `SIGKILL` will cause the unconditional
   termination of the target process, and afterwards, subprocess will report that
   the process was terminated by signal.
-* Sending signal `0` can be used as a platform independent way to test for the
-  existence of a process.
+
+Signal `0` can be sent via [`process.kill()`][] to test for the existence of a
+process without actually sending a signal.
 
 ## `process.abort()`
 
