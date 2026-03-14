@@ -3877,6 +3877,18 @@ bool EVPKeyCtxPointer::signInto(const Buffer<const unsigned char>& data,
   return true;
 }
 
+bool EVPKeyCtxPointer::setNonceType(unsigned int type) {
+#ifdef OSSL_SIGNATURE_PARAM_NONCE_TYPE
+  if (!ctx_) return false;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_uint(OSSL_SIGNATURE_PARAM_NONCE_TYPE, &type),
+      OSSL_PARAM_END};
+  return EVP_PKEY_CTX_set_params(ctx_.get(), params) == 1;
+#else
+  return false;
+#endif
+}
+
 // ============================================================================
 
 namespace {
@@ -4354,6 +4366,50 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
 
   if (!EVP_DigestVerifyInit_ex(
           ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitDeterministic(
+    const EVPKeyPointer& key, const Digest& digest) {
+#ifdef OSSL_SIGNATURE_PARAM_NONCE_TYPE
+  EVP_PKEY_CTX* ctx = nullptr;
+  unsigned int nonce_type = 1;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_uint(OSSL_SIGNATURE_PARAM_NONCE_TYPE, &nonce_type),
+      OSSL_PARAM_END};
+
+  const char* md_name = digest ? EVP_MD_get0_name(digest) : nullptr;
+
+  if (!EVP_DigestSignInit_ex(
+          ctx_.get(), &ctx, md_name, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitDeterministic(
+    const EVPKeyPointer& key, const Digest& digest) {
+#ifdef OSSL_SIGNATURE_PARAM_NONCE_TYPE
+  EVP_PKEY_CTX* ctx = nullptr;
+  unsigned int nonce_type = 1;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_uint(OSSL_SIGNATURE_PARAM_NONCE_TYPE, &nonce_type),
+      OSSL_PARAM_END};
+
+  const char* md_name = digest ? EVP_MD_get0_name(digest) : nullptr;
+
+  if (!EVP_DigestVerifyInit_ex(
+          ctx_.get(), &ctx, md_name, nullptr, nullptr, key.get(), params)) {
     return std::nullopt;
   }
   return ctx;

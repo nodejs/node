@@ -2358,6 +2358,7 @@ changes:
 
 * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
+  * `dsaNonceType` {string}
   * `padding` {integer}
   * `saltLength` {integer}
 * `outputEncoding` {string} The [encoding][] of the return value.
@@ -2376,6 +2377,10 @@ object, the following additional properties can be passed:
   format of the generated signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
+* `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
+  nonce generation method. It can be one of the following:
+  * `'random'` (default): Use a random nonce.
+  * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -2488,6 +2493,7 @@ changes:
 
 * `object` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
+  * `dsaNonceType` {string}
   * `padding` {integer}
   * `saltLength` {integer}
 * `signature` {string|ArrayBuffer|Buffer|TypedArray|DataView}
@@ -2507,6 +2513,10 @@ object, the following additional properties can be passed:
   format of the signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
+* `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
+  nonce generation method used during signing. It can be one of the following:
+  * `'random'` (default): Use a random nonce.
+  * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -5796,6 +5806,10 @@ additional properties can be passed:
   format of the generated signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
+* `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
+  nonce generation method. It can be one of the following:
+  * `'random'` (default): Use a random nonce.
+  * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -5927,6 +5941,10 @@ additional properties can be passed:
   format of the signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
+* `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
+  nonce generation method used during signing. It can be one of the following:
+  * `'random'` (default): Use a random nonce.
+  * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -6539,6 +6557,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
+[RFC 6979]: https://www.rfc-editor.org/rfc/rfc6979.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md

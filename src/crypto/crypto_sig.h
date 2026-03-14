@@ -27,6 +27,7 @@ class SignBase : public BaseObject {
     PublicKey,
     MalformedSignature,
     ContextUnsupported,
+    DsaNonceTypeUnsupported,
   };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
@@ -60,7 +61,8 @@ class Sign final : public SignBase {
   SignResult SignFinal(const ncrypto::EVPKeyPointer& pkey,
                        int padding,
                        std::optional<int> saltlen,
-                       DSASigEnc dsa_sig_enc);
+                       DSASigEnc dsa_sig_enc,
+                       bool deterministic_nonce);
 
   static void SignSync(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -82,6 +84,7 @@ class Verify final : public SignBase {
                     const ByteSource& sig,
                     int padding,
                     std::optional<int> saltlen,
+                    bool deterministic_nonce,
                     bool* verify_result);
 
   static void VerifySync(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -101,7 +104,8 @@ struct SignConfiguration final : public MemoryRetainer {
     kHasNone = 0,
     kHasSaltLength = 1,
     kHasPadding = 2,
-    kHasContextString = 4
+    kHasContextString = 4,
+    kHasDsaNonceType = 8
   };
 
   CryptoJobMode job_mode;
@@ -114,6 +118,7 @@ struct SignConfiguration final : public MemoryRetainer {
   int padding = 0;
   int salt_length = 0;
   DSASigEnc dsa_encoding = DSASigEnc::DER;
+  bool deterministic_nonce = false;
   ByteSource context_string;
 
   SignConfiguration() = default;

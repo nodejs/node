@@ -81,7 +81,8 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
                                              EVPMDCtxPointer&& mdctx,
                                              const EVPKeyPointer& pkey,
                                              int padding,
-                                             std::optional<int> pss_salt_len) {
+                                             std::optional<int> pss_salt_len,
+                                             bool deterministic_nonce) {
   auto data = mdctx.digestFinal(mdctx.getExpectedSize());
   if (!data) [[unlikely]]
     return nullptr;
@@ -95,8 +96,9 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
   EVPKeyCtxPointer pkctx = pkey.newCtx();
   if (pkctx.initForSign() > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
-      pkctx.setSignatureMd(mdctx) && pkctx.signInto(data, &sig_buf))
-      [[likely]] {
+      pkctx.setSignatureMd(mdctx) &&
+      (!deterministic_nonce || pkctx.setNonceType(1)) &&
+      pkctx.signInto(data, &sig_buf)) [[likely]] {
     CHECK_LE(sig_buf.len, sig->ByteLength());
     if (sig_buf.len < sig->ByteLength()) {
       auto new_sig = ArrayBuffer::NewBackingStore(
@@ -203,6 +205,10 @@ void CheckThrow(Environment* env, SignBase::Error error) {
       return THROW_ERR_CRYPTO_OPERATION_FAILED(
           env, "Context parameter is unsupported");
 
+    case SignBase::Error::DsaNonceTypeUnsupported:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "dsaNonceType option is unsupported for this key type");
+
     case SignBase::Error::Init:
     case SignBase::Error::Update:
     case SignBase::Error::PrivateKey:
@@ -259,6 +265,20 @@ bool SupportsContextString(const EVPKeyPointer& key) {
     case EVP_PKEY_SLH_DSA_SHAKE_256F:
     case EVP_PKEY_SLH_DSA_SHAKE_256S:
 #endif
+      return true;
+    default:
+      return false;
+  }
+#endif
+}
+
+bool SupportsDsaNonceType(const EVPKeyPointer& key) {
+#ifndef OSSL_SIGNATURE_PARAM_NONCE_TYPE
+  return false;
+#else
+  switch (key.id()) {
+    case EVP_PKEY_EC:
+    case EVP_PKEY_DSA:
       return true;
     default:
       return false;
@@ -371,7 +391,8 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
 Sign::SignResult Sign::SignFinal(const EVPKeyPointer& pkey,
                                  int padding,
                                  std::optional<int> salt_len,
-                                 DSASigEnc dsa_sig_enc) {
+                                 DSASigEnc dsa_sig_enc,
+                                 bool deterministic_nonce) {
   if (!mdctx_) [[unlikely]] {
     return SignResult(Error::NotInitialised);
   }
@@ -382,8 +403,12 @@ Sign::SignResult Sign::SignFinal(const EVPKeyPointer& pkey,
     return SignResult(Error::PrivateKey);
   }
 
-  auto buffer =
-      Node_SignFinal(env(), std::move(mdctx), pkey, padding, salt_len);
+  if (deterministic_nonce && !SupportsDsaNonceType(pkey)) {
+    return SignResult(Error::DsaNonceTypeUnsupported);
+  }
+
+  auto buffer = Node_SignFinal(
+      env(), std::move(mdctx), pkey, padding, salt_len, deterministic_nonce);
   Error error = buffer ? Error::Ok : Error::PrivateKey;
   if (error == Error::Ok && dsa_sig_enc == DSASigEnc::P1363) {
     buffer = ConvertSignatureToP1363(env(), pkey, std::move(buffer));
@@ -420,7 +445,14 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  SignResult ret = sign->SignFinal(key, padding, salt_len, dsa_sig_enc);
+  bool deterministic_nonce = false;
+  if (!args[offset + 3]->IsUndefined()) {
+    CHECK(args[offset + 3]->IsTrue());
+    deterministic_nonce = true;
+  }
+
+  SignResult ret =
+      sign->SignFinal(key, padding, salt_len, dsa_sig_enc, deterministic_nonce);
 
   if (ret.error != Error::Ok) [[unlikely]] {
     return crypto::CheckThrow(env, ret.error);
@@ -484,6 +516,7 @@ SignBase::Error Verify::VerifyFinal(const EVPKeyPointer& pkey,
                                     const ByteSource& sig,
                                     int padding,
                                     std::optional<int> saltlen,
+                                    bool deterministic_nonce,
                                     bool* verify_result) {
   if (!mdctx_) [[unlikely]]
     return Error::NotInitialised;
@@ -542,6 +575,12 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  bool deterministic_nonce = false;
+  if (!args[offset + 4]->IsUndefined()) {
+    CHECK(args[offset + 4]->IsTrue());
+    deterministic_nonce = true;
+  }
+
   ByteSource signature = hbuf.ToByteSource();
   if (dsa_sig_enc == DSASigEnc::P1363) {
     signature = ConvertSignatureToDER(key, hbuf.ToByteSource());
@@ -551,8 +590,8 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool verify_result;
-  Error err =
-      verify->VerifyFinal(key, signature, padding, salt_len, &verify_result);
+  Error err = verify->VerifyFinal(
+      key, signature, padding, salt_len, deterministic_nonce, &verify_result);
   if (err != Error::Ok) [[unlikely]]
     return crypto::CheckThrow(env, err);
   args.GetReturnValue().Set(verify_result);
@@ -569,6 +608,7 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       padding(other.padding),
       salt_length(other.salt_length),
       dsa_encoding(other.dsa_encoding),
+      deterministic_nonce(other.deterministic_nonce),
       context_string(std::move(other.context_string)) {}
 
 SignConfiguration& SignConfiguration::operator=(
@@ -651,8 +691,13 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
   }
 
-  if (!args[offset + 10]->IsUndefined()) {  // Context string
-    ArrayBufferOrViewContents<char> context_string(args[offset + 10]);
+  if (args[offset + 10]->IsTrue()) {  // Deterministic nonce (dsaNonceType)
+    params->flags |= SignConfiguration::kHasDsaNonceType;
+    params->deterministic_nonce = true;
+  }
+
+  if (!args[offset + 11]->IsUndefined()) {  // Context string
+    ArrayBufferOrViewContents<char> context_string(args[offset + 11]);
     if (context_string.size() > 255) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
       return Nothing<void>();
@@ -664,7 +709,7 @@ Maybe<void> SignTraits::AdditionalConfig(
   }
 
   if (params->mode == SignConfiguration::Mode::Verify) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 11]);
+    ArrayBufferOrViewContents<char> signature(args[offset + 12]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
@@ -697,9 +742,17 @@ bool SignTraits::DeriveBits(Environment* env,
 
   bool has_context = (params.flags & SignConfiguration::kHasContextString &&
                       params.context_string.size() > 0);
+  bool has_deterministic_nonce =
+      params.flags & SignConfiguration::kHasDsaNonceType;
 
   if (has_context && !SupportsContextString(key)) {
     if (can_throw) crypto::CheckThrow(env, SignBase::Error::ContextUnsupported);
+    return false;
+  }
+
+  if (has_deterministic_nonce && !SupportsDsaNonceType(key)) {
+    if (can_throw)
+      crypto::CheckThrow(env, SignBase::Error::DsaNonceTypeUnsupported);
     return false;
   }
 
@@ -715,6 +768,13 @@ bool SignTraits::DeriveBits(Environment* env,
           return context.signInitWithContext(key, params.digest, context_buf);
         case SignConfiguration::Mode::Verify:
           return context.verifyInitWithContext(key, params.digest, context_buf);
+      }
+    } else if (has_deterministic_nonce) {
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInitDeterministic(key, params.digest);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInitDeterministic(key, params.digest);
       }
     } else {
       switch (params.mode) {
