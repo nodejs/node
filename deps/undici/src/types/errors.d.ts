@@ -146,4 +146,10 @@ declare namespace Errors {
     name: 'SecureProxyConnectionError';
     code: 'UND_ERR_PRX_TLS';
   }
+
+  /** WebSocket decompressed message exceeded maximum size. */
+  export class MessageSizeExceededError extends UndiciError {
+    name: 'MessageSizeExceededError'
+    code: 'UND_ERR_WS_MESSAGE_SIZE_EXCEEDED'
+  }
 }

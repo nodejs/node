@@ -2,7 +2,7 @@
 
 // Called from .github/workflows
 
-const generateReleaseNotes = async ({ github, owner, repo, versionTag, defaultBranch }) => {
+const generateReleaseNotes = async ({ github, owner, repo, versionTag, releaseBranch }) => {
   const { data: releases } = await github.rest.repos.listReleases({
     owner,
     repo
@@ -14,7 +14,7 @@ const generateReleaseNotes = async ({ github, owner, repo, versionTag, defaultBr
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: defaultBranch,
+    target_commitish: releaseBranch,
     previous_tag_name: previousRelease?.tag_name
   })
 
@@ -25,29 +25,29 @@ const generateReleaseNotes = async ({ github, owner, repo, versionTag, defaultBr
   return bodyWithoutReleasePr
 }
 
-const generatePr = async ({ github, context, defaultBranch, versionTag }) => {
+const generatePr = async ({ github, context, releaseBranch, versionTag }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, defaultBranch })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, releaseBranch })
 
   await github.rest.pulls.create({
     owner,
     repo,
     head: `release/${versionTag}`,
-    base: defaultBranch,
+    base: releaseBranch,
     title: `[Release] ${versionTag}`,
     body: releaseNotes
   })
 }
 
-const release = async ({ github, context, defaultBranch, versionTag }) => {
+const release = async ({ github, context, releaseBranch, versionTag }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, defaultBranch })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, releaseBranch })
 
   await github.rest.repos.createRelease({
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: defaultBranch,
+    target_commitish: releaseBranch,
     name: versionTag,
     body: releaseNotes,
     draft: false,
