@@ -8,6 +8,8 @@ import { DefaultSerializer } from 'node:v8';
 import serializer from 'internal/test_runner/reporter/v8-serializer';
 import runner from 'internal/test_runner/runner';
 
+class ExtendedArray extends Array {}
+
 async function toArray(chunks) {
   const arr = [];
   for await (const i of chunks) arr.push(i);
@@ -75,6 +77,26 @@ describe('v8 deserializer', common.mustCall(() => {
       { data: { nesting: 0, details: {}, message: 'diagnostic' }, type: 'test:diagnostic' },
       { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
     ]);
+  });
+
+  it('should restore assertion metadata without leaking internal transport fields', async () => {
+    let assertionError;
+    try {
+      assert.deepStrictEqual(new ExtendedArray('hello'), ['hello']);
+    } catch (error) {
+      assertionError = error;
+    }
+    assert(assertionError);
+
+    const [chunk] = await toArray(serializer([{
+      type: 'test:diagnostic',
+      data: { nesting: 0, details: { error: assertionError }, message: 'diagnostic' },
+    }]));
+
+    const reported = await collectReported([chunk]);
+    const detailError = reported[0].data.details.error;
+    assert.strictEqual(detailError.actual.constructor.name, 'ExtendedArray');
+    assert.strictEqual(Object.hasOwn(reported[0].data.details, 'assertionPrototypeMetadata'), false);
   });
 
   const headerPosition = headerLength * 2 + 4;
