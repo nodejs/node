@@ -2358,7 +2358,7 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #advanced-serialization
-[DEP0190]: deprecations.md#dep0190-passing-args-to-nodechild_process-execfilespawn-with-shell-option-true
+[DEP0190]: deprecations.md#DEP0190
 [Default Windows shell]: #default-windows-shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell requirements]: #shell-requirements
