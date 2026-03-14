@@ -1057,3 +1057,311 @@ function createMountedVfs() {
     myVfs.unmount();
   })().then(common.mustCall());
 }
+
+// ==================== chown ops ====================
+
+// Test fs.chownSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.chownSync(path.join(mountPoint, 'src/hello.txt'), 1000, 1000);
+  // File should still be readable
+  assert.strictEqual(fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8'), 'hello world');
+  myVfs.unmount();
+}
+
+// Test fs.chown callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.chown(path.join(mountPoint, 'src/hello.txt'), 1000, 1000, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.chown on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.chown(path.join(mountPoint, 'src/hello.txt'), 1000, 1000).then(common.mustCall(() => {
+    myVfs.unmount();
+  }));
+}
+
+// ==================== lchown ops ====================
+
+// Test fs.lchownSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.lchownSync(path.join(mountPoint, 'src/hello.txt'), 1000, 1000);
+  assert.strictEqual(fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8'), 'hello world');
+  myVfs.unmount();
+}
+
+// Test fs.lchown callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.lchown(path.join(mountPoint, 'src/hello.txt'), 1000, 1000, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.lchown on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.lchown(path.join(mountPoint, 'src/hello.txt'), 1000, 1000).then(common.mustCall(() => {
+    myVfs.unmount();
+  }));
+}
+
+// ==================== fchmod ops ====================
+
+// Test fs.fchmodSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fchmodSync(fd, 0o644);
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.fchmod callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fchmod(fd, 0o644, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== fchown ops ====================
+
+// Test fs.fchownSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fchownSync(fd, 1000, 1000);
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.fchown callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fchown(fd, 1000, 1000, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== futimes ops ====================
+
+// Test fs.futimesSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.futimesSync(fd, Date.now() / 1000, Date.now() / 1000);
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.futimes callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.futimes(fd, Date.now() / 1000, Date.now() / 1000, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== lutimes ops ====================
+
+// Test fs.lutimesSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.lutimesSync(path.join(mountPoint, 'src/hello.txt'), Date.now() / 1000, Date.now() / 1000);
+  assert.strictEqual(fs.readFileSync(path.join(mountPoint, 'src/hello.txt'), 'utf8'), 'hello world');
+  myVfs.unmount();
+}
+
+// Test fs.lutimes callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.lutimes(path.join(mountPoint, 'src/hello.txt'),
+             Date.now() / 1000,
+             Date.now() / 1000,
+             common.mustCall((err) => {
+               assert.strictEqual(err, null);
+               myVfs.unmount();
+             }));
+}
+
+// Test fs.promises.lutimes on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.lutimes(path.join(mountPoint, 'src/hello.txt'), Date.now() / 1000, Date.now() / 1000)
+    .then(common.mustCall(() => {
+      myVfs.unmount();
+    }));
+}
+
+// ==================== fdatasync ops ====================
+
+// Test fs.fdatasyncSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fdatasyncSync(fd);
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.fdatasync callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fdatasync(fd, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== fsync ops ====================
+
+// Test fs.fsyncSync on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fsyncSync(fd);
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.fsync callback on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  fs.fsync(fd, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== statfs ops ====================
+
+// Test fs.statfsSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const stats = fs.statfsSync(path.join(mountPoint, 'src'));
+  assert.strictEqual(stats.type, 0);
+  assert.strictEqual(stats.bsize, 4096);
+  assert.strictEqual(stats.bfree, 0);
+  assert.strictEqual(stats.bavail, 0);
+  assert.strictEqual(stats.files, 0);
+  assert.strictEqual(stats.ffree, 0);
+  myVfs.unmount();
+}
+
+// Test fs.statfs callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.statfs(path.join(mountPoint, 'src'), common.mustCall((err, stats) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(stats.type, 0);
+    assert.strictEqual(stats.bsize, 4096);
+    myVfs.unmount();
+  }));
+}
+
+// Test fs.promises.statfs on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.statfs(path.join(mountPoint, 'src')).then(common.mustCall((stats) => {
+    assert.strictEqual(stats.type, 0);
+    assert.strictEqual(stats.bsize, 4096);
+    assert.strictEqual(stats.bfree, 0);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== readv ops ====================
+
+// Test fs.readvSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  const buf1 = Buffer.alloc(5);
+  const buf2 = Buffer.alloc(6);
+  const bytesRead = fs.readvSync(fd, [buf1, buf2], 0);
+  assert.strictEqual(bytesRead, 11);
+  assert.strictEqual(buf1.toString(), 'hello');
+  assert.strictEqual(buf2.toString(), ' world');
+  fs.closeSync(fd);
+  myVfs.unmount();
+}
+
+// Test fs.readv callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  const buf1 = Buffer.alloc(5);
+  const buf2 = Buffer.alloc(6);
+  fs.readv(fd, [buf1, buf2], 0, common.mustCall((err, bytesRead, buffers) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(bytesRead, 11);
+    assert.strictEqual(buffers[0].toString(), 'hello');
+    assert.strictEqual(buffers[1].toString(), ' world');
+    fs.closeSync(fd);
+    myVfs.unmount();
+  }));
+}
+
+// ==================== writev ops ====================
+
+// Test fs.writevSync on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/writev.txt'), 'w');
+  const buf1 = Buffer.from('hello');
+  const buf2 = Buffer.from(' writev');
+  const bytesWritten = fs.writevSync(fd, [buf1, buf2], 0);
+  assert.strictEqual(bytesWritten, 12);
+  fs.closeSync(fd);
+  const content = fs.readFileSync(path.join(mountPoint, 'src/writev.txt'), 'utf8');
+  assert.strictEqual(content, 'hello writev');
+  myVfs.unmount();
+}
+
+// Test fs.writev callback on VFS
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  const fd = fs.openSync(path.join(mountPoint, 'src/writev-cb.txt'), 'w');
+  const buf1 = Buffer.from('cb');
+  const buf2 = Buffer.from(' writev');
+  fs.writev(fd, [buf1, buf2], 0, common.mustCall((err, bytesWritten, buffers) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(bytesWritten, 9);
+    assert.strictEqual(buffers.length, 2);
+    fs.closeSync(fd);
+    const content = fs.readFileSync(path.join(mountPoint, 'src/writev-cb.txt'), 'utf8');
+    assert.strictEqual(content, 'cb writev');
+    myVfs.unmount();
+  }));
+}
+
+// ==================== promises.lchmod ====================
+
+// Test fs.promises.lchmod on VFS (no-op)
+{
+  const { myVfs, mountPoint } = createMountedVfs();
+  fs.promises.lchmod(path.join(mountPoint, 'src/hello.txt'), 0o644).then(common.mustCall(() => {
+    myVfs.unmount();
+  }));
+}
