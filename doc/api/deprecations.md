@@ -4192,7 +4192,7 @@ changes:
 Type: Runtime
 
 When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
-`{ shell: true }` or `{ shell: '/bin/zsh' }`, the values are not escaped, only space-separated,
+`{ shell: true }` or `{ shell: '/path/to/shell' }`, the values are not escaped, only space-separated,
 which can lead to shell injection.
 
 ### DEP0191: `repl.builtinModules`
