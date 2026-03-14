@@ -82,8 +82,6 @@ suite('data binding and mapping', () => {
     });
   });
 
-
-
   test('large strings are bound correctly', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
