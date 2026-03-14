@@ -34,7 +34,9 @@
 
 #include <ostream>
 #include <string>
+#include <string_view>
 
+#include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-port.h"
 #include "src/gtest-internal-inl.h"
 
@@ -42,9 +44,9 @@ namespace testing {
 
 // Gets the summary of the failure message by omitting the stack trace
 // in it.
-std::string TestPartResult::ExtractSummary(const char* message) {
-  const char* const stack_trace = strstr(message, internal::kStackTraceMarker);
-  return stack_trace == nullptr ? message : std::string(message, stack_trace);
+std::string TestPartResult::ExtractSummary(const std::string_view message) {
+  auto stack_trace = message.find(internal::kStackTraceMarker);
+  return std::string(message.substr(0, stack_trace));
 }
 
 // Prints a TestPartResult object.
