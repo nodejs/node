@@ -25,7 +25,8 @@ const WebSocketServer = require('../common/websocket-server');
   await new Promise((resolve, reject) => {
     const ws = new WebSocket(`wss://localhost:${server.address().port}`, {
       dispatcher: new undici.EnvHttpProxyAgent({
-        connect: { rejectUnauthorized: false }
+        connect: { rejectUnauthorized: false },
+        noProxy: '*',
       })
     });
     ws.addEventListener('open', common.mustCall(() => {
