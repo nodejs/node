@@ -7654,6 +7654,39 @@ StatFs {
 }
 ```
 
+The following example shows how to calculate disk space information from a
+`StatFs` object. The total, free, and available space in bytes can be
+calculated by multiplying the respective block counts by the block size
+(`bsize`).
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalSpace = stats.blocks * stats.bsize;
+const freeSpace = stats.bfree * stats.bsize;
+const availableSpace = stats.bavail * stats.bsize;
+
+console.log(`Total: ${totalSpace / (1024 ** 3)} GiB`);
+console.log(`Free: ${freeSpace / (1024 ** 3)} GiB`);
+console.log(`Available: ${availableSpace / (1024 ** 3)} GiB`);
+```
+
+```cjs
+const { statfs } = require('node:fs');
+
+statfs('/', (err, stats) => {
+  if (err) throw err;
+  const totalSpace = stats.blocks * stats.bsize;
+  const freeSpace = stats.bfree * stats.bsize;
+  const availableSpace = stats.bavail * stats.bsize;
+
+  console.log(`Total: ${totalSpace / (1024 ** 3)} GiB`);
+  console.log(`Free: ${freeSpace / (1024 ** 3)} GiB`);
+  console.log(`Available: ${availableSpace / (1024 ** 3)} GiB`);
+});
+```
+
 #### `statfs.bavail`
 
 <!-- YAML
@@ -7664,7 +7697,10 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+The number of free blocks available to unprivileged users. The available disk
+space in bytes can be calculated as `statfs.bavail * statfs.bsize`. This value
+may be less than `statfs.bfree` because the file system may reserve blocks for
+the superuser.
 
 #### `statfs.bfree`
 
@@ -7676,7 +7712,9 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+The total number of free blocks in the file system, including reserved blocks
+that are not available to unprivileged users. The total free disk space in
+bytes can be calculated as `statfs.bfree * statfs.bsize`.
 
 #### `statfs.blocks`
 
@@ -7688,7 +7726,8 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+The total number of data blocks in the file system. The total file system size
+in bytes can be calculated as `statfs.blocks * statfs.bsize`.
 
 #### `statfs.bsize`
 
@@ -7700,7 +7739,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.ffree`
 
@@ -7712,7 +7751,10 @@ added:
 
 * Type: {number|bigint}
 
-Free file nodes in file system.
+The number of free file nodes (inodes) in the file system. An inode is a data
+structure used by the file system to store information about a file or
+directory. A lack of free inodes can prevent the creation of new files even
+when disk space is available.
 
 #### `statfs.files`
 
@@ -7724,7 +7766,8 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+The total number of file nodes (inodes) in the file system. This represents the
+maximum number of files and directories the file system can hold.
 
 #### `statfs.type`
 
@@ -7736,7 +7779,9 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+A numeric identifier for the file system type. This value is a filesystem magic
+number set by the operating system kernel, such as `0xEF53` for ext4 or
+`0x01021994` for tmpfs on Linux. On some platforms, this value is `0`.
 
 ### Class: `fs.Utf8Stream`
 
