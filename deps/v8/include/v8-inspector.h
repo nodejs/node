@@ -10,6 +10,7 @@
 #include <cctype>
 #include <memory>
 
+#include "cppgc/garbage-collected.h"  // NOLINT(build/include_directory)
 #include "v8-isolate.h"       // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 
@@ -415,6 +416,15 @@ class V8_EXPORT V8Inspector {
     virtual void sendNotification(std::unique_ptr<StringBuffer> message) = 0;
     virtual void flushProtocolNotifications() = 0;
   };
+
+  class V8_EXPORT ManagedChannel
+      : public cppgc::GarbageCollected<ManagedChannel>,
+        public Channel {
+   public:
+    virtual ~ManagedChannel() = default;
+    virtual void Trace(cppgc::Visitor* visitor) const {}
+  };
+
   enum ClientTrustLevel { kUntrusted, kFullyTrusted };
   enum SessionPauseState { kWaitingForDebugger, kNotWaitingForDebugger };
   // TODO(chromium:1352175): remove default value once downstream change lands.
@@ -431,6 +441,10 @@ class V8_EXPORT V8Inspector {
   // remains on the stack.
   virtual std::shared_ptr<V8InspectorSession> connectShared(
       int contextGroupId, Channel* channel, StringView state,
+      ClientTrustLevel clientTrustLevel, SessionPauseState pauseState) = 0;
+
+  virtual std::shared_ptr<V8InspectorSession> connectShared(
+      int contextGroupId, ManagedChannel* channel, StringView state,
       ClientTrustLevel clientTrustLevel, SessionPauseState pauseState) = 0;
 
   // API methods.

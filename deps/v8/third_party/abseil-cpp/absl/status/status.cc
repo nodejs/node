@@ -47,6 +47,10 @@ static_assert(
     "absl::Status assumes it can use the bottom 2 bits of a StatusRep*.");
 
 std::string StatusCodeToString(StatusCode code) {
+  return std::string(absl::StatusCodeToStringView(code));
+}
+
+absl::string_view StatusCodeToStringView(StatusCode code) {
   switch (code) {
     case StatusCode::kOk:
       return "OK";

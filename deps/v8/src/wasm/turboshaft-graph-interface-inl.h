@@ -52,8 +52,8 @@ auto WasmGraphBuilderBase<Assembler>::BuildChangeInt64ToBigInt(
     return V<BigInt>::Cast(__ Call(target, {input}, ts_call_descriptor));
   }
   V<Word32> low_word = __ TruncateWord64ToWord32(input);
-  V<Word32> high_word = __ TruncateWord64ToWord32(__ ShiftRightLogical(
-      input, __ Word32Constant(32), WordRepresentation::Word64()));
+  V<Word32> high_word =
+      __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(input, 32));
   return V<BigInt>::Cast(
       __ Call(target, {low_word, high_word}, ts_call_descriptor));
 }
@@ -172,7 +172,7 @@ void WasmGraphBuilderBase<Assembler>::BuildSetNewStackLimit(
   // Set the new interrupt limit and real limit. Use a compare-and-swap for
   // the interrupt limit to avoid overwriting a pending interrupt.
   __ AtomicCompareExchange(
-      __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
+      __ IsolateField(IsolateFieldId::kJsLimit), __ UintPtrConstant(0),
       old_limit, new_limit, RegisterRepresentation::WordPtr(),
       MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal,
       RegisterRepresentation::WordPtr());

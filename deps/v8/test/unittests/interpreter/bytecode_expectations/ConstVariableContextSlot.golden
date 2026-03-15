@@ -13,12 +13,12 @@ frame size: 1
 parameter count: 1
 bytecode array length: 14
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
-  /*   44 E> */ B(StaCurrentContextSlotNoCell), U8(2),
+  /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
                 B(LdaUndefined),
   /*   74 S> */ B(Return),
 ]
@@ -36,13 +36,13 @@ frame size: 1
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
-  /*   44 E> */ B(StaCurrentContextSlotNoCell), U8(2),
-  /*   74 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+  /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
+  /*   74 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
   /*   83 S> */ B(Return),
 ]
 constant pool: [
@@ -59,16 +59,16 @@ frame size: 2
 parameter count: 1
 bytecode array length: 24
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star1),
-                B(LdaCurrentContextSlotNoCell), U8(2),
-  /*   47 E> */ B(ThrowReferenceErrorIfHole), U8(1),
-                B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
-  /*   44 E> */ B(StaCurrentContextSlotNoCell), U8(2),
+                B(LdaCurrentContextSlotNoCell), C8(2),
+  /*   47 E> */ B(ThrowReferenceErrorIfHole), U8(1:"x"),
+                B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), RegCount8(0),
+  /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -87,14 +87,14 @@ frame size: 1
 parameter count: 1
 bytecode array length: 21
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
-  /*   44 E> */ B(StaCurrentContextSlotNoCell), U8(2),
+  /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
   /*   48 S> */ B(LdaSmi), I8(20),
-  /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
+  /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), RegCount8(0),
                 B(LdaUndefined),
   /*   82 S> */ B(Return),
 ]

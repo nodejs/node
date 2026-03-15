@@ -132,6 +132,22 @@ class V8_NODISCARD PhaseScope {
   TurbofanPipelineStatistics* const pipeline_stats_;
 };
 
+class V8_NODISCARD PhaseScopeKind {
+ public:
+  PhaseScopeKind(TurbofanPipelineStatistics* pipeline_stats, const char* name)
+      : pipeline_stats_(pipeline_stats) {
+    if (pipeline_stats_ != nullptr) pipeline_stats_->BeginPhaseKind(name);
+  }
+  ~PhaseScopeKind() {
+    if (pipeline_stats_ != nullptr) pipeline_stats_->EndPhaseKind();
+  }
+  PhaseScopeKind(const PhaseScope&) = delete;
+  PhaseScopeKind& operator=(const PhaseScope&) = delete;
+
+ private:
+  TurbofanPipelineStatistics* const pipeline_stats_;
+};
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

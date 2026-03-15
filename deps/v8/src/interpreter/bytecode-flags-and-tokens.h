@@ -79,6 +79,7 @@ class TestTypeOfFlags {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TestTypeOfFlags);
 };
+std::ostream& operator<<(std::ostream& os, TestTypeOfFlags::LiteralFlag type);
 
 class StoreLookupSlotFlags {
  public:

@@ -19,6 +19,10 @@
 // `absl::Cleanup` implements the scope guard idiom, invoking the contained
 // callback's `operator()() &&` on scope exit.
 //
+// This class doesn't allocate or take any locks, and is safe to use in a signal
+// handler. Of course the callback with which it is constructed also must be
+// signal safe in order for this to be useful.
+//
 // Example:
 //
 // ```

@@ -48,22 +48,12 @@ void WriteHeader(const char* header_filename) {
   out << "// Automatically generated from interpreter/bytecodes.h\n"
       << "// The following list macro is used to populate the builtins list\n"
       << "// with the bytecode handlers\n\n"
-      << "#include <stdint.h>\n\n"
       << "#ifndef V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n"
       << "#define V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n\n"
+      << "#include <stdint.h>\n\n"
+      << "#include \"src/common/globals.h\"\n\n"
       << "namespace v8 {\n"
       << "namespace internal {\n\n"
-      << "#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS\n"
-      << "// EXPAND is needed to work around MSVC's broken __VA_ARGS__ "
-         "expansion.\n"
-      << "#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) "
-         "EXPAND(TSA_MACRO(__VA_ARGS__))\n"
-      << "#else\n"
-      << "// EXPAND is needed to work around MSVC's broken __VA_ARGS__ "
-         "expansion.\n"
-      << "#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) "
-         "EXPAND(CSA_MACRO(__VA_ARGS__))\n"
-      << "#endif\n\n"
       << "#define BUILTIN_LIST_BYTECODE_HANDLERS(V_TSA, V)";
 
   constexpr int kTableSize =
@@ -115,7 +105,6 @@ void WriteHeader(const char* header_filename) {
   }
 
   out << "};\n\n"
-      << "#undef IF_TSA\n\n"
       << "}  // namespace internal\n"
       << "}  // namespace v8\n"
       << "#endif  // V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n";

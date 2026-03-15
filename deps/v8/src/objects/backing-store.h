@@ -28,6 +28,9 @@ enum class SharedFlag : uint8_t { kNotShared, kShared };
 // Whether the backing store is resizable or not.
 enum class ResizableFlag : uint8_t { kNotResizable, kResizable };
 
+// Whether the backing store is mutable or not.
+enum class ImmutableFlag : uint8_t { kMutable, kImmutable };
+
 // Whether the backing store memory is initialied to zero or not.
 enum class InitializedFlag : uint8_t { kUninitialized, kZeroInitialized };
 
@@ -44,6 +47,8 @@ struct SharedWasmMemoryData;
 // and the destructor frees the memory (and page allocation if necessary).
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kBackingStoreTag;
+
   ~BackingStore();
 
   // Allocate an array buffer backing store using the default method,
@@ -96,9 +101,18 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   size_t byte_capacity() const { return byte_capacity_; }
   bool is_shared() const { return has_flag(kIsShared); }
   bool is_resizable_by_js() const { return has_flag(kIsResizableByJs); }
+  bool is_immutable() const { return has_flag(kIsImmutable); }
   bool is_wasm_memory() const { return has_flag(kIsWasmMemory); }
   bool is_wasm_memory64() const { return has_flag(kIsWasmMemory64); }
   bool has_guard_regions() const { return has_flag(kHasGuardRegions); }
+
+  void set_is_immutable(bool immutable) {
+    if (immutable) {
+      set_flag(kIsImmutable);
+    } else {
+      clear_flag(kIsImmutable);
+    }
+  }
 
   bool IsEmpty() const {
     DCHECK_GE(byte_capacity_, byte_length_);
@@ -165,19 +179,24 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Returns the size of the external memory owned by this backing store.
   // It is used for triggering GCs based on the external memory pressure.
   size_t PerIsolateAccountingLength() {
-    if (has_flag(kIsShared)) {
-      // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
-      // with accounting for per-isolate external memory. In particular, sharing
-      // the same array buffer or memory multiple times, which happens in stress
-      // tests, can cause overcounting, leading to GC thrashing. Fix with global
-      // accounting?
-      return 0;
-    }
-    if (has_flag(kEmptyDeleter)) {
-      // The backing store has an empty deleter. Even if the backing store is
-      // freed after GC, it would not free the memory block.
-      return 0;
-    }
+    // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
+    // with accounting for per-isolate external memory. In particular, sharing
+    // the same array buffer or memory multiple times, which happens in stress
+    // tests, can cause overcounting, leading to GC thrashing. Fix with global
+    // accounting?
+    if (has_flag(kIsShared)) return 0;
+
+    // Wasm backing stores are already accounted for via the
+    // `Managed<BackingStore>` stored in the `WasmMemoryObject`. The latter is
+    // referenced from the `JSArrayBuffer` via the
+    // `array_buffer_wasm_memory_symbol`. (There's a IfChange -> ThenChange lint
+    // check in place for this.)
+    if (is_wasm_memory()) return 0;
+
+    // Check if the backing store has an empty deleter. Even if the backing
+    // store is freed after GC, it would not free the memory block.
+    if (has_flag(kEmptyDeleter)) return 0;
+
     return byte_length();
   }
 
@@ -189,6 +208,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   enum Flag {
     kIsShared,
     kIsResizableByJs,
+    kIsImmutable,
     kIsWasmMemory,
     kIsWasmMemory64,
     kHoldsSharedPtrToAllocater,
@@ -200,8 +220,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool is_wasm_memory64,
-               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
+               ImmutableFlag immutable, bool is_wasm_memory,
+               bool is_wasm_memory64, bool has_guard_regions,
+               bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);

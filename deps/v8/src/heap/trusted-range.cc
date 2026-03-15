@@ -18,7 +18,7 @@ bool TrustedRange::InitReservation(size_t requested) {
 
   auto page_allocator = GetPlatformPageAllocator();
 
-  const size_t kPageSize = MutablePageMetadata::kPageSize;
+  const size_t kPageSize = NormalPage::kPageSize;
   CHECK(IsAligned(kPageSize, page_allocator->AllocatePageSize()));
 
   // We want the trusted range to be allocated above 4GB, for a few reasons:
@@ -62,12 +62,10 @@ bool TrustedRange::InitReservation(size_t requested) {
     // first pages of trusted space inaccessible so that any access is
     // guaranteed to crash safely.
     size_t guard_region_size = 1 * MB;
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-    if (v8_flags.reserve_contiguous_compressed_read_only_space) {
-      guard_region_size =
-          std::max(guard_region_size, kContiguousReadOnlyReservationSize);
-    }
-#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    guard_region_size =
+        std::max(guard_region_size, kContiguousReadOnlyReservationSize);
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     DCHECK(IsAligned(guard_region_size, page_allocator_->AllocatePageSize()));
     CHECK(page_allocator_->AllocatePagesAt(base(), guard_region_size,
                                            PageAllocator::kNoAccess));

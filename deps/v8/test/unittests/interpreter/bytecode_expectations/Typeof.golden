@@ -20,7 +20,7 @@ bytecode array length: 6
 bytecodes: [
   /*   24 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   29 S> */ B(TypeOf), U8(0),
+  /*   29 S> */ B(TypeOf), FBV(0),
   /*   46 S> */ B(Return),
 ]
 constant pool: [
@@ -40,8 +40,8 @@ frame size: 0
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(0), U8(0),
-                B(TypeOf), U8(2),
+  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(0:"x"), FBV(0),
+                B(TypeOf), FBV(2),
   /*   45 S> */ B(Return),
 ]
 constant pool: [

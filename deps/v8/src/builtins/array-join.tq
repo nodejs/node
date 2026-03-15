@@ -6,8 +6,7 @@ namespace array {
 
 type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
 
-const kMaxArrayLength:
-    constexpr uint32 generates 'JSArray::kMaxArrayLength';
+const kMaxArrayLength: constexpr uint32 generates 'JSArray::kMaxArrayLength';
 
 // Make sure that the buffer chunks are new-space allocatable.
 const kMaxBufferChunkSize: constexpr int31 = kMaxNewSpaceFixedArrayElements;
@@ -834,6 +833,7 @@ transitioning builtin ArrayPrototypeJoinImpl(
       false, o, len, separator, Undefined, Undefined);
 }
 
+// LINT.IfChange
 // Shortcut implementation for JSArray.toString() when JSArray is known to not
 // have "toString" or "join" properties and prototype chain is unmodified.
 transitioning macro ArrayPrototypeToString_Inline(
@@ -857,6 +857,7 @@ transitioning macro ArrayPrototypeToString_Inline(
   const result = ArrayPrototypeJoinImpl(array, len, separator);
   return Cast<String>(result) otherwise unreachable;
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
 transitioning javascript builtin ArrayPrototypeToLocaleString(
@@ -907,7 +908,8 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
   const length = typed_array::ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.join');
+      context, receiver, '%TypedArray%.prototype.join',
+      TypedArrayAccessMode::kRead);
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   // 3. If separator is undefined, let sep be the single-element String ",".
@@ -928,7 +930,8 @@ transitioning javascript builtin TypedArrayPrototypeToLocaleString(
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
   const length = typed_array::ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.toLocaleString');
+      context, receiver, '%TypedArray%.prototype.toLocaleString',
+      TypedArrayAccessMode::kRead);
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(

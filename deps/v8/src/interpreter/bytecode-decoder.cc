@@ -6,8 +6,11 @@
 
 #include <iomanip>
 
+#include "src/base/sanitizer/tsan.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/contexts.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -71,6 +74,18 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
   return 0;
 }
 
+// static
+#ifdef V8_IS_TSAN
+V8_NOINLINE
+
+DISABLE_TSAN
+#endif
+uint32_t BytecodeDecoder::RacyDecodeEmbeddedFeedback(Address operand_start) {
+  uint16_t value;
+  memcpy(&value, reinterpret_cast<const void*>(operand_start), sizeof(value));
+  return value;
+}
+
 namespace {
 
 const char* NameForRuntimeId(Runtime::FunctionId idx) {
@@ -94,6 +109,7 @@ const char* NameForNativeContextIndex(uint32_t idx) {
 // static
 std::ostream& BytecodeDecoder::Decode(std::ostream& os,
                                       const uint8_t* bytecode_start,
+                                      Tagged<TrustedFixedArray> constant_pool,
                                       bool with_hex) {
   Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
   int prefix_offset = 0;
@@ -117,7 +133,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
     }
     os.copyfmt(saved_format);
 
-    const int kBytecodeColumnSize = 6;
+    const int kBytecodeColumnSize = Bytecodes::kMaxOperands + 1;
     for (int i = prefix_offset + bytecode_size; i < kBytecodeColumnSize; i++) {
       os << "   ";
     }
@@ -137,7 +153,45 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
     Address operand_start = reinterpret_cast<Address>(
         &bytecode_start[prefix_offset + operand_offset]);
     switch (op_type) {
-      case interpreter::OperandType::kIdx:
+      case interpreter::OperandType::kConstantPoolIndex: {
+        uint32_t idx =
+            DecodeUnsignedOperand(operand_start, op_type, operand_scale);
+        Tagged<Object> obj = constant_pool->get(idx);
+
+        os << "[" << idx << ":";
+        if (Tagged<String> string; TryCast(obj, &string)) {
+          os << '"';
+          if (string->length() > String::kMaxShortPrintLength) {
+            string->PrintUC16(os, 0, String::kMaxShortPrintLength - 3);
+            os << "...";
+          } else {
+            string->PrintUC16(os);
+          }
+          os << '"';
+        } else {
+          os << Brief(obj);
+        }
+        os << "]";
+        break;
+      }
+      case interpreter::OperandType::kFeedbackSlot:
+        // TODO(leszeks): If we had the feedback metadata here, we could print
+        // the feedback slot type -- or with the feedback vector we could even
+        // print the feedback itself inline.
+        os << "FBV["
+           << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
+           << "]";
+        break;
+      case interpreter::OperandType::kEmbeddedFeedback:
+        os << "EmbeddedFeedback[0x" << std::hex
+           << RacyDecodeEmbeddedFeedback(operand_start) << std::dec << "]";
+        break;
+      case interpreter::OperandType::kContextSlot:
+        // TODO(leszeks): If we had the Context here we could print the context
+        // contents.
+        // TODO(leszeks): We should add a ContextDepth type and print that
+        // combined with the context slot similar to RegList.
+      case interpreter::OperandType::kCoverageSlot:
       case interpreter::OperandType::kUImm:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
@@ -160,14 +214,21 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
                   DecodeUnsignedOperand(operand_start, op_type, operand_scale)))
            << "]";
         break;
+      case interpreter::OperandType::kAbortReason:
+        os << "["
+           << GetAbortReason(static_cast<AbortReason>(
+                  DecodeUnsignedOperand(operand_start, op_type, operand_scale)))
+           << "]";
+        break;
       case interpreter::OperandType::kImm:
         os << "[" << DecodeSignedOperand(operand_start, op_type, operand_scale)
            << "]";
         break;
       case interpreter::OperandType::kFlag8:
       case interpreter::OperandType::kFlag16:
-        os << "#"
-           << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
+        os << "#" << std::hex
+           << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
+           << std::dec;
         break;
       case interpreter::OperandType::kReg:
       case interpreter::OperandType::kRegOut:

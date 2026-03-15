@@ -11,6 +11,7 @@
 
 #include <optional>
 
+#include "src/base/functional/function-ref.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
@@ -19,6 +20,9 @@
 
 namespace v8 {
 class Isolate;
+namespace internal {
+class ThreadLocalTop;
+}
 }
 
 namespace v8::internal::wasm {
@@ -122,7 +126,8 @@ class StackMemory {
       segment = segment->next_segment_;
     }
   }
-  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate);
+  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
+               ThreadLocalTop* thread);
 
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp, size_t min_size);
@@ -210,8 +215,29 @@ class StackMemory {
   constexpr static uint32_t current_continuation_offset() {
     return OFFSET_OF(StackMemory, current_cont_);
   }
+  constexpr static uint32_t arg_buffer_offset() {
+    return OFFSET_OF(StackMemory, arg_buffer_);
+  }
+  void set_arg_buffer(Address addr) { arg_buffer_ = addr; }
+  void set_param_types(base::Vector<const CanonicalValueType> types) {
+    param_types_ = types;
+  }
+  void bind_arguments(int count) {
+    num_bound_args_ += count;
+    DCHECK_LE(num_bound_args_, param_types_.size());
+  }
+  void clear_bound_args() {
+    param_types_ = {};
+    arg_buffer_ = kNullAddress;
+    num_bound_args_ = 0;
+  }
   Address central_stack_sp() const { return central_stack_sp_; }
   void set_central_stack_sp(Address sp) { central_stack_sp_ = sp; }
+  bool has_frames() const {
+    return !((jmpbuf_.state == JumpBuffer::Suspended &&
+              jmpbuf_.fp == kNullAddress) ||
+             jmpbuf_.state == JumpBuffer::Retired);
+  }
 
  private:
   // This constructor allocates a new stack segment.
@@ -235,8 +261,17 @@ class StackMemory {
   StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
+  // WasmFX specific fields below.
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  // Param type vector, to know which bound arguments are references and need to
+  // be visited by the GC. The memory is owned by the type canonicalizer.
+  base::Vector<const CanonicalValueType> param_types_;
+  Address arg_buffer_ = kNullAddress;
+  int num_bound_args_ = 0;
+  // When adding fields here, also check if it needs to be cleared in
+  // StackMemory::Reset() when the stack is moved to the stack pool after
+  // retiring.
 };
 
 constexpr int kStackSpOffset =
@@ -271,6 +306,34 @@ class StackPool {
   // stack is freed instead of being added to the free list.
   static constexpr int kMaxSize = 4 * MB;
 };
+
+using WasmFXArgBufferCallback =
+    base::FunctionRef<void(size_t value_index, int offset)>;
+
+template <typename T>
+int IterateWasmFXArgBuffer(base::Vector<const T> types,
+                           WasmFXArgBufferCallback callback) {
+  int offset = 0;
+  // There can be an unknown number of bound arguments for a given cont target.
+  // So we place the arguments from right to left in the buffer so that their
+  // offsets only depend on the remaining unbound arguments.
+  for (int i = static_cast<int>(types.size()) - 1; i >= 0; i--) {
+    int param_size = types[i].value_kind_full_size();
+    offset = RoundUp(offset, param_size);
+    callback(i, offset);
+    offset += param_size;
+  }
+  return offset;
+}
+
+template <typename T>
+std::pair<int, int> GetBufferSizeAndAlignmentFor(base::Vector<const T> types) {
+  int alignment = kSystemPointerSize;
+  int size = IterateWasmFXArgBuffer(types, [&](size_t index, int offset) {
+    alignment = std::max(alignment, types[index].value_kind_full_size());
+  });
+  return {size, alignment};
+}
 
 }  // namespace v8::internal::wasm
 

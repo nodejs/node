@@ -11,7 +11,7 @@ const kBuiltinNameFindLastIndex: constexpr string =
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
 transitioning macro FindLastIndexAllElements(
     implicit context: Context)(
-    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
     predicate: Callable, thisArg: JSAny): Number {
   let witness =
       typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
@@ -61,8 +61,8 @@ transitioning javascript builtin TypedArrayPrototypeFindLastIndex(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(predicate) is false, throw a TypeError exception.
     const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
@@ -71,9 +71,10 @@ transitioning javascript builtin TypedArrayPrototypeFindLastIndex(
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindLastIndex);
-  } label IsDetachedOrOutOfBounds deferred {
+  } label Fail deferred {
     ThrowTypeError(
-        MessageTemplate::kDetachedOperation, kBuiltinNameFindLastIndex);
+        MessageTemplate::kTypedArrayValidateErrorOperation,
+        kBuiltinNameFindLastIndex);
   }
 }
 }

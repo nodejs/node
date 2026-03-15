@@ -56,8 +56,6 @@ class PerfJitLogger : public CodeEventLogger {
  private:
   void OpenJitDumpFile();
   void CloseJitDumpFile();
-  void* OpenMarkerFile(int fd);
-  void CloseMarkerFile(void* marker_address);
 
   uint64_t GetTimestamp();
   void LogRecordedBuffer(Tagged<AbstractCode> code,

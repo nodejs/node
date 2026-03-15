@@ -11,12 +11,6 @@
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 
-#ifdef __SSE2__
-#include <emmintrin.h>
-#elif defined(__ARM_NEON__)
-#include <arm_neon.h>
-#endif
-
 // Comment inserted to prevent header reordering.
 #include <type_traits>
 
@@ -43,14 +37,18 @@ uint32_t ConvertRawHashToUsableHash(T raw_hash) {
 }
 
 V8_INLINE bool IsOnly8Bit(const uint16_t* chars, unsigned len) {
-  // TODO(leszeks): This could be SIMD for efficiency on large strings, if we
-  // need it.
-  for (unsigned i = 0; i < len; ++i) {
-    if (chars[i] > 255) {
-      return false;
+  // For small strings, use a simple scalar loop to avoid SIMD overhead.
+  // Threshold of 16 is chosen to balance setup cost vs benefit.
+  if (len <= 16) {
+    for (unsigned i = 0; i < len; i++) {
+      if (chars[i] > 0xFF) {
+        return false;
+      }
     }
+    return true;
   }
-  return true;
+  // For larger strings, use the non-inlined SIMD implementation.
+  return IsOnly8BitSIMD(chars, len);
 }
 
 V8_INLINE uint64_t GetRapidHash(const uint8_t* chars, uint32_t length,

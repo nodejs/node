@@ -30,8 +30,6 @@ namespace test_field_type_tracking {
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
 // all field representations (similar to crbug/448711 where elements kind
 // and observed transitions caused generalization of all fields).
-const bool IS_PROTO_TRANS_ISSUE_FIXED =
-    v8_flags.move_prototype_transitions_first;
 
 // TODO(ishell): fix this once TransitionToAccessorProperty is able to always
 // keep map in fast mode.
@@ -2148,7 +2146,6 @@ static void TestGeneralizeFieldWithSpecialTransition(
     TestConfig* config, const CRFTData& from, const CRFTData& to,
     const CRFTData& expected, ChangeAlertMechanism expected_alert,
     UpdateDirectionCheck direction = UpdateDirectionCheck::kFwd) {
-  if (!v8_flags.move_prototype_transitions_first) return;
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations_a(isolate);
@@ -2330,7 +2327,6 @@ void TestMultipleElementsKindTransitions(Isolate* isolate, TestConfig* config,
 }
 
 TEST(ElementsKindTransitionFromMapOwningDescriptor) {
-  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2366,7 +2362,6 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
 }
 
 TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
-  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2550,7 +2545,6 @@ void TestMultiplePrototypeTransitions(Isolate* isolate, TestConfig* config) {
 }
 
 TEST(PrototypeTransitionFromMapOwningDescriptor) {
-  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2574,7 +2568,6 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
 }
 
 TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
-  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2608,366 +2601,6 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   } config;
 
   TestMultiplePrototypeTransitions(isolate, &config);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// A set of tests involving special transitions (such as elements kind
-// transition, observed transition or prototype transition).
-//
-// The following legacy tests are for when
-// !v8_flags.move_prototype_transitions_first
-
-// This test ensures that field generalization is correctly propagated from one
-// branch of transition tree (|map2|) to another (|map|).
-//
-//                            p4B: |map2|
-//                             |
-//                             * - special transition
-//                             |
-//  {} - p0 - p1 - p2A - p3 - p4A: |map|
-//
-// where "p4A" and "p4B" are exactly the same properties.
-//
-// TODO(ishell): unify this test template with
-// TestReconfigureDataFieldAttribute_GeneralizeField once
-// IS_PROTO_TRANS_ISSUE_FIXED and IS_NON_EQUIVALENT_TRANSITION_SUPPORTED are
-// fixed.
-template <typename TestConfig>
-static void TestGeneralizeFieldWithSpecialTransitionLegacy(
-    TestConfig* config, const CRFTData& from, const CRFTData& to,
-    const CRFTData& expected, ChangeAlertMechanism expected_alert) {
-  if (v8_flags.move_prototype_transitions_first) return;
-
-  Isolate* isolate = CcTest::i_isolate();
-
-  Expectations expectations(isolate);
-
-  // Create a map, add required properties to it and initialize expectations.
-  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
-  DirectHandle<Map> map = initial_map;
-  for (int i = 0; i < kPropCount; i++) {
-    map = expectations.AddDataField(map, NONE, from.constness,
-                                    from.representation, from.type);
-  }
-  CHECK(!map->is_deprecated());
-  CHECK(map->is_stable());
-  CHECK(expectations.Check(*map));
-
-  Expectations expectations2 = expectations;
-
-  // Apply some special transition to |map|.
-  CHECK(map->owns_descriptors());
-  Handle<Map> map2 = config->Transition(map, &expectations2);
-
-  // |map| should still match expectations.
-  CHECK(!map->is_deprecated());
-  CHECK(expectations.Check(*map));
-
-  if (config->generalizes_representations()) {
-    for (int i = 0; i < kPropCount; i++) {
-      expectations2.GeneralizeField(i);
-    }
-  }
-
-  CHECK(!map2->is_deprecated());
-  CHECK(map2->is_stable());
-  CHECK(expectations2.Check(*map2));
-
-  // Create new maps by generalizing representation of propX field.
-  std::array<DirectHandle<Map>, kPropCount> maps;
-  for (int i = 0; i < kPropCount; i++) {
-    DirectHandle<Map> new_map =
-        ReconfigureProperty(isolate, map, InternalIndex(i), PropertyKind::kData,
-                            NONE, to.representation, to.type);
-    maps[i] = new_map;
-
-    expectations.SetDataField(i, expected.constness, expected.representation,
-                              expected.type);
-
-    switch (expected_alert) {
-      case kDeprecation: {
-        CHECK(map->is_deprecated());
-        CHECK_NE(*map, *new_map);
-        CHECK(i == 0 || maps[i - 1]->is_deprecated());
-        CHECK(expectations.Check(*new_map));
-
-        DirectHandle<Map> new_map2 = Map::Update(isolate, map2);
-        CHECK(!new_map2->is_deprecated());
-        CHECK(!new_map2->is_dictionary_map());
-
-        DirectHandle<Map> tmp_map;
-        if (Map::TryUpdate(isolate, map2).ToHandle(&tmp_map)) {
-          // If Map::TryUpdate() manages to succeed the result must match the
-          // result of Map::Update().
-          CHECK_EQ(*new_map2, *tmp_map);
-        } else {
-          // Equivalent transitions should always find the updated map.
-          CHECK(config->is_non_equivalent_transition());
-        }
-
-        if (config->is_non_equivalent_transition()) {
-          // In case of non-equivalent transition currently we generalize all
-          // representations.
-          for (int j = 0; j < kPropCount; j++) {
-            expectations2.GeneralizeField(j);
-          }
-          CHECK(IsUndefined(new_map2->GetBackPointer(), isolate));
-          CHECK(expectations2.Check(*new_map2));
-        } else {
-          expectations2.SetDataField(i, expected.constness,
-                                     expected.representation, expected.type);
-
-          CHECK(!IsUndefined(new_map2->GetBackPointer(), isolate));
-          CHECK(expectations2.Check(*new_map2));
-        }
-        break;
-      }
-      case kFieldOwnerDependency: {
-        CHECK(!map->is_deprecated());
-        // TODO(ishell): Review expectations once IS_PROTO_TRANS_ISSUE_FIXED is
-        // removed.
-        CHECK(!IS_PROTO_TRANS_ISSUE_FIXED);
-        CHECK_EQ(*map, *new_map);
-        CHECK(expectations.Check(*new_map));
-
-        CHECK(!map2->is_deprecated());
-        CHECK_NE(*map2, *new_map);
-        expectations2.SetDataField(i, expected.constness,
-                                   expected.representation, expected.type);
-        CHECK(expectations2.Check(*map2));
-        break;
-      }
-      case kNoAlert:
-        UNREACHABLE();
-        break;
-    }
-  }
-
-  DirectHandle<Map> active_map = maps[kPropCount - 1];
-  CHECK(!active_map->is_deprecated());
-
-  // Update all deprecated maps and check that they are now the same.
-  DirectHandle<Map> updated_map = Map::Update(isolate, map);
-  CHECK_EQ(*active_map, *updated_map);
-  CheckMigrationTarget(isolate, *map, *updated_map);
-  for (int i = 0; i < kPropCount; i++) {
-    updated_map = Map::Update(isolate, maps[i]);
-    CHECK_EQ(*active_map, *updated_map);
-    CheckMigrationTarget(isolate, *maps[i], *updated_map);
-  }
-}
-
-TEST(ElementsKindTransitionFromMapOwningDescriptorLegacy) {
-  if (v8_flags.move_prototype_transitions_first) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-  DirectHandle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol,
-               ElementsKind kind)
-        : attributes(attributes), symbol(symbol), elements_kind(kind) {}
-
-    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
-      expectations->SetElementsKind(elements_kind);
-      expectations->ChangeAttributesForAllProperties(attributes);
-      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
-                                           symbol, "CopyForPreventExtensions");
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const { return false; }
-    bool is_non_equivalent_transition() const { return false; }
-
-    PropertyAttributes attributes;
-    Handle<Symbol> symbol;
-    ElementsKind elements_kind;
-  };
-  Factory* factory = isolate->factory();
-  TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
-      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
-  for (size_t i = 0; i < arraysize(configs); i++) {
-    TestGeneralizeFieldWithSpecialTransition(
-        &configs[i],
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        kFieldOwnerDependency);
-
-    TestGeneralizeFieldWithSpecialTransition(
-        &configs[i],
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        kFieldOwnerDependency);
-  }
-}
-
-TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
-  if (v8_flags.move_prototype_transitions_first) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-  DirectHandle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol,
-               ElementsKind kind)
-        : attributes(attributes), symbol(symbol), elements_kind(kind) {}
-
-    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
-      Isolate* isolate = CcTest::i_isolate();
-      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-
-      // Add one more transition to |map| in order to prevent descriptors
-      // ownership.
-      CHECK(map->owns_descriptors());
-      Map::CopyWithField(isolate, map, CcTest::MakeString("foo"), any_type,
-                         NONE, PropertyConstness::kMutable,
-                         Representation::Smi(), INSERT_TRANSITION)
-          .ToHandleChecked();
-      CHECK(!map->owns_descriptors());
-
-      expectations->SetElementsKind(elements_kind);
-      expectations->ChangeAttributesForAllProperties(attributes);
-      return Map::CopyForPreventExtensions(isolate, map, attributes, symbol,
-                                           "CopyForPreventExtensions");
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const { return false; }
-    bool is_non_equivalent_transition() const { return false; }
-
-    PropertyAttributes attributes;
-    Handle<Symbol> symbol;
-    ElementsKind elements_kind;
-  };
-  Factory* factory = isolate->factory();
-  TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
-      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
-  for (size_t i = 0; i < arraysize(configs); i++) {
-    TestGeneralizeFieldWithSpecialTransition(
-        &configs[i],
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        kFieldOwnerDependency);
-
-    TestGeneralizeFieldWithSpecialTransition(
-        &configs[i],
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        kFieldOwnerDependency);
-  }
-}
-
-TEST(PrototypeTransitionFromMapOwningDescriptorLegacy) {
-  if (v8_flags.move_prototype_transitions_first) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-  DirectHandle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    Handle<JSObject> prototype_;
-
-    TestConfig() {
-      Isolate* isolate = CcTest::i_isolate();
-      Factory* factory = isolate->factory();
-      prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
-    }
-
-    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
-      return Map::TransitionToUpdatePrototype(CcTest::i_isolate(), map,
-                                              prototype_);
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const {
-      return !IS_PROTO_TRANS_ISSUE_FIXED;
-    }
-    bool is_non_equivalent_transition() const { return true; }
-  };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      kFieldOwnerDependency);
-
-  TestGeneralizeFieldWithSpecialTransition(
-      &config,
-      {PropertyConstness::kMutable, Representation::Double(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      kFieldOwnerDependency);
-}
-
-TEST(PrototypeTransitionFromMapNotOwningDescriptorLegacy) {
-  if (v8_flags.move_prototype_transitions_first) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-  DirectHandle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    Handle<JSObject> prototype_;
-
-    TestConfig() {
-      Isolate* isolate = CcTest::i_isolate();
-      Factory* factory = isolate->factory();
-      prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
-    }
-
-    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
-      Isolate* isolate = CcTest::i_isolate();
-      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-
-      // Add one more transition to |map| in order to prevent descriptors
-      // ownership.
-      CHECK(map->owns_descriptors());
-      Map::CopyWithField(isolate, map, CcTest::MakeString("foo"), any_type,
-                         NONE, PropertyConstness::kMutable,
-                         Representation::Smi(), INSERT_TRANSITION)
-          .ToHandleChecked();
-      CHECK(!map->owns_descriptors());
-
-      return Map::TransitionToUpdatePrototype(isolate, map, prototype_);
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const {
-      return !IS_PROTO_TRANS_ISSUE_FIXED;
-    }
-    bool is_non_equivalent_transition() const { return true; }
-  };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      kFieldOwnerDependency);
-
-  TestGeneralizeFieldWithSpecialTransition(
-      &config,
-      {PropertyConstness::kMutable, Representation::Double(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      kFieldOwnerDependency);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

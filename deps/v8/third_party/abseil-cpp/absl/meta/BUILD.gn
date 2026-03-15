@@ -4,6 +4,29 @@
 
 import("//third_party/abseil-cpp/absl.gni")
 
+absl_source_set("constexpr_testing") {
+  testonly = true
+  sources = [ "internal/constexpr_testing.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+}
+
+absl_test("constexpr_testing_test") {
+  sources = [ "internal/constexpr_testing_test.cc" ]
+  deps = [ ":constexpr_testing" ]
+}
+
+absl_source_set("requires") {
+  sources = [ "internal/requires.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+}
+
+absl_test("requires_test") {
+  sources = [ "internal/requires_test.cc" ]
+  deps = [ ":requires" ]
+}
+
 absl_source_set("type_traits") {
   public = [ "type_traits.h" ]
   deps = [

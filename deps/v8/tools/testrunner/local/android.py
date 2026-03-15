@@ -66,7 +66,8 @@ class Driver(object):
     # Find specified device or a single attached device if none was specified.
     # In case none or multiple devices are attached, this raises an exception.
     self.device = device_utils.DeviceUtils.HealthyDevices(
-        retries=5, enable_usb_resets=True, device_arg=device)[0]
+        retries=5, enable_usb_resets=True, device_arg=device,
+        persistent_shell=False)[0]
 
     # Retrieve device parameters.
     product_prop = 'getprop ro.build.product'

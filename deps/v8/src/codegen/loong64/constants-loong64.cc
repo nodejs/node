@@ -107,6 +107,46 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* VRegisters::names_[kNumVRegisters] = {
+    "vr0",  "vr1",  "vr2",  "vr3",  "vr4",  "vr5",  "vr6",  "vr7",
+    "vr8",  "vr9",  "vr10", "vr11", "vr12", "vr13", "vr14", "vr15",
+    "vr16", "vr17", "vr18", "vr19", "vr20", "vr21", "vr22", "vr23",
+    "vr24", "vr25", "vr26", "vr27", "vr28", "vr29", "vr30", "vr31"};
+
+const VRegisters::RegisterAlias VRegisters::aliases_[] = {
+    {kInvalidRegister, nullptr}};
+
+const char* VRegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumVRegisters)) {
+    result = names_[creg];
+  } else {
+    result = "nocreg";
+  }
+  return result;
+}
+
+int VRegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumVRegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
+    }
+  }
+
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
+  }
+
+  // No Cregister with the reguested name found.
+  return kInvalidVRegister;
+}
+
 }  // namespace internal
 }  // namespace v8
 

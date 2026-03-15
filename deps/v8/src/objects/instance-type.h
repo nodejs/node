@@ -250,6 +250,7 @@ static_assert(JS_CLASS_CONSTRUCTOR_TYPE < FIRST_CALLABLE_JS_FUNCTION_TYPE ||
                  TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
+                 TYPE == JS_DEFERRED_MODULE_NAMESPACE_TYPE ||              \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE));                     \
   static_assert((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
                  TYPE <= LAST_CUSTOM_ELEMENTS_RECEIVER) ==                 \
@@ -258,6 +259,7 @@ static_assert(JS_CLASS_CONSTRUCTOR_TYPE < FIRST_CALLABLE_JS_FUNCTION_TYPE ||
                  TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
+                 TYPE == JS_DEFERRED_MODULE_NAMESPACE_TYPE ||              \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE ||                     \
                  TYPE == JS_PRIMITIVE_WRAPPER_TYPE));
 // clang-format on

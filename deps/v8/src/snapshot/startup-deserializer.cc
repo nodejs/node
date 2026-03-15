@@ -48,13 +48,18 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
-    for (DirectHandle<AccessorInfo> info : accessor_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), *info);
+    if (USE_SIMULATOR_BOOL) {
+      for (DirectHandle<AccessorInfo> info : accessor_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
+      for (DirectHandle<InterceptorInfo> info : interceptor_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
+      for (DirectHandle<FunctionTemplateInfo> info :
+           function_template_infos()) {
+        info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+      }
     }
-    for (DirectHandle<FunctionTemplateInfo> info : function_template_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), *info);
-    }
-
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
     FlushICache();
@@ -111,7 +116,7 @@ void StartupDeserializer::LogNewMapEvents() {
 void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
-  for (PageMetadata* p : *isolate()->heap()->code_space()) {
+  for (NormalPage* p : *isolate()->heap()->code_space()) {
     FlushInstructionCache(p->area_start(), p->area_end() - p->area_start());
   }
 }

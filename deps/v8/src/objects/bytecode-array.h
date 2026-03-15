@@ -151,6 +151,17 @@ class BytecodeArray : public ExposedTrustedObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(BytecodeArray, ExposedTrustedObject);
+
+ private:
+  friend class BytecodeVerifier;
+  friend class NoOpBytecodeVerifier;
+
+  // Mark this BytecodeArray as successfully verified. Must only be called by
+  // the BytecodeVerifier after successful verification.
+  // Under the hood, this will "publish" the BytecodeArray, making it
+  // accessible to the sandbox. As such, (only) after this step the
+  // BytecodeArray can be executed in the interpreter.
+  inline void MarkVerified(IsolateForSandbox isolate);
 };
 
 // A BytecodeWrapper wraps a BytecodeArray but lives inside the sandbox. This

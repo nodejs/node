@@ -210,6 +210,27 @@ builder.addFunction("resume_next_with_two_handlers_same_tag", kSig_i_v)
         kExprEnd,
         kExprUnreachable,
     ]).exportFunc();
+let loop_sig = builder.addType(makeSig([wasmRefNullType(cont_index)], [wasmRefNullType(cont_index)]));
+builder.addFunction("handler_is_loop", kSig_i_v)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+        kExprRefFunc, suspend_tag0.index,
+        kExprContNew, cont_index,
+        kExprLoop, loop_sig,
+          // The suspension is handled by the loop, so this should be
+          // executed twice:
+          kExprLocalGet, 0,
+          kExprI32Const, 1,
+          kExprI32Add,
+          kExprLocalSet, 0,
+          kExprResume, cont_index, 1,
+            kOnSuspend, tag0_index, 0,
+          // The second time, the continuation returns normally.
+          kExprLocalGet, 0,
+          kExprReturn,
+        kExprEnd,
+        kExprUnreachable,
+    ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
@@ -340,7 +361,7 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag0,
   ];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 
   // Throw if an intermediate stack contains JS frames.
   instance.exports.call_stack.value = [
@@ -350,12 +371,12 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag0,
   ];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 
   instance.exports.call_stack.value = [
       instance.exports.suspend_tag1];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 })();
 
 (function TestInvalidContinuation() {
@@ -377,36 +398,7 @@ instance = builder.instantiate( {m: {
   assertEquals(0, instance.exports.resume_next_with_two_handlers_same_tag());
 })();
 
-(function TestResumeSuspendReturn() {
+(function TestLoopHandler() {
   print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let cont_index = builder.addCont(kSig_v_i);
-  let tag_index = builder.addTag(kSig_i_v);
-  let suspend_if = builder.addFunction('suspend_if', kSig_v_i)
-      .addBody([
-          kExprLocalGet, 0,
-          kExprIf, kWasmVoid,
-            kExprSuspend, tag_index,
-            kExprDrop,
-          kExprEnd,
-      ]).exportFunc();
-  const kSuspended = 0;
-  const kReturned = 1;
-  builder.addFunction("main", kSig_i_i)
-      .addBody([
-          kExprBlock, kWasmRef, cont_index,
-            kExprLocalGet, 0,
-            kExprRefFunc, suspend_if.index,
-            kExprContNew, cont_index,
-            kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
-            kExprI32Const, kReturned,
-            kExprReturn,
-          kExprEnd,
-          kExprDrop,
-          kExprI32Const, kSuspended,
-      ]).exportFunc();
-  assertTrue(WebAssembly.validate(builder.toBuffer()));
-  // let instance = builder.instantiate();
-  // assertEquals(kReturned, instance.exports.main(0));
-  // assertEquals(kSuspended, instance.exports.main(1));
+  assertEquals(2, instance.exports.handler_is_loop());
 })();

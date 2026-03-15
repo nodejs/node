@@ -70,8 +70,14 @@ bool CodePointerTableEntry::IsFreelistEntry() const {
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
 }
 
-uint32_t CodePointerTableEntry::GetNextFreelistEntryIndex() const {
-  return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
+std::optional<uint32_t> CodePointerTableEntry::GetNextFreelistEntryIndex()
+    const {
+  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  if ((entrypoint & kFreeEntryTag) == kFreeEntryTag) {
+    return static_cast<uint32_t>(entrypoint);
+  } else {
+    return std::nullopt;
+  }
 }
 
 void CodePointerTableEntry::Mark() {

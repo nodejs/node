@@ -389,6 +389,7 @@ class SharedFunctionInfo
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
 
+  inline uint32_t unused_parameter_bits() const;
   inline bool CanOnlyAccessFixedFormalParameters() const;
   inline bool IsSloppyNormalJSFunction() const;
 
@@ -425,11 +426,14 @@ class SharedFunctionInfo
   inline Tagged<Object> GetUntrustedData() const;
 
   // Helper function for use when a specific data type is expected.
-  template <typename T, IndirectPointerTag tag>
+  template <typename T, IndirectPointerTagRange tag_range>
   inline Tagged<T> GetTrustedData(IsolateForSandbox isolate) const;
 
   // Some code may encounter unreachable unusable objects and needs to skip
   // over them without crashing.
+  // If we end up needing to check for this condition in many places, it might
+  // be easier to instead clear the trusted pointer of these SFIs as they are
+  // anyway unusable (and should always be unreachable as well).
   inline bool HasUnpublishedTrustedData(IsolateForSandbox isolate) const;
 
  private:
@@ -459,12 +463,16 @@ class SharedFunctionInfo
   inline bool HasUntrustedData() const;
 
  public:
+  static constexpr IndirectPointerTagRange kTrustedDataIndirectPointerRange =
+      kAllIndirectPointerTags;
+
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
   DECL_ACCESSORS(api_func_data, Tagged<FunctionTemplateInfo>)
   DECL_GETTER(HasBytecodeArray, bool)
   template <typename IsolateT>
   inline Tagged<BytecodeArray> GetBytecodeArray(IsolateT* isolate) const;
+  inline Tagged<BytecodeArray> GetBytecodeArrayForGC(Isolate* isolate) const;
 
   // Sets the bytecode for this SFI. This is only allowed when this SFI has not
   // yet been compiled or if it has been "uncompiled", or in other words when
@@ -665,10 +673,6 @@ class SharedFunctionInfo
   // Defines the index in a native context of closure's map instantiated using
   // this shared function info.
   DECL_INT_ACCESSORS(function_map_index)
-
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
 
   // Recalculates the |map_index| value after modifications of this shared info.
   inline void UpdateFunctionMapIndex();
@@ -903,6 +907,9 @@ class SharedFunctionInfo
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
+
+ private:
+  inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 };
 
 std::ostream& operator<<(std::ostream& os, SharedFunctionInfo::Inlineability i);

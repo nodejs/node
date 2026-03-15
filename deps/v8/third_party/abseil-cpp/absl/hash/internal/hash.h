@@ -74,6 +74,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/endian.h"
 #include "absl/base/internal/unaligned_access.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
@@ -91,6 +92,38 @@
 #if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L && \
     !defined(__XTENSA__)
 #include <filesystem>  // NOLINT
+#endif
+
+// 32-bit builds with SSE 4.2 do not have _mm_crc32_u64, so the
+// __x86_64__ condition is necessary.
+#if defined(__SSE4_2__) && defined(__x86_64__)
+
+#include <x86intrin.h>
+#define ABSL_HASH_INTERNAL_HAS_CRC32
+#define ABSL_HASH_INTERNAL_CRC32_U64 _mm_crc32_u64
+#define ABSL_HASH_INTERNAL_CRC32_U32 _mm_crc32_u32
+#define ABSL_HASH_INTERNAL_CRC32_U8 _mm_crc32_u8
+
+#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__)
+
+// MSVC AVX (/arch:AVX) implies SSE 4.2.
+#include <intrin.h>
+#define ABSL_HASH_INTERNAL_HAS_CRC32
+#define ABSL_HASH_INTERNAL_CRC32_U64 _mm_crc32_u64
+#define ABSL_HASH_INTERNAL_CRC32_U32 _mm_crc32_u32
+#define ABSL_HASH_INTERNAL_CRC32_U8 _mm_crc32_u8
+
+#elif defined(__ARM_FEATURE_CRC32)
+
+#include <arm_acle.h>
+#define ABSL_HASH_INTERNAL_HAS_CRC32
+// Casting to uint32_t to be consistent with x86 intrinsic (_mm_crc32_u64
+// accepts crc as 64 bit integer).
+#define ABSL_HASH_INTERNAL_CRC32_U64(crc, data) \
+  __crc32cd(static_cast<uint32_t>(crc), data)
+#define ABSL_HASH_INTERNAL_CRC32_U32 __crc32cw
+#define ABSL_HASH_INTERNAL_CRC32_U8 __crc32cb
+
 #endif
 
 namespace absl {
@@ -965,18 +998,20 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t Mix(uint64_t lhs, uint64_t rhs) {
   return Uint128High64(m) ^ Uint128Low64(m);
 }
 
-// Reads 8 bytes from p.
-inline uint64_t Read8(const unsigned char* p) {
 // Suppress erroneous array bounds errors on GCC.
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
+inline uint32_t Read4(const unsigned char* p) {
+  return absl::base_internal::UnalignedLoad32(p);
+}
+inline uint64_t Read8(const unsigned char* p) {
   return absl::base_internal::UnalignedLoad64(p);
+}
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
-}
 
 // Reads 9 to 16 bytes from p.
 // The first 8 bytes are in .first, and the rest of the bytes are in .second
@@ -1030,11 +1065,12 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
 // CombineContiguousImpl() repeatedly with the chunk stride size.
-uint64_t CombineLargeContiguousImplOn32BitLengthGt8(const unsigned char* first,
-                                                    size_t len, uint64_t state);
-uint64_t CombineLargeContiguousImplOn64BitLengthGt32(const unsigned char* first,
-                                                     size_t len,
-                                                     uint64_t state);
+uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
+                                                    const unsigned char* first,
+                                                    size_t len);
+uint64_t CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
+                                                     const unsigned char* first,
+                                                     size_t len);
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineSmallContiguousImpl(
     uint64_t state, const unsigned char* first, size_t len) {
@@ -1092,9 +1128,73 @@ inline uint64_t CombineContiguousImpl(
     return CombineSmallContiguousImpl(PrecombineLengthMix(state, len), first,
                                       len);
   }
-  return CombineLargeContiguousImplOn32BitLengthGt8(first, len, state);
+  return CombineLargeContiguousImplOn32BitLengthGt8(state, first, len);
 }
 
+#ifdef ABSL_HASH_INTERNAL_HAS_CRC32
+inline uint64_t CombineContiguousImpl(
+    uint64_t state, const unsigned char* first, size_t len,
+    std::integral_constant<int, 8> /* sizeof_size_t */) {
+  if (ABSL_PREDICT_FALSE(len > 32)) {
+    return CombineLargeContiguousImplOn64BitLengthGt32(state, first, len);
+  }
+  // `mul` is the salt that is used for final mixing. It is important to fill
+  // high 32 bits because CRC wipes out high 32 bits.
+  // `rotr` is important to mix `len` into high 32 bits.
+  uint64_t mul = absl::rotr(kMul, static_cast<int>(len));
+  // Only low 32 bits of each uint64_t are used in CRC32 so we use gbswap_64 to
+  // move high 32 bits to low 32 bits. It has slightly smaller binary size than
+  // `>> 32`. `state + 8 * len` is a single instruction on both x86 and ARM, so
+  // we use it to better mix length. Although only the low 32 bits of the pair
+  // elements are used, we use pair<uint64_t, uint64_t> for better generated
+  // code.
+  std::pair<uint64_t, uint64_t> crcs = {state + 8 * len,
+                                        absl::gbswap_64(state)};
+
+  // All CRC operations here directly read bytes from the memory.
+  // Single fused instructions are used, like `crc32 rcx, qword ptr [rsi]`.
+  // On x86, llvm-mca reports latency `R + 2` for such fused instructions, while
+  // `R + 3` for two separate `mov` + `crc` instructions. `R` is the latency of
+  // reading the memory. Fused instructions also reduce register pressure
+  // allowing surrounding code to be more efficient when this code is inlined.
+  if (len > 8) {
+    crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first)),
+            ABSL_HASH_INTERNAL_CRC32_U64(crcs.second, Read8(first + len - 8))};
+    if (len > 16) {
+      // We compute the second round of dependent CRC32 operations.
+      crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first + len - 16)),
+              ABSL_HASH_INTERNAL_CRC32_U64(crcs.second, Read8(first + 8))};
+    }
+  } else {
+    if (len >= 4) {
+      // We use CRC for 4 bytes to benefit from the fused instruction and better
+      // hash quality.
+      // Using `xor` or `add` may reduce latency for this case, but would
+      // require more registers, more instructions and will have worse hash
+      // quality.
+      crcs = {ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.first),
+                                           Read4(first)),
+              ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.second),
+                                           Read4(first + len - 4))};
+    } else if (len >= 1) {
+      // We mix three bytes all into different output registers.
+      // This way, we do not need shifting of these bytes (so they don't overlap
+      // with each other).
+      crcs = {ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.first),
+                                          first[0]),
+              ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.second),
+                                          first[len - 1])};
+      // Middle byte is mixed weaker. It is a new byte only for len == 3.
+      // Mixing is independent from CRC operations so it is scheduled ASAP.
+      mul += first[len / 2];
+    }
+  }
+  // `mul` is mixed into both sides of `Mix` to guarantee non-zero values for
+  // both multiplicands. Using Mix instead of just multiplication here improves
+  // hash quality, especially for short strings.
+  return Mix(mul - crcs.first, crcs.second - mul);
+}
+#else
 inline uint64_t CombineContiguousImpl(
     uint64_t state, const unsigned char* first, size_t len,
     std::integral_constant<int, 8> /* sizeof_size_t */) {
@@ -1115,8 +1215,9 @@ inline uint64_t CombineContiguousImpl(
   // We must not mix length into the state here because calling
   // CombineContiguousImpl twice with PiecewiseChunkSize() must be equivalent
   // to calling CombineLargeContiguousImpl once with 2 * PiecewiseChunkSize().
-  return CombineLargeContiguousImplOn64BitLengthGt32(first, len, state);
+  return CombineLargeContiguousImplOn64BitLengthGt32(state, first, len);
 }
+#endif  // ABSL_HASH_INTERNAL_HAS_CRC32
 
 #if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE) && \
     ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
@@ -1450,5 +1551,10 @@ H PiecewiseCombiner::finalize(H state) {
 }  // namespace hash_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#undef ABSL_HASH_INTERNAL_HAS_CRC32
+#undef ABSL_HASH_INTERNAL_CRC32_U64
+#undef ABSL_HASH_INTERNAL_CRC32_U32
+#undef ABSL_HASH_INTERNAL_CRC32_U8
 
 #endif  // ABSL_HASH_INTERNAL_HASH_H_
