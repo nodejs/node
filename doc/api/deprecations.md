@@ -924,7 +924,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`require.extensions`][] property is deprecated.
 
