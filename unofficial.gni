@@ -27,6 +27,11 @@ template("node_gn_build") {
     } else {
       defines += [ "HAVE_SQLITE=0" ]
     }
+    if (node_use_ffi) {
+      defines += [ "HAVE_FFI=1" ]
+    } else {
+      defines += [ "HAVE_FFI=0" ]
+    }
     if (node_use_amaro) {
       defines += [ "HAVE_AMARO=1" ]
     } else {
@@ -201,6 +206,10 @@ template("node_gn_build") {
     if (node_use_sqlite) {
       deps += [ "deps/sqlite" ]
       sources += gypi_values.node_sqlite_sources
+    }
+    if (node_use_ffi) {
+      deps += [ "deps/libffi" ]
+      sources += gypi_values.node_ffi_sources
     }
     if (node_enable_inspector) {
       deps += [

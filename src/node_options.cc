@@ -588,6 +588,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
+#ifdef HAVE_FFI
+  AddOption("--experimental-ffi",
+            "experimental node:ffi module",
+            &EnvironmentOptions::experimental_ffi,
+            kAllowedInEnvvar,
+            false);
+#endif // HAVE_FFI
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
@@ -666,6 +673,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-ffi",
+            "allow use of FFI when any permissions are set",
+            &EnvironmentOptions::allow_ffi,
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);

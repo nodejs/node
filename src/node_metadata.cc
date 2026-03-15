@@ -52,6 +52,10 @@
 #include "LIEF/version.h"
 #endif
 
+#if HAVE_FFI
+#include "ffi.h"
+#endif // HAVE_FFI
+
 namespace node {
 
 namespace per_process {
@@ -169,6 +173,9 @@ Metadata::Versions::Versions() {
 #if HAVE_SQLITE
   sqlite = SQLITE_VERSION;
 #endif  // HAVE_SQLITE
+#if HAVE_FFI
+  libffi = FFI_VERSION_STRING;
+#endif  // HAVE_FFI
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
 }

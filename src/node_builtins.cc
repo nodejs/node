@@ -139,6 +139,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
 #endif             // !OPENSSL_NO_QUIC
+        "ffi",     // Experimental.
         "quic",    // Experimental.
         "sqlite",  // Experimental.
         "sys",     // Deprecated.

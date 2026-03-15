@@ -8,6 +8,7 @@ const warnFlags = [
   '--allow-addons',
   '--allow-child-process',
   '--allow-inspector',
+  '--allow-ffi',
   '--allow-wasi',
   '--allow-worker',
 ];
