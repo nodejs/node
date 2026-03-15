@@ -160,10 +160,39 @@ class StatementExecutionHelper {
                                        bool use_big_ints);
 };
 
-class DatabaseSync : public BaseObject {
+class DatabaseCommon : public BaseObject {
+ public:
+  DatabaseCommon(Environment* env,
+                 v8::Local<v8::Object> object,
+                 DatabaseOpenConfiguration&& open_config,
+                 bool allow_load_extension);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool IsOpen();
+  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool return_arrays() const { return open_config_.get_return_arrays(); }
+  bool allow_bare_named_params() const {
+    return open_config_.get_allow_bare_named_params();
+  }
+  bool allow_unknown_named_params() const {
+    return open_config_.get_allow_unknown_named_params();
+  }
+  sqlite3* Connection();
+
+ protected:
+  ~DatabaseCommon() override = default;
+  virtual bool Open();
+
+  DatabaseOpenConfiguration open_config_;
+  sqlite3* connection_ = nullptr;
+  bool allow_load_extension_;
+  bool enable_load_extension_;
+};
+
+class DatabaseSync : public DatabaseCommon {
  public:
   enum InternalFields {
-    kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kAuthorizerCallback = DatabaseCommon::kInternalFieldCount,
     kLimitsObject,
     kInternalFieldCount
   };
@@ -175,8 +204,6 @@ class DatabaseSync : public BaseObject {
                bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTransactionGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -207,16 +234,6 @@ class DatabaseSync : public BaseObject {
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
-  bool IsOpen();
-  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
-  bool return_arrays() const { return open_config_.get_return_arrays(); }
-  bool allow_bare_named_params() const {
-    return open_config_.get_allow_bare_named_params();
-  }
-  bool allow_unknown_named_params() const {
-    return open_config_.get_allow_unknown_named_params();
-  }
-  sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
@@ -229,14 +246,9 @@ class DatabaseSync : public BaseObject {
   SET_SELF_SIZE(DatabaseSync)
 
  private:
-  bool Open();
   void DeleteSessions();
 
   ~DatabaseSync() override;
-  DatabaseOpenConfiguration open_config_;
-  bool allow_load_extension_;
-  bool enable_load_extension_;
-  sqlite3* connection_;
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
@@ -437,6 +449,105 @@ class DatabaseSyncLimits : public BaseObject {
 
  private:
   BaseObjectWeakPtr<DatabaseSync> database_;
+};
+
+class DatabaseOperationExecutor;
+class DatabaseOperationQueue;
+class Statement;
+
+class Database final : public DatabaseCommon {
+ public:
+  enum InternalFields {
+    kDisposePromiseSlot = DatabaseCommon::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  Database(Environment* env,
+           v8::Local<v8::Object> object,
+           DatabaseOpenConfiguration&& open_config,
+           bool open,
+           bool allow_load_extension);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsInTransaction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableLoadExtension(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  template <typename Op, typename... Args>
+  [[nodiscard]] v8::Local<v8::Promise> Schedule(Args&&... args);
+
+  void TrackStatement(Statement* statement);
+  void UntrackStatement(Statement* statement);
+
+  SET_MEMORY_INFO_NAME(Database)
+  SET_SELF_SIZE(Database)
+
+ private:
+  ~Database() override;
+
+  bool Open() override;
+  bool IsDisposed() const;
+  v8::Local<v8::Promise> EnterDisposedStateSync();
+  v8::Local<v8::Promise> AsyncDisposeImpl();
+  void PrepareNextBatch();
+  void ProcessNextBatch();
+  template <typename Op, typename... Args>
+  void Schedule(v8::Isolate* isolate,
+                v8::Local<v8::Promise::Resolver> resolver,
+                Args&&... args);
+
+  std::unique_ptr<DatabaseOperationExecutor> executor_;
+  std::unique_ptr<DatabaseOperationQueue> next_batch_;
+
+  std::unordered_set<Statement*> statements_;
+
+  static constexpr int kDefaultBatchSize = 31;
+};
+
+struct statement_options {
+  bool return_arrays = false;
+  bool read_big_ints = false;
+};
+
+class Statement final : public BaseObject {
+ public:
+  Statement(Environment* env,
+            v8::Local<v8::Object> object,
+            BaseObjectPtr<Database> db,
+            sqlite3_stmt* stmt,
+            statement_options options);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<Statement> Create(Environment* env,
+                                         BaseObjectPtr<Database> db,
+                                         sqlite3_stmt* stmt,
+                                         statement_options options);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void Dispose();
+  static void IsDisposedGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool IsDisposed() const;
+
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_MEMORY_INFO_NAME(Statement)
+  SET_SELF_SIZE(Statement)
+
+ private:
+  ~Statement() override;
+
+  BaseObjectPtr<Database> db_;
+  sqlite3_stmt* statement_;
+  statement_options options_;
 };
 
 }  // namespace sqlite

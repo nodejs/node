@@ -26,6 +26,7 @@
         'SQLITE_ENABLE_RBU',
         'SQLITE_ENABLE_RTREE',
         'SQLITE_ENABLE_SESSION',
+        'SQLITE_THREADSAFE=2',
       ],
       'include_dirs': ['.'],
       'sources': [
