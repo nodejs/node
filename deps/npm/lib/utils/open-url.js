@@ -34,8 +34,7 @@ const openUrl = async (npm, url, title, isFile) => {
     return
   }
 
-  // We pass this in as true from the help command so we know we don't have to
-  // check the protocol
+  // We pass this in as true from the help command so we know we don't have to check the protocol
   if (!isFile) {
     assertValidUrl(url)
   }
@@ -87,8 +86,7 @@ const openUrlPrompt = async (npm, url, title, prompt, { signal }) => {
   }
 }
 
-// Rearrange arguments and return a function that takes the two arguments
-// returned from the npm-profile methods that take an opener
+// Rearrange arguments and return a function that takes the two arguments returned from the npm-profile methods that take an opener
 const createOpener = (npm, title, prompt = 'Press ENTER to open in the browser...') =>
   (url, opts) => openUrlPrompt(npm, url, title, prompt, opts)
 

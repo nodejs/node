@@ -9,10 +9,8 @@ const npmFetch = require('npm-registry-fetch')
 const { redactLog: replaceInfo } = require('@npmcli/redact')
 const { otplease } = require('../utils/auth.js')
 const { getContents, logTar } = require('../utils/tar.js')
-// for historical reasons, publishConfig in package.json can contain ANY config
-// keys that npm supports in .npmrc files and elsewhere.  We *may* want to
-// revisit this at some point, and have a minimal set that's a SemVer-major
-// change that ought to get a RFC written on it.
+// for historical reasons, publishConfig in package.json can contain ANY config keys that npm supports in .npmrc files and elsewhere.
+// We *may* want to revisit this at some point, and have a minimal set that's a SemVer-major change that ought to get a RFC written on it.
 const { flatten } = require('@npmcli/config/lib/definitions')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
@@ -83,8 +81,7 @@ class Publish extends BaseCommand {
 
     const opts = { ...this.npm.flatOptions, progress: false }
 
-    // you can publish name@version, ./foo.tgz, etc.
-    // even though the default is the 'file:.' cwd.
+    // you can publish name@version, ./foo.tgz, etc even though the default is the 'file:.' cwd.
     const spec = npa(args[0])
     let manifest = await this.#getManifest(spec, opts)
 
@@ -111,9 +108,7 @@ class Publish extends BaseCommand {
     const pkgContents = await getContents(manifest, tarballData)
     const logPkg = () => logTar(pkgContents, { unicode, json, key: workspace })
 
-    // The purpose of re-reading the manifest is in case it changed,
-    // so that we send the latest and greatest thing to the registry
-    // note that publishConfig might have changed as well!
+    // The purpose of re-reading the manifest is in case it changed, so that we send the latest and greatest thing to the registry note that publishConfig might have changed as well!
     manifest = await this.#getManifest(spec, opts, true)
     const force = this.npm.config.get('force')
     const isDefaultTag = this.npm.config.isDefault('tag') && !manifest.publishConfig?.tag
@@ -125,8 +120,7 @@ class Publish extends BaseCommand {
       }
     }
 
-    // If we are not in JSON mode then we show the user the contents of the tarball
-    // before it is published so they can see it while their otp is pending
+    // If we are not in JSON mode then we show the user the contents of the tarball before it is published so they can see it while their otp is pending
     if (!json) {
       logPkg()
     }
@@ -188,8 +182,7 @@ class Publish extends BaseCommand {
       await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
     }
 
-    // In json mode we don't log until the publish has completed as this will
-    // add it to the output only if completes successfully
+    // In json mode we don't log until the publish has completed as this will add it to the output only if completes successfully
     if (json) {
       logPkg()
     }
@@ -267,8 +260,7 @@ class Publish extends BaseCommand {
     }
     if (manifest.publishConfig) {
       const cliFlags = this.npm.config.data.get('cli').raw
-      // Filter out properties set in CLI flags to prioritize them over
-      // corresponding `publishConfig` settings
+      // Filter out properties set in CLI flags to prioritize them over corresponding `publishConfig` settings
       const filteredPublishConfig = Object.fromEntries(
         Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
       if (logWarnings) {

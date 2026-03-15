@@ -42,9 +42,7 @@ peer @isaacs/testing-peer-dep-conflict-chain-d@"1" from @isaacs/testing-peer-dep
 node_modules/@isaacs/testing-peer-dep-conflict-chain-c
   @isaacs/testing-peer-dep-conflict-chain-c@"1" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic chain-conflict > report with color 1`] = `
@@ -58,9 +56,7 @@ Could not resolve dependency:
 [2mnode_modules/@isaacs/testing-peer-dep-conflict-chain-c[22m
   @isaacs/testing-peer-dep-conflict-chain-c@"1" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic chain-conflict > report with no color 1`] = `
@@ -74,9 +70,7 @@ peer @isaacs/testing-peer-dep-conflict-chain-d@"1" from @isaacs/testing-peer-dep
 node_modules/@isaacs/testing-peer-dep-conflict-chain-c
   @isaacs/testing-peer-dep-conflict-chain-c@"1" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic cycleNested > explain with color, depth of 2 1`] = `
@@ -136,9 +130,7 @@ node_modules/@isaacs/peer-dep-cycle-c
     node_modules/@isaacs/peer-dep-cycle-a
       @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic cycleNested > report with color 1`] = `
@@ -159,9 +151,7 @@ Conflicting peer dependency: @isaacs/peer-dep-cycle-c@1.0.0[2m[22m
     [2mnode_modules/@isaacs/peer-dep-cycle-a[22m
       @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic cycleNested > report with no color 1`] = `
@@ -182,9 +172,7 @@ node_modules/@isaacs/peer-dep-cycle-c
     node_modules/@isaacs/peer-dep-cycle-a
       @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic eslint-plugin case > explain with color, depth of 2 1`] = `
@@ -256,9 +244,7 @@ node_modules/eslint
   node_modules/eslint-plugin-eslint-plugin
     dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic eslint-plugin case > report with color 1`] = `
@@ -280,9 +266,7 @@ Conflicting peer dependency: eslint@7.31.0[2m[22m
   [2mnode_modules/eslint-plugin-eslint-plugin[22m
     [34mdev[39m eslint-plugin-eslint-plugin@"^3.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic eslint-plugin case > report with no color 1`] = `
@@ -304,9 +288,7 @@ node_modules/eslint
   node_modules/eslint-plugin-eslint-plugin
     dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic gatsby > explain with color, depth of 2 1`] = `
@@ -374,9 +356,7 @@ node_modules/ink-box
       node_modules/gatsby
         gatsby@"" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic gatsby > report with color 1`] = `
@@ -401,9 +381,7 @@ Could not resolve dependency:
       gatsby-cli@"^2.12.107" from gatsby@2.24.74[2m[22m
       [2mnode_modules/gatsby[22m
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic gatsby > report with no color 1`] = `
@@ -428,9 +406,7 @@ node_modules/ink-box
       gatsby-cli@"^2.12.107" from gatsby@2.24.74
       node_modules/gatsby
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, but has current edge > explain with color, depth of 2 1`] = `
@@ -464,9 +440,7 @@ peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
 node_modules/eslint-plugin-jsdoc
   dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, but has current edge > report with color 1`] = `
@@ -478,9 +452,7 @@ Could not resolve dependency:
 [2mnode_modules/eslint-plugin-jsdoc[22m
   [34mdev[39m eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, but has current edge > report with no color 1`] = `
@@ -492,9 +464,7 @@ peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
 node_modules/eslint-plugin-jsdoc
   dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, no current edge, idk > explain with color, depth of 2 1`] = `
@@ -534,9 +504,7 @@ peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
 node_modules/eslint-plugin-jsdoc
   dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, no current edge, idk > report with color 1`] = `
@@ -550,9 +518,7 @@ Could not resolve dependency:
 [2mnode_modules/eslint-plugin-jsdoc[22m
   [34mdev[39m eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic no current node, no current edge, idk > report with no color 1`] = `
@@ -566,9 +532,7 @@ peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
 node_modules/eslint-plugin-jsdoc
   dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --force or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic withShrinkwrap > explain with color, depth of 2 1`] = `
@@ -613,9 +577,7 @@ node_modules/@isaacs/peer-dep-cycle-b
   node_modules/@isaacs/peer-dep-cycle-a
     @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic withShrinkwrap > report with color 1`] = `
@@ -631,9 +593,7 @@ Could not resolve dependency:
   [2mnode_modules/@isaacs/peer-dep-cycle-a[22m
     @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
 
 exports[`test/lib/utils/explain-eresolve.js TAP basic withShrinkwrap > report with no color 1`] = `
@@ -649,7 +609,5 @@ node_modules/@isaacs/peer-dep-cycle-b
   node_modules/@isaacs/peer-dep-cycle-a
     @isaacs/peer-dep-cycle-a@"1.x" from the root project
 
-Fix the upstream dependency conflict, or retry
-this command with --no-strict-peer-deps, --force, or --legacy-peer-deps
-to accept an incorrect (and potentially broken) dependency resolution.
+Fix the upstream dependency conflict, or retry this command with --no-strict-peer-deps, --force, or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
 `
