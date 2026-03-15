@@ -19,6 +19,7 @@ works.
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
+* [AI Use Policy and Guidelines](#ai-use-policy-and-guidelines)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## [Code of Conduct](./doc/contributing/code-of-conduct.md)
@@ -46,6 +47,15 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [The Process of Making Changes](./doc/contributing/pull-requests.md#the-process-of-making-changes)
 * [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
 * [Notes](./doc/contributing/pull-requests.md#notes)
+
+## [AI Use Policy and Guidelines](./doc/contributing/ai-guidelines.md)
+
+Node.js expects contributors to understand and take full responsibility for
+every change they propose. Pull requests consisting of AI-generated code the
+contributor has not personally understood, tested, and verified might be closed
+without review.
+
+See [details on our AI use policy and guidelines](./doc/contributing/ai-guidelines.md).
 
 ## Developer's Certificate of Origin 1.1
 
