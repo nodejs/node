@@ -1073,6 +1073,7 @@ int uv_spawn(uv_loop_t* loop,
   return exec_errorno;
 
 error:
+  uv__queue_remove(&process->handle_queue);
   if (pipes != NULL) {
     for (i = 0; i < stdio_count; i++) {
       if (i < options->stdio_count)

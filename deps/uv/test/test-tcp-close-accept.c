@@ -69,8 +69,8 @@ static void connect_cb(uv_connect_t* req, int status) {
   }
 
   ASSERT_OK(status);
-  ASSERT_LE(connect_reqs, req);
-  ASSERT_LE(req, connect_reqs + ARRAY_SIZE(connect_reqs));
+  ASSERT_PTR_LE(connect_reqs, req);
+  ASSERT_PTR_LE(req, connect_reqs + ARRAY_SIZE(connect_reqs));
   i = req - connect_reqs;
 
   buf = uv_buf_init("x", 1);

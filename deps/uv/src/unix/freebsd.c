@@ -117,7 +117,7 @@ uint64_t uv_get_total_memory(void) {
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+  return uv__get_rlimit_max_memory();
 }
 
 

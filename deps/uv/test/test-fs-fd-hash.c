@@ -66,17 +66,25 @@ void assert_removal(int fd) {
 /* Run a function for a set of values up to a very high number */
 #define RUN_HASH(function)                                                   \
   do {                                                                       \
+    uint64_t before = uv_hrtime();                                           \
     for (fd = 0; fd < HASH_MAX; fd += HASH_INC) {                            \
       function(fd);                                                          \
     }                                                                        \
+    uint64_t after = uv_hrtime();                                            \
+    double seconds = (after - before) / 1e9;                                 \
+    printf("%.5f hash %s\n", seconds, #function);                            \
   } while (0)
 
 /* Run a function for a set of values that will cause many collisions */
 #define RUN_COLLISIONS(function)                                             \
   do {                                                                       \
+    uint64_t before = uv_hrtime();                                           \
     for (fd = 1; fd < BUCKET_MAX; fd += BUCKET_INC) {                        \
       function(fd);                                                          \
     }                                                                        \
+    uint64_t after = uv_hrtime();                                            \
+    double seconds = (after - before) / 1e9;                                 \
+    printf("%.5f coll %s\n", seconds, #function);                            \
   } while (0)
 
 

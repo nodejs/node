@@ -56,12 +56,7 @@ TEST_IMPL(thread_affinity) {
   int i;
   uv_thread_t threads[3];
 
-#ifdef _WIN32
-  /* uv_thread_self isn't defined for the main thread on Windows */
-  threads[0] = GetCurrentThread();
-#else
   threads[0] = uv_thread_self();
-#endif
   cpumasksize = uv_cpumask_size();
   ASSERT_GT(cpumasksize, 0);
 

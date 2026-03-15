@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#if !defined(_WIN32) && !defined(_AIX)
+#if !defined(_WIN32) && !defined(_AIX) && !defined(__QNX__)
 #include <poll.h>
 #endif
 
@@ -56,7 +56,7 @@ TEST_IMPL(embed) {
   ASSERT_LE(0, uv_barrier_wait(&barrier));
 
   while (uv_loop_alive(loop)) {
-#if defined(_WIN32) || defined(_AIX)
+#if defined(_WIN32) || defined(_AIX) || defined(__QNX__)
     ASSERT_LE(0, uv_run(loop, UV_RUN_ONCE));
 #else
     int rc;

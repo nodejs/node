@@ -91,8 +91,8 @@ static void poll_cb(uv_poll_t* handle, int status, int events) {
       while (n == -1 && errno == EINTR);
       ASSERT(n >= 0 || errno != EINVAL);
       if (cli_rd_check == 1) {
-        ASSERT_OK(strncmp(buffer, "world", n));
         ASSERT_EQ(5, n);
+        ASSERT_OK(strncmp(buffer, "world", n));
         cli_rd_check = 2;
       }
       if (cli_rd_check == 0) {
