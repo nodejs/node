@@ -543,7 +543,7 @@ ngtcp2_ssize ngtcp2_frame_decoder_decode(ngtcp2_frame_decoder *frd,
     return ngtcp2_pkt_decode_path_response_frame(&dest->path_response, payload,
                                                  payloadlen);
   case NGTCP2_FRAME_CRYPTO:
-    dest->stream.data = &frd->buf.stream_data;
+    dest->stream.data = &frd->buf.data;
     return ngtcp2_pkt_decode_crypto_frame(&dest->stream, payload, payloadlen);
   case NGTCP2_FRAME_NEW_TOKEN:
     return ngtcp2_pkt_decode_new_token_frame(&dest->new_token, payload,
@@ -556,11 +556,12 @@ ngtcp2_ssize ngtcp2_frame_decoder_decode(ngtcp2_frame_decoder *frd,
                                                   payload, payloadlen);
   case NGTCP2_FRAME_DATAGRAM:
   case NGTCP2_FRAME_DATAGRAM_LEN:
+    dest->datagram.data = &frd->buf.data;
     return ngtcp2_pkt_decode_datagram_frame(&dest->datagram, payload,
                                             payloadlen);
   default:
     if ((type & ~(NGTCP2_FRAME_STREAM - 1)) == NGTCP2_FRAME_STREAM) {
-      dest->stream.data = &frd->buf.stream_data;
+      dest->stream.data = &frd->buf.data;
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
     }
 
@@ -1490,16 +1491,13 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
 
   dest->type = type;
 
-  if (datalen == 0) {
-    dest->datacnt = 0;
-    dest->data = NULL;
-  } else {
+  if (datalen) {
+    dest->data[0].len = datalen;
+    dest->data[0].base = (uint8_t *)p;
     dest->datacnt = 1;
-    dest->data = dest->rdata;
-    dest->rdata[0].len = datalen;
-
-    dest->rdata[0].base = (uint8_t *)p;
     p += datalen;
+  } else {
+    dest->datacnt = 0;
   }
 
   assert((size_t)(p - payload) == len);
