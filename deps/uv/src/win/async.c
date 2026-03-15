@@ -23,10 +23,28 @@
 
 #include "uv.h"
 #include "internal.h"
-#include "atomicops-inl.h"
 #include "handle-inl.h"
 #include "req-inl.h"
 
+#ifdef _MSC_VER /* MSVC */
+
+/* _InterlockedOr8 is supported by MSVC on x32 and x64. It is slightly less
+ * efficient than InterlockedExchange, but InterlockedExchange8 does not exist,
+ * and interlocked operations on larger targets might require the target to be
+ * aligned. */
+#pragma intrinsic(_InterlockedOr8)
+
+static char uv__atomic_exchange_set(char volatile* target) {
+  return _InterlockedOr8(target, 1);
+}
+
+#else /* GCC, Clang in mingw mode */
+
+static char uv__atomic_exchange_set(char volatile* target) {
+  return __sync_fetch_and_or(target, 1);
+}
+
+#endif  /* _MSC_VER */
 
 void uv__async_endgame(uv_loop_t* loop, uv_async_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&

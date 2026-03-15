@@ -575,11 +575,16 @@ static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   struct uv__queue* q;
   uv_handle_t* h;
 
-  if (loop == NULL)
-    loop = uv_default_loop();
-
   if (stream == NULL)
     stream = stderr;
+
+  if (loop == NULL) {
+    loop = uv_default_loop();
+    if (loop == NULL) {
+      fprintf(stream, "uv_default_loop() failed\n");
+      return;
+    }
+  }
 
   uv__queue_foreach(q, &loop->handle_queue) {
     h = uv__queue_data(q, uv_handle_t, handle_queue);
@@ -1049,3 +1054,11 @@ uint64_t uv_metrics_idle_time(uv_loop_t* loop) {
     idle_time += uv_hrtime() - entry_time;
   return idle_time;
 }
+
+/* OS390 needs a different implementation, already provided in os390.c. */
+#ifndef __MVS__
+void uv_free_interface_addresses(uv_interface_address_t* addresses,
+                                 int count) {
+  uv__free(addresses);
+}
+#endif  /* !__MVS__ */

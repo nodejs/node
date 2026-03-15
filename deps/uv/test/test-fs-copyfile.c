@@ -102,7 +102,7 @@ static void touch_file(const char* name, unsigned int size) {
 }
 
 
-TEST_IMPL(fs_copyfile) {
+TEST_FS_IMPL(fs_copyfile) {
   const char src[] = "test_file_src";
   uv_loop_t* loop;
   uv_fs_t req;
@@ -220,8 +220,13 @@ TEST_IMPL(fs_copyfile) {
   r = uv_fs_copyfile(NULL, &req, fixture, dst, 0, NULL);
   /* On IBMi PASE, qsecofr users can overwrite read-only files */
 # ifndef __PASE__
-  ASSERT_EQ(req.result, UV_EACCES);
-  ASSERT_EQ(r, UV_EACCES);
+  if (0 == getuid()) {  /* If root. */
+    ASSERT_EQ(req.result, 0);
+    ASSERT_EQ(r, 0);
+  } else {
+    ASSERT_EQ(req.result, UV_EACCES);
+    ASSERT_EQ(r, UV_EACCES);
+  }
 # endif
   uv_fs_req_cleanup(&req);
 #endif
