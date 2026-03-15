@@ -692,7 +692,7 @@ describe('forceExit', () => {
 describe('with isolation="none"', () => {
   const isolationNoneFixture = fixtures.path('test-runner', 'test-runner-isolation-none.mjs');
 
-  it('should pass only to children', { timeout: 10000 }, async () => {
+  it('should pass only to children', async () => {
     const child = await common.spawnPromisified(process.execPath, [
       isolationNoneFixture,
       '--file', join(testFixtures, 'test_only.js'),
@@ -705,7 +705,7 @@ describe('with isolation="none"', () => {
     assert.match(child.stdout, /# tests 1/);
   });
 
-  it('should skip tests not matching testNamePatterns - RegExp', { timeout: 10000 }, async () => {
+  it('should skip tests not matching testNamePatterns - RegExp', async () => {
     const child = await common.spawnPromisified(process.execPath, [
       isolationNoneFixture,
       '--file', join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
@@ -718,7 +718,7 @@ describe('with isolation="none"', () => {
     assert.match(child.stdout, /# tests 1/);
   });
 
-  it('should skip tests matching testSkipPatterns - RegExp', { timeout: 10000 }, async () => {
+  it('should skip tests matching testSkipPatterns - RegExp', async () => {
     const child = await common.spawnPromisified(process.execPath, [
       isolationNoneFixture,
       '--file', join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
