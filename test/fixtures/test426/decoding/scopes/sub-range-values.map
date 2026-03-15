@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "file": "sub-range-values.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "x",
+    "y",
+    "x_sub_val1",
+    "y_val",
+    "x_sub_val2"
+  ],
+  "scopes": "BCAAA,DCC,CKA,ECAA,GEF,HAADAADG,FK"
+}
