@@ -38,3 +38,12 @@ const binding = require(`./build/${common.buildType}/binding`);
 {
   assert.strictEqual(binding.getSSLCtxInvalid({ context: 'not a context' }), true);
 }
+
+// Test 7: An object with a throwing .context getter should return nullptr
+// without propagating the exception.
+{
+  const obj = {
+    get context() { throw new Error('getter threw'); },
+  };
+  assert.strictEqual(binding.getSSLCtxInvalid(obj), true);
+}

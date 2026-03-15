@@ -2447,6 +2447,9 @@ NODE_EXTERN SSL_CTX* GetSSLCtx(Local<Context> context, Local<Value> value) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return nullptr;
 
+  // TryCatchto swallow any exceptions from Get() (e.g. failing getters)
+  v8::TryCatch try_catch(env->isolate());
+
   // Unwrap the .context property from the JS SecureContext wrapper
   // (as returned by tls.createSecureContext()).
   if (value->IsObject()) {
