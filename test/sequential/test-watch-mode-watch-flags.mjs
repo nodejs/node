@@ -94,4 +94,52 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
+
+  it('exposes watch flags through process.execArgv inside the watched script', async () => {
+    const projectDir = tmpdir.resolve('project-watch-exec-argv');
+    mkdirSync(projectDir);
+
+    const file = createTmpFile(`
+      console.log(JSON.stringify(process.execArgv));
+    `, '.js', projectDir);
+    const watchPath = path.join(projectDir, 'template.html');
+    writeFileSync(watchPath, '');
+
+    async function assertExecArgv(args, expectedSubsequences) {
+      const { stdout, stderr } = await runNode({
+        args, options: { cwd: projectDir },
+      });
+
+      assert.strictEqual(stderr, '');
+
+      const execArgvLine = stdout[0];
+      const execArgv = JSON.parse(execArgvLine);
+      assert.ok(Array.isArray(execArgv));
+      const matched = expectedSubsequences.some((expectedSeq) => {
+        for (let i = 0; i <= execArgv.length - expectedSeq.length; i++) {
+          let ok = true;
+          for (let j = 0; j < expectedSeq.length; j++) {
+            if (execArgv[i + j] !== expectedSeq[j]) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) return true;
+        }
+        return false;
+      });
+      assert.ok(matched,
+                `execArgv (${execArgv}) does not contain any expected sequence (${expectedSubsequences.map((seq) => `[${seq}]`).join(', ')})`);
+      assert.match(stdout.at(-1), /^Completed running/);
+    }
+
+    await assertExecArgv(['--watch', file], [['--watch']]);
+    await assertExecArgv(['--watch-path=template.html', file], [['--watch-path=template.html']]);
+    await assertExecArgv(
+      ['--watch-path', 'template.html', file],
+      [
+        ['--watch-path', 'template.html'],
+        ['--watch-path=template.html'],
+      ]);
+  });
 });
