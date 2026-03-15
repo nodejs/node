@@ -266,6 +266,15 @@ void IsSea(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(IsSingleExecutable());
 }
 
+void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
+  bool enabled = false;
+  if (IsSingleExecutable()) {
+    SeaResource sea_resource = FindSingleExecutableResource();
+    enabled = static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
+  }
+  args.GetReturnValue().Set(enabled);
+}
+
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   bool is_building_sea =
       !per_process::cli_options->experimental_sea_config.empty();
@@ -952,11 +961,9 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  // isVfsEnabled is a boolean property (only used by embedding.js).
-  bool is_vfs_enabled = false;
   if (IsSingleExecutable()) {
     SeaResource sea_resource = FindSingleExecutableResource();
-    is_vfs_enabled =
+    bool is_vfs_enabled =
         static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
     // Expose the main code path so VFS can construct the correct entry point.
     if (is_vfs_enabled) {
@@ -974,13 +981,9 @@ void Initialize(Local<Object> target,
       }
     }
   }
-  target
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "isVfsEnabled"),
-            Boolean::New(isolate, is_vfs_enabled))
-      .Check();
 
   SetMethod(context, target, "isSea", IsSea);
+  SetMethod(context, target, "isVfsEnabled", IsVfsEnabled);
   SetMethod(context,
             target,
             "isExperimentalSeaWarningNeeded",
@@ -991,6 +994,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
+  registry->Register(IsVfsEnabled);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
