@@ -29,7 +29,7 @@
 static uv_mutex_t process_title_mutex;
 static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static char* process_title;
-
+char* uv_saved_argv0;
 
 static void init_process_title_mutex_once(void) {
   if (uv_mutex_init(&process_title_mutex))
@@ -45,6 +45,7 @@ void uv__process_title_cleanup(void) {
 
 char** uv_setup_args(int argc, char** argv) {
   process_title = argc > 0 ? uv__strdup(argv[0]) : NULL;
+  uv_saved_argv0 = argc > 0 ? uv__strdup(argv[0]) : NULL;
   return argv;
 }
 

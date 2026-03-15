@@ -112,13 +112,14 @@ static void start_server(void) {
 }
 
 TEST_IMPL(tcp_write_in_a_row) {
+  uv_connect_t connect_req;
+  struct sockaddr_in addr;
+
 #if defined(_WIN32)
   RETURN_SKIP("tcp_write_in_a_row does not work on Windows");
 #elif defined(__PASE__)
   RETURN_SKIP("tcp_write_in_a_row does not work on IBM i PASE");
-#else
-  uv_connect_t connect_req;
-  struct sockaddr_in addr;
+#endif
 
   start_server();
 
@@ -139,5 +140,4 @@ TEST_IMPL(tcp_write_in_a_row) {
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
-#endif
 }
