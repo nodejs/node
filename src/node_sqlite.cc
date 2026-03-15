@@ -5,6 +5,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
@@ -992,6 +993,8 @@ bool DatabaseSync::Open() {
     CHECK_ERROR_OR_THROW(
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
+
+  sqlite3_trace_v2(connection_, SQLITE_TRACE_STMT, TraceCallback, this);
 
   return true;
 }
@@ -2435,30 +2438,6 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void DatabaseSync::SetSqlTraceHook(const FunctionCallbackInfo<Value>& args) {
-  DatabaseSync* db;
-  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-  Isolate* isolate = env->isolate();
-
-  if (args[0]->IsNull() || args[0]->IsUndefined()) {
-    sqlite3_trace_v2(db->connection_, 0, nullptr, nullptr);
-    db->object()->SetInternalField(kTraceCallback, Null(isolate));
-    return;
-  }
-
-  if (!args[0]->IsFunction()) {
-    THROW_ERR_INVALID_ARG_TYPE(isolate,
-                               "The \"hook\" argument must be a function.");
-    return;
-  }
-
-  db->object()->SetInternalField(kTraceCallback, args[0].As<Function>());
-  sqlite3_trace_v2(
-      db->connection_, SQLITE_TRACE_STMT, DatabaseSync::TraceCallback, db);
-}
-
 void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -2574,16 +2553,15 @@ int DatabaseSync::TraceCallback(unsigned int type,
 
   DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
   Environment* env = db->env();
-  Isolate* isolate = env->isolate();
-  HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
 
-  Local<Value> cb =
-      db->object()->GetInternalField(kTraceCallback).template As<Value>();
-
-  if (!cb->IsFunction()) {
+  diagnostics_channel::Channel* ch =
+      diagnostics_channel::Channel::Get(env, "sqlite.db.query");
+  if (ch == nullptr || !ch->HasSubscribers()) {
     return 0;
   }
+
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
 
   char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
   Local<Value> sql_string;
@@ -2602,13 +2580,7 @@ int DatabaseSync::TraceCallback(unsigned int type,
     }
   }
 
-  Local<Function> callback = cb.As<Function>();
-  MaybeLocal<Value> retval =
-      callback->Call(context, Undefined(isolate), 1, &sql_string);
-
-  if (retval.IsEmpty()) {
-    db->SetIgnoreNextSQLiteError(true);
-  }
+  ch->Publish(env, sql_string);
 
   return 0;
 }
@@ -4029,8 +4001,6 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(isolate, db_tmpl, "serialize", DatabaseSync::Serialize);
   SetProtoMethod(isolate, db_tmpl, "deserialize", DatabaseSync::Deserialize);
-  SetProtoMethod(
-      isolate, db_tmpl, "setSqlTraceHook", DatabaseSync::SetSqlTraceHook);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetSideEffectFreeGetter(isolate,
