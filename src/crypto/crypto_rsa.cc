@@ -176,12 +176,6 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
 }
 
 namespace {
-WebCryptoKeyExportStatus RSA_JWK_Export(const KeyObjectData& key_data,
-                                        const RSAKeyExportConfig& params,
-                                        ByteSource* out) {
-  return WebCryptoKeyExportStatus::FAILED;
-}
-
 using Cipher_t = DataPointer(const EVPKeyPointer& key,
                              const ncrypto::Rsa::CipherParams& params,
                              const ncrypto::Buffer<const void> in);
@@ -209,42 +203,6 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   return WebCryptoCipherStatus::OK;
 }
 }  // namespace
-
-Maybe<void> RSAKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    RSAKeyExportConfig* params) {
-  CHECK(args[offset]->IsUint32());  // RSAKeyVariant
-  params->variant =
-      static_cast<RSAKeyVariant>(args[offset].As<Uint32>()->Value());
-  return JustVoid();
-}
-
-WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
-    const KeyObjectData& key_data,
-    WebCryptoKeyFormat format,
-    const RSAKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatRaw:
-      // Not supported for RSA keys of either type
-      return WebCryptoKeyExportStatus::FAILED;
-    case kWebCryptoKeyFormatJWK:
-      return RSA_JWK_Export(key_data, params, out);
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data.GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data, out);
-    case kWebCryptoKeyFormatSPKI:
-      if (key_data.GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data, out);
-    default:
-      UNREACHABLE();
-  }
-}
 
 RSACipherConfig::RSACipherConfig(RSACipherConfig&& other) noexcept
     : mode(other.mode),
@@ -539,7 +497,6 @@ bool GetRsaKeyDetail(Environment* env,
 namespace RSAAlg {
 void Initialize(Environment* env, Local<Object> target) {
   RSAKeyPairGenJob::Initialize(env, target);
-  RSAKeyExportJob::Initialize(env, target);
   RSACipherJob::Initialize(env, target);
 
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_v1_5);
@@ -549,7 +506,6 @@ void Initialize(Environment* env, Local<Object> target) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   RSAKeyPairGenJob::RegisterExternalReferences(registry);
-  RSAKeyExportJob::RegisterExternalReferences(registry);
   RSACipherJob::RegisterExternalReferences(registry);
 }
 }  // namespace RSAAlg
