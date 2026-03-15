@@ -216,6 +216,71 @@ resolution and loading behavior. See [Customization hooks][].
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
+### `module.resolve(specifier, parentURL[, importAttributes]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `specifier` {string|URL} Module to resolve and load; this should be
+  the same string that would be passed to `import()`, except that if it is
+  relative, it is resolved relative to `parentURL`.
+* `parentURL` {string|URL|undefined} The base URL to resolve `specifier` from,
+  such as `import.meta.url`.
+* `importAttributes` {Object} **Default:** an empty object.
+* Returns: {Promise} fulfills with a string containing the full URL of the
+  potential module corresponding to the given specifier.
+
+Analogous to `import.meta.resolve`, but asynchronous, accessible from CommonJS
+modules, and with additional parameters.
+
+### `module.load(url[, importAttributes[, conditions]]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `url` {string|URL|undefined} The URL of the module to load.
+* `importAttributes` {Object} **Default:** an empty object.
+* `conditions` {Array}
+* Returns: {Promise} fulfills with an object with the following properties:
+  * `url` {string} The absolute URL for that module
+  * `format` {string} The format this module will be parsed as.
+  * `source` {null|TypedArray}
+
+This API tells you how the passed URL would be loaded by the module loader if
+it was imported in the current process – or, if `conditions` is provided, how
+would it be loaded in a process with such configuration.
+
+### `module.resolveLoadAndCache(specifier, parentURL[, importAttributes[, conditions]]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `specifier` {string|URL} Module to resolve and load; this should be
+  the same string that would be passed to `import()`, except that if it is
+  relative, it is resolved relative to `parentURL`.
+* `parentURL` {string|URL|undefined} The base URL to resolve `specifier` from,
+  such as `import.meta.url`.
+* `importAttributes` {Object} **Default:** an empty object.
+* `conditions` {Array}
+* Returns: {Promise} fulfills with an object with the following properties:
+  * `url` {string} The absolute URL for that module
+  * `format` {string} The format this module will be parsed as.
+  * `source` {null|TypedArray}
+
+This API tells you how the passed specifier would be loaded by the module loader if
+it was imported from the `parentURL` in the current process – or, if
+`conditions` is provided, how would it be loaded in a process with such
+configuration.
+
 ### `module.registerHooks(options)`
 
 <!-- YAML
