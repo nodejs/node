@@ -13,6 +13,7 @@ const {
   isBuffer,
   isFormDataLike,
   isIterable,
+  hasSafeIterator,
   isBlobLike,
   serializePathWithQuery,
   assertRequestHandler,
@@ -44,7 +45,8 @@ class Request {
     expectContinue,
     servername,
     throwOnError,
-    maxRedirections
+    maxRedirections,
+    typeOfService
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -66,6 +68,10 @@ class Request {
 
     if (upgrade && typeof upgrade !== 'string') {
       throw new InvalidArgumentError('upgrade must be a string')
+    }
+
+    if (upgrade && !isValidHeaderValue(upgrade)) {
+      throw new InvalidArgumentError('invalid upgrade header')
     }
 
     if (headersTimeout != null && (!Number.isFinite(headersTimeout) || headersTimeout < 0)) {
@@ -92,11 +98,17 @@ class Request {
       throw new InvalidArgumentError('maxRedirections is not supported, use the redirect interceptor')
     }
 
+    if (typeOfService != null && (!Number.isInteger(typeOfService) || typeOfService < 0 || typeOfService > 255)) {
+      throw new InvalidArgumentError('typeOfService must be an integer between 0 and 255')
+    }
+
     this.headersTimeout = headersTimeout
 
     this.bodyTimeout = bodyTimeout
 
     this.method = method
+
+    this.typeOfService = typeOfService ?? 0
 
     this.abort = null
 
@@ -174,7 +186,7 @@ class Request {
         processHeader(this, headers[i], headers[i + 1])
       }
     } else if (headers && typeof headers === 'object') {
-      if (headers[Symbol.iterator]) {
+      if (hasSafeIterator(headers)) {
         for (const header of headers) {
           if (!Array.isArray(header) || header.length !== 2) {
             throw new InvalidArgumentError('headers must be in key-value pair format')
@@ -377,13 +389,19 @@ function processHeader (request, key, val) {
     val = `${val}`
   }
 
-  if (request.host === null && headerName === 'host') {
+  if (headerName === 'host') {
+    if (request.host !== null) {
+      throw new InvalidArgumentError('duplicate host header')
+    }
     if (typeof val !== 'string') {
       throw new InvalidArgumentError('invalid host header')
     }
     // Consumed by Client
     request.host = val
-  } else if (request.contentLength === null && headerName === 'content-length') {
+  } else if (headerName === 'content-length') {
+    if (request.contentLength !== null) {
+      throw new InvalidArgumentError('duplicate content-length header')
+    }
     request.contentLength = parseInt(val, 10)
     if (!Number.isFinite(request.contentLength)) {
       throw new InvalidArgumentError('invalid content-length header')

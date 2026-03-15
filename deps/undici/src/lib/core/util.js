@@ -328,6 +328,20 @@ function isIterable (obj) {
 }
 
 /**
+ * Checks whether an object has a safe Symbol.iterator — i.e. one that is
+ * either own or inherited from a non-Object.prototype chain.  This prevents
+ * prototype-pollution attacks from injecting a fake iterator on
+ * Object.prototype.
+ * @param {object} obj
+ * @returns {boolean}
+ */
+function hasSafeIterator (obj) {
+  const prototype = Object.getPrototypeOf(obj)
+  const ownIterator = Object.prototype.hasOwnProperty.call(obj, Symbol.iterator)
+  return ownIterator || (prototype != null && prototype !== Object.prototype && typeof obj[Symbol.iterator] === 'function')
+}
+
+/**
  * @param {Blob|Buffer|import ('stream').Stream} body
  * @returns {number|null}
  */
@@ -918,6 +932,7 @@ module.exports = {
   getServerName,
   isStream,
   isIterable,
+  hasSafeIterator,
   isAsyncIterable,
   isDestroyed,
   headerNameToString,
