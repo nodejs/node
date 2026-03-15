@@ -70,7 +70,7 @@ describe('CJS: --experimental-package-map', () => {
     });
   });
 
-  describe('fallback behavior', () => {
+  describe('resolution boundaries', () => {
     it('falls back for builtin modules', () => {
       const { status, stdout, stderr } = spawnSync(process.execPath, [
         '--experimental-package-map', packageMapPath,
@@ -85,7 +85,7 @@ describe('CJS: --experimental-package-map', () => {
       assert.match(stdout, /function/);
     });
 
-    it('falls back when parent not in map', () => {
+    it('throws when parent not in map', () => {
       const { status, stderr } = spawnSync(process.execPath, [
         '--experimental-package-map', packageMapPath,
         '-e',
@@ -95,7 +95,6 @@ describe('CJS: --experimental-package-map', () => {
         encoding: 'utf8',
       });
 
-      // Should fall back to standard resolution (which will fail)
       assert.notStrictEqual(status, 0);
       assert.match(stderr, /Cannot find module/);
     });
@@ -180,6 +179,60 @@ describe('CJS: --experimental-package-map', () => {
 
       assert.strictEqual(status, 0, stderr);
       assert.match(stdout, /pkg-value/);
+    });
+  });
+
+  describe('external package paths', () => {
+    it('resolves packages outside the package map directory via relative paths', () => {
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--experimental-package-map',
+        fixtures.path('package-map/nested-project/package-map-external-deps.json'),
+        '-e',
+        `const dep = require('dep-a'); console.log(dep.default);`,
+      ], {
+        cwd: fixtures.path('package-map/nested-project/src'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(status, 0, stderr);
+      assert.match(stdout, /dep-a-value/);
+    });
+  });
+
+  describe('longest path wins', () => {
+    const longestPathMap = fixtures.path('package-map/package-map-longest-path.json');
+
+    it('resolves nested package using its own dependencies, not the parent', () => {
+      // Inner lives at ./root/node_modules/inner which is inside root's
+      // path (./root). The longest matching path should win, so code in
+      // inner should resolve dep-a (inner's dep), not be treated as root.
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--experimental-package-map', longestPathMap,
+        '-e',
+        `const inner = require('inner'); console.log(inner.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(status, 0, stderr);
+      assert.match(stdout, /inner using dep-a-value/);
+    });
+
+    it('denies access to nested package deps from parent package', () => {
+      // Root does not list dep-a in its dependencies, so requiring it
+      // from root should fail even though inner (nested inside root) can.
+      const { status, stderr } = spawnSync(process.execPath, [
+        '--experimental-package-map', longestPathMap,
+        '-e',
+        `require('dep-a');`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.notStrictEqual(status, 0);
+      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
     });
   });
 });

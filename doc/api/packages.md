@@ -1020,15 +1020,15 @@ When a bare specifier is encountered:
 
 1. Node.js determines which package contains the importing file by checking
    if the file path is within any package's `path`.
-2. If the importing file is not within any mapped package, standard
-   `node_modules` resolution is used.
+2. If the importing file is not within any mapped package, a
+   `MODULE_NOT_FOUND` error is thrown.
 3. Node.js searches the importing package's `dependencies` array for an entry
    whose `name` matches the specifier's package name.
 4. If found, the specifier resolves to that dependency's `path`.
 5. If the package exists in the map but is not in `dependencies`, an
    [`ERR_PACKAGE_MAP_ACCESS_DENIED`][] error is thrown.
-6. If the package does not exist in the map at all, standard `node_modules`
-   resolution is used as a fallback.
+6. If the package does not exist in the map at all, a
+   `MODULE_NOT_FOUND` error is thrown.
 
 ### Subpath resolution
 
@@ -1094,16 +1094,15 @@ const utils = require('@myorg/utils');
 import utils from '@myorg/utils';
 ```
 
-### Fallback behavior
+### Interaction with other resolution
 
-Package maps do not replace `node_modules` resolution entirely. Resolution
-falls back to standard behavior when:
+Package maps only apply to bare specifiers that are not Node.js builtin
+modules. The following cases are not affected by package maps and continue
+to use standard resolution:
 
-* The importing file is not within any package defined in the map.
-* The specifier's package name is not found in any package's `name` field.
-* The specifier is a relative path (`./` or `../`).
-* The specifier is an absolute path or URL.
-* The specifier refers to a Node.js builtin module (`node:fs`, etc.).
+* Relative paths (`./` or `../`).
+* Absolute paths or URLs.
+* Node.js builtin modules (`node:fs`, etc.).
 
 ### Limitations
 
