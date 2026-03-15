@@ -851,7 +851,8 @@ bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
   if (!profile) {
     return false;
   }
-  JSONWriter writer(out_stream, false);
+  profiler->StopSamplingHeapProfiler();
+  JSONWriter writer(out_stream, true);
   writer.json_start();
 
   writer.json_arraystart("samples");
@@ -869,8 +870,28 @@ bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
   writer.json_objectend();
 
   writer.json_end();
-  profiler->StopSamplingHeapProfiler();
   return true;
+}
+
+HeapProfileOptions ParseHeapProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HeapProfileOptions options;
+  CHECK_LE(args.Length(), 3);
+  if (args.Length() > 0) {
+    CHECK(args[0]->IsNumber());
+    options.sample_interval =
+        static_cast<uint64_t>(args[0].As<v8::Number>()->Value());
+  }
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsInt32());
+    options.stack_depth = args[1].As<v8::Int32>()->Value();
+  }
+  if (args.Length() > 2) {
+    CHECK(args[2]->IsUint32());
+    options.flags = static_cast<v8::HeapProfiler::SamplingFlags>(
+        args[2].As<v8::Uint32>()->Value());
+  }
+  return options;
 }
 
 }  // namespace node

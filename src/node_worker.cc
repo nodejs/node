@@ -1044,6 +1044,7 @@ void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Environment* env = w->env();
+  auto options = ParseHeapProfileOptions(args);
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
@@ -1056,10 +1057,11 @@ void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<WorkerHeapProfileTaker> taker =
       MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
 
-  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
-                                        env](Environment* worker_env) mutable {
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env, options](
+                                           Environment* worker_env) mutable {
     v8::HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
-    bool success = profiler->StartSamplingHeapProfiler();
+    bool success = profiler->StartSamplingHeapProfiler(
+        options.sample_interval, options.stack_depth, options.flags);
     env->SetImmediateThreadsafe(
         [taker = std::move(taker),
          success = success](Environment* env) mutable {

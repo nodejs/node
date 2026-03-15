@@ -2005,7 +2005,7 @@ w.on('online', async () => {
 });
 ```
 
-### `worker.startHeapProfile()`
+### `worker.startHeapProfile([sampleInterval[, stackDepth[, flags]]])`
 
 <!-- YAML
 added:
@@ -2013,6 +2013,13 @@ added:
   - v22.20.0
 -->
 
+* `sampleInterval` {number} The average sampling interval in bytes.
+  **Default:** `524288` (512 KiB).
+* `stackDepth` {integer} The maximum stack depth for samples.
+  **Default:** `16`.
+* `flags` {integer} Flags to control sampling behavior. Use constants from
+  [`v8.heapProfilerConstants`][]. Multiple flags can be combined with bitwise
+  OR. **Default:** `v8.heapProfilerConstants.SAMPLING_NO_FLAGS`.
 * Returns: {Promise}
 
 Starting a Heap profile then return a Promise that fulfills with an error
@@ -2034,10 +2041,40 @@ worker.on('online', async () => {
 });
 ```
 
+```mjs
+import { Worker } from 'node:worker_threads';
+
+const worker = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+worker.on('online', async () => {
+  const handle = await worker.startHeapProfile();
+  const profile = await handle.stop();
+  console.log(profile);
+  worker.terminate();
+});
+```
+
 `await using` example.
 
 ```cjs
 const { Worker } = require('node:worker_threads');
+
+const w = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+w.on('online', async () => {
+  // Stop profile automatically when return and profile will be discarded
+  await using handle = await w.startHeapProfile();
+});
+```
+
+```mjs
+import { Worker } from 'node:worker_threads';
 
 const w = new Worker(`
   const { parentPort } = require('node:worker_threads');
@@ -2266,6 +2303,7 @@ thread spawned will spawn another until the application crashes.
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
+[`v8.heapProfilerConstants`]: v8.md#v8heapprofilerconstants
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #worker_threadsshare_env
 [`worker.on('message')`]: #event-message_1

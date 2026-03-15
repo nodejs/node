@@ -1068,6 +1068,16 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
 }
 bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
 
+struct HeapProfileOptions {
+  uint64_t sample_interval = 512 * 1024;
+  int stack_depth = 16;
+  v8::HeapProfiler::SamplingFlags flags =
+      v8::HeapProfiler::SamplingFlags::kSamplingNoFlags;
+};
+
+HeapProfileOptions ParseHeapProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -282,7 +282,10 @@ void StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
 
 void StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  if (isolate->GetHeapProfiler()->StartSamplingHeapProfiler()) {
+  auto options = ParseHeapProfileOptions(args);
+
+  if (isolate->GetHeapProfiler()->StartSamplingHeapProfiler(
+          options.sample_interval, options.stack_depth, options.flags)) {
     return;
   }
   THROW_ERR_HEAP_PROFILE_HAVE_BEEN_STARTED(isolate,
@@ -766,6 +769,42 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
   SetMethod(context, target, "startHeapProfile", StartHeapProfile);
   SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kSamplingNoFlags"),
+            Uint32::NewFromUnsigned(
+                env->isolate(),
+                static_cast<uint32_t>(
+                    v8::HeapProfiler::SamplingFlags::kSamplingNoFlags)))
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kSamplingForceGC"),
+            Uint32::NewFromUnsigned(
+                env->isolate(),
+                static_cast<uint32_t>(
+                    v8::HeapProfiler::SamplingFlags::kSamplingForceGC)))
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(),
+                                  "kSamplingIncludeObjectsCollectedByMajorGC"),
+            Uint32::NewFromUnsigned(
+                env->isolate(),
+                static_cast<uint32_t>(
+                    v8::HeapProfiler::SamplingFlags::
+                        kSamplingIncludeObjectsCollectedByMajorGC)))
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(),
+                                  "kSamplingIncludeObjectsCollectedByMinorGC"),
+            Uint32::NewFromUnsigned(
+                env->isolate(),
+                static_cast<uint32_t>(
+                    v8::HeapProfiler::SamplingFlags::
+                        kSamplingIncludeObjectsCollectedByMinorGC)))
+      .Check();
 
   // Export symbols used by v8.isStringOneByteRepresentation()
   SetFastMethodNoSideEffect(context,
