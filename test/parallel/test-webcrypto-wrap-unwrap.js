@@ -41,10 +41,12 @@ const kWrappingData = {
   },
 };
 
-if (!process.features.openssl_is_boringssl) {
+if (process.features.openssl_is_boringssl) {
+  common.printSkipMessage('Skipping unsupported AES-KW test case');
+} else {
   kWrappingData['AES-KW'] = {
     generate: { length: 128 },
-    wrap: { },
+    wrap: {},
     pair: false
   };
   kWrappingData['ChaCha20-Poly1305'] = {
@@ -55,8 +57,6 @@ if (!process.features.openssl_is_boringssl) {
     },
     pair: false
   };
-} else {
-  common.printSkipMessage('Skipping unsupported AES-KW test case');
 }
 
 if (hasOpenSSL(3)) {
@@ -181,13 +181,6 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'ChaCha20-Poly1305'
-      },
-      usages: ['encrypt', 'decrypt'],
-      pair: false,
-    },
-    {
-      algorithm: {
         name: 'HMAC',
         length: 128,
         hash: 'SHA-256'
@@ -208,6 +201,18 @@ async function generateKeysToWrap() {
     });
   } else {
     common.printSkipMessage('Skipping unsupported AES-KW test case');
+  }
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push({
+      algorithm: {
+        name: 'ChaCha20-Poly1305'
+      },
+      usages: ['encrypt', 'decrypt'],
+      pair: false,
+    });
+  } else {
+    common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
   }
 
   if (hasOpenSSL(3, 5)) {

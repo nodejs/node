@@ -626,22 +626,27 @@ for (const test of TEST_CASES) {
 
 {
   // CCM cipher without data should not crash, see https://github.com/nodejs/node/issues/38035.
-  const algo = 'aes-128-ccm';
-  const key = Buffer.alloc(16);
-  const iv = Buffer.alloc(12);
-  const opts = { authTagLength: 10 };
+  if (!ciphers.includes('aes-128-ccm')) {
+    common.printSkipMessage(`unsupported aes-128-ccm test`);
+  } else {
+    const key = Buffer.alloc(16);
+    const iv = Buffer.alloc(12);
+    const opts = { authTagLength: 10 };
 
-  const cipher = crypto.createCipheriv(algo, key, iv, opts);
-  assert.throws(() => {
-    cipher.final();
-  }, hasOpenSSL3 ? {
-    code: 'ERR_OSSL_TAG_NOT_SET'
-  } : {
-    message: /Unsupported state/
-  });
+    const cipher = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
+    assert.throws(() => {
+      cipher.final();
+    }, hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
+      message: /Unsupported state/
+    });
+  }
 }
 
-{
+if (process.features.openssl_is_boringssl) {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+} else {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
@@ -657,13 +662,15 @@ for (const test of TEST_CASES) {
 
 // ChaCha20-Poly1305 should respect the authTagLength option and should not
 // require the authentication tag before calls to update() during decryption.
-{
+if (process.features.openssl_is_boringssl) {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+} else {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
   for (let authTagLength = 1; authTagLength <= 16; authTagLength++) {
     const cipher =
-        crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
+      crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
     const ciphertext = Buffer.concat([cipher.update('foo'), cipher.final()]);
     const authTag = cipher.getAuthTag();
     assert.strictEqual(authTag.length, authTagLength);
@@ -706,7 +713,9 @@ for (const test of TEST_CASES) {
 // shorter tags as long as their length was valid according to NIST SP 800-38D.
 // For ChaCha20-Poly1305, we intentionally deviate from that because there are
 // no recommended or approved authentication tag lengths below 16 bytes.
-{
+if (process.features.openssl_is_boringssl) {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+} else {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });
@@ -743,7 +752,9 @@ for (const test of TEST_CASES) {
 }
 
 // https://github.com/nodejs/node/issues/45874
-{
+if (process.features.openssl_is_boringssl) {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+} else {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });
