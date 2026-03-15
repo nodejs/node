@@ -3,7 +3,7 @@
     "root": {
       "name": "root",
       "path": "./root",
-      "dependencies": ["nonexistent-key"]
+      "dependencies": {"nonexistent": "nonexistent-key"}
     }
   }
 }

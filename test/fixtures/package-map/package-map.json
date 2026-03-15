@@ -3,22 +3,22 @@
     "root": {
       "name": "root",
       "path": "./root",
-      "dependencies": ["dep-a", "dep-b"]
+      "dependencies": {"dep-a": "dep-a", "dep-b": "dep-b"}
     },
     "dep-a": {
       "name": "dep-a",
       "path": "./dep-a",
-      "dependencies": []
+      "dependencies": {}
     },
     "dep-b": {
       "name": "dep-b",
       "path": "./dep-b",
-      "dependencies": ["dep-a"]
+      "dependencies": {"dep-a": "dep-a"}
     },
     "not-a-dep": {
       "name": "not-a-dep",
       "path": "./not-a-dep",
-      "dependencies": []
+      "dependencies": {}
     }
   }
 }

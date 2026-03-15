@@ -261,6 +261,27 @@ describe('ESM: --experimental-package-map', () => {
     });
   });
 
+  // =========== Same Request, Different Versions ===========
+
+  describe('same request resolves to different versions', () => {
+    const versionForkMap = fixtures.path('package-map/package-map-version-fork.json');
+
+    it('resolves the same bare specifier to different packages depending on the importer', async () => {
+      // app-18 and app-19 both import 'react', but the package map wires
+      // them to react@18 and react@19 respectively.
+      const { code, stdout, stderr } = await spawnPromisified(execPath, [
+        '--experimental-package-map', versionForkMap,
+        '--input-type=module',
+        '--eval',
+        `import app18 from 'app-18'; import app19 from 'app-19'; console.log(app18); console.log(app19);`,
+      ], { cwd: fixtures.path('package-map/root') });
+
+      assert.strictEqual(code, 0, stderr);
+      assert.match(stdout, /app-18 using react 18/);
+      assert.match(stdout, /app-19 using react 19/);
+    });
+  });
+
   // =========== Longest Path Wins ===========
 
   describe('longest path wins', () => {

@@ -3,12 +3,12 @@
     "app": {
       "name": "app",
       "path": "./src",
-      "dependencies": ["dep-a"]
+      "dependencies": {"dep-a": "dep-a"}
     },
     "dep-a": {
       "name": "dep-a",
       "path": "../dep-a",
-      "dependencies": []
+      "dependencies": {}
     }
   }
 }

@@ -3,12 +3,12 @@
     "pkg": {
       "name": "pkg",
       "path": "./pkg",
-      "dependencies": []
+      "dependencies": {}
     },
     "pkg-other": {
       "name": "pkg-other",
       "path": "./pkg-other",
-      "dependencies": ["pkg"]
+      "dependencies": {"pkg": "pkg"}
     }
   }
 }

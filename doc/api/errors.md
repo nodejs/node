@@ -2505,10 +2505,10 @@ added: REPLACEME
 -->
 
 A package attempted to import another package that exists in the [package map][]
-but is not listed in its `dependencies` array.
+but is not listed in its `dependencies` object.
 
 ```mjs
-// package-map.json declares "app" with dependencies: ["utils"]
+// package-map.json declares "app" with dependencies: {"utils": "utils"}
 // but "app" tries to import "secret-lib" which exists in the map
 
 // In app/index.js
@@ -2516,7 +2516,7 @@ import secret from 'secret-lib'; // Throws ERR_PACKAGE_MAP_ACCESS_DENIED
 ```
 
 To fix this error, add the required package to the importing package's
-`dependencies` array in the package map configuration file.
+`dependencies` object in the package map configuration file.
 
 <a id="ERR_PACKAGE_MAP_INVALID"></a>
 
@@ -2546,8 +2546,8 @@ Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file n
 added: REPLACEME
 -->
 
-A package's `dependencies` array in the [package map][] references a key that
-is not defined in the `packages` object.
+A package's `dependencies` object in the [package map][] references a package
+key that is not defined in the `packages` object.
 
 ```json
 {
@@ -2555,17 +2555,19 @@ is not defined in the `packages` object.
     "app": {
       "name": "app",
       "path": "./app",
-      "dependencies": ["nonexistent"]
+      "dependencies": {
+        "foo": "nonexistent"
+      }
     }
   }
 }
 ```
 
-In this example, `"nonexistent"` is referenced in `dependencies` but not
+In this example, `"nonexistent"` is referenced as a dependency target but not
 defined in `packages`, which will throw this error.
 
-To fix this error, ensure all keys referenced in `dependencies` arrays are
-defined in the `packages` object.
+To fix this error, ensure all package keys referenced in `dependencies` values
+are defined in the `packages` object.
 
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 

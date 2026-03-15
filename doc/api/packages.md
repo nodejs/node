@@ -989,17 +989,21 @@ Each key in `packages` is a unique identifier for a package entry:
     "app": {
       "name": "my-app",
       "path": "./packages/app",
-      "dependencies": ["utils", "ui-lib"]
+      "dependencies": {
+        "@myorg/utils": "utils",
+        "@myorg/ui-lib": "ui-lib"
+      }
     },
     "utils": {
       "name": "@myorg/utils",
-      "path": "./packages/utils",
-      "dependencies": []
+      "path": "./packages/utils"
     },
     "ui-lib": {
       "name": "@myorg/ui-lib",
       "path": "./packages/ui-lib",
-      "dependencies": ["utils"]
+      "dependencies": {
+        "@myorg/utils": "utils"
+      }
     }
   }
 }
@@ -1011,8 +1015,10 @@ Each package entry has the following fields:
   the package directory.
 * `name` {string} The package name used in import specifiers. If omitted, the
   package cannot be imported by name but can still import its dependencies.
-* `dependencies` {string\[]} Array of package keys that this package is allowed
-  to import. Defaults to an empty array.
+* `dependencies` {Object} An object mapping bare specifiers to package keys.
+  Each key is the import name used in source code, and each value is the
+  corresponding package key in the `packages` object. Defaults to an empty
+  object.
 
 ### Resolution algorithm
 
@@ -1022,9 +1028,9 @@ When a bare specifier is encountered:
    if the file path is within any package's `path`.
 2. If the importing file is not within any mapped package, a
    `MODULE_NOT_FOUND` error is thrown.
-3. Node.js searches the importing package's `dependencies` array for an entry
-   whose `name` matches the specifier's package name.
-4. If found, the specifier resolves to that dependency's `path`.
+3. Node.js looks up the specifier's package name in the importing package's
+   `dependencies` object to find the corresponding package key.
+4. If found, the specifier resolves to the target package's `path`.
 5. If the package exists in the map but is not in `dependencies`, an
    [`ERR_PACKAGE_MAP_ACCESS_DENIED`][] error is thrown.
 6. If the package does not exist in the map at all, a
@@ -1046,8 +1052,9 @@ then used to resolve the final file path.
 
 ### Multiple package versions
 
-Different packages can depend on different versions of the same package by
-using distinct keys:
+Different packages can depend on different versions of the same package.
+Because `dependencies` maps bare specifiers to package keys, two packages
+can map the same specifier to different targets:
 
 ```json
 {
@@ -1055,22 +1062,24 @@ using distinct keys:
     "app": {
       "name": "app",
       "path": "./app",
-      "dependencies": ["component-v2"]
+      "dependencies": {
+        "component": "component-v2"
+      }
     },
     "legacy": {
       "name": "legacy",
       "path": "./legacy",
-      "dependencies": ["component-v1"]
+      "dependencies": {
+        "component": "component-v1"
+      }
     },
     "component-v1": {
       "name": "component",
-      "path": "./vendor/component-1.0.0",
-      "dependencies": []
+      "path": "./vendor/component-1.0.0"
     },
     "component-v2": {
       "name": "component",
-      "path": "./vendor/component-2.0.0",
-      "dependencies": []
+      "path": "./vendor/component-2.0.0"
     }
   }
 }

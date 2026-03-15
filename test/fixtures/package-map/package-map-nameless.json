@@ -2,12 +2,12 @@
   "packages": {
     "nameless": {
       "path": "./nameless-pkg",
-      "dependencies": []
+      "dependencies": {}
     },
     "forbidden": {
       "name": "forbidden",
       "path": "./not-a-dep",
-      "dependencies": []
+      "dependencies": {}
     }
   }
 }

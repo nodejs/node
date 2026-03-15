@@ -199,6 +199,27 @@ describe('CJS: --experimental-package-map', () => {
     });
   });
 
+  describe('same request resolves to different versions', () => {
+    const versionForkMap = fixtures.path('package-map/package-map-version-fork.json');
+
+    it('resolves the same bare specifier to different packages depending on the importer', () => {
+      // app-18 and app-19 both require 'react', but the package map wires
+      // them to react@18 and react@19 respectively.
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--experimental-package-map', versionForkMap,
+        '-e',
+        `const app18 = require('app-18'); const app19 = require('app-19'); console.log(app18.default); console.log(app19.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(status, 0, stderr);
+      assert.match(stdout, /app-18 using react 18/);
+      assert.match(stdout, /app-19 using react 19/);
+    });
+  });
+
   describe('longest path wins', () => {
     const longestPathMap = fixtures.path('package-map/package-map-longest-path.json');
 
