@@ -20,18 +20,20 @@ test('subtest should return a promise', async (t) => {
 });
 
 test('t.test[variant]() should return a promise', async (t) => {
-  assert.ok(isPromise(
-    t.test.expectFailure('expectFailure subtest', () => { throw new Error('This should pass'); })
-  ));
-  assert.ok(isPromise(
-    t.test.only('only subtest')
-  ));
-  assert.ok(isPromise(
-    t.test.skip('skip subtest')
-  ));
-  assert.ok(isPromise(
-    t.test.todo('todo subtest')
-  ));
+  const xfail = t.test.expectFailure('expectFailure subtest', () => { throw new Error('This should pass'); });
+  const only = t.test.only('only subtest');
+  const skip = t.test.skip('skip subtest');
+  const todo = t.test.todo('todo subtest');
+
+  assert.ok(isPromise(xfail));
+  assert.ok(isPromise(only));
+  assert.ok(isPromise(skip));
+  assert.ok(isPromise(todo));
+
+  await xfail;
+  await only;
+  await skip;
+  await todo;
 });
 
 test('nested subtests should have test variants', async (t) => {
