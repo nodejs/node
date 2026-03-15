@@ -2083,10 +2083,10 @@ added: v22.5.0
 
 > Stability: 1.1 - Active Development
 
-* `ref` {Object | Function} The reference to the resource that is being tracked.
+* `ref` {Object|Function} The reference to the resource that is being tracked.
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
-  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `ref` {Object|Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
 
 This function registers a callback to be called when the process emits the `exit`
@@ -2192,11 +2192,11 @@ added: v22.5.0
 
 > Stability: 1.1 - Active Development
 
-* `ref` {Object | Function} The reference
+* `ref` {Object|Function} The reference
   to the resource that is being tracked.
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
-  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `ref` {Object|Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
 
 This function behaves exactly like the `register`, except that the callback will be called
@@ -2213,7 +2213,7 @@ added: v22.5.0
 
 > Stability: 1.1 - Active Development
 
-* `ref` {Object | Function} The reference
+* `ref` {Object|Function} The reference
   to the resource that was registered previously.
 
 This function remove the register of the object from the finalization
@@ -2750,7 +2750,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
+* `path` {string|URL|Buffer|undefined}. **Default:** `'./.env'`
 
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
@@ -3992,7 +3992,7 @@ This feature is not available in [`Worker`][] threads.
 added: v0.1.28
 -->
 
-* `id` {integer | string}
+* `id` {integer|string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See
 setuid(2).) The `id` can be passed as either a numeric ID or a username string.

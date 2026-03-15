@@ -124,7 +124,7 @@ changes:
     description: Add new SQLite database options.
 -->
 
-* `path` {string | Buffer | URL} The path of the database. A SQLite database can be
+* `path` {string|Buffer|URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
   the path should be a file path. To use an in-memory database, the path
   should be the special name `':memory:'`.
@@ -207,7 +207,7 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
     `inverse` and `step` must be invoked with exactly `length` arguments.
     **Default:** `false`.
-  * `start` {number | string | null | Array | Object | Function} The identity
+  * `start` {number|string|null|Array|Object|Function} The identity
     value for the aggregation function. This value is used when the aggregation
     function is initialized. When a {Function} is passed the identity will be its return value.
   * `step` {Function} The function to call for each row in the aggregation. The
@@ -325,7 +325,7 @@ added:
 
 * `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
   database that has been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
-* Returns: {string | null} The location of the database file. When using an in-memory database,
+* Returns: {string|null} The location of the database file. When using an in-memory database,
   this method returns null.
 
 This method is a wrapper around [`sqlite3_db_filename()`][]
@@ -1107,7 +1107,7 @@ added: v24.9.0
   query.
 * `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
   Parameter values to be bound to placeholders in the template string.
-* Returns: {Object | undefined} An object representing the first row returned by
+* Returns: {Object|undefined} An object representing the first row returned by
   the query, or `undefined` if no rows are returned.
 
 Executes the given SQL query and returns the first resulting row as an object.
@@ -1229,7 +1229,7 @@ changes:
 -->
 
 * `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
-* `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
+* `path` {string|Buffer|URL} The path where the backup will be created. If the file already exists,
   the contents will be overwritten.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:

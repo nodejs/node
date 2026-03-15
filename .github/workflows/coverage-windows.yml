@@ -22,7 +22,6 @@ on:
       - tools/doc/**
       - tools/eslint-rules/**
       - tools/eslint/**
-      - tools/lint-md/**
       - typings/**
       - .**
       - '!.github/workflows/coverage-windows.yml'
@@ -48,7 +47,6 @@ on:
       - tools/doc/**
       - tools/eslint-rules/**
       - tools/eslint/**
-      - tools/lint-md/**
       - typings/**
       - .**
       - '!.github/workflows/coverage-windows.yml'

@@ -28,23 +28,6 @@ updates:
           - '*'
 
   - package-ecosystem: npm
-    directory: /tools/lint-md
-    schedule:
-      interval: monthly
-    cooldown:
-      semver-major-days: 5
-      semver-minor-days: 5
-      semver-patch-days: 5
-    commit-message:
-      prefix: tools
-    open-pull-requests-limit: 10
-    groups:
-      lint-md:
-        applies-to: version-updates
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
     directory: /tools/doc
     schedule:
       interval: weekly

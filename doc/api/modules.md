@@ -942,7 +942,7 @@ extensions gets slower with each registered extension.
 added: v0.1.17
 -->
 
-* Type: {module | undefined}
+* Type: {module|undefined}
 
 The `Module` object representing the entry script loaded when the Node.js
 process launched, or `undefined` if the entry point of the program is not a
@@ -1198,7 +1198,7 @@ deprecated:
 > Stability: 0 - Deprecated: Please use [`require.main`][] and
 > [`module.children`][] instead.
 
-* Type: {module | null | undefined}
+* Type: {module|null|undefined}
 
 The module that first required this one, or `null` if the current module is the
 entry point of the current process, or `undefined` if the module was loaded by
