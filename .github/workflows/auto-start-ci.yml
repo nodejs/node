@@ -45,10 +45,6 @@ jobs:
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-
       - name: Install Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
@@ -62,14 +58,17 @@ jobs:
           ncu-config set username "$USERNAME"
           ncu-config set token "$GH_TOKEN"
           ncu-config set jenkins_token "$JENKINS_TOKEN"
-          ncu-config set owner "${{ github.repository_owner }}"
-          ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
+          ncu-config set owner "$GITHUB_REPOSITORY_OWNER"
+          ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the CI
-        run: ./tools/actions/start-ci.sh ${{ needs.get-prs-for-ci.outputs.numbers }}
+        run: |
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
+          | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

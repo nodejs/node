@@ -4,7 +4,7 @@
     "path": "common"
   },
   "compression": {
-    "commit": "67880a4eb83ca9aa732eec4b35a1971ff5bf37ff",
+    "commit": "ae05f5cb53d3e290b91ae1e92069baa188292880",
     "path": "compression"
   },
   "console": {
@@ -72,7 +72,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "efb889eb4c9ca0b4e3ebd8ab308646b7483a8f54",
+    "commit": "c928b19ab04a4525807238e9299c23f3a1cca582",
     "path": "url"
   },
   "urlpattern": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "7cbe7e8ed962eac692ba4ad2e6ce3b9daafb65c0",
+    "commit": "6a1c545d778f115c84a1c27c25484afd442b89d8",
     "path": "WebCryptoAPI"
   },
   "webidl": {

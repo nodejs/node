@@ -1,14 +1,5 @@
 {
-  "compression-bad-chunks.tentative.any.js": {
-    "skip": "Execution \"hangs\", ArrayBuffer and TypedArray is not accepted and throws, instead of rejects during writer.write"
-  },
-  "decompression-bad-chunks.tentative.any.js": {
-    "skip": "Execution \"hangs\", ArrayBuffer and TypedArray is not accepted and throws, instead of rejects during writer.write"
-  },
-  "decompression-buffersource.tentative.any.js": {
-    "skip": "ArrayBuffer and TypedArray is not accepted and throws, instead of rejects during writer.write"
-  },
-  "compression-with-detach.tentative.window.js": {
+  "compression-with-detach.window.js": {
     "requires": ["crypto"]
   },
   "idlharness-shadowrealm.window.js": {

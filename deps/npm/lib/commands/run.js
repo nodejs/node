@@ -57,7 +57,7 @@ class RunScript extends BaseCommand {
       if (!args.length) {
         const newline = await this.#list(path, { workspace })
         if (newline && !last) {
-          output.standard('')
+          output.standard()
         }
         continue
       }

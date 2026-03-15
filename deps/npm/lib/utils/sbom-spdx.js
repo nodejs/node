@@ -110,6 +110,11 @@ const toSpdxItem = (node, { packageType }) => {
     if (typeof license === 'object') {
       license = license.type
     }
+  } else if (Array.isArray(node.package?.licenses)) {
+    license = node.package.licenses
+      .map(l => (typeof l === 'object' ? l.type : l))
+      .filter(Boolean)
+      .join(' OR ')
   }
 
   const pkg = {

@@ -1,7 +1,7 @@
 ---
-title: orgs
+title: Organizations
 section: 7
-description: Working with Teams & Orgs
+description: Working with teams & organizations
 ---
 
 ### Description

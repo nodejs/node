@@ -15,7 +15,7 @@ module.exports = {
   },
 
   create(context) {
-    const sourceCode = context.getSourceCode();
+    const sourceCode = context.sourceCode;
 
     // Helper function: Checks if two nodes have identical tokens
     function equalTokens(left, right) {

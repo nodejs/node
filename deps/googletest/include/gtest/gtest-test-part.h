@@ -37,6 +37,7 @@
 #include <iosfwd>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "gtest/internal/gtest-internal.h"
@@ -65,10 +66,10 @@ class GTEST_API_ [[nodiscard]] TestPartResult {
   // C'tor.  TestPartResult does NOT have a default constructor.
   // Always use this constructor (with parameters) to create a
   // TestPartResult object.
-  TestPartResult(Type a_type, const char* a_file_name, int a_line_number,
-                 const char* a_message)
+  TestPartResult(Type a_type, std::string_view a_file_name, int a_line_number,
+                 std::string_view a_message)
       : type_(a_type),
-        file_name_(a_file_name == nullptr ? "" : a_file_name),
+        file_name_(a_file_name),
         line_number_(a_line_number),
         summary_(ExtractSummary(a_message)),
         message_(a_message) {}
@@ -112,7 +113,7 @@ class GTEST_API_ [[nodiscard]] TestPartResult {
 
   // Gets the summary of the failure message by omitting the stack
   // trace in it.
-  static std::string ExtractSummary(const char* message);
+  static std::string ExtractSummary(std::string_view message);
 
   // The name of the source file where the test part took place, or
   // "" if the source file is unknown.

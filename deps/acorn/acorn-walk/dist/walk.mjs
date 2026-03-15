@@ -20,7 +20,7 @@ function simple(node, visitors, baseVisitor, state, override) {
   if (!baseVisitor) { baseVisitor = base
   ; }(function c(node, st, override) {
     var type = override || node.type;
-    baseVisitor[type](node, st, c);
+    visitNode(baseVisitor, type, node, st, c);
     if (visitors[type]) { visitors[type](node, st); }
   })(node, state, override);
 }
@@ -35,7 +35,7 @@ function ancestor(node, visitors, baseVisitor, state, override) {
     var type = override || node.type;
     var isNew = node !== ancestors[ancestors.length - 1];
     if (isNew) { ancestors.push(node); }
-    baseVisitor[type](node, st, c);
+    visitNode(baseVisitor, type, node, st, c);
     if (visitors[type]) { visitors[type](node, st || ancestors, ancestors); }
     if (isNew) { ancestors.pop(); }
   })(node, state, override);
@@ -70,7 +70,7 @@ function full(node, callback, baseVisitor, state, override) {
   var last
   ;(function c(node, st, override) {
     var type = override || node.type;
-    baseVisitor[type](node, st, c);
+    visitNode(baseVisitor, type, node, st, c);
     if (last !== node) {
       callback(node, st, type);
       last = node;
@@ -87,7 +87,7 @@ function fullAncestor(node, callback, baseVisitor, state) {
     var type = override || node.type;
     var isNew = node !== ancestors[ancestors.length - 1];
     if (isNew) { ancestors.push(node); }
-    baseVisitor[type](node, st, c);
+    visitNode(baseVisitor, type, node, st, c);
     if (last !== node) {
       callback(node, st || ancestors, ancestors, type);
       last = node;
@@ -107,7 +107,7 @@ function findNodeAt(node, start, end, test, baseVisitor, state) {
       var type = override || node.type;
       if ((start == null || node.start <= start) &&
           (end == null || node.end >= end))
-        { baseVisitor[type](node, st, c); }
+        { visitNode(baseVisitor, type, node, st, c); }
       if ((start == null || node.start === start) &&
           (end == null || node.end === end) &&
           test(type, node))
@@ -128,7 +128,7 @@ function findNodeAround(node, pos, test, baseVisitor, state) {
     (function c(node, st, override) {
       var type = override || node.type;
       if (node.start > pos || node.end < pos) { return }
-      baseVisitor[type](node, st, c);
+      visitNode(baseVisitor, type, node, st, c);
       if (test(type, node)) { throw new Found(node, st) }
     })(node, state);
   } catch (e) {
@@ -146,7 +146,7 @@ function findNodeAfter(node, pos, test, baseVisitor, state) {
       if (node.end < pos) { return }
       var type = override || node.type;
       if (node.start >= pos && test(type, node)) { throw new Found(node, st) }
-      baseVisitor[type](node, st, c);
+      visitNode(baseVisitor, type, node, st, c);
     })(node, state);
   } catch (e) {
     if (e instanceof Found) { return e }
@@ -164,7 +164,7 @@ function findNodeBefore(node, pos, test, baseVisitor, state) {
     var type = override || node.type;
     if (node.end <= pos && (!max || max.node.end < node.end) && test(type, node))
       { max = new Found(node, st); }
-    baseVisitor[type](node, st, c);
+    visitNode(baseVisitor, type, node, st, c);
   })(node, state);
   return max
 }
@@ -179,6 +179,11 @@ function make(funcs, baseVisitor) {
 
 function skipThrough(node, st, c) { c(node, st); }
 function ignore(_node, _st, _c) {}
+
+function visitNode(baseVisitor, type, node, st, c) {
+  if (baseVisitor[type] == null) { throw new Error(("No walker function defined for node type " + type)) }
+  baseVisitor[type](node, st, c);
+}
 
 // Node walkers.
 
@@ -391,11 +396,28 @@ base.ExportNamedDeclaration = base.ExportDefaultDeclaration = function (node, st
   if (node.declaration)
     { c(node.declaration, st, node.type === "ExportNamedDeclaration" || node.declaration.id ? "Statement" : "Expression"); }
   if (node.source) { c(node.source, st, "Expression"); }
+  if (node.attributes)
+    { for (var i = 0, list = node.attributes; i < list.length; i += 1)
+      {
+        var attr = list[i];
+
+        c(attr, st);
+      } }
 };
 base.ExportAllDeclaration = function (node, st, c) {
   if (node.exported)
     { c(node.exported, st); }
   c(node.source, st, "Expression");
+  if (node.attributes)
+    { for (var i = 0, list = node.attributes; i < list.length; i += 1)
+      {
+        var attr = list[i];
+
+        c(attr, st);
+      } }
+};
+base.ImportAttribute = function (node, st, c) {
+  c(node.value, st, "Expression");
 };
 base.ImportDeclaration = function (node, st, c) {
   for (var i = 0, list = node.specifiers; i < list.length; i += 1)
@@ -405,9 +427,17 @@ base.ImportDeclaration = function (node, st, c) {
     c(spec, st);
   }
   c(node.source, st, "Expression");
+  if (node.attributes)
+    { for (var i$1 = 0, list$1 = node.attributes; i$1 < list$1.length; i$1 += 1)
+      {
+        var attr = list$1[i$1];
+
+        c(attr, st);
+      } }
 };
 base.ImportExpression = function (node, st, c) {
   c(node.source, st, "Expression");
+  if (node.options) { c(node.options, st, "Expression"); }
 };
 base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifier = base.Identifier = base.PrivateIdentifier = base.Literal = ignore;
 

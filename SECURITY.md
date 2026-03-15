@@ -320,9 +320,17 @@ the community they pose.
   * Avoid exposing low-level or dangerous APIs directly to untrusted users.
 
 * Examples of scenarios that are **not** Node.js vulnerabilities:
-  * Allowing untrusted users to register SQLite user-defined functions that can
-    perform arbitrary operations (e.g., closing database connections during query
-    execution, causing crashes or use-after-free conditions).
+  * Allowing untrusted users to register SQLite user-defined functions via
+    `node:sqlite` (`DatabaseSync`) that can perform arbitrary operations
+    (e.g., closing database connections during query execution, causing crashes
+    or use-after-free conditions).
+  * Loading SQLite extensions using the `allowExtension` option in
+    `DatabaseSync` — this option must be explicitly set to `true` by the
+    application, and enabling it is the application operator's responsibility.
+  * Using `node:sqlite` built-in SQL functions or pragmas (e.g.,
+    `ATTACH DATABASE`) to read or write files — `DatabaseSync` operates with
+    the same file-system access as the process itself, and it is the
+    application's responsibility to restrict what SQL is executed.
   * Exposing `child_process.exec()` or similar APIs to untrusted users without
     proper input validation, allowing command injection.
   * Allowing untrusted users to control file paths passed to file system APIs
@@ -335,6 +343,21 @@ the community they pose.
   proper security boundaries between trusted application logic and untrusted
   user input.
 
+#### Build System Attacks Requiring Control of the Build Environment (CWE-78, CWE-114, CWE-276)
+
+* The Node.js build system (e.g., `configure`, `configure.py`, `Makefile`,
+  `vcbuild.bat`) is designed to run in a trusted build environment.
+  The build environment, including environment variables, the file system,
+  and locally installed tools, is a trusted element in the Node.js threat model.
+* Reports about command injection via environment variables in build scripts
+  (e.g., `CC`, `CXX`, `PKG_CONFIG`, `RUSTC`), path hijacking in build output
+  directories, or file permissions of build artifacts are **not** considered
+  vulnerabilities. These scenarios require the attacker to already have control
+  over the build environment, which means the system is already compromised.
+* Build scripts are not a security boundary. They are expected to execute
+  tools and scripts specified by the environment, and to trust the
+  file system they operate on.
+
 #### Unhandled 'error' Events on EventEmitters (CWE-248)
 
 * EventEmitters that can emit `'error'` events require the application to
@@ -346,6 +369,56 @@ the community they pose.
   denial-of-service vulnerabilities in Node.js. It is the application's
   responsibility to properly handle errors by attaching appropriate
   `'error'` event listeners to EventEmitters that may emit errors.
+
+#### Permission Model Boundaries (`--permission`)
+
+The Node.js [Permission Model](https://nodejs.org/api/permissions.html)
+(`--experimental-permission`) is an opt-in mechanism that limits which
+resources a Node.js process may access. It is designed to reduce the blast
+radius of mistakes in trusted application code, **not** to act as a security
+boundary against intentional misuse or a compromised process.
+
+The following are **not** vulnerabilities in Node.js:
+
+* **Operator-controlled flags**: Behavior unlocked by flags the operator
+  explicitly passes (e.g., `--localstorage-file`) is the operator's
+  responsibility. The permission model does not restrict how Node.js behaves
+  when the operator intentionally configures it.
+
+* **`node:sqlite` and the permission model**: `DatabaseSync` operates with the
+  same file-system privileges as the process. Using SQL pragmas or built-in
+  SQLite mechanisms (e.g., `ATTACH DATABASE`) to access files does not bypass
+  the permission model — the permission model does not intercept SQL-level
+  file operations.
+
+* **Path resolution and symlinks**: `fs.realpathSync()`, `fs.realpath()`, and
+  similar functions resolve a path to its canonical form before the permission
+  check is applied. Accessing a file through a symlink that resolves to an
+  allowed path is the intended behavior, not a bypass. TOCTOU races on
+  symlinks that resolve within the allowed list are similarly not considered
+  permission model bypasses.
+
+* **`worker_threads` with modified `execArgv`**: Workers inherit the permission
+  restrictions of their parent process. Passing an empty or modified `execArgv`
+  to a worker does not grant it additional permissions.
+
+#### V8 Sandbox
+
+The V8 sandbox is an in-process isolation mechanism internal to V8 that is not
+a Node.js security boundary. Node.js does not guarantee or document the V8
+sandbox as a security feature, and it is not enabled in a way that provides
+security guarantees in production Node.js builds. Reports about escaping the V8
+sandbox are not considered Node.js vulnerabilities; they should be reported
+directly to the [V8 project](https://v8.dev/docs/security-bugs).
+
+#### CRLF Injection in `writeEarlyHints()`
+
+`ServerResponse.writeEarlyHints()` accepts a `link` header value that is set
+by the application. Passing arbitrary strings, including CRLF sequences, as
+the `link` value is an application-level misuse of the API, not a Node.js
+vulnerability. Node.js validates the structure of Early Hints per the HTTP spec
+but does not sanitize free-form application data passed to it; that is the
+application's responsibility.
 
 ## Assessing experimental features reports
 

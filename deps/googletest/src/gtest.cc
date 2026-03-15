@@ -58,6 +58,7 @@
 #include <ostream>  // NOLINT
 #include <set>
 #include <sstream>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -485,6 +486,15 @@ bool ShouldEmitStackTraceForResultType(TestPartResult::Type type) {
 // AssertHelper constructor.
 AssertHelper::AssertHelper(TestPartResult::Type type, const char* file,
                            int line, const char* message)
+    : AssertHelper(
+          type, file == nullptr ? std::string_view() : std::string_view(file),
+          line,
+          message == nullptr ? std::string_view() : std::string_view(message)) {
+}
+
+AssertHelper::AssertHelper(TestPartResult::Type type,
+                           const std::string_view file, int line,
+                           const std::string_view message)
     : data_(new AssertHelperData(type, file, line, message)) {}
 
 AssertHelper::~AssertHelper() { delete data_; }
@@ -875,7 +885,11 @@ class PositiveAndNegativeUnitTestFilter {
   // and does not match the negative filter.
   bool MatchesTest(const std::string& test_suite_name,
                    const std::string& test_name) const {
+#ifdef GTEST_HAS_ABSL
+    return MatchesName(absl::StrCat(test_suite_name, ".", test_name));
+#else
     return MatchesName(test_suite_name + "." + test_name);
+#endif
   }
 
   // Returns true if and only if name matches the positive filter and does not
@@ -2547,8 +2561,9 @@ void ReportFailureInUnknownLocation(TestPartResult::Type result_type,
   // AddTestPartResult.
   UnitTest::GetInstance()->AddTestPartResult(
       result_type,
-      nullptr,  // No info about the source file where the exception occurred.
-      -1,       // We have no info on which line caused the exception.
+      std::string_view(),  // No info about the source file where the exception
+                           // occurred.
+      -1,  // We have no info on which line caused the exception.
       message,
       "");  // No stack trace, either.
 }
@@ -5428,8 +5443,8 @@ Environment* UnitTest::AddEnvironment(Environment* env) {
 // this to report their results.  The user code should use the
 // assertion macros instead of calling this directly.
 void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
-                                 const char* file_name, int line_number,
-                                 const std::string& message,
+                                 const std::string_view file_name,
+                                 int line_number, const std::string& message,
                                  const std::string& os_stack_trace)
     GTEST_LOCK_EXCLUDED_(mutex_) {
   Message msg;

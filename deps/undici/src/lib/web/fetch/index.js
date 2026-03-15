@@ -2302,6 +2302,41 @@ async function httpNetworkFetch (
           reject(error)
         },
 
+        onRequestUpgrade (_controller, status, headers, socket) {
+          // We need to support 200 for websocket over h2 as per RFC-8441
+          // Absence of session means H1
+          if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
+            return false
+          }
+
+          const headersList = new HeadersList()
+
+          for (const [name, value] of Object.entries(headers)) {
+            if (value == null) {
+              continue
+            }
+
+            const headerName = name.toLowerCase()
+
+            if (Array.isArray(value)) {
+              for (const entry of value) {
+                headersList.append(headerName, String(entry), true)
+              }
+            } else {
+              headersList.append(headerName, String(value), true)
+            }
+          }
+
+          resolve({
+            status,
+            statusText: STATUS_CODES[status],
+            headersList,
+            socket
+          })
+
+          return true
+        },
+
         onUpgrade (status, rawHeaders, socket) {
           // We need to support 200 for websocket over h2 as per RFC-8441
           // Absence of session means H1

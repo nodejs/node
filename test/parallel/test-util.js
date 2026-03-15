@@ -87,3 +87,13 @@ assert.throws(() => {
   message: 'The "str" argument must be of type string.' +
            common.invalidArgTypeHelper({})
 });
+
+// stripVTControlCharacters: fast path returns input when no ANSI codes
+assert.strictEqual(util.stripVTControlCharacters('hello'), 'hello');
+assert.strictEqual(util.stripVTControlCharacters(''), '');
+
+// stripVTControlCharacters: strips 7-bit ESC sequences
+assert.strictEqual(util.stripVTControlCharacters('\u001B[31mfoo\u001B[39m'), 'foo');
+
+// stripVTControlCharacters: strips 8-bit CSI sequences
+assert.strictEqual(util.stripVTControlCharacters('\u009B31mfoo\u009B39m'), 'foo');

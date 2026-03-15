@@ -422,7 +422,7 @@ module.exports = cls => class Reifier extends cls {
       if (includeWorkspaces) {
         // add all ws nodes to filterNodes
         for (const ws of this.options.workspaces) {
-          const ideal = this.idealTree.children.get(ws)
+          const ideal = this.idealTree.children.get && this.idealTree.children.get(ws)
           if (ideal) {
             filterNodes.push(ideal)
           }

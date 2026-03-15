@@ -272,7 +272,7 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "Histogram");
     tmpl->SetClassName(classname);
     auto instance = tmpl->InstanceTemplate();
-    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
+    instance->SetInternalFieldCount(HistogramBase::kInternalFieldCount);
     SetFastMethod(isolate, instance, "record", Record, &fast_record_);
     SetFastMethod(
         isolate, instance, "recordDelta", RecordDelta, &fast_record_delta_);
@@ -328,7 +328,7 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Histogram"));
     auto instance = tmpl->InstanceTemplate();
-    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
+    instance->SetInternalFieldCount(IntervalHistogram::kInternalFieldCount);
     HistogramImpl::AddMethods(isolate, tmpl);
     SetFastMethod(isolate, instance, "start", Start, &fast_start_);
     SetFastMethod(isolate, instance, "stop", Stop, &fast_stop_);

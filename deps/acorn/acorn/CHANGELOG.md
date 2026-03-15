@@ -1,3 +1,21 @@
+## 8.16.0 (2026-02-19)
+
+### New features
+
+The `sourceType` option can now be set to `"commonjs"` to have the parser treat the top level scope as a function scope.
+
+Add support for Unicode 17.
+
+### Bug fixes
+
+Don't recognize `await using` as contextual keywords when followed directly by a backslash.
+
+Fix an issue where the parser would allow `return` statements in `static` blocks when `allowReturnOutsideFunction` was enabled.
+
+Properly reject `using` declarations that appear directly in `switch` or `for` head scopes.
+
+Fix some corner case issues in the recognition of `using` syntax.
+
 ## 8.15.0 (2025-06-08)
 
 ### New features

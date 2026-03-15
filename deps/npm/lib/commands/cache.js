@@ -363,7 +363,7 @@ class Cache extends BaseCommand {
       if (valid) {
         output.standard(results.join('\n'))
       }
-      output.standard('')
+      output.standard()
     }
   }
 }

@@ -189,7 +189,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
     await assert.rejects(
       subtle.decrypt({ name: 'ChaCha20-Poly1305', iv }, secretKey, new Uint8Array(8)),
-      { name: 'OperationError', message: /The provided data is too small/ }
+      { name: 'OperationError' }
     );
 
     // Test invalid tagLength values

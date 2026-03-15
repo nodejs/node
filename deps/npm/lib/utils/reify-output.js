@@ -215,7 +215,7 @@ const packagesFundingMessage = (npm, { funding }) => {
     return
   }
 
-  output.standard('')
+  output.standard()
   const pkg = funding === 1 ? 'package' : 'packages'
   const is = funding === 1 ? 'is' : 'are'
   output.standard(`${funding} ${pkg} ${is} looking for funding`)

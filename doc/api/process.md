@@ -736,6 +736,44 @@ generate a core file.
 
 This feature is not available in [`Worker`][] threads.
 
+## `process.addUncaughtExceptionCaptureCallback(fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function}
+
+The `process.addUncaughtExceptionCaptureCallback()` function adds a callback
+that will be invoked when an uncaught exception occurs, receiving the exception
+value as its first argument.
+
+Unlike [`process.setUncaughtExceptionCaptureCallback()`][], this function allows
+multiple callbacks to be registered and does not conflict with the
+[`domain`][] module. Callbacks are called in reverse order of registration
+(most recent first). If a callback returns `true`, subsequent callbacks
+and the default uncaught exception handling are skipped.
+
+```mjs
+import process from 'node:process';
+
+process.addUncaughtExceptionCaptureCallback((err) => {
+  console.error('Caught exception:', err.message);
+  return true; // Indicates exception was handled
+});
+```
+
+```cjs
+const process = require('node:process');
+
+process.addUncaughtExceptionCaptureCallback((err) => {
+  console.error('Caught exception:', err.message);
+  return true; // Indicates exception was handled
+});
+```
+
 ## `process.allowedNodeEnvironmentFlags`
 
 <!-- YAML
@@ -2002,6 +2040,9 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61803
+    description: Removed `transform` value.
   - version:
       - v25.2.0
       - v24.12.0
@@ -2013,8 +2054,7 @@ changes:
 
 * Type: {boolean|string}
 
-A value that is `"strip"` by default,
-`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
+A value that is `"strip"` by default, and `false` if
 Node.js is run with `--no-strip-types`.
 
 ## `process.features.uv`
@@ -4019,6 +4059,11 @@ This implies calling `module.setSourceMapsSupport()` with an option
 
 <!-- YAML
 added: v9.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61227
+    description: Use `process.addUncaughtExceptionCaptureCallback()` to
+      register multiple callbacks.
 -->
 
 * `fn` {Function|null}
@@ -4038,8 +4083,8 @@ To unset the capture function,
 method with a non-`null` argument while another capture function is set will
 throw an error.
 
-Using this function is mutually exclusive with using the deprecated
-[`domain`][] built-in module.
+To register multiple callbacks that can coexist, use
+[`process.addUncaughtExceptionCaptureCallback()`][] instead.
 
 ## `process.sourceMapsEnabled`
 
@@ -4571,6 +4616,7 @@ cases:
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
 [`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
+[`process.addUncaughtExceptionCaptureCallback()`]: #processadduncaughtexceptioncapturecallbackfn
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath

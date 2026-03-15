@@ -8,7 +8,7 @@ const { startNewREPLServer } = require('../common/repl');
 
 const cpuUsage = process.cpuUsage();
 
-const { replServer } = startNewREPLServer({}, { disableDomainErrorAssert: true });
+const { replServer } = startNewREPLServer();
 replServer.input.emit('data', '{}');
 replServer.input.emit('keypress', '', { name: 'left' });
 replServer.input.emit('data', 'node');

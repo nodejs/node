@@ -16,9 +16,7 @@ class Environment;
 #define CACHED_CODE_TYPES(V)                                                   \
   V(kCommonJS, 0)                                                              \
   V(kESM, 1)                                                                   \
-  V(kStrippedTypeScript, 2)                                                    \
-  V(kTransformedTypeScript, 3)                                                 \
-  V(kTransformedTypeScriptWithSourceMaps, 4)
+  V(kStrippedTypeScript, 2)
 
 enum class CachedCodeType : uint8_t {
 #define V(type, value) type = value,

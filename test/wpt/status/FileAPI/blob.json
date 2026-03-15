@@ -10,7 +10,6 @@
         "blobParts not an object: BigInt with BigInt.prototype[Symbol.iterator]",
         "blobParts not an object: Symbol with Symbol.prototype[Symbol.iterator]",
         "Getters and value conversions should happen in order until an exception is thrown.",
-        "options properties should be accessed in lexicographic order.",
         "Arguments should be evaluated from left to right."
       ],
       "flaky": [

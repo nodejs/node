@@ -26,8 +26,6 @@ declare_args() {
   # TODO(zcbenz): This is currently copied from configure.py, we should share
   # the list between configure.py and GN configurations.
   node_builtin_shareable_builtins = [
-    "deps/cjs-module-lexer/lexer.js",
-    "deps/cjs-module-lexer/dist/lexer.js",
     "deps/undici/undici.js",
     "deps/amaro/dist/index.js",
   ]

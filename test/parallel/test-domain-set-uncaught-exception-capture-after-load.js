@@ -1,30 +1,23 @@
 'use strict';
+// Tests that setUncaughtExceptionCaptureCallback can be called after domain
+// is loaded. This verifies that the mutual exclusivity has been removed.
 const common = require('../common');
 const assert = require('assert');
 
-Error.stackTraceLimit = Infinity;
+// Load domain first
+const domain = require('domain');
+assert.ok(domain);
 
-(function foobar() {
-  require('domain');
-})();
+// Setting callback should not throw (coexistence is now supported)
+process.setUncaughtExceptionCaptureCallback(common.mustNotCall());
 
-assert.throws(
-  () => process.setUncaughtExceptionCaptureCallback(common.mustNotCall()),
-  (err) => {
-    common.expectsError(
-      {
-        code: 'ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE',
-        name: 'Error',
-        message: /^The `domain` module is in use, which is mutually/
-      }
-    )(err);
+// Verify callback is registered
+assert.ok(process.hasUncaughtExceptionCaptureCallback());
 
-    assert(err.stack.includes('-'.repeat(40)),
-           `expected ${err.stack} to contain dashes`);
+// Clean up
+process.setUncaughtExceptionCaptureCallback(null);
+assert.ok(!process.hasUncaughtExceptionCaptureCallback());
 
-    const location = `at foobar (${__filename}:`;
-    assert(err.stack.includes(location),
-           `expected ${err.stack} to contain ${location}`);
-    return true;
-  }
-);
+// Domain should still be usable after callback operations
+const d = domain.create();
+assert.ok(d);

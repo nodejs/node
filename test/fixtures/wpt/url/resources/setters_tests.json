@@ -2548,6 +2548,42 @@
                 "href": "http://example.net/#%00",
                 "hash": "#%00"
             }
+        },
+        {
+            "comment": "Fragment with <> on data: URI",
+            "href": "data:text/plain,test",
+            "new_value": "#<foo> <bar>",
+            "expected": {
+                "href": "data:text/plain,test#%3Cfoo%3E%20%3Cbar%3E",
+                "hash": "#%3Cfoo%3E%20%3Cbar%3E"
+            }
+        },
+        {
+            "comment": "Fragment with <> on about:blank",
+            "href": "about:blank",
+            "new_value": "#<foo> <bar>",
+            "expected": {
+                "href": "about:blank#%3Cfoo%3E%20%3Cbar%3E",
+                "hash": "#%3Cfoo%3E%20%3Cbar%3E"
+            }
+        },
+        {
+            "comment": "Fragment percent-encode set on data: URI; tabs and newlines are removed",
+            "href": "data:text/plain,test",
+            "new_value": "#\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "data:text/plain,test#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Fragment percent-encode set on about:blank; tabs and newlines are removed",
+            "href": "about:blank",
+            "new_value": "#\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "about:blank#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
         }
     ],
     "href": [

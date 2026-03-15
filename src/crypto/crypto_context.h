@@ -19,9 +19,9 @@ constexpr int kMaxSupportedVersion = TLS1_3_VERSION;
 void GetRootCertificates(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
-X509_STORE* NewRootCertStore();
+X509_STORE* NewRootCertStore(Environment* env);
 
-X509_STORE* GetOrCreateRootCertStore();
+X509_STORE* GetOrCreateRootCertStore(Environment* env);
 
 ncrypto::BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 

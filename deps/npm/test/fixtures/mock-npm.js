@@ -83,6 +83,16 @@ const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
       await Promise.all(this.unrefPromises)
       return res
     }
+
+    async exec (cmd, args = this.argv) {
+      // In tests, when exec is called with args, update config.argv to include them
+      // This mimics production where config.argv contains the full command line
+      if (args && args !== this.argv) {
+        // Build full argv: ['node', 'npm', cmd, ...args]
+        this.config.argv = [process.argv[0], process.argv[1], cmd, ...args]
+      }
+      return super.exec(cmd, args)
+    }
   }
 
   const npm = init ? new MockNpm() : null

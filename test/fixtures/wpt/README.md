@@ -11,7 +11,7 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 Last update:
 
 - common: https://github.com/web-platform-tests/wpt/tree/dbd648158d/common
-- compression: https://github.com/web-platform-tests/wpt/tree/67880a4eb8/compression
+- compression: https://github.com/web-platform-tests/wpt/tree/ae05f5cb53/compression
 - console: https://github.com/web-platform-tests/wpt/tree/e48251b778/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/dc928169ee/dom/abort
 - dom/events: https://github.com/web-platform-tests/wpt/tree/0a811c5161/dom/events
@@ -28,13 +28,13 @@ Last update:
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/1d2c5fb36a/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/bc9dcbbf1a/streams
-- url: https://github.com/web-platform-tests/wpt/tree/efb889eb4c/url
+- url: https://github.com/web-platform-tests/wpt/tree/c928b19ab0/url
 - urlpattern: https://github.com/web-platform-tests/wpt/tree/a2e15ad405/urlpattern
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - web-locks: https://github.com/web-platform-tests/wpt/tree/10a122a6bc/web-locks
-- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/7cbe7e8ed9/WebCryptoAPI
+- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/6a1c545d77/WebCryptoAPI
 - webidl: https://github.com/web-platform-tests/wpt/tree/63ca529a02/webidl
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/2f96fa1996/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/6495c91853/webmessaging/broadcastchannel

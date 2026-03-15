@@ -1,0 +1,61 @@
+.TH "NPM-SET" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-set\fR - Set a value in the npm configuration
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm set <key>=<value> \[lB]<key>=<value> ...\[rB] (See `npm config`)
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Set a value in the npm configuration
+.SS "Configuration"
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBlocation\fR"
+.RS 0
+.IP \(bu 4
+Default: "user" unless \fB--global\fR is passed, which will also set this value to "global"
+.IP \(bu 4
+Type: "global", "user", or "project"
+.RE 0
+
+.P
+When passed to \fBnpm config\fR this refers to which config file to use.
+.P
+When set to "global" mode, packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "help config"
+.RE 0

@@ -1,5 +1,6 @@
 #include "module_wrap.h"
 
+#include "debug_utils-inl.h"
 #include "env.h"
 #include "memory_tracker-inl.h"
 #include "node_contextify.h"
@@ -7,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
+#include "node_sea.h"
 #include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
@@ -365,6 +367,20 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
             new ScriptCompiler::CachedData(data + cached_data_buf->ByteOffset(),
                                            cached_data_buf->ByteLength());
       }
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+      // For embedder ESM in a SEA, use the bundled code cache if available.
+      if (id_symbol == realm->isolate_data()->embedder_module_hdo() &&
+          sea::IsSingleExecutable()) {
+        sea::SeaResource sea = sea::FindSingleExecutableResource();
+        if (sea.use_code_cache()) {
+          std::string_view data = sea.code_cache.value();
+          user_cached_data = new ScriptCompiler::CachedData(
+              reinterpret_cast<const uint8_t*>(data.data()),
+              static_cast<int>(data.size()),
+              ScriptCompiler::CachedData::BufferNotOwned);
+        }
+      }
+#endif  // !DISABLE_SINGLE_EXECUTABLE_APPLICATION
       Local<String> source_text = args[2].As<String>();
 
       bool cache_rejected = false;
@@ -389,12 +405,26 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      if (user_cached_data.has_value() && user_cached_data.value() != nullptr &&
-          cache_rejected) {
-        THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
-            realm, "cachedData buffer was rejected");
-        try_catch.ReThrow();
-        return;
+      if (user_cached_data.has_value() && user_cached_data.value() != nullptr) {
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+        if (id_symbol == realm->isolate_data()->embedder_module_hdo() &&
+            sea::IsSingleExecutable()) {
+          if (cache_rejected) {
+            per_process::Debug(DebugCategory::SEA,
+                               "SEA module code cache rejected\n");
+            ProcessEmitWarningSync(realm->env(), "Code cache data rejected.");
+          } else {
+            per_process::Debug(DebugCategory::SEA,
+                               "SEA module code cache accepted\n");
+          }
+        } else  // NOLINT(readability/braces)
+#endif          // !DISABLE_SINGLE_EXECUTABLE_APPLICATION
+          if (cache_rejected) {
+            THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
+                realm, "cachedData buffer was rejected");
+            try_catch.ReThrow();
+            return;
+          }
       }
 
       if (that->Set(context,

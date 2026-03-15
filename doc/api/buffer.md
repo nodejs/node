@@ -3534,12 +3534,12 @@ changes:
                  calculations with them.
 -->
 
+> Stability: 0 - Deprecated: Use [`buf.subarray`][] instead.
+
 * `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
 * `end` {integer} Where the new `Buffer` will end (not inclusive).
   **Default:** [`buf.length`][].
 * Returns: {Buffer}
-
-> Stability: 0 - Deprecated: Use [`buf.subarray`][] instead.
 
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indexes.

@@ -90,16 +90,27 @@ t.test('basic usage', async t => {
 
 t.test('usage', async t => {
   const readdir = async (dir, ext) => {
-    const files = await fs.readdir(dir)
-    return files.filter(f => extname(f) === ext).map(f => basename(f, ext))
+    const files = await fs.readdir(dir, { withFileTypes: true })
+    return files
+      .filter(f => {
+        // Include .js files
+        if (f.isFile() && extname(f.name) === ext) {
+          return true
+        }
+        // Include directories (which should have an index.js)
+        if (f.isDirectory()) {
+          return true
+        }
+        return false
+      })
+      .map(f => f.isDirectory() ? f.name : basename(f.name, ext))
   }
 
   const fsCommands = await readdir(resolve(__dirname, '../../lib/commands'), '.js')
   const docsCommands = await readdir(join(docs.paths.content, 'commands'), docs.DOC_EXT)
   const bareCommands = ['npm', 'npx']
 
-  // XXX: These extra commands exist as js files but not as docs pages
-  const allDocs = docsCommands.concat(['get', 'set', 'll']).map(n => n.replace('npm-', ''))
+  const allDocs = docsCommands.map(n => n.replace('npm-', ''))
 
   // ensure that the list of js files in commands, docs files, and the command list
   // are all in sync. eg, this will error if a command is removed but not its docs file
@@ -125,7 +136,7 @@ t.test('usage', async t => {
       }
 
       const usage = docs.usage(docs.TAGS.USAGE, { path: cmd })
-      const params = docs.params(docs.TAGS.CONFIG, { path: cmd })
+      const params = docs.definitions(docs.TAGS.CONFIG, { path: cmd })
         .split('\n')
         .filter(l => l.startsWith('#### '))
         .join('\n') || 'NO PARAMS'

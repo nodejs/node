@@ -5,10 +5,7 @@ const { startNewREPLServer } = require('../common/repl');
 
 const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
-const { replServer, output } = startNewREPLServer(
-  { prompt: testingReplPrompt },
-  { disableDomainErrorAssert: true }
-);
+const { replServer, output } = startNewREPLServer({ prompt: testingReplPrompt });
 
 replServer.write('throw new Error("foo[a]")\n');
 

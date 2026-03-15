@@ -2,7 +2,7 @@
 
 const { URL } = require('node:url')
 const hostedGitInfo = require('hosted-git-info')
-const validateLicense = require('validate-npm-package-license')
+const validateLicense = require('./license.js')
 
 const typos = {
   dependancies: 'dependencies',
@@ -230,7 +230,7 @@ function normalizeData (data, changes) {
     changes?.push('No license field.')
   } else if (typeof (license) !== 'string' || license.length < 1 || license.trim() === '') {
     changes?.push('license should be a valid SPDX license expression')
-  } else if (!validateLicense(license).validForNewPackages) {
+  } else if (!validateLicense(license)) {
     changes?.push('license should be a valid SPDX license expression')
   }
   // fixPeople

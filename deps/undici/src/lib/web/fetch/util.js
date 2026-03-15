@@ -1439,7 +1439,7 @@ function hasAuthenticationEntry (request) {
  */
 function includesCredentials (url) {
   // A URL includes credentials if its username or password is not the empty string.
-  return !!(url.username && url.password)
+  return !!(url.username || url.password)
 }
 
 /**

@@ -13,7 +13,7 @@ jobs:
     name: Notify on Review Wanted
     if: github.repository == 'nodejs/node' && github.event.label.name == 'review wanted'
     # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Determine PR or Issue
         id: define-message

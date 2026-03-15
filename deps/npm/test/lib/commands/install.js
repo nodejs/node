@@ -1,3 +1,4 @@
+const fs = require('node:fs')
 const tspawk = require('../../fixtures/tspawk')
 const {
   cleanCwd,
@@ -247,7 +248,7 @@ t.test('exec commands', async t => {
       npm.exec('install', ['npm/npm']),
       {
         code: 'EALLOWGIT',
-        message: 'Fetching packages from git has been disabled',
+        message: 'Fetching packages of type "git" have been disabled',
         package: 'github:npm/npm',
       }
     )
@@ -267,7 +268,7 @@ t.test('exec commands', async t => {
     })
     await t.rejects(
       npm.exec('install', ['./abbrev']),
-      /Fetching packages from git has been disabled/
+      /Fetching packages of type "git" have been disabled/
     )
   })
 })
@@ -769,4 +770,273 @@ t.test('devEngines', async t => {
     t.ok(!output.includes('EBADENGINE'))
     t.ok(!output.includes('EBADDEVENGINES'))
   })
+})
+
+// Issue #8726 - npm install should re-resolve to satisfy peerOptional constraints
+// https://github.com/npm/cli/issues/8726
+//
+// When a lockfile has fetcher@1.1.0 but a peerOptional wants fetcher@1.0.0 (exact), npm install (save: true) should re-resolve fetcher to 1.0.0 to satisfy both the regular dep range (^1.0.0) and the exact peerOptional constraint.
+t.test('issue-8726: npm install re-resolves to satisfy peerOptional constraint', async t => {
+  const { npm, registry } = await loadMockNpm(t, {
+    config: { audit: false, 'ignore-scripts': true },
+    prefixDir: {
+      'linter-tarball': {
+        'package.json': JSON.stringify({
+          name: 'linter',
+          version: '1.0.0',
+          dependencies: { scanner: '1.0.0' },
+        }),
+      },
+      'scanner-tarball': {
+        'package.json': JSON.stringify({
+          name: 'scanner',
+          version: '1.0.0',
+          peerDependencies: { fetcher: '1.0.0' },
+          peerDependenciesMeta: { fetcher: { optional: true } },
+        }),
+      },
+      'hint-tarball': {
+        'package.json': JSON.stringify({
+          name: 'hint',
+          version: '1.0.0',
+          dependencies: { fetcher: '^1.0.0' },
+        }),
+      },
+      'fetcher-1.0.0-tarball': {
+        'package.json': JSON.stringify({ name: 'fetcher', version: '1.0.0' }),
+      },
+      'fetcher-1.1.0-tarball': {
+        'package.json': JSON.stringify({ name: 'fetcher', version: '1.1.0' }),
+      },
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+        devDependencies: {
+          linter: '1.0.0',
+          hint: '1.0.0',
+        },
+      }),
+      'package-lock.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: {
+          '': {
+            name: 'test-package',
+            version: '1.0.0',
+            devDependencies: { linter: '1.0.0', hint: '1.0.0' },
+          },
+          'node_modules/linter': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/linter/-/linter-1.0.0.tgz',
+            dev: true,
+            dependencies: { scanner: '1.0.0' },
+          },
+          'node_modules/scanner': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/scanner/-/scanner-1.0.0.tgz',
+            dev: true,
+            peerDependencies: { fetcher: '1.0.0' },
+            peerDependenciesMeta: { fetcher: { optional: true } },
+          },
+          'node_modules/hint': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/hint/-/hint-1.0.0.tgz',
+            dev: true,
+            dependencies: { fetcher: '^1.0.0' },
+          },
+          'node_modules/fetcher': {
+            version: '1.1.0',
+            resolved: 'https://registry.npmjs.org/fetcher/-/fetcher-1.1.0.tgz',
+            dev: true,
+          },
+        },
+      }),
+    },
+  })
+
+  // Only set up mocks that npm install actually needs: tarballs for all installed packages (linter, scanner, hint, fetcher@1.0.0) and the fetcher packument (needed for re-resolution via #problemEdges).
+  // Packuments for linter/scanner/hint are NOT needed (already in lockfile).
+  // Fetcher@1.1.0 tarball is NOT needed (gets replaced by 1.0.0).
+  const linterManifest = registry.manifest({ name: 'linter' })
+  await registry.tarball({
+    manifest: linterManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'linter-tarball'),
+  })
+
+  const scannerManifest = registry.manifest({ name: 'scanner' })
+  await registry.tarball({
+    manifest: scannerManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'scanner-tarball'),
+  })
+
+  const hintManifest = registry.manifest({ name: 'hint' })
+  await registry.tarball({
+    manifest: hintManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'hint-tarball'),
+  })
+
+  const fetcherManifest = registry.manifest({
+    name: 'fetcher',
+    versions: ['1.0.0', '1.1.0'],
+  })
+  await registry.package({ manifest: fetcherManifest })
+  await registry.tarball({
+    manifest: fetcherManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'fetcher-1.0.0-tarball'),
+  })
+
+  await npm.exec('install', [])
+
+  // Read the updated lockfile and verify fetcher was re-resolved to 1.0.0
+  const lockfile = JSON.parse(
+    fs.readFileSync(path.join(npm.prefix, 'package-lock.json'), 'utf8')
+  )
+  t.equal(
+    lockfile.packages['node_modules/fetcher'].version,
+    '1.0.0',
+    'lockfile updated fetcher to satisfy peerOptional constraint'
+  )
+
+  // Also verify the installed package
+  const installedFetcher = JSON.parse(
+    fs.readFileSync(
+      path.join(npm.prefix, 'node_modules', 'fetcher', 'package.json'), 'utf8'
+    )
+  )
+  t.equal(
+    installedFetcher.version,
+    '1.0.0',
+    'installed fetcher version satisfies peerOptional constraint'
+  )
+})
+
+// Issue #8726 - fresh npm install (no lockfile) should pick a version that satisfies both the regular dep range AND the exact peerOptional constraint, even when the peerOptional holder is processed BEFORE the dep is placed.
+// https://github.com/npm/cli/issues/8726
+//
+// This test uses package names that reproduce the real-world alphabetical ordering from the original issue (addons-linter < htmlhint), which causes addons-scanner to be processed from the queue BEFORE htmlhint places node-fetcher.
+// At that point the peerOptional edge has no destination (MISSING, valid for peerOptional).
+// Later, htmlhint places node-fetcher@1.1.0 and the edge becomes INVALID.
+// The fix re-queues addons-scanner so #problemEdges can trigger re-resolution of node-fetcher to 1.0.0.
+//
+// Dependency graph:
+//   root -> addons-linter@1.0.0 -> addons-scanner@1.0.0 -> PEER_OPTIONAL node-fetcher@1.0.0
+//   root -> htmlhint@1.0.0      -> node-fetcher@^1.0.0
+//
+// Processing order (alphabetical): addons-linter, then addons-scanner (dep of addons-linter), THEN htmlhint (which places node-fetcher@1.1.0)
+t.test('issue-8726: fresh install re-queues scanner when dep placed later', async t => {
+  const { npm, registry } = await loadMockNpm(t, {
+    config: { audit: false, 'ignore-scripts': true },
+    prefixDir: {
+      'addons-linter-tarball': {
+        'package.json': JSON.stringify({
+          name: 'addons-linter',
+          version: '1.0.0',
+          dependencies: { 'addons-scanner': '1.0.0' },
+        }),
+      },
+      'addons-scanner-tarball': {
+        'package.json': JSON.stringify({
+          name: 'addons-scanner',
+          version: '1.0.0',
+          peerDependencies: { 'node-fetcher': '1.0.0' },
+          peerDependenciesMeta: { 'node-fetcher': { optional: true } },
+        }),
+      },
+      'htmlhint-tarball': {
+        'package.json': JSON.stringify({
+          name: 'htmlhint',
+          version: '1.0.0',
+          dependencies: { 'node-fetcher': '^1.0.0' },
+        }),
+      },
+      'node-fetcher-1.0.0-tarball': {
+        'package.json': JSON.stringify({ name: 'node-fetcher', version: '1.0.0' }),
+      },
+      'node-fetcher-1.1.0-tarball': {
+        'package.json': JSON.stringify({ name: 'node-fetcher', version: '1.1.0' }),
+      },
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+        devDependencies: {
+          'addons-linter': '1.0.0',
+          htmlhint: '1.0.0',
+        },
+      }),
+      // NO package-lock.json — this is a fresh install
+    },
+  })
+
+  // Fresh install needs packuments for all packages
+  const linterManifest = registry.manifest({
+    name: 'addons-linter',
+    packuments: [{ version: '1.0.0', dependencies: { 'addons-scanner': '1.0.0' } }],
+  })
+  await registry.package({ manifest: linterManifest })
+  await registry.tarball({
+    manifest: linterManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'addons-linter-tarball'),
+  })
+
+  const scannerManifest = registry.manifest({
+    name: 'addons-scanner',
+    packuments: [{
+      version: '1.0.0',
+      peerDependencies: { 'node-fetcher': '1.0.0' },
+      peerDependenciesMeta: { 'node-fetcher': { optional: true } },
+    }],
+  })
+  await registry.package({ manifest: scannerManifest })
+  await registry.tarball({
+    manifest: scannerManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'addons-scanner-tarball'),
+  })
+
+  const hintManifest = registry.manifest({
+    name: 'htmlhint',
+    packuments: [{ version: '1.0.0', dependencies: { 'node-fetcher': '^1.0.0' } }],
+  })
+  await registry.package({ manifest: hintManifest })
+  await registry.tarball({
+    manifest: hintManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'htmlhint-tarball'),
+  })
+
+  const fetcherManifest = registry.manifest({
+    name: 'node-fetcher',
+    packuments: [{ version: '1.0.0' }, { version: '1.1.0' }],
+  })
+  // Packument is fetched twice: once when htmlhint resolves node-fetcher@^1.0.0 (picking 1.1.0), and again when addons-scanner is re-queued and re-resolves node-fetcher (picking 1.0.0 to satisfy the exact peerOptional spec).
+  await registry.package({ manifest: fetcherManifest, times: 2 })
+  await registry.tarball({
+    manifest: fetcherManifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'node-fetcher-1.0.0-tarball'),
+  })
+  // node-fetcher@1.1.0 tarball is NOT needed: it's replaced by 1.0.0 during tree building (before reification), so it's never downloaded.
+
+  await npm.exec('install', [])
+
+  // Verify the lockfile has node-fetcher@1.0.0
+  const lockfile = JSON.parse(
+    fs.readFileSync(path.join(npm.prefix, 'package-lock.json'), 'utf8')
+  )
+  t.equal(
+    lockfile.packages['node_modules/node-fetcher'].version,
+    '1.0.0',
+    'fresh install picks node-fetcher@1.0.0 satisfying peerOptional constraint'
+  )
+
+  // Also verify the installed package
+  const installedFetcher = JSON.parse(
+    fs.readFileSync(
+      path.join(npm.prefix, 'node_modules', 'node-fetcher', 'package.json'), 'utf8'
+    )
+  )
+  t.equal(
+    installedFetcher.version,
+    '1.0.0',
+    'installed node-fetcher version satisfies peerOptional constraint'
+  )
 })

@@ -25,7 +25,11 @@ const startCLI = require('../common/debugger');
       assert.strictEqual(cli.output.match(listeningRegExp).length, 1);
 
       for (let i = 0; i < RESTARTS; i++) {
-        await cli.stepCommand('restart');
+        // For `restart`, sync on attach/prompt instead of BREAK_MESSAGE to avoid flaky races.
+        // https://github.com/nodejs/node/issues/61762
+        await cli.command('restart');
+        await cli.waitFor(/Debugger attached\./);
+        await cli.waitForPrompt();
         assert.strictEqual(cli.output.match(listeningRegExp).length, 1);
       }
     } finally {

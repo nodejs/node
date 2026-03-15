@@ -157,6 +157,11 @@ const int8_t unhex_table[256] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
+inline constexpr char nibble(uint8_t x) {
+  uint8_t add = (x >= 10) ? ('a' - 10) : '0';
+  return x + add;
+}
+
 size_t HexEncode(const char *src, size_t slen, char *dst, size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   NBYTES_ASSERT_TRUE(dlen >= MultiplyWithOverflowCheck<size_t>(slen, 2u) &&
@@ -164,10 +169,9 @@ size_t HexEncode(const char *src, size_t slen, char *dst, size_t dlen) {
 
   dlen = slen * 2;
   for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
-    static const char hex[] = "0123456789abcdef";
     uint8_t val = static_cast<uint8_t>(src[i]);
-    dst[k + 0] = hex[val >> 4];
-    dst[k + 1] = hex[val & 15];
+    dst[k + 0] = nibble(val >> 4);
+    dst[k + 1] = nibble(val & 15);
   }
 
   return dlen;

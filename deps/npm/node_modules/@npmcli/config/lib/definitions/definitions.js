@@ -246,6 +246,7 @@ const definitions = {
     default: null,
     hint: '<date>',
     type: [null, Date],
+    exclusive: ['min-release-age'],
     description: `
       If passed to \`npm install\`, will rebuild the npm tree such that only
       versions that were available **on or before** the given date are
@@ -1346,6 +1347,28 @@ const definitions = {
       Any "%s" in the message will be replaced with the version number.
     `,
     flatten,
+  }),
+  'min-release-age': new Definition('min-release-age', {
+    default: null,
+    hint: '<days>',
+    type: [null, Number],
+    exclusive: ['before'],
+    description: `
+       If set, npm will build the npm tree such that only versions that were
+       available more than the given number of days ago will be installed.  If
+       there are no versions available for the current set of dependencies, the
+       command will error.
+
+       This flag is a complement to \`before\`, which accepts an exact date
+       instead of a relative number of days.
+    `,
+    flatten: (key, obj, flatOptions) => {
+      if (obj['min-release-age'] !== null) {
+        flatOptions.before = new Date(Date.now() - (86400000 * obj['min-release-age']))
+        obj.before = flatOptions.before
+        delete obj['min-release-age']
+      }
+    },
   }),
   'node-gyp': new Definition('node-gyp', {
     default: (() => {

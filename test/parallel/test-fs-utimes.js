@@ -63,7 +63,7 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   const mtime_diff = check_mtime(resource, mtime, statSync);
   assert(
     // Check up to single-second precision.
-    // Sub-second precision is OS and fs dependant.
+    // Sub-second precision is OS and fs dependent.
     !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`

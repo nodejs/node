@@ -171,6 +171,61 @@ suite('StatementSync.prototype.iterate()', () => {
       { __proto__: null, done: true, value: null },
     );
   });
+
+  test('iterator is invalidated when statement is reset by get/all/run/iterate', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE test (value INTEGER NOT NULL)');
+    for (let i = 0; i < 5; i++) {
+      db.prepare('INSERT INTO test (value) VALUES (?)').run(i);
+    }
+    const stmt = db.prepare('SELECT * FROM test');
+
+    // Invalidated by stmt.get()
+    let it = stmt.iterate();
+    it.next();
+    stmt.get();
+    t.assert.throws(() => { it.next(); }, {
+      code: 'ERR_INVALID_STATE',
+      message: /iterator was invalidated/,
+    });
+
+    // Invalidated by stmt.all()
+    it = stmt.iterate();
+    it.next();
+    stmt.all();
+    t.assert.throws(() => { it.next(); }, {
+      code: 'ERR_INVALID_STATE',
+      message: /iterator was invalidated/,
+    });
+
+    // Invalidated by stmt.run()
+    it = stmt.iterate();
+    it.next();
+    stmt.run();
+    t.assert.throws(() => { it.next(); }, {
+      code: 'ERR_INVALID_STATE',
+      message: /iterator was invalidated/,
+    });
+
+    // Invalidated by a new stmt.iterate()
+    it = stmt.iterate();
+    it.next();
+    const it2 = stmt.iterate();
+    t.assert.throws(() => { it.next(); }, {
+      code: 'ERR_INVALID_STATE',
+      message: /iterator was invalidated/,
+    });
+
+    // New iterator works fine
+    t.assert.strictEqual(it2.next().done, false);
+
+    // Reset on a different statement does NOT invalidate this iterator
+    const stmt2 = db.prepare('SELECT * FROM test');
+    it = stmt.iterate();
+    it.next();
+    stmt2.get();
+    it.next();
+  });
 });
 
 suite('StatementSync.prototype.run()', () => {

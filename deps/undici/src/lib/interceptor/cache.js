@@ -292,7 +292,7 @@ function handleResult (
 
       // Start background revalidation (fire-and-forget)
       queueMicrotask(() => {
-        let headers = {
+        const headers = {
           ...opts.headers,
           'if-modified-since': new Date(result.cachedAt).toUTCString()
         }
@@ -302,9 +302,10 @@ function handleResult (
         }
 
         if (result.vary) {
-          headers = {
-            ...headers,
-            ...result.vary
+          for (const key in result.vary) {
+            if (result.vary[key] != null) {
+              headers[key] = result.vary[key]
+            }
           }
         }
 
@@ -335,7 +336,7 @@ function handleResult (
       withinStaleIfErrorThreshold = now < (result.staleAt + (staleIfErrorExpiry * 1000))
     }
 
-    let headers = {
+    const headers = {
       ...opts.headers,
       'if-modified-since': new Date(result.cachedAt).toUTCString()
     }
@@ -345,9 +346,10 @@ function handleResult (
     }
 
     if (result.vary) {
-      headers = {
-        ...headers,
-        ...result.vary
+      for (const key in result.vary) {
+        if (result.vary[key] != null) {
+          headers[key] = result.vary[key]
+        }
       }
     }
 

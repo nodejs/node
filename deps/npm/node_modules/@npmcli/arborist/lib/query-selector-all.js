@@ -427,11 +427,19 @@ class Results {
     if (!this.currentAstNode.typeValue) {
       return this.initialItems
     }
+    // TODO this differs subtly with `:type()` because it now iterates on edgesIn, which means extraneous deps won't show up
+    // note how "@npmcli/abbrev@2.0.0-beta.45" is in the `:type()` results in the test but not in any of the other results.
     return this.initialItems
       .flatMap(node => {
         const found = []
+        const { typeValue } = this.currentAstNode
         for (const edge of node.edgesIn) {
-          if (npa(`${edge.name}@${edge.spec}`).type === this.currentAstNode.typeValue) {
+          const parsedArg = npa(`${edge.name}@${edge.spec}`)
+          if (typeValue === 'registry') {
+            if (parsedArg.registry) {
+              found.push(edge.to)
+            }
+          } else if (parsedArg.type === typeValue) {
             found.push(edge.to)
           }
         }

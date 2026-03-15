@@ -74,7 +74,8 @@ const BuiltinSource* BuiltinLoader::AddFromDisk(const char* id,
                                                 const std::string& filename,
                                                 const UnionBytes& source) {
   BuiltinSourceType type = GetBuiltinSourceType(id, filename);
-  auto result = source_.write()->emplace(id, BuiltinSource{id, source, type});
+  auto result =
+      source_.write()->insert_or_assign(id, BuiltinSource{id, source, type});
   return &(result.first->second);
 }
 

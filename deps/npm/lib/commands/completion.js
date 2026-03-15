@@ -40,13 +40,13 @@ const BaseCommand = require('../base-cmd.js')
 
 const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
 
-const configNames = Object.keys(definitions)
-const shorthandNames = Object.keys(shorthands)
-const allConfs = configNames.concat(shorthandNames)
-
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
   static name = 'completion'
+  // Completion command uses args differently - they represent the command line
+  // being completed, not actual arguments to this command, so we use an empty
+  // definitions object to prevent flag validation
+  static definitions = []
 
   // completion for the completion command
   static async completion (opts) {
@@ -90,15 +90,17 @@ class Completion extends BaseCommand {
     // if the point isn't at the end.
     // ie, tabbing at: npm foo b|ar
     const w = +COMP_CWORD
-    const words = args.map(unescape)
-    const word = words[w]
     const line = COMP_LINE
+    // Use COMP_LINE to get words if args doesn't include flags (e.g., in tests)
+    const hasFlags = line.includes(' -') && !args.some(arg => arg.startsWith('-'))
+    const words = (hasFlags ? line.split(/\s+/) : args).map(unescape)
+    const word = words[w] || ''
     const point = +COMP_POINT
     const partialLine = line.slice(0, point)
     const partialWords = words.slice(0, w)
 
     // figure out where in that last word the point is.
-    const partialWordRaw = args[w]
+    const partialWordRaw = args[w] || ''
     let i = partialWordRaw.length
     while (partialWordRaw.slice(0, i) !== partialLine.slice(-1 * i) && i > 0) {
       i--
@@ -121,33 +123,32 @@ class Completion extends BaseCommand {
       raw: args,
     }
 
-    if (partialWords.slice(0, -1).indexOf('--') === -1) {
-      if (word.charAt(0) === '-') {
-        return this.wrap(opts, configCompl(opts))
-      }
-
-      if (words[w - 1] &&
-        words[w - 1].charAt(0) === '-' &&
-        !isFlag(words[w - 1])) {
-        // awaiting a value for a non-bool config.
-        // don't even try to do this for now
-        return this.wrap(opts, configValueCompl(opts))
-      }
-    }
-
-    // try to find the npm command.
-    // it's the first thing after all the configs.
-    // take a little shortcut and use npm's arg parsing logic.
-    // don't have to worry about the last arg being implicitly
-    // boolean'ed, since the last block will catch that.
+    // try to find the npm command and subcommand early for flag completion
+    // this helps with custom command definitions from subcommands
     const types = Object.entries(definitions).reduce((acc, [key, def]) => {
       acc[key] = def.type
       return acc
     }, {})
     const parsed = opts.conf =
       nopt(types, shorthands, partialWords.slice(0, -1), 0)
-    // check if there's a command already.
     const cmd = parsed.argv.remain[1]
+    const subCmd = parsed.argv.remain[2]
+
+    if (partialWords.slice(0, -1).indexOf('--') === -1) {
+      if (word && word.charAt(0) === '-') {
+        return this.wrap(opts, configCompl(opts, cmd, subCmd, this.npm))
+      }
+
+      if (words[w - 1] &&
+        words[w - 1].charAt(0) === '-' &&
+        !isFlag(words[w - 1], cmd, subCmd, this.npm)) {
+        // awaiting a value for a non-bool config.
+        // don't even try to do this for now
+        return this.wrap(opts, configValueCompl(opts))
+      }
+    }
+
+    // check if there's a command already.
     if (!cmd) {
       return this.wrap(opts, cmdCompl(opts, this.npm))
     }
@@ -234,16 +235,66 @@ const dumpScript = async (p) => {
 const unescape = w => w.charAt(0) === '\'' ? w.replace(/^'|'$/g, '')
   : w.replace(/\\ /g, ' ')
 
+// Helper to get custom definitions from a command/subcommand
+const getCustomDefinitions = (cmd, subCmd) => {
+  if (!cmd) {
+    return []
+  }
+
+  try {
+    const command = Npm.cmd(cmd)
+
+    // Check if the command has subcommands
+    if (subCmd && command.subcommands && command.subcommands[subCmd]) {
+      const subcommand = command.subcommands[subCmd]
+      // All subcommands have definitions
+      return subcommand.definitions
+    }
+
+    // Check if the command itself has definitions
+    if (command.definitions) {
+      return command.definitions
+    }
+  } catch {
+    // Command not found or no definitions
+  }
+
+  return []
+}
+
+// Helper to get all config names including aliases from custom definitions
+const getCustomConfigNames = (customDefs) => {
+  const names = new Set()
+  for (const def of customDefs) {
+    names.add(def.key)
+    if (def.alias && Array.isArray(def.alias)) {
+      def.alias.forEach(a => names.add(a))
+    }
+  }
+  return [...names]
+}
+
 // the current word has a dash.  Return the config names,
 // with the same number of dashes as the current word has.
-const configCompl = opts => {
+const configCompl = (opts, cmd, subCmd, npm) => {
   const word = opts.word
   const split = word.match(/^(-+)((?:no-)*)(.*)$/)
   const dashes = split[1]
   const no = split[2]
-  const flags = configNames.filter(isFlag)
-  return allConfs.map(c => dashes + c)
-    .concat(flags.map(f => dashes + (no || 'no-') + f))
+
+  // Get custom definitions from the command/subcommand
+  const customDefs = getCustomDefinitions(cmd, subCmd, npm)
+  const customNames = getCustomConfigNames(customDefs)
+
+  // If there are custom definitions, return only those (new feature)
+  // Otherwise, return empty array (historical behavior - no global flag completion)
+  if (customNames.length > 0) {
+    const flags = customNames.filter(name => isFlag(name, cmd, subCmd, npm))
+    return customNames.map(c => dashes + c)
+      .concat(flags.map(f => dashes + (no || 'no-') + f))
+  }
+
+  return []
 }
 
 // expand with the valid values of various config values.
@@ -251,16 +302,37 @@ const configCompl = opts => {
 const configValueCompl = () => []
 
 // check if the thing is a flag or not.
-const isFlag = word => {
+const isFlag = (word, cmd, subCmd, npm) => {
   // shorthands never take args.
   const split = word.match(/^(-*)((?:no-)+)?(.*)$/)
   const no = split[2]
   const conf = split[3]
-  const { type } = definitions[conf]
-  return no ||
-    type === Boolean ||
-    (Array.isArray(type) && type.includes(Boolean)) ||
-    shorthands[conf]
+
+  // Check custom definitions first
+  const customDefs = getCustomDefinitions(cmd, subCmd, npm)
+
+  // Check if conf is in custom definitions or is an alias
+  let customDef = customDefs.find(d => d.key === conf)
+  if (!customDef) {
+    // Check if conf is an alias for any of the custom definitions
+    for (const def of customDefs) {
+      if (def.alias && Array.isArray(def.alias) && def.alias.includes(conf)) {
+        customDef = def
+        break
+      }
+    }
+  }
+
+  if (customDef) {
+    const { type } = customDef
+    return no ||
+      type === Boolean ||
+      (Array.isArray(type) && type.includes(Boolean))
+  }
+
+  // No custom definitions found, should not reach here in normal flow
+  // since configCompl returns empty array when no custom defs exist
+  return false
 }
 
 // complete against the npm commands

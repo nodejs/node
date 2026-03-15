@@ -208,6 +208,13 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
                       "used, not both");
   }
 
+#if HAVE_OPENSSL
+  if (use_system_ca && per_process::cli_options->use_openssl_ca) {
+    errors->push_back("either --use-openssl-ca or --use-system-ca can be "
+                      "used, not both");
+  }
+#endif  // HAVE_OPENSSL
+
   if (heap_snapshot_near_heap_limit < 0) {
     errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
@@ -635,6 +642,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--permission-audit",
+            "enable audit only for the permission system",
+            &EnvironmentOptions::permission_audit,
+            kAllowedInEnvvar,
+            false);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
@@ -1047,6 +1059,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
       &EnvironmentOptions::trace_env_native_stack,
       kAllowedInEnvvar);
 
+#if HAVE_OPENSSL
+  AddOption("--use-system-ca",
+            "use system's CA store",
+            &EnvironmentOptions::use_system_ca,
+            kAllowedInEnvvar);
+#endif  // HAVE_OPENSSL
+
   AddOption(
       "--trace-require-module",
       "Print access to require(esm). Options are 'all' (print all usage) and "
@@ -1131,13 +1150,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
-  AddOption("--experimental-transform-types",
-            "enable transformation of TypeScript-only"
-            "syntax into JavaScript code",
-            &EnvironmentOptions::experimental_transform_types,
-            kAllowedInEnvvar);
-  Implies("--experimental-transform-types", "--strip-types");
-  Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
@@ -1209,6 +1221,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "help system profilers to translate JavaScript interpreted frames",
             V8Option{},
             kAllowedInEnvvar);
+  AddOption("--max-heap-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size-percentage",
             "set V8's max old space size as a percentage of available memory "
@@ -1386,10 +1399,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #endif
             ,
             &PerProcessOptions::use_openssl_ca,
-            kAllowedInEnvvar);
-  AddOption("--use-system-ca",
-            "use system's CA store",
-            &PerProcessOptions::use_system_ca,
             kAllowedInEnvvar);
   AddOption("--use-bundled-ca",
             "use bundled CA store"
@@ -2156,6 +2165,10 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
       opt_getter("NODE_PRESERVE_SYMLINKS_MAIN") == "1";
 
   env_options->use_env_proxy = opt_getter("NODE_USE_ENV_PROXY") == "1";
+
+#if HAVE_OPENSSL
+  env_options->use_system_ca = opt_getter("NODE_USE_SYSTEM_CA") == "1";
+#endif  // HAVE_OPENSSL
 
   if (env_options->redirect_warnings.empty())
     env_options->redirect_warnings = opt_getter("NODE_REDIRECT_WARNINGS");

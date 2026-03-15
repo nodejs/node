@@ -709,6 +709,9 @@ npx codemod@latest @nodejs/repl-builtin-modules
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62188
+    description: The `handleError` parameter has been added.
   - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58003
     description: Added the possibility to add/edit/remove multilines
@@ -787,6 +790,17 @@ changes:
     previews or not. **Default:** `true` with the default eval function and
     `false` in case a custom eval function is used. If `terminal` is falsy, then
     there are no previews and the value of `preview` has no effect.
+  * `handleError` {Function} This function customizes error handling in the REPL.
+    It receives the thrown exception as its first argument and must return one
+    of the following values synchronously:
+    * `'print'` to print the error to the output stream (default behavior).
+    * `'ignore'` to skip all remaining error handling.
+    * `'unhandled'` to treat the exception as fully unhandled. In this case,
+      the error will be passed to process-wide exception handlers, such as
+      the [`'uncaughtException'`][] event.
+      The `'unhandled'` value may or may not be desirable in situations
+      where the `REPLServer` instance has been closed, depending on the particular
+      use case.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.

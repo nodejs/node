@@ -165,7 +165,22 @@ If the requested version is a `dist-tag` and the given tag does not pass the
 will be used. For example, `foo@latest` might install `foo@1.2` even though
 `latest` is `2.0`.
 
+This config cannot be used with: `min-release-age`
 
+#### `min-release-age`
+
+* Default: null
+* Type: null or Number
+
+If set, npm will build the npm tree such that only versions that were
+available more than the given number of days ago will be installed. If there
+are no versions available for the current set of dependencies, the command
+will error.
+
+This flag is a complement to `before`, which accepts an exact date instead
+of a relative number of days.
+
+This config cannot be used with: `before`
 
 ### See Also
 

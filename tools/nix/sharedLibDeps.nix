@@ -49,22 +49,9 @@
 // (pkgs.lib.optionalAttrs withSSL (
   let
     version = "3.5.5";
-    opensslSrc = "/pkgs/development/libraries/openssl/";
-    inherit
-      (pkgs.callPackage "${
-        pkgs.fetchgit {
-          url = "https://github.com/NixOS/nixpkgs.git";
-          rev = "a5b50d31e0fd60227495ad2b2760cbda3581ec77";
-          sparseCheckout = [ opensslSrc ];
-          nonConeMode = true;
-          hash = "sha256-Qo3IoUeccGO2GxFSYufyYjZmN5LGSek0z82pN73YXic=";
-        }
-      }${opensslSrc}" { })
-      openssl_3_6
-      ;
   in
   {
-    openssl = openssl_3_6.overrideAttrs (old: {
+    openssl = pkgs.openssl_3_6.overrideAttrs (old: {
       inherit version;
       src = pkgs.fetchurl {
         url = builtins.replaceStrings [ old.version ] [ version ] old.src.url;

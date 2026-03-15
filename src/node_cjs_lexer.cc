@@ -22,8 +22,8 @@ using v8::String;
 using v8::Value;
 
 // Create a V8 string from an export_string variant, using fast path for ASCII
-inline Local<String> CreateString(Isolate* isolate,
-                                  const lexer::export_string& str) {
+template <typename T>
+inline Local<String> CreateString(Isolate* isolate, const T& str) {
   std::string_view sv = lexer::get_string_view(str);
 
   if (simdutf::validate_ascii(sv.data(), sv.size())) {

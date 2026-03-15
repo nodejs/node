@@ -71,6 +71,7 @@ class ExternalReferenceRegistry {
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(env_var)                                                                   \
   V(errors)                                                                    \

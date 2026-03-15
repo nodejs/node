@@ -837,6 +837,6 @@ t.test('allow-git=none', async t => {
   await t.rejects(view.exec(['npm/npm']), {
     code: 'EALLOWGIT',
     package: 'github:npm/npm',
-    message: 'Fetching packages from git has been disabled',
+    message: 'Fetching packages of type "git" have been disabled',
   })
 })

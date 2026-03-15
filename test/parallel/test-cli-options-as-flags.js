@@ -64,7 +64,6 @@ describe('getOptionsAsFlagsFromBinding', () => {
     const flags = JSON.parse(result.stdout.trim());
 
     // Should contain flags from config file
-    assert.strictEqual(flags.includes('--experimental-transform-types'), true);
     assert.strictEqual(flags.includes('--max-http-header-size=8192'), true);
     assert.strictEqual(flags.includes('--test-isolation=none'), true);
     // Should also contain command line flags
@@ -89,7 +88,6 @@ describe('getOptionsAsFlagsFromBinding', () => {
     assert.strictEqual(flags.includes('--stack-trace-limit=512'), true);
 
     // Should contain flags from config file
-    assert.strictEqual(flags.includes('--experimental-transform-types'), true);
     assert.strictEqual(flags.includes('--max-http-header-size=8192'), true);
     assert.strictEqual(flags.includes('--test-isolation=none'), true);
   });

@@ -1,5 +1,5 @@
 ---
-title: package-spec
+title: Package spec
 section: 7
 description: Package name specifier
 ---

@@ -15,7 +15,7 @@ Arguments:
 
 This example will not work in browsers or other platforms that don't allow passing an object.
 
-```mjs
+```js
 import { WebSocket, ProxyAgent } from 'undici'
 
 const proxyAgent = new ProxyAgent('my.proxy.server')
@@ -28,7 +28,7 @@ const ws = new WebSocket('wss://echo.websocket.events', {
 
 If you do not need a custom Dispatcher, it's recommended to use the following pattern:
 
-```mjs
+```js
 import { WebSocket } from 'undici'
 
 const ws = new WebSocket('wss://echo.websocket.events', ['echo', 'chat'])
@@ -44,7 +44,7 @@ const ws = new WebSocket('wss://echo.websocket.events', ['echo', 'chat'])
 
 This example will not work in browsers or other platforms that don't allow passing an object.
 
-```mjs
+```js
 import { Agent } from 'undici'
 
 const agent = new Agent({ allowH2: true })

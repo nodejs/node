@@ -1,5 +1,5 @@
 ---
-title: registry
+title: Registry
 section: 7
 description: The JavaScript Package Registry
 ---

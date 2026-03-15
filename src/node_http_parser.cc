@@ -628,6 +628,8 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
+    parser->is_being_freed_ = true;
+
     if (parser->connectionsList_ != nullptr) {
       parser->connectionsList_->Pop(parser);
       parser->connectionsList_->PopActive(parser);
@@ -1012,6 +1014,7 @@ class Parser : public AsyncWrap, public StreamListener {
     num_values_ = 0;
     have_flushed_ = false;
     got_exception_ = false;
+    is_being_freed_ = false;
     headers_completed_ = false;
     max_http_header_size_ = max_http_header_size;
   }
@@ -1056,6 +1059,7 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t num_values_;
   bool have_flushed_;
   bool got_exception_;
+  bool is_being_freed_ = false;
   size_t current_buffer_len_;
   const char* current_buffer_data_;
   bool headers_completed_ = false;
@@ -1075,6 +1079,9 @@ class Parser : public AsyncWrap, public StreamListener {
   struct Proxy<int (Parser::*)(Args...), Member> {
     static int Raw(llhttp_t* p, Args ... args) {
       Parser* parser = ContainerOf(&Parser::parser_, p);
+      if (parser->is_being_freed_) {
+        return 0;
+      }
       int rv = (parser->*Member)(std::forward<Args>(args)...);
       if (rv == 0) {
         rv = parser->MaybePause();

@@ -10,7 +10,7 @@
  #endif  /* _MSC_VER */
 #endif  /* __SSE4_2__ */
 
-#ifdef __ARM_NEON__
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
  #include <arm_neon.h>
 #endif  /* __ARM_NEON__ */
 
@@ -1542,7 +1542,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -2625,7 +2625,7 @@ static llparse_state_t llhttp__internal__run(
         goto s_n_llhttp__internal__n_header_value_otherwise;
       }
       #endif  /* __SSE4_2__ */
-      #ifdef __ARM_NEON__
+      #if defined(__ARM_NEON__) || defined(__ARM_NEON)
       while (endp - p >= 16) {
         uint8x16_t input;
         uint8x16_t single;
@@ -2639,19 +2639,23 @@ static llparse_state_t llhttp__internal__run(
         /* Find first character that does not match `ranges` */
         single = vceqq_u8(input, vdupq_n_u8(0x9));
         mask = single;
-        single = vandq_u16(
+        single = vandq_u8(
           vcgeq_u8(input, vdupq_n_u8(' ')),
           vcleq_u8(input, vdupq_n_u8('~'))
         );
-        mask = vorrq_u16(mask, single);
-        single = vandq_u16(
+        mask = vorrq_u8(mask, single);
+        single = vandq_u8(
           vcgeq_u8(input, vdupq_n_u8(0x80)),
           vcleq_u8(input, vdupq_n_u8(0xff))
         );
-        mask = vorrq_u16(mask, single);
-        narrow = vshrn_n_u16(mask, 4);
+        mask = vorrq_u8(mask, single);
+        narrow = vshrn_n_u16(vreinterpretq_u16_u8(mask), 4);
         match_mask = ~vget_lane_u64(vreinterpret_u64_u8(narrow), 0);
-        match_len = __builtin_ctzll(match_mask) >> 2;
+        if (match_mask == 0) {
+          match_len = 16;
+        } else {
+          match_len = __builtin_ctzll(match_mask) >> 2;
+        }
         if (match_len != 16) {
           p += match_len;
           goto s_n_llhttp__internal__n_header_value_otherwise;

@@ -205,3 +205,19 @@ t.test('global prefix', async t => {
     'should output success msg'
   )
 })
+
+t.test('completion', async t => {
+  const { rebuild } = await setupMockNpm(t, {
+    command: 'rebuild',
+    prefixDir: {
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
+        },
+      },
+      'package.json': JSON.stringify({ name: 'project', version: '1.0.0' }),
+    },
+  })
+  const res = await rebuild.completion({ conf: { argv: { remain: ['npm', 'rebuild'] } } })
+  t.type(res, Array)
+})

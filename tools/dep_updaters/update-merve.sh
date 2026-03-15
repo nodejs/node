@@ -54,8 +54,8 @@ rm "$MERVE_ZIP"
 
 curl -sL -o "$MERVE_LICENSE" "https://raw.githubusercontent.com/anonrig/merve/HEAD/LICENSE-MIT"
 
-echo "Replacing existing merve (except GYP build files)"
-mv "$DEPS_DIR/merve/merve.gyp" "$WORKSPACE/"
+echo "Replacing existing merve (except GYP/GN build files)"
+mv "$DEPS_DIR/merve/merve.gyp" "$DEPS_DIR/merve/BUILD.gn" "$DEPS_DIR/merve/unofficial.gni" "$WORKSPACE/"
 rm -rf "$DEPS_DIR/merve"
 mv "$WORKSPACE" "$DEPS_DIR/merve"
 

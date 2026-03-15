@@ -22,12 +22,12 @@ const noChange = 'test';
     util.styleText(invalidOption, 'test');
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-  });
+  }, invalidOption);
   assert.throws(() => {
     util.styleText('red', invalidOption);
   }, {
     code: 'ERR_INVALID_ARG_TYPE'
-  });
+  }, invalidOption);
 });
 
 assert.throws(() => {

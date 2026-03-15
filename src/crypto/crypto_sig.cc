@@ -310,7 +310,7 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(SignBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(Sign::kInternalFieldCount);
 
   SetProtoMethod(isolate, t, "init", SignInit);
   SetProtoMethod(isolate, t, "update", SignUpdate);
@@ -437,7 +437,7 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(SignBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(Verify::kInternalFieldCount);
 
   SetProtoMethod(isolate, t, "init", VerifyInit);
   SetProtoMethod(isolate, t, "update", VerifyUpdate);

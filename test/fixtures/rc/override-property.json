@@ -1,6 +1,6 @@
 {
   "nodeOptions": {
-    "experimental-transform-types": true,
-    "experimental-transform-types": false
+    "strip-types": true,
+    "strip-types": false
   }
 }

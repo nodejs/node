@@ -57,6 +57,7 @@ file a new issue.
     * [Windows](#windows-4)
 * [Configuring OpenSSL config appname](#configure-openssl-appname)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+* [Building Node.js with Temporal support](#building-nodejs-with-temporal-support)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
   * [Unix/macOS](#unixmacos-4)
   * [Windows](#windows-5)
@@ -153,11 +154,11 @@ platforms. This is true regardless of entries in the table below.
 
 Depending on the host platform, the selection of toolchains may vary.
 
-| Operating System | Compiler Versions                                              |
-| ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 12.2 or Clang >= 19.1                                   |
-| Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                               |
+| Operating System | Compiler Versions                                                   |
+| ---------------- | ------------------------------------------------------------------- |
+| Linux            | GCC >= 12.2 or Clang >= 19.1                                        |
+| Windows          | Visual Studio 2022 or 2026 with the Windows 11 SDK on a 64-bit host |
+| macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                                    |
 
 ### Official binary platforms and toolchains
 
@@ -1027,6 +1028,15 @@ configure option:
 ./configure --openssl-conf-name=<some_conf_name>
 ```
 
+## Building Node.js with FIPS-compliant OpenSSL
+
+Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
+[OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
+It is not necessary to rebuild Node.js to enable support for FIPS.
+
+See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
+enable FIPS support in Node.js.
+
 ## Building Node.js with Temporal support
 
 Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
@@ -1036,15 +1046,6 @@ To build Node.js with Temporal support, a Rust toolchain is required:
 
 * rustc >= 1.82 (with LLVM >= 19)
 * cargo >= 1.82
-
-## Building Node.js with FIPS-compliant OpenSSL
-
-Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
-[OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
-It is not necessary to rebuild Node.js to enable support for FIPS.
-
-See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
-enable FIPS support in Node.js.
 
 ## Building Node.js with external core modules
 

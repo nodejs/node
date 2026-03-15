@@ -14,8 +14,6 @@ class Explore extends BaseCommand {
   static params = ['shell']
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     return completion(npm, opts)
   }

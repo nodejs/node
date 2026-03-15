@@ -1,6 +1,6 @@
 const fs = require('node:fs/promises')
 const { rmdirSync } = require('node:fs')
-const promiseRetry = require('promise-retry')
+const { promiseRetry } = require('@gar/promise-retry')
 const { onExit } = require('signal-exit')
 
 // a lockfile implementation inspired by the unmaintained proper-lockfile library
@@ -67,12 +67,7 @@ async function withLock (lockPath, cb) {
 }
 
 function acquireLock (lockPath) {
-  return promiseRetry({
-    minTimeout: 100,
-    maxTimeout: 5_000,
-    // if another process legitimately holds the lock, wait for it to release; if it dies abnormally and the lock becomes stale, we'll acquire it automatically
-    forever: true,
-  }, async (retry) => {
+  return promiseRetry(async (retry) => {
     try {
       await fs.mkdir(lockPath)
     } catch (err) {
@@ -107,6 +102,11 @@ function acquireLock (lockPath) {
     } catch (err) {
       throw Object.assign(new Error('Lock compromised'), { code: 'ECOMPROMISED' })
     }
+  }, {
+    minTimeout: 100,
+    maxTimeout: 5_000,
+    // if another process legitimately holds the lock, wait for it to release; if it dies abnormally and the lock becomes stale, we'll acquire it automatically
+    forever: true,
   })
 }
 

@@ -11,8 +11,6 @@ class Uninstall extends ArboristWorkspaceCmd {
   static usage = ['[<@scope>/]<pkg>...']
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     return completion(npm, opts)
   }

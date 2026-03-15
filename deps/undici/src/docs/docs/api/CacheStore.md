@@ -66,10 +66,12 @@ Parameters:
 Returns: `GetResult | Promise<GetResult | undefined> | undefined` - If the request is cached, the cached response is returned. If the request's method is anything other than HEAD, the response is also returned.
 If the request isn't cached, `undefined` is returned.
 
+The `get` method may return a `Promise` for async cache stores (e.g. Redis-backed or remote stores). The cache interceptor handles both synchronous and asynchronous return values, including in revalidation paths (304 Not Modified handling and stale-while-revalidate background revalidation).
+
 Response properties:
 
 * **response** `CacheValue` - The cached response data.
-* **body** `Readable | undefined` - The response's body.
+* **body** `Readable | Iterable<Buffer> | undefined` - The response's body. This can be an array of `Buffer` chunks (with a `.values()` method) or a `Readable` stream. Both formats are supported in all code paths, including 304 revalidation.
 
 ### Function: `createWriteStream`
 
@@ -98,8 +100,11 @@ This is an interface containing the majority of a response's data (minus the bod
 
 ### Property `vary`
 
-`Record<string, string | string[]> | undefined` - The headers defined by the response's `Vary` header
-and their respective values for later comparison
+`Record<string, string | string[] | null> | undefined` - The headers defined by the response's `Vary` header
+and their respective values for later comparison. Values are `null` when the
+header specified in `Vary` was not present in the original request. These `null`
+values are automatically filtered out during revalidation so they are not sent
+as request headers.
 
 For example, for a response like
 ```
@@ -113,6 +118,14 @@ This would be
 {
   'content-encoding': 'utf8',
   accepts: 'application/json'
+}
+```
+
+If the original request did not include the `accepts` header:
+```js
+{
+  'content-encoding': 'utf8',
+  accepts: null
 }
 ```
 

@@ -31,6 +31,7 @@ class Install extends ArboristWorkspaceCmd {
     'allow-git',
     'audit',
     'before',
+    'min-release-age',
     'bin-links',
     'fund',
     'dry-run',

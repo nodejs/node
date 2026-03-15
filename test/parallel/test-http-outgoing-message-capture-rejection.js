@@ -46,7 +46,7 @@ events.captureRejections = true;
 {
   let _res;
   let shouldEnd = false;
-  // Not using mustCall here, because it is OS-dependant.
+  // Not using mustCall here, because it is OS-dependent.
   const server = createServer((req, res) => {
     // So that we cleanly stop
     _res = res;

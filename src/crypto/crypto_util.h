@@ -348,7 +348,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::Local<v8::FunctionTemplate> job = NewFunctionTemplate(isolate, new_fn);
     job->Inherit(AsyncWrap::GetConstructorTemplate(env));
     job->InstanceTemplate()->SetInternalFieldCount(
-        AsyncWrap::kInternalFieldCount);
+        CryptoJob::kInternalFieldCount);
     SetProtoMethod(isolate, job, "run", Run);
     SetConstructorFunction(context, target, CryptoJobTraits::JobName, job);
   }

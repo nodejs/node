@@ -13,11 +13,9 @@ if (process.argv[2] === 'child-buffer') {
     v & 0xFF,
   ]);
   const fd = process.channel?.fd;
-  if (fd === undefined) {
-    // skip test
-    process.exit(0);
+  if (fd !== undefined) {
+    fs.writeSync(fd, payload);
   }
-  fs.writeSync(fd, payload);
   return;
 }
 

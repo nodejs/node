@@ -1417,6 +1417,28 @@ added: v16.18.0
 
 Emitted when a new process is created.
 
+`tracing:child_process.spawn:start`
+
+* `process` {ChildProcess}
+* `options` {Object}
+
+Emitted when [`child_process.spawn()`][] is invoked, before the process is
+actually spawned.
+
+`tracing:child_process.spawn:end`
+
+* `process` {ChildProcess}
+
+Emitted when [`child_process.spawn()`][] has completed successfully and the
+process has been created.
+
+`tracing:child_process.spawn:error`
+
+* `process` {ChildProcess}
+* `error` {Error}
+
+Emitted when [`child_process.spawn()`][] encounters an error.
+
 ##### Event: `'execve'`
 
 * `execPath` {string}
@@ -1424,6 +1446,50 @@ Emitted when a new process is created.
 * `env` {string\[]}
 
 Emitted when [`process.execve()`][] is invoked.
+
+#### Web Locks
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added: REPLACEME
+-->
+
+These channels are emitted for each [`locks.request()`][] call. See
+[`worker_threads.locks`][] for details on Web Locks.
+
+##### Event: `'locks.request.start'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock request is initiated, before the lock is granted.
+
+##### Event: `'locks.request.grant'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock is successfully granted and the callback is about to run.
+
+##### Event: `'locks.request.miss'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when `ifAvailable` is `true` and the lock is not immediately available,
+and the request callback is invoked with `null` instead of a `Lock` object.
+
+##### Event: `'locks.request.end'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+* `steal` {boolean} Whether the request uses steal semantics.
+* `ifAvailable` {boolean} Whether the request uses ifAvailable semantics.
+* `error` {Error|undefined} The error thrown by the callback, if any.
+
+Emitted when a lock request has finished, whether the callback succeeded,
+threw an error, or the lock was stolen.
 
 #### Worker Thread
 
@@ -1448,12 +1514,15 @@ Emitted when a new thread is created.
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss

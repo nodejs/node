@@ -61,7 +61,7 @@ MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
       (err == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE) ||
       (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
       ((err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) &&
-       !per_process::cli_options->use_system_ca);
+       !env->options()->use_system_ca);
 
   if (suggest_system_ca) {
     reason.append("; if the root CA is installed locally, "

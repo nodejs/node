@@ -1,4 +1,4 @@
-/* auto-generated on 2026-01-30 13:29:04 -0500. Do not edit! */
+/* auto-generated on 2026-02-23 21:29:24 -0500. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -14495,6 +14495,12 @@ bool url_aggregator::set_pathname(const std::string_view input) {
   if (get_pathname().starts_with("//") && !has_authority() && !has_dash_dot()) {
     buffer.insert(components.pathname_start, "/.");
     components.pathname_start += 2;
+    if (components.search_start != url_components::omitted) {
+      components.search_start += 2;
+    }
+    if (components.hash_start != url_components::omitted) {
+      components.hash_start += 2;
+    }
   }
   ADA_ASSERT_TRUE(validate());
   return true;

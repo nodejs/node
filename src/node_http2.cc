@@ -3476,7 +3476,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
   setting->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> settingt = setting->InstanceTemplate();
-  settingt->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
+  settingt->SetInternalFieldCount(Http2Settings::kInternalFieldCount);
   env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
@@ -3492,7 +3492,7 @@ void Initialize(Local<Object> target,
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
-  streamt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  streamt->SetInternalFieldCount(Http2Stream::kInternalFieldCount);
   env->set_http2stream_constructor_template(streamt);
   SetConstructorFunction(context, target, "Http2Stream", stream);
 

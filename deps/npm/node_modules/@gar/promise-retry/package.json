@@ -1,0 +1,48 @@
+{
+  "name": "@gar/promise-retry",
+  "version": "1.0.2",
+  "description": "Retries a function that returns a promise, leveraging the power of the retry module.",
+  "main": "./lib/index.js",
+  "files": [
+    "lib"
+  ],
+  "type": "commonjs",
+  "exports": {
+    ".": [
+      {
+        "default": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+      },
+      "./lib/index.js"
+    ]
+  },
+  "scripts": {
+    "lint": "npx standard",
+    "lint:fix": "npx standard --fix",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100",
+    "typelint": "npx -p typescript tsc ./lib/index.d.ts",
+    "posttest": "npm run lint",
+    "postlint": "npm run typelint"
+  },
+  "bugs": {
+    "url": "https://github.com/wraithgar/node-promise-retry/issues/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wraithgar/node-promise-retry.git"
+  },
+  "keywords": [
+    "retry",
+    "promise",
+    "backoff",
+    "repeat",
+    "replay"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "retry": "^0.13.1"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  }
+}

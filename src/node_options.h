@@ -138,6 +138,7 @@ class EnvironmentOptions : public Options {
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
   bool permission = false;
+  bool permission_audit = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
@@ -222,6 +223,7 @@ class EnvironmentOptions : public Options {
   bool trace_env = false;
   bool trace_env_js_stack = false;
   bool trace_env_native_stack = false;
+  bool use_system_ca = false;
   std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
@@ -261,7 +263,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool strip_types = HAVE_AMARO;
-  bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 
@@ -359,7 +360,6 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
-  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;

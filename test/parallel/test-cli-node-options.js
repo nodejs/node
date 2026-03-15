@@ -68,7 +68,7 @@ if (common.hasCrypto) {
   if (!hasOpenSSL3)
     expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
   if (common.isMacOS) {
-    expectNoWorker('--use-system-ca', 'B\n');
+    expect('--use-system-ca', 'B\n');
   }
 }
 

@@ -1644,10 +1644,14 @@ See how to write a custom [rejection handler][rejection].
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.14.0
     pr-url: https://github.com/nodejs/node/pull/60214
     description: Now accepts EventTarget arguments.
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.14.0
     pr-url: https://github.com/nodejs/node/pull/60214
     description: Deprecation revoked.
   - version: v3.2.0
@@ -1908,15 +1912,12 @@ Returns a disposable so that it may be unsubscribed from more easily.
 const { addAbortListener } = require('node:events');
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
@@ -1924,15 +1925,12 @@ function example(signal) {
 import { addAbortListener } from 'node:events';
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
