@@ -5,6 +5,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
@@ -973,6 +974,8 @@ bool DatabaseSync::Open() {
     CHECK_ERROR_OR_THROW(
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
+
+  sqlite3_trace_v2(connection_, SQLITE_TRACE_STMT, TraceCallback, this);
 
   return true;
 }
@@ -2388,6 +2391,48 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   }
 
   return int_result;
+}
+
+int DatabaseSync::TraceCallback(unsigned int type,
+                                void* user_data,
+                                void* p,
+                                void* x) {
+  if (type != SQLITE_TRACE_STMT) {
+    return 0;
+  }
+
+  DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
+  Environment* env = db->env();
+
+  diagnostics_channel::Channel* ch =
+      diagnostics_channel::Channel::Get(env, "sqlite.db.query");
+  if (ch == nullptr || !ch->HasSubscribers()) {
+    return 0;
+  }
+
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
+  Local<Value> sql_string;
+  if (expanded != nullptr) {
+    bool ok = String::NewFromUtf8(isolate, expanded).ToLocal(&sql_string);
+    sqlite3_free(expanded);
+    if (!ok) {
+      return 0;
+    }
+  } else {
+    // Fallback to source SQL if expanded is unavailable
+    const char* source = sqlite3_sql(static_cast<sqlite3_stmt*>(p));
+    if (source == nullptr ||
+        !String::NewFromUtf8(isolate, source).ToLocal(&sql_string)) {
+      return 0;
+    }
+  }
+
+  ch->Publish(env, sql_string);
+
+  return 0;
 }
 
 StatementSync::StatementSync(Environment* env,
