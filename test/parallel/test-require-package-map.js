@@ -54,22 +54,6 @@ describe('CJS: --experimental-package-map', () => {
     });
   });
 
-  describe('dependency access control', () => {
-    it('throws for undeclared dependency', () => {
-      const { status, stderr } = spawnSync(process.execPath, [
-        '--experimental-package-map', packageMapPath,
-        '-e',
-        `require('not-a-dep');`,
-      ], {
-        cwd: fixtures.path('package-map/root'),
-        encoding: 'utf8',
-      });
-
-      assert.notStrictEqual(status, 0);
-      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
-    });
-  });
-
   describe('resolution boundaries', () => {
     it('falls back for builtin modules', () => {
       const { status, stdout, stderr } = spawnSync(process.execPath, [
@@ -96,7 +80,7 @@ describe('CJS: --experimental-package-map', () => {
       });
 
       assert.notStrictEqual(status, 0);
-      assert.match(stderr, /Cannot find module/);
+      assert.match(stderr, /ERR_PACKAGE_MAP_EXTERNAL_FILE/);
     });
   });
 
@@ -129,6 +113,23 @@ describe('CJS: --experimental-package-map', () => {
 
       assert.notStrictEqual(status, 0);
       assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
+    });
+
+    it('throws for duplicate package paths', () => {
+      const { status, stderr } = spawnSync(process.execPath, [
+        '--experimental-package-map',
+        fixtures.path('package-map/package-map-duplicate-path.json'),
+        '-e',
+        `require('dep-a');`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.notStrictEqual(status, 0);
+      assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
+      assert.match(stderr, /pkg-a/);
+      assert.match(stderr, /pkg-b/);
     });
   });
 
@@ -240,9 +241,9 @@ describe('CJS: --experimental-package-map', () => {
       assert.match(stdout, /inner using dep-a-value/);
     });
 
-    it('denies access to nested package deps from parent package', () => {
+    it('falls back for undeclared dependency in nested package parent', () => {
       // Root does not list dep-a in its dependencies, so requiring it
-      // from root should fail even though inner (nested inside root) can.
+      // from root should fail with MODULE_NOT_FOUND.
       const { status, stderr } = spawnSync(process.execPath, [
         '--experimental-package-map', longestPathMap,
         '-e',
@@ -253,7 +254,7 @@ describe('CJS: --experimental-package-map', () => {
       });
 
       assert.notStrictEqual(status, 0);
-      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
+      assert.match(stderr, /Cannot find module/);
     });
   });
 });

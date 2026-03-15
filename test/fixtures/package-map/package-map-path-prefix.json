@@ -1,12 +1,10 @@
 {
   "packages": {
     "pkg": {
-      "name": "pkg",
       "path": "./pkg",
       "dependencies": {}
     },
     "pkg-other": {
-      "name": "pkg-other",
       "path": "./pkg-other",
       "dependencies": {"pkg": "pkg"}
     }

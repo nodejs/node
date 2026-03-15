@@ -2496,27 +2496,25 @@ A given value is out of the accepted range.
 The `package.json` [`"imports"`][] field does not define the given internal
 package specifier mapping.
 
-<a id="ERR_PACKAGE_MAP_ACCESS_DENIED"></a>
+<a id="ERR_PACKAGE_MAP_EXTERNAL_FILE"></a>
 
-### `ERR_PACKAGE_MAP_ACCESS_DENIED`
+### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-A package attempted to import another package that exists in the [package map][]
-but is not listed in its `dependencies` object.
+A module attempted to resolve a bare specifier using the [package map][], but
+the importing file is not located within any package defined in the map.
 
-```mjs
-// package-map.json declares "app" with dependencies: {"utils": "utils"}
-// but "app" tries to import "secret-lib" which exists in the map
-
-// In app/index.js
-import secret from 'secret-lib'; // Throws ERR_PACKAGE_MAP_ACCESS_DENIED
+```console
+$ node --experimental-package-map=./package-map.json /tmp/script.js
+Error [ERR_PACKAGE_MAP_EXTERNAL_FILE]: Cannot resolve "dep-a" from "/tmp/script.js": file is not within any package defined in /path/to/package-map.json
 ```
 
-To fix this error, add the required package to the importing package's
-`dependencies` object in the package map configuration file.
+To fix this error, ensure the importing file is inside one of the package
+directories listed in the package map, or add a new package entry whose `path`
+covers the importing file.
 
 <a id="ERR_PACKAGE_MAP_INVALID"></a>
 
@@ -2532,6 +2530,7 @@ The [package map][] configuration file is invalid. This can occur when:
 * The file contains invalid JSON.
 * The file is missing the required `packages` object.
 * A package entry is missing the required `path` field.
+* Two package entries have the same `path` value.
 
 ```console
 $ node --experimental-package-map=./missing.json app.js
@@ -2553,7 +2552,6 @@ key that is not defined in the `packages` object.
 {
   "packages": {
     "app": {
-      "name": "app",
       "path": "./app",
       "dependencies": {
         "foo": "nonexistent"

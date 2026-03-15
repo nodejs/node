@@ -49,39 +49,6 @@ describe('ESM: --experimental-package-map', () => {
     });
   });
 
-  // =========== Access Control ===========
-
-  describe('dependency access control', () => {
-    it('throws ERR_PACKAGE_MAP_ACCESS_DENIED for undeclared dependency', async () => {
-      const { code, stderr } = await spawnPromisified(execPath, [
-        '--experimental-package-map', packageMapPath,
-        '--input-type=module',
-        '--eval',
-        `import x from 'not-a-dep';`,
-      ], { cwd: fixtures.path('package-map/root') });
-
-      assert.notStrictEqual(code, 0);
-      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
-      assert.match(stderr, /not-a-dep/);
-      assert.match(stderr, /root/);  // parent package name
-    });
-
-    it('includes package key in error for nameless packages', async () => {
-      const { code, stderr } = await spawnPromisified(execPath, [
-        '--experimental-package-map',
-        fixtures.path('package-map/package-map-nameless.json'),
-        '--input-type=module',
-        '--eval',
-        `import x from 'forbidden';`,
-      ], { cwd: fixtures.path('package-map/nameless-pkg') });
-
-      assert.notStrictEqual(code, 0);
-      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
-      // Should show key since package is nameless
-      assert.match(stderr, /nameless/);
-    });
-  });
-
   // =========== Fallback Behavior ===========
 
   describe('resolution boundaries', () => {
@@ -106,7 +73,7 @@ describe('ESM: --experimental-package-map', () => {
       ], { cwd: '/tmp' });  // Not in any mapped package
 
       assert.notStrictEqual(code, 0);
-      assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
+      assert.match(stderr, /ERR_PACKAGE_MAP_EXTERNAL_FILE/);
     });
   });
 
@@ -161,6 +128,20 @@ describe('ESM: --experimental-package-map', () => {
       assert.notStrictEqual(code, 0);
       assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
       assert.match(stderr, /not found/);
+    });
+
+    it('throws ERR_PACKAGE_MAP_INVALID for duplicate package paths', async () => {
+      const { code, stderr } = await spawnPromisified(execPath, [
+        '--experimental-package-map',
+        fixtures.path('package-map/package-map-duplicate-path.json'),
+        '--input-type=module',
+        '--eval', `import x from 'dep-a';`,
+      ], { cwd: fixtures.path('package-map/root') });
+
+      assert.notStrictEqual(code, 0);
+      assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
+      assert.match(stderr, /pkg-a/);
+      assert.match(stderr, /pkg-b/);
     });
   });
 
@@ -302,9 +283,9 @@ describe('ESM: --experimental-package-map', () => {
       assert.match(stdout, /inner using dep-a-value/);
     });
 
-    it('denies access to nested package deps from parent package', async () => {
+    it('falls back for undeclared dependency in nested package parent', async () => {
       // Root does not list dep-a in its dependencies, so importing it
-      // from root should fail even though inner (nested inside root) can.
+      // from root should fail with ERR_MODULE_NOT_FOUND.
       const { code, stderr } = await spawnPromisified(execPath, [
         '--experimental-package-map', longestPathMap,
         '--input-type=module',
@@ -313,7 +294,7 @@ describe('ESM: --experimental-package-map', () => {
       ], { cwd: fixtures.path('package-map/root') });
 
       assert.notStrictEqual(code, 0);
-      assert.match(stderr, /ERR_PACKAGE_MAP_ACCESS_DENIED/);
+      assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
     });
   });
 });

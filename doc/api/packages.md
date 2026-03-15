@@ -987,7 +987,6 @@ Each key in `packages` is a unique identifier for a package entry:
 {
   "packages": {
     "app": {
-      "name": "my-app",
       "path": "./packages/app",
       "dependencies": {
         "@myorg/utils": "utils",
@@ -995,11 +994,9 @@ Each key in `packages` is a unique identifier for a package entry:
       }
     },
     "utils": {
-      "name": "@myorg/utils",
       "path": "./packages/utils"
     },
     "ui-lib": {
-      "name": "@myorg/ui-lib",
       "path": "./packages/ui-lib",
       "dependencies": {
         "@myorg/utils": "utils"
@@ -1012,9 +1009,8 @@ Each key in `packages` is a unique identifier for a package entry:
 Each package entry has the following fields:
 
 * `path` {string} **Required.** Relative path from the configuration file to
-  the package directory.
-* `name` {string} The package name used in import specifiers. If omitted, the
-  package cannot be imported by name but can still import its dependencies.
+  the package directory. Each path must be unique across all packages in the
+  map; duplicate paths will throw an [`ERR_PACKAGE_MAP_INVALID`][] error.
 * `dependencies` {Object} An object mapping bare specifiers to package keys.
   Each key is the import name used in source code, and each value is the
   corresponding package key in the `packages` object. Defaults to an empty
@@ -1026,14 +1022,12 @@ When a bare specifier is encountered:
 
 1. Node.js determines which package contains the importing file by checking
    if the file path is within any package's `path`.
-2. If the importing file is not within any mapped package, a
-   `MODULE_NOT_FOUND` error is thrown.
+2. If the importing file is not within any mapped package, an
+   [`ERR_PACKAGE_MAP_EXTERNAL_FILE`][] error is thrown.
 3. Node.js looks up the specifier's package name in the importing package's
    `dependencies` object to find the corresponding package key.
 4. If found, the specifier resolves to the target package's `path`.
-5. If the package exists in the map but is not in `dependencies`, an
-   [`ERR_PACKAGE_MAP_ACCESS_DENIED`][] error is thrown.
-6. If the package does not exist in the map at all, a
+5. If the specifier is not in `dependencies`, a
    `MODULE_NOT_FOUND` error is thrown.
 
 ### Subpath resolution
@@ -1060,25 +1054,21 @@ can map the same specifier to different targets:
 {
   "packages": {
     "app": {
-      "name": "app",
       "path": "./app",
       "dependencies": {
         "component": "component-v2"
       }
     },
     "legacy": {
-      "name": "legacy",
       "path": "./legacy",
       "dependencies": {
         "component": "component-v1"
       }
     },
     "component-v1": {
-      "name": "component",
       "path": "./vendor/component-1.0.0"
     },
     "component-v2": {
-      "name": "component",
       "path": "./vendor/component-2.0.0"
     }
   }
@@ -1352,7 +1342,8 @@ This field defines [subpath imports][] for the current package.
 [`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
 [`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--no-addons` flag]: cli.md#--no-addons
-[`ERR_PACKAGE_MAP_ACCESS_DENIED`]: errors.md#err_package_map_access_denied
+[`ERR_PACKAGE_MAP_EXTERNAL_FILE`]: errors.md#err_package_map_external_file
+[`ERR_PACKAGE_MAP_INVALID`]: errors.md#err_package_map_invalid
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions
