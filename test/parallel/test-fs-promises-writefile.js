@@ -161,6 +161,21 @@ async function doReadWithEncoding() {
   assert.deepStrictEqual(data, syncData);
 }
 
+async function doWriteStreamWithError() {
+  const s1 = new Readable({
+    read() {}
+  });
+
+  process.nextTick(() => {
+    s1.emit('error', new Error('Boom'));
+  });
+
+  await assert.rejects(
+    fsPromises.writeFile(otherDest, s1),
+    { message: 'Boom' }
+  );
+}
+
 (async () => {
   await doWrite();
   await doWriteWithCancel();
@@ -169,6 +184,7 @@ async function doReadWithEncoding() {
   await doReadWithEncoding();
   await doWriteStream();
   await doWriteStreamWithCancel();
+  await doWriteStreamWithError();
   await doWriteIterable();
   await doWriteInvalidIterable();
   await doWriteIterableWithEncoding();
