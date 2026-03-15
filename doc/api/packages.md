@@ -947,6 +947,169 @@ $ node other.js
 
 See [the package examples repository][] for details.
 
+## Package maps
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Package maps provide a mechanism to control package resolution without relying
+on the `node_modules` folder structure. When enabled via the
+[`--experimental-package-map`][] flag, Node.js uses a JSON configuration file
+to determine how bare specifiers are resolved.
+
+This feature is useful for:
+
+* **Monorepos**: Define explicit dependency relationships between workspace
+  packages without symlinks or hoisting complexities.
+* **Dependency isolation**: Prevent packages from accessing undeclared
+  dependencies (phantom dependencies).
+* **Multiple versions**: Allow different packages to depend on different
+  versions of the same dependency.
+
+### Enabling package maps
+
+Package maps are enabled by passing the `--experimental-package-map` flag
+with a path to the configuration file:
+
+```bash
+node --experimental-package-map=./package-map.json app.js
+```
+
+### Configuration file format
+
+The package map configuration file is a JSON file with a `packages` object.
+Each key in `packages` is a unique identifier for a package entry:
+
+```json
+{
+  "packages": {
+    "app": {
+      "path": "./packages/app",
+      "dependencies": {
+        "@myorg/utils": "utils",
+        "@myorg/ui-lib": "ui-lib"
+      }
+    },
+    "utils": {
+      "path": "./packages/utils"
+    },
+    "ui-lib": {
+      "path": "./packages/ui-lib",
+      "dependencies": {
+        "@myorg/utils": "utils"
+      }
+    }
+  }
+}
+```
+
+Each package entry has the following fields:
+
+* `path` {string} **Required.** Relative path from the configuration file to
+  the package directory. Each path must be unique across all packages in the
+  map; duplicate paths will throw an [`ERR_PACKAGE_MAP_INVALID`][] error.
+* `dependencies` {Object} An object mapping bare specifiers to package keys.
+  Each key is the import name used in source code, and each value is the
+  corresponding package key in the `packages` object. Defaults to an empty
+  object.
+
+### Resolution algorithm
+
+When a bare specifier is encountered:
+
+1. Node.js determines which package contains the importing file by checking
+   if the file path is within any package's `path`.
+2. If the importing file is not within any mapped package, an
+   [`ERR_PACKAGE_MAP_EXTERNAL_FILE`][] error is thrown.
+3. Node.js looks up the specifier's package name in the importing package's
+   `dependencies` object to find the corresponding package key.
+4. If found, the specifier resolves to the target package's `path`.
+5. If the specifier is not in `dependencies`, a
+   `MODULE_NOT_FOUND` error is thrown.
+
+### Subpath resolution
+
+Package maps support importing subpaths. Given the configuration above:
+
+```js
+// In packages/app/index.js
+import { helper } from '@myorg/utils';        // Resolves to ./packages/utils
+import { format } from '@myorg/utils/format'; // Resolves to ./packages/utils/format
+```
+
+The subpath portion of the specifier is preserved and appended to the resolved
+package path. The target package's `package.json` [`"exports"`][] field is
+then used to resolve the final file path.
+
+### Multiple package versions
+
+Different packages can depend on different versions of the same package.
+Because `dependencies` maps bare specifiers to package keys, two packages
+can map the same specifier to different targets:
+
+```json
+{
+  "packages": {
+    "app": {
+      "path": "./app",
+      "dependencies": {
+        "component": "component-v2"
+      }
+    },
+    "legacy": {
+      "path": "./legacy",
+      "dependencies": {
+        "component": "component-v1"
+      }
+    },
+    "component-v1": {
+      "path": "./vendor/component-1.0.0"
+    },
+    "component-v2": {
+      "path": "./vendor/component-2.0.0"
+    }
+  }
+}
+```
+
+Both `app` and `legacy` can `import 'component'`, but they resolve to
+different paths based on their declared dependencies.
+
+### CommonJS and ES modules
+
+Package maps work with both CommonJS (`require()`) and ES modules (`import`).
+The resolution behavior is identical for both module systems.
+
+```cjs
+// CommonJS
+const utils = require('@myorg/utils');
+```
+
+```mjs
+// ES modules
+import utils from '@myorg/utils';
+```
+
+### Interaction with other resolution
+
+Package maps only apply to bare specifiers that are not Node.js builtin
+modules. The following cases are not affected by package maps and continue
+to use standard resolution:
+
+* Relative paths (`./` or `../`).
+* Absolute paths or URLs.
+* Node.js builtin modules (`node:fs`, etc.).
+
+### Limitations
+
+* Package maps must be a single static file; dynamic configuration is not
+  supported.
+* Circular dependency detection is not performed by the package map resolver.
+* The package map file is loaded synchronously at startup.
+
 ## Node.js `package.json` field definitions
 
 This section describes the fields used by the Node.js runtime. Other tools (such
@@ -1177,7 +1340,10 @@ This field defines [subpath imports][] for the current package.
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
+[`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--no-addons` flag]: cli.md#--no-addons
+[`ERR_PACKAGE_MAP_EXTERNAL_FILE`]: errors.md#err_package_map_external_file
+[`ERR_PACKAGE_MAP_INVALID`]: errors.md#err_package_map_invalid
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions

@@ -943,6 +943,12 @@ The default loader has the following properties
 * Fails on unknown extensions for `file:` loading
   (supports only `.cjs`, `.js`, and `.mjs`)
 
+When the [`--experimental-package-map`][] flag is enabled, bare specifier
+resolution first consults the package map configuration. If the importing
+module is within a mapped package and the specifier matches a declared
+dependency, the package map resolution takes precedence. See [Package maps][]
+for details.
+
 ### Resolution algorithm
 
 The algorithm to load an ES module specifier is given through the
@@ -1306,12 +1312,14 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
+[Package maps]: packages.md#package-maps
 [Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
+[`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--input-type`]: cli.md#--input-typetype
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export

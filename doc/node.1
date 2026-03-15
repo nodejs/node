@@ -712,6 +712,9 @@ This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .It Fl -experimental-network-inspection
 Enable experimental support for the network inspection with Chrome DevTools.
 .
+.It Fl -experimental-package-map Ns = Ns Ar path
+Enable experimental package map resolution using the specified configuration file.
+.
 .It Fl -experimental-print-required-tla
 If the ES module being \fBrequire()\fR'd contains top-level \fBawait\fR, this flag
 allows Node.js to evaluate the module, try to locate the
@@ -1864,6 +1867,8 @@ one is included in the list below.
 \fB--experimental-loader\fR
 .It
 \fB--experimental-modules\fR
+.It
+\fB--experimental-package-map\fR
 .It
 \fB--experimental-print-required-tla\fR
 .It

@@ -886,6 +886,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-default-config-file",
             "set config file from default config file",
             &EnvironmentOptions::experimental_default_config_file);
+  AddOption("--experimental-package-map",
+            "use the specified file for package map resolution",
+            &EnvironmentOptions::experimental_package_map_path,
+            kAllowedInEnvvar);
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,

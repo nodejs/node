@@ -1,0 +1,22 @@
+{
+  "packages": {
+    "root": {
+      "path": "./root",
+      "dependencies": {"app-18": "app-18", "app-19": "app-19"}
+    },
+    "app-18": {
+      "path": "./app-18",
+      "dependencies": {"react": "react@18"}
+    },
+    "app-19": {
+      "path": "./app-19",
+      "dependencies": {"react": "react@19"}
+    },
+    "react@18": {
+      "path": "./react-18"
+    },
+    "react@19": {
+      "path": "./react-19"
+    }
+  }
+}
