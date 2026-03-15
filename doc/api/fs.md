@@ -7739,8 +7739,7 @@ added:
 
 * Type: {number|bigint}
 
-The optimal transfer block size in bytes. This value represents the fundamental
-block size used by the file system for allocating and transferring data.
+Optimal transfer block size, in bytes.
 
 #### `statfs.ffree`
 
@@ -7782,7 +7781,7 @@ added:
 
 A numeric identifier for the file system type. This value is a filesystem magic
 number set by the operating system kernel, such as `0xEF53` for ext4 or
-`0x01021994` for tmpfs on Linux. On Windows, this value is `0`.
+`0x01021994` for tmpfs on Linux. On some platforms, this value is `0`.
 
 ### Class: `fs.Utf8Stream`
 
