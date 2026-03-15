@@ -807,6 +807,7 @@ class EVPKeyCtxPointer final {
   DataPointer sign(const Buffer<const unsigned char>& data);
   bool signInto(const Buffer<const unsigned char>& data,
                 Buffer<unsigned char>* sig);
+  bool setNonceType(unsigned int type);
 
   static constexpr int kDefaultRsaExponent = 0x10001;
 
@@ -1422,6 +1423,11 @@ class EVPMDCtxPointer final {
       const EVPKeyPointer& key,
       const Digest& digest,
       const Buffer<const unsigned char>& context_string);
+
+  std::optional<EVP_PKEY_CTX*> signInitDeterministic(const EVPKeyPointer& key,
+                                                     const Digest& digest);
+  std::optional<EVP_PKEY_CTX*> verifyInitDeterministic(const EVPKeyPointer& key,
+                                                       const Digest& digest);
 
   DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
