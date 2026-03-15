@@ -222,7 +222,8 @@ function cleanRequestHeaders (headers, removeContent, unknownOrigin) {
       }
     }
   } else if (headers && typeof headers === 'object') {
-    const entries = typeof headers[Symbol.iterator] === 'function' ? headers : Object.entries(headers)
+    const entries = util.hasSafeIterator(headers) ? headers : Object.entries(headers)
+
     for (const [key, value] of entries) {
       if (!shouldRemoveHeader(key, removeContent, unknownOrigin)) {
         ret.push(key, value)

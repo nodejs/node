@@ -154,8 +154,24 @@ declare namespace Errors {
     code: 'UND_ERR_PRX_TLS'
   }
 
-  class MaxOriginsReachedError extends UndiciError {
+  export class MaxOriginsReachedError extends UndiciError {
     name: 'MaxOriginsReachedError'
     code: 'UND_ERR_MAX_ORIGINS_REACHED'
+  }
+
+  /** SOCKS5 proxy related error. */
+  export class Socks5ProxyError extends UndiciError {
+    constructor (
+      message?: string,
+      code?: string
+    )
+    name: 'Socks5ProxyError'
+    code: string
+  }
+
+  /** WebSocket decompressed message exceeded maximum size. */
+  export class MessageSizeExceededError extends UndiciError {
+    name: 'MessageSizeExceededError'
+    code: 'UND_ERR_WS_MESSAGE_SIZE_EXCEEDED'
   }
 }
