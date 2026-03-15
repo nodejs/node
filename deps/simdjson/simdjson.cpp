@@ -1,4 +1,4 @@
-/* auto-generated on 2026-02-20 16:16:37 -0500. version 4.3.1 Do not edit! */
+/* auto-generated on 2026-03-12 20:40:43 -0400. version 4.4.0 Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -146,7 +146,6 @@
 #define SIMDJSON_CONSTEVAL 0
 #endif // defined(__cpp_consteval) && __cpp_consteval >= 201811L && defined(__cpp_lib_constexpr_string) && __cpp_lib_constexpr_string >= 201907L
 #endif // !defined(SIMDJSON_CONSTEVAL)
-
 #endif // SIMDJSON_COMPILER_CHECK_H
 /* end file simdjson/compiler_check.h */
 /* including simdjson/portability.h: #include "simdjson/portability.h" */
@@ -219,6 +218,25 @@ using std::size_t;
   #define SIMDJSON_IS_LASX 1 // We can always run both
 #elif defined(__loongarch_sx)
   #define SIMDJSON_IS_LSX 1
+
+// Adjust for runtime dispatching support.
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER) && !defined(__NVCOMPILER)
+#if __GNUC__ > 15 || (__GNUC__ == 15 && __GNUC_MINOR__ >= 0)
+  // We are ok, we will support runtime dispatch for LASX.
+#else
+  // We disable runtime dispatch for LASX, which means that we will not be able to use LASX
+  // even if it is supported by the hardware.
+  // Loongson users should update to GCC 15 or better.
+  #define SIMDJSON_IMPLEMENTATION_LASX 0
+#endif
+#else
+  // We are not using GCC, so we assume that we can support runtime dispatch for LASX.
+  // https://godbolt.org/z/jcMnrjYhs
+  #define SIMDJSON_IMPLEMENTATION_LASX 0
+#endif
+
+
+
 #endif
 #elif defined(__PPC64__) || defined(_M_PPC64)
 #define SIMDJSON_IS_PPC64 1
@@ -60938,6 +60956,19 @@ simdjson_inline int leading_zeroes(uint64_t input_num) {
 #endif// _MSC_VER
 }
 
+simdjson_inline int trailing_zeroes(uint64_t input_num) {
+#ifdef _MSC_VER
+  unsigned long trailing_zero = 0;
+  // Search the mask data from least significant bit (LSB)
+  // to most significant bit (MSB) for a set bit (1).
+  if (_BitScanForward64(&trailing_zero, input_num))
+    return (int)trailing_zero;
+  else    return 64;
+#else
+  return __builtin_ctzll(input_num);
+#endif// _MSC_VER
+}
+
 } // unnamed namespace
 } // namespace fallback
 } // namespace simdjson
@@ -63166,6 +63197,19 @@ simdjson_inline int leading_zeroes(uint64_t input_num) {
     return 64;
 #else
   return __builtin_clzll(input_num);
+#endif// _MSC_VER
+}
+
+simdjson_inline int trailing_zeroes(uint64_t input_num) {
+#ifdef _MSC_VER
+  unsigned long trailing_zero = 0;
+  // Search the mask data from least significant bit (LSB)
+  // to most significant bit (MSB) for a set bit (1).
+  if (_BitScanForward64(&trailing_zero, input_num))
+    return (int)trailing_zero;
+  else    return 64;
+#else
+  return __builtin_ctzll(input_num);
 #endif// _MSC_VER
 }
 
