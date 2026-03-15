@@ -2325,21 +2325,35 @@ const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-## `tls.getCACertificates([type])`
+## `tls.getCACertificates([options])`
 
 <!-- YAML
 added:
   - v23.10.0
   - v22.15.0
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59349
+    description: Added optional `options.type` parameter to `getCACertificates()`.
 -->
 
-* `type` {string|undefined} The type of CA certificates that will be returned. Valid values
-  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
-  **Default:** `"default"`.
-* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
-  if the same certificate is repeatedly stored in multiple sources.
+* `options` {string|Object|undefined}
+  Optional. If a string, it is treated as the `type` of certificates to return.
+  If an object, it may contain:
+  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
+    **Default:** `"default"`.
+  * `format` {string} The format of returned certificates. One of `"pem"`, `"der"`, or `"x509"`.
+    **Default:** `"pem"`.
+    * `"pem"` (alias: `"string"`): Returns an array of PEM-encoded certificate strings.
+    * `"der"` (alias: `"buffer"`): Returns an array of certificate data as `Buffer` objects in DER format.
+    * `"x509"`: Returns an array of [`X509Certificate`][x509certificate] instances.
 
-Returns an array containing the CA certificates from various sources, depending on `type`:
+* Returns: {Array}
+  An array of certificate data in the specified format:
+  * PEM strings when `format` is `"pem"` (or `"string"`).
+  * `Buffer` objects containing DER data when `format` is `"der"` (or `"buffer"`).
+  * [`X509Certificate`][x509certificate] instances when `format` is `"x509"`.
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
@@ -2513,7 +2527,7 @@ added: v0.11.3
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
-[`tls.getCACertificates()`]: #tlsgetcacertificatestype
+[`tls.getCACertificates()`]: #tlsgetcacertificatesoptions
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
@@ -2522,3 +2536,4 @@ added: v0.11.3
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
+[x509certificate]: crypto.md#class-x509certificate
