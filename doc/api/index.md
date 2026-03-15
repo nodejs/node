@@ -40,6 +40,7 @@
 * [Modules: Packages](packages.md)
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
+* [New Streams API](stream_new.md)
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)

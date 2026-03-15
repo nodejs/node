@@ -377,6 +377,61 @@ added: v10.0.0
 
 * Type: {number} The numeric file descriptor managed by the {FileHandle} object.
 
+#### `filehandle.pull([...transforms][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `...transforms` {Function|Object} Optional transforms to apply via
+  [`stream/new pull()`][].
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `autoClose` {boolean} Close the file handle when the stream ends.
+    **Default:** `false`.
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Return the file contents as an async iterable using the
+[`node:stream/new`][] pull model. Reads are performed in 64 KB chunks.
+If transforms are provided, they are applied via [`stream/new pull()`][].
+
+The file handle is locked while the iterable is being consumed and unlocked
+when iteration completes.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { text, compressGzip } from 'node:stream/new';
+
+const fh = await open('input.txt', 'r');
+
+// Read as text
+console.log(await text(fh.pull({ autoClose: true })));
+
+// Read with compression
+const fh2 = await open('input.txt', 'r');
+const compressed = fh2.pull(compressGzip(), { autoClose: true });
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { text, compressGzip } = require('node:stream/new');
+
+async function run() {
+  const fh = await open('input.txt', 'r');
+
+  // Read as text
+  console.log(await text(fh.pull({ autoClose: true })));
+
+  // Read with compression
+  const fh2 = await open('input.txt', 'r');
+  const compressed = fh2.pull(compressGzip(), { autoClose: true });
+}
+
+run().catch(console.error);
+```
+
 #### `filehandle.read(buffer, offset, length, position)`
 
 <!-- YAML
@@ -858,6 +913,70 @@ for the promise to be fulfilled (or rejected).
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+#### `filehandle.writer([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `autoClose` {boolean} Close the file handle when the writer ends.
+    **Default:** `false`.
+  * `start` {number} Byte offset to start writing at. **Default:** current
+    position (append).
+* Returns: {Object}
+  * `write(chunk[, options])` {Function} Returns {Promise\<void>}.
+    * `chunk` {Buffer|TypedArray|DataView}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writev(chunks[, options])` {Function} Returns {Promise\<void>}. Uses
+    scatter/gather I/O via a single `writev()` syscall.
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `end([options])` {Function} Returns {Promise\<number>} total bytes written.
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, `end()`
+        rejects with `AbortError` and the writer remains open.
+  * `fail(reason)` {Function} Returns {Promise\<void>}. Puts the writer
+    into a terminal error state.
+  * `failSync(reason)` {Function} Returns {boolean}. Synchronous best-effort
+    cleanup. Marks the writer as closed so subsequent writes fail immediately.
+    Cannot honor `autoClose` (requires async I/O).
+
+Return a [`node:stream/new`][] writer backed by this file handle.
+
+The writer supports `Symbol.asyncDispose`, so it can be used with
+`await using`.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { from, pipeTo, compressGzip } from 'node:stream/new';
+
+const fh = await open('output.gz', 'w');
+const w = fh.writer({ autoClose: true });
+await pipeTo(from('Hello!'), compressGzip(), w);
+await w.end();
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { from, pipeTo, compressGzip } = require('node:stream/new');
+
+async function run() {
+  const fh = await open('output.gz', 'w');
+  const w = fh.writer({ autoClose: true });
+  await pipeTo(from('Hello!'), compressGzip(), w);
+  await w.end();
+}
+
+run().catch(console.error);
+```
 
 #### `filehandle[Symbol.asyncDispose]()`
 
@@ -8787,6 +8906,8 @@ the file contents.
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
+[`node:stream/new`]: stream_new.md
+[`stream/new pull()`]: stream_new.md#pullsource-transforms-options
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
