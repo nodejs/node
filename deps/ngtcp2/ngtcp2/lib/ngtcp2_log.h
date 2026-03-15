@@ -119,8 +119,6 @@ void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
 void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
-void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
-
 #define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%s %s"
 
 uint64_t ngtcp2_log_timestamp(const ngtcp2_log *log);
