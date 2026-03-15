@@ -20,6 +20,10 @@ module.exports = class WrapHandler {
     return this.#handler.onConnect?.(abort, context)
   }
 
+  onResponseStarted () {
+    return this.#handler.onResponseStarted?.()
+  }
+
   onHeaders (statusCode, rawHeaders, resume, statusMessage) {
     return this.#handler.onHeaders?.(statusCode, rawHeaders, resume, statusMessage)
   }
@@ -53,7 +57,7 @@ module.exports = class WrapHandler {
   onRequestUpgrade (controller, statusCode, headers, socket) {
     const rawHeaders = []
     for (const [key, val] of Object.entries(headers)) {
-      rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
+      rawHeaders.push(Buffer.from(key, 'latin1'), toRawHeaderValue(val))
     }
 
     this.#handler.onUpgrade?.(statusCode, rawHeaders, socket)
@@ -62,7 +66,7 @@ module.exports = class WrapHandler {
   onResponseStart (controller, statusCode, headers, statusMessage) {
     const rawHeaders = []
     for (const [key, val] of Object.entries(headers)) {
-      rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
+      rawHeaders.push(Buffer.from(key, 'latin1'), toRawHeaderValue(val))
     }
 
     if (this.#handler.onHeaders?.(statusCode, rawHeaders, () => controller.resume(), statusMessage) === false) {
@@ -79,7 +83,7 @@ module.exports = class WrapHandler {
   onResponseEnd (controller, trailers) {
     const rawTrailers = []
     for (const [key, val] of Object.entries(trailers)) {
-      rawTrailers.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
+      rawTrailers.push(Buffer.from(key, 'latin1'), toRawHeaderValue(val))
     }
 
     this.#handler.onComplete?.(rawTrailers)
@@ -92,4 +96,10 @@ module.exports = class WrapHandler {
 
     this.#handler.onError?.(err)
   }
+}
+
+function toRawHeaderValue (value) {
+  return Array.isArray(value)
+    ? value.map((item) => Buffer.from(item, 'latin1'))
+    : Buffer.from(value, 'latin1')
 }
