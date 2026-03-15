@@ -207,7 +207,7 @@ Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls wo
 
 * **onRequestStart** `(controller: DispatchController, context: object) => void` - Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails.
 * **onRequestUpgrade** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string[]>, socket: Duplex) => void` (optional) - Invoked when request is upgraded. Required if `DispatchOptions.upgrade` is defined or `DispatchOptions.method === 'CONNECT'`.
-* **onResponseStart** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string []>, statusMessage?: string) => void` - Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. Not required for `upgrade` requests.
+* **onResponseStart** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string []>, statusMessage?: string) => void` - Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. Not required for `upgrade` requests. Any return value is ignored.
 * **onResponseData** `(controller: DispatchController, chunk: Buffer) => void` - Invoked when response payload data is received. Not required for `upgrade` requests.
 * **onResponseEnd** `(controller: DispatchController, trailers: Record<string, string | string[]>) => void` - Invoked when response payload and trailers have been received and the request has completed. Not required for `upgrade` requests.
 * **onResponseError** `(controller: DispatchController, error: Error) => void` - Invoked when an error has occurred. May not throw.
@@ -962,7 +962,7 @@ It accepts the same arguments as the [`RedirectHandler` constructor](/docs/docs/
 const { Client, interceptors } = require("undici");
 const { redirect } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   redirect({ maxRedirections: 3, throwOnMaxRedirects: true })
 );
 client.request({ path: "/" })
@@ -980,7 +980,7 @@ It accepts the same arguments as the [`RetryHandler` constructor](/docs/docs/api
 const { Client, interceptors } = require("undici");
 const { retry } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   retry({
     maxRetries: 3,
     minTimeout: 1000,
@@ -1006,7 +1006,7 @@ The `dump` interceptor enables you to dump the response body from a request upon
 const { Client, interceptors } = require("undici");
 const { dump } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   dump({
     maxSize: 1024,
   })
@@ -1132,7 +1132,7 @@ The `responseError` interceptor throws an error for responses with status code e
 const { Client, interceptors } = require("undici");
 const { responseError } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   responseError()
 );
 
@@ -1160,7 +1160,7 @@ The `decompress` interceptor automatically decompresses response bodies that are
 const { Client, interceptors } = require("undici");
 const { decompress } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   decompress()
 );
 
@@ -1177,7 +1177,7 @@ const response = await client.request({
 const { Client, interceptors } = require("undici");
 const { decompress } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   decompress({
     skipErrorResponses: false, // Decompress 5xx responses
     skipStatusCodes: [204, 304, 201] // Skip these status codes
@@ -1214,6 +1214,28 @@ The `cache` interceptor implements client-side response caching as described in
 - `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration and cannot have an heuristic expiry computed. If this isn't present, responses neither with an explicit expiration nor heuristically cacheable will not be cached. Default `undefined`.
 - `type` - The [type of cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#types_of_caches) for Undici to act as. Can be `shared` or `private`. Default `shared`. `private` implies privately cacheable responses will be cached and potentially shared with other users of your application.
 
+**Usage with `fetch`**
+
+```js
+const { Agent, cacheStores, interceptors, setGlobalDispatcher } = require('undici')
+
+const client = new Agent().compose(interceptors.cache({
+  store: new cacheStores.MemoryCacheStore({
+    maxSize: 100 * 1024 * 1024, // 100MB
+    maxCount: 1000,
+    maxEntrySize: 5 * 1024 * 1024 // 5MB
+  })
+}))
+
+setGlobalDispatcher(client)
+
+// First request goes to the network and is cached when cache headers allow it.
+const first = await fetch('https://example.com/data')
+
+// Second request can be served from cache according to RFC9111 rules.
+const second = await fetch('https://example.com/data')
+```
+
 ##### `Deduplicate Interceptor`
 
 The `deduplicate` interceptor deduplicates concurrent identical requests. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response. This reduces server load and improves performance.
@@ -1223,6 +1245,7 @@ The `deduplicate` interceptor deduplicates concurrent identical requests. When m
 - `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to deduplicate. Default `['GET']`.
 - `skipHeaderNames` - Header names that, if present in a request, will cause the request to skip deduplication entirely. Useful for headers like `idempotency-key` where presence indicates unique processing. Header name matching is case-insensitive. Default `[]`.
 - `excludeHeaderNames` - Header names to exclude from the deduplication key. Requests with different values for these headers will still be deduplicated together. Useful for headers like `x-request-id` that vary per request but shouldn't affect deduplication. Header name matching is case-insensitive. Default `[]`.
+- `maxBufferSize` - Maximum bytes buffered per paused waiting deduplicated handler. If a waiting handler remains paused and exceeds this threshold, it is failed with an abort error to prevent unbounded memory growth. Default `5 * 1024 * 1024`.
 
 **Usage**
 
@@ -1231,12 +1254,12 @@ const { Client, interceptors } = require("undici");
 const { deduplicate, cache } = interceptors;
 
 // Deduplicate only
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   deduplicate()
 );
 
 // Deduplicate with caching
-const clientWithCache = new Client("http://example.com").compose(
+const clientWithCache = new Client("http://service.example").compose(
   deduplicate(),
   cache()
 );
@@ -1303,6 +1326,10 @@ Header arguments such as `options.headers` in [`Client.dispatch`](/docs/docs/api
 * As an array of strings. An array representation of a header list must have an even length, or an `InvalidArgumentError` will be thrown.
 * As an iterable that can encompass `Headers`, `Map`, or a custom iterator returning key-value pairs.
 Keys are lowercase and values are not modified.
+
+Undici validates header syntax at the protocol level (for example, invalid header names and invalid control characters in string values), but it does not sanitize untrusted application input. Validate and sanitize any user-provided header names and values before passing them to Undici to prevent header/body injection vulnerabilities.
+
+When using the array header format (`string[]`), Undici processes only indexed elements. Additional properties assigned to the array object are ignored.
 
 Response headers will derive a `host` from the `url` of the [Client](/docs/docs/api/Client.md#class-client) instance if no `host` header was previously specified.
 
