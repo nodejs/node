@@ -303,14 +303,17 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
   SetIsolateUpForNode(isolate, settings);
 }
 
-//
 IsolateGroup GetOrCreateIsolateGroup() {
-  // When pointer compression is disabled, we cannot create new groups,
-  // in which case we'll always return the default.
+#ifndef V8_ENABLE_SANDBOX
+  // When the V8 sandbox is enabled, all isolates must share the same sandbox
+  // so that ArrayBuffer backing stores allocated via NewDefaultAllocator()
+  // (which uses the default IsolateGroup's sandbox) are valid for all
+  // isolates. Creating new groups would give each group its own sandbox,
+  // causing a mismatch with the allocator.
   if (IsolateGroup::CanCreateNewGroups()) {
     return IsolateGroup::Create();
   }
-
+#endif
   return IsolateGroup::GetDefault();
 }
 

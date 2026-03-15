@@ -529,7 +529,7 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   // When v8 sandbox is enabled, external backing stores are not supported
   // since all arraybuffer allocations are expected to be done by the isolate.
   // Since this violates the contract of this function, let's free the data and
@@ -1453,7 +1453,7 @@ inline size_t CheckNumberToSize(Local<Value> number) {
   CHECK(value >= 0 && value < maxSize);
   size_t size = static_cast<size_t>(value);
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_LE(size, kMaxSafeBufferSizeForSandbox);
+  CHECK_LE(size, v8::internal::kMaxSafeBufferSizeForSandbox);
 #endif
   return size;
 }
@@ -1476,6 +1476,24 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
       env->isolate_data()->is_building_snapshot()) {
     buf = ArrayBuffer::New(isolate, size);
   } else {
+#ifdef V8_ENABLE_SANDBOX
+    std::unique_ptr<ArrayBuffer::Allocator> allocator(
+        ArrayBuffer::Allocator::NewDefaultAllocator());
+    void* data = allocator->AllocateUninitialized(size);
+    if (!data) [[unlikely]] {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
+    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+        data,
+        size,
+        [](void* data, size_t length, void*) {
+          std::unique_ptr<ArrayBuffer::Allocator> allocator(
+              ArrayBuffer::Allocator::NewDefaultAllocator());
+          allocator->Free(data, length);
+        },
+        nullptr);
+#else
     std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
         isolate,
         size,
@@ -1486,6 +1504,7 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return;
     }
+#endif
 
     buf = ArrayBuffer::New(isolate, std::move(store));
   }
