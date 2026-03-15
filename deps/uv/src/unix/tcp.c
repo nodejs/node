@@ -444,10 +444,9 @@ int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   tcp->flags |= UV_HANDLE_BOUND;
 
   /* Start listening for connections. */
-  tcp->io_watcher.cb = uv__server_io;
-  uv__io_start(tcp->loop, &tcp->io_watcher, POLLIN);
+  uv__io_cb_set(&tcp->io_watcher, UV__SERVER_IO);
 
-  return 0;
+  return uv__io_start(tcp->loop, &tcp->io_watcher, POLLIN);
 }
 
 
@@ -466,22 +465,18 @@ int uv__tcp_nodelay(int fd, int on) {
 #else
 #define UV_KEEPALIVE_FACTOR(x)
 #endif
-int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
-  int idle;
-  int intvl;
-  int cnt;
-
-  (void) &idle;
-  (void) &intvl;
-  (void) &cnt;
-
+int uv__tcp_keepalive(int fd,
+                      int on,
+                      unsigned int idle,
+                      unsigned int intvl,
+                      unsigned int cnt) {
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
     return UV__ERR(errno);
 
   if (!on)
     return 0;
 
-  if (delay < 1)
+  if (idle < 1 || intvl < 1 || cnt < 1)
     return UV_EINVAL;
 
 #ifdef __sun
@@ -507,13 +502,16 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
    * The TCP connection will be aborted after certain amount of probes, which is set by TCP_KEEPCNT, without receiving response.
    */
 
-  idle = delay;
-  /* Kernel expects at least 10 seconds. */
+  /* Kernel expects at least 10 seconds for TCP_KEEPIDLE and TCP_KEEPINTVL. */
   if (idle < 10)
     idle = 10;
-  /* Kernel expects at most 10 days. */
+  if (intvl < 10)
+    intvl = 10;
+  /* Kernel expects at most 10 days for TCP_KEEPIDLE and TCP_KEEPINTVL. */
   if (idle > 10*24*60*60)
     idle = 10*24*60*60;
+  if (intvl > 10*24*60*60)
+    intvl = 10*24*60*60;
 
   UV_KEEPALIVE_FACTOR(idle);
 
@@ -523,12 +521,10 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
     return UV__ERR(errno);
 
-  intvl = 10; /* required at least 10 seconds */
   UV_KEEPALIVE_FACTOR(intvl);
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
     return UV__ERR(errno);
 
-  cnt = 1; /* 1 retry, ensure (TCP_KEEPINTVL * TCP_KEEPCNT) is 10 seconds */
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
     return UV__ERR(errno);
 #else
@@ -540,7 +536,7 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 
   /* Note that the consequent probes will not be sent at equal intervals on Solaris,
    * but will be sent using the exponential backoff algorithm. */
-  int time_to_abort = 10; /* 10 seconds */
+  unsigned int time_to_abort = intvl * cnt;
   UV_KEEPALIVE_FACTOR(time_to_abort);
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
     return UV__ERR(errno);
@@ -548,7 +544,6 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 
 #else  /* !defined(__sun) */
 
-  idle = delay;
   UV_KEEPALIVE_FACTOR(idle);
 #ifdef TCP_KEEPIDLE
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
@@ -560,14 +555,12 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 #endif
 
 #ifdef TCP_KEEPINTVL
-  intvl = 1;  /* 1 second; same as default on Win32 */
   UV_KEEPALIVE_FACTOR(intvl);
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
     return UV__ERR(errno);
 #endif
 
 #ifdef TCP_KEEPCNT
-  cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
     return UV__ERR(errno);
 #endif
@@ -595,11 +588,20 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
 }
 
 
-int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
+int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int idle) {
+  return uv_tcp_keepalive_ex(handle, on, idle, 1, 10);
+}
+
+
+int uv_tcp_keepalive_ex(uv_tcp_t* handle,
+                        int on,
+                        unsigned int idle,
+                        unsigned int intvl,
+                        unsigned int cnt) {
   int err;
 
   if (uv__stream_fd(handle) != -1) {
-    err =uv__tcp_keepalive(uv__stream_fd(handle), on, delay);
+    err = uv__tcp_keepalive(uv__stream_fd(handle), on, idle, intvl, cnt);
     if (err)
       return err;
   }
@@ -609,7 +611,7 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   else
     handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
 
-  /* TODO Store delay if uv__stream_fd(handle) == -1 but don't want to enlarge
+  /* TODO Store idle if uv__stream_fd(handle) == -1 but don't want to enlarge
    *      uv_tcp_t with an int that's almost never used...
    */
 

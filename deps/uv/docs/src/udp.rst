@@ -173,6 +173,22 @@ API
     .. versionadded:: 1.7.0
     .. versionchanged:: 1.37.0 added the `UV_UDP_RECVMMSG` flag.
 
+.. c:function:: int uv_udp_open_ex(uv_udp_t* handle, uv_os_sock_t sock, unsigned int flags)
+
+    Opens an existing file descriptor or Windows SOCKET as a UDP handle.
+
+    :param handle: UDP handle. Should have been initialized with
+        :c:func:`uv_udp_init`.
+
+    :param sock: An existing socket to associate with the handle.
+
+    :param flags: Flags that control socket behavior,
+        ``UV_UDP_REUSEADDR``, and ``UV_UDP_REUSEPORT`` are supported.
+
+    :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionadded:: 1.52.0
+
 .. c:function:: int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock)
 
     Opens an existing file descriptor or Windows SOCKET as a UDP handle.
@@ -188,6 +204,10 @@ API
     .. note::
         The passed file descriptor or SOCKET is not checked for its type, but
         it's required that it represents a valid datagram socket.
+
+        Internally sets the SO_REUSEADDR socket option unconditionally. This
+        means the reuse flag is always enabled, regardless of user intent. For
+        more control use :c:func:`uv_udp_open_ex`.
 
 .. c:function:: int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags)
 

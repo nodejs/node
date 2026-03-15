@@ -2149,7 +2149,8 @@ void uv__process_pipe_read_req(uv_loop_t* loop,
   } else {
     /* The zero-read completed without error, indicating there is data
      * available in the kernel buffer. */
-    while (handle->flags & UV_HANDLE_READING) {
+    while (handle->flags & UV_HANDLE_READING &&
+           !(handle->flags & UV_HANDLE_READ_PENDING)) {
       bytes_requested = 65536;
       /* Depending on the type of pipe, read either IPC frames or raw data. */
       if (handle->ipc)
