@@ -421,10 +421,6 @@ TEST_IMPL(tty_pty) {
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
-#if defined(__ASAN__)
-  RETURN_SKIP("Test does not currently work in ASAN");
-#endif
-
 #if defined(__APPLE__)                            || \
     defined(__DragonFly__)                        || \
     defined(__FreeBSD__)                          || \
@@ -432,16 +428,14 @@ TEST_IMPL(tty_pty) {
     defined(__NetBSD__)                           || \
     defined(__OpenBSD__)
   int master_fd, slave_fd, r;
-  struct winsize w;
   uv_loop_t loop;
   uv_tty_t master_tty, slave_tty;
 
-  ASSERT_OK(uv_loop_init(&loop));
-
-  r = openpty(&master_fd, &slave_fd, NULL, NULL, &w);
+  r = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
   if (r != 0)
     RETURN_SKIP("No pty available, skipping.");
 
+  ASSERT_OK(uv_loop_init(&loop));
   ASSERT_OK(uv_tty_init(&loop, &slave_tty, slave_fd, 0));
   ASSERT_OK(uv_tty_init(&loop, &master_tty, master_fd, 0));
   ASSERT(uv_is_readable((uv_stream_t*) &slave_tty));
@@ -463,6 +457,82 @@ TEST_IMPL(tty_pty) {
   ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
 
   MAKE_VALGRIND_HAPPY(&loop);
+#endif
+  return 0;
+}
+
+#if !defined(__ANDROID__) && !defined(_WIN32)
+static int tty_pty_partial_read_count;
+
+static void tty_pty_partial_feeder(void *arg) {
+  static char buf[1<<13];
+  ssize_t n;
+  ssize_t r;
+  int fd;
+  int i;
+
+  fd = *(int *)arg;
+  memset(buf, 'x', sizeof(buf));
+  for (i = 0; i < 8; i++) {
+    for (n = 0; n < (int) sizeof(buf); n += r) {
+      do
+        r = write(fd, &buf[n], sizeof(buf) - n);
+      while (r == -1 && errno == EINTR);
+      ASSERT_GT(r, 0);
+    }
+  }
+  ASSERT_OK(close(fd));
+}
+
+static void tty_pty_partial_alloc_cb(uv_handle_t* handle,
+                                     size_t suggested_size,
+                                     uv_buf_t *buf) {
+  static char slab[1<<16];
+  *buf = uv_buf_init(slab, sizeof(slab));
+}
+
+static void tty_pty_partial_read_cb(uv_stream_t* stream,
+                                    ssize_t nread,
+                                    const uv_buf_t *buf) {
+  if (nread > 0)
+    tty_pty_partial_read_count += nread;
+  else
+    uv_close((uv_handle_t*) stream, NULL);
+}
+#endif  /* !defined(__ANDROID__) && !defined(_WIN32) */
+
+TEST_IMPL(tty_pty_partial) {
+#if !defined(_AIX)        && \
+    !defined(__ANDROID__) && \
+    !defined(__MVS__)     && \
+    !defined(_WIN32)
+  int master_fd, slave_fd;
+  uv_tty_t master_tty;
+  uv_thread_t tid;
+  uv_loop_t loop;
+  int i;
+
+  /* This test is not 100% deterministic. If the bug it is testing for is
+   * present, then it fails about 1 in 3 times, that's why it runs in a loop.
+   */
+  for (i = 0; i < 10; i++) {
+    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL))
+      RETURN_SKIP("No pty available, skipping.");
+
+    tty_pty_partial_read_count = 0;
+    ASSERT_OK(uv_loop_init(&loop));
+    ASSERT_OK(uv_tty_init(&loop, &master_tty, master_fd, 0));
+    ASSERT_OK(uv_read_start((uv_stream_t*) &master_tty,
+                            tty_pty_partial_alloc_cb,
+                            tty_pty_partial_read_cb));
+    ASSERT(uv_is_readable((uv_stream_t*) &master_tty));
+    ASSERT(uv_is_writable((uv_stream_t*) &master_tty));
+    ASSERT_OK(uv_thread_create(&tid, tty_pty_partial_feeder, &slave_fd));
+    ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
+    ASSERT_OK(uv_thread_join(&tid));
+    ASSERT_EQ(tty_pty_partial_read_count, 65536);
+    MAKE_VALGRIND_HAPPY(&loop);
+  }
 #endif
   return 0;
 }

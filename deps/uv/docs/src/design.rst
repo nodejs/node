@@ -36,6 +36,31 @@ Requests represent (typically) short-lived operations. These operations can be p
 handle: write requests are used to write data on a handle; or standalone: getaddrinfo requests
 don't need a handle they run directly on the loop.
 
+Guidelines for dealing with handles and requests:
+
+1. If `uv_foo_init()` succeeds in initializing the handle, you must call
+   :c:func:`uv_close()`. If the handle's init function errors, you don't
+   need to do anything.
+
+2. Only handles are closed, not requests. For example, :c:type:`uv_tcp_t`
+   is a handle, :c:type:`uv_write_t` is a request.
+
+3. The handle's memory can only be reclaimed or reused from inside the
+   :c:type:`uv_close_cb` or afterwards, not before.
+
+4. Most handles have init + start/stop functions; some handles don't.
+   Example: :c:type:`uv_tcp_t` vs. :c:type:`uv_process_t`; :c:func:`uv_spawn()`
+   combines handle initialization and process start into one.
+
+5. Requests are closed automatically when they complete, or when they are
+   cancelled with :c:func:`uv_cancel()`.
+
+6. No additional cleanup is needed except for :c:type:`uv_fs_t` and
+   :c:type:`uv_getaddrinfo_t` requests. For :c:type:`uv_fs_t`, call
+   :c:func:`uv_fs_req_cleanup()` once you are done with it; for
+   :c:type:`uv_getaddrinfo_t`, that's :c:func:`uv_freeaddrinfo()`.
+
+7. The request's memory can only be reclaimed or reused from that point onward.
 
 The I/O loop
 ^^^^^^^^^^^^

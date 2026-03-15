@@ -269,7 +269,7 @@ int uv__getsockpeername(const uv_handle_t* handle,
                         int* namelen,
                         int delayed_error);
 
-int uv__random_rtlgenrandom(void* buf, size_t buflen);
+int uv__random_winrandom(void* buf, size_t buflen);
 
 
 /*

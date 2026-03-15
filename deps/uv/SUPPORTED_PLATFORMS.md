@@ -12,7 +12,6 @@
 | Linux with musl | Tier 2 | musl >= 1.0 | |
 | Android | Tier 3 | NDK >= r15b | Android 7.0, `-DANDROID_PLATFORM=android-24` |
 | MinGW | Tier 3 | MinGW-w64 | |
-| SunOS | Tier 3 | Solaris 121 and later | |
 | Other | Tier 3 | N/A | |
 
 ## Support types

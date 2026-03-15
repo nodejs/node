@@ -22,7 +22,6 @@
 #include "uv-common.h"
 #include "heap-inl.h"
 
-#include <assert.h>
 #include <limits.h>
 
 
