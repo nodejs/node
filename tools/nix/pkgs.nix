@@ -12,7 +12,7 @@ nixpkgs
   nixfmt-tree = nixpkgs.nixfmt-tree.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       (nixpkgs.fetchpatch2 {
-        url = "https://github.com/numtide/treefmt/commit/c370339aa3390267eb5b45cc6cb1566aa8cab1b9.patch?full_index=1";
+        url = "https://github.com/numtide/treefmt/commits/c370339aa3390267eb5b45cc6cb1566aa8cab1b9.patch?full_index=1";
         revert = true;
         hash = "sha256-ysGtMvXbaNLuKc4CkrESTxTwCcdoiPNZZWCyailE6co=";
       })
