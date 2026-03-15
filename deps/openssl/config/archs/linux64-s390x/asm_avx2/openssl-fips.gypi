@@ -346,6 +346,9 @@
       'OPENSSL_USE_NODELETE',
       'B_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'AES_CTR_ASM',
       'AES_XTS_ASM',
@@ -370,7 +373,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux64-s390x': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux64-s390x/asm_avx2/providers/fips.ld'
   },

@@ -1254,9 +1254,6 @@
       # for reducing the overall entropy.
       'PURIFY',
 
-      # Compression is not used and considered insecure (CRIME.)
-      'OPENSSL_NO_COMP',
-
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',
 

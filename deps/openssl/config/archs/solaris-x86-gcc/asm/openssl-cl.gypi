@@ -5,6 +5,9 @@
       'FILIO_H',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'CMLL_ASM',
       'DES_ASM',
@@ -34,7 +37,7 @@
       '-Wall -O3 -fomit-frame-pointer',
     ],
     'openssl_ex_libs_solaris-x86-gcc': [
-      '-lsocket -lnsl -ldl',
+      '-lm -lsocket -lnsl -ldl',
     ],
     'openssl_cli_srcs_solaris-x86-gcc': [
       'openssl/apps/lib/cmp_mock_srv.c',

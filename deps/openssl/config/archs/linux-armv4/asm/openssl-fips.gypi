@@ -347,6 +347,9 @@
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'BSAES_ASM',
       'ECP_NISTZ256_ASM',
@@ -368,7 +371,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux-armv4': [
-      '-ldl -pthread -latomic',
+      '-lm -ldl -pthread -latomic',
     ],
     'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux-armv4/asm/providers/fips.ld'
   },
