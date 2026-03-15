@@ -372,56 +372,6 @@ added:
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
 
-### `database.setSqlTraceHook(hook)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `hook` {Function|null} The trace function to set, or `null` to clear
-  the current hook.
-
-Sets a hook that SQLite invokes for every SQL statement executed against the
-database. The hook receives the expanded SQL string (with bound parameter
-values substituted) as its only argument. If expansion fails, the source SQL
-with unsubstituted placeholders is passed instead.
-
-This method is a wrapper around [`sqlite3_trace_v2()`][].
-
-```cjs
-const { DatabaseSync } = require('node:sqlite');
-const db = new DatabaseSync(':memory:');
-
-db.setSqlTraceHook((sql) => console.log(sql));
-
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER)
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0)
-
-// Clear the hook
-db.setSqlTraceHook(null);
-```
-
-```mjs
-import { DatabaseSync } from 'node:sqlite';
-const db = new DatabaseSync(':memory:');
-
-db.setSqlTraceHook((sql) => console.log(sql));
-
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER)
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0)
-
-// Clear the hook
-db.setSqlTraceHook(null);
-```
-
 ### `database.setAuthorizer(callback)`
 
 <!-- YAML
@@ -1331,6 +1281,66 @@ const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
 console.log('Backup completed', totalPagesTransferred);
 ```
 
+## Diagnostics channel
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `node:sqlite` module publishes SQL trace events on the
+[`diagnostics_channel`][] channel `sqlite.db.query`. This allows subscribers
+to observe every SQL statement executed against any `DatabaseSync` instance
+without modifying the database code itself. Tracing is zero-cost when there
+are no subscribers.
+
+### Channel `sqlite.db.query`
+
+The message published to this channel is a {string} containing the expanded
+SQL with bound parameter values substituted. If expansion fails, the source
+SQL with unsubstituted placeholders is used instead.
+
+```cjs
+const dc = require('node:diagnostics_channel');
+const { DatabaseSync } = require('node:sqlite');
+
+function onQuery(sql) {
+  console.log(sql);
+}
+
+dc.subscribe('sqlite.db.query', onQuery);
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER)
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0)
+
+dc.unsubscribe('sqlite.db.query', onQuery);
+```
+
+```mjs
+import dc from 'node:diagnostics_channel';
+import { DatabaseSync } from 'node:sqlite';
+
+function onQuery(sql) {
+  console.log(sql);
+}
+
+dc.subscribe('sqlite.db.query', onQuery);
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER)
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0)
+
+dc.unsubscribe('sqlite.db.query', onQuery);
+```
+
 ## `sqlite.constants`
 
 <!-- YAML
@@ -1596,6 +1606,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
+[`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
@@ -1617,7 +1628,6 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
-[`sqlite3_trace_v2()`]: https://www.sqlite.org/c3ref/trace_v2.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
