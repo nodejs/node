@@ -1,5 +1,4 @@
-// a class to manage an inventory and set of indexes of a set of objects based
-// on specific fields.
+// a class to manage an inventory and set of indexes of a set of objects based on specific fields.
 const { hasOwnProperty } = Object.prototype
 const debug = require('./debug.js')
 

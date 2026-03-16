@@ -13,16 +13,13 @@ async function updateWorkspaces ({
     return
   }
 
-  // default behavior is to not save by default in order to avoid
-  // race condition problems when publishing multiple workspaces
-  // that have dependencies on one another, it might still be useful
-  // in some cases, which then need to set --save
+  // default behavior is to not save by default in order to avoid race condition problems when publishing multiple workspaces that have dependencies on one another
+  // it might still be useful in some cases, which then need to set --save
   const save = config.isDefault('save')
     ? false
     : config.get('save')
 
-  // runs a minimalistic reify update, targeting only the workspaces
-  // that had version updates and skipping fund/audit/save
+  // runs a minimalistic reify update, targeting only the workspaces that had version updates and skipping fund/audit/save
   const opts = {
     ...flatOptions,
     audit: false,

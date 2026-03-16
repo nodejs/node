@@ -793,9 +793,14 @@ const hasParent = (node, compareNodes) => {
       compareNode = compareNode.target
     }
 
-    // follows logical parent for link ancestors
+    // Follows logical parent for link ancestors (e.g. workspaces whose target lives outside node_modules).
+    // Only match if the node has a link whose parent is the compareNode. Without this check, nodes deep in the store (linked strategy) would incorrectly match as children of root via their fsParent chain.
     if (node.isTop && (node.resolveParent === compareNode)) {
-      return true
+      for (const link of node.linksIn) {
+        if (link.parent === compareNode) {
+          return true
+        }
+      }
     }
     // follows edges-in to check if they match a possible parent
     for (const edge of node.edgesIn) {

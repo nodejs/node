@@ -241,10 +241,6 @@ For more details, see:
 - [npm v7 release notes](https://github.com/npm/cli/releases/tag/v7.0.0)
 - [Discussion about script working directory reliability in npm v6 and earlier](https://github.com/npm/npm/issues/12356)
 
-### User
-
-When npm is run as root, scripts are always run with the effective uid and gid of the working directory owner.
-
 ### Environment
 
 Package scripts run in an environment where many pieces of information are made available regarding the setup of npm and the current state of the process.

@@ -57,6 +57,7 @@ class LS extends ArboristWorkspaceCmd {
     const unicode = this.npm.config.get('unicode')
     const packageLockOnly = this.npm.config.get('package-lock-only')
     const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
+    const installStrategy = this.npm.flatOptions.installStrategy
 
     const path = global ? resolve(this.npm.globalDir, '..') : this.npm.prefix
 
@@ -71,8 +72,7 @@ class LS extends ArboristWorkspaceCmd {
     const tree = await this.initTree({ arb, args, packageLockOnly })
 
     // filters by workspaces nodes when using -w <workspace-name>
-    // We only have to filter the first layer of edges, so we don't
-    // explore anything that isn't part of the selected workspace set.
+    // We only have to filter the first layer of edges, so we don't explore anything that isn't part of the selected workspace set.
     let wsNodes
     if (this.workspaceNames && this.workspaceNames.length) {
       wsNodes = arb.workspaceNodes(tree, this.workspaceNames)
@@ -119,9 +119,7 @@ class LS extends ArboristWorkspaceCmd {
     // tree traversal happens here, using treeverse.breadth
     const result = await breadth({
       tree,
-      // recursive method, `node` is going to be the current elem (starting from
-      // the `tree` obj) that was just visited in the `visit` method below
-      // `nodeResult` is going to be the returned `item` from `visit`
+      // recursive method, `node` is going to be the current elem (starting from the `tree` obj) that was just visited in the `visit` method below `nodeResult` is going to be the returned `item` from `visit`
       getChildren (node, nodeResult) {
         const seenPaths = new Set()
         const workspace = node.isWorkspace
@@ -136,6 +134,9 @@ class LS extends ArboristWorkspaceCmd {
               link,
               omit,
             }) : () => true)
+            .filter(installStrategy === 'linked'
+              ? filterLinkedStrategyEdges({ node, currentDepth })
+              : () => true)
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
             .sort(sortAlphabetically)
@@ -146,8 +147,7 @@ class LS extends ArboristWorkspaceCmd {
               seenNodes,
             }))
       },
-      // visit each `node` of the `tree`, returning an `item` - these are
-      // the elements that will be used to build the final output
+      // visit each `node` of the `tree`, returning an `item` - these are the elements that will be used to build the final output
       visit (node) {
         node[_problems] = getProblems(node, { global })
 
@@ -260,14 +260,12 @@ const getProblems = (node, { global }) => {
   return problems
 }
 
-// annotates _parent and _include metadata into the resulting
-// item obj allowing for filtering out results during output
+// annotates _parent and _include metadata into the resulting item obj allowing for filtering out results during output
 const augmentItemWithIncludeMetadata = (node, item) => {
   item[_parent] = node[_parent]
   item[_include] = node[_include]
 
-  // append current item to its parent.nodes which is the
-  // structure expected by archy in order to print tree
+  // append current item to its parent.nodes which is the structure expected by archy in order to print tree
   if (node[_include]) {
     // includes all ancestors of included node
     let p = node[_parent]
@@ -353,9 +351,8 @@ const getJsonOutputItem = (node, { global, long }) => {
     item.resolved = node.resolved
   }
 
-  // if the node is the project root, do not add the overridden flag. the project root can't be
-  // overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json`
-  // is ran in an empty directory since we end up printing an object with only an overridden prop
+  // if the node is the project root, do not add the overridden flag.
+  // the project root can't be overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json` is ran in an empty directory since we end up printing an object with only an overridden prop
   if (!node.isProjectRoot) {
     item.overridden = node.overridden
   }
@@ -403,6 +400,34 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
+// In linked strategy, two types of edges produce false UNMET DEPENDENCYs:
+// 1. Workspace edges for undeclared workspaces: the lockfile records edges from root to ALL workspaces, but only declared workspaces are hoisted to root/node_modules in linked mode.  Undeclared ones are intentionally absent.
+// 2. Dev edges on non-root packages: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
+const filterLinkedStrategyEdges = ({ node, currentDepth }) => {
+  const declaredDeps = new Set(Object.keys(Object.assign({},
+    node.target.package.dependencies,
+    node.target.package.devDependencies,
+    node.target.package.optionalDependencies,
+    node.target.package.peerDependencies
+  )))
+
+  return (edge) => {
+    // Skip workspace edges for undeclared workspaces at root level
+    if (currentDepth === 0 && edge.type === 'workspace' && edge.missing) {
+      if (!declaredDeps.has(edge.name)) {
+        return false
+      }
+    }
+
+    // Skip dev edges for non-root packages (store packages)
+    if (currentDepth > 0 && edge.dev) {
+      return false
+    }
+
+    return true
+  }
+}
+
 const filterByEdgesTypes = ({ link, omit }) => (edge) => {
   for (const omitType of omit) {
     if (edge[omitType]) {
@@ -421,18 +446,15 @@ const appendExtraneousChildren = ({ node, seenPaths }) =>
 const mapEdgesToNodes = ({ seenPaths }) => (edge) => {
   let node = edge.to
 
-  // if the edge is linking to a missing node, we go ahead
-  // and create a new obj that will represent the missing node
+  // if the edge is linking to a missing node, we go ahead and create a new obj that will represent the missing node
   if (edge.missing || (edge.optional && !node)) {
     const { name, spec } = edge
     const pkgid = `${name}@${spec}`
     node = { name, pkgid, [_missing]: edge.from.pkgid }
   }
 
-  // keeps track of a set of seen paths to avoid the edge case in which a tree
-  // item would appear twice given that it's a children of an extraneous item,
-  // so it's marked extraneous but it will ALSO show up in edgesOuts of
-  // its parent so it ends up as two diff nodes if we don't track it
+  // keeps track of a set of seen paths to avoid the edge case in which a tree item would appear twice given that it's a children of an extraneous item
+  // so it's marked extraneous but it will ALSO show up in edgesOuts of its parent so it ends up as two diff nodes if we don't track it
   if (node.path) {
     seenPaths.add(node.path)
   }
@@ -461,9 +483,7 @@ const augmentNodesWithMetadata = ({
   nodeResult,
   seenNodes,
 }) => (node) => {
-  // if the original edge was a deduped dep, treeverse will fail to
-  // revisit that node in tree traversal logic, so we make it so that
-  // we have a diff obj for deduped nodes:
+  // if the original edge was a deduped dep, treeverse will fail to revisit that node in tree traversal logic, so we make it so that we have a diff obj for deduped nodes:
   if (seenNodes.has(node.path)) {
     const { realpath, root } = node
     const targetLocation = root ? relative(root.realpath, realpath)
@@ -488,18 +508,14 @@ const augmentNodesWithMetadata = ({
     seenNodes.set(node.path, node)
   }
 
-  // _parent is going to be a ref to a treeverse-visited node (returned from
-  // getHumanOutputItem, getJsonOutputItem, etc) so that we have an easy
-  // shortcut to place new nodes in their right place during tree traversal
+  // _parent is going to be a ref to a treeverse-visited node (returned from getHumanOutputItem, getJsonOutputItem, etc) so that we have an easy shortcut to place new nodes in their right place during tree traversal
   node[_parent] = nodeResult
   // _include is the property that allow us to filter based on position args
   // e.g: `npm ls foo`, `npm ls simple-output@2`
-  // _filteredBy is used to apply extra color info to the item that
-  // was used in args in order to filter
+  // _filteredBy is used to apply extra color info to the item that was used in args in order to filter
   node[_filteredBy] = node[_include] =
     filterByPositionalArgs(args, { node: seenNodes.get(node.path) })
-  // _depth keeps track of how many levels deep tree traversal currently is
-  // so that we can `npm ls --depth=1`
+  // _depth keeps track of how many levels deep tree traversal currently is so that we can `npm ls --depth=1`
   node[_depth] = currentDepth + 1
 
   return node
@@ -508,9 +524,7 @@ const augmentNodesWithMetadata = ({
 const sortAlphabetically = ({ pkgid: a }, { pkgid: b }) => localeCompare(a, b)
 
 const humanOutput = ({ chalk, result, seenItems, unicode }) => {
-  // we need to traverse the entire tree in order to determine which items
-  // should be included (since a nested transitive included dep will make it
-  // so that all its ancestors should be displayed)
+  // we need to traverse the entire tree in order to determine which items should be included (since a nested transitive included dep will make it so that all its ancestors should be displayed)
   // here is where we put items in their expected place for archy output
   for (const item of seenItems) {
     if (item[_include] && item[_parent]) {
@@ -539,13 +553,10 @@ const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
     result.invalid = true
   }
 
-  // we need to traverse the entire tree in order to determine which items
-  // should be included (since a nested transitive included dep will make it
-  // so that all its ancestors should be displayed)
+  // we need to traverse the entire tree in order to determine which items should be included (since a nested transitive included dep will make it so that all its ancestors should be displayed)
   // here is where we put items in their expected place for json output
   for (const item of seenItems) {
-    // append current item to its parent item.dependencies obj in order
-    // to provide a json object structure that represents the installed tree
+    // append current item to its parent item.dependencies obj in order to provide a json object structure that represents the installed tree
     if (item[_include] && item[_parent]) {
       if (!item[_parent].dependencies) {
         item[_parent].dependencies = {}

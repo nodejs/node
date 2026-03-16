@@ -40,9 +40,9 @@ class Team extends BaseCommand {
 
   async exec ([cmd, entity = '', user = '']) {
     // Entities are in the format <scope>:<team>
-    // XXX: "description" option to libnpmteam is used as a description of the
-    // team, but in npm's options, this is a boolean meaning "show the
-    // description in npm search output".  Hence its being set to null here.
+    // XXX: "description" option to libnpmteam is used as a description of the team, but in npm's options
+    // this is a boolean meaning "show the description in npm search output".
+    // Hence its being set to null here.
     await otplease(this.npm, { ...this.npm.flatOptions }, opts => {
       entity = entity.replace(/^@/, '')
       switch (cmd) {

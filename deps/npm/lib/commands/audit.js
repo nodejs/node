@@ -36,7 +36,7 @@ class Audit extends ArboristWorkspaceCmd {
       case 'signatures':
         return []
       default:
-        throw Object.assign(new Error(argv[2] + ' not recognized'), {
+        throw Object.assign(new Error(`${argv[2]} not recognized`), {
           code: 'EUSAGE',
         })
     }
