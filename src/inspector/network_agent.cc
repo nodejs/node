@@ -25,7 +25,7 @@ using v8::Value;
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
-  isolate->ThrowException(v8::Exception::Error(
+  isolate->ThrowException(v8::Exception::TypeError(
       v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
 }
 
