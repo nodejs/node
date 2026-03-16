@@ -43,8 +43,7 @@ class VerifySignatures {
     log.verbose('verifying registry signatures')
     await pMap(edges, (e) => this.getVerifiedInfo(e), { concurrency: 20, stopOnError: true })
 
-    // Didn't find any dependencies that could be verified, e.g. only local
-    // deps, missing version, not on a registry etc.
+    // Didn't find any dependencies that could be verified, e.g. only local deps, missing version, not on a registry etc.
     if (!this.auditedWithKeysCount && !this.verifiedAttestationCount) {
       throw new Error('found no dependencies to audit that were installed from ' +
                       'a supported registry')
@@ -318,8 +317,7 @@ class VerifySignatures {
     }
     this.checkedPackages.add(location)
 
-    // We only "audit" or verify the signature, or the presence of it, on
-    // packages whose registry returns signing keys
+    // We only "audit" or verify the signature, or the presence of it, on packages whose registry returns signing keys
     const keys = this.keys.get(registry) || []
     if (keys.length) {
       this.auditedWithKeysCount += 1
@@ -345,9 +343,7 @@ class VerifySignatures {
         })
       }
 
-      // Track verified attestations separately to registry signatures, as all
-      // packages on registries with signing keys are expected to have registry
-      // signatures, but not all packages have provenance and publish attestations.
+      // Track verified attestations separately to registry signatures, as all packages on registries with signing keys are expected to have registry signatures, but not all packages have provenance and publish attestations.
       if (attestations) {
         this.verifiedAttestationCount += 1
       }

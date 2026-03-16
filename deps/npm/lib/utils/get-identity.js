@@ -17,8 +17,7 @@ module.exports = async (npm, opts) => {
     }
   }
 
-  // At this point, even if they have a credentials object, it doesn't have a
-  // valid token.
+  // At this point, even if they have a credentials object, it doesn't have a valid token.
   throw Object.assign(
     new Error('This command requires you to be logged in.'),
     { code: 'ENEEDAUTH' }

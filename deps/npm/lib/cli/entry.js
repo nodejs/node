@@ -1,7 +1,6 @@
 // Separated out for easier unit testing
 module.exports = async (process, validateEngines) => {
-  // set it here so that regardless of what happens later, we don't
-  // leak any private CLI configs to other programs
+  // set it here so that regardless of what happens later, we don't leak any private CLI configs to other programs
   process.title = 'npm'
 
   // Patch the global fs module here at the app level
@@ -20,11 +19,13 @@ module.exports = async (process, validateEngines) => {
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
 
-  // At this point we've required a few files and can be pretty sure we don't contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
+  // At this point we've required a few files and can be pretty sure we don't contain invalid syntax for this version of node.
+  // It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
   validateEngines.off()
   exitHandler.registerUncaughtHandlers()
 
-  // It is now safe to log a warning if they are using a version of node that is not going to fail on syntax errors but is still unsupported and untested and might not work reliably. This is safe to use the logger now which we want since this will show up in the error log too.
+  // It is now safe to log a warning if they are using a version of node that is not going to fail on syntax errors but is still unsupported and untested and might not work reliably.
+  // This is safe to use the logger now which we want since this will show up in the error log too.
   if (!satisfies(validateEngines.node, validateEngines.engines)) {
     log.warn('cli', validateEngines.unsupportedMessage)
   }
@@ -57,9 +58,8 @@ module.exports = async (process, validateEngines) => {
 
     const execPromise = npm.exec(command, args)
 
-    // this is async but we don't await it, since its ok if it doesnt
-    // finish before the command finishes running. it uses command and argv
-    // so it must be initiated here, after the command name is set
+    // this is async but we don't await it, since its ok if it doesnt finish before the command finishes running.
+    // it uses command and argv so it must be initiated here, after the command name is set
     const updateNotifier = require('./update-notifier.js')
     // eslint-disable-next-line promise/catch-or-return
     updateNotifier(npm).then((msg) => (npm.updateNotification = msg))
