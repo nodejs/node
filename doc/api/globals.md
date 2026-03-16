@@ -176,10 +176,11 @@ that the `abortSignal.aborted` attribute is `false` before adding an `'abort'`
 event listener.
 
 Any event listeners attached to the `AbortSignal` should use the
-`{ once: true }` option (or, if using the `EventEmitter` APIs to attach a
-listener, use the `once()` method) to ensure that the event listener is
-removed as soon as the `'abort'` event is handled. Failure to do so may
-result in memory leaks.
+`{ once: true }` option (or remove the listener manually) to ensure that the
+event listener is removed as soon as the `'abort'` event is handled. Failure
+to do so may result in memory leaks. Event listeners should also be removed if
+they are no longer needed (for example, if the operation is completed before
+the signal is aborted).
 
 ### `abortSignal.aborted`
 
