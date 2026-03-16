@@ -77,6 +77,8 @@ expect('--abort_on-uncaught_exception', 'B\n');
 expect('--disallow-code-generation-from-strings', 'B\n');
 expect('--expose-gc', 'B\n');
 expect('--jitless', 'B\n');
+expect('--no-maglev', 'B\n');
+expect('--maglev', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
 expect('--max-semi-space-size=0', 'B\n');
 expect('--stack-trace-limit=100',
