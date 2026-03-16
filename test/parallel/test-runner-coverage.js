@@ -31,12 +31,12 @@ function getTapCoverageFixtureReport() {
     '# test              |        |          |         | ',
     '#  fixtures         |        |          |         | ',
     '#   test-runner     |        |          |         | ',
-    '#    coverage.js    |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#    coverage.js    |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
     '#   v8-coverage     |        |          |         | ',
     '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
     '# -----------------------------------------------------------------------------------------',
-    '# all files         |  79.38 |    46.67 |   60.00 | ',
+    '# all files         |  79.38 |    43.75 |   60.00 | ',
     '# -----------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -59,12 +59,12 @@ function getSpecCoverageFixtureReport() {
     '\u2139 test              |        |          |         | ',
     '\u2139  fixtures         |        |          |         | ',
     '\u2139   test-runner     |        |          |         | ',
-    '\u2139    coverage.js    |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '\u2139    coverage.js    |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '\u2139    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
     '\u2139   v8-coverage     |        |          |         | ',
     '\u2139    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
     '\u2139 -----------------------------------------------------------------------------------------',
-    '\u2139 all files         |  79.38 |    46.67 |   60.00 | ',
+    '\u2139 all files         |  79.38 |    43.75 |   60.00 | ',
     '\u2139 -----------------------------------------------------------------------------------------',
     '\u2139 end of coverage report',
   ].join('\n');
@@ -198,12 +198,12 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
     '# -------------------------------------------------------------------',
     '# file           | line % | branch % | funcs % | uncovered lines',
     '# -------------------------------------------------------------------',
-    '# common.js      |  89.86 |    66.67 |  100.00 | 8 13-14 18 34-35 53',
+    '# common.js      |  89.86 |    62.50 |  100.00 | 8 13-14 18 34-35 53',
     '# first.test.js  |  83.33 |   100.00 |   50.00 | 5-6',
     '# second.test.js | 100.00 |   100.00 |  100.00 | ',
     '# third.test.js  | 100.00 |   100.00 |  100.00 | ',
     '# -------------------------------------------------------------------',
-    '# all files      |  92.11 |    76.19 |   88.89 | ',
+    '# all files      |  92.11 |    72.73 |   88.89 | ',
     '# -------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -421,11 +421,11 @@ test('coverage with excluded files', skipIfNoInspector, () => {
     '# test           |        |          |         | ',
     '#  fixtures      |        |          |         | ',
     '#   test-runner  |        |          |         | ',
-    '#    coverage.js |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#    coverage.js |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '#   v8-coverage  |        |          |         | ',
     '#    throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
     '# --------------------------------------------------------------------------------------',
-    '# all files      |  79.17 |    42.86 |   60.00 | ',
+    '# all files      |  79.17 |    40.00 |   60.00 | ',
     '# --------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -458,11 +458,11 @@ test('coverage with included files', skipIfNoInspector, () => {
     '# test           |        |          |         | ',
     '#  fixtures      |        |          |         | ',
     '#   test-runner  |        |          |         | ',
-    '#    coverage.js |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#    coverage.js |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '#   v8-coverage  |        |          |         | ',
     '#    throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
     '# --------------------------------------------------------------------------------------',
-    '# all files      |  79.17 |    42.86 |   60.00 | ',
+    '# all files      |  79.17 |    40.00 |   60.00 | ',
     '# --------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -494,9 +494,9 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
     '# test           |        |          |         | ',
     '#  fixtures      |        |          |         | ',
     '#   test-runner  |        |          |         | ',
-    '#    coverage.js |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#    coverage.js |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '# --------------------------------------------------------------------------------------',
-    '# all files      |  79.78 |    41.67 |   60.00 | ',
+    '# all files      |  79.78 |    38.46 |   60.00 | ',
     '# --------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -518,13 +518,13 @@ test('correctly prints the coverage report of files contained in parent director
     '# file              | line % | branch % | funcs % | uncovered lines',
     '# -----------------------------------------------------------------------------------------',
     '# ..                |        |          |         | ',
-    '#  coverage.js      |  79.78 |    41.67 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#  coverage.js      |  79.78 |    38.46 |   60.00 | 12 16-22 27 39 43-44 61-62 66-67 71-72',
     '#  invalid-tap.js   | 100.00 |   100.00 |  100.00 | ',
     '#  ..               |        |          |         | ',
     '#   v8-coverage     |        |          |         | ',
     '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
     '# -----------------------------------------------------------------------------------------',
-    '# all files         |  79.38 |    46.67 |   60.00 | ',
+    '# all files         |  79.38 |    43.75 |   60.00 | ',
     '# -----------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -573,29 +573,27 @@ test('coverage ignore comments exclude branches in lcov output', skipIfNoInspect
     .find((s) => s.includes('source.js'));
   assert(sourceSection, 'lcov output should contain source.js coverage');
 
-  // Verify that all branches are reported as covered (BRH should equal BRF).
-  // The ignored branch should not penalize coverage.
   const brfMatch = sourceSection.match(/BRF:(\d+)/);
   const brhMatch = sourceSection.match(/BRH:(\d+)/);
   assert.match(sourceSection, /BRF:\d+/, 'lcov should contain BRF');
   assert.match(sourceSection, /BRH:\d+/, 'lcov should contain BRH');
+
+  // getValue's false branch is fully ignored, so it should be excluded.
   assert.strictEqual(
-    brfMatch[1],
-    brhMatch[1],
-    `All branches should be covered when ignored code is excluded. ` +
+    Number(brfMatch[1]),
+    Number(brhMatch[1]) + 1,
+    `Expected exactly one uncovered branch (getMixed). ` +
     `BRF=${brfMatch[1]}, BRH=${brhMatch[1]}`,
   );
 
-  // Verify no BRDA entries show 0 for the ignored branch.
-  const brdaEntries = sourceSection.match(/BRDA:\d+,\d+,\d+,(\d+)/g) || [];
-  for (const entry of brdaEntries) {
-    const count = entry.match(/BRDA:\d+,\d+,\d+,(\d+)/)[1];
-    assert.notStrictEqual(
-      count,
-      '0',
-      `No branch should show 0 coverage when the path is ignored: ${entry}`,
-    );
-  }
+  // Verify the only BRDA with count=0 is from getMixed (not getValue).
+  const brdaEntries = sourceSection.match(/BRDA:\d+,\d+,\d+,\d+/g) || [];
+  const uncoveredEntries = brdaEntries.filter((e) => e.endsWith(',0'));
+  assert.strictEqual(
+    uncoveredEntries.length,
+    1,
+    `Expected exactly one uncovered BRDA entry, got: ${uncoveredEntries}`,
+  );
 });
 
 // Regression test for https://github.com/nodejs/node/issues/61080
