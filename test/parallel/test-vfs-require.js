@@ -291,7 +291,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test legacyMainResolve: package with "main" field resolves through VFS
+// Test CJS: package with "main" field resolves through VFS
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg/lib', { recursive: true });
@@ -308,7 +308,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test legacyMainResolve: package with no "main" field resolves index.js
+// Test CJS: package with no "main" field resolves index.js
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg2', { recursive: true });
@@ -324,6 +324,48 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
+// Test ESM legacyMainResolve: import() a VFS package with "main" (no "exports")
+// This triggers the ESM legacyMainResolve path in resolve.js via bare specifier
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/app/node_modules/esm-legacy-main/lib', { recursive: true });
+  myVfs.writeFileSync('/app/node_modules/esm-legacy-main/package.json', JSON.stringify({
+    name: 'esm-legacy-main',
+    type: 'module',
+    main: './lib/entry.js',
+  }));
+  myVfs.writeFileSync('/app/node_modules/esm-legacy-main/lib/entry.js',
+                      'export const value = "esm-legacy-main";');
+  myVfs.writeFileSync('/app/main.mjs',
+                      'export { value } from "esm-legacy-main";');
+  myVfs.mount('/virtual20b');
+
+  import('/virtual20b/app/main.mjs').then(common.mustCall((mod) => {
+    assert.strictEqual(mod.value, 'esm-legacy-main');
+    myVfs.unmount();
+  }));
+}
+
+// Test ESM legacyMainResolve: import() a VFS package with no "main" (index.js fallback)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/app2/node_modules/esm-nomain', { recursive: true });
+  myVfs.writeFileSync('/app2/node_modules/esm-nomain/package.json', JSON.stringify({
+    name: 'esm-nomain',
+    type: 'module',
+  }));
+  myVfs.writeFileSync('/app2/node_modules/esm-nomain/index.js',
+                      'export const value = "esm-index-fallback";');
+  myVfs.writeFileSync('/app2/main.mjs',
+                      'export { value } from "esm-nomain";');
+  myVfs.mount('/virtual21b');
+
+  import('/virtual21b/app2/main.mjs').then(common.mustCall((mod) => {
+    assert.strictEqual(mod.value, 'esm-index-fallback');
+    myVfs.unmount();
+  }));
+}
+
 // Test getFormatOfExtensionlessFile: extensionless JS file in type:module package
 {
   const myVfs = vfs.create();
@@ -335,9 +377,8 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/esm-pkg/entry', 'export const x = 123;');
   myVfs.mount('/virtual22');
 
-  // Use import() to trigger ESM loader path
-  const importPromise = import('/virtual22/esm-pkg/entry');
-  importPromise.then(common.mustCall((mod) => {
+  // Use import() to trigger ESM loader path for extensionless file detection
+  import('/virtual22/esm-pkg/entry').then(common.mustCall((mod) => {
     assert.strictEqual(mod.x, 123);
     myVfs.unmount();
   }));
