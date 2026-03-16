@@ -17,20 +17,20 @@ keylen_list.forEach((key) => {
 });
 
 const bench = common.createBenchmark(main, {
-  writes: [500],
+  n: [500],
   algo: ['SHA1', 'SHA224', 'SHA256', 'SHA384', 'SHA512'],
   keylen: keylen_list,
   len: [1024, 102400, 2 * 102400, 3 * 102400, 1024 * 1024],
 });
 
-function main({ len, algo, keylen, writes }) {
+function main({ len, algo, keylen, n }) {
   const message = Buffer.alloc(len, 'b');
   bench.start();
-  StreamWrite(algo, keylen, message, writes, len);
+  StreamWrite(algo, keylen, message, n, len);
 }
 
-function StreamWrite(algo, keylen, message, writes, len) {
-  const written = writes * len;
+function StreamWrite(algo, keylen, message, n, len) {
+  const written = n * len;
   const bits = written * 8;
   const kbits = bits / (1024);
 
@@ -38,7 +38,7 @@ function StreamWrite(algo, keylen, message, writes, len) {
   const s = crypto.createSign(algo);
   const v = crypto.createVerify(algo);
 
-  while (writes-- > 0) {
+  while (n-- > 0) {
     s.update(message);
     v.update(message);
   }
