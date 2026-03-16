@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -289,6 +289,58 @@ const vfs = require('node:vfs');
   assert.strictEqual(mod.z, 99);
 
   myVfs.unmount();
+}
+
+// Test legacyMainResolve: package with "main" field resolves through VFS
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/pkg/lib', { recursive: true });
+  myVfs.writeFileSync('/pkg/package.json', JSON.stringify({
+    name: 'legacy-main-pkg',
+    main: './lib/entry',
+  }));
+  myVfs.writeFileSync('/pkg/lib/entry.js', 'module.exports = "legacy-main";');
+  myVfs.mount('/virtual20');
+
+  const result = require('/virtual20/pkg');
+  assert.strictEqual(result, 'legacy-main');
+
+  myVfs.unmount();
+}
+
+// Test legacyMainResolve: package with no "main" field resolves index.js
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/pkg2', { recursive: true });
+  myVfs.writeFileSync('/pkg2/package.json', JSON.stringify({
+    name: 'no-main-pkg',
+  }));
+  myVfs.writeFileSync('/pkg2/index.js', 'module.exports = "index-fallback";');
+  myVfs.mount('/virtual21');
+
+  const result = require('/virtual21/pkg2');
+  assert.strictEqual(result, 'index-fallback');
+
+  myVfs.unmount();
+}
+
+// Test getFormatOfExtensionlessFile: extensionless JS file in type:module package
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/esm-pkg', { recursive: true });
+  myVfs.writeFileSync('/esm-pkg/package.json', JSON.stringify({
+    name: 'esm-pkg',
+    type: 'module',
+  }));
+  myVfs.writeFileSync('/esm-pkg/entry', 'export const x = 123;');
+  myVfs.mount('/virtual22');
+
+  // Use import() to trigger ESM loader path
+  const importPromise = import('/virtual22/esm-pkg/entry');
+  importPromise.then(common.mustCall((mod) => {
+    assert.strictEqual(mod.x, 123);
+    myVfs.unmount();
+  }));
 }
 
 // Test that unmounting stops interception
