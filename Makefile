@@ -840,6 +840,10 @@ ifeq ($(OSTYPE),aix)
 # TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
+else ifeq ($(OSTYPE),os400)
+# TODO(@nodejs/web-infra): IBMi is currently hanging during HTML minification
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \

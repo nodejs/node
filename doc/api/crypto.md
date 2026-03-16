@@ -2121,6 +2121,11 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62178
+    description: ML-KEM and ML-DSA private key `'pkcs8'` export now
+                 uses seed-only format by default when a seed is
+                 available.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37081
     description: Added support for `'jwk'` format.

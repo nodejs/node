@@ -40,7 +40,7 @@
 #ifdef __MVS__
 #include "zos-base.h"
 /* Initialize environment and zoslib */
-__attribute__((constructor)) void init() {
+__attribute__((constructor)) void init(void) {
   zoslib_config_t config;
   init_zoslib_config(&config);
   init_zoslib(config);
@@ -214,7 +214,10 @@ static int maybe_run_test(int argc, char **argv) {
 #ifdef _WIN32
     DWORD flags;
     HMODULE kernelbase_module;
-    sCompareObjectHandles pCompareObjectHandles; /* function introduced in Windows 10 */
+    union {
+      FARPROC proc;
+      sCompareObjectHandles pCompareObjectHandles; /* Windows >= 10 */
+    } u;
 #endif
     notify_parent_process();
     ASSERT_EQ(sizeof(closed_fd), read(0, &closed_fd, sizeof(closed_fd)));
@@ -223,11 +226,10 @@ static int maybe_run_test(int argc, char **argv) {
     ASSERT_GT((intptr_t) closed_fd, 0);
     ASSERT_GT((intptr_t) open_fd, 0);
     ASSERT_NE(0, GetHandleInformation(open_fd, &flags));
-    kernelbase_module = GetModuleHandleA("kernelbase.dll");
-    pCompareObjectHandles = (sCompareObjectHandles)
-        GetProcAddress(kernelbase_module, "CompareObjectHandles");
-    ASSERT_NE(pCompareObjectHandles == NULL || \
-              !pCompareObjectHandles(open_fd, closed_fd), 0);
+    kernelbase_module = GetModuleHandleW(L"kernelbase.dll");
+    u.proc = GetProcAddress(kernelbase_module, "CompareObjectHandles");
+    if (u.pCompareObjectHandles != NULL)
+      ASSERT_EQ(FALSE, u.pCompareObjectHandles(open_fd, closed_fd));
 #else
     ASSERT_GT(open_fd, 2);
     ASSERT_GT(closed_fd, 2);

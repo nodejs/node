@@ -88,8 +88,6 @@ TEST_IMPL(thread_priority) {
  * test set nice value for the calling thread with default schedule policy
 */
 #ifdef __linux__
-  ASSERT_OK(uv_thread_getpriority(pthread_self(), &priority));
-  ASSERT_EQ(priority, 0);
   ASSERT_OK(uv_thread_setpriority(pthread_self(), UV_THREAD_PRIORITY_LOWEST));
   ASSERT_OK(uv_thread_getpriority(pthread_self(), &priority));
   ASSERT_EQ(priority, (0 - UV_THREAD_PRIORITY_LOWEST * 2));
@@ -100,6 +98,12 @@ TEST_IMPL(thread_priority) {
   ASSERT_OK(uv_thread_join(&task_id));
 
   uv_sem_destroy(&sem);
+
+  /* Now that the thread no longer exists, verify that the relevant error is returned */
+#if !defined(__ANDROID__)
+  ASSERT_EQ(UV_ESRCH, uv_thread_getpriority(task_id, &priority));
+  ASSERT_EQ(UV_ESRCH, uv_thread_setpriority(task_id, UV_THREAD_PRIORITY_LOWEST));
+#endif
 
   return 0;
 }

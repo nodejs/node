@@ -1447,6 +1447,50 @@ Emitted when [`child_process.spawn()`][] encounters an error.
 
 Emitted when [`process.execve()`][] is invoked.
 
+#### Web Locks
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added: REPLACEME
+-->
+
+These channels are emitted for each [`locks.request()`][] call. See
+[`worker_threads.locks`][] for details on Web Locks.
+
+##### Event: `'locks.request.start'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock request is initiated, before the lock is granted.
+
+##### Event: `'locks.request.grant'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock is successfully granted and the callback is about to run.
+
+##### Event: `'locks.request.miss'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when `ifAvailable` is `true` and the lock is not immediately available,
+and the request callback is invoked with `null` instead of a `Lock` object.
+
+##### Event: `'locks.request.end'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+* `steal` {boolean} Whether the request uses steal semantics.
+* `ifAvailable` {boolean} Whether the request uses ifAvailable semantics.
+* `error` {Error|undefined} The error thrown by the callback, if any.
+
+Emitted when a lock request has finished, whether the callback succeeded,
+threw an error, or the lock was stolen.
+
 #### Worker Thread
 
 > Stability: 1 - Experimental
@@ -1476,7 +1520,9 @@ Emitted when a new thread is created.
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
